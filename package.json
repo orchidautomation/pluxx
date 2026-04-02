@@ -1,19 +1,26 @@
 {
   "name": "plugahh",
   "version": "0.1.0",
-  "description": "Define your AI agent plugin once. Ship it to Claude Code, Cursor, OpenCode, and Codex.",
+  "description": "Build AI agent plugins once. Ship them to Claude Code, Cursor, Codex, OpenCode, GitHub Copilot, and more.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "plugahh": "dist/cli/index.js"
+    "plugahh": "src/cli/index.ts"
   },
   "scripts": {
     "build": "bun build src/index.ts --outdir dist --target node",
     "dev": "bun --watch src/cli/index.ts",
     "test": "bun test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "bun run typecheck && bun test"
   },
+  "files": [
+    "src/**/*",
+    "dist/**/*",
+    "README.md",
+    "LICENSE"
+  ],
   "keywords": [
     "ai-agent",
     "plugin",
@@ -21,15 +28,28 @@
     "cursor",
     "opencode",
     "codex",
+    "github-copilot",
     "agent-skills",
     "mcp",
-    "sdk"
+    "sdk",
+    "cross-platform"
   ],
-  "author": "Brandon Guerrero",
+  "author": {
+    "name": "Brandon Guerrero",
+    "url": "https://github.com/orchidautomation"
+  },
   "license": "MIT",
+  "homepage": "https://plugahh.dev",
   "repository": {
     "type": "git",
-    "url": "https://github.com/brandonguerrero/plugahh"
+    "url": "https://github.com/orchidautomation/plugahh"
+  },
+  "bugs": {
+    "url": "https://github.com/orchidautomation/plugahh/issues"
+  },
+  "engines": {
+    "node": ">=18",
+    "bun": ">=1.0"
   },
   "devDependencies": {
     "@types/bun": "latest",
