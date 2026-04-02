@@ -99,6 +99,10 @@ export const TargetPlatform = z.enum([
   'github-copilot',
   'openhands',
   'warp',
+  'gemini-cli',
+  'roo-code',
+  'cline',
+  'amp',
 ])
 export type TargetPlatform = z.infer<typeof TargetPlatform>
 

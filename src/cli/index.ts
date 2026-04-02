@@ -3,7 +3,11 @@
 import { loadConfig } from '../config/load'
 import { build } from '../generators'
 import { installPlugin, uninstallPlugin } from './install'
+import { runDev } from './dev'
+import { promptText, promptYesNo, closePrompts } from './prompt'
 import type { TargetPlatform } from '../schema'
+import { basename } from 'path'
+import { mkdir } from 'fs/promises'
 
 const args = process.argv.slice(2)
 const command = args[0]
@@ -12,6 +16,9 @@ async function main() {
   switch (command) {
     case 'build':
       await runBuild()
+      break
+    case 'dev':
+      await runDev(args.slice(1))
       break
     case 'validate':
       await runValidate()
@@ -81,45 +88,136 @@ async function runValidate() {
 }
 
 async function runInit() {
-  const name = args[1] ?? 'my-plugin'
+  const dirName = basename(process.cwd()).toLowerCase().replace(/[^a-z0-9-]/g, '-')
 
-  const template = `import { definePlugin } from 'plugahh'
+  console.log('')
+  console.log('  plugahh init — Create a new plugin')
+  console.log('  ─────────────────────────────────')
+  console.log('')
+
+  try {
+    // 1. Plugin identity
+    const name = await promptText('Plugin name', dirName)
+    const description = await promptText('Description')
+    const authorName = await promptText('Author name')
+
+    // 2. MCP server
+    const hasMcp = await promptYesNo('Does your plugin connect to an MCP server?')
+    let mcpUrl = ''
+    let mcpEnvVar = ''
+    if (hasMcp) {
+      mcpUrl = await promptText('MCP server URL')
+      mcpEnvVar = await promptText('Auth env var name (e.g. MY_API_KEY)')
+    }
+
+    // 3. Platforms
+    const defaultTargets = 'claude-code,cursor,codex,opencode'
+    const targetsRaw = await promptText('Which platforms? (comma-separated)', defaultTargets)
+    const targets = targetsRaw.split(',').map(t => t.trim()).filter(Boolean)
+
+    // 4. Brand metadata
+    const hasBrand = await promptYesNo('Add brand metadata?')
+    let displayName = ''
+    let brandColor = ''
+    if (hasBrand) {
+      displayName = await promptText('Display name')
+      brandColor = await promptText('Brand color (hex)', '#000000')
+    }
+
+    closePrompts()
+
+    // Build the config file content
+    const targetsList = targets.map(t => `'${t}'`).join(', ')
+    let mcpBlock = ''
+    if (hasMcp && mcpUrl) {
+      const serverName = name.replace(/[^a-z0-9]/g, '-')
+      mcpBlock = `
+  // MCP servers your plugin connects to
+  mcp: {
+    '${serverName}': {
+      url: '${mcpUrl}',${mcpEnvVar ? `
+      auth: {
+        type: 'bearer',
+        envVar: '${mcpEnvVar}',
+      },` : ''}
+    },
+  },
+`
+    }
+
+    let brandBlock = ''
+    if (hasBrand && displayName) {
+      brandBlock = `
+  // Brand metadata
+  brand: {
+    displayName: '${displayName}',${brandColor ? `
+    color: '${brandColor}',` : ''}
+  },
+`
+    }
+
+    const template = `import { definePlugin } from 'plugahh'
 
 export default definePlugin({
   name: '${name}',
   version: '0.1.0',
-  description: 'TODO: Describe your plugin',
+  description: '${description.replace(/'/g, "\\'")}',
   author: {
-    name: 'TODO: Your Name',
+    name: '${authorName.replace(/'/g, "\\'")}',
   },
   license: 'MIT',
 
   // Skills directory (SKILL.md files following Agent Skills standard)
   skills: './skills/',
-
-  // MCP servers your plugin connects to
-  // mcp: {
-  //   'my-server': {
-  //     url: 'https://my-server.com/mcp',
-  //     auth: {
-  //       type: 'bearer',
-  //       envVar: 'MY_API_KEY',
-  //     },
-  //   },
-  // },
-
+${mcpBlock}${brandBlock}
   // Target platforms to generate
-  targets: ['claude-code', 'cursor', 'codex', 'opencode'],
+  targets: [${targetsList}],
 })
 `
 
-  await Bun.write('plugahh.config.ts', template)
-  console.log('Created plugahh.config.ts')
-  console.log('')
-  console.log('Next steps:')
-  console.log('  1. Edit plugahh.config.ts with your plugin details')
-  console.log('  2. Create skills in ./skills/<skill-name>/SKILL.md')
-  console.log('  3. Run: plugahh build')
+    // Write config
+    await Bun.write('plugahh.config.ts', template)
+
+    // Create skills directory with a starter SKILL.md
+    await mkdir('skills', { recursive: true })
+
+    const skillContent = `---
+name: ${name}
+description: ${description || 'A starter skill for ' + name}
+version: 0.1.0
+---
+
+# ${displayName || name}
+
+${description || 'TODO: Describe what this skill does.'}
+
+## Usage
+
+Describe how agents should use this skill.
+
+## Examples
+
+\`\`\`
+Example prompt or command here
+\`\`\`
+`
+
+    await Bun.write('skills/SKILL.md', skillContent)
+
+    console.log('')
+    console.log('  Created:')
+    console.log('    plugahh.config.ts')
+    console.log('    skills/SKILL.md')
+    console.log('')
+    console.log('  Next steps:')
+    console.log('    1. Edit skills/SKILL.md with your skill instructions')
+    console.log('    2. Run: plugahh build')
+    console.log('    3. Run: plugahh install')
+    console.log('')
+  } catch {
+    closePrompts()
+    throw new Error('Init cancelled')
+  }
 }
 
 async function runInstall() {
@@ -158,6 +256,7 @@ plugahh — Cross-platform AI agent plugin SDK
 
 Usage:
   plugahh build [--target <platforms...>]   Generate platform-specific plugin files
+  plugahh dev [--target <platforms...>]     Watch for changes and auto-rebuild
   plugahh validate                          Validate your config
   plugahh init [name]                       Create a new plugahh.config.ts
   plugahh install [--target <platforms>]    Symlink built plugins for local testing

@@ -9,6 +9,10 @@ import { OpenCodeGenerator } from './opencode'
 import { GitHubCopilotGenerator } from './github-copilot'
 import { OpenHandsGenerator } from './openhands'
 import { WarpGenerator } from './warp'
+import { GeminiCliGenerator } from './gemini-cli'
+import { RooCodeGenerator } from './roo-code'
+import { ClineGenerator } from './cline'
+import { AmpGenerator } from './amp'
 
 const GENERATORS: Record<TargetPlatform, new (config: PluginConfig, rootDir: string) => Generator> = {
   'claude-code': ClaudeCodeGenerator,
@@ -18,6 +22,10 @@ const GENERATORS: Record<TargetPlatform, new (config: PluginConfig, rootDir: str
   'github-copilot': GitHubCopilotGenerator,
   openhands: OpenHandsGenerator,
   warp: WarpGenerator,
+  'gemini-cli': GeminiCliGenerator,
+  'roo-code': RooCodeGenerator,
+  cline: ClineGenerator,
+  amp: AmpGenerator,
 }
 
 export interface BuildOptions {
