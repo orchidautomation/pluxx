@@ -1,0 +1,41 @@
+{
+  "name": "plugahh",
+  "version": "0.1.0",
+  "description": "Define your AI agent plugin once. Ship it to Claude Code, Cursor, OpenCode, and Codex.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "plugahh": "dist/cli/index.js"
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir dist --target node",
+    "dev": "bun --watch src/cli/index.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "ai-agent",
+    "plugin",
+    "claude-code",
+    "cursor",
+    "opencode",
+    "codex",
+    "agent-skills",
+    "mcp",
+    "sdk"
+  ],
+  "author": "Brandon Guerrero",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brandonguerrero/plugahh"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.7.0"
+  },
+  "dependencies": {
+    "zod": "^3.24.0"
+  }
+}
