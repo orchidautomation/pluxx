@@ -7,210 +7,170 @@
 <meta name="description" content="One config generates native plugin packages for Claude Code, Cursor, Codex, OpenCode, GitHub Copilot, and more.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#06060b;--bg-card:#0c0c14;--bg-code:#08080e;
-  --border:#16162a;--border-hover:#2a2a4a;
-  --text:#e2e2ea;--text-muted:#6b6b80;--text-dim:#3a3a50;
-  --accent:#6366f1;--accent-glow:rgba(99,102,241,.15);--accent-bright:#818cf8;
-  --green:#22c55e;--amber:#f59e0b;--red:#ef4444;--cyan:#22d3ee;
+  --bg:#09090b;--bg-elevated:#111113;--bg-code:#0c0c0e;
+  --border:rgba(255,255,255,.06);--border-hover:rgba(255,255,255,.12);
+  --text:#fafafa;--text-secondary:#a1a1aa;--text-tertiary:#52525b;
+  --accent:#a78bfa;--accent-dim:rgba(167,139,250,.1);
 }
-html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased}
-body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;line-height:1.6;overflow-x:hidden}
-code,pre,.mono{font-family:'JetBrains Mono',monospace}
-a{color:var(--accent-bright);text-decoration:none;transition:color .2s}
-a:hover{color:#a5b4fc}
+html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,-apple-system,sans-serif;line-height:1.6;overflow-x:hidden;font-size:15px}
+code,pre,.mono{font-family:'JetBrains Mono',ui-monospace,monospace}
+a{color:inherit;text-decoration:none;transition:opacity .15s}
+a:hover{opacity:.8}
+::selection{background:var(--accent);color:white}
 
-/* Grid background */
-.grid-bg{position:fixed;inset:0;z-index:0;pointer-events:none;
-  background-image:
-    linear-gradient(var(--border) 1px,transparent 1px),
-    linear-gradient(90deg,var(--border) 1px,transparent 1px);
-  background-size:80px 80px;
-  mask-image:radial-gradient(ellipse 60% 50% at 50% 0%,black 0%,transparent 70%);
-  opacity:.3}
+.container{max-width:1080px;margin:0 auto;padding:0 24px;position:relative}
+section{padding:120px 0}
+@media(max-width:768px){section{padding:80px 0}}
 
-.container{max-width:1120px;margin:0 auto;padding:0 24px;position:relative;z-index:1}
-section{padding:100px 0}
+/* ─── Nav ─── */
+nav{position:fixed;top:0;left:0;right:0;z-index:50;
+  background:rgba(9,9,11,.85);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--border)}
+nav .container{display:flex;align-items:center;justify-content:space-between;height:56px}
+.nav-logo{font-weight:600;font-size:15px;letter-spacing:-.01em}
+.nav-links{display:flex;align-items:center;gap:32px;font-size:13px;color:var(--text-secondary)}
+.nav-links a:hover{color:var(--text);opacity:1}
 
-/* Hero */
-.hero{padding:140px 0 80px;text-align:center;position:relative}
-.hero::before{content:'';position:absolute;top:-100px;left:50%;transform:translateX(-50%);
-  width:800px;height:600px;
-  background:radial-gradient(circle,rgba(99,102,241,.08) 0%,transparent 70%);
-  pointer-events:none;z-index:0}
-.hero-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 16px;
-  border:1px solid var(--border);border-radius:100px;font-size:13px;color:var(--text-muted);
-  margin-bottom:32px;background:var(--bg-card);letter-spacing:.02em}
-.hero-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--green);
-  box-shadow:0 0 8px var(--green)}
-h1{font-size:clamp(2.5rem,6vw,4.2rem);font-weight:800;line-height:1.08;letter-spacing:-.03em;
-  margin-bottom:24px;position:relative;z-index:1}
-h1 span{background:linear-gradient(135deg,var(--accent-bright),var(--cyan));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
-.hero-sub{font-size:clamp(1rem,2vw,1.2rem);color:var(--text-muted);max-width:600px;
-  margin:0 auto 48px;line-height:1.7;font-weight:300}
-.hero-cta{display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap}
-.cmd-block{display:inline-flex;align-items:center;gap:10px;padding:14px 28px;
-  background:var(--bg-code);border:1px solid var(--border);border-radius:12px;
-  font-size:15px;cursor:pointer;transition:border-color .2s,box-shadow .2s}
-.cmd-block:hover{border-color:var(--accent);box-shadow:0 0 20px var(--accent-glow)}
-.cmd-block .prompt{color:var(--accent-bright)}
-.cmd-block .cmd{color:var(--text)}
-.gh-link{display:inline-flex;align-items:center;gap:8px;padding:14px 24px;color:var(--text-muted);
-  font-size:14px;font-weight:500;letter-spacing:.02em;transition:color .2s}
-.gh-link:hover{color:var(--text)}
-.gh-link svg{width:18px;height:18px;fill:currentColor}
+/* ─── Hero ─── */
+.hero{padding:160px 0 100px;text-align:center;position:relative}
+.hero-glow{position:absolute;top:-200px;left:50%;transform:translateX(-50%);width:800px;height:600px;
+  background:radial-gradient(ellipse at center,rgba(167,139,250,.06) 0%,transparent 70%);pointer-events:none}
+.badge{display:inline-flex;align-items:center;gap:8px;padding:5px 14px;
+  border:1px solid var(--border);border-radius:999px;font-size:12px;color:var(--text-secondary);
+  margin-bottom:40px;font-weight:500}
+.badge-dot{width:5px;height:5px;border-radius:50%;background:#4ade80}
+h1{font-size:clamp(2.8rem,5.5vw,4.5rem);font-weight:700;line-height:1.05;letter-spacing:-.035em;
+  margin-bottom:24px;color:var(--text)}
+h1 em{font-style:normal;color:var(--accent)}
+.hero-sub{font-size:16px;color:var(--text-secondary);max-width:520px;margin:0 auto 48px;line-height:1.7}
+.hero-actions{display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap}
+.cmd{display:inline-flex;align-items:center;gap:10px;padding:10px 24px;
+  background:var(--bg-elevated);border:1px solid var(--border);border-radius:10px;
+  font-size:14px;cursor:pointer;transition:border-color .2s}
+.cmd:hover{border-color:var(--border-hover)}
+.cmd .prompt{color:var(--text-tertiary)}
+.gh-link{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary);font-weight:500}
+.gh-link svg{width:16px;height:16px;fill:currentColor}
 
-/* Terminal */
-.terminal{background:var(--bg-code);border:1px solid var(--border);border-radius:16px;
-  overflow:hidden;max-width:760px;margin:0 auto;text-align:left;
-  box-shadow:0 20px 60px rgba(0,0,0,.5)}
-.terminal-bar{display:flex;align-items:center;gap:8px;padding:14px 20px;
-  border-bottom:1px solid var(--border);background:rgba(255,255,255,.01)}
-.terminal-dot{width:12px;height:12px;border-radius:50%;background:var(--text-dim)}
-.terminal-dot:nth-child(1){background:#ff5f57}
-.terminal-dot:nth-child(2){background:#febc2e}
-.terminal-dot:nth-child(3){background:#28c840}
-.terminal-title{flex:1;text-align:center;font-size:12px;color:var(--text-dim)}
-.terminal pre{padding:24px;font-size:13px;line-height:1.8;overflow-x:auto;color:var(--text-muted)}
-.terminal .hi{color:var(--text)}
-.terminal .accent{color:var(--accent-bright)}
-.terminal .green{color:var(--green)}
-.terminal .dim{color:var(--text-dim)}
-.terminal .path{color:var(--amber)}
+/* ─── Terminal ─── */
+.terminal-section{padding-top:0}
+.terminal{background:var(--bg-code);border:1px solid var(--border);border-radius:12px;
+  overflow:hidden;max-width:720px;margin:0 auto;text-align:left;
+  box-shadow:0 24px 48px -12px rgba(0,0,0,.4)}
+.terminal-bar{display:flex;align-items:center;gap:6px;padding:12px 16px;
+  border-bottom:1px solid var(--border)}
+.tdot{width:10px;height:10px;border-radius:50%}
+.tdot-r{background:#ff5f56}.tdot-y{background:#ffbd2e}.tdot-g{background:#27c93f}
+.terminal-title{flex:1;text-align:center;font-size:11px;color:var(--text-tertiary)}
+.terminal pre{padding:20px 24px;font-size:12.5px;line-height:1.85;overflow-x:auto;color:var(--text-secondary)}
+.terminal .w{color:var(--text)}.terminal .a{color:var(--accent)}.terminal .g{color:#4ade80}
+.terminal .d{color:var(--text-tertiary)}.terminal .y{color:#fbbf24}
 
-/* Section headings */
-h2{font-size:clamp(1.8rem,4vw,2.8rem);font-weight:700;letter-spacing:-.02em;
-  margin-bottom:16px;line-height:1.15}
-.section-sub{color:var(--text-muted);font-size:clamp(.95rem,1.5vw,1.1rem);
-  max-width:560px;margin-bottom:56px;line-height:1.7;font-weight:300}
-.section-sub.center{margin-left:auto;margin-right:auto;text-align:center}
-.text-center{text-align:center}
+/* ─── Section headings ─── */
+h2{font-size:clamp(1.6rem,3.5vw,2.4rem);font-weight:700;letter-spacing:-.025em;margin-bottom:12px;line-height:1.15}
+.section-desc{color:var(--text-secondary);font-size:15px;max-width:480px;line-height:1.7}
+.section-desc.center{margin:0 auto;text-align:center}
+.section-header{text-align:center;margin-bottom:64px}
 
-/* Agent grid */
-.agent-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:32px}
-@media(max-width:768px){.agent-grid{grid-template-columns:repeat(2,1fr)}}
-.agent-card{display:flex;align-items:center;gap:12px;padding:16px 20px;
-  background:var(--bg-card);border:1px solid var(--border);border-radius:12px;
-  transition:border-color .3s,box-shadow .3s,transform .3s;cursor:default}
-.agent-card:hover{border-color:var(--border-hover);box-shadow:0 0 24px var(--accent-glow);
-  transform:translateY(-2px)}
-.agent-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
-.agent-name{font-size:14px;font-weight:500;letter-spacing:.01em}
-.agent-card.coming-soon{opacity:.4;border-style:dashed}
-.agent-card.coming-soon:hover{opacity:.6;transform:none;box-shadow:none}
-.coming-label{font-size:13px;color:var(--text-dim);text-align:center;letter-spacing:.05em;
-  text-transform:uppercase;font-weight:600}
+/* ─── Agent grid ─── */
+.agents-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media(max-width:640px){.agents-grid{grid-template-columns:repeat(2,1fr)}}
+.agent{display:flex;align-items:center;gap:10px;padding:14px 16px;
+  background:var(--bg-elevated);border:1px solid var(--border);border-radius:10px;
+  font-size:13px;font-weight:500;transition:border-color .2s}
+.agent:hover{border-color:var(--border-hover)}
+.agent-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.agent.soon{opacity:.35;border-style:dashed}
+.agent.soon:hover{opacity:.45;border-color:var(--border)}
+.soon-label{font-size:11px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.1em;
+  font-weight:600;text-align:center;margin:28px 0 12px}
 
-/* Agent colors */
-.dot-claude{background:#d97706}.dot-cursor{background:#22d3ee}.dot-codex{background:#22c55e}
-.dot-opencode{background:#6366f1}.dot-copilot{background:#e2e2ea}.dot-openhands{background:#f59e0b}
-.dot-warp{background:#a78bfa}.dot-gemini{background:#3b82f6}.dot-qwen{background:#8b5cf6}
-.dot-roo{background:#ec4899}.dot-cline{background:#14b8a6}.dot-kilo{background:#f97316}
-.dot-openclaw{background:#ef4444}.dot-kimi{background:#06b6d4}.dot-amp{background:#e11d48}
+/* dot colors */
+.dc1{background:#f97316}.dc2{background:#22d3ee}.dc3{background:#4ade80}.dc4{background:#a78bfa}
+.dc5{background:#e4e4e7}.dc6{background:#fbbf24}.dc7{background:#c084fc}.dc8{background:#3b82f6}
+.dc9{background:#8b5cf6}.dc10{background:#ec4899}.dc11{background:#14b8a6}.dc12{background:#f97316}
+.dc13{background:#ef4444}.dc14{background:#06b6d4}.dc15{background:#e11d48}
 
-/* Table */
-.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -24px;padding:0 24px}
-table{width:100%;border-collapse:collapse;font-size:13px;min-width:700px}
-th{text-align:left;padding:12px 16px;color:var(--text-muted);font-weight:600;
-  border-bottom:1px solid var(--border);font-size:12px;letter-spacing:.06em;text-transform:uppercase}
-td{padding:14px 16px;border-bottom:1px solid var(--border);vertical-align:top}
-td code{background:var(--bg-code);padding:3px 8px;border-radius:6px;font-size:12px;
-  border:1px solid var(--border);color:var(--accent-bright);white-space:nowrap}
-tr:hover td{background:rgba(99,102,241,.03)}
+/* ─── Table ─── */
+.table-wrap{overflow-x:auto;margin:0 -24px;padding:0 24px}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:640px}
+th{text-align:left;padding:10px 14px;color:var(--text-tertiary);font-weight:600;font-size:11px;
+  letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--border)}
+td{padding:12px 14px;border-bottom:1px solid var(--border)}
+td code{background:var(--bg-code);padding:2px 7px;border-radius:5px;font-size:11.5px;
+  border:1px solid var(--border);color:var(--accent);white-space:nowrap}
+tr:last-child td{border-bottom:none}
 
-/* Code block */
-.code-block{background:var(--bg-code);border:1px solid var(--border);border-radius:14px;
-  padding:28px;overflow-x:auto;font-size:13px;line-height:1.9;text-align:left;
-  max-width:680px;margin:0 auto}
-.code-block .kw{color:#c084fc}.code-block .str{color:#34d399}
-.code-block .prop{color:var(--accent-bright)}.code-block .cmt{color:var(--text-dim);font-style:italic}
-.code-block .fn{color:#f59e0b}.code-block .num{color:var(--cyan)}
+/* ─── Code block ─── */
+.codeblock{background:var(--bg-code);border:1px solid var(--border);border-radius:12px;
+  padding:24px;overflow-x:auto;font-size:13px;line-height:1.85;text-align:left}
+.codeblock .kw{color:#c084fc}.codeblock .str{color:#4ade80}.codeblock .prop{color:var(--accent)}
+.codeblock .cmt{color:var(--text-tertiary)}.codeblock .fn{color:#fbbf24}
 
-/* MCP translation */
-.mcp-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start}
-@media(max-width:768px){.mcp-grid{grid-template-columns:1fr}}
-.mcp-output-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-@media(max-width:768px){.mcp-output-grid{grid-template-columns:1fr}}
-.mcp-card{background:var(--bg-code);border:1px solid var(--border);border-radius:10px;
-  padding:16px;font-size:12px;line-height:1.7}
-.mcp-card-label{font-size:11px;font-weight:600;color:var(--text-dim);
-  text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
-.arrow-label{display:flex;align-items:center;justify-content:center;
-  color:var(--accent-bright);font-size:24px;padding:20px 0}
-@media(min-width:769px){.arrow-label{writing-mode:vertical-lr;padding:0}}
+/* ─── MCP grid ─── */
+.mcp-layout{display:grid;grid-template-columns:1fr 1fr;gap:32px;align-items:start}
+@media(max-width:768px){.mcp-layout{grid-template-columns:1fr}}
+.mcp-outputs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:480px){.mcp-outputs{grid-template-columns:1fr}}
+.mcp-card{background:var(--bg-code);border:1px solid var(--border);border-radius:8px;
+  padding:14px;font-size:11.5px;line-height:1.7}
+.mcp-label{font-size:10px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;
+  letter-spacing:.08em;margin-bottom:8px}
+.label-sm{font-size:12px;font-weight:600;color:var(--text-tertiary);margin-bottom:12px}
 
-/* Steps */
-.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;counter-reset:step}
-@media(max-width:768px){.steps{grid-template-columns:1fr}}
-.step{background:var(--bg-card);border:1px solid var(--border);border-radius:14px;
-  padding:28px 24px;counter-increment:step;position:relative;
-  transition:border-color .3s,box-shadow .3s}
-.step:hover{border-color:var(--border-hover);box-shadow:0 0 24px var(--accent-glow)}
-.step::before{content:counter(step);display:flex;align-items:center;justify-content:center;
-  width:32px;height:32px;border-radius:8px;background:var(--accent);color:white;
-  font-weight:700;font-size:14px;margin-bottom:16px}
-.step-cmd{font-size:13px;color:var(--accent-bright);margin-bottom:8px;font-weight:600}
-.step-desc{font-size:14px;color:var(--text-muted);line-height:1.6}
+/* ─── Steps ─── */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;counter-reset:s}
+@media(max-width:768px){.steps{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:480px){.steps{grid-template-columns:1fr}}
+.step{background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;
+  padding:24px 20px;counter-increment:s;transition:border-color .2s}
+.step:hover{border-color:var(--border-hover)}
+.step-num{font-size:12px;font-weight:600;color:var(--accent);margin-bottom:12px}
+.step-num::before{content:counter(s) ".";margin-right:4px}
+.step-title{font-size:14px;font-weight:600;margin-bottom:6px}
+.step-desc{font-size:13px;color:var(--text-secondary);line-height:1.6}
 
-/* Open source */
-.oss-section{text-align:center;position:relative}
-.oss-section::before{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
-  width:600px;height:400px;background:radial-gradient(circle,var(--accent-glow) 0%,transparent 70%);
-  pointer-events:none}
-.oss-badge{display:inline-block;padding:8px 20px;border:1px solid var(--border);
-  border-radius:100px;font-size:13px;color:var(--text-muted);margin-bottom:24px;
-  background:var(--bg-card);letter-spacing:.03em}
-.oss-coming{color:var(--text-dim);font-size:15px;margin-top:24px;font-style:italic}
+/* ─── OSS ─── */
+.oss{text-align:center;position:relative}
+.oss-glow{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:500px;height:300px;
+  background:radial-gradient(circle,rgba(167,139,250,.04) 0%,transparent 70%);pointer-events:none}
+.oss-coming{color:var(--text-tertiary);font-size:14px;margin-top:20px;font-style:italic}
 
-/* Footer */
-footer{border-top:1px solid var(--border);padding:60px 0;text-align:center}
-.footer-cmd{max-width:400px;margin:24px auto 40px}
-.footer-links{display:flex;justify-content:center;gap:32px;font-size:14px;color:var(--text-muted)}
-.footer-links a{color:var(--text-muted)}
-.footer-links a:hover{color:var(--text)}
-.footer-copy{margin-top:40px;font-size:12px;color:var(--text-dim)}
-
-/* Divider */
-.divider{width:60px;height:1px;background:var(--border);margin:0 auto 56px}
-
-/* Fade in */
-@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-.fade-in{animation:fadeUp .6s ease both}
-.delay-1{animation-delay:.1s}.delay-2{animation-delay:.2s}.delay-3{animation-delay:.3s}
+/* ─── Footer ─── */
+footer{border-top:1px solid var(--border);padding:64px 0;text-align:center}
+.footer-links{display:flex;justify-content:center;gap:32px;font-size:13px;color:var(--text-secondary);margin-top:32px}
+.footer-copy{margin-top:48px;font-size:11px;color:var(--text-tertiary)}
 </style>
 </head>
 <body>
 
-<div class="grid-bg"></div>
-
-<!-- NAV -->
-<nav style="position:fixed;top:0;left:0;right:0;z-index:50;padding:16px 0;
-  background:rgba(6,6,11,.8);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)">
-  <div class="container" style="display:flex;align-items:center;justify-content:space-between">
-    <a href="#" style="font-weight:700;font-size:18px;color:var(--text);letter-spacing:-.02em" class="mono">
-      plugahh</a>
-    <div style="display:flex;align-items:center;gap:28px;font-size:14px">
-      <a href="#agents" style="color:var(--text-muted)">Agents</a>
-      <a href="#how" style="color:var(--text-muted)">How it works</a>
-      <a href="https://github.com/orchidautomation/plugahh" target="_blank" style="color:var(--text-muted)">GitHub</a>
+<nav>
+  <div class="container">
+    <a href="#" class="nav-logo mono">plugahh</a>
+    <div class="nav-links">
+      <a href="#agents">Agents</a>
+      <a href="#how">How it works</a>
+      <a href="https://github.com/orchidautomation/plugahh" target="_blank">GitHub</a>
     </div>
   </div>
 </nav>
 
-<!-- HERO -->
+<!-- Hero -->
 <section class="hero">
+  <div class="hero-glow"></div>
   <div class="container">
-    <div class="hero-badge fade-in"><span class="dot"></span> Open source &middot; MIT licensed</div>
-    <h1 class="fade-in delay-1">Build AI agent plugins once.<br><span>Ship them everywhere.</span></h1>
-    <p class="hero-sub fade-in delay-2">One config generates native plugin packages for Claude Code, Cursor, Codex, OpenCode, GitHub Copilot, and more. Stop maintaining 7 copies of the same plugin.</p>
-    <div class="hero-cta fade-in delay-3">
-      <div class="cmd-block mono" onclick="navigator.clipboard.writeText('npx plugahh init')">
+    <div class="badge"><span class="badge-dot"></span> Open source &middot; MIT licensed</div>
+    <h1>Build AI agent plugins once.<br><em>Ship them everywhere.</em></h1>
+    <p class="hero-sub">One config generates native plugin packages for Claude Code, Cursor, Codex, OpenCode, GitHub Copilot, and more. Stop maintaining 7 copies of the same plugin.</p>
+    <div class="hero-actions">
+      <div class="cmd mono" onclick="navigator.clipboard.writeText('npx plugahh init')">
         <span class="prompt">$</span>
-        <span class="cmd">npx plugahh init</span>
+        <span>npx plugahh init</span>
       </div>
       <a href="https://github.com/orchidautomation/plugahh" target="_blank" class="gh-link">
         <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
@@ -220,101 +180,93 @@ footer{border-top:1px solid var(--border);padding:60px 0;text-align:center}
   </div>
 </section>
 
-<!-- TERMINAL DEMO -->
-<section style="padding:0 0 100px">
+<!-- Terminal -->
+<section class="terminal-section" style="padding-bottom:120px">
   <div class="container">
-    <div class="terminal fade-in">
+    <div class="terminal">
       <div class="terminal-bar">
-        <span class="terminal-dot"></span><span class="terminal-dot"></span><span class="terminal-dot"></span>
+        <span class="tdot tdot-r"></span><span class="tdot tdot-y"></span><span class="tdot tdot-g"></span>
         <span class="terminal-title mono">plugahh</span>
-        <span style="width:36px"></span>
+        <span style="width:30px"></span>
       </div>
-      <pre class="mono"><span class="accent">$</span> <span class="hi">npx plugahh build</span>
+      <pre class="mono"><span class="a">$</span> <span class="w">npx plugahh build</span>
 
-<span class="dim">Loading config...</span>
-Building for: <span class="hi">claude-code</span>, <span class="hi">cursor</span>, <span class="hi">codex</span>, <span class="hi">opencode</span>, <span class="hi">github-copilot</span>, <span class="hi">openhands</span>, <span class="hi">warp</span>
+<span class="d">Loading config...</span>
+Building for: <span class="w">claude-code</span>, <span class="w">cursor</span>, <span class="w">codex</span>, <span class="w">opencode</span>, <span class="w">github-copilot</span>, <span class="w">openhands</span>, <span class="w">warp</span>
 
-  <span class="path">dist/claude-code/</span>    <span class="dim">.claude-plugin/plugin.json, .mcp.json, CLAUDE.md</span>
-  <span class="path">dist/cursor/</span>         <span class="dim">.cursor-plugin/plugin.json, mcp.json, hooks.json</span>
-  <span class="path">dist/codex/</span>          <span class="dim">.codex-plugin/plugin.json, interface metadata</span>
-  <span class="path">dist/opencode/</span>       <span class="dim">package.json, index.ts wrapper</span>
-  <span class="path">dist/github-copilot/</span> <span class="dim">plugin.json, .mcp.json, skills</span>
-  <span class="path">dist/openhands/</span>      <span class="dim">.plugin/plugin.json, skills</span>
-  <span class="path">dist/warp/</span>           <span class="dim">AGENTS.md, mcp.json, skills</span>
+  <span class="y">dist/claude-code/</span>    <span class="d">.claude-plugin/plugin.json, .mcp.json, CLAUDE.md</span>
+  <span class="y">dist/cursor/</span>         <span class="d">.cursor-plugin/plugin.json, mcp.json, hooks.json</span>
+  <span class="y">dist/codex/</span>          <span class="d">.codex-plugin/plugin.json, interface metadata</span>
+  <span class="y">dist/opencode/</span>       <span class="d">package.json, index.ts wrapper</span>
+  <span class="y">dist/github-copilot/</span> <span class="d">plugin.json, .mcp.json, skills</span>
+  <span class="y">dist/openhands/</span>      <span class="d">.plugin/plugin.json, skills</span>
+  <span class="y">dist/warp/</span>           <span class="d">AGENTS.md, mcp.json, skills</span>
 
-<span class="green">Done! 60 files generated across 7 platforms.</span></pre>
+<span class="g">Done! 60 files generated across 7 platforms.</span></pre>
     </div>
   </div>
 </section>
 
-<!-- AGENT GRID -->
+<!-- Agents -->
 <section id="agents">
-  <div class="container text-center">
-    <h2>Works with all your favourite agents</h2>
-    <p class="section-sub center">plugahh generates native plugin packages for these AI coding tools. More coming every week.</p>
-    <div class="agent-grid">
-      <div class="agent-card"><span class="agent-dot dot-claude"></span><span class="agent-name">Claude Code</span></div>
-      <div class="agent-card"><span class="agent-dot dot-cursor"></span><span class="agent-name">Cursor</span></div>
-      <div class="agent-card"><span class="agent-dot dot-codex"></span><span class="agent-name">Codex</span></div>
-      <div class="agent-card"><span class="agent-dot dot-opencode"></span><span class="agent-name">OpenCode</span></div>
-      <div class="agent-card"><span class="agent-dot dot-copilot"></span><span class="agent-name">GitHub Copilot</span></div>
-      <div class="agent-card"><span class="agent-dot dot-openhands"></span><span class="agent-name">OpenHands</span></div>
-      <div class="agent-card"><span class="agent-dot dot-warp"></span><span class="agent-name">Warp</span></div>
+  <div class="container">
+    <div class="section-header">
+      <h2>Works with all your favourite agents</h2>
+      <p class="section-desc center">Native plugin packages for these AI coding tools. More added every week.</p>
     </div>
-    <p class="coming-label" style="margin:32px 0 16px">Coming soon</p>
-    <div class="agent-grid">
-      <div class="agent-card coming-soon"><span class="agent-dot dot-gemini"></span><span class="agent-name">Gemini CLI</span></div>
-      <div class="agent-card coming-soon"><span class="agent-dot dot-qwen"></span><span class="agent-name">Qwen Code</span></div>
-      <div class="agent-card coming-soon"><span class="agent-dot dot-roo"></span><span class="agent-name">Roo Code</span></div>
-      <div class="agent-card coming-soon"><span class="agent-dot dot-cline"></span><span class="agent-name">Cline</span></div>
-      <div class="agent-card coming-soon"><span class="agent-dot dot-kilo"></span><span class="agent-name">Kilo Code</span></div>
-      <div class="agent-card coming-soon"><span class="agent-dot dot-openclaw"></span><span class="agent-name">OpenClaw</span></div>
-      <div class="agent-card coming-soon"><span class="agent-dot dot-kimi"></span><span class="agent-name">Kimi CLI</span></div>
-      <div class="agent-card coming-soon"><span class="agent-dot dot-amp"></span><span class="agent-name">AMP</span></div>
+    <div class="agents-grid">
+      <div class="agent"><span class="agent-dot dc1"></span>Claude Code</div>
+      <div class="agent"><span class="agent-dot dc2"></span>Cursor</div>
+      <div class="agent"><span class="agent-dot dc3"></span>Codex</div>
+      <div class="agent"><span class="agent-dot dc4"></span>OpenCode</div>
+      <div class="agent"><span class="agent-dot dc5"></span>GitHub Copilot</div>
+      <div class="agent"><span class="agent-dot dc6"></span>OpenHands</div>
+      <div class="agent"><span class="agent-dot dc7"></span>Warp</div>
+    </div>
+    <p class="soon-label">Coming soon</p>
+    <div class="agents-grid">
+      <div class="agent soon"><span class="agent-dot dc8"></span>Gemini CLI</div>
+      <div class="agent soon"><span class="agent-dot dc9"></span>Qwen Code</div>
+      <div class="agent soon"><span class="agent-dot dc10"></span>Roo Code</div>
+      <div class="agent soon"><span class="agent-dot dc11"></span>Cline</div>
+      <div class="agent soon"><span class="agent-dot dc12"></span>Kilo Code</div>
+      <div class="agent soon"><span class="agent-dot dc13"></span>OpenClaw</div>
+      <div class="agent soon"><span class="agent-dot dc14"></span>Kimi CLI</div>
+      <div class="agent soon"><span class="agent-dot dc15"></span>AMP</div>
     </div>
   </div>
 </section>
 
-<!-- PROBLEM -->
+<!-- Problem -->
 <section>
   <div class="container">
-    <div class="text-center">
+    <div class="section-header">
       <h2>The plugin fragmentation problem</h2>
-      <p class="section-sub center">Every AI coding tool invented its own plugin format. Building for all of them means maintaining separate manifests, MCP configs, hooks, and rules.</p>
+      <p class="section-desc center">Every AI coding tool has its own plugin format. Building for all of them means maintaining separate manifests, configs, hooks, and rules.</p>
     </div>
     <div class="table-wrap">
       <table>
-        <thead>
-          <tr><th></th><th>Claude Code</th><th>Cursor</th><th>Codex</th><th>OpenCode</th></tr>
-        </thead>
+        <thead><tr><th></th><th>Claude Code</th><th>Cursor</th><th>Codex</th><th>OpenCode</th></tr></thead>
         <tbody>
-          <tr><td style="color:var(--text);font-weight:600">Manifest</td>
-            <td><code>.claude-plugin/</code></td><td><code>.cursor-plugin/</code></td>
-            <td><code>.codex-plugin/</code></td><td><code>package.json</code></td></tr>
-          <tr><td style="color:var(--text);font-weight:600">MCP auth</td>
-            <td><code>headers: {}</code></td><td><code>headers: {}</code></td>
-            <td><code>bearer_token_env_var</code></td><td><code>env validation</code></td></tr>
-          <tr><td style="color:var(--text);font-weight:600">Hooks</td>
-            <td><code>settings.json</code></td><td><code>hooks.json</code></td>
-            <td><code>hooks.json</code></td><td><code>JS events</code></td></tr>
-          <tr><td style="color:var(--text);font-weight:600">Rules</td>
-            <td><code>CLAUDE.md</code></td><td><code>.mdc + AGENTS.md</code></td>
-            <td><code>AGENTS.md</code></td><td><code>Config</code></td></tr>
-          <tr><td style="color:var(--text);font-weight:600">Brand metadata</td>
-            <td><code>Basic</code></td><td><code>Basic</code></td>
-            <td><code>Rich (colors, icons)</code></td><td><code>None</code></td></tr>
+          <tr><td style="font-weight:600">Manifest</td><td><code>.claude-plugin/</code></td><td><code>.cursor-plugin/</code></td><td><code>.codex-plugin/</code></td><td><code>package.json</code></td></tr>
+          <tr><td style="font-weight:600">MCP auth</td><td><code>headers: {}</code></td><td><code>headers: {}</code></td><td><code>bearer_token_env_var</code></td><td><code>env validation</code></td></tr>
+          <tr><td style="font-weight:600">Hooks</td><td><code>settings.json</code></td><td><code>hooks.json</code></td><td><code>hooks.json</code></td><td><code>JS events</code></td></tr>
+          <tr><td style="font-weight:600">Rules</td><td><code>CLAUDE.md</code></td><td><code>.mdc + AGENTS.md</code></td><td><code>AGENTS.md</code></td><td><code>Config</code></td></tr>
+          <tr><td style="font-weight:600">Brand</td><td><code>Basic</code></td><td><code>Basic</code></td><td><code>Rich</code></td><td><code>None</code></td></tr>
         </tbody>
       </table>
     </div>
   </div>
 </section>
 
-<!-- SOLUTION / CONFIG -->
+<!-- Config -->
 <section>
-  <div class="container text-center">
-    <h2>One config to rule them all</h2>
-    <p class="section-sub center">Define your plugin in a single TypeScript config. plugahh generates the correct output for every platform.</p>
-    <div class="code-block mono">
+  <div class="container">
+    <div class="section-header">
+      <h2>One config to rule them all</h2>
+      <p class="section-desc center">Define your plugin in a single TypeScript config. plugahh generates the correct output for every platform.</p>
+    </div>
+    <div class="codeblock mono" style="max-width:640px;margin:0 auto">
 <span class="cmt">// plugahh.config.ts</span>
 <span class="kw">import</span> { <span class="fn">definePlugin</span> } <span class="kw">from</span> <span class="str">'plugahh'</span>
 
@@ -340,108 +292,96 @@ Building for: <span class="hi">claude-code</span>, <span class="hi">cursor</span
   </div>
 </section>
 
-<!-- MCP TRANSLATION -->
+<!-- MCP Translation -->
 <section>
   <div class="container">
-    <div class="text-center">
+    <div class="section-header">
       <h2>MCP auth translated automatically</h2>
-      <p class="section-sub center">Write your MCP config once. plugahh translates the auth format for each platform.</p>
+      <p class="section-desc center">Write your auth config once. plugahh translates it for each platform.</p>
     </div>
-    <div class="mcp-grid">
+    <div class="mcp-layout">
       <div>
-        <div class="mcp-card-label" style="margin-bottom:12px">You write</div>
-        <div class="code-block mono" style="max-width:none;padding:20px;font-size:12px">
+        <p class="label-sm">You write</p>
+        <div class="codeblock mono" style="font-size:12.5px;padding:20px">
 <span class="prop">auth</span>: {
   <span class="prop">type</span>: <span class="str">'bearer'</span>,
   <span class="prop">envVar</span>: <span class="str">'API_KEY'</span>,
 }</div>
       </div>
       <div>
-        <div class="mcp-card-label" style="margin-bottom:12px">plugahh generates</div>
-        <div class="mcp-output-grid">
-          <div class="mcp-card mono">
-            <div class="mcp-card-label">Claude Code</div>
-            <span class="dim">"headers"</span>: {
-  <span class="str">"Authorization"</span>:
-  <span class="str">"Bearer ${API_KEY}"</span>
-}</div>
-          <div class="mcp-card mono">
-            <div class="mcp-card-label">Codex</div>
-            <span class="str">"bearer_token_env_var"</span>:
-  <span class="str">"API_KEY"</span></div>
-          <div class="mcp-card mono">
-            <div class="mcp-card-label">Cursor</div>
-            <span class="dim">"headers"</span>: {
-  <span class="str">"Authorization"</span>:
-  <span class="str">"Bearer ${API_KEY}"</span>
-}</div>
-          <div class="mcp-card mono">
-            <div class="mcp-card-label">OpenCode</div>
-            <span class="kw">if</span> (!process.env.<span class="hi">API_KEY</span>)
-  client.app.<span class="fn">log</span>({
-    <span class="prop">level</span>: <span class="str">"warn"</span> })</div>
+        <p class="label-sm">plugahh generates</p>
+        <div class="mcp-outputs">
+          <div class="mcp-card mono"><div class="mcp-label">Claude Code</div><span class="d">"headers"</span>: {<br>&nbsp;&nbsp;<span class="str">"Authorization"</span>:<br>&nbsp;&nbsp;<span class="str">"Bearer ${API_KEY}"</span><br>}</div>
+          <div class="mcp-card mono"><div class="mcp-label">Codex</div><span class="str">"bearer_token_env_var"</span>:<br>&nbsp;&nbsp;<span class="str">"API_KEY"</span></div>
+          <div class="mcp-card mono"><div class="mcp-label">Cursor</div><span class="d">"headers"</span>: {<br>&nbsp;&nbsp;<span class="str">"Authorization"</span>:<br>&nbsp;&nbsp;<span class="str">"Bearer ${API_KEY}"</span><br>}</div>
+          <div class="mcp-card mono"><div class="mcp-label">OpenCode</div><span class="kw">if</span> (!process.env.<span class="w">API_KEY</span>)<br>&nbsp;&nbsp;client.app.<span class="fn">log</span>({<br>&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">level</span>: <span class="str">"warn"</span> })</div>
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- HOW IT WORKS -->
+<!-- How it works -->
 <section id="how">
-  <div class="container text-center">
-    <h2>How it works</h2>
-    <p class="section-sub center">Four commands. Zero lock-in.</p>
+  <div class="container">
+    <div class="section-header">
+      <h2>How it works</h2>
+      <p class="section-desc center">Four commands. Zero lock-in.</p>
+    </div>
     <div class="steps">
       <div class="step">
-        <div class="step-cmd mono">npx plugahh init</div>
-        <div class="step-desc">Scaffold your plugin config with an interactive setup wizard.</div>
+        <div class="step-num mono">init</div>
+        <div class="step-title">Scaffold</div>
+        <div class="step-desc">Interactive setup creates your plugahh.config.ts with MCP, hooks, and targets.</div>
       </div>
       <div class="step">
-        <div class="step-cmd mono">Add your content</div>
+        <div class="step-num mono">write</div>
+        <div class="step-title">Add content</div>
         <div class="step-desc">Write skills, configure MCP servers, add hooks and brand metadata.</div>
       </div>
       <div class="step">
-        <div class="step-cmd mono">npx plugahh build</div>
-        <div class="step-desc">Generate native plugin packages for every target platform in parallel.</div>
+        <div class="step-num mono">build</div>
+        <div class="step-title">Generate</div>
+        <div class="step-desc">Native plugin packages for every target platform, generated in parallel.</div>
       </div>
       <div class="step">
-        <div class="step-cmd mono">npx plugahh install</div>
-        <div class="step-desc">Symlink to your local tools for instant testing. Then ship it.</div>
+        <div class="step-num mono">install</div>
+        <div class="step-title">Ship</div>
+        <div class="step-desc">Symlink to local tools for testing, then publish to marketplaces.</div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- OPEN SOURCE -->
-<section class="oss-section">
-  <div class="container" style="position:relative;z-index:1">
-    <div class="oss-badge mono">MIT Licensed</div>
+<!-- Open Source -->
+<section class="oss">
+  <div class="oss-glow"></div>
+  <div class="container" style="position:relative">
+    <div class="badge" style="margin-bottom:24px"><span class="badge-dot" style="background:var(--accent)"></span> MIT Licensed</div>
     <h2>Open source. Free forever.</h2>
-    <p class="section-sub center">The CLI is free with zero restrictions. Build and test plugins locally across every platform.</p>
-    <a href="https://github.com/orchidautomation/plugahh" target="_blank" class="cmd-block mono" style="margin:0 auto">
-      <svg width="18" height="18" viewBox="0 0 16 16" fill="var(--text)"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-      <span class="cmd">Star on GitHub</span>
+    <p class="section-desc center" style="margin-bottom:32px">The CLI is free with zero restrictions. Build and test plugins across every platform locally.</p>
+    <a href="https://github.com/orchidautomation/plugahh" target="_blank" class="cmd mono" style="margin:0 auto">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="var(--text)"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      <span>Star on GitHub</span>
     </a>
-    <p class="oss-coming">Coming soon: plugahh.dev &mdash; publish to all marketplaces, analytics dashboard, team plugin registries.</p>
+    <p class="oss-coming">Coming soon: plugahh.dev &mdash; publish to all marketplaces, analytics dashboard, team registries.</p>
   </div>
 </section>
 
-<!-- FOOTER -->
+<!-- Footer -->
 <footer>
   <div class="container">
-    <h2 style="font-size:clamp(1.5rem,3vw,2.2rem)">Start building in 30 seconds</h2>
-    <div class="footer-cmd">
-      <div class="cmd-block mono" style="width:100%;justify-content:center" onclick="navigator.clipboard.writeText('npx plugahh init my-plugin')">
-        <span class="prompt">$</span>
-        <span class="cmd">npx plugahh init my-plugin</span>
-      </div>
+    <h2 style="font-size:clamp(1.4rem,3vw,1.8rem);margin-bottom:20px">Start building in 30 seconds</h2>
+    <div class="cmd mono" style="margin:0 auto;justify-content:center;max-width:380px" onclick="navigator.clipboard.writeText('npx plugahh init my-plugin')">
+      <span class="prompt">$</span>
+      <span>npx plugahh init my-plugin</span>
     </div>
     <div class="footer-links">
       <a href="https://github.com/orchidautomation/plugahh" target="_blank">GitHub</a>
       <a href="#">Docs</a>
       <a href="#">Discord</a>
     </div>
-    <p class="footer-copy">Built by <a href="https://github.com/orchidautomation" target="_blank" style="color:var(--text-dim)">Orchid Automation</a></p>
+    <p class="footer-copy">Built by <a href="https://github.com/orchidautomation" target="_blank" style="color:var(--text-tertiary)">Orchid Automation</a></p>
   </div>
 </footer>
 
