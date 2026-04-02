@@ -4,6 +4,7 @@ import { loadConfig } from '../config/load'
 import { build } from '../generators'
 import { installPlugin, uninstallPlugin } from './install'
 import { runDev } from './dev'
+import { migrate } from './migrate'
 import { promptText, promptYesNo, closePrompts } from './prompt'
 import type { TargetPlatform } from '../schema'
 import { basename } from 'path'
@@ -31,6 +32,9 @@ async function main() {
       break
     case 'uninstall':
       await runUninstall()
+      break
+    case 'migrate':
+      await runMigrate()
       break
     case undefined:
     case 'help':
@@ -250,6 +254,19 @@ async function runUninstall() {
   await uninstallPlugin(config.name, targets)
 }
 
+async function runMigrate() {
+  const inputPath = args[1]
+  if (!inputPath) {
+    console.error('Usage: plugahh migrate <path>')
+    console.error('')
+    console.error('  Import an existing single-platform plugin into a plugahh.config.ts.')
+    console.error('  Pass the path to a plugin directory containing .claude-plugin/,')
+    console.error('  .cursor-plugin/, .codex-plugin/, or a package.json with @opencode-ai/plugin.')
+    process.exit(1)
+  }
+  await migrate(inputPath)
+}
+
 function printHelp() {
   console.log(`
 plugahh — Cross-platform AI agent plugin SDK
@@ -259,6 +276,7 @@ Usage:
   plugahh dev [--target <platforms...>]     Watch for changes and auto-rebuild
   plugahh validate                          Validate your config
   plugahh init [name]                       Create a new plugahh.config.ts
+  plugahh migrate <path>                    Import an existing plugin into plugahh
   plugahh install [--target <platforms>]    Symlink built plugins for local testing
   plugahh uninstall [--target <platforms>]  Remove symlinked plugins
   plugahh help                              Show this help

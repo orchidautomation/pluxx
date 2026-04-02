@@ -64,6 +64,6 @@ export default definePlugin({
     },
   },
 
-  targets: ['claude-code', 'cursor', 'codex', 'opencode', 'github-copilot', 'openhands', 'warp'],
+  targets: ['claude-code', 'cursor', 'codex', 'opencode', 'github-copilot', 'openhands', 'warp', 'gemini-cli', 'roo-code', 'cline', 'amp'],
   outDir: './dist',
 })
