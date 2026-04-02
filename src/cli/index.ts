@@ -2,6 +2,7 @@
 
 import { loadConfig } from '../config/load'
 import { build } from '../generators'
+import { installPlugin, uninstallPlugin } from './install'
 import type { TargetPlatform } from '../schema'
 
 const args = process.argv.slice(2)
@@ -17,6 +18,12 @@ async function main() {
       break
     case 'init':
       await runInit()
+      break
+    case 'install':
+      await runInstall()
+      break
+    case 'uninstall':
+      await runUninstall()
       break
     case undefined:
     case 'help':
@@ -115,6 +122,36 @@ export default definePlugin({
   console.log('  3. Run: plugahh build')
 }
 
+async function runInstall() {
+  const targetFlag = args.indexOf('--target')
+  let targets: TargetPlatform[] | undefined
+
+  if (targetFlag !== -1) {
+    targets = args.slice(targetFlag + 1).filter(a => !a.startsWith('-')) as TargetPlatform[]
+  }
+
+  const config = await loadConfig()
+  const distDir = `${process.cwd()}/${config.outDir}`
+  const platforms = targets ?? config.targets
+
+  console.log(`Installing ${config.name} plugin...`)
+  await installPlugin(distDir, config.name, platforms)
+}
+
+async function runUninstall() {
+  const targetFlag = args.indexOf('--target')
+  let targets: TargetPlatform[] | undefined
+
+  if (targetFlag !== -1) {
+    targets = args.slice(targetFlag + 1).filter(a => !a.startsWith('-')) as TargetPlatform[]
+  }
+
+  const config = await loadConfig()
+
+  console.log(`Uninstalling ${config.name} plugin...`)
+  await uninstallPlugin(config.name, targets)
+}
+
 function printHelp() {
   console.log(`
 plugahh — Cross-platform AI agent plugin SDK
@@ -123,6 +160,8 @@ Usage:
   plugahh build [--target <platforms...>]   Generate platform-specific plugin files
   plugahh validate                          Validate your config
   plugahh init [name]                       Create a new plugahh.config.ts
+  plugahh install [--target <platforms>]    Symlink built plugins for local testing
+  plugahh uninstall [--target <platforms>]  Remove symlinked plugins
   plugahh help                              Show this help
 
 Targets:
@@ -132,6 +171,8 @@ Examples:
   plugahh build                             Build for all configured targets
   plugahh build --target claude-code cursor  Build for specific platforms
   plugahh init my-plugin                    Scaffold a new plugin config
+  plugahh install                           Install to all detected tools
+  plugahh install --target claude-code      Install to Claude Code only
 `)
 }
 
