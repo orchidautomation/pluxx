@@ -6,12 +6,18 @@ import { ClaudeCodeGenerator } from './claude-code'
 import { CursorGenerator } from './cursor'
 import { CodexGenerator } from './codex'
 import { OpenCodeGenerator } from './opencode'
+import { GitHubCopilotGenerator } from './github-copilot'
+import { OpenHandsGenerator } from './openhands'
+import { WarpGenerator } from './warp'
 
 const GENERATORS: Record<TargetPlatform, new (config: PluginConfig, rootDir: string) => Generator> = {
   'claude-code': ClaudeCodeGenerator,
   cursor: CursorGenerator,
   codex: CodexGenerator,
   opencode: OpenCodeGenerator,
+  'github-copilot': GitHubCopilotGenerator,
+  openhands: OpenHandsGenerator,
+  warp: WarpGenerator,
 }
 
 export interface BuildOptions {

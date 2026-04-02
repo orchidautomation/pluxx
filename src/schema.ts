@@ -91,7 +91,15 @@ export const PlatformOverridesSchema = z.object({
 
 // ── Main Plugin Config ───────────────────────────────────────────
 
-export const TargetPlatform = z.enum(['claude-code', 'cursor', 'codex', 'opencode'])
+export const TargetPlatform = z.enum([
+  'claude-code',
+  'cursor',
+  'codex',
+  'opencode',
+  'github-copilot',
+  'openhands',
+  'warp',
+])
 export type TargetPlatform = z.infer<typeof TargetPlatform>
 
 export const PluginConfigSchema = z.object({
