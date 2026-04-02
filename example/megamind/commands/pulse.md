@@ -1,6 +1,6 @@
 ---
 description: Get a client health snapshot from Megamind (synced Slack + Fathom data)
-argument-hint: [client|all] [days:14]
+argument-hint: "[client|all] [days:14]"
 ---
 
 Get a client pulse from Megamind. Pass a client slug or use "all" for a cross-client summary.
