@@ -21,7 +21,7 @@ export interface SkillFrontmatterRule {
 }
 
 export interface PlatformRule {
-  platform: 'claude-code' | 'github-copilot'
+  platform: 'claude-code' | 'github-copilot' | 'cline'
   sourceUrls: string[]
   notes: string[]
   manifest: {
@@ -43,8 +43,14 @@ export interface PlatformRule {
   hooks: {
     supported: boolean
     manifestField: string
-    form: 'path-or-inline'
+    form: 'path-or-inline' | 'script-directory'
     defaultFiles: string[]
+  }
+  acp: {
+    supported: boolean
+    launchCommand: string
+    configFiles: string[]
+    notes: string[]
   }
 }
 
@@ -110,6 +116,12 @@ const CLAUDE_CODE_RULES: PlatformRule = {
     manifestField: 'hooks',
     form: 'path-or-inline',
     defaultFiles: ['hooks/hooks.json'],
+  },
+  acp: {
+    supported: false,
+    launchCommand: '',
+    configFiles: [],
+    notes: ['Claude Code does not use ACP for plugin integration.'],
   },
 }
 
@@ -218,11 +230,109 @@ const GITHUB_COPILOT_RULES: PlatformRule = {
     form: 'path-or-inline',
     defaultFiles: ['hooks.json', 'hooks/hooks.json'],
   },
+  acp: {
+    supported: false,
+    launchCommand: '',
+    configFiles: [],
+    notes: ['GitHub Copilot CLI plugins do not expose ACP integration points.'],
+  },
+}
+
+const CLINE_RULES: PlatformRule = {
+  platform: 'cline',
+  sourceUrls: [
+    'https://docs.cline.bot/customization/cline-rules',
+    'https://docs.cline.bot/customization/skills',
+    'https://docs.cline.bot/customization/hooks',
+    'https://docs.cline.bot/mcp/adding-and-configuring-servers',
+    'https://docs.cline.bot/cline-cli/configuration',
+    'https://docs.cline.bot/cline-cli/acp-editor-integrations',
+  ],
+  notes: [
+    'Cline rules are markdown files in .clinerules/; Cline processes .md and .txt files and combines them.',
+    'Conditional rules use YAML frontmatter with paths globs; rules without frontmatter are always active.',
+    'Cline supports hook scripts in .clinerules/hooks/ (workspace) and ~/Documents/Cline/Hooks/ (global).',
+    'Hook scripts receive JSON via stdin and must return JSON via stdout with { cancel, contextModification, errorMessage }.',
+    'Hook-specific input fields are taskStart, taskResume, taskCancel, taskComplete, preToolUse, postToolUse, userPromptSubmit, preCompact.',
+    'Cline CLI stores MCP settings in ~/.cline/data/settings/cline_mcp_settings.json; pluxx also emits project-local .cline/mcp.json for generated plugins.',
+    'Remote MCP auth is supported via OAuth flows and explicit headers in MCP server config.',
+  ],
+  manifest: {
+    requiredFileName: '.clinerules/',
+    requiredFields: [],
+    optionalMetadataFields: [
+      {
+        name: 'paths',
+        required: false,
+        type: 'string|string[]',
+        notes: 'Conditional .clinerules frontmatter glob patterns.',
+      },
+    ],
+    componentPathFields: [],
+    fileLookupOrder: [
+      '.clinerules/',
+      'AGENTS.md',
+      '.cursorrules',
+      '.windsurfrules',
+    ],
+  },
+  skills: {
+    frontmatter: [
+      {
+        name: 'name',
+        required: true,
+        type: 'string',
+        notes: 'Must match the skill directory name exactly (kebab-case recommended).',
+      },
+      {
+        name: 'description',
+        required: true,
+        type: 'string',
+        notes: 'Used for skill activation; max 1024 characters.',
+      },
+    ],
+    discoveryOrder: [
+      '.cline/skills/',
+      '.clinerules/skills/',
+      '.claude/skills/',
+      '~/.cline/skills/',
+    ],
+  },
+  mcp: {
+    supported: true,
+    manifestField: 'mcpServers',
+    configLookupOrder: [
+      '.cline/mcp.json',
+      '~/.cline/data/settings/cline_mcp_settings.json',
+      '<CLINE_DIR>/data/settings/cline_mcp_settings.json',
+    ],
+  },
+  hooks: {
+    supported: true,
+    manifestField: 'hooks',
+    form: 'script-directory',
+    defaultFiles: [
+      '.clinerules/hooks/',
+      '~/Documents/Cline/Hooks/',
+    ],
+  },
+  acp: {
+    supported: true,
+    launchCommand: 'cline --acp',
+    configFiles: [
+      '~/.jetbrains/acp.json',
+      '<zed settings.json>.agent_servers',
+    ],
+    notes: [
+      'Cline CLI supports ACP editor integrations without reducing Skills/Hooks/MCP capabilities.',
+    ],
+  },
 }
 
 export const PLATFORM_RULES: Record<PlatformRule['platform'], PlatformRule> = {
   'claude-code': CLAUDE_CODE_RULES,
   'github-copilot': GITHUB_COPILOT_RULES,
+  cline: CLINE_RULES,
 }
 
 export function getPlatformRule(platform: PlatformRule['platform']): PlatformRule {
