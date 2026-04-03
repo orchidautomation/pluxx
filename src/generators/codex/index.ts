@@ -98,9 +98,22 @@ export class CodexGenerator extends Generator {
           url: server.url,
         }
 
-        // Codex uses bearer_token_env_var pattern
+        // Codex uses bearer_token_env_var pattern.
         if (server.auth?.type === 'bearer' && server.auth.envVar) {
           entry.bearer_token_env_var = server.auth.envVar
+        } else if (server.auth?.type === 'header' && server.auth.envVar) {
+          const isBearerAuthorizationHeader =
+            server.auth.headerName === 'Authorization'
+            && server.auth.headerTemplate === 'Bearer ${value}'
+
+          if (isBearerAuthorizationHeader) {
+            entry.bearer_token_env_var = server.auth.envVar
+          } else {
+            console.warn(
+              `[pluxx] codex generator: MCP server "${name}" uses auth.type "header" with unsupported custom header settings. `
+              + 'Codex only supports bearer_token_env_var; custom headers were omitted.'
+            )
+          }
         }
 
         mcpServers[name] = entry

@@ -10,13 +10,13 @@ export function warnDroppedHookFields(
 
   if (hasMatcher) {
     console.warn(
-      `[plugahh] ${platform} generator dropped unsupported hook field "matcher" for event "${event}".`
+      `[pluxx] ${platform} generator dropped unsupported hook field "matcher" for event "${event}".`
     )
   }
 
   if (hasFailClosed) {
     console.warn(
-      `[plugahh] ${platform} generator dropped unsupported hook field "failClosed" for event "${event}".`
+      `[pluxx] ${platform} generator dropped unsupported hook field "failClosed" for event "${event}".`
     )
   }
 }

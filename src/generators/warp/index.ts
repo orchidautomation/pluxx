@@ -50,6 +50,13 @@ export class WarpGenerator extends Generator {
           entry.headers = {
             Authorization: `Bearer \${${server.auth.envVar}}`,
           }
+        } else if (server.auth?.type === 'header' && server.auth.envVar) {
+          entry.headers = {
+            [server.auth.headerName]: server.auth.headerTemplate.replace(
+              '${value}',
+              `\${${server.auth.envVar}}`
+            ),
+          }
         }
         mcpServers[name] = entry
       }
