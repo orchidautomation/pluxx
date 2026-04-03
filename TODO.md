@@ -24,7 +24,17 @@
 
 - [ ] `plugahh diff` — show what changed per platform since last build
 - [ ] `plugahh publish` — push to Cursor marketplace, npm (OpenCode), Codex marketplace
-- [ ] Skill validation (lint SKILL.md against Agent Skills spec)
+- [ ] `plugahh lint` — validate skills + plugin against all platform rules:
+  - SKILL.md description max 1024 chars (Agent Skills spec, Codex enforces this)
+  - SKILL.md description max 250 chars displayed (Claude Code truncates)
+  - SKILL.md name must match directory name (Cursor requires this)
+  - SKILL.md name: lowercase, hyphens only, max 64 chars
+  - YAML frontmatter values with special chars must be quoted (caught by claude plugin validate)
+  - MCP URLs must be valid
+  - Hook commands must reference existing scripts
+  - Brand color must be valid hex
+  - Codex: max 3 default prompts, 128 chars each
+  - Warn on missing description, missing author, missing license
 - [ ] Platform detection (auto-detect which tools are installed, only install to those)
 - [ ] YAML config support (`plugahh.config.yaml`)
 
