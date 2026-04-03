@@ -21,7 +21,7 @@ export interface SkillFrontmatterRule {
 }
 
 export interface PlatformRule {
-  platform: 'claude-code' | 'github-copilot'
+  platform: 'claude-code' | 'github-copilot' | 'warp'
   sourceUrls: string[]
   notes: string[]
   manifest: {
@@ -220,9 +220,86 @@ const GITHUB_COPILOT_RULES: PlatformRule = {
   },
 }
 
+const WARP_RULES: PlatformRule = {
+  platform: 'warp',
+  sourceUrls: [
+    'https://docs.warp.dev/agent-platform/capabilities/skills',
+    'https://docs.warp.dev/agent-platform/capabilities/rules',
+    'https://docs.warp.dev/agent-platform/capabilities/mcp',
+  ],
+  notes: [
+    'Warp does not use a plugin.json manifest for project integrations; skills/rules are discovered from well-known directories/files.',
+    'Project rules default to AGENTS.md; WARP.md remains supported and takes precedence when both exist in the same directory.',
+    'Rules filenames must be uppercase for detection (AGENTS.md / WARP.md).',
+  ],
+  manifest: {
+    requiredFileName: 'none',
+    requiredFields: [],
+    optionalMetadataFields: [],
+    componentPathFields: [],
+    fileLookupOrder: [],
+  },
+  skills: {
+    frontmatter: [
+      {
+        name: 'name',
+        required: true,
+        type: 'string',
+        notes: 'Unique skill identifier (typically kebab-case).',
+      },
+      {
+        name: 'description',
+        required: true,
+        type: 'string',
+        notes: 'Brief explanation of what the skill does and when to use it.',
+      },
+    ],
+    discoveryOrder: [
+      '.agents/skills/ (recommended)',
+      '.warp/skills/',
+      '.claude/skills/',
+      '.codex/skills/',
+      '.cursor/skills/',
+      '.gemini/skills/',
+      '.copilot/skills/',
+      '.factory/skills/',
+      '.github/skills/',
+      '.opencode/skills/',
+      '~/.agents/skills/ (global, recommended)',
+      '~/.warp/skills/',
+      '~/.claude/skills/',
+      '~/.codex/skills/',
+      '~/.cursor/skills/',
+      '~/.gemini/skills/',
+      '~/.copilot/skills/',
+      '~/.factory/skills/',
+      '~/.github/skills/',
+      '~/.opencode/skills/',
+      'skills must be nested as <dir>/<skill-name>/SKILL.md',
+      'background conflict resolution prefers home-directory skills, then higher directories',
+    ],
+  },
+  mcp: {
+    supported: true,
+    manifestField: 'mcpServers',
+    configLookupOrder: [
+      'Warp MCP settings UI / JSON snippet (mcpServers)',
+      '~/.codex/config.toml (file-based MCP servers)',
+      '.codex/config.toml (project file-based MCP servers)',
+    ],
+  },
+  hooks: {
+    supported: false,
+    manifestField: 'none',
+    form: 'path-or-inline',
+    defaultFiles: [],
+  },
+}
+
 export const PLATFORM_RULES: Record<PlatformRule['platform'], PlatformRule> = {
   'claude-code': CLAUDE_CODE_RULES,
   'github-copilot': GITHUB_COPILOT_RULES,
+  warp: WARP_RULES,
 }
 
 export function getPlatformRule(platform: PlatformRule['platform']): PlatformRule {
