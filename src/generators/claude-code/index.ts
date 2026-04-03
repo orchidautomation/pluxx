@@ -6,6 +6,11 @@ import type { TargetPlatform } from '../../schema'
 export class ClaudeCodeGenerator extends Generator {
   readonly platform: TargetPlatform = 'claude-code'
 
+  /** Override in subclasses to change output paths */
+  protected get manifestPath(): string { return '.claude-plugin/plugin.json' }
+  protected get instructionsFile(): string { return 'CLAUDE.md' }
+  protected get pluginRootVar(): string { return 'CLAUDE_PLUGIN_ROOT' }
+
   async generate(): Promise<void> {
     await Promise.all([
       this.generateManifest(),
@@ -21,7 +26,7 @@ export class ClaudeCodeGenerator extends Generator {
     this.copyAssets()
   }
 
-  private async generateManifest(): Promise<void> {
+  protected async generateManifest(): Promise<void> {
     const manifest: Record<string, unknown> = {
       name: this.config.name,
       version: this.config.version,
@@ -41,10 +46,10 @@ export class ClaudeCodeGenerator extends Generator {
     }
     manifest.skills = './skills/'
 
-    await this.writeJson('.claude-plugin/plugin.json', manifest)
+    await this.writeJson(this.manifestPath, manifest)
   }
 
-  private async generateMcpConfig(): Promise<void> {
+  protected async generateMcpConfig(): Promise<void> {
     if (!this.config.mcp) return
 
     const mcpServers: Record<string, unknown> = {}
@@ -82,7 +87,7 @@ export class ClaudeCodeGenerator extends Generator {
     await this.writeJson('.mcp.json', { mcpServers })
   }
 
-  private async generateHooks(): Promise<void> {
+  protected async generateHooks(): Promise<void> {
     if (!this.config.hooks) return
 
     // Claude Code hooks use a slightly different format
@@ -96,7 +101,7 @@ export class ClaudeCodeGenerator extends Generator {
         hooks: [{
           type: 'command',
           command: entry.command
-            .replace('${PLUGIN_ROOT}', '${CLAUDE_PLUGIN_ROOT}'),
+            .replace('${PLUGIN_ROOT}', `\${${this.pluginRootVar}}`),
         }],
       }))
     }
@@ -104,7 +109,7 @@ export class ClaudeCodeGenerator extends Generator {
     await this.writeJson('hooks.json', { hooks })
   }
 
-  private async generateInstructions(): Promise<void> {
+  protected async generateInstructions(): Promise<void> {
     if (!this.config.instructions) return
     const srcPath = resolve(this.rootDir, this.config.instructions)
     if (!existsSync(srcPath)) return
@@ -120,7 +125,7 @@ export class ClaudeCodeGenerator extends Generator {
       content,
     ].join('\n')
 
-    await this.writeFile('CLAUDE.md', claudeMd)
+    await this.writeFile(this.instructionsFile, claudeMd)
   }
 }
 

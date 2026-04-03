@@ -106,7 +106,7 @@ export class CursorGenerator extends Generator {
         .replace(/^-|-$/g, '')
 
       await this.writeFile(
-        `rules/${filename}.mdc`,
+        `.cursor/rules/${filename}.mdc`,
         frontmatter.join('\n') + '\n\n' + content
       )
     }

@@ -1,5 +1,5 @@
 import { rmSync, mkdirSync } from 'fs'
-import { resolve } from 'path'
+import { resolve, relative } from 'path'
 import type { PluginConfig, TargetPlatform } from '../schema'
 import { Generator } from './base'
 import { ClaudeCodeGenerator } from './claude-code'
@@ -42,6 +42,14 @@ export async function build(
 ): Promise<void> {
   const targets = options.targets ?? config.targets
   const outDir = resolve(rootDir, config.outDir)
+
+  // CRITICAL: Guard against path traversal — outDir must stay within rootDir
+  const rel = relative(rootDir, outDir)
+  if (rel.startsWith('..') || resolve(outDir) === resolve(rootDir)) {
+    throw new Error(
+      `outDir "${config.outDir}" resolves outside the project root. Refusing to delete.`
+    )
+  }
 
   if (options.clean !== false) {
     rmSync(outDir, { recursive: true, force: true })

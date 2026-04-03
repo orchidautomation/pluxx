@@ -31,6 +31,41 @@ function getInstallTargets(pluginName: string): InstallTarget[] {
       pluginDir: resolve(home, '.config/opencode/plugins', pluginName),
       description: `~/.config/opencode/plugins/${pluginName}`,
     },
+    {
+      platform: 'github-copilot',
+      pluginDir: resolve(home, '.github-copilot/plugins', pluginName),
+      description: `~/.github-copilot/plugins/${pluginName}`,
+    },
+    {
+      platform: 'openhands',
+      pluginDir: resolve(home, '.openhands/plugins', pluginName),
+      description: `~/.openhands/plugins/${pluginName}`,
+    },
+    {
+      platform: 'warp',
+      pluginDir: resolve(home, '.warp/plugins', pluginName),
+      description: `~/.warp/plugins/${pluginName}`,
+    },
+    {
+      platform: 'gemini-cli',
+      pluginDir: resolve(home, '.gemini/extensions', pluginName),
+      description: `~/.gemini/extensions/${pluginName}`,
+    },
+    {
+      platform: 'roo-code',
+      pluginDir: resolve(home, '.roo/plugins', pluginName),
+      description: `~/.roo/plugins/${pluginName}`,
+    },
+    {
+      platform: 'cline',
+      pluginDir: resolve(home, '.cline/plugins', pluginName),
+      description: `~/.cline/plugins/${pluginName}`,
+    },
+    {
+      platform: 'amp',
+      pluginDir: resolve(home, '.amp/plugins', pluginName),
+      description: `~/.amp/plugins/${pluginName}`,
+    },
   ]
 }
 
