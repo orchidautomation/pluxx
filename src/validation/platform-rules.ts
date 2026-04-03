@@ -7,9 +7,23 @@ export interface PlatformRuleSource {
   url: string
 }
 
+export interface PlatformLimits {
+  skillDescriptionMax: number | null
+  skillDescriptionDisplayMax: number | null
+  skillNameMax: number
+  skillNameMustMatchDir: boolean
+  manifestPromptMax: number | null
+  manifestPromptCountMax: number | null
+  manifestPathPrefix: string | null
+  instructionsMaxBytes: number | null
+  hooksFeatureFlag: string | null
+  rulesMaxLines: number | null
+}
+
 export interface PlatformRules {
   platform: TargetPlatform
   summary: string
+  limits: PlatformLimits
   skillDiscoveryDirs: {
     path: string
     level: RuleLevel
@@ -55,6 +69,69 @@ const STANDARD_SKILL_FRONTMATTER = [
   'disable-model-invocation',
 ] as const
 
+const NULL_LIMITS: PlatformLimits = {
+  skillDescriptionMax: null,
+  skillDescriptionDisplayMax: null,
+  skillNameMax: 64,
+  skillNameMustMatchDir: false,
+  manifestPromptMax: null,
+  manifestPromptCountMax: null,
+  manifestPathPrefix: null,
+  instructionsMaxBytes: null,
+  hooksFeatureFlag: null,
+  rulesMaxLines: null,
+}
+
+export const PLATFORM_LIMITS: Record<TargetPlatform, PlatformLimits> = {
+  'claude-code': {
+    ...NULL_LIMITS,
+    skillDescriptionDisplayMax: 250,
+  },
+  'codex': {
+    ...NULL_LIMITS,
+    skillDescriptionMax: 1024,
+    skillNameMustMatchDir: true,
+    manifestPromptMax: 128,
+    manifestPromptCountMax: 3,
+    manifestPathPrefix: './',
+    instructionsMaxBytes: 32768,
+    hooksFeatureFlag: 'codex_hooks',
+  },
+  'cursor': {
+    ...NULL_LIMITS,
+    skillNameMustMatchDir: true,
+    rulesMaxLines: 500,
+  },
+  'opencode': {
+    ...NULL_LIMITS,
+  },
+  'github-copilot': {
+    ...NULL_LIMITS,
+    skillDescriptionDisplayMax: 250,
+  },
+  'openhands': {
+    ...NULL_LIMITS,
+  },
+  'warp': {
+    ...NULL_LIMITS,
+  },
+  'gemini-cli': {
+    ...NULL_LIMITS,
+    skillNameMustMatchDir: true,
+  },
+  'roo-code': {
+    ...NULL_LIMITS,
+  },
+  'cline': {
+    ...NULL_LIMITS,
+    skillDescriptionMax: 1024,
+    skillNameMustMatchDir: true,
+  },
+  'amp': {
+    ...NULL_LIMITS,
+  },
+}
+
 type ResearchTarget = Extract<
   TargetPlatform,
   'openhands' | 'warp' | 'gemini-cli' | 'roo-code' | 'cline' | 'amp'
@@ -64,6 +141,7 @@ export const PLATFORM_VALIDATION_RULES: Record<ResearchTarget, PlatformRules> = 
   'openhands': {
     platform: 'openhands',
     summary: 'OpenHands plugins use a Claude-style manifest at .plugin/plugin.json and support skills, hooks, and MCP.',
+    limits: PLATFORM_LIMITS['openhands'],
     skillDiscoveryDirs: [
       { path: '.openhands/skills/', level: 'supported' },
       { path: '.claude/skills/', level: 'supported' },
@@ -103,6 +181,7 @@ export const PLATFORM_VALIDATION_RULES: Record<ResearchTarget, PlatformRules> = 
   'warp': {
     platform: 'warp',
     summary: 'Warp supports skills, rules, and MCP with AGENTS.md as the current rules anchor.',
+    limits: PLATFORM_LIMITS['warp'],
     skillDiscoveryDirs: [
       { path: '.agents/skills/', level: 'supported' },
       { path: '.warp/skills/', level: 'supported' },
@@ -144,6 +223,7 @@ export const PLATFORM_VALIDATION_RULES: Record<ResearchTarget, PlatformRules> = 
   'gemini-cli': {
     platform: 'gemini-cli',
     summary: 'Gemini CLI uses gemini-extension.json, GEMINI.md instructions, and hook definitions in hooks/hooks.json.',
+    limits: PLATFORM_LIMITS['gemini-cli'],
     skillDiscoveryDirs: [
       { path: 'skills/', level: 'supported' },
     ],
@@ -181,6 +261,7 @@ export const PLATFORM_VALIDATION_RULES: Record<ResearchTarget, PlatformRules> = 
   'roo-code': {
     platform: 'roo-code',
     summary: 'Roo Code supports project and mode-specific rules, project-level MCP config, and custom modes metadata.',
+    limits: PLATFORM_LIMITS['roo-code'],
     skillDiscoveryDirs: [
       { path: '.roo/skills/', level: 'supported' },
     ],
@@ -221,6 +302,7 @@ export const PLATFORM_VALIDATION_RULES: Record<ResearchTarget, PlatformRules> = 
   'cline': {
     platform: 'cline',
     summary: 'Cline supports layered rules, .cline/mcp.json, and conditional rules via frontmatter path globs.',
+    limits: PLATFORM_LIMITS['cline'],
     skillDiscoveryDirs: [
       { path: '.cline/skills/', level: 'supported' },
       { path: '.agents/skills/', level: 'supported' },
@@ -260,6 +342,7 @@ export const PLATFORM_VALIDATION_RULES: Record<ResearchTarget, PlatformRules> = 
   'amp': {
     platform: 'amp',
     summary: 'AMP uses AGENTS.md/AGENT.md for instruction hierarchy and .amp/settings.json for settings, hooks, and MCP.',
+    limits: PLATFORM_LIMITS['amp'],
     skillDiscoveryDirs: [
       { path: '.agents/skills/', level: 'supported' },
       { path: '~/.config/amp/skills/', level: 'supported' },

@@ -1,8 +1,8 @@
 import { existsSync, readdirSync, readFileSync } from 'fs'
 import { resolve, relative, basename, dirname } from 'path'
 import { loadConfig } from '../config/load'
-import type { PluginConfig } from '../schema'
-import { PLATFORM_VALIDATION_RULES, getPlatformRules } from '../validation/platform-rules'
+import type { PluginConfig, TargetPlatform } from '../schema'
+import { PLATFORM_LIMITS } from '../validation/platform-rules'
 
 const AGENT_SKILLS_RULES = { name: { pattern: /^[a-z0-9-]+$/, maxLength: 64 }, description: { maxLength: 1024 } }
 const CLAUDE_CODE_RULES = { description: { maxDisplayLength: 250 } }
@@ -147,7 +147,7 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>
 }
 
-function lintSkillFile(skillFile: string, issues: LintIssue[]): void {
+function lintSkillFile(skillFile: string, targets: TargetPlatform[], issues: LintIssue[]): void {
   const content = readFileSync(skillFile, 'utf-8')
   const parsed = parseFrontmatter(content)
 
@@ -194,14 +194,17 @@ function lintSkillFile(skillFile: string, issues: LintIssue[]): void {
       })
     }
 
+    // Check skill name must match directory for platforms that require it
     const expectedDirName = basename(dirname(skillFile))
-    if (nameField.value !== expectedDirName) {
+    const platformsRequiringDirMatch = targets.filter(t => PLATFORM_LIMITS[t].skillNameMustMatchDir)
+    if (platformsRequiringDirMatch.length > 0 && nameField.value !== expectedDirName) {
+      const platformNames = platformsRequiringDirMatch.join(', ')
       pushIssue(issues, {
         level: 'error',
-        code: 'cursor-dir-name-match',
-        message: `Skill name "${nameField.value}" must match directory name "${expectedDirName}".`,
+        code: 'skill-name-dir-mismatch',
+        message: `Skill name "${nameField.value}" must match directory name "${expectedDirName}" (required by ${platformNames}).`,
         file: skillFile,
-        platform: 'Cursor',
+        platform: platformsRequiringDirMatch[0],
       })
     }
 
@@ -225,24 +228,32 @@ function lintSkillFile(skillFile: string, issues: LintIssue[]): void {
       platform: 'Agent Skills',
     })
   } else {
-    if (descriptionField.value.length > MAX_AGENT_SKILLS_DESCRIPTION) {
-      pushIssue(issues, {
-        level: 'error',
-        code: 'skill-description-length',
-        message: `Description exceeds Agent Skills max of ${MAX_AGENT_SKILLS_DESCRIPTION} characters.`,
-        file: skillFile,
-        platform: 'Agent Skills',
-      })
+    // Check hard description max for each platform
+    for (const target of targets) {
+      const limits = PLATFORM_LIMITS[target]
+      if (limits.skillDescriptionMax !== null && descriptionField.value.length > limits.skillDescriptionMax) {
+        pushIssue(issues, {
+          level: 'error',
+          code: 'skill-description-length',
+          message: `Description exceeds ${target} max of ${limits.skillDescriptionMax} characters.`,
+          file: skillFile,
+          platform: target,
+        })
+      }
     }
 
-    if (descriptionField.value.length > MAX_CLAUDE_DESCRIPTION) {
-      pushIssue(issues, {
-        level: 'warning',
-        code: 'claude-description-truncation',
-        message: `Description exceeds Claude Code display limit (${MAX_CLAUDE_DESCRIPTION}) and will be truncated.`,
-        file: skillFile,
-        platform: 'Claude Code',
-      })
+    // Check display truncation thresholds for each platform
+    for (const target of targets) {
+      const limits = PLATFORM_LIMITS[target]
+      if (limits.skillDescriptionDisplayMax !== null && descriptionField.value.length > limits.skillDescriptionDisplayMax) {
+        pushIssue(issues, {
+          level: 'warning',
+          code: 'skill-description-truncation',
+          message: `Description will be truncated in ${target} (display limit: ${limits.skillDescriptionDisplayMax}).`,
+          file: skillFile,
+          platform: target,
+        })
+      }
     }
 
     if (!descriptionField.quoted && needsQuotes(descriptionField.rawValue)) {
@@ -472,6 +483,92 @@ function lintCodexHookCompatibility(config: PluginConfig, issues: LintIssue[]): 
   }
 }
 
+function lintManifestPromptLimits(config: PluginConfig, issues: LintIssue[]): void {
+  for (const target of config.targets) {
+    const limits = PLATFORM_LIMITS[target]
+    if (limits.manifestPromptCountMax === null && limits.manifestPromptMax === null) continue
+
+    const prompts = config.brand?.defaultPrompts
+    if (!prompts) continue
+
+    if (limits.manifestPromptCountMax !== null && prompts.length > limits.manifestPromptCountMax) {
+      pushIssue(issues, {
+        level: 'error',
+        code: 'platform-prompt-count',
+        message: `${target} supports at most ${limits.manifestPromptCountMax} default prompts (found ${prompts.length}).`,
+        file: 'pluxx.config.ts',
+        platform: target,
+      })
+    }
+
+    if (limits.manifestPromptMax !== null) {
+      for (const prompt of prompts) {
+        if (prompt.length > limits.manifestPromptMax) {
+          pushIssue(issues, {
+            level: 'error',
+            code: 'platform-prompt-length',
+            message: `A default prompt exceeds ${target} max of ${limits.manifestPromptMax} characters.`,
+            file: 'pluxx.config.ts',
+            platform: target,
+          })
+        }
+      }
+    }
+  }
+}
+
+function lintInstructionsFileLimits(config: PluginConfig, dir: string, issues: LintIssue[]): void {
+  for (const target of config.targets) {
+    const limits = PLATFORM_LIMITS[target]
+    if (limits.instructionsMaxBytes === null) continue
+
+    // Check common instructions files
+    const instructionsFiles = ['AGENTS.md', 'CLAUDE.md', 'INSTRUCTIONS.md']
+    for (const file of instructionsFiles) {
+      const filePath = resolve(dir, file)
+      if (!existsSync(filePath)) continue
+
+      const content = readFileSync(filePath, 'utf-8')
+      const byteSize = Buffer.byteLength(content, 'utf-8')
+      if (byteSize > limits.instructionsMaxBytes) {
+        pushIssue(issues, {
+          level: 'warning',
+          code: 'platform-instructions-size',
+          message: `${file} is ${byteSize} bytes, exceeding ${target} max of ${limits.instructionsMaxBytes} bytes.`,
+          file,
+          platform: target,
+        })
+      }
+    }
+  }
+}
+
+function lintRulesFileLimits(config: PluginConfig, dir: string, issues: LintIssue[]): void {
+  for (const target of config.targets) {
+    const limits = PLATFORM_LIMITS[target]
+    if (limits.rulesMaxLines === null) continue
+
+    // Check common rules files
+    const rulesFiles = ['.cursorrules', '.clinerules']
+    for (const file of rulesFiles) {
+      const filePath = resolve(dir, file)
+      if (!existsSync(filePath)) continue
+
+      const content = readFileSync(filePath, 'utf-8')
+      const lineCount = content.split(/\r?\n/).length
+      if (lineCount > limits.rulesMaxLines) {
+        pushIssue(issues, {
+          level: 'warning',
+          code: 'platform-rules-lines',
+          message: `${file} has ${lineCount} lines, exceeding ${target} recommended max of ${limits.rulesMaxLines} lines.`,
+          file,
+          platform: target,
+        })
+      }
+    }
+  }
+}
+
 function sortIssues(issues: LintIssue[]): LintIssue[] {
   return [...issues].sort((a, b) => {
     if (a.level === b.level) {
@@ -525,9 +622,18 @@ export async function lintProject(dir: string = process.cwd()): Promise<LintResu
     }
 
     for (const skillFile of skillFiles) {
-      lintSkillFile(skillFile, issues)
+      lintSkillFile(skillFile, config.targets, issues)
     }
   }
+
+  // Platform limit checks for manifest prompts (Codex)
+  lintManifestPromptLimits(config, issues)
+
+  // Platform limit checks for instructions file size
+  lintInstructionsFileLimits(config, dir, issues)
+
+  // Platform limit checks for rules file line count
+  lintRulesFileLimits(config, dir, issues)
 
   const sorted = sortIssues(issues)
   const errors = sorted.filter(i => i.level === 'error').length
