@@ -293,7 +293,7 @@ export class OpenCodeGenerator extends Generator {
     const vars = new Set<string>()
     if (this.config.mcp) {
       for (const server of Object.values(this.config.mcp)) {
-        if (server.auth?.envVar) {
+        if (server.auth && 'envVar' in server.auth && server.auth.envVar) {
           vars.add(server.auth.envVar)
         }
       }

@@ -22,7 +22,7 @@ const McpAuthHeaderSchema = z.object({
 
 export const McpAuthSchema = z.preprocess(
   (value) => {
-    if (value && typeof value === 'object' && !('type' in value as object)) {
+    if (value && typeof value === 'object' && !('type' in (value as Record<string, unknown>))) {
       return { ...(value as Record<string, unknown>), type: 'bearer' }
     }
     return value
@@ -59,7 +59,7 @@ const McpServerStdioSchema = z.object({
 
 export const McpServerSchema = z.preprocess(
   (value) => {
-    if (value && typeof value === 'object' && !('transport' in value as object)) {
+    if (value && typeof value === 'object' && !('transport' in (value as Record<string, unknown>))) {
       return { ...(value as Record<string, unknown>), transport: 'http' }
     }
     return value

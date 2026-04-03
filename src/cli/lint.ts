@@ -268,6 +268,7 @@ function lintMcpUrls(config: PluginConfig, issues: LintIssue[]): void {
   if (!config.mcp) return
 
   for (const [serverName, server] of Object.entries(config.mcp)) {
+    if (!('url' in server) || !server.url) continue
     try {
       const parsed = new URL(server.url)
       if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
