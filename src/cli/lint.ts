@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'fs'
 import { resolve, relative, basename, dirname } from 'path'
 import { loadConfig } from '../config/load'
 import type { PluginConfig } from '../schema'
+import { AGENT_SKILLS_RULES, CLAUDE_CODE_RULES, CODEX_RULES } from '../validation/platform-rules'
 
 type LintLevel = 'error' | 'warning'
 
@@ -26,13 +27,13 @@ export interface LintResult {
   issues: LintIssue[]
 }
 
-const SKILL_NAME_REGEX = /^[a-z0-9-]+$/
-const MAX_AGENT_SKILLS_DESCRIPTION = 1024
-const MAX_CLAUDE_DESCRIPTION = 250
-const MAX_SKILL_NAME = 64
-const MAX_CODEX_DEFAULT_PROMPTS = 3
-const MAX_CODEX_PROMPT_LENGTH = 128
-const HEX_COLOR_REGEX = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/
+const SKILL_NAME_REGEX = AGENT_SKILLS_RULES.name.pattern
+const MAX_AGENT_SKILLS_DESCRIPTION = AGENT_SKILLS_RULES.description.maxLength
+const MAX_CLAUDE_DESCRIPTION = CLAUDE_CODE_RULES.description.maxDisplayLength
+const MAX_SKILL_NAME = AGENT_SKILLS_RULES.name.maxLength
+const MAX_CODEX_DEFAULT_PROMPTS = CODEX_RULES.interface.maxDefaultPrompts
+const MAX_CODEX_PROMPT_LENGTH = CODEX_RULES.interface.maxDefaultPromptLength
+const HEX_COLOR_REGEX = CODEX_RULES.interface.brandColorPattern
 
 function pushIssue(issues: LintIssue[], issue: LintIssue): void {
   issues.push(issue)
@@ -114,6 +115,27 @@ function needsQuotes(value: string): boolean {
   const containsYamlColon = /:\s/.test(value)
   const hasLeadingOrTrailingSpace = value !== value.trim()
   return startsWithSpecial || containsCommentChar || containsYamlColon || hasLeadingOrTrailingSpace
+}
+
+function normalizeWhitespace(value: string): string {
+  return value.split(/\s+/).filter(Boolean).join(' ')
+}
+
+function isCodexTargetEnabled(config: PluginConfig): boolean {
+  return config.targets.includes('codex')
+}
+
+function isCodexManifestRelativePath(path: string): boolean {
+  if (!path.startsWith(CODEX_RULES.manifestPaths.requiredPrefix)) return false
+  if (path === CODEX_RULES.manifestPaths.requiredPrefix) return false
+  const relativePath = path.slice(CODEX_RULES.manifestPaths.requiredPrefix.length)
+  if (relativePath.includes('..')) return false
+  return !relativePath.startsWith('/') && !relativePath.startsWith('\\')
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  return value as Record<string, unknown>
 }
 
 function lintSkillFile(skillFile: string, issues: LintIssue[]): void {
@@ -233,7 +255,7 @@ function lintBrandMetadata(config: PluginConfig, issues: LintIssue[]): void {
     pushIssue(issues, {
       level: 'error',
       code: 'brand-color-hex',
-      message: 'Brand color must be a valid hex color (#RGB or #RRGGBB).',
+      message: 'Brand color must be a valid Codex hex color (#RRGGBB).',
       file: 'pluxx.config.ts',
       platform: 'Codex',
     })
@@ -264,10 +286,143 @@ function lintBrandMetadata(config: PluginConfig, issues: LintIssue[]): void {
   }
 }
 
+function lintCodexOverrides(config: PluginConfig, issues: LintIssue[]): void {
+  if (!isCodexTargetEnabled(config)) return
+
+  const iface = asRecord(config.platforms?.codex?.interface)
+  if (!iface) return
+
+  if (typeof iface.brandColor === 'string' && !HEX_COLOR_REGEX.test(iface.brandColor)) {
+    pushIssue(issues, {
+      level: 'error',
+      code: 'codex-interface-brand-color-hex',
+      message: 'Codex interface.brandColor must be a valid hex color (#RRGGBB).',
+      file: 'pluxx.config.ts',
+      platform: 'Codex',
+    })
+  }
+
+  if (typeof iface.composerIcon === 'string' && !isCodexManifestRelativePath(iface.composerIcon)) {
+    pushIssue(issues, {
+      level: 'error',
+      code: 'codex-interface-composer-icon-path',
+      message: 'Codex interface.composerIcon must be a plugin-root-relative path starting with `./`.',
+      file: 'pluxx.config.ts',
+      platform: 'Codex',
+    })
+  }
+
+  if (typeof iface.logo === 'string' && !isCodexManifestRelativePath(iface.logo)) {
+    pushIssue(issues, {
+      level: 'error',
+      code: 'codex-interface-logo-path',
+      message: 'Codex interface.logo must be a plugin-root-relative path starting with `./`.',
+      file: 'pluxx.config.ts',
+      platform: 'Codex',
+    })
+  }
+
+  if (Array.isArray(iface.screenshots)) {
+    for (const screenshot of iface.screenshots) {
+      if (typeof screenshot !== 'string' || !isCodexManifestRelativePath(screenshot)) {
+        pushIssue(issues, {
+          level: 'error',
+          code: 'codex-interface-screenshot-path',
+          message: 'Codex interface.screenshots entries must be plugin-root-relative paths starting with `./`.',
+          file: 'pluxx.config.ts',
+          platform: 'Codex',
+        })
+        break
+      }
+    }
+  }
+
+  const defaultPrompt = iface.defaultPrompt
+  const prompts = typeof defaultPrompt === 'string'
+    ? [defaultPrompt]
+    : Array.isArray(defaultPrompt) ? defaultPrompt : null
+
+  if (prompts) {
+    if (prompts.length > MAX_CODEX_DEFAULT_PROMPTS) {
+      pushIssue(issues, {
+        level: 'error',
+        code: 'codex-default-prompts-count',
+        message: `Codex supports at most ${MAX_CODEX_DEFAULT_PROMPTS} default prompts.`,
+        file: 'pluxx.config.ts',
+        platform: 'Codex',
+      })
+    }
+    for (const prompt of prompts) {
+      if (typeof prompt !== 'string') {
+        pushIssue(issues, {
+          level: 'error',
+          code: 'codex-default-prompt-type',
+          message: 'Codex interface.defaultPrompt must be a string or an array of strings.',
+          file: 'pluxx.config.ts',
+          platform: 'Codex',
+        })
+        break
+      }
+      const normalized = normalizeWhitespace(prompt)
+      if (!normalized) {
+        pushIssue(issues, {
+          level: 'error',
+          code: 'codex-default-prompt-empty',
+          message: 'Codex default prompts must not be empty after whitespace normalization.',
+          file: 'pluxx.config.ts',
+          platform: 'Codex',
+        })
+      } else if (normalized.length > MAX_CODEX_PROMPT_LENGTH) {
+        pushIssue(issues, {
+          level: 'error',
+          code: 'codex-default-prompt-length',
+          message: `A default prompt exceeds ${MAX_CODEX_PROMPT_LENGTH} characters.`,
+          file: 'pluxx.config.ts',
+          platform: 'Codex',
+        })
+      }
+    }
+  }
+
+  if (Array.isArray(iface.capabilities)) {
+    for (const capability of iface.capabilities) {
+      if (typeof capability !== 'string') {
+        pushIssue(issues, {
+          level: 'error',
+          code: 'codex-interface-capability-type',
+          message: 'Codex interface.capabilities must contain only strings.',
+          file: 'pluxx.config.ts',
+          platform: 'Codex',
+        })
+        break
+      }
+      if (!CODEX_RULES.interface.knownCapabilities.includes(capability as typeof CODEX_RULES.interface.knownCapabilities[number])) {
+        pushIssue(issues, {
+          level: 'warning',
+          code: 'codex-interface-capability-unknown',
+          message: `Capability "${capability}" is not in Codex's documented capability set (${CODEX_RULES.interface.knownCapabilities.join(', ')}).`,
+          file: 'pluxx.config.ts',
+          platform: 'Codex',
+        })
+      }
+    }
+  }
+}
+
 function lintMcpUrls(config: PluginConfig, issues: LintIssue[]): void {
   if (!config.mcp) return
 
   for (const [serverName, server] of Object.entries(config.mcp)) {
+    if (!CODEX_RULES.mcp.serverNamePattern.test(serverName)) {
+      pushIssue(issues, {
+        level: 'error',
+        code: 'mcp-server-name-format',
+        message: `MCP server name "${serverName}" must match ${CODEX_RULES.mcp.serverNamePattern}.`,
+        file: 'pluxx.config.ts',
+        platform: 'MCP',
+      })
+    }
+
     if (!('url' in server) || !server.url) continue
     try {
       const parsed = new URL(server.url)
@@ -287,6 +442,22 @@ function lintMcpUrls(config: PluginConfig, issues: LintIssue[]): void {
         message: `MCP server "${serverName}" has an invalid URL.`,
         file: 'pluxx.config.ts',
         platform: 'MCP',
+      })
+    }
+  }
+}
+
+function lintCodexHookCompatibility(config: PluginConfig, issues: LintIssue[]): void {
+  if (!isCodexTargetEnabled(config) || !config.hooks) return
+
+  for (const hookEvent of Object.keys(config.hooks)) {
+    if (!CODEX_RULES.hooks.supportedEvents.includes(hookEvent as typeof CODEX_RULES.hooks.supportedEvents[number])) {
+      pushIssue(issues, {
+        level: 'warning',
+        code: 'codex-hook-event-unsupported',
+        message: `Codex hooks only support ${CODEX_RULES.hooks.supportedEvents.join(', ')}; "${hookEvent}" will not map cleanly.`,
+        file: 'pluxx.config.ts',
+        platform: 'Codex',
       })
     }
   }
@@ -320,6 +491,8 @@ export async function lintProject(dir: string = process.cwd()): Promise<LintResu
 
   lintMcpUrls(config, issues)
   lintBrandMetadata(config, issues)
+  lintCodexOverrides(config, issues)
+  lintCodexHookCompatibility(config, issues)
 
   const skillsDir = resolve(dir, config.skills)
   if (!existsSync(skillsDir)) {
