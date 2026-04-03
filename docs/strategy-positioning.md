@@ -125,8 +125,105 @@ Once `pluxx publish` and pluxx.dev exist, we become the cross-platform plugin di
 - Team plugin registries (enterprise)
 - Additional generators as new agents launch
 
+## Distribution: The Real Product
+
+Building plugins is step one. **Getting them to users** is where the value compounds.
+
+### The Problem Today
+
+Distribution for AI agent plugins is completely fragmented:
+1. Find the plugin on Cursor marketplace → install for Cursor
+2. Separately find it (if it exists) for Claude Code → install differently
+3. Hope someone ported it to Codex → probably not
+4. Repeat for every agent you use
+
+Plugin authors have it worse — they need to manually submit to each marketplace, maintain separate listings, and track installs across disconnected dashboards.
+
+### pluxx publish — Automated Marketplace Syndication
+
+`pluxx publish` takes the generated platform-specific outputs and submits them directly:
+
+```
+$ pluxx publish
+
+Publishing cool-plugin v1.2.0...
+
+  Cursor marketplace    → submitted (pending review)
+  Codex plugin directory → submitted (pending review)
+  npm (OpenCode)        → published @cool/cool-plugin@1.2.0
+  pluxx.dev registry    → live
+
+Published to 4 platforms.
+```
+
+- `pluxx publish --target cursor` → submit to Cursor's marketplace via their API
+- `pluxx publish --target codex` → submit to OpenAI's plugin directory
+- `pluxx publish --target npm` → publish the OpenCode package to npm
+- `pluxx publish` → all platforms at once
+
+### pluxx.dev — The Cross-Platform Plugin Registry
+
+The bigger play. One directory for all AI agent plugins:
+
+- Plugin authors publish once to pluxx.dev
+- Users browse one catalog and see install buttons for *their* agent
+- "Install in Claude Code" / "Install in Cursor" / "Install in Codex" — one-click per platform
+- **Homebrew for AI agent plugins**, or the Chrome Web Store but agent-agnostic
+
+This is a network effects play. Every plugin listed makes the registry more valuable to users. Every user browsing makes the registry more valuable to plugin authors.
+
+### pluxx add — Universal Install Protocol
+
+For end users, one command installs a plugin across every agent on their machine:
+
+```
+$ npx pluxx add @company/cool-plugin
+
+Detected agents: Claude Code, Cursor, Codex
+
+  Claude Code → installed (.claude-plugin/, CLAUDE.md, hooks, MCP)
+  Cursor      → installed (.cursor-plugin/, .cursorrules, hooks, MCP)
+  Codex       → installed (.codex-plugin/, AGENTS.md, hooks, MCP)
+
+Done! cool-plugin is ready in all 3 agents.
+```
+
+- Auto-detects which agents are installed locally
+- Pulls the right platform-specific package for each
+- Sets up manifests, MCP configs, hooks, rules — everything
+- One install, every agent gets the full native experience
+
+### The Distribution Multiplier
+
+For plugin authors, the pitch evolves:
+
+| Stage | Value proposition |
+|-------|------------------|
+| **pluxx build** | "Save time packaging" |
+| **pluxx publish** | "Reach every AI agent user from one publish" |
+| **pluxx.dev** | "Your plugin, discoverable to the entire agent ecosystem" |
+| **pluxx add** | "Users install once, it works everywhere" |
+
+A plugin on pluxx.dev instantly gets 11x the addressable market vs. publishing to a single marketplace.
+
+### Revenue Model (The Vercel Playbook)
+
+| Tier | What | Price |
+|------|------|-------|
+| **Free** | `pluxx build`, `pluxx lint`, `pluxx validate` — local CLI, forever free | $0 |
+| **Pro** | `pluxx publish` to pluxx.dev + marketplace syndication, install analytics (by platform, by day), plugin update notifications | $49/mo |
+| **Team** | Private plugin registries, team management, shared configs, priority syndication | $199/mo |
+| **Enterprise** | SSO, audit logs, custom registry domains, SLA, dedicated support | $499/mo |
+
+Open source CLI is free. The cloud platform is the business. Same playbook as Vercel (Next.js), Hashicorp (Terraform), and Netlify (static sites).
+
 ## The Big Picture
 
 The AI agent ecosystem is going through the same fragmentation phase that mobile (iOS/Android), browsers (Chrome/Firefox/Safari), and package managers (npm/yarn/pnpm) went through. In every case, the abstraction layer that unified the fragmentation became critical infrastructure.
 
 pluxx is that abstraction layer for AI agent plugins.
+
+The trajectory:
+1. **Tool** — `pluxx build` solves the packaging problem (today)
+2. **Platform** — `pluxx publish` + pluxx.dev solves the distribution problem (next)
+3. **Infrastructure** — pluxx becomes how plugins get built, discovered, installed, and updated across the entire agent ecosystem (endgame)
