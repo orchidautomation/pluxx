@@ -14,6 +14,8 @@ const testConfig: PluginConfig = {
   author: { name: 'Test Author' },
   license: 'MIT',
   skills: './skills/',
+  commands: './commands/',
+  instructions: './INSTRUCTIONS.md',
   brand: {
     displayName: 'Test Plugin',
     shortDescription: 'A test plugin for testing',
@@ -34,6 +36,15 @@ const testConfig: PluginConfig = {
     },
   },
   hooks: {
+    preToolUse: [{
+      command: '${PLUGIN_ROOT}/scripts/pre-tool.sh',
+    }],
+    postToolUse: [{
+      command: '${PLUGIN_ROOT}/scripts/post-tool.sh',
+    }],
+    beforeSubmitPrompt: [{
+      command: '${PLUGIN_ROOT}/scripts/prompt.sh',
+    }],
     sessionStart: [{
       command: '${PLUGIN_ROOT}/scripts/validate.sh',
     }],
@@ -44,9 +55,18 @@ const testConfig: PluginConfig = {
 
 beforeAll(async () => {
   mkdirSync(resolve(TEST_DIR, 'skills/hello/'), { recursive: true })
+  mkdirSync(resolve(TEST_DIR, 'commands/'), { recursive: true })
   await Bun.write(
     resolve(TEST_DIR, 'skills/hello/SKILL.md'),
     '---\nname: hello\ndescription: Say hello\n---\n\nSay hello to the user.\n',
+  )
+  await Bun.write(
+    resolve(TEST_DIR, 'commands/pulse.md'),
+    '---\ndescription: Get a pulse summary\n---\n\nSummarize workspace health.\n'
+  )
+  await Bun.write(
+    resolve(TEST_DIR, 'INSTRUCTIONS.md'),
+    '# Runtime Instructions\n\nAlways keep responses concise.\n'
   )
 })
 
@@ -106,6 +126,17 @@ describe('build', () => {
     const indexTs = readFileSync(resolve(OUT_DIR, 'opencode/index.ts'), 'utf-8')
     expect(indexTs).toContain('TestPluginPlugin')
     expect(indexTs).toContain('TEST_API_KEY')
+    expect(indexTs).toContain('config: async (config)')
+    expect(indexTs).toContain('buildMcpConfig')
+    expect(indexTs).toContain('TUI_COMMANDS')
+    expect(indexTs).toContain('"tool.execute.before"')
+    expect(indexTs).toContain('"tool.execute.after"')
+    expect(indexTs).toContain('"chat.message"')
+    expect(indexTs).toContain('"experimental.chat.system.transform"')
+    expect(indexTs).toContain('"experimental.session.compacting"')
+    expect(indexTs).toContain('Summarize workspace health.')
+    expect(indexTs).toContain('Always keep responses concise.')
+    expect(indexTs).toContain('"session.created"')
   })
 
   it('copies skills to all targets', async () => {
