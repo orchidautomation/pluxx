@@ -93,6 +93,7 @@ async function runValidate() {
 
 async function runInit() {
   const dirName = basename(process.cwd()).toLowerCase().replace(/[^a-z0-9-]/g, '-')
+  const tsString = (value: string) => JSON.stringify(value)
 
   console.log('')
   console.log('  plugahh init — Create a new plugin')
@@ -131,18 +132,18 @@ async function runInit() {
     closePrompts()
 
     // Build the config file content
-    const targetsList = targets.map(t => `'${t}'`).join(', ')
+    const targetsList = targets.map(tsString).join(', ')
     let mcpBlock = ''
     if (hasMcp && mcpUrl) {
-      const serverName = name.replace(/[^a-z0-9]/g, '-')
+      const serverName = name.toLowerCase().replace(/[^a-z0-9]/g, '-')
       mcpBlock = `
   // MCP servers your plugin connects to
   mcp: {
-    '${serverName}': {
-      url: '${mcpUrl}',${mcpEnvVar ? `
+    ${tsString(serverName)}: {
+      url: ${tsString(mcpUrl)},${mcpEnvVar ? `
       auth: {
         type: 'bearer',
-        envVar: '${mcpEnvVar}',
+        envVar: ${tsString(mcpEnvVar)},
       },` : ''}
     },
   },
@@ -154,8 +155,8 @@ async function runInit() {
       brandBlock = `
   // Brand metadata
   brand: {
-    displayName: '${displayName}',${brandColor ? `
-    color: '${brandColor}',` : ''}
+    displayName: ${tsString(displayName)},${brandColor ? `
+    color: ${tsString(brandColor)},` : ''}
   },
 `
     }
@@ -163,11 +164,11 @@ async function runInit() {
     const template = `import { definePlugin } from 'plugahh'
 
 export default definePlugin({
-  name: '${name}',
+  name: ${tsString(name)},
   version: '0.1.0',
-  description: '${description.replace(/'/g, "\\'")}',
+  description: ${tsString(description)},
   author: {
-    name: '${authorName.replace(/'/g, "\\'")}',
+    name: ${tsString(authorName)},
   },
   license: 'MIT',
 
@@ -182,8 +183,14 @@ ${mcpBlock}${brandBlock}
     // Write config
     await Bun.write('plugahh.config.ts', template)
 
-    // Create skills directory with a starter SKILL.md
-    await mkdir('skills', { recursive: true })
+    const skillDir = name
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '') || 'skill'
+
+    // Create skills/<name>/SKILL.md starter
+    await mkdir(`skills/${skillDir}`, { recursive: true })
 
     const skillContent = `---
 name: ${name}
@@ -206,15 +213,15 @@ Example prompt or command here
 \`\`\`
 `
 
-    await Bun.write('skills/SKILL.md', skillContent)
+    await Bun.write(`skills/${skillDir}/SKILL.md`, skillContent)
 
     console.log('')
     console.log('  Created:')
     console.log('    plugahh.config.ts')
-    console.log('    skills/SKILL.md')
+    console.log(`    skills/${skillDir}/SKILL.md`)
     console.log('')
     console.log('  Next steps:')
-    console.log('    1. Edit skills/SKILL.md with your skill instructions')
+    console.log(`    1. Edit skills/${skillDir}/SKILL.md with your skill instructions`)
     console.log('    2. Run: plugahh build')
     console.log('    3. Run: plugahh install')
     console.log('')
