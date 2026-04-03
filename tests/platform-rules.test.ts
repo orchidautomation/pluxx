@@ -6,10 +6,10 @@ import {
 } from '../src/validation/platform-rules'
 
 describe('platform rules', () => {
-  it('has rule entries for claude-code, github-copilot, and warp', () => {
+  it('has rule entries for claude-code, github-copilot, and roo-code', () => {
     expect(PLATFORM_RULES['claude-code']).toBeDefined()
     expect(PLATFORM_RULES['github-copilot']).toBeDefined()
-    expect(PLATFORM_RULES.warp).toBeDefined()
+    expect(PLATFORM_RULES['roo-code']).toBeDefined()
   })
 
   it('codifies copilot manifest lookup locations', () => {
@@ -45,23 +45,29 @@ describe('platform rules', () => {
     expect(isCopilotManifestClaudeCompatible()).toBe(true)
   })
 
-  it('codifies warp skills and rules file conventions', () => {
-    const warp = getPlatformRule('warp')
-
-    expect(warp.skills.discoveryOrder).toContain('.agents/skills/ (recommended)')
-    expect(warp.skills.discoveryOrder).toContain('.warp/skills/')
-
-    const fieldNames = warp.skills.frontmatter.map(field => field.name)
-    expect(fieldNames).toEqual(['name', 'description'])
+  it('codifies roo code MCP config locations', () => {
+    const roo = getPlatformRule('roo-code')
+    expect(roo.mcp.configLookupOrder).toEqual([
+      '.roo/mcp.json (project)',
+      'mcp_settings.json (global Roo settings)',
+    ])
   })
 
-  it('codifies warp MCP and hooks support boundaries', () => {
-    const warp = getPlatformRule('warp')
+  it('codifies roo skill discovery directories and mode-specific variants', () => {
+    const roo = getPlatformRule('roo-code')
+    expect(roo.skills.discoveryOrder).toContain('~/.agents/skills/ and ~/.agents/skills-{mode}/')
+    expect(roo.skills.discoveryOrder).toContain('.agents/skills/ and .agents/skills-{mode}/')
+    expect(roo.skills.discoveryOrder).toContain('~/.roo/skills/ and ~/.roo/skills-{mode}/')
+    expect(roo.skills.discoveryOrder).toContain('.roo/skills/ and .roo/skills-{mode}/')
+  })
 
-    expect(warp.mcp.supported).toBe(true)
-    expect(warp.mcp.configLookupOrder).toContain('~/.codex/config.toml (file-based MCP servers)')
+  it('codifies roo frontmatter mode fields', () => {
+    const roo = getPlatformRule('roo-code')
+    const names = roo.skills.frontmatter.map(field => field.name)
 
-    expect(warp.hooks.supported).toBe(false)
-    expect(warp.hooks.defaultFiles).toEqual([])
+    expect(names).toContain('name')
+    expect(names).toContain('description')
+    expect(names).toContain('modeSlugs')
+    expect(names).toContain('mode')
   })
 })

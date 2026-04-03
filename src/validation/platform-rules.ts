@@ -21,7 +21,7 @@ export interface SkillFrontmatterRule {
 }
 
 export interface PlatformRule {
-  platform: 'claude-code' | 'github-copilot' | 'warp'
+  platform: 'claude-code' | 'github-copilot' | 'roo-code'
   sourceUrls: string[]
   notes: string[]
   manifest: {
@@ -220,20 +220,24 @@ const GITHUB_COPILOT_RULES: PlatformRule = {
   },
 }
 
-const WARP_RULES: PlatformRule = {
-  platform: 'warp',
+const ROO_CODE_RULES: PlatformRule = {
+  platform: 'roo-code',
   sourceUrls: [
-    'https://docs.warp.dev/agent-platform/capabilities/skills',
-    'https://docs.warp.dev/agent-platform/capabilities/rules',
-    'https://docs.warp.dev/agent-platform/capabilities/mcp',
+    'https://docs.roocode.com/basic-usage/using-mcp',
+    'https://docs.roocode.com/features/custom-instructions',
+    'https://docs.roocode.com/features/custom-rules',
+    'https://docs.roocode.com/features/skills',
+    'https://kilo.ai/docs/customize/skills',
   ],
   notes: [
-    'Warp does not use a plugin.json manifest for project integrations; skills/rules are discovered from well-known directories/files.',
-    'Project rules default to AGENTS.md; WARP.md remains supported and takes precedence when both exist in the same directory.',
-    'Rules filenames must be uppercase for detection (AGENTS.md / WARP.md).',
+    'Roo Code does not use a plugin manifest; conventions are file-system driven.',
+    'Project MCP config is loaded from .roo/mcp.json with top-level mcpServers.',
+    'Global MCP config is loaded from Roo settings mcp_settings.json.',
+    'Rule loading prefers .roo/rules/ (and .roo/rules-{mode}/) before legacy .roorules files.',
+    'Skill mode scoping is modeSlugs[] (preferred), legacy mode string, then directory fallback skills-{mode}/.',
   ],
   manifest: {
-    requiredFileName: 'none',
+    requiredFileName: '(none)',
     requiredFields: [],
     optionalMetadataFields: [],
     componentPathFields: [],
@@ -241,56 +245,44 @@ const WARP_RULES: PlatformRule = {
   },
   skills: {
     frontmatter: [
-      {
-        name: 'name',
-        required: true,
-        type: 'string',
-        notes: 'Unique skill identifier (typically kebab-case).',
-      },
+      { name: 'name', required: true, type: 'string' },
       {
         name: 'description',
         required: true,
         type: 'string',
-        notes: 'Brief explanation of what the skill does and when to use it.',
+        notes: '1-1024 chars after trimming.',
+      },
+      {
+        name: 'modeSlugs',
+        required: false,
+        type: 'string|string[]',
+        notes: 'Preferred mode-specific activation field (array of mode slugs).',
+      },
+      {
+        name: 'mode',
+        required: false,
+        type: 'string',
+        notes: 'Legacy single-mode fallback when modeSlugs is absent.',
       },
     ],
     discoveryOrder: [
-      '.agents/skills/ (recommended)',
-      '.warp/skills/',
-      '.claude/skills/',
-      '.codex/skills/',
-      '.cursor/skills/',
-      '.gemini/skills/',
-      '.copilot/skills/',
-      '.factory/skills/',
-      '.github/skills/',
-      '.opencode/skills/',
-      '~/.agents/skills/ (global, recommended)',
-      '~/.warp/skills/',
-      '~/.claude/skills/',
-      '~/.codex/skills/',
-      '~/.cursor/skills/',
-      '~/.gemini/skills/',
-      '~/.copilot/skills/',
-      '~/.factory/skills/',
-      '~/.github/skills/',
-      '~/.opencode/skills/',
-      'skills must be nested as <dir>/<skill-name>/SKILL.md',
-      'background conflict resolution prefers home-directory skills, then higher directories',
+      '~/.agents/skills/ and ~/.agents/skills-{mode}/',
+      '.agents/skills/ and .agents/skills-{mode}/',
+      '~/.roo/skills/ and ~/.roo/skills-{mode}/',
+      '.roo/skills/ and .roo/skills-{mode}/',
     ],
   },
   mcp: {
     supported: true,
     manifestField: 'mcpServers',
     configLookupOrder: [
-      'Warp MCP settings UI / JSON snippet (mcpServers)',
-      '~/.codex/config.toml (file-based MCP servers)',
-      '.codex/config.toml (project file-based MCP servers)',
+      '.roo/mcp.json (project)',
+      'mcp_settings.json (global Roo settings)',
     ],
   },
   hooks: {
     supported: false,
-    manifestField: 'none',
+    manifestField: '(none)',
     form: 'path-or-inline',
     defaultFiles: [],
   },
@@ -299,7 +291,7 @@ const WARP_RULES: PlatformRule = {
 export const PLATFORM_RULES: Record<PlatformRule['platform'], PlatformRule> = {
   'claude-code': CLAUDE_CODE_RULES,
   'github-copilot': GITHUB_COPILOT_RULES,
-  warp: WARP_RULES,
+  'roo-code': ROO_CODE_RULES,
 }
 
 export function getPlatformRule(platform: PlatformRule['platform']): PlatformRule {
