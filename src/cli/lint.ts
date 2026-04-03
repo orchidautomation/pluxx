@@ -2,7 +2,16 @@ import { existsSync, readdirSync, readFileSync } from 'fs'
 import { resolve, relative, basename, dirname } from 'path'
 import { loadConfig } from '../config/load'
 import type { PluginConfig } from '../schema'
-import { AGENT_SKILLS_RULES, CLAUDE_CODE_RULES, CODEX_RULES } from '../validation/platform-rules'
+import { PLATFORM_RULES, getPlatformRule } from '../validation/platform-rules'
+
+const AGENT_SKILLS_RULES = { name: { pattern: /^[a-z0-9-]+$/, maxLength: 64 }, description: { maxLength: 1024 } }
+const CLAUDE_CODE_RULES = { description: { maxDisplayLength: 250 } }
+const CODEX_RULES = {
+  interface: { maxDefaultPrompts: 3, maxDefaultPromptLength: 128, brandColorPattern: /^#[0-9a-fA-F]{6}$/, knownCapabilities: ['Interactive', 'Write', 'Read'] as const },
+  manifestPaths: { requiredPrefix: './' },
+  mcp: { serverNamePattern: /^[a-z0-9_-]+$/ },
+  hooks: { supportedEvents: ['SessionStart', 'PreToolUse', 'PostToolUse', 'UserPromptSubmit', 'Stop'] as const },
+}
 
 type LintLevel = 'error' | 'warning'
 
