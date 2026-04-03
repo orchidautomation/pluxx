@@ -6,10 +6,10 @@ import {
 } from '../src/validation/platform-rules'
 
 describe('platform rules', () => {
-  it('has rule entries for claude-code, github-copilot, and cline', () => {
+  it('has rule entries for claude-code, github-copilot, and amp', () => {
     expect(PLATFORM_RULES['claude-code']).toBeDefined()
     expect(PLATFORM_RULES['github-copilot']).toBeDefined()
-    expect(PLATFORM_RULES.cline).toBeDefined()
+    expect(PLATFORM_RULES.amp).toBeDefined()
   })
 
   it('codifies copilot manifest lookup locations', () => {
@@ -45,19 +45,13 @@ describe('platform rules', () => {
     expect(isCopilotManifestClaudeCompatible()).toBe(true)
   })
 
-  it('codifies cline rules, hooks, and mcp locations', () => {
-    const cline = getPlatformRule('cline')
-    expect(cline.manifest.fileLookupOrder).toContain('.clinerules/')
-    expect(cline.skills.discoveryOrder).toContain('.cline/skills/')
-    expect(cline.hooks.form).toBe('script-directory')
-    expect(cline.hooks.defaultFiles).toContain('.clinerules/hooks/')
-    expect(cline.mcp.configLookupOrder).toContain('.cline/mcp.json')
-    expect(cline.mcp.configLookupOrder).toContain('~/.cline/data/settings/cline_mcp_settings.json')
-  })
+  it('codifies amp AGENTS/skills/mcp conventions', () => {
+    const amp = getPlatformRule('amp')
 
-  it('codifies cline ACP support', () => {
-    const cline = getPlatformRule('cline')
-    expect(cline.acp.supported).toBe(true)
-    expect(cline.acp.launchCommand).toBe('cline --acp')
+    expect(amp.manifest.fileLookupOrder).toEqual(['AGENTS.md', 'AGENT.md', 'CLAUDE.md'])
+    expect(amp.skills.discoveryOrder).toContain('.agents/skills/')
+    expect(amp.skills.discoveryOrder).toContain('.claude/skills/')
+    expect(amp.mcp.configLookupOrder).toContain('.amp/settings.json (amp.mcpServers)')
+    expect(amp.mcp.configLookupOrder).toContain('skills/**/mcp.json')
   })
 })

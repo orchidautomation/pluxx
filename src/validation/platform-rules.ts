@@ -21,7 +21,7 @@ export interface SkillFrontmatterRule {
 }
 
 export interface PlatformRule {
-  platform: 'claude-code' | 'github-copilot' | 'cline'
+  platform: 'claude-code' | 'github-copilot' | 'amp'
   sourceUrls: string[]
   notes: string[]
   manifest: {
@@ -43,14 +43,8 @@ export interface PlatformRule {
   hooks: {
     supported: boolean
     manifestField: string
-    form: 'path-or-inline' | 'script-directory'
+    form: 'path-or-inline'
     defaultFiles: string[]
-  }
-  acp: {
-    supported: boolean
-    launchCommand: string
-    configFiles: string[]
-    notes: string[]
   }
 }
 
@@ -116,12 +110,6 @@ const CLAUDE_CODE_RULES: PlatformRule = {
     manifestField: 'hooks',
     form: 'path-or-inline',
     defaultFiles: ['hooks/hooks.json'],
-  },
-  acp: {
-    supported: false,
-    launchCommand: '',
-    configFiles: [],
-    notes: ['Claude Code does not use ACP for plugin integration.'],
   },
 }
 
@@ -230,101 +218,90 @@ const GITHUB_COPILOT_RULES: PlatformRule = {
     form: 'path-or-inline',
     defaultFiles: ['hooks.json', 'hooks/hooks.json'],
   },
-  acp: {
-    supported: false,
-    launchCommand: '',
-    configFiles: [],
-    notes: ['GitHub Copilot CLI plugins do not expose ACP integration points.'],
-  },
 }
 
-const CLINE_RULES: PlatformRule = {
-  platform: 'cline',
+const AMP_RULES: PlatformRule = {
+  platform: 'amp',
   sourceUrls: [
-    'https://docs.cline.bot/customization/cline-rules',
-    'https://docs.cline.bot/customization/skills',
-    'https://docs.cline.bot/customization/hooks',
-    'https://docs.cline.bot/mcp/adding-and-configuring-servers',
-    'https://docs.cline.bot/cline-cli/configuration',
-    'https://docs.cline.bot/cline-cli/acp-editor-integrations',
+    'https://ampcode.com/manual',
+    'https://ampcode.com/manual/plugin-api',
+    'https://ampcode.com/manual/switch-from',
   ],
   notes: [
-    'Cline rules are markdown files in .clinerules/; Cline processes .md and .txt files and combines them.',
-    'Conditional rules use YAML frontmatter with paths globs; rules without frontmatter are always active.',
-    'Cline supports hook scripts in .clinerules/hooks/ (workspace) and ~/Documents/Cline/Hooks/ (global).',
-    'Hook scripts receive JSON via stdin and must return JSON via stdout with { cancel, contextModification, errorMessage }.',
-    'Hook-specific input fields are taskStart, taskResume, taskCancel, taskComplete, preToolUse, postToolUse, userPromptSubmit, preCompact.',
-    'Cline CLI stores MCP settings in ~/.cline/data/settings/cline_mcp_settings.json; pluxx also emits project-local .cline/mcp.json for generated plugins.',
-    'Remote MCP auth is supported via OAuth flows and explicit headers in MCP server config.',
+    'Amp does not use a dedicated plugin manifest file; guidance is loaded from AGENTS.md (with AGENT.md/CLAUDE.md compatibility fallback).',
+    'Amp plugin API is experimental and currently CLI-only.',
+    'Public docs call out that hooks are not fully productized yet; plugin events exist through the experimental amp.on(...) API.',
   ],
   manifest: {
-    requiredFileName: '.clinerules/',
+    requiredFileName: 'AGENTS.md',
     requiredFields: [],
-    optionalMetadataFields: [
+    optionalMetadataFields: [],
+    componentPathFields: [
       {
-        name: 'paths',
+        name: 'skills',
         required: false,
         type: 'string|string[]',
-        notes: 'Conditional .clinerules frontmatter glob patterns.',
+        notes: 'Primary project skill directory is .agents/skills/, with Claude compatibility directories also supported.',
+      },
+      {
+        name: 'amp.mcpServers',
+        required: false,
+        type: 'object',
+        notes: 'MCP servers are configured through Amp settings and can also be bundled per-skill via mcp.json.',
+      },
+      {
+        name: 'hooks',
+        required: false,
+        type: 'object',
+        notes: 'Legacy/settings-based hook config is not formally documented; experimental plugin API uses amp.on(event, handler).',
+      },
+      {
+        name: 'toolboxes',
+        required: false,
+        type: 'string',
+        notes: 'Toolboxes are discovered from the AMP_TOOLBOX executable directory and use TOOLBOX_ACTION=describe|execute.',
+      },
+      {
+        name: 'plugins',
+        required: false,
+        type: 'string|string[]',
+        notes: 'Plugin code lives in .amp/plugins/ (workspace) or ~/.config/amp/plugins/ (user).',
       },
     ],
-    componentPathFields: [],
-    fileLookupOrder: [
-      '.clinerules/',
-      'AGENTS.md',
-      '.cursorrules',
-      '.windsurfrules',
-    ],
+    fileLookupOrder: ['AGENTS.md', 'AGENT.md', 'CLAUDE.md'],
   },
   skills: {
     frontmatter: [
-      {
-        name: 'name',
-        required: true,
-        type: 'string',
-        notes: 'Must match the skill directory name exactly (kebab-case recommended).',
-      },
-      {
-        name: 'description',
-        required: true,
-        type: 'string',
-        notes: 'Used for skill activation; max 1024 characters.',
-      },
+      { name: 'name', required: true, type: 'string' },
+      { name: 'description', required: true, type: 'string' },
     ],
     discoveryOrder: [
-      '.cline/skills/',
-      '.clinerules/skills/',
+      '~/.config/agents/skills/',
+      '~/.config/amp/skills/',
+      '.agents/skills/',
       '.claude/skills/',
-      '~/.cline/skills/',
+      '~/.claude/skills/',
+      'plugins, toolbox directories, and built-in skills',
     ],
   },
   mcp: {
     supported: true,
-    manifestField: 'mcpServers',
+    manifestField: 'amp.mcpServers',
     configLookupOrder: [
-      '.cline/mcp.json',
-      '~/.cline/data/settings/cline_mcp_settings.json',
-      '<CLINE_DIR>/data/settings/cline_mcp_settings.json',
+      '.amp/settings.json (amp.mcpServers)',
+      '.amp/settings.jsonc (amp.mcpServers)',
+      '~/.config/amp/settings.json (amp.mcpServers)',
+      '~/.config/amp/settings.jsonc (amp.mcpServers)',
+      'skills/**/mcp.json',
     ],
   },
   hooks: {
     supported: true,
-    manifestField: 'hooks',
-    form: 'script-directory',
+    manifestField: 'amp.on(event, handler)',
+    form: 'path-or-inline',
     defaultFiles: [
-      '.clinerules/hooks/',
-      '~/Documents/Cline/Hooks/',
-    ],
-  },
-  acp: {
-    supported: true,
-    launchCommand: 'cline --acp',
-    configFiles: [
-      '~/.jetbrains/acp.json',
-      '<zed settings.json>.agent_servers',
-    ],
-    notes: [
-      'Cline CLI supports ACP editor integrations without reducing Skills/Hooks/MCP capabilities.',
+      '.amp/settings.json (experimental/internal hooks)',
+      '.amp/plugins/*.ts',
     ],
   },
 }
@@ -332,7 +309,7 @@ const CLINE_RULES: PlatformRule = {
 export const PLATFORM_RULES: Record<PlatformRule['platform'], PlatformRule> = {
   'claude-code': CLAUDE_CODE_RULES,
   'github-copilot': GITHUB_COPILOT_RULES,
-  cline: CLINE_RULES,
+  amp: AMP_RULES,
 }
 
 export function getPlatformRule(platform: PlatformRule['platform']): PlatformRule {
