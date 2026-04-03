@@ -2,7 +2,7 @@
 
 **Build AI agent plugins once. Ship them everywhere.**
 
-pluxx generates native plugin packages for Claude Code, Cursor, OpenCode, and Codex from a single config file. One source of truth &mdash; four platform-specific outputs with correct manifests, MCP configs, hooks, rules, and install scripts.
+pluxx generates native plugin packages for Claude Code, Cursor, and Codex from a single config file. One source of truth &mdash; platform-specific outputs with correct manifests, MCP configs, hooks, rules, and install scripts.
 
 ```bash
 npx pluxx build
@@ -13,8 +13,26 @@ dist/
   claude-code/   .claude-plugin/plugin.json, .mcp.json, CLAUDE.md, hooks, skills
   cursor/        .cursor-plugin/plugin.json, mcp.json, hooks.json, AGENTS.md, rules
   codex/         .codex-plugin/plugin.json, .mcp.json, hooks, AGENTS.md, interface metadata
-  opencode/      package.json, index.ts (programmatic plugin wrapper), skills
 ```
+
+## Platform Support
+
+| Platform | Status | Validated |
+|----------|--------|-----------|
+| **Claude Code** | Fully supported | `claude plugin validate` PASSED |
+| **Codex** | Fully supported | Docs-verified, config schema cross-referenced |
+| **Cursor** | Fully supported | Docs-verified, hooks + rules validated |
+| OpenCode | Beta | Generates JS/TS wrapper, needs live testing |
+| GitHub Copilot | Beta | Reuses Claude Code format (confirmed compatible) |
+| OpenHands | Beta | Generates .plugin/ manifest, needs live testing |
+| Warp | Beta | Generates skills + AGENTS.md |
+| Gemini CLI | Beta | Generates gemini-extension.json |
+| Roo Code | Beta | Generates .roorules + skills |
+| Cline | Beta | Generates .clinerules + skills |
+| AMP | Beta | Generates AGENT.md + skills |
+
+**Fully supported** = docs scraped, rules codified, lint checks implemented, output validated.
+**Beta** = generates correct file structure from docs, but not yet tested against the live tool.
 
 ## Why?
 
@@ -30,9 +48,8 @@ But a plugin is more than skills. A plugin bundles:
 | **Rules** | `CLAUDE.md` vs `.cursor/rules/*.mdc` vs `AGENTS.md` |
 | **Brand metadata** | Codex has icons, colors, screenshots, default prompts. Others don't. |
 | **Subagents** | Different formats per platform |
-| **OpenCode** | Needs a generated JS/TS module, not just config files |
 
-Without pluxx you maintain 2-4 copies of the same plugin. With pluxx you maintain one.
+Without pluxx you maintain separate copies for each platform. With pluxx you maintain one.
 
 ## Quick Start
 
@@ -46,8 +63,11 @@ cd my-plugin
 # Build for all platforms
 npx pluxx build
 
+# Lint against all platform rules (47 checks)
+npx pluxx lint
+
 # Build for specific platforms
-npx pluxx build --target claude-code cursor
+npx pluxx build --target claude-code cursor codex
 
 # Validate your config
 npx pluxx validate
@@ -98,7 +118,7 @@ export default definePlugin({
   },
 
   // Target platforms
-  targets: ['claude-code', 'cursor', 'codex', 'opencode'],
+  targets: ['claude-code', 'cursor', 'codex'],
 })
 ```
 
@@ -106,7 +126,7 @@ export default definePlugin({
 
 ### MCP Config Translation
 
-One auth config, four correct outputs:
+You write one auth config. pluxx generates the correct format for each platform:
 
 ```typescript
 // You write:
@@ -127,9 +147,6 @@ mcp: {
 
 // Cursor gets:
 { "headers": { "Authorization": "Bearer ${API_KEY}" } }
-
-// OpenCode gets:
-// env var validation in generated plugin wrapper
 ```
 
 ### Plugin Manifests
@@ -139,14 +156,27 @@ Each platform gets its native manifest format:
 - **Claude Code**: `.claude-plugin/plugin.json` with skills, commands paths
 - **Cursor**: `.cursor-plugin/plugin.json` with marketplace-compatible schema
 - **Codex**: `.codex-plugin/plugin.json` with full `interface` block (brand color, icons, screenshots, default prompts, capabilities)
-- **OpenCode**: `package.json` + generated `index.ts` wrapping your config into the programmatic `Plugin` API
 
-### Instructions → Platform-Native Rules
+### Instructions to Platform-Native Rules
 
 Your single `INSTRUCTIONS.md` becomes:
 - `CLAUDE.md` for Claude Code
 - `AGENTS.md` for Codex and Cursor
 - `.mdc` rule files for Cursor (with frontmatter) when you specify rules in platform overrides
+
+### 47 Lint Checks
+
+`pluxx lint` catches platform-specific gotchas before you ship:
+
+- Codex rejects SKILL.md descriptions over 1024 characters
+- Claude Code silently truncates descriptions at 250 characters
+- Cursor and Cline require skill names to match their directory names
+- Codex allows max 3 default prompts, 128 chars each
+- Claude Code hook events must be PascalCase (26 valid events)
+- Manifest paths must start with `./` and cannot contain `../`
+- Plugin directories must be at root, not inside `.claude-plugin/`
+- Version must follow semver format
+- And 39 more checks across all platforms
 
 ### Platform Overrides
 
@@ -172,55 +202,76 @@ platforms: {
 }
 ```
 
-## Real-World Example
+## Real-World Examples
 
-The [example/megamind](./example/megamind) directory contains a full plugin that was previously hand-maintained as two separate copies ([source](https://github.com/The-Kiln-Dev/projectmegamind)). With pluxx, one `pluxx.config.ts` generates **34 files across 4 platforms**.
+### Megamind (client intelligence plugin)
+
+The [example/megamind](./example/megamind) directory contains a full plugin that was previously hand-maintained as two separate copies. With pluxx, one config generates outputs for all platforms.
 
 ```bash
 cd example/megamind
 npx pluxx build
-# Generated: 34 files across claude-code/, cursor/, codex/, opencode/
+```
+
+### Prospeo (sales intelligence MCP)
+
+The [examples/prospeo-mcp](./examples/prospeo-mcp) directory wraps a real MCP server into a multi-platform plugin with 4 skills:
+
+```bash
+cd examples/prospeo-mcp
+npx pluxx build   # 52 files across 7 platforms
+npx pluxx lint    # Catches 3 real platform gotchas
 ```
 
 ## Testing Locally
 
-After building, test on any platform:
-
 ```bash
-# Claude Code
-claude --plugin-dir ./dist/claude-code
+# Build and install to Claude Code
+npx pluxx build
+npx pluxx install --target claude-code
 
-# Cursor
-ln -s $(pwd)/dist/cursor ~/.cursor/plugins/local/my-plugin
-
-# Codex
-ln -s $(pwd)/dist/codex ~/plugins/my-plugin
-
-# OpenCode
-# Add to opencode.json: { "plugin": ["./dist/opencode"] }
+# Validate with Claude Code's own validator
+claude plugin validate ~/.claude/plugins/my-plugin
+# ✓ Validation passed
 ```
+
+## CLI Commands
+
+| Command | What it does |
+|---------|-------------|
+| `pluxx init` | Interactive scaffold with MCP, hooks, brand prompts |
+| `pluxx build` | Generate plugin packages for all target platforms |
+| `pluxx lint` | 47 checks against all platform rules |
+| `pluxx validate` | Validate your config schema |
+| `pluxx install` | Symlink built plugins for local testing |
+| `pluxx uninstall` | Remove symlinked plugins |
+| `pluxx dev` | Watch mode with auto-rebuild on file changes |
+| `pluxx migrate <path>` | Import an existing single-platform plugin |
 
 ## How It Works
 
 ```
-pluxx.config.ts          ← You define your plugin once
-       │
-       ▼
-  ┌─────────┐
-  │  Parser  │              Zod schema validation
-  └────┬────┘
-       │
-       ▼
-  ┌────────────┐
-  │ Generators │            Platform-specific output generators
-  └─┬──┬──┬──┬┘
-    │  │  │  │
-    ▼  ▼  ▼  ▼
-  Claude  Cursor  Codex  OpenCode
+pluxx.config.ts          <- You define your plugin once
+       |
+       v
+  +---------+
+  |  Parse  |              Zod schema validation
+  +----+----+
+       |
+       v
+  +--------+
+  |  Lint  |               47 platform-specific checks
+  +----+---+
+       |
+       v
+  +----------+
+  | Generate |             Platform-specific generators
+  +-+--+--+--+
+    |  |  |
+    v  v  v
+  Claude  Cursor  Codex    + 8 beta platforms
   Code
 ```
-
-Each generator knows the exact file structure, manifest schema, MCP auth format, hook events, and conventions for its platform. Skills are passed through using the [Agent Skills](https://agentskills.io/) open standard.
 
 ## Comparison
 
@@ -232,7 +283,7 @@ Each generator knows the exact file structure, manifest schema, MCP auth format,
 | Hook generation per platform | Yes | - | - |
 | Brand/interface metadata | Yes | - | - |
 | Rules/instructions generation | Yes | - | Translate only |
-| OpenCode plugin wrapper | Yes | - | - |
+| Cross-platform lint (47 checks) | Yes | - | - |
 | Subagent configs | Yes | - | - |
 
 **pluxx builds plugins. The others install skills.** They're complementary — use `npx skills` to distribute your skills, use pluxx to build the full plugin package.
@@ -246,18 +297,18 @@ Each generator knows the exact file structure, manifest schema, MCP auth format,
 ## Roadmap
 
 - [x] Core schema with Zod validation
-- [x] Generators: Claude Code, Cursor, Codex, OpenCode
-- [x] CLI: `build`, `validate`, `init`
+- [x] Generators: Claude Code, Cursor, Codex (fully supported) + 8 beta platforms
+- [x] CLI: `build`, `validate`, `init`, `lint`, `install`, `uninstall`, `dev`, `migrate`
 - [x] MCP auth normalization across platforms
-- [x] Real-world example (Megamind plugin)
-- [ ] `pluxx install <platform>` — auto-symlink for local testing
-- [ ] `pluxx dev` — watch mode with auto-rebuild
-- [ ] `pluxx migrate` — import existing single-platform plugin
-- [ ] `pluxx diff` — show what changed per platform
+- [x] 47 lint checks from official docs (Firecrawl-verified)
+- [x] Real-world examples (Megamind + Prospeo)
+- [ ] `pluxx lint --fix` — auto-apply suggested fixes
+- [ ] `pluxx init --from-mcp` — auto-scaffold plugins from existing MCP servers
 - [ ] `pluxx publish` — push to platform marketplaces
+- [ ] `pluxx diff` — show what changed per platform
 - [ ] Plugin analytics dashboard
 - [ ] CI/CD GitHub Action
-- [ ] Additional generators (Windsurf, Zed, Gemini CLI)
+- [ ] Promote beta platforms to fully supported
 
 ## License
 
