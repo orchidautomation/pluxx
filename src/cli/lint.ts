@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'fs'
 import { resolve, relative, basename, dirname } from 'path'
 import { loadConfig } from '../config/load'
 import type { PluginConfig } from '../schema'
-import { PLATFORM_RULES, getPlatformRule } from '../validation/platform-rules'
+import { PLATFORM_VALIDATION_RULES, getPlatformRules } from '../validation/platform-rules'
 
 const AGENT_SKILLS_RULES = { name: { pattern: /^[a-z0-9-]+$/, maxLength: 64 }, description: { maxLength: 1024 } }
 const CLAUDE_CODE_RULES = { description: { maxDisplayLength: 250 } }
