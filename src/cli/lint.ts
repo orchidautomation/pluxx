@@ -2,6 +2,12 @@ import { existsSync, readdirSync, readFileSync } from 'fs'
 import { resolve, relative, basename, dirname } from 'path'
 import { loadConfig } from '../config/load'
 import type { PluginConfig } from '../schema'
+import {
+  isOpenCodeDirectHookName,
+  isPluxxHookKey,
+  isSupportedOpenCodeEventName,
+  isValidNpmPackageName,
+} from '../validation/platform-rules'
 
 type LintLevel = 'error' | 'warning'
 
@@ -292,6 +298,49 @@ function lintMcpUrls(config: PluginConfig, issues: LintIssue[]): void {
   }
 }
 
+function lintOpenCodeRules(config: PluginConfig, issues: LintIssue[]): void {
+  if (!config.targets.includes('opencode')) return
+
+  const npmPackage = config.platforms?.opencode?.npmPackage
+  if (npmPackage && !isValidNpmPackageName(npmPackage)) {
+    pushIssue(issues, {
+      level: 'error',
+      code: 'opencode-npm-package-name',
+      message: `OpenCode npm package "${npmPackage}" is not a valid npm package name.`,
+      file: 'pluxx.config.ts',
+      platform: 'OpenCode',
+    })
+  }
+
+  if (!config.hooks) return
+
+  for (const hookName of Object.keys(config.hooks)) {
+    if (isPluxxHookKey(hookName)) continue
+    if (!hookName.includes('.')) continue
+
+    if (isOpenCodeDirectHookName(hookName) && !isSupportedOpenCodeEventName(hookName)) {
+      pushIssue(issues, {
+        level: 'error',
+        code: 'opencode-direct-hook-unsupported',
+        message: `Hook "${hookName}" is an OpenCode direct hook but is not configurable via pluxx hooks. Use pluxx hook keys (for example, preToolUse) instead.`,
+        file: 'pluxx.config.ts',
+        platform: 'OpenCode',
+      })
+      continue
+    }
+
+    if (!isSupportedOpenCodeEventName(hookName)) {
+      pushIssue(issues, {
+        level: 'error',
+        code: 'opencode-event-unknown',
+        message: `Hook "${hookName}" is not a recognized OpenCode event name.`,
+        file: 'pluxx.config.ts',
+        platform: 'OpenCode',
+      })
+    }
+  }
+}
+
 function sortIssues(issues: LintIssue[]): LintIssue[] {
   return [...issues].sort((a, b) => {
     if (a.level === b.level) {
@@ -320,6 +369,7 @@ export async function lintProject(dir: string = process.cwd()): Promise<LintResu
 
   lintMcpUrls(config, issues)
   lintBrandMetadata(config, issues)
+  lintOpenCodeRules(config, issues)
 
   const skillsDir = resolve(dir, config.skills)
   if (!existsSync(skillsDir)) {

@@ -116,4 +116,50 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'claude-description-truncation')).toBe(true)
     expect(result.issues.some(issue => issue.code === 'yaml-quote-special-chars')).toBe(true)
   })
+
+  it('validates OpenCode platform rules', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/opencode-skill'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'opencode-plugin-test',
+        version: '0.1.0',
+        description: 'OpenCode rules validation',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['opencode'],
+        hooks: {
+          'session.created': [{ command: 'echo ok' }],
+          'chat.message': [{ command: 'echo should-fail' }],
+          'session.started': [{ command: 'echo unknown-event' }],
+        },
+        platforms: {
+          opencode: {
+            npmPackage: 'Bad Package Name',
+          },
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/opencode-skill/SKILL.md'),
+      [
+        '---',
+        'name: opencode-skill',
+        'description: "OpenCode validation test skill"',
+        '---',
+        '',
+        '# OpenCode Skill',
+      ].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.errors).toBeGreaterThan(0)
+    expect(result.issues.some(issue => issue.code === 'opencode-npm-package-name')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'opencode-direct-hook-unsupported')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'opencode-event-unknown')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'opencode-event-unknown' && issue.message.includes('session.created'))).toBe(false)
+  })
 })
