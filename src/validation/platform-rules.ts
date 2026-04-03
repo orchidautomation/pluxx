@@ -16,12 +16,12 @@ export interface ManifestFieldRule {
 export interface SkillFrontmatterRule {
   name: string
   required: boolean
-  type: 'string' | 'boolean' | 'object' | 'string|string[]'
+  type: 'string' | 'boolean' | 'string|string[]'
   notes?: string
 }
 
 export interface PlatformRule {
-  platform: 'claude-code' | 'github-copilot' | 'openhands'
+  platform: 'claude-code' | 'github-copilot' | 'gemini-cli'
   sourceUrls: string[]
   notes: string[]
   manifest: {
@@ -43,7 +43,7 @@ export interface PlatformRule {
   hooks: {
     supported: boolean
     manifestField: string
-    form: 'path-or-inline'
+    form: 'path-or-inline' | 'file-only'
     defaultFiles: string[]
   }
 }
@@ -220,86 +220,121 @@ const GITHUB_COPILOT_RULES: PlatformRule = {
   },
 }
 
-const OPENHANDS_RULES: PlatformRule = {
-  platform: 'openhands',
+const GEMINI_CLI_RULES: PlatformRule = {
+  platform: 'gemini-cli',
   sourceUrls: [
-    'https://docs.openhands.dev/sdk/guides/plugins',
-    'https://docs.openhands.dev/sdk/guides/skill',
-    'https://docs.openhands.dev/openhands/usage/cli/mcp-servers',
+    'https://github.com/google-gemini/gemini-cli/blob/main/docs/extensions/reference.md',
+    'https://github.com/google-gemini/gemini-cli/blob/main/docs/cli/skills.md',
+    'https://github.com/google-gemini/gemini-cli/blob/main/docs/hooks/reference.md',
+    'https://github.com/google-gemini/gemini-cli/blob/main/packages/cli/src/config/extension-manager.ts',
+    'https://github.com/google-gemini/gemini-cli/blob/main/packages/cli/src/config/extension.ts',
+    'https://github.com/google-gemini/gemini-cli/blob/main/packages/core/src/skills/skillLoader.ts',
   ],
   notes: [
-    'OpenHands plugin format is documented as Claude Code-compatible, but manifest location is .plugin/plugin.json (not .claude-plugin/plugin.json).',
-    'Unlike Claude Code, OpenHands docs mark plugin metadata as required.',
-    'OpenHands supports the AgentSkills standard with optional keyword trigger frontmatter fields.',
+    'Gemini CLI extension manifest file must be gemini-extension.json at extension root.',
+    'Required manifest fields are name and version; no hard max lengths are enforced in loader validation.',
+    'Extension name is validated with ^[a-zA-Z0-9-]+$ in loader code; docs recommend lowercase names with dashes.',
+    'Context file defaults to GEMINI.md when contextFileName is omitted; contextFileName supports string or string[].',
+    'Hooks are loaded from hooks/hooks.json and are not defined inside gemini-extension.json.',
   ],
   manifest: {
-    requiredFileName: 'plugin.json',
+    requiredFileName: 'gemini-extension.json',
     requiredFields: [
-      { name: 'name', required: true, type: 'string' },
+      {
+        name: 'name',
+        required: true,
+        type: 'string',
+        notes: 'Loader enforces /^[a-zA-Z0-9-]+$/; docs recommend lowercase letters, numbers, and dashes.',
+      },
+      {
+        name: 'version',
+        required: true,
+        type: 'string',
+        notes: 'Loader requires presence; validate command only warns when not semver.',
+      },
     ],
     optionalMetadataFields: [
-      { name: 'version', required: false, type: 'string' },
       { name: 'description', required: false, type: 'string' },
-      { name: 'author', required: false, type: 'object' },
-      { name: 'homepage', required: false, type: 'string' },
-      { name: 'repository', required: false, type: 'string' },
-      { name: 'license', required: false, type: 'string' },
-      { name: 'keywords', required: false, type: 'string[]' },
+      {
+        name: 'contextFileName',
+        required: false,
+        type: 'string|string[]',
+        notes: 'Defaults to GEMINI.md if omitted.',
+      },
+      { name: 'excludeTools', required: false, type: 'string[]' },
+      {
+        name: 'settings',
+        required: false,
+        type: 'object',
+        notes: 'Array of setting objects in Gemini docs; stored as extension env/keychain values.',
+      },
+      {
+        name: 'themes',
+        required: false,
+        type: 'object',
+        notes: 'Array of custom theme objects.',
+      },
+      {
+        name: 'plan',
+        required: false,
+        type: 'object',
+        notes: 'Supports plan.directory override for planning artifacts.',
+      },
+      { name: 'migratedTo', required: false, type: 'string' },
     ],
     componentPathFields: [
-      { name: 'commands', required: false, type: 'string|string[]' },
-      { name: 'agents', required: false, type: 'string|string[]' },
-      { name: 'skills', required: false, type: 'string|string[]' },
-      { name: 'hooks', required: false, type: 'string|object' },
-      { name: 'mcpServers', required: false, type: 'string|object' },
-      { name: 'outputStyles', required: false, type: 'string|string[]' },
-      { name: 'lspServers', required: false, type: 'string|object' },
-      { name: 'userConfig', required: false, type: 'object' },
-      { name: 'channels', required: false, type: 'object' },
+      {
+        name: 'contextFileName',
+        required: false,
+        type: 'string|string[]',
+        notes: 'Each path must resolve within extension root.',
+      },
     ],
-    fileLookupOrder: ['.plugin/plugin.json'],
+    fileLookupOrder: ['gemini-extension.json'],
   },
   skills: {
     frontmatter: [
-      { name: 'name', required: true, type: 'string' },
-      { name: 'description', required: true, type: 'string' },
       {
-        name: 'trigger',
-        required: false,
-        type: 'object',
-        notes: 'OpenHands supports keyword trigger objects in SKILL.md frontmatter.',
+        name: 'name',
+        required: true,
+        type: 'string',
+        notes: 'No explicit max length in loader; invalid filesystem chars are sanitized when loaded.',
       },
       {
-        name: 'triggers',
-        required: false,
-        type: 'object',
-        notes: 'AgentSkills-style trigger metadata is supported for progressive disclosure + keyword activation.',
+        name: 'description',
+        required: true,
+        type: 'string',
+        notes: 'No explicit max length in loader.',
       },
     ],
     discoveryOrder: [
-      'skills/ (plugin root default)',
-      '.agents/skills/',
-      '.openhands/skills/installed/',
-      'AGENTS.md, CLAUDE.md, GEMINI.md at workspace root',
+      'workspace: .gemini/skills/',
+      'workspace alias: .agents/skills/ (higher precedence than .gemini)',
+      'user: ~/.gemini/skills/',
+      'user alias: ~/.agents/skills/ (higher precedence than ~/.gemini)',
+      'extension: skills/ at extension root',
     ],
   },
   mcp: {
     supported: true,
     manifestField: 'mcpServers',
-    configLookupOrder: ['.mcp.json', '~/.openhands/mcp.json'],
+    configLookupOrder: [
+      'gemini-extension.json:mcpServers',
+      '~/.gemini/settings.json:mcpServers (takes precedence on name conflicts)',
+    ],
   },
   hooks: {
     supported: true,
-    manifestField: 'hooks',
-    form: 'path-or-inline',
-    defaultFiles: ['hooks/hooks.json', '.openhands/hooks.json'],
+    manifestField: 'hooks/hooks.json (outside manifest)',
+    form: 'file-only',
+    defaultFiles: ['hooks/hooks.json'],
   },
 }
 
 export const PLATFORM_RULES: Record<PlatformRule['platform'], PlatformRule> = {
   'claude-code': CLAUDE_CODE_RULES,
   'github-copilot': GITHUB_COPILOT_RULES,
-  openhands: OPENHANDS_RULES,
+  'gemini-cli': GEMINI_CLI_RULES,
 }
 
 export function getPlatformRule(platform: PlatformRule['platform']): PlatformRule {
