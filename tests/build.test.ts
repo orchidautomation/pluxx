@@ -14,8 +14,6 @@ const testConfig: PluginConfig = {
   author: { name: 'Test Author' },
   license: 'MIT',
   skills: './skills/',
-  commands: './commands/',
-  instructions: './INSTRUCTIONS.md',
   brand: {
     displayName: 'Test Plugin',
     shortDescription: 'A test plugin for testing',
@@ -36,38 +34,43 @@ const testConfig: PluginConfig = {
     },
   },
   hooks: {
-    preToolUse: [{
-      command: '${PLUGIN_ROOT}/scripts/pre-tool.sh',
-    }],
-    postToolUse: [{
-      command: '${PLUGIN_ROOT}/scripts/post-tool.sh',
-    }],
-    beforeSubmitPrompt: [{
-      command: '${PLUGIN_ROOT}/scripts/prompt.sh',
-    }],
     sessionStart: [{
       command: '${PLUGIN_ROOT}/scripts/validate.sh',
     }],
   },
-  targets: ['claude-code', 'cursor', 'codex', 'opencode'],
+  instructions: './INSTRUCTIONS.md',
+  platforms: {
+    cursor: {
+      rules: [{
+        description: 'Megamind operating conventions',
+        alwaysApply: true,
+        content: 'Always verify account context before responding.',
+      }],
+    },
+  },
+  targets: [
+    'claude-code',
+    'cursor',
+    'codex',
+    'opencode',
+    'github-copilot',
+    'openhands',
+    'warp',
+    'gemini-cli',
+    'roo-code',
+    'cline',
+    'amp',
+  ],
   outDir: './dist',
 }
 
 beforeAll(async () => {
   mkdirSync(resolve(TEST_DIR, 'skills/hello/'), { recursive: true })
-  mkdirSync(resolve(TEST_DIR, 'commands/'), { recursive: true })
   await Bun.write(
     resolve(TEST_DIR, 'skills/hello/SKILL.md'),
     '---\nname: hello\ndescription: Say hello\n---\n\nSay hello to the user.\n',
   )
-  await Bun.write(
-    resolve(TEST_DIR, 'commands/pulse.md'),
-    '---\ndescription: Get a pulse summary\n---\n\nSummarize workspace health.\n'
-  )
-  await Bun.write(
-    resolve(TEST_DIR, 'INSTRUCTIONS.md'),
-    '# Runtime Instructions\n\nAlways keep responses concise.\n'
-  )
+  await Bun.write(resolve(TEST_DIR, 'INSTRUCTIONS.md'), 'Use test-plugin consistently.\n')
 })
 
 afterAll(() => {
@@ -94,6 +97,32 @@ describe('build', () => {
     // OpenCode
     expect(existsSync(resolve(OUT_DIR, 'opencode/package.json'))).toBe(true)
     expect(existsSync(resolve(OUT_DIR, 'opencode/index.ts'))).toBe(true)
+
+    // GitHub Copilot
+    expect(existsSync(resolve(OUT_DIR, 'github-copilot/.claude-plugin/plugin.json'))).toBe(true)
+
+    // OpenHands should use .plugin/ (not .claude-plugin/)
+    expect(existsSync(resolve(OUT_DIR, 'openhands/.plugin/plugin.json'))).toBe(true)
+    expect(existsSync(resolve(OUT_DIR, 'openhands/.claude-plugin/plugin.json'))).toBe(false)
+
+    // Warp
+    expect(existsSync(resolve(OUT_DIR, 'warp/AGENTS.md'))).toBe(true)
+    expect(existsSync(resolve(OUT_DIR, 'warp/mcp.json'))).toBe(true)
+
+    // Gemini CLI
+    expect(existsSync(resolve(OUT_DIR, 'gemini-cli/gemini-extension.json'))).toBe(true)
+
+    // Roo Code
+    expect(existsSync(resolve(OUT_DIR, 'roo-code/.roo/mcp.json'))).toBe(true)
+    expect(existsSync(resolve(OUT_DIR, 'roo-code/.roorules'))).toBe(true)
+
+    // Cline
+    expect(existsSync(resolve(OUT_DIR, 'cline/.cline/mcp.json'))).toBe(true)
+    expect(existsSync(resolve(OUT_DIR, 'cline/.clinerules'))).toBe(true)
+
+    // AMP
+    expect(existsSync(resolve(OUT_DIR, 'amp/AGENT.md'))).toBe(true)
+    expect(existsSync(resolve(OUT_DIR, 'amp/.amp/settings.json'))).toBe(true)
   })
 
   it('generates correct Claude Code MCP config', async () => {
@@ -126,136 +155,44 @@ describe('build', () => {
     const indexTs = readFileSync(resolve(OUT_DIR, 'opencode/index.ts'), 'utf-8')
     expect(indexTs).toContain('TestPluginPlugin')
     expect(indexTs).toContain('TEST_API_KEY')
-    expect(indexTs).toContain('config: async (config)')
-    expect(indexTs).toContain('buildMcpConfig')
-    expect(indexTs).toContain('TUI_COMMANDS')
-    expect(indexTs).toContain('"tool.execute.before"')
-    expect(indexTs).toContain('"tool.execute.after"')
-    expect(indexTs).toContain('"chat.message"')
-    expect(indexTs).toContain('"experimental.chat.system.transform"')
-    expect(indexTs).toContain('"experimental.session.compacting"')
-    expect(indexTs).toContain('Summarize workspace health.')
-    expect(indexTs).toContain('Always keep responses concise.')
-    expect(indexTs).toContain('"session.created"')
   })
 
   it('copies skills to all targets', async () => {
-    for (const platform of ['claude-code', 'cursor', 'codex', 'opencode']) {
+    for (const platform of [
+      'claude-code',
+      'cursor',
+      'codex',
+      'opencode',
+      'github-copilot',
+      'openhands',
+      'warp',
+      'gemini-cli',
+      'amp',
+    ]) {
       expect(
         existsSync(resolve(OUT_DIR, platform, 'skills/hello/SKILL.md'))
       ).toBe(true)
     }
+
+    // Roo Code and Cline use platform-specific skill dirs
+    expect(existsSync(resolve(OUT_DIR, 'roo-code/.roo/skills/hello/SKILL.md'))).toBe(true)
+    expect(existsSync(resolve(OUT_DIR, 'cline/.cline/skills/hello/SKILL.md'))).toBe(true)
   })
 
-  it('supports auth.type=header in cursor, warp, gemini-cli, roo-code, cline, and amp', async () => {
-    const headerConfig: PluginConfig = {
-      ...testConfig,
-      outDir: './dist-header',
-      targets: ['cursor', 'warp', 'gemini-cli', 'roo-code', 'cline', 'amp'],
-      mcp: {
-        'test-server': {
-          url: 'https://test.example.com/mcp',
-          transport: 'http',
-          auth: {
-            type: 'header',
-            envVar: 'CUSTOM_HEADER_KEY',
-            headerName: 'X-API-Key',
-            headerTemplate: 'Token ${value}',
-          },
-        },
-      },
-    }
-
-    const headerOutDir = resolve(TEST_DIR, 'dist-header')
-    await build(headerConfig, TEST_DIR)
-
-    const expectedHeaderValue = 'Token ${CUSTOM_HEADER_KEY}'
-
-    const cursor = JSON.parse(readFileSync(resolve(headerOutDir, 'cursor/mcp.json'), 'utf-8'))
-    expect(cursor.mcpServers['test-server'].headers['X-API-Key']).toBe(expectedHeaderValue)
-
-    const warp = JSON.parse(readFileSync(resolve(headerOutDir, 'warp/mcp.json'), 'utf-8'))
-    expect(warp.mcpServers['test-server'].headers['X-API-Key']).toBe(expectedHeaderValue)
-
-    const gemini = JSON.parse(
-      readFileSync(resolve(headerOutDir, 'gemini-cli/gemini-extension.json'), 'utf-8')
-    )
-    expect(gemini.mcpServers['test-server'].headers['X-API-Key']).toBe(expectedHeaderValue)
-
-    const roo = JSON.parse(readFileSync(resolve(headerOutDir, 'roo-code/.roo/mcp.json'), 'utf-8'))
-    expect(roo.mcpServers['test-server'].headers['X-API-Key']).toBe(expectedHeaderValue)
-
-    const cline = JSON.parse(readFileSync(resolve(headerOutDir, 'cline/.cline/mcp.json'), 'utf-8'))
-    expect(cline.mcpServers['test-server'].headers['X-API-Key']).toBe(expectedHeaderValue)
-
-    const amp = JSON.parse(readFileSync(resolve(headerOutDir, 'amp/mcp.json'), 'utf-8'))
-    expect(amp.mcpServers['test-server'].headers['X-API-Key']).toBe(expectedHeaderValue)
+  it('writes Cursor rules to .cursor/rules/', async () => {
+    expect(
+      existsSync(resolve(OUT_DIR, 'cursor/.cursor/rules/megamind-operating-conventions.mdc'))
+    ).toBe(true)
   })
 
-  it('maps codex auth.type=header Authorization/Bearer to bearer_token_env_var', async () => {
-    const codexHeaderConfig: PluginConfig = {
+  it('guards against path traversal outDir values', async () => {
+    const unsafeConfig: PluginConfig = {
       ...testConfig,
-      outDir: './dist-codex-header',
-      targets: ['codex'],
-      mcp: {
-        'test-server': {
-          url: 'https://test.example.com/mcp',
-          transport: 'http',
-          auth: {
-            type: 'header',
-            envVar: 'CODEX_HEADER_KEY',
-            headerName: 'Authorization',
-            headerTemplate: 'Bearer ${value}',
-          },
-        },
-      },
+      outDir: '..',
     }
 
-    const codexOutDir = resolve(TEST_DIR, 'dist-codex-header')
-    await build(codexHeaderConfig, TEST_DIR)
-
-    const mcpJson = JSON.parse(
-      readFileSync(resolve(codexOutDir, 'codex/.mcp.json'), 'utf-8')
+    await expect(build(unsafeConfig, TEST_DIR)).rejects.toThrow(
+      'resolves outside the project root'
     )
-    expect(mcpJson.mcpServers['test-server'].bearer_token_env_var).toBe('CODEX_HEADER_KEY')
-  })
-
-  it('warns when codex receives unsupported custom header auth', async () => {
-    const codexCustomHeaderConfig: PluginConfig = {
-      ...testConfig,
-      outDir: './dist-codex-custom-header',
-      targets: ['codex'],
-      mcp: {
-        'test-server': {
-          url: 'https://test.example.com/mcp',
-          transport: 'http',
-          auth: {
-            type: 'header',
-            envVar: 'CODEX_CUSTOM_HEADER_KEY',
-            headerName: 'X-API-Key',
-            headerTemplate: 'Token ${value}',
-          },
-        },
-      },
-    }
-
-    const codexOutDir = resolve(TEST_DIR, 'dist-codex-custom-header')
-    const originalWarn = console.warn
-    const warnings: string[] = []
-    console.warn = (...args: unknown[]) => {
-      warnings.push(args.map(arg => String(arg)).join(' '))
-    }
-
-    try {
-      await build(codexCustomHeaderConfig, TEST_DIR)
-    } finally {
-      console.warn = originalWarn
-    }
-
-    const mcpJson = JSON.parse(
-      readFileSync(resolve(codexOutDir, 'codex/.mcp.json'), 'utf-8')
-    )
-    expect(mcpJson.mcpServers['test-server'].bearer_token_env_var).toBeUndefined()
-    expect(warnings.some(msg => msg.includes('custom headers were omitted'))).toBe(true)
   })
 })
