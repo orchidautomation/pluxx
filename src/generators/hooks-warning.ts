@@ -5,8 +5,16 @@ export function warnDroppedHookFields(
   event: string,
   entries: HookEntry[],
 ): void {
+  const hasPromptHooks = entries.some(entry => entry.type === 'prompt')
   const hasMatcher = entries.some(entry => entry.matcher !== undefined)
   const hasFailClosed = entries.some(entry => entry.failClosed !== undefined)
+  const hasLoopLimit = entries.some(entry => entry.loop_limit !== undefined)
+
+  if (hasPromptHooks) {
+    console.warn(
+      `[pluxx] ${platform} generator dropped unsupported prompt-based hook for event "${event}".`
+    )
+  }
 
   if (hasMatcher) {
     console.warn(
@@ -17,6 +25,12 @@ export function warnDroppedHookFields(
   if (hasFailClosed) {
     console.warn(
       `[pluxx] ${platform} generator dropped unsupported hook field "failClosed" for event "${event}".`
+    )
+  }
+
+  if (hasLoopLimit) {
+    console.warn(
+      `[pluxx] ${platform} generator dropped unsupported hook field "loop_limit" for event "${event}".`
     )
   }
 }

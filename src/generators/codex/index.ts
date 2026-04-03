@@ -133,10 +133,12 @@ export class CodexGenerator extends Generator {
       warnDroppedHookFields(this.platform, event, entries)
       // Codex uses PascalCase event names like Claude Code
       const codexEvent = event.charAt(0).toUpperCase() + event.slice(1)
-      hooks[codexEvent] = entries.map(entry => ({
+      const commandEntries = entries.filter(entry => entry.type !== 'prompt' && entry.command)
+      if (commandEntries.length === 0) continue
+      hooks[codexEvent] = commandEntries.map(entry => ({
         hooks: [{
           type: 'command',
-          command: entry.command.replace('${PLUGIN_ROOT}', '.'),
+          command: entry.command!.replace('${PLUGIN_ROOT}', '.'),
         }],
       }))
     }

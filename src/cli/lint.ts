@@ -2,6 +2,13 @@ import { existsSync, readdirSync, readFileSync } from 'fs'
 import { resolve, relative, basename, dirname } from 'path'
 import { loadConfig } from '../config/load'
 import type { PluginConfig } from '../schema'
+import {
+  isCursorHookEvent,
+  isSupportedCursorSkillFrontmatterField,
+  isValidCursorPluginName,
+  supportsCursorHookLoopLimit,
+  supportsCursorHookMatcher,
+} from '../validation/platform-rules'
 
 type LintLevel = 'error' | 'warning'
 
@@ -134,6 +141,18 @@ function lintSkillFile(skillFile: string, issues: LintIssue[]): void {
   const nameField = parsed.fields.get('name')
   const descriptionField = parsed.fields.get('description')
 
+  for (const field of parsed.fields.keys()) {
+    if (!isSupportedCursorSkillFrontmatterField(field)) {
+      pushIssue(issues, {
+        level: 'warning',
+        code: 'cursor-skill-frontmatter-unsupported',
+        message: `Cursor may ignore unsupported SKILL.md frontmatter field "${field}".`,
+        file: skillFile,
+        platform: 'Cursor',
+      })
+    }
+  }
+
   if (!nameField?.value) {
     pushIssue(issues, {
       level: 'error',
@@ -226,6 +245,73 @@ function lintSkillFile(skillFile: string, issues: LintIssue[]): void {
   }
 }
 
+function lintCursorHooks(config: PluginConfig, issues: LintIssue[]): void {
+  if (!config.hooks) return
+
+  for (const [event, entries] of Object.entries(config.hooks)) {
+    if (!entries || entries.length === 0) continue
+
+    if (!isCursorHookEvent(event)) {
+      pushIssue(issues, {
+        level: 'warning',
+        code: 'cursor-hook-event-unknown',
+        message: `Hook event "${event}" is not documented by Cursor and may be ignored.`,
+        file: 'pluxx.config.ts',
+        platform: 'Cursor',
+      })
+    }
+
+    for (const entry of entries) {
+      if (entry.matcher !== undefined && !supportsCursorHookMatcher(event)) {
+        pushIssue(issues, {
+          level: 'warning',
+          code: 'cursor-hook-matcher-unsupported-event',
+          message: `Hook event "${event}" does not support matcher filtering in Cursor docs.`,
+          file: 'pluxx.config.ts',
+          platform: 'Cursor',
+        })
+      }
+
+      if (entry.loop_limit !== undefined && !supportsCursorHookLoopLimit(event)) {
+        pushIssue(issues, {
+          level: 'warning',
+          code: 'cursor-hook-loop-limit-unsupported-event',
+          message: `Hook event "${event}" does not support loop_limit in Cursor docs (supported: stop, subagentStop).`,
+          file: 'pluxx.config.ts',
+          platform: 'Cursor',
+        })
+      }
+    }
+  }
+}
+
+function lintCursorRules(config: PluginConfig, issues: LintIssue[]): void {
+  const rules = config.platforms?.cursor?.rules
+  if (!rules) return
+
+  for (const rule of rules) {
+    if (typeof rule.globs === 'string' && rule.globs.trim().length === 0) {
+      pushIssue(issues, {
+        level: 'error',
+        code: 'cursor-rule-globs-empty',
+        message: 'Cursor rule `globs` must not be an empty string.',
+        file: 'pluxx.config.ts',
+        platform: 'Cursor',
+      })
+    }
+
+    if (Array.isArray(rule.globs) && rule.globs.some(glob => glob.trim().length === 0)) {
+      pushIssue(issues, {
+        level: 'error',
+        code: 'cursor-rule-globs-empty',
+        message: 'Cursor rule `globs` array must not contain empty patterns.',
+        file: 'pluxx.config.ts',
+        platform: 'Cursor',
+      })
+    }
+  }
+}
+
 function lintBrandMetadata(config: PluginConfig, issues: LintIssue[]): void {
   if (!config.brand) return
 
@@ -292,6 +378,18 @@ function lintMcpUrls(config: PluginConfig, issues: LintIssue[]): void {
   }
 }
 
+function lintCursorManifest(config: PluginConfig, issues: LintIssue[]): void {
+  if (!isValidCursorPluginName(config.name)) {
+    pushIssue(issues, {
+      level: 'error',
+      code: 'cursor-plugin-name-format',
+      message: 'Cursor plugin name must match /^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/',
+      file: 'pluxx.config.ts',
+      platform: 'Cursor',
+    })
+  }
+}
+
 function sortIssues(issues: LintIssue[]): LintIssue[] {
   return [...issues].sort((a, b) => {
     if (a.level === b.level) {
@@ -320,6 +418,9 @@ export async function lintProject(dir: string = process.cwd()): Promise<LintResu
 
   lintMcpUrls(config, issues)
   lintBrandMetadata(config, issues)
+  lintCursorManifest(config, issues)
+  lintCursorHooks(config, issues)
+  lintCursorRules(config, issues)
 
   const skillsDir = resolve(dir, config.skills)
   if (!existsSync(skillsDir)) {

@@ -99,10 +99,12 @@ export class ClaudeCodeGenerator extends Generator {
       warnDroppedHookFields(this.platform, event, entries)
       // Map canonical event names to Claude Code event names
       const claudeEvent = mapEventName(event)
-      hooks[claudeEvent] = entries.map(entry => ({
+      const commandEntries = entries.filter(entry => entry.type !== 'prompt' && entry.command)
+      if (commandEntries.length === 0) continue
+      hooks[claudeEvent] = commandEntries.map(entry => ({
         hooks: [{
           type: 'command',
-          command: entry.command
+          command: entry.command!
             .replace('${PLUGIN_ROOT}', `\${${this.pluginRootVar}}`),
         }],
       }))

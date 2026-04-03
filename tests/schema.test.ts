@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { McpAuthSchema, McpServerSchema } from '../src/schema'
+import { HookEntrySchema, McpAuthSchema, McpServerSchema } from '../src/schema'
 
 describe('McpServerSchema transport validation', () => {
   it('requires command and forbids url for stdio transport', () => {
@@ -115,5 +115,32 @@ describe('McpAuthSchema auth validation', () => {
         headerName: 'X-API-Key',
       }).success
     ).toBe(true)
+  })
+})
+
+describe('HookEntrySchema hook type validation', () => {
+  it('supports command hooks', () => {
+    expect(
+      HookEntrySchema.safeParse({
+        command: 'echo hello',
+      }).success
+    ).toBe(true)
+  })
+
+  it('supports prompt hooks', () => {
+    expect(
+      HookEntrySchema.safeParse({
+        type: 'prompt',
+        prompt: 'Only allow safe commands',
+      }).success
+    ).toBe(true)
+  })
+
+  it('requires prompt for prompt hooks', () => {
+    expect(
+      HookEntrySchema.safeParse({
+        type: 'prompt',
+      }).success
+    ).toBe(false)
   })
 })

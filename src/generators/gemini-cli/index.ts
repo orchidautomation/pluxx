@@ -77,8 +77,10 @@ export class GeminiCliGenerator extends Generator {
       for (const [event, entries] of Object.entries(this.config.hooks)) {
         if (!entries) continue
         warnDroppedHookFields(this.platform, event, entries)
-        hooks[event] = entries.map(entry => ({
-          command: entry.command.replace('${PLUGIN_ROOT}', '.'),
+        const commandEntries = entries.filter(entry => entry.type !== 'prompt' && entry.command)
+        if (commandEntries.length === 0) continue
+        hooks[event] = commandEntries.map(entry => ({
+          command: entry.command!.replace('${PLUGIN_ROOT}', '.'),
         }))
       }
 

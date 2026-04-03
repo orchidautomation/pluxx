@@ -3,7 +3,12 @@ import { extname, relative, resolve } from 'path'
 import { Generator } from '../base'
 import type { HookEntry, TargetPlatform } from '../../schema'
 
-type GeneratedHook = Pick<HookEntry, 'command' | 'timeout' | 'matcher' | 'failClosed'>
+type GeneratedHook = {
+  command: string
+  timeout?: number
+  matcher?: HookEntry['matcher']
+  failClosed?: boolean
+}
 
 interface OpenCodeMcpDefinition {
   transport: 'http' | 'sse' | 'stdio'
@@ -365,12 +370,16 @@ export class OpenCodeGenerator extends Generator {
     for (const [event, entries] of Object.entries(this.config.hooks)) {
       if (!entries || entries.length === 0) continue
 
-      const hooks = entries.map(entry => ({
-        command: entry.command,
-        ...(entry.timeout ? { timeout: entry.timeout } : {}),
-        ...(entry.matcher ? { matcher: entry.matcher } : {}),
-        ...(entry.failClosed !== undefined ? { failClosed: entry.failClosed } : {}),
-      }))
+      const hooks = entries
+        .filter(entry => entry.type !== 'prompt' && entry.command)
+        .map(entry => ({
+          command: entry.command!,
+          ...(entry.timeout ? { timeout: entry.timeout } : {}),
+          ...(entry.matcher ? { matcher: entry.matcher } : {}),
+          ...(entry.failClosed !== undefined ? { failClosed: entry.failClosed } : {}),
+        }))
+
+      if (hooks.length === 0) continue
 
       switch (event) {
         case 'preToolUse':

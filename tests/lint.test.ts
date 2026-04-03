@@ -116,4 +116,53 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'claude-description-truncation')).toBe(true)
     expect(result.issues.some(issue => issue.code === 'yaml-quote-special-chars')).toBe(true)
   })
+
+  it('reports unsupported cursor hook and skill frontmatter fields', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/valid-skill'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'valid-plugin',
+        version: '0.1.0',
+        description: 'Valid plugin config',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        hooks: {
+          unknownHook: [
+            {
+              command: 'echo test',
+              matcher: 'Shell',
+            },
+          ],
+          preToolUse: [
+            {
+              command: 'echo test',
+              loop_limit: 3,
+            },
+          ],
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/valid-skill/SKILL.md'),
+      [
+        '---',
+        'name: valid-skill',
+        'description: "A valid skill description"',
+        'owner: team-platform',
+        '---',
+        '',
+        '# Valid Skill',
+      ].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'cursor-hook-event-unknown')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'cursor-hook-matcher-unsupported-event')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'cursor-hook-loop-limit-unsupported-event')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'cursor-skill-frontmatter-unsupported')).toBe(true)
+  })
 })
