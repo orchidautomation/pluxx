@@ -1,57 +1,67 @@
 import { describe, expect, it } from 'bun:test'
-import { PLATFORM_VALIDATION_RULES, getPlatformRules } from '../src/validation/platform-rules'
+import {
+  getPlatformRule,
+  isCopilotManifestClaudeCompatible,
+  PLATFORM_RULES,
+} from '../src/validation/platform-rules'
 
-describe('PLATFORM_VALIDATION_RULES', () => {
-  it('codifies all six researched platforms', () => {
-    expect(Object.keys(PLATFORM_VALIDATION_RULES).sort()).toEqual([
-      'amp',
-      'cline',
-      'gemini-cli',
-      'openhands',
-      'roo-code',
-      'warp',
+describe('platform rules', () => {
+  it('has rule entries for claude-code, github-copilot, and warp', () => {
+    expect(PLATFORM_RULES['claude-code']).toBeDefined()
+    expect(PLATFORM_RULES['github-copilot']).toBeDefined()
+    expect(PLATFORM_RULES.warp).toBeDefined()
+  })
+
+  it('codifies copilot manifest lookup locations', () => {
+    const copilot = getPlatformRule('github-copilot')
+    expect(copilot.manifest.fileLookupOrder).toEqual([
+      '.plugin/plugin.json',
+      'plugin.json',
+      '.github/plugin/plugin.json',
+      '.claude-plugin/plugin.json',
     ])
   })
 
-  it('includes required manifest expectations for OpenHands and Gemini CLI', () => {
-    const openhands = getPlatformRules('openhands')
-    const gemini = getPlatformRules('gemini-cli')
-
-    expect(openhands.manifest.required).toBe(true)
-    expect(openhands.manifest.files).toContain('.plugin/plugin.json')
-
-    expect(gemini.manifest.required).toBe(true)
-    expect(gemini.manifest.files).toContain('gemini-extension.json')
+  it('codifies copilot skill discovery directories', () => {
+    const copilot = getPlatformRule('github-copilot')
+    expect(copilot.skills.discoveryOrder).toContain('.github/skills/')
+    expect(copilot.skills.discoveryOrder).toContain('.agents/skills/')
+    expect(copilot.skills.discoveryOrder).toContain('.claude/skills/')
+    expect(copilot.skills.discoveryOrder).toContain('~/.copilot/skills/')
   })
 
-  it('captures MCP and rules paths for Roo Code and Cline', () => {
-    const roo = getPlatformRules('roo-code')
-    const cline = getPlatformRules('cline')
+  it('codifies copilot skill frontmatter fields', () => {
+    const copilot = getPlatformRule('github-copilot')
+    const names = copilot.skills.frontmatter.map(field => field.name)
 
-    expect(roo.mcp.files).toContain('.roo/mcp.json')
-    expect(roo.instructions.files).toContain('.roo/rules/')
-
-    expect(cline.mcp.files).toContain('.cline/mcp.json')
-    expect(cline.instructions.files).toContain('.clinerules/')
+    expect(names).toContain('name')
+    expect(names).toContain('description')
+    expect(names).toContain('allowed-tools')
+    expect(names).toContain('user-invocable')
+    expect(names).toContain('disable-model-invocation')
   })
 
-  it('tracks AGENTS/AGENT instruction conventions for Warp and AMP', () => {
-    const warp = getPlatformRules('warp')
-    const amp = getPlatformRules('amp')
-
-    expect(warp.instructions.files).toContain('AGENTS.md')
-    expect(warp.instructions.files).toContain('WARP.md')
-
-    expect(amp.instructions.files).toContain('AGENTS.md')
-    expect(amp.instructions.files).toContain('AGENT.md')
+  it('keeps core plugin component fields Claude-compatible', () => {
+    expect(isCopilotManifestClaudeCompatible()).toBe(true)
   })
 
-  it('stores at least one documentation source per platform', () => {
-    for (const rules of Object.values(PLATFORM_VALIDATION_RULES)) {
-      expect(rules.sources.length).toBeGreaterThan(0)
-      for (const source of rules.sources) {
-        expect(source.url.startsWith('https://')).toBe(true)
-      }
-    }
+  it('codifies warp skills and rules file conventions', () => {
+    const warp = getPlatformRule('warp')
+
+    expect(warp.skills.discoveryOrder).toContain('.agents/skills/ (recommended)')
+    expect(warp.skills.discoveryOrder).toContain('.warp/skills/')
+
+    const fieldNames = warp.skills.frontmatter.map(field => field.name)
+    expect(fieldNames).toEqual(['name', 'description'])
+  })
+
+  it('codifies warp MCP and hooks support boundaries', () => {
+    const warp = getPlatformRule('warp')
+
+    expect(warp.mcp.supported).toBe(true)
+    expect(warp.mcp.configLookupOrder).toContain('~/.codex/config.toml (file-based MCP servers)')
+
+    expect(warp.hooks.supported).toBe(false)
+    expect(warp.hooks.defaultFiles).toEqual([])
   })
 })

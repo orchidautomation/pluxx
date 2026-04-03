@@ -1,301 +1,324 @@
-import type { TargetPlatform } from '../schema'
+export type ManifestFieldType =
+  | 'string'
+  | 'string[]'
+  | 'boolean'
+  | 'object'
+  | 'string|string[]'
+  | 'string|object'
 
-type RuleLevel = 'required' | 'supported' | 'fallback' | 'optional' | 'unknown'
-
-export interface PlatformRuleSource {
-  label: string
-  url: string
+export interface ManifestFieldRule {
+  name: string
+  required: boolean
+  type: ManifestFieldType
+  notes?: string
 }
 
-export interface PlatformRules {
-  platform: TargetPlatform
-  summary: string
-  skillDiscoveryDirs: {
-    path: string
-    level: RuleLevel
-    notes?: string
-  }[]
-  frontmatter: {
-    standard: string[]
-    additional: string[]
-    notes?: string
-  }
+export interface SkillFrontmatterRule {
+  name: string
+  required: boolean
+  type: 'string' | 'boolean' | 'string|string[]'
+  notes?: string
+}
+
+export interface PlatformRule {
+  platform: 'claude-code' | 'github-copilot' | 'warp'
+  sourceUrls: string[]
+  notes: string[]
   manifest: {
-    files: string[]
-    required: boolean
-    notes?: string
+    requiredFileName: string
+    requiredFields: ManifestFieldRule[]
+    optionalMetadataFields: ManifestFieldRule[]
+    componentPathFields: ManifestFieldRule[]
+    fileLookupOrder: string[]
+  }
+  skills: {
+    frontmatter: SkillFrontmatterRule[]
+    discoveryOrder: string[]
   }
   mcp: {
-    files: string[]
-    rootKey?: string
-    transports: string[]
-    auth: string[]
-    notes?: string
+    supported: boolean
+    manifestField: string
+    configLookupOrder: string[]
   }
   hooks: {
     supported: boolean
-    files: string[]
-    eventNames: string[]
-    notes?: string
+    manifestField: string
+    form: 'path-or-inline'
+    defaultFiles: string[]
   }
-  instructions: {
-    files: string[]
-    format: string
-    notes?: string
-  }
-  sources: PlatformRuleSource[]
 }
 
-const STANDARD_SKILL_FRONTMATTER = [
-  'name',
-  'description',
-  'license',
-  'compatibility',
-  'metadata',
-  'disable-model-invocation',
-] as const
-
-type ResearchTarget = Extract<
-  TargetPlatform,
-  'openhands' | 'warp' | 'gemini-cli' | 'roo-code' | 'cline' | 'amp'
->
-
-export const PLATFORM_VALIDATION_RULES: Record<ResearchTarget, PlatformRules> = {
-  'openhands': {
-    platform: 'openhands',
-    summary: 'OpenHands plugins use a Claude-style manifest at .plugin/plugin.json and support skills, hooks, and MCP.',
-    skillDiscoveryDirs: [
-      { path: '.openhands/skills/', level: 'supported' },
-      { path: '.claude/skills/', level: 'supported' },
-      { path: '.agents/skills/', level: 'supported' },
+const CLAUDE_CODE_RULES: PlatformRule = {
+  platform: 'claude-code',
+  sourceUrls: [
+    'https://code.claude.com/docs/en/plugins-reference',
+    'https://code.claude.com/docs/en/plugins',
+  ],
+  notes: [
+    'plugin.json is optional for Claude Code if default component locations are used.',
+    'Default plugin manifest location is .claude-plugin/plugin.json.',
+  ],
+  manifest: {
+    requiredFileName: 'plugin.json',
+    requiredFields: [
+      {
+        name: 'name',
+        required: true,
+        type: 'string',
+        notes: 'Required only when plugin.json is present.',
+      },
     ],
-    frontmatter: {
-      standard: [...STANDARD_SKILL_FRONTMATTER],
-      additional: ['triggers'],
-      notes: 'OpenHands skill docs mention support for trigger metadata in addition to Agent Skills frontmatter.',
-    },
-    manifest: {
-      files: ['.plugin/plugin.json'],
-      required: true,
-      notes: 'OpenHands plugin docs require a manifest under .plugin.',
-    },
-    mcp: {
-      files: ['.mcp.json'],
-      rootKey: 'mcpServers',
-      transports: ['stdio', 'http', 'sse'],
-      auth: ['headers-based env interpolation'],
-    },
-    hooks: {
-      supported: true,
-      files: ['hooks/hooks.json'],
-      eventNames: [],
-      notes: 'OpenHands supports hook configuration via hooks/hooks.json; event names align with Claude-style hooks in current docs.',
-    },
-    instructions: {
-      files: ['AGENTS.md'],
-      format: 'markdown',
-    },
-    sources: [
-      { label: 'OpenHands plugin guide', url: 'https://docs.openhands.dev/sdk/guides/plugins' },
-      { label: 'OpenHands skill guide', url: 'https://docs.openhands.dev/sdk/guides/skill' },
+    optionalMetadataFields: [
+      { name: 'version', required: false, type: 'string' },
+      { name: 'description', required: false, type: 'string' },
+      { name: 'author', required: false, type: 'object' },
+      { name: 'homepage', required: false, type: 'string' },
+      { name: 'repository', required: false, type: 'string' },
+      { name: 'license', required: false, type: 'string' },
+      { name: 'keywords', required: false, type: 'string[]' },
+    ],
+    componentPathFields: [
+      { name: 'commands', required: false, type: 'string|string[]' },
+      { name: 'agents', required: false, type: 'string|string[]' },
+      { name: 'skills', required: false, type: 'string|string[]' },
+      { name: 'hooks', required: false, type: 'string|object' },
+      { name: 'mcpServers', required: false, type: 'string|object' },
+      { name: 'outputStyles', required: false, type: 'string|string[]' },
+      { name: 'lspServers', required: false, type: 'string|object' },
+      { name: 'userConfig', required: false, type: 'object' },
+      { name: 'channels', required: false, type: 'object' },
+    ],
+    fileLookupOrder: ['.claude-plugin/plugin.json'],
+  },
+  skills: {
+    frontmatter: [
+      { name: 'name', required: true, type: 'string' },
+      { name: 'description', required: true, type: 'string' },
+    ],
+    discoveryOrder: [
+      'skills/ (plugin root default)',
+      'commands/ (legacy skill location)',
     ],
   },
-  'warp': {
-    platform: 'warp',
-    summary: 'Warp supports skills, rules, and MCP with AGENTS.md as the current rules anchor.',
-    skillDiscoveryDirs: [
-      { path: '.agents/skills/', level: 'supported' },
-      { path: '.warp/skills/', level: 'supported' },
-      { path: '.claude/skills/', level: 'supported', notes: 'Compatibility directory' },
-      { path: '.codex/skills/', level: 'supported', notes: 'Compatibility directory' },
-    ],
-    frontmatter: {
-      standard: [...STANDARD_SKILL_FRONTMATTER],
-      additional: [],
-    },
-    manifest: {
-      files: [],
-      required: false,
-      notes: 'Warp does not currently require a dedicated plugin manifest file.',
-    },
-    mcp: {
-      files: ['mcp.json'],
-      rootKey: 'mcpServers',
-      transports: ['stdio', 'http', 'sse'],
-      auth: ['headers', 'OAuth (remote server flows)'],
-    },
-    hooks: {
-      supported: false,
-      files: [],
-      eventNames: [],
-      notes: 'Warp docs reviewed for this ticket focus on skills, rules, and MCP; no standalone hooks schema found.',
-    },
-    instructions: {
-      files: ['AGENTS.md', 'WARP.md'],
-      format: 'markdown',
-      notes: 'AGENTS.md is current; WARP.md is backward compatible.',
-    },
-    sources: [
-      { label: 'Warp skills docs', url: 'https://docs.warp.dev/agent-platform/capabilities/skills' },
-      { label: 'Warp MCP docs', url: 'https://docs.warp.dev/agent-platform/capabilities/mcp' },
-      { label: 'Warp rules docs', url: 'https://docs.warp.dev/agent-platform/capabilities/rules' },
-    ],
+  mcp: {
+    supported: true,
+    manifestField: 'mcpServers',
+    configLookupOrder: ['.mcp.json'],
   },
-  'gemini-cli': {
-    platform: 'gemini-cli',
-    summary: 'Gemini CLI uses gemini-extension.json, GEMINI.md instructions, and hook definitions in hooks/hooks.json.',
-    skillDiscoveryDirs: [
-      { path: 'skills/', level: 'supported' },
-    ],
-    frontmatter: {
-      standard: [...STANDARD_SKILL_FRONTMATTER],
-      additional: [],
-    },
-    manifest: {
-      files: ['gemini-extension.json'],
-      required: true,
-      notes: 'Gemini extensions require a manifest file named gemini-extension.json.',
-    },
-    mcp: {
-      files: ['gemini-extension.json'],
-      rootKey: 'mcpServers',
-      transports: ['stdio', 'http', 'sse'],
-      auth: ['headers', 'env interpolation'],
-    },
-    hooks: {
-      supported: true,
-      files: ['hooks/hooks.json'],
-      eventNames: [],
-      notes: 'Gemini hook docs specify hooks/hooks.json; hook config is separate from gemini-extension.json.',
-    },
-    instructions: {
-      files: ['GEMINI.md'],
-      format: 'markdown',
-    },
-    sources: [
-      { label: 'Gemini extensions docs', url: 'https://geminicli.com/docs/extensions/' },
-      { label: 'Gemini extension reference', url: 'https://geminicli.com/docs/extensions/reference/' },
-      { label: 'Gemini hooks docs', url: 'https://geminicli.com/docs/hooks/' },
-    ],
-  },
-  'roo-code': {
-    platform: 'roo-code',
-    summary: 'Roo Code supports project and mode-specific rules, project-level MCP config, and custom modes metadata.',
-    skillDiscoveryDirs: [
-      { path: '.roo/skills/', level: 'supported' },
-    ],
-    frontmatter: {
-      standard: [...STANDARD_SKILL_FRONTMATTER],
-      additional: ['mode fields: slug, roleDefinition, whenToUse, customInstructions, groups'],
-      notes: 'Additional fields apply to custom mode definitions, not SKILL.md frontmatter.',
-    },
-    manifest: {
-      files: [],
-      required: false,
-      notes: 'Roo Code does not require a plugin manifest file.',
-    },
-    mcp: {
-      files: ['.roo/mcp.json', 'mcp_settings.json'],
-      rootKey: 'mcpServers',
-      transports: ['stdio', 'http', 'sse', 'streamable-http'],
-      auth: ['headers', 'OAuth', 'provider-specific env'],
-    },
-    hooks: {
-      supported: false,
-      files: [],
-      eventNames: [],
-      notes: 'No standalone hook event schema identified in Roo docs reviewed for this ticket.',
-    },
-    instructions: {
-      files: ['.roo/rules/', '.roo/rules-{modeSlug}/', '.roorules', '.roorules-{modeSlug}'],
-      format: 'markdown',
-      notes: '.roo/rules/ and mode-specific rules are preferred over legacy .roorules files.',
-    },
-    sources: [
-      { label: 'Roo custom instructions docs', url: 'https://docs.roocode.com/features/custom-instructions' },
-      { label: 'Roo custom modes docs', url: 'https://docs.roocode.com/features/custom-modes' },
-      { label: 'Roo MCP docs', url: 'https://docs.roocode.com/features/mcp/using-mcp-in-roo' },
-      { label: 'Roo MCP transports docs', url: 'https://docs.roocode.com/features/mcp/server-transports' },
-    ],
-  },
-  'cline': {
-    platform: 'cline',
-    summary: 'Cline supports layered rules, .cline/mcp.json, and conditional rules via frontmatter path globs.',
-    skillDiscoveryDirs: [
-      { path: '.cline/skills/', level: 'supported' },
-      { path: '.agents/skills/', level: 'supported' },
-    ],
-    frontmatter: {
-      standard: [...STANDARD_SKILL_FRONTMATTER],
-      additional: ['paths (for conditional .clinerules entries)'],
-      notes: 'The additional field applies to rule files, not SKILL.md.',
-    },
-    manifest: {
-      files: [],
-      required: false,
-      notes: 'Cline does not require a dedicated plugin manifest file.',
-    },
-    mcp: {
-      files: ['.cline/mcp.json'],
-      rootKey: 'mcpServers',
-      transports: ['stdio', 'http', 'sse'],
-      auth: ['headers', 'env interpolation'],
-      notes: 'Current Cline docs align with a Claude-style mcpServers object in project config.',
-    },
-    hooks: {
-      supported: true,
-      files: ['.clinerules/hooks/'],
-      eventNames: [],
-      notes: 'Hook scripts are documented under .clinerules/hooks/ conventions.',
-    },
-    instructions: {
-      files: ['.clinerules/', 'AGENTS.md'],
-      format: 'markdown',
-      notes: '.clinerules supports both always-on and conditional rule files.',
-    },
-    sources: [
-      { label: 'Cline rules docs', url: 'https://docs.cline.bot/customization/cline-rules' },
-    ],
-  },
-  'amp': {
-    platform: 'amp',
-    summary: 'AMP uses AGENTS.md/AGENT.md for instruction hierarchy and .amp/settings.json for settings, hooks, and MCP.',
-    skillDiscoveryDirs: [
-      { path: '.agents/skills/', level: 'supported' },
-      { path: '~/.config/amp/skills/', level: 'supported' },
-    ],
-    frontmatter: {
-      standard: [...STANDARD_SKILL_FRONTMATTER],
-      additional: [],
-    },
-    manifest: {
-      files: [],
-      required: false,
-      notes: 'AMP does not require a standalone plugin manifest file.',
-    },
-    mcp: {
-      files: ['.amp/settings.json', '~/.config/amp/settings.json'],
-      rootKey: 'amp.mcpServers',
-      transports: ['stdio', 'http'],
-      auth: ['headers', 'env interpolation', 'OAuth via server support'],
-    },
-    hooks: {
-      supported: true,
-      files: ['.amp/settings.json'],
-      eventNames: [],
-      notes: 'AMP manual documents hooks within settings, but event naming/details are less explicit than other platforms.',
-    },
-    instructions: {
-      files: ['AGENTS.md', 'AGENT.md'],
-      format: 'markdown',
-      notes: 'AMP prefers AGENTS.md and falls back to AGENT.md for compatibility.',
-    },
-    sources: [
-      { label: 'AMP manual', url: 'https://ampcode.com/manual' },
-    ],
+  hooks: {
+    supported: true,
+    manifestField: 'hooks',
+    form: 'path-or-inline',
+    defaultFiles: ['hooks/hooks.json'],
   },
 }
 
-export function getPlatformRules(platform: ResearchTarget): PlatformRules {
-  return PLATFORM_VALIDATION_RULES[platform]
+const GITHUB_COPILOT_RULES: PlatformRule = {
+  platform: 'github-copilot',
+  sourceUrls: [
+    'https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-plugin-reference',
+    'https://docs.github.com/en/copilot/reference/cli-command-reference',
+    'https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/plugins-creating',
+  ],
+  notes: [
+    'Copilot CLI plugin schema is Claude-compatible in core fields but adds Copilot-specific conventions and fields.',
+    'Copilot CLI supports plugin.json in multiple locations and defaults to plugin root conventions.',
+  ],
+  manifest: {
+    requiredFileName: 'plugin.json',
+    requiredFields: [
+      {
+        name: 'name',
+        required: true,
+        type: 'string',
+        notes: 'Kebab-case, max 64 characters.',
+      },
+    ],
+    optionalMetadataFields: [
+      { name: 'description', required: false, type: 'string' },
+      { name: 'version', required: false, type: 'string' },
+      { name: 'author', required: false, type: 'object' },
+      { name: 'homepage', required: false, type: 'string' },
+      { name: 'repository', required: false, type: 'string' },
+      { name: 'license', required: false, type: 'string' },
+      { name: 'keywords', required: false, type: 'string[]' },
+      { name: 'category', required: false, type: 'string' },
+      { name: 'tags', required: false, type: 'string[]' },
+    ],
+    componentPathFields: [
+      { name: 'agents', required: false, type: 'string|string[]' },
+      { name: 'skills', required: false, type: 'string|string[]' },
+      { name: 'commands', required: false, type: 'string|string[]' },
+      { name: 'hooks', required: false, type: 'string|object' },
+      { name: 'mcpServers', required: false, type: 'string|object' },
+      { name: 'lspServers', required: false, type: 'string|object' },
+    ],
+    fileLookupOrder: [
+      '.plugin/plugin.json',
+      'plugin.json',
+      '.github/plugin/plugin.json',
+      '.claude-plugin/plugin.json',
+    ],
+  },
+  skills: {
+    frontmatter: [
+      {
+        name: 'name',
+        required: true,
+        type: 'string',
+        notes: 'Letters, numbers, hyphens only. Max 64 chars.',
+      },
+      {
+        name: 'description',
+        required: true,
+        type: 'string',
+        notes: 'Max 1024 chars.',
+      },
+      {
+        name: 'allowed-tools',
+        required: false,
+        type: 'string|string[]',
+      },
+      {
+        name: 'user-invocable',
+        required: false,
+        type: 'boolean',
+      },
+      {
+        name: 'disable-model-invocation',
+        required: false,
+        type: 'boolean',
+      },
+    ],
+    discoveryOrder: [
+      '.github/skills/',
+      '.agents/skills/',
+      '.claude/skills/',
+      'parent .github/.agents/.claude skill dirs (monorepo inheritance)',
+      '~/.copilot/skills/',
+      '~/.agents/skills/',
+      '~/.claude/skills/',
+      'plugin-defined skill dirs',
+      'COPILOT_SKILLS_DIRS',
+    ],
+  },
+  mcp: {
+    supported: true,
+    manifestField: 'mcpServers',
+    configLookupOrder: [
+      '.mcp.json',
+      '.vscode/mcp.json',
+      '.devcontainer/devcontainer.json',
+      '.github/mcp.json',
+    ],
+  },
+  hooks: {
+    supported: true,
+    manifestField: 'hooks',
+    form: 'path-or-inline',
+    defaultFiles: ['hooks.json', 'hooks/hooks.json'],
+  },
+}
+
+const WARP_RULES: PlatformRule = {
+  platform: 'warp',
+  sourceUrls: [
+    'https://docs.warp.dev/agent-platform/capabilities/skills',
+    'https://docs.warp.dev/agent-platform/capabilities/rules',
+    'https://docs.warp.dev/agent-platform/capabilities/mcp',
+  ],
+  notes: [
+    'Warp does not use a plugin.json manifest for project integrations; skills/rules are discovered from well-known directories/files.',
+    'Project rules default to AGENTS.md; WARP.md remains supported and takes precedence when both exist in the same directory.',
+    'Rules filenames must be uppercase for detection (AGENTS.md / WARP.md).',
+  ],
+  manifest: {
+    requiredFileName: 'none',
+    requiredFields: [],
+    optionalMetadataFields: [],
+    componentPathFields: [],
+    fileLookupOrder: [],
+  },
+  skills: {
+    frontmatter: [
+      {
+        name: 'name',
+        required: true,
+        type: 'string',
+        notes: 'Unique skill identifier (typically kebab-case).',
+      },
+      {
+        name: 'description',
+        required: true,
+        type: 'string',
+        notes: 'Brief explanation of what the skill does and when to use it.',
+      },
+    ],
+    discoveryOrder: [
+      '.agents/skills/ (recommended)',
+      '.warp/skills/',
+      '.claude/skills/',
+      '.codex/skills/',
+      '.cursor/skills/',
+      '.gemini/skills/',
+      '.copilot/skills/',
+      '.factory/skills/',
+      '.github/skills/',
+      '.opencode/skills/',
+      '~/.agents/skills/ (global, recommended)',
+      '~/.warp/skills/',
+      '~/.claude/skills/',
+      '~/.codex/skills/',
+      '~/.cursor/skills/',
+      '~/.gemini/skills/',
+      '~/.copilot/skills/',
+      '~/.factory/skills/',
+      '~/.github/skills/',
+      '~/.opencode/skills/',
+      'skills must be nested as <dir>/<skill-name>/SKILL.md',
+      'background conflict resolution prefers home-directory skills, then higher directories',
+    ],
+  },
+  mcp: {
+    supported: true,
+    manifestField: 'mcpServers',
+    configLookupOrder: [
+      'Warp MCP settings UI / JSON snippet (mcpServers)',
+      '~/.codex/config.toml (file-based MCP servers)',
+      '.codex/config.toml (project file-based MCP servers)',
+    ],
+  },
+  hooks: {
+    supported: false,
+    manifestField: 'none',
+    form: 'path-or-inline',
+    defaultFiles: [],
+  },
+}
+
+export const PLATFORM_RULES: Record<PlatformRule['platform'], PlatformRule> = {
+  'claude-code': CLAUDE_CODE_RULES,
+  'github-copilot': GITHUB_COPILOT_RULES,
+  warp: WARP_RULES,
+}
+
+export function getPlatformRule(platform: PlatformRule['platform']): PlatformRule {
+  return PLATFORM_RULES[platform]
+}
+
+export function isCopilotManifestClaudeCompatible(): boolean {
+  const copilotFields = new Set(
+    getPlatformRule('github-copilot').manifest.componentPathFields.map(field => field.name)
+  )
+
+  const claudeFields = new Set(
+    getPlatformRule('claude-code').manifest.componentPathFields.map(field => field.name)
+  )
+
+  for (const field of ['agents', 'skills', 'commands', 'hooks', 'mcpServers', 'lspServers']) {
+    if (!copilotFields.has(field)) return false
+    if (!claudeFields.has(field)) return false
+  }
+
+  return true
 }
