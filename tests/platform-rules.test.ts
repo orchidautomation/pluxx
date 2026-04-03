@@ -1,57 +1,51 @@
-import { describe, expect, it } from 'bun:test'
-import {
-  getPlatformRule,
-  isCopilotManifestClaudeCompatible,
-  PLATFORM_RULES,
-} from '../src/validation/platform-rules'
+import { describe, it, expect } from 'bun:test'
+import { PLATFORM_VALIDATION_RULES, PLATFORM_LIMITS, getPlatformRules } from '../src/validation/platform-rules'
 
-describe('platform rules', () => {
-  it('has rule entries for claude-code, github-copilot, and amp', () => {
-    expect(PLATFORM_RULES['claude-code']).toBeDefined()
-    expect(PLATFORM_RULES['github-copilot']).toBeDefined()
-    expect(PLATFORM_RULES.amp).toBeDefined()
+describe('PLATFORM_VALIDATION_RULES', () => {
+  it('has entries for all researched platforms', () => {
+    const platforms = Object.keys(PLATFORM_VALIDATION_RULES)
+    expect(platforms.length).toBeGreaterThanOrEqual(6)
   })
 
-  it('codifies copilot manifest lookup locations', () => {
-    const copilot = getPlatformRule('github-copilot')
-    expect(copilot.manifest.fileLookupOrder).toEqual([
-      '.plugin/plugin.json',
-      'plugin.json',
-      '.github/plugin/plugin.json',
-      '.claude-plugin/plugin.json',
-    ])
+  it('each entry has required fields', () => {
+    for (const [, rules] of Object.entries(PLATFORM_VALIDATION_RULES)) {
+      expect(rules.platform).toBeTruthy()
+      expect(rules.sources.length).toBeGreaterThan(0)
+      expect(rules.skillDiscoveryDirs.length).toBeGreaterThan(0)
+    }
   })
 
-  it('codifies copilot skill discovery directories', () => {
-    const copilot = getPlatformRule('github-copilot')
-    expect(copilot.skills.discoveryOrder).toContain('.github/skills/')
-    expect(copilot.skills.discoveryOrder).toContain('.agents/skills/')
-    expect(copilot.skills.discoveryOrder).toContain('.claude/skills/')
-    expect(copilot.skills.discoveryOrder).toContain('~/.copilot/skills/')
+  it('getPlatformRules returns correct platform', () => {
+    const rules = getPlatformRules('openhands')
+    expect(rules.platform).toBe('openhands')
+  })
+})
+
+describe('PLATFORM_LIMITS', () => {
+  it('has entries for all 11 target platforms', () => {
+    const platforms = Object.keys(PLATFORM_LIMITS)
+    expect(platforms.length).toBe(11)
+    expect(platforms).toContain('claude-code')
+    expect(platforms).toContain('codex')
+    expect(platforms).toContain('cursor')
+    expect(platforms).toContain('opencode')
   })
 
-  it('codifies copilot skill frontmatter fields', () => {
-    const copilot = getPlatformRule('github-copilot')
-    const names = copilot.skills.frontmatter.map(field => field.name)
-
-    expect(names).toContain('name')
-    expect(names).toContain('description')
-    expect(names).toContain('allowed-tools')
-    expect(names).toContain('user-invocable')
-    expect(names).toContain('disable-model-invocation')
+  it('codex has hard description limit of 1024', () => {
+    expect(PLATFORM_LIMITS['codex'].skillDescriptionMax).toBe(1024)
   })
 
-  it('keeps core plugin component fields Claude-compatible', () => {
-    expect(isCopilotManifestClaudeCompatible()).toBe(true)
+  it('claude-code has display truncation at 250', () => {
+    expect(PLATFORM_LIMITS['claude-code'].skillDescriptionDisplayMax).toBe(250)
   })
 
-  it('codifies amp AGENTS/skills/mcp conventions', () => {
-    const amp = getPlatformRule('amp')
+  it('codex has max 3 prompts of 128 chars', () => {
+    expect(PLATFORM_LIMITS['codex'].manifestPromptCountMax).toBe(3)
+    expect(PLATFORM_LIMITS['codex'].manifestPromptMax).toBe(128)
+  })
 
-    expect(amp.manifest.fileLookupOrder).toEqual(['AGENTS.md', 'AGENT.md', 'CLAUDE.md'])
-    expect(amp.skills.discoveryOrder).toContain('.agents/skills/')
-    expect(amp.skills.discoveryOrder).toContain('.claude/skills/')
-    expect(amp.mcp.configLookupOrder).toContain('.amp/settings.json (amp.mcpServers)')
-    expect(amp.mcp.configLookupOrder).toContain('skills/**/mcp.json')
+  it('cursor and cline require name to match directory', () => {
+    expect(PLATFORM_LIMITS['cursor'].skillNameMustMatchDir).toBe(true)
+    expect(PLATFORM_LIMITS['cline'].skillNameMustMatchDir).toBe(true)
   })
 })
