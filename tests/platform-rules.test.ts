@@ -6,10 +6,10 @@ import {
 } from '../src/validation/platform-rules'
 
 describe('platform rules', () => {
-  it('has rule entries for claude-code, github-copilot, and openhands', () => {
+  it('has rule entries for claude-code, github-copilot, and cline', () => {
     expect(PLATFORM_RULES['claude-code']).toBeDefined()
     expect(PLATFORM_RULES['github-copilot']).toBeDefined()
-    expect(PLATFORM_RULES.openhands).toBeDefined()
+    expect(PLATFORM_RULES.cline).toBeDefined()
   })
 
   it('codifies copilot manifest lookup locations', () => {
@@ -45,23 +45,19 @@ describe('platform rules', () => {
     expect(isCopilotManifestClaudeCompatible()).toBe(true)
   })
 
-  it('codifies openhands manifest location and required metadata', () => {
-    const openhands = getPlatformRule('openhands')
-    expect(openhands.manifest.fileLookupOrder).toEqual(['.plugin/plugin.json'])
-    expect(openhands.manifest.requiredFileName).toBe('plugin.json')
-    expect(openhands.manifest.requiredFields.map(field => field.name)).toContain('name')
+  it('codifies cline rules, hooks, and mcp locations', () => {
+    const cline = getPlatformRule('cline')
+    expect(cline.manifest.fileLookupOrder).toContain('.clinerules/')
+    expect(cline.skills.discoveryOrder).toContain('.cline/skills/')
+    expect(cline.hooks.form).toBe('script-directory')
+    expect(cline.hooks.defaultFiles).toContain('.clinerules/hooks/')
+    expect(cline.mcp.configLookupOrder).toContain('.cline/mcp.json')
+    expect(cline.mcp.configLookupOrder).toContain('~/.cline/data/settings/cline_mcp_settings.json')
   })
 
-  it('codifies openhands skills, hooks, and mcp conventions', () => {
-    const openhands = getPlatformRule('openhands')
-    const frontmatter = openhands.skills.frontmatter.map(field => field.name)
-
-    expect(frontmatter).toContain('name')
-    expect(frontmatter).toContain('description')
-    expect(frontmatter).toContain('trigger')
-    expect(frontmatter).toContain('triggers')
-
-    expect(openhands.hooks.defaultFiles).toContain('hooks/hooks.json')
-    expect(openhands.mcp.configLookupOrder).toContain('.mcp.json')
+  it('codifies cline ACP support', () => {
+    const cline = getPlatformRule('cline')
+    expect(cline.acp.supported).toBe(true)
+    expect(cline.acp.launchCommand).toBe('cline --acp')
   })
 })

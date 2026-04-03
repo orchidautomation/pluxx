@@ -21,7 +21,7 @@ export interface SkillFrontmatterRule {
 }
 
 export interface PlatformRule {
-  platform: 'claude-code' | 'github-copilot' | 'gemini-cli'
+  platform: 'claude-code' | 'github-copilot' | 'cline'
   sourceUrls: string[]
   notes: string[]
   manifest: {
@@ -43,8 +43,14 @@ export interface PlatformRule {
   hooks: {
     supported: boolean
     manifestField: string
-    form: 'path-or-inline' | 'file-only'
+    form: 'path-or-inline' | 'script-directory'
     defaultFiles: string[]
+  }
+  acp: {
+    supported: boolean
+    launchCommand: string
+    configFiles: string[]
+    notes: string[]
   }
 }
 
@@ -110,6 +116,12 @@ const CLAUDE_CODE_RULES: PlatformRule = {
     manifestField: 'hooks',
     form: 'path-or-inline',
     defaultFiles: ['hooks/hooks.json'],
+  },
+  acp: {
+    supported: false,
+    launchCommand: '',
+    configFiles: [],
+    notes: ['Claude Code does not use ACP for plugin integration.'],
   },
 }
 
@@ -218,79 +230,51 @@ const GITHUB_COPILOT_RULES: PlatformRule = {
     form: 'path-or-inline',
     defaultFiles: ['hooks.json', 'hooks/hooks.json'],
   },
+  acp: {
+    supported: false,
+    launchCommand: '',
+    configFiles: [],
+    notes: ['GitHub Copilot CLI plugins do not expose ACP integration points.'],
+  },
 }
 
-const GEMINI_CLI_RULES: PlatformRule = {
-  platform: 'gemini-cli',
+const CLINE_RULES: PlatformRule = {
+  platform: 'cline',
   sourceUrls: [
-    'https://github.com/google-gemini/gemini-cli/blob/main/docs/extensions/reference.md',
-    'https://github.com/google-gemini/gemini-cli/blob/main/docs/cli/skills.md',
-    'https://github.com/google-gemini/gemini-cli/blob/main/docs/hooks/reference.md',
-    'https://github.com/google-gemini/gemini-cli/blob/main/packages/cli/src/config/extension-manager.ts',
-    'https://github.com/google-gemini/gemini-cli/blob/main/packages/cli/src/config/extension.ts',
-    'https://github.com/google-gemini/gemini-cli/blob/main/packages/core/src/skills/skillLoader.ts',
+    'https://docs.cline.bot/customization/cline-rules',
+    'https://docs.cline.bot/customization/skills',
+    'https://docs.cline.bot/customization/hooks',
+    'https://docs.cline.bot/mcp/adding-and-configuring-servers',
+    'https://docs.cline.bot/cline-cli/configuration',
+    'https://docs.cline.bot/cline-cli/acp-editor-integrations',
   ],
   notes: [
-    'Gemini CLI extension manifest file must be gemini-extension.json at extension root.',
-    'Required manifest fields are name and version; no hard max lengths are enforced in loader validation.',
-    'Extension name is validated with ^[a-zA-Z0-9-]+$ in loader code; docs recommend lowercase names with dashes.',
-    'Context file defaults to GEMINI.md when contextFileName is omitted; contextFileName supports string or string[].',
-    'Hooks are loaded from hooks/hooks.json and are not defined inside gemini-extension.json.',
+    'Cline rules are markdown files in .clinerules/; Cline processes .md and .txt files and combines them.',
+    'Conditional rules use YAML frontmatter with paths globs; rules without frontmatter are always active.',
+    'Cline supports hook scripts in .clinerules/hooks/ (workspace) and ~/Documents/Cline/Hooks/ (global).',
+    'Hook scripts receive JSON via stdin and must return JSON via stdout with { cancel, contextModification, errorMessage }.',
+    'Hook-specific input fields are taskStart, taskResume, taskCancel, taskComplete, preToolUse, postToolUse, userPromptSubmit, preCompact.',
+    'Cline CLI stores MCP settings in ~/.cline/data/settings/cline_mcp_settings.json; pluxx also emits project-local .cline/mcp.json for generated plugins.',
+    'Remote MCP auth is supported via OAuth flows and explicit headers in MCP server config.',
   ],
   manifest: {
-    requiredFileName: 'gemini-extension.json',
-    requiredFields: [
-      {
-        name: 'name',
-        required: true,
-        type: 'string',
-        notes: 'Loader enforces /^[a-zA-Z0-9-]+$/; docs recommend lowercase letters, numbers, and dashes.',
-      },
-      {
-        name: 'version',
-        required: true,
-        type: 'string',
-        notes: 'Loader requires presence; validate command only warns when not semver.',
-      },
-    ],
+    requiredFileName: '.clinerules/',
+    requiredFields: [],
     optionalMetadataFields: [
-      { name: 'description', required: false, type: 'string' },
       {
-        name: 'contextFileName',
+        name: 'paths',
         required: false,
         type: 'string|string[]',
-        notes: 'Defaults to GEMINI.md if omitted.',
-      },
-      { name: 'excludeTools', required: false, type: 'string[]' },
-      {
-        name: 'settings',
-        required: false,
-        type: 'object',
-        notes: 'Array of setting objects in Gemini docs; stored as extension env/keychain values.',
-      },
-      {
-        name: 'themes',
-        required: false,
-        type: 'object',
-        notes: 'Array of custom theme objects.',
-      },
-      {
-        name: 'plan',
-        required: false,
-        type: 'object',
-        notes: 'Supports plan.directory override for planning artifacts.',
-      },
-      { name: 'migratedTo', required: false, type: 'string' },
-    ],
-    componentPathFields: [
-      {
-        name: 'contextFileName',
-        required: false,
-        type: 'string|string[]',
-        notes: 'Each path must resolve within extension root.',
+        notes: 'Conditional .clinerules frontmatter glob patterns.',
       },
     ],
-    fileLookupOrder: ['gemini-extension.json'],
+    componentPathFields: [],
+    fileLookupOrder: [
+      '.clinerules/',
+      'AGENTS.md',
+      '.cursorrules',
+      '.windsurfrules',
+    ],
   },
   skills: {
     frontmatter: [
@@ -298,43 +282,57 @@ const GEMINI_CLI_RULES: PlatformRule = {
         name: 'name',
         required: true,
         type: 'string',
-        notes: 'No explicit max length in loader; invalid filesystem chars are sanitized when loaded.',
+        notes: 'Must match the skill directory name exactly (kebab-case recommended).',
       },
       {
         name: 'description',
         required: true,
         type: 'string',
-        notes: 'No explicit max length in loader.',
+        notes: 'Used for skill activation; max 1024 characters.',
       },
     ],
     discoveryOrder: [
-      'workspace: .gemini/skills/',
-      'workspace alias: .agents/skills/ (higher precedence than .gemini)',
-      'user: ~/.gemini/skills/',
-      'user alias: ~/.agents/skills/ (higher precedence than ~/.gemini)',
-      'extension: skills/ at extension root',
+      '.cline/skills/',
+      '.clinerules/skills/',
+      '.claude/skills/',
+      '~/.cline/skills/',
     ],
   },
   mcp: {
     supported: true,
     manifestField: 'mcpServers',
     configLookupOrder: [
-      'gemini-extension.json:mcpServers',
-      '~/.gemini/settings.json:mcpServers (takes precedence on name conflicts)',
+      '.cline/mcp.json',
+      '~/.cline/data/settings/cline_mcp_settings.json',
+      '<CLINE_DIR>/data/settings/cline_mcp_settings.json',
     ],
   },
   hooks: {
     supported: true,
-    manifestField: 'hooks/hooks.json (outside manifest)',
-    form: 'file-only',
-    defaultFiles: ['hooks/hooks.json'],
+    manifestField: 'hooks',
+    form: 'script-directory',
+    defaultFiles: [
+      '.clinerules/hooks/',
+      '~/Documents/Cline/Hooks/',
+    ],
+  },
+  acp: {
+    supported: true,
+    launchCommand: 'cline --acp',
+    configFiles: [
+      '~/.jetbrains/acp.json',
+      '<zed settings.json>.agent_servers',
+    ],
+    notes: [
+      'Cline CLI supports ACP editor integrations without reducing Skills/Hooks/MCP capabilities.',
+    ],
   },
 }
 
 export const PLATFORM_RULES: Record<PlatformRule['platform'], PlatformRule> = {
   'claude-code': CLAUDE_CODE_RULES,
   'github-copilot': GITHUB_COPILOT_RULES,
-  'gemini-cli': GEMINI_CLI_RULES,
+  cline: CLINE_RULES,
 }
 
 export function getPlatformRule(platform: PlatformRule['platform']): PlatformRule {
