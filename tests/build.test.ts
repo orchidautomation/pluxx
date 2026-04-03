@@ -38,7 +38,29 @@ const testConfig: PluginConfig = {
       command: '${PLUGIN_ROOT}/scripts/validate.sh',
     }],
   },
-  targets: ['claude-code', 'cursor', 'codex', 'opencode'],
+  instructions: './INSTRUCTIONS.md',
+  platforms: {
+    cursor: {
+      rules: [{
+        description: 'Megamind operating conventions',
+        alwaysApply: true,
+        content: 'Always verify account context before responding.',
+      }],
+    },
+  },
+  targets: [
+    'claude-code',
+    'cursor',
+    'codex',
+    'opencode',
+    'github-copilot',
+    'openhands',
+    'warp',
+    'gemini-cli',
+    'roo-code',
+    'cline',
+    'amp',
+  ],
   outDir: './dist',
 }
 
@@ -48,6 +70,7 @@ beforeAll(async () => {
     resolve(TEST_DIR, 'skills/hello/SKILL.md'),
     '---\nname: hello\ndescription: Say hello\n---\n\nSay hello to the user.\n',
   )
+  await Bun.write(resolve(TEST_DIR, 'INSTRUCTIONS.md'), 'Use test-plugin consistently.\n')
 })
 
 afterAll(() => {
@@ -74,6 +97,32 @@ describe('build', () => {
     // OpenCode
     expect(existsSync(resolve(OUT_DIR, 'opencode/package.json'))).toBe(true)
     expect(existsSync(resolve(OUT_DIR, 'opencode/index.ts'))).toBe(true)
+
+    // GitHub Copilot
+    expect(existsSync(resolve(OUT_DIR, 'github-copilot/.claude-plugin/plugin.json'))).toBe(true)
+
+    // OpenHands should use .plugin/ (not .claude-plugin/)
+    expect(existsSync(resolve(OUT_DIR, 'openhands/.plugin/plugin.json'))).toBe(true)
+    expect(existsSync(resolve(OUT_DIR, 'openhands/.claude-plugin/plugin.json'))).toBe(false)
+
+    // Warp
+    expect(existsSync(resolve(OUT_DIR, 'warp/AGENTS.md'))).toBe(true)
+    expect(existsSync(resolve(OUT_DIR, 'warp/mcp.json'))).toBe(true)
+
+    // Gemini CLI
+    expect(existsSync(resolve(OUT_DIR, 'gemini-cli/gemini-extension.json'))).toBe(true)
+
+    // Roo Code
+    expect(existsSync(resolve(OUT_DIR, 'roo-code/.roo/mcp.json'))).toBe(true)
+    expect(existsSync(resolve(OUT_DIR, 'roo-code/.roorules'))).toBe(true)
+
+    // Cline
+    expect(existsSync(resolve(OUT_DIR, 'cline/.cline/mcp.json'))).toBe(true)
+    expect(existsSync(resolve(OUT_DIR, 'cline/.clinerules'))).toBe(true)
+
+    // AMP
+    expect(existsSync(resolve(OUT_DIR, 'amp/AGENT.md'))).toBe(true)
+    expect(existsSync(resolve(OUT_DIR, 'amp/.amp/settings.json'))).toBe(true)
   })
 
   it('generates correct Claude Code MCP config', async () => {
@@ -109,10 +158,41 @@ describe('build', () => {
   })
 
   it('copies skills to all targets', async () => {
-    for (const platform of ['claude-code', 'cursor', 'codex', 'opencode']) {
+    for (const platform of [
+      'claude-code',
+      'cursor',
+      'codex',
+      'opencode',
+      'github-copilot',
+      'openhands',
+      'warp',
+      'gemini-cli',
+      'amp',
+    ]) {
       expect(
         existsSync(resolve(OUT_DIR, platform, 'skills/hello/SKILL.md'))
       ).toBe(true)
     }
+
+    // Roo Code and Cline use platform-specific skill dirs
+    expect(existsSync(resolve(OUT_DIR, 'roo-code/.roo/skills/hello/SKILL.md'))).toBe(true)
+    expect(existsSync(resolve(OUT_DIR, 'cline/.cline/skills/hello/SKILL.md'))).toBe(true)
+  })
+
+  it('writes Cursor rules to .cursor/rules/', async () => {
+    expect(
+      existsSync(resolve(OUT_DIR, 'cursor/.cursor/rules/megamind-operating-conventions.mdc'))
+    ).toBe(true)
+  })
+
+  it('guards against path traversal outDir values', async () => {
+    const unsafeConfig: PluginConfig = {
+      ...testConfig,
+      outDir: '..',
+    }
+
+    await expect(build(unsafeConfig, TEST_DIR)).rejects.toThrow(
+      'resolves outside the project root'
+    )
   })
 })
