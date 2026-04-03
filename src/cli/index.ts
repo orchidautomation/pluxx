@@ -5,6 +5,7 @@ import { build } from '../generators'
 import { installPlugin, uninstallPlugin } from './install'
 import { runDev } from './dev'
 import { migrate } from './migrate'
+import { runLint } from './lint'
 import { promptText, promptYesNo, closePrompts } from './prompt'
 import type { TargetPlatform } from '../schema'
 import { basename } from 'path'
@@ -23,6 +24,9 @@ async function main() {
       break
     case 'validate':
       await runValidate()
+      break
+    case 'lint':
+      await runLintCommand()
       break
     case 'init':
       await runInit()
@@ -91,9 +95,15 @@ async function runValidate() {
   }
 }
 
+async function runLintCommand() {
+  const exitCode = await runLint(process.cwd())
+  if (exitCode !== 0) {
+    process.exit(exitCode)
+  }
+}
+
 async function runInit() {
   const dirName = basename(process.cwd()).toLowerCase().replace(/[^a-z0-9-]/g, '-')
-  const tsString = (value: string) => JSON.stringify(value)
 
   console.log('')
   console.log('  pluxx init — Create a new plugin')
@@ -132,18 +142,18 @@ async function runInit() {
     closePrompts()
 
     // Build the config file content
-    const targetsList = targets.map(tsString).join(', ')
+    const targetsList = targets.map(t => `'${t}'`).join(', ')
     let mcpBlock = ''
     if (hasMcp && mcpUrl) {
-      const serverName = name.toLowerCase().replace(/[^a-z0-9]/g, '-')
+      const serverName = name.replace(/[^a-z0-9]/g, '-')
       mcpBlock = `
   // MCP servers your plugin connects to
   mcp: {
-    ${tsString(serverName)}: {
-      url: ${tsString(mcpUrl)},${mcpEnvVar ? `
+    '${serverName}': {
+      url: '${mcpUrl}',${mcpEnvVar ? `
       auth: {
         type: 'bearer',
-        envVar: ${tsString(mcpEnvVar)},
+        envVar: '${mcpEnvVar}',
       },` : ''}
     },
   },
@@ -155,8 +165,8 @@ async function runInit() {
       brandBlock = `
   // Brand metadata
   brand: {
-    displayName: ${tsString(displayName)},${brandColor ? `
-    color: ${tsString(brandColor)},` : ''}
+    displayName: '${displayName}',${brandColor ? `
+    color: '${brandColor}',` : ''}
   },
 `
     }
@@ -164,11 +174,11 @@ async function runInit() {
     const template = `import { definePlugin } from 'pluxx'
 
 export default definePlugin({
-  name: ${tsString(name)},
+  name: '${name}',
   version: '0.1.0',
-  description: ${tsString(description)},
+  description: '${description.replace(/'/g, "\\'")}',
   author: {
-    name: ${tsString(authorName)},
+    name: '${authorName.replace(/'/g, "\\'")}',
   },
   license: 'MIT',
 
@@ -183,14 +193,8 @@ ${mcpBlock}${brandBlock}
     // Write config
     await Bun.write('pluxx.config.ts', template)
 
-    const skillDir = name
-      .toLowerCase()
-      .replace(/[^a-z0-9-]/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '') || 'skill'
-
-    // Create skills/<name>/SKILL.md starter
-    await mkdir(`skills/${skillDir}`, { recursive: true })
+    // Create skills directory with a starter SKILL.md
+    await mkdir('skills', { recursive: true })
 
     const skillContent = `---
 name: ${name}
@@ -213,15 +217,15 @@ Example prompt or command here
 \`\`\`
 `
 
-    await Bun.write(`skills/${skillDir}/SKILL.md`, skillContent)
+    await Bun.write('skills/SKILL.md', skillContent)
 
     console.log('')
     console.log('  Created:')
     console.log('    pluxx.config.ts')
-    console.log(`    skills/${skillDir}/SKILL.md`)
+    console.log('    skills/SKILL.md')
     console.log('')
     console.log('  Next steps:')
-    console.log(`    1. Edit skills/${skillDir}/SKILL.md with your skill instructions`)
+    console.log('    1. Edit skills/SKILL.md with your skill instructions')
     console.log('    2. Run: pluxx build')
     console.log('    3. Run: pluxx install')
     console.log('')
@@ -282,6 +286,7 @@ Usage:
   pluxx build [--target <platforms...>]   Generate platform-specific plugin files
   pluxx dev [--target <platforms...>]     Watch for changes and auto-rebuild
   pluxx validate                          Validate your config
+  pluxx lint                              Lint skills and cross-platform metadata
   pluxx init [name]                       Create a new pluxx.config.ts
   pluxx migrate <path>                    Import an existing plugin into pluxx
   pluxx install [--target <platforms>]    Symlink built plugins for local testing
