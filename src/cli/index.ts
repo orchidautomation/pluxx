@@ -5,6 +5,7 @@ import { build } from '../generators'
 import { installPlugin, uninstallPlugin } from './install'
 import { runDev } from './dev'
 import { migrate } from './migrate'
+import { runLint } from './lint'
 import { promptText, promptYesNo, closePrompts } from './prompt'
 import type { TargetPlatform } from '../schema'
 import { basename } from 'path'
@@ -23,6 +24,9 @@ async function main() {
       break
     case 'validate':
       await runValidate()
+      break
+    case 'lint':
+      await runLintCommand()
       break
     case 'init':
       await runInit()
@@ -88,6 +92,13 @@ async function runValidate() {
     console.error('Validation failed:')
     console.error(err instanceof Error ? err.message : err)
     process.exit(1)
+  }
+}
+
+async function runLintCommand() {
+  const exitCode = await runLint(process.cwd())
+  if (exitCode !== 0) {
+    process.exit(exitCode)
   }
 }
 
@@ -275,6 +286,7 @@ Usage:
   plugahh build [--target <platforms...>]   Generate platform-specific plugin files
   plugahh dev [--target <platforms...>]     Watch for changes and auto-rebuild
   plugahh validate                          Validate your config
+  plugahh lint                              Lint skills and cross-platform metadata
   plugahh init [name]                       Create a new plugahh.config.ts
   plugahh migrate <path>                    Import an existing plugin into plugahh
   plugahh install [--target <platforms>]    Symlink built plugins for local testing
