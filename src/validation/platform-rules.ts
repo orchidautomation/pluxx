@@ -1,91 +1,58 @@
-export const CURSOR_PLUGIN_NAME_REGEX = /^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/
+export const AGENT_SKILLS_RULES = {
+  name: {
+    maxLength: 64,
+    pattern: /^[a-z0-9-]+$/,
+  },
+  description: {
+    maxLength: 1024,
+  },
+} as const
 
-export const CURSOR_SKILL_SUPPORTED_FRONTMATTER_FIELDS = [
-  'name',
-  'description',
-  'license',
-  'compatibility',
-  'metadata',
-  'disable-model-invocation',
-] as const
+export const CLAUDE_CODE_RULES = {
+  description: {
+    maxDisplayLength: 250,
+  },
+} as const
 
-export const CURSOR_RULE_SUPPORTED_FRONTMATTER_FIELDS = [
-  'description',
-  'globs',
-  'alwaysApply',
-] as const
+export const CODEX_RULES = {
+  interface: {
+    maxDefaultPrompts: 3,
+    maxDefaultPromptLength: 128,
+    // Codex skill metadata loader validates #RRGGBB.
+    brandColorPattern: /^#[0-9a-fA-F]{6}$/,
+    // Codex source currently treats capabilities as free-form strings.
+    // This set reflects the documented marketplace vocabulary.
+    knownCapabilities: ['Interactive', 'Read', 'Write'] as const,
+  },
+  manifestPaths: {
+    requiredPrefix: './',
+  },
+  mcp: {
+    serverNamePattern: /^[a-zA-Z0-9_-]+$/,
+  },
+  hooks: {
+    supportedEvents: [
+      'sessionStart',
+      'preToolUse',
+      'postToolUse',
+      'beforeSubmitPrompt',
+      'stop',
+    ] as const,
+    supportedEventPascalCase: [
+      'SessionStart',
+      'PreToolUse',
+      'PostToolUse',
+      'UserPromptSubmit',
+      'Stop',
+    ] as const,
+    supportedHandlerTypes: ['command', 'prompt', 'agent'] as const,
+  },
+  marketplace: {
+    installationPolicies: ['NOT_AVAILABLE', 'AVAILABLE', 'INSTALLED_BY_DEFAULT'] as const,
+    authPolicies: ['ON_INSTALL', 'ON_USE'] as const,
+    sourceTypes: ['local'] as const,
+    products: ['CODEX', 'CHATGPT', 'ATLAS'] as const,
+  },
+} as const
 
-export const CURSOR_HOOK_EVENTS = [
-  'sessionStart',
-  'sessionEnd',
-  'preToolUse',
-  'postToolUse',
-  'postToolUseFailure',
-  'subagentStart',
-  'subagentStop',
-  'beforeShellExecution',
-  'afterShellExecution',
-  'beforeMCPExecution',
-  'afterMCPExecution',
-  'beforeReadFile',
-  'afterFileEdit',
-  'beforeSubmitPrompt',
-  'preCompact',
-  'stop',
-  'afterAgentResponse',
-  'afterAgentThought',
-  'beforeTabFileRead',
-  'afterTabFileEdit',
-] as const
-
-const CURSOR_HOOK_EVENT_SET = new Set<string>(CURSOR_HOOK_EVENTS)
-
-const CURSOR_MATCHER_SUPPORTED_EVENTS = new Set<string>([
-  'preToolUse',
-  'postToolUse',
-  'postToolUseFailure',
-  'subagentStart',
-  'subagentStop',
-  'beforeShellExecution',
-  'afterShellExecution',
-  'beforeMCPExecution',
-  'afterMCPExecution',
-  'beforeReadFile',
-  'afterFileEdit',
-  'beforeSubmitPrompt',
-  'stop',
-  'afterAgentResponse',
-  'afterAgentThought',
-])
-
-const CURSOR_LOOP_LIMIT_SUPPORTED_EVENTS = new Set<string>([
-  'stop',
-  'subagentStop',
-])
-
-const CURSOR_SKILL_FRONTMATTER_SET = new Set<string>(CURSOR_SKILL_SUPPORTED_FRONTMATTER_FIELDS)
-const CURSOR_RULE_FRONTMATTER_SET = new Set<string>(CURSOR_RULE_SUPPORTED_FRONTMATTER_FIELDS)
-
-export function isValidCursorPluginName(name: string): boolean {
-  return CURSOR_PLUGIN_NAME_REGEX.test(name)
-}
-
-export function isCursorHookEvent(event: string): boolean {
-  return CURSOR_HOOK_EVENT_SET.has(event)
-}
-
-export function supportsCursorHookMatcher(event: string): boolean {
-  return CURSOR_MATCHER_SUPPORTED_EVENTS.has(event)
-}
-
-export function supportsCursorHookLoopLimit(event: string): boolean {
-  return CURSOR_LOOP_LIMIT_SUPPORTED_EVENTS.has(event)
-}
-
-export function isSupportedCursorSkillFrontmatterField(field: string): boolean {
-  return CURSOR_SKILL_FRONTMATTER_SET.has(field)
-}
-
-export function isSupportedCursorRuleFrontmatterField(field: string): boolean {
-  return CURSOR_RULE_FRONTMATTER_SET.has(field)
-}
+export type KnownCodexCapability = typeof CODEX_RULES.interface.knownCapabilities[number]
