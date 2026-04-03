@@ -78,12 +78,18 @@ export class CursorGenerator extends Generator {
     for (const [event, entries] of Object.entries(this.config.hooks)) {
       if (!entries) continue
       hooks[event] = entries.map(entry => {
-        const hookDef: Record<string, unknown> = {
-          command: entry.command.replace('${PLUGIN_ROOT}', '.'),
+        const hookDef: Record<string, unknown> = {}
+        if (entry.type === 'prompt') {
+          hookDef.type = 'prompt'
+          hookDef.prompt = entry.prompt
+          if (entry.model) hookDef.model = entry.model
+        } else if (entry.command) {
+          hookDef.command = entry.command.replace('${PLUGIN_ROOT}', '.')
         }
         if (entry.timeout) hookDef.timeout = entry.timeout
         if (entry.matcher) hookDef.matcher = entry.matcher
         if (entry.failClosed) hookDef.failClosed = entry.failClosed
+        if (entry.loop_limit !== undefined) hookDef.loop_limit = entry.loop_limit
         return hookDef
       })
     }
@@ -100,7 +106,13 @@ export class CursorGenerator extends Generator {
         '---',
         `description: "${rule.description}"`,
       ]
-      if (rule.globs) frontmatter.push(`globs: "${rule.globs}"`)
+      if (rule.globs) {
+        if (Array.isArray(rule.globs)) {
+          frontmatter.push(`globs: ${JSON.stringify(rule.globs)}`)
+        } else {
+          frontmatter.push(`globs: "${rule.globs}"`)
+        }
+      }
       if (rule.alwaysApply !== undefined) {
         frontmatter.push(`alwaysApply: ${rule.alwaysApply}`)
       }

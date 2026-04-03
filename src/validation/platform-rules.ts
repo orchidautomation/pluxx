@@ -1,159 +1,91 @@
-export interface PlatformRules {
-  skill: {
-    maxDescriptionLength: number | null
-    maxDescriptionLengthHard: number | null
-    nameFormat: RegExp
-    nameMaxLength: number
-    nameMustMatchDir: boolean
-    supportedFrontmatter: string[]
-    requiredFrontmatter: string[]
-    recommendedFrontmatter?: string[]
-  }
-  hooks: {
-    supportedEvents: string[]
-    eventCasing: 'PascalCase' | 'camelCase'
-    supportedFields: string[]
-    supportedTypes?: string[]
-  }
-  mcp: {
-    authFormats: string[]
-    transportTypes: string[]
-  }
-  pluginManifest?: {
-    requiredFields: string[]
-    optionalFields: string[]
-    nameFormat: RegExp
-    maxFieldLengths: Record<string, number | null>
-  }
-  pluginValidate?: {
-    checks: string[]
-    warnings: string[]
-  }
+export const CURSOR_PLUGIN_NAME_REGEX = /^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/
+
+export const CURSOR_SKILL_SUPPORTED_FRONTMATTER_FIELDS = [
+  'name',
+  'description',
+  'license',
+  'compatibility',
+  'metadata',
+  'disable-model-invocation',
+] as const
+
+export const CURSOR_RULE_SUPPORTED_FRONTMATTER_FIELDS = [
+  'description',
+  'globs',
+  'alwaysApply',
+] as const
+
+export const CURSOR_HOOK_EVENTS = [
+  'sessionStart',
+  'sessionEnd',
+  'preToolUse',
+  'postToolUse',
+  'postToolUseFailure',
+  'subagentStart',
+  'subagentStop',
+  'beforeShellExecution',
+  'afterShellExecution',
+  'beforeMCPExecution',
+  'afterMCPExecution',
+  'beforeReadFile',
+  'afterFileEdit',
+  'beforeSubmitPrompt',
+  'preCompact',
+  'stop',
+  'afterAgentResponse',
+  'afterAgentThought',
+  'beforeTabFileRead',
+  'afterTabFileEdit',
+] as const
+
+const CURSOR_HOOK_EVENT_SET = new Set<string>(CURSOR_HOOK_EVENTS)
+
+const CURSOR_MATCHER_SUPPORTED_EVENTS = new Set<string>([
+  'preToolUse',
+  'postToolUse',
+  'postToolUseFailure',
+  'subagentStart',
+  'subagentStop',
+  'beforeShellExecution',
+  'afterShellExecution',
+  'beforeMCPExecution',
+  'afterMCPExecution',
+  'beforeReadFile',
+  'afterFileEdit',
+  'beforeSubmitPrompt',
+  'stop',
+  'afterAgentResponse',
+  'afterAgentThought',
+])
+
+const CURSOR_LOOP_LIMIT_SUPPORTED_EVENTS = new Set<string>([
+  'stop',
+  'subagentStop',
+])
+
+const CURSOR_SKILL_FRONTMATTER_SET = new Set<string>(CURSOR_SKILL_SUPPORTED_FRONTMATTER_FIELDS)
+const CURSOR_RULE_FRONTMATTER_SET = new Set<string>(CURSOR_RULE_SUPPORTED_FRONTMATTER_FIELDS)
+
+export function isValidCursorPluginName(name: string): boolean {
+  return CURSOR_PLUGIN_NAME_REGEX.test(name)
 }
 
-export const platformRules: Record<string, PlatformRules> = {
-  'claude-code': {
-    skill: {
-      maxDescriptionLength: 250,
-      // The docs describe truncation in listings, not rejection at parse time.
-      maxDescriptionLengthHard: null,
-      nameFormat: /^[a-z0-9-]+$/,
-      nameMaxLength: 64,
-      nameMustMatchDir: false,
-      supportedFrontmatter: [
-        'name',
-        'description',
-        'argument-hint',
-        'disable-model-invocation',
-        'user-invocable',
-        'allowed-tools',
-        'model',
-        'effort',
-        'context',
-        'agent',
-        'hooks',
-        'paths',
-        'shell',
-      ],
-      requiredFrontmatter: [],
-      recommendedFrontmatter: ['description'],
-    },
-    hooks: {
-      eventCasing: 'PascalCase',
-      supportedEvents: [
-        'SessionStart',
-        'InstructionsLoaded',
-        'UserPromptSubmit',
-        'PreToolUse',
-        'PermissionRequest',
-        'PermissionDenied',
-        'PostToolUse',
-        'PostToolUseFailure',
-        'Notification',
-        'SubagentStart',
-        'SubagentStop',
-        'TaskCreated',
-        'TaskCompleted',
-        'Stop',
-        'StopFailure',
-        'TeammateIdle',
-        'ConfigChange',
-        'CwdChanged',
-        'FileChanged',
-        'WorktreeCreate',
-        'WorktreeRemove',
-        'PreCompact',
-        'PostCompact',
-        'Elicitation',
-        'ElicitationResult',
-        'SessionEnd',
-      ],
-      supportedFields: [
-        'matcher',
-        'hooks',
-        'type',
-        'if',
-        'timeout',
-        'shell',
-        'command',
-        'async',
-        'url',
-        'headers',
-        'allowedEnvVars',
-        'prompt',
-        'model',
-      ],
-      supportedTypes: ['command', 'http', 'prompt', 'agent'],
-    },
-    mcp: {
-      authFormats: [
-        'Authorization bearer token in headers',
-        'Custom header name + value template in headers',
-        'OAuth (remote MCP server flow)',
-      ],
-      transportTypes: ['stdio', 'sse', 'http', 'streamable-http'],
-    },
-    pluginManifest: {
-      requiredFields: ['name'],
-      optionalFields: [
-        'version',
-        'description',
-        'author',
-        'homepage',
-        'repository',
-        'license',
-        'keywords',
-        'commands',
-        'agents',
-        'skills',
-        'hooks',
-        'mcpServers',
-        'outputStyles',
-        'lspServers',
-        'userConfig',
-        'channels',
-      ],
-      nameFormat: /^[a-z0-9-]+$/,
-      maxFieldLengths: {
-        name: null,
-        description: null,
-        version: null,
-      },
-    },
-    pluginValidate: {
-      checks: [
-        'plugin.json syntax and schema',
-        'skill frontmatter syntax and schema',
-        'agent frontmatter syntax and schema',
-        'command frontmatter syntax and schema',
-        'hooks/hooks.json syntax and schema',
-        'marketplace.json syntax and schema when validating a marketplace',
-      ],
-      warnings: [
-        'marketplace has no plugins defined',
-        'marketplace metadata.description missing',
-        'plugin name not kebab-case',
-      ],
-    },
-  },
+export function isCursorHookEvent(event: string): boolean {
+  return CURSOR_HOOK_EVENT_SET.has(event)
+}
+
+export function supportsCursorHookMatcher(event: string): boolean {
+  return CURSOR_MATCHER_SUPPORTED_EVENTS.has(event)
+}
+
+export function supportsCursorHookLoopLimit(event: string): boolean {
+  return CURSOR_LOOP_LIMIT_SUPPORTED_EVENTS.has(event)
+}
+
+export function isSupportedCursorSkillFrontmatterField(field: string): boolean {
+  return CURSOR_SKILL_FRONTMATTER_SET.has(field)
+}
+
+export function isSupportedCursorRuleFrontmatterField(field: string): boolean {
+  return CURSOR_RULE_FRONTMATTER_SET.has(field)
 }

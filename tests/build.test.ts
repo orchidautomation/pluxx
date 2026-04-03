@@ -44,6 +44,7 @@ const testConfig: PluginConfig = {
       rules: [{
         description: 'Megamind operating conventions',
         alwaysApply: true,
+        globs: ['**/*.ts', '**/*.tsx'],
         content: 'Always verify account context before responding.',
       }],
     },
@@ -180,9 +181,11 @@ describe('build', () => {
   })
 
   it('writes Cursor rules to .cursor/rules/', async () => {
-    expect(
-      existsSync(resolve(OUT_DIR, 'cursor/.cursor/rules/megamind-operating-conventions.mdc'))
-    ).toBe(true)
+    const rulePath = resolve(OUT_DIR, 'cursor/.cursor/rules/megamind-operating-conventions.mdc')
+    expect(existsSync(rulePath)).toBe(true)
+
+    const content = readFileSync(rulePath, 'utf-8')
+    expect(content).toContain('globs: ["**/*.ts","**/*.tsx"]')
   })
 
   it('guards against path traversal outDir values', async () => {

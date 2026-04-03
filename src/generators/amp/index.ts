@@ -49,9 +49,11 @@ export class AmpGenerator extends Generator {
     for (const [event, entries] of Object.entries(this.config.hooks)) {
       if (!entries) continue
       warnDroppedHookFields(this.platform, event, entries)
-      hooks[event] = entries.map(entry => ({
+      const commandEntries = entries.filter(entry => entry.type !== 'prompt' && entry.command)
+      if (commandEntries.length === 0) continue
+      hooks[event] = commandEntries.map(entry => ({
         type: 'post-execute',
-        command: entry.command.replace('${PLUGIN_ROOT}', '.'),
+        command: entry.command!.replace('${PLUGIN_ROOT}', '.'),
         ...(entry.timeout ? { timeout: entry.timeout } : {}),
       }))
     }

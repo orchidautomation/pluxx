@@ -70,10 +70,30 @@ export const McpServerSchema = z.preprocess(
 // ── Hooks ────────────────────────────────────────────────────────
 
 export const HookEntrySchema = z.object({
-  command: z.string(),
+  type: z.enum(['command', 'prompt']).default('command'),
+  command: z.string().optional(),
+  prompt: z.string().optional(),
+  model: z.string().optional(),
   timeout: z.number().optional(),
-  matcher: z.string().optional(),
+  matcher: z.union([z.string(), z.record(z.unknown())]).optional(),
   failClosed: z.boolean().optional(),
+  loop_limit: z.number().nullable().optional(),
+}).superRefine((entry, ctx) => {
+  if (entry.type === 'command' && !entry.command) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['command'],
+      message: 'Command hooks require a command.',
+    })
+  }
+
+  if (entry.type === 'prompt' && !entry.prompt) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['prompt'],
+      message: 'Prompt hooks require a prompt.',
+    })
+  }
 })
 
 export const HooksSchema = z.object({
@@ -81,6 +101,9 @@ export const HooksSchema = z.object({
   sessionEnd: z.array(HookEntrySchema).optional(),
   preToolUse: z.array(HookEntrySchema).optional(),
   postToolUse: z.array(HookEntrySchema).optional(),
+  postToolUseFailure: z.array(HookEntrySchema).optional(),
+  subagentStart: z.array(HookEntrySchema).optional(),
+  subagentStop: z.array(HookEntrySchema).optional(),
   beforeShellExecution: z.array(HookEntrySchema).optional(),
   afterShellExecution: z.array(HookEntrySchema).optional(),
   beforeMCPExecution: z.array(HookEntrySchema).optional(),
@@ -88,7 +111,12 @@ export const HooksSchema = z.object({
   afterFileEdit: z.array(HookEntrySchema).optional(),
   beforeReadFile: z.array(HookEntrySchema).optional(),
   beforeSubmitPrompt: z.array(HookEntrySchema).optional(),
+  preCompact: z.array(HookEntrySchema).optional(),
   stop: z.array(HookEntrySchema).optional(),
+  afterAgentResponse: z.array(HookEntrySchema).optional(),
+  afterAgentThought: z.array(HookEntrySchema).optional(),
+  beforeTabFileRead: z.array(HookEntrySchema).optional(),
+  afterTabFileEdit: z.array(HookEntrySchema).optional(),
 }).catchall(z.array(HookEntrySchema))
 
 // ── Brand / Interface ────────────────────────────────────────────
@@ -117,7 +145,7 @@ export const ClaudeCodeOverridesSchema = z.object({
 export const CursorOverridesSchema = z.object({
   rules: z.array(z.object({
     description: z.string(),
-    globs: z.string().optional(),
+    globs: z.union([z.string(), z.array(z.string())]).optional(),
     alwaysApply: z.boolean().optional(),
     content: z.string().optional(),
   })).optional(),
