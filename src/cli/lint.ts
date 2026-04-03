@@ -116,7 +116,7 @@ function needsQuotes(value: string): boolean {
   return startsWithSpecial || containsCommentChar || containsYamlColon || hasLeadingOrTrailingSpace
 }
 
-function lintSkillFile(skillFile: string, rootDir: string, issues: LintIssue[]): void {
+function lintSkillFile(skillFile: string, issues: LintIssue[]): void {
   const content = readFileSync(skillFile, 'utf-8')
   const parsed = parseFrontmatter(content)
 
@@ -342,7 +342,7 @@ export async function lintProject(dir: string = process.cwd()): Promise<LintResu
     }
 
     for (const skillFile of skillFiles) {
-      lintSkillFile(skillFile, dir, issues)
+      lintSkillFile(skillFile, issues)
     }
   }
 
