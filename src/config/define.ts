@@ -3,9 +3,9 @@ import { type PluginConfig, PluginConfigSchema } from '../schema'
 /**
  * Define a plugin configuration with full type checking and validation.
  *
- * Usage in plugahh.config.ts:
+ * Usage in pluxx.config.ts:
  * ```ts
- * import { definePlugin } from 'plugahh'
+ * import { definePlugin } from 'pluxx'
  *
  * export default definePlugin({
  *   name: 'my-plugin',

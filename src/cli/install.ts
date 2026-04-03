@@ -104,7 +104,7 @@ export async function installPlugin(
   }
 
   if (installed === 0) {
-    console.log('Nothing to install. Run `plugahh build` first.')
+    console.log('Nothing to install. Run `pluxx build` first.')
   } else {
     console.log(`\nInstalled ${installed} plugin(s). Restart your tools to pick them up.`)
   }

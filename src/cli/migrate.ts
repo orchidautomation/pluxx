@@ -211,7 +211,7 @@ function parseMcp(pluginDir: string, detection: DetectionResult): ParsedMcp {
 
 // ── Hooks Parsing ───────────────────────────────────────────────
 
-// Maps platform-specific hook event names to plugahh schema names
+// Maps platform-specific hook event names to pluxx schema names
 const HOOK_EVENT_MAP: Record<string, string> = {
   SessionStart: 'sessionStart',
   SessionEnd: 'sessionEnd',
@@ -361,7 +361,7 @@ function copyDirectories(
 
 function generateConfigTs(result: MigrateResult): string {
   const lines: string[] = []
-  lines.push(`import { definePlugin } from 'plugahh'`)
+  lines.push(`import { definePlugin } from 'pluxx'`)
   lines.push('')
   lines.push('export default definePlugin({')
 
@@ -560,16 +560,16 @@ export async function migrate(inputPath: string): Promise<void> {
 
   // 8. Generate config
   const configContent = generateConfigTs(result)
-  const configPath = resolve(outputDir, 'plugahh.config.ts')
+  const configPath = resolve(outputDir, 'pluxx.config.ts')
 
   if (existsSync(configPath)) {
-    console.error(`\nError: plugahh.config.ts already exists in ${outputDir}`)
+    console.error(`\nError: pluxx.config.ts already exists in ${outputDir}`)
     console.error('Remove it first or run from a different directory.')
     process.exit(1)
   }
 
   await Bun.write(configPath, configContent)
-  console.log(`\nGenerated plugahh.config.ts`)
+  console.log(`\nGenerated pluxx.config.ts`)
 
   // 9. Copy directories
   const copied = copyDirectories(pluginDir, outputDir, directories)
@@ -590,7 +590,7 @@ export async function migrate(inputPath: string): Promise<void> {
 
   console.log('')
   console.log('Migration complete! Next steps:')
-  console.log('  1. Review plugahh.config.ts and fill in any TODOs')
-  console.log('  2. Run: plugahh validate')
-  console.log('  3. Run: plugahh build')
+  console.log('  1. Review pluxx.config.ts and fill in any TODOs')
+  console.log('  2. Run: pluxx validate')
+  console.log('  3. Run: pluxx build')
 }

@@ -27,23 +27,23 @@ This is what we experienced firsthand building the Megamind plugin — the same 
 
 ## The Solution
 
-A single `plugahh.config.ts` (or `.json`/`.yaml`) that defines your plugin canonically, and a CLI that generates all platform targets:
+A single `pluxx.config.ts` (or `.json`/`.yaml`) that defines your plugin canonically, and a CLI that generates all platform targets:
 
 ```bash
 # Generate all platform outputs
-plugahh build
+pluxx build
 
 # Generate for specific platforms
-plugahh build --target claude-code cursor codex
+pluxx build --target claude-code cursor codex
 
 # Validate your plugin config
-plugahh validate
+pluxx validate
 
 # Initialize a new plugin project
-plugahh init
+pluxx init
 
 # Watch for changes and rebuild
-plugahh dev
+pluxx dev
 ```
 
 ---
@@ -53,7 +53,7 @@ plugahh dev
 ### Core Concepts
 
 ```
-plugahh.config.ts          (Canonical plugin definition)
+pluxx.config.ts          (Canonical plugin definition)
        │
        ▼
   ┌─────────┐
@@ -74,10 +74,10 @@ plugahh.config.ts          (Canonical plugin definition)
   Claude  Cursor  OpenCode  Codex     (Generated outputs)
 ```
 
-### Config Schema (plugahh.config.ts)
+### Config Schema (pluxx.config.ts)
 
 ```typescript
-import { definePlugin } from 'plugahh'
+import { definePlugin } from 'pluxx'
 
 export default definePlugin({
   // Identity
@@ -243,8 +243,8 @@ dist/
 ### Phase 0: Foundation (Week 1)
 - [ ] TypeScript project with Bun
 - [ ] Config schema definition with Zod validation
-- [ ] `plugahh init` scaffolding command
-- [ ] `plugahh validate` config validator
+- [ ] `pluxx init` scaffolding command
+- [ ] `pluxx validate` config validator
 - [ ] Core internal representation (normalized plugin model)
 
 ### Phase 1: Generators (Weeks 2-3)
@@ -252,18 +252,18 @@ dist/
 - [ ] Cursor generator (manifest, mcp.json, hooks.json, .mdc rules, AGENTS.md)
 - [ ] Codex generator (manifest with interface block, .mcp.json, hooks, AGENTS.md, marketplace.json)
 - [ ] OpenCode generator (package.json, index.ts wrapper, event mapping)
-- [ ] `plugahh build` command
+- [ ] `pluxx build` command
 - [ ] Skill passthrough (copy SKILL.md to all targets, inject platform-specific frontmatter)
 
 ### Phase 2: Developer Experience (Weeks 3-4)
-- [ ] `plugahh dev` watch mode
-- [ ] `plugahh diff` — show what changed per platform
-- [ ] `plugahh install <platform>` — install locally for testing
+- [ ] `pluxx dev` watch mode
+- [ ] `pluxx diff` — show what changed per platform
+- [ ] `pluxx install <platform>` — install locally for testing
 - [ ] Platform detection (auto-detect which tools are installed)
 - [ ] Skill validation (lint SKILL.md against Agent Skills spec)
 
 ### Phase 3: Distribution (Weeks 4-5)
-- [ ] `plugahh publish` — push to platform marketplaces
+- [ ] `pluxx publish` — push to platform marketplaces
 - [ ] Cursor marketplace submission helper
 - [ ] npm publish for OpenCode plugins
 - [ ] GitHub release generation
@@ -272,7 +272,7 @@ dist/
 ### Phase 4: Advanced (Weeks 5+)
 - [ ] Hook translation layer (map common events across platforms)
 - [ ] Template library (starter templates for common plugin types)
-- [ ] `plugahh migrate` — import existing single-platform plugin
+- [ ] `pluxx migrate` — import existing single-platform plugin
 - [ ] CI/CD integration (GitHub Actions for multi-platform builds)
 - [ ] Plugin testing framework (dry-run skills, validate MCP connections)
 - [ ] Community plugin registry / directory
@@ -285,7 +285,7 @@ dist/
 Skills follow the Agent Skills standard. The SDK copies them to each target, only injecting platform-specific frontmatter extensions (like Claude Code's `allowed-tools` or `context: fork`). The skill content itself is never modified.
 
 ### 2. Config is TypeScript-first
-`plugahh.config.ts` gives autocomplete, type checking, and the ability to compute values. Also supports `.json` and `.yaml` for simpler cases.
+`pluxx.config.ts` gives autocomplete, type checking, and the ability to compute values. Also supports `.json` and `.yaml` for simpler cases.
 
 ### 3. OpenCode gets a generated wrapper
 Since OpenCode uses programmatic JS/TS plugins (not declarative config), the SDK generates an `index.ts` that wraps the declarative config into OpenCode's API:
@@ -358,7 +358,7 @@ Not all platforms support all hook events. The SDK maps common events to platfor
 
 ## Success Metrics
 
-1. **Plugin authors can go from 0 to multi-platform in < 10 minutes** with `plugahh init` + `plugahh build`
+1. **Plugin authors can go from 0 to multi-platform in < 10 minutes** with `pluxx init` + `pluxx build`
 2. **The Megamind plugin can be fully generated** from a single config, eliminating the current duplication
 3. **Community adoption** — 3rd party plugins use plug-ahh for cross-platform distribution
 4. **Platform parity** — when a new platform adopts Agent Skills, adding a generator is < 1 day of work

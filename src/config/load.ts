@@ -3,15 +3,15 @@ import { existsSync } from 'fs'
 import { PluginConfigSchema, type PluginConfig } from '../schema'
 
 const CONFIG_FILES = [
-  'plugahh.config.ts',
-  'plugahh.config.js',
-  'plugahh.config.json',
-  'plugahh.config.yaml',
-  'plugahh.config.yml',
+  'pluxx.config.ts',
+  'pluxx.config.js',
+  'pluxx.config.json',
+  'pluxx.config.yaml',
+  'pluxx.config.yml',
 ]
 
 /**
- * Load and validate a plugahh config from the given directory.
+ * Load and validate a pluxx config from the given directory.
  */
 export async function loadConfig(dir: string = process.cwd()): Promise<PluginConfig> {
   for (const filename of CONFIG_FILES) {
@@ -35,6 +35,6 @@ export async function loadConfig(dir: string = process.cwd()): Promise<PluginCon
   }
 
   throw new Error(
-    `No plugahh config found in ${dir}. Expected one of: ${CONFIG_FILES.join(', ')}`
+    `No pluxx config found in ${dir}. Expected one of: ${CONFIG_FILES.join(', ')}`
   )
 }

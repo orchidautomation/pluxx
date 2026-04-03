@@ -6,7 +6,7 @@ import type { TargetPlatform } from '../schema'
 
 /** Patterns that trigger a rebuild when changed */
 const WATCH_PATTERNS = [
-  /^plugahh\.config\.(ts|js|json|yaml|yml)$/,
+  /^pluxx\.config\.(ts|js|json|yaml|yml)$/,
   /^skills\//,
   /^commands\//,
   /^agents\//,
@@ -28,7 +28,7 @@ export async function runDev(args: string[]) {
 
   const rootDir = process.cwd()
 
-  console.log('plugahh dev — watching for changes...')
+  console.log('pluxx dev — watching for changes...')
   console.log('')
 
   // Run initial build

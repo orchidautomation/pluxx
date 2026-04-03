@@ -1,15 +1,15 @@
-# plugahh Landing Page Copy
+# pluxx Landing Page Copy
 
 ## Hero
 **Headline**: Build AI agent plugins once. Ship them everywhere.
 **Subhead**: One config generates native plugin packages for Claude Code, Cursor, Codex, OpenCode, GitHub Copilot, and more. Stop maintaining 7 copies of the same plugin.
 
-**CTA**: `npx plugahh init`
+**CTA**: `npx pluxx init`
 **Secondary CTA**: View on GitHub
 
 ## Terminal Demo (show this as animated/static code block)
 ```
-$ npx plugahh build
+$ npx pluxx build
 
 Loading config...
 Building for: claude-code, cursor, codex, opencode, github-copilot, openhands, warp
@@ -27,7 +27,7 @@ Done! 60 files generated across 7 platforms.
 
 ## Agent Grid Section
 **Headline**: Works with all your favourite agents
-**Subhead**: plugahh generates native plugin packages for these AI coding tools. More coming every week.
+**Subhead**: pluxx generates native plugin packages for these AI coding tools. More coming every week.
 
 Agents (with logos):
 - Claude Code
@@ -53,7 +53,7 @@ Agents (with logos):
 
 ## Solution Section
 **Headline**: One config to rule them all
-**Subhead**: Define your plugin in `plugahh.config.ts`. We handle the rest.
+**Subhead**: Define your plugin in `pluxx.config.ts`. We handle the rest.
 
 Show the config file with syntax highlighting, then arrows to each platform output.
 
@@ -76,21 +76,21 @@ mcp: {
 → OpenCode: env var validation in generated wrapper
 
 ## How It Works
-1. `npx plugahh init` — scaffold your plugin config
+1. `npx pluxx init` — scaffold your plugin config
 2. Add your skills, MCP servers, hooks, and brand metadata
-3. `npx plugahh build` — generate for all platforms
-4. `npx plugahh install` — symlink for local testing
+3. `npx pluxx build` — generate for all platforms
+4. `npx pluxx install` — symlink for local testing
 5. Ship it.
 
 ## Open Source
 **Headline**: Open source. MIT licensed.
 **Subhead**: The CLI is free forever. Build and test plugins locally with zero restrictions.
 
-**Coming soon**: plugahh.dev — publish to all marketplaces, analytics dashboard, team plugin registries.
+**Coming soon**: pluxx.dev — publish to all marketplaces, analytics dashboard, team plugin registries.
 
 ## Footer CTA
 **Headline**: Start building in 30 seconds
 ```
-npx plugahh init my-plugin
+npx pluxx init my-plugin
 ```
 GitHub | Docs | Discord

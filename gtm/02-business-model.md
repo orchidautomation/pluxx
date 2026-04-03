@@ -6,15 +6,15 @@ Open-source the CLI + SDK. Monetize the cloud platform.
 ## Revenue Model
 
 ### Free Tier (MIT Open Source)
-- `plugahh init` / `build` / `validate`
+- `pluxx init` / `build` / `validate`
 - All 4 generators (Claude Code, Cursor, Codex, OpenCode)
 - Full Zod schema + TypeScript types
-- `plugahh install` (local symlinks for testing)
+- `pluxx install` (local symlinks for testing)
 - Unlimited local builds
 - Community Discord support
 
 ### Starter — $49/mo
-- `plugahh publish` — one-click publish to all platform marketplaces
+- `pluxx publish` — one-click publish to all platform marketplaces
 - Plugin analytics dashboard (installs, usage, errors per platform per day)
 - Up to 3 plugins
 - Email support
@@ -54,7 +54,7 @@ Open-source the CLI + SDK. Monetize the cloud platform.
 
 ## Key Metrics to Track
 - GitHub stars (vanity but signals momentum)
-- `npx plugahh build` executions (telemetry, opt-in)
+- `npx pluxx build` executions (telemetry, opt-in)
 - Plugins generated per platform (which platforms matter most)
 - Free → Starter conversion rate (target: 5%)
 - Starter → Pro upgrade rate (target: 20%)
@@ -62,10 +62,10 @@ Open-source the CLI + SDK. Monetize the cloud platform.
 
 ## Flywheel
 ```
-Developer builds plugin with plugahh (free)
+Developer builds plugin with pluxx (free)
     → Publishes to Cursor + Claude Code marketplaces
-        → Plugin users see "Built with plugahh" attribution
-            → More developers discover plugahh
+        → Plugin users see "Built with pluxx" attribution
+            → More developers discover pluxx
                 → More plugins built → more marketplace presence
                     → Enterprise teams adopt for consistency
 ```

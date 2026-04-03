@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>plugahh — Build AI agent plugins once. Ship them everywhere.</title>
+<title>pluxx — Build AI agent plugins once. Ship them everywhere.</title>
 <meta name="description" content="One config generates native plugin packages for Claude Code, Cursor, Codex, OpenCode, GitHub Copilot, and more.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -151,11 +151,11 @@ footer{border-top:1px solid var(--border);padding:64px 0;text-align:center}
 
 <nav>
   <div class="container">
-    <a href="#" class="nav-logo mono">plugahh</a>
+    <a href="#" class="nav-logo mono">pluxx</a>
     <div class="nav-links">
       <a href="#agents">Agents</a>
       <a href="#how">How it works</a>
-      <a href="https://github.com/orchidautomation/plugahh" target="_blank">GitHub</a>
+      <a href="https://github.com/orchidautomation/pluxx" target="_blank">GitHub</a>
     </div>
   </div>
 </nav>
@@ -168,11 +168,11 @@ footer{border-top:1px solid var(--border);padding:64px 0;text-align:center}
     <h1>Build AI agent plugins once.<br><em>Ship them everywhere.</em></h1>
     <p class="hero-sub">One config generates native plugin packages for Claude Code, Cursor, Codex, OpenCode, GitHub Copilot, and more. Stop maintaining 7 copies of the same plugin.</p>
     <div class="hero-actions">
-      <div class="cmd mono" onclick="navigator.clipboard.writeText('npx plugahh init')">
+      <div class="cmd mono" onclick="navigator.clipboard.writeText('npx pluxx init')">
         <span class="prompt">$</span>
-        <span>npx plugahh init</span>
+        <span>npx pluxx init</span>
       </div>
-      <a href="https://github.com/orchidautomation/plugahh" target="_blank" class="gh-link">
+      <a href="https://github.com/orchidautomation/pluxx" target="_blank" class="gh-link">
         <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
         View on GitHub
       </a>
@@ -186,10 +186,10 @@ footer{border-top:1px solid var(--border);padding:64px 0;text-align:center}
     <div class="terminal">
       <div class="terminal-bar">
         <span class="tdot tdot-r"></span><span class="tdot tdot-y"></span><span class="tdot tdot-g"></span>
-        <span class="terminal-title mono">plugahh</span>
+        <span class="terminal-title mono">pluxx</span>
         <span style="width:30px"></span>
       </div>
-      <pre class="mono"><span class="a">$</span> <span class="w">npx plugahh build</span>
+      <pre class="mono"><span class="a">$</span> <span class="w">npx pluxx build</span>
 
 <span class="d">Loading config...</span>
 Building for: <span class="w">claude-code</span>, <span class="w">cursor</span>, <span class="w">codex</span>, <span class="w">opencode</span>, <span class="w">github-copilot</span>, <span class="w">openhands</span>, <span class="w">warp</span>
@@ -264,11 +264,11 @@ Building for: <span class="w">claude-code</span>, <span class="w">cursor</span>,
   <div class="container">
     <div class="section-header">
       <h2>One config to rule them all</h2>
-      <p class="section-desc center">Define your plugin in a single TypeScript config. plugahh generates the correct output for every platform.</p>
+      <p class="section-desc center">Define your plugin in a single TypeScript config. pluxx generates the correct output for every platform.</p>
     </div>
     <div class="codeblock mono" style="max-width:640px;margin:0 auto">
-<span class="cmt">// plugahh.config.ts</span>
-<span class="kw">import</span> { <span class="fn">definePlugin</span> } <span class="kw">from</span> <span class="str">'plugahh'</span>
+<span class="cmt">// pluxx.config.ts</span>
+<span class="kw">import</span> { <span class="fn">definePlugin</span> } <span class="kw">from</span> <span class="str">'pluxx'</span>
 
 <span class="kw">export default</span> <span class="fn">definePlugin</span>({
   <span class="prop">name</span>: <span class="str">'my-plugin'</span>,
@@ -297,7 +297,7 @@ Building for: <span class="w">claude-code</span>, <span class="w">cursor</span>,
   <div class="container">
     <div class="section-header">
       <h2>MCP auth translated automatically</h2>
-      <p class="section-desc center">Write your auth config once. plugahh translates it for each platform.</p>
+      <p class="section-desc center">Write your auth config once. pluxx translates it for each platform.</p>
     </div>
     <div class="mcp-layout">
       <div>
@@ -309,7 +309,7 @@ Building for: <span class="w">claude-code</span>, <span class="w">cursor</span>,
 }</div>
       </div>
       <div>
-        <p class="label-sm">plugahh generates</p>
+        <p class="label-sm">pluxx generates</p>
         <div class="mcp-outputs">
           <div class="mcp-card mono"><div class="mcp-label">Claude Code</div><span class="d">"headers"</span>: {<br>&nbsp;&nbsp;<span class="str">"Authorization"</span>:<br>&nbsp;&nbsp;<span class="str">"Bearer ${API_KEY}"</span><br>}</div>
           <div class="mcp-card mono"><div class="mcp-label">Codex</div><span class="str">"bearer_token_env_var"</span>:<br>&nbsp;&nbsp;<span class="str">"API_KEY"</span></div>
@@ -332,7 +332,7 @@ Building for: <span class="w">claude-code</span>, <span class="w">cursor</span>,
       <div class="step">
         <div class="step-num mono">init</div>
         <div class="step-title">Scaffold</div>
-        <div class="step-desc">Interactive setup creates your plugahh.config.ts with MCP, hooks, and targets.</div>
+        <div class="step-desc">Interactive setup creates your pluxx.config.ts with MCP, hooks, and targets.</div>
       </div>
       <div class="step">
         <div class="step-num mono">write</div>
@@ -360,11 +360,11 @@ Building for: <span class="w">claude-code</span>, <span class="w">cursor</span>,
     <div class="badge" style="margin-bottom:24px"><span class="badge-dot" style="background:var(--accent)"></span> MIT Licensed</div>
     <h2>Open source. Free forever.</h2>
     <p class="section-desc center" style="margin-bottom:32px">The CLI is free with zero restrictions. Build and test plugins across every platform locally.</p>
-    <a href="https://github.com/orchidautomation/plugahh" target="_blank" class="cmd mono" style="margin:0 auto">
+    <a href="https://github.com/orchidautomation/pluxx" target="_blank" class="cmd mono" style="margin:0 auto">
       <svg width="15" height="15" viewBox="0 0 16 16" fill="var(--text)"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
       <span>Star on GitHub</span>
     </a>
-    <p class="oss-coming">Coming soon: plugahh.dev &mdash; publish to all marketplaces, analytics dashboard, team registries.</p>
+    <p class="oss-coming">Coming soon: pluxx.dev &mdash; publish to all marketplaces, analytics dashboard, team registries.</p>
   </div>
 </section>
 
@@ -372,12 +372,12 @@ Building for: <span class="w">claude-code</span>, <span class="w">cursor</span>,
 <footer>
   <div class="container">
     <h2 style="font-size:clamp(1.4rem,3vw,1.8rem);margin-bottom:20px">Start building in 30 seconds</h2>
-    <div class="cmd mono" style="margin:0 auto;justify-content:center;max-width:380px" onclick="navigator.clipboard.writeText('npx plugahh init my-plugin')">
+    <div class="cmd mono" style="margin:0 auto;justify-content:center;max-width:380px" onclick="navigator.clipboard.writeText('npx pluxx init my-plugin')">
       <span class="prompt">$</span>
-      <span>npx plugahh init my-plugin</span>
+      <span>npx pluxx init my-plugin</span>
     </div>
     <div class="footer-links">
-      <a href="https://github.com/orchidautomation/plugahh" target="_blank">GitHub</a>
+      <a href="https://github.com/orchidautomation/pluxx" target="_blank">GitHub</a>
       <a href="#">Docs</a>
       <a href="#">Discord</a>
     </div>

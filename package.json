@@ -1,12 +1,12 @@
 {
-  "name": "plugahh",
+  "name": "pluxx",
   "version": "0.1.0",
   "description": "Build AI agent plugins once. Ship them to Claude Code, Cursor, Codex, OpenCode, GitHub Copilot, and more.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "plugahh": "src/cli/index.ts"
+    "pluxx": "src/cli/index.ts"
   },
   "scripts": {
     "build": "bun build src/index.ts --outdir dist --target node",
@@ -39,13 +39,13 @@
     "url": "https://github.com/orchidautomation"
   },
   "license": "MIT",
-  "homepage": "https://plugahh.dev",
+  "homepage": "https://pluxx.dev",
   "repository": {
     "type": "git",
-    "url": "https://github.com/orchidautomation/plugahh"
+    "url": "https://github.com/orchidautomation/pluxx"
   },
   "bugs": {
-    "url": "https://github.com/orchidautomation/plugahh/issues"
+    "url": "https://github.com/orchidautomation/pluxx/issues"
   },
   "engines": {
     "node": ">=18",

@@ -89,18 +89,18 @@ Each agent gets its own page with:
 ## What We Should Steal
 
 ### 1. The Agent Grid
-44 agents, 4 per row, each with logo + name. Clickable to per-agent detail page. This is the hero visual. We should have the same grid but for "which agents plugahh generates plugins for."
+44 agents, 4 per row, each with logo + name. Clickable to per-agent detail page. This is the hero visual. We should have the same grid but for "which agents pluxx generates plugins for."
 
 ### 2. Per-Agent Pages
-`plugahh.dev/agents/claude-code` showing exactly what gets generated (manifest, MCP config, hooks, skills) with file previews. This is the SEO play — each page ranks for "[agent name] plugin."
+`pluxx.dev/agents/claude-code` showing exactly what gets generated (manifest, MCP config, hooks, skills) with file previews. This is the SEO play — each page ranks for "[agent name] plugin."
 
 ### 3. Terminal Demo
-Show the `npx plugahh init` → `npx plugahh build` flow with the output tree.
+Show the `npx pluxx init` → `npx pluxx build` flow with the output tree.
 
 ### 4. The Init Flow
 Interactive prompts like Ultracite. We should have:
 ```bash
-$ npx plugahh init
+$ npx pluxx init
 
 ◇ What's your plugin name?
 │ megamind
@@ -121,9 +121,9 @@ Each agent page shows EXACTLY what files get written, with code previews. No han
 ### 6. Sponsorship Model
 Ultracite is funded via GitHub Sponsors. They killed their cloud product. We should learn from this — the paid tier needs to offer genuinely different value (publish, analytics, team features) not just "hosted version of the CLI."
 
-## How plugahh Is Different From Ultracite
+## How pluxx Is Different From Ultracite
 
-| | Ultracite | plugahh |
+| | Ultracite | pluxx |
 |---|---|---|
 | **What it generates** | Linting rules + hooks | Full plugin packages |
 | **Core content** | Coding standards (same everywhere) | Skills, MCP, hooks, manifests (different per platform) |

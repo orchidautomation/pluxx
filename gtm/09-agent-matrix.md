@@ -1,6 +1,6 @@
 # Agent Support Matrix — 40 AI Coding Agents Analyzed
 
-## Tier 1: Full Plugin Systems (have manifests — plugahh targets)
+## Tier 1: Full Plugin Systems (have manifests — pluxx targets)
 
 ### Currently supported (4)
 
@@ -89,6 +89,6 @@ Roo Code, Cline, Kilo Code, AMP
 
 ## The Marketing Number
 
-**"plugahh generates plugins for 15+ AI coding agents from a single config."**
+**"pluxx generates plugins for 15+ AI coding agents from a single config."**
 
 That's the number to put on the landing page. With the agent logo grid from all 15.

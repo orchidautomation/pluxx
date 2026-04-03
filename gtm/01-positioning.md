@@ -4,13 +4,13 @@
 Build AI agent plugins once. Ship them everywhere.
 
 ## Elevator Pitch
-Every SaaS company needs their product inside AI coding tools — Claude Code, Cursor, Codex, OpenCode. But each platform has different plugin formats, different MCP auth, different hooks, different manifests. plugahh lets you define your plugin once and generates native packages for all of them.
+Every SaaS company needs their product inside AI coding tools — Claude Code, Cursor, Codex, OpenCode. But each platform has different plugin formats, different MCP auth, different hooks, different manifests. pluxx lets you define your plugin once and generates native packages for all of them.
 
 ## Category
 Developer Infrastructure — Cross-Platform AI Agent Plugin SDK
 
 ## Positioning Statement
-For **developer tool companies and SaaS teams** who need their product to work inside AI coding agents, plugahh is a **cross-platform plugin build tool** that generates native plugin packages from a single config. Unlike `npx skills` which installs skill files, plugahh generates the **full plugin** — manifests, MCP configs with auth translation, hooks, rules, brand metadata, and install scripts.
+For **developer tool companies and SaaS teams** who need their product to work inside AI coding agents, pluxx is a **cross-platform plugin build tool** that generates native plugin packages from a single config. Unlike `npx skills` which installs skill files, pluxx generates the **full plugin** — manifests, MCP configs with auth translation, hooks, rules, brand metadata, and install scripts.
 
 ## Taglines (test these)
 - "Build AI agent plugins once. Ship them everywhere."
@@ -19,7 +19,7 @@ For **developer tool companies and SaaS teams** who need their product to work i
 - "Stop maintaining 4 copies of the same plugin."
 
 ## Key Differentiator
-**plugahh builds plugins. The others install skills.**
+**pluxx builds plugins. The others install skills.**
 
 Skills are one component of a plugin. A plugin also needs manifests, MCP server configs (with different auth formats per platform), hooks, rules/instructions, brand metadata, agent configs, and install scripts. Nobody else generates all of that.
 
@@ -31,7 +31,7 @@ Skills are one component of a plugin. A plugin also needs manifests, MCP server 
   npx skills ●           │                           │
   SkillKit   ●           │                           │
   build-skill ●          │                           │
-                         │                      ● plugahh
+                         │                      ● pluxx
                          │                           │
                     Install ────────────────── Generate
 ```
@@ -59,4 +59,4 @@ Skills are one component of a plugin. A plugin also needs manifests, MCP server 
 **Role**: Senior engineer / DX lead at a dev tool company
 **Pain**: "We built an MCP server. Now product wants us in the Cursor marketplace AND Claude Code AND Codex. That's 3 different manifest formats, 3 different MCP auth configs, 3 sets of hooks. I don't want to maintain all of that."
 **Trigger**: Company decides to go multi-platform with their AI agent integration
-**Decision**: Evaluates in < 30 minutes. `npx plugahh init` → edits config → `npx plugahh build` → sees 4 correct outputs → adopts.
+**Decision**: Evaluates in < 30 minutes. `npx pluxx init` → edits config → `npx pluxx build` → sees 4 correct outputs → adopts.

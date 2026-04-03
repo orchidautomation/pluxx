@@ -95,7 +95,7 @@ async function runInit() {
   const dirName = basename(process.cwd()).toLowerCase().replace(/[^a-z0-9-]/g, '-')
 
   console.log('')
-  console.log('  plugahh init — Create a new plugin')
+  console.log('  pluxx init — Create a new plugin')
   console.log('  ─────────────────────────────────')
   console.log('')
 
@@ -160,7 +160,7 @@ async function runInit() {
 `
     }
 
-    const template = `import { definePlugin } from 'plugahh'
+    const template = `import { definePlugin } from 'pluxx'
 
 export default definePlugin({
   name: '${name}',
@@ -180,7 +180,7 @@ ${mcpBlock}${brandBlock}
 `
 
     // Write config
-    await Bun.write('plugahh.config.ts', template)
+    await Bun.write('pluxx.config.ts', template)
 
     // Create skills directory with a starter SKILL.md
     await mkdir('skills', { recursive: true })
@@ -210,13 +210,13 @@ Example prompt or command here
 
     console.log('')
     console.log('  Created:')
-    console.log('    plugahh.config.ts')
+    console.log('    pluxx.config.ts')
     console.log('    skills/SKILL.md')
     console.log('')
     console.log('  Next steps:')
     console.log('    1. Edit skills/SKILL.md with your skill instructions')
-    console.log('    2. Run: plugahh build')
-    console.log('    3. Run: plugahh install')
+    console.log('    2. Run: pluxx build')
+    console.log('    3. Run: pluxx install')
     console.log('')
   } catch {
     closePrompts()
@@ -257,9 +257,9 @@ async function runUninstall() {
 async function runMigrate() {
   const inputPath = args[1]
   if (!inputPath) {
-    console.error('Usage: plugahh migrate <path>')
+    console.error('Usage: pluxx migrate <path>')
     console.error('')
-    console.error('  Import an existing single-platform plugin into a plugahh.config.ts.')
+    console.error('  Import an existing single-platform plugin into a pluxx.config.ts.')
     console.error('  Pass the path to a plugin directory containing .claude-plugin/,')
     console.error('  .cursor-plugin/, .codex-plugin/, or a package.json with @opencode-ai/plugin.')
     process.exit(1)
@@ -269,27 +269,27 @@ async function runMigrate() {
 
 function printHelp() {
   console.log(`
-plugahh — Cross-platform AI agent plugin SDK
+pluxx — Cross-platform AI agent plugin SDK
 
 Usage:
-  plugahh build [--target <platforms...>]   Generate platform-specific plugin files
-  plugahh dev [--target <platforms...>]     Watch for changes and auto-rebuild
-  plugahh validate                          Validate your config
-  plugahh init [name]                       Create a new plugahh.config.ts
-  plugahh migrate <path>                    Import an existing plugin into plugahh
-  plugahh install [--target <platforms>]    Symlink built plugins for local testing
-  plugahh uninstall [--target <platforms>]  Remove symlinked plugins
-  plugahh help                              Show this help
+  pluxx build [--target <platforms...>]   Generate platform-specific plugin files
+  pluxx dev [--target <platforms...>]     Watch for changes and auto-rebuild
+  pluxx validate                          Validate your config
+  pluxx init [name]                       Create a new pluxx.config.ts
+  pluxx migrate <path>                    Import an existing plugin into pluxx
+  pluxx install [--target <platforms>]    Symlink built plugins for local testing
+  pluxx uninstall [--target <platforms>]  Remove symlinked plugins
+  pluxx help                              Show this help
 
 Targets:
   claude-code, cursor, codex, opencode
 
 Examples:
-  plugahh build                             Build for all configured targets
-  plugahh build --target claude-code cursor  Build for specific platforms
-  plugahh init my-plugin                    Scaffold a new plugin config
-  plugahh install                           Install to all detected tools
-  plugahh install --target claude-code      Install to Claude Code only
+  pluxx build                             Build for all configured targets
+  pluxx build --target claude-code cursor  Build for specific platforms
+  pluxx init my-plugin                    Scaffold a new plugin config
+  pluxx install                           Install to all detected tools
+  pluxx install --target claude-code      Install to Claude Code only
 `)
 }
 

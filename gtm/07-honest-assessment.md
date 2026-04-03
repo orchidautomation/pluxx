@@ -6,7 +6,7 @@
 
 2. **MCP auth is genuinely painful.** Claude Code wants `headers`, Codex wants `bearer_token_env_var`, Cursor wants Claude Desktop format. This tripped up the Megamind team and it will trip up every MCP server author.
 
-3. **The Codex interface block is unique.** Brand colors, icons, screenshots, default prompts, capabilities — nobody else has this. If you're shipping to Codex, you need it. plugahh generates it.
+3. **The Codex interface block is unique.** Brand colors, icons, screenshots, default prompts, capabilities — nobody else has this. If you're shipping to Codex, you need it. pluxx generates it.
 
 4. **Hooks are diverging fast.** Cursor has 20+ events with prompt-based hooks. Claude Code has ~25 events with 4 hook types (command, http, prompt, agent). OpenCode has programmatic JS events. This will only get worse.
 
@@ -57,7 +57,7 @@ It's not the code. Any competent dev can write 4 JSON generators.
 
 The moat is:
 1. **Keeping up with platform changes.** Claude Code, Cursor, Codex, OpenCode all ship breaking changes. Maintaining accurate generators requires constant monitoring. Most people won't bother.
-2. **The registry/marketplace.** If plugahh.dev becomes where people discover and publish multi-platform plugins, that's a network effect.
-3. **The community.** If plugin authors default to "start with plugahh", that's distribution.
+2. **The registry/marketplace.** If pluxx.dev becomes where people discover and publish multi-platform plugins, that's a network effect.
+3. **The community.** If plugin authors default to "start with pluxx", that's distribution.
 
 These take time to build. Start now.

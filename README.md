@@ -1,11 +1,11 @@
-# plugahh
+# pluxx
 
 **Build AI agent plugins once. Ship them everywhere.**
 
-plugahh generates native plugin packages for Claude Code, Cursor, OpenCode, and Codex from a single config file. One source of truth &mdash; four platform-specific outputs with correct manifests, MCP configs, hooks, rules, and install scripts.
+pluxx generates native plugin packages for Claude Code, Cursor, OpenCode, and Codex from a single config file. One source of truth &mdash; four platform-specific outputs with correct manifests, MCP configs, hooks, rules, and install scripts.
 
 ```bash
-npx plugahh build
+npx pluxx build
 ```
 
 ```
@@ -22,7 +22,7 @@ Tools like `npx skills` install SKILL.md files across agents. That covers **skil
 
 But a plugin is more than skills. A plugin bundles:
 
-| Component | What plugahh handles |
+| Component | What pluxx handles |
 |-----------|---------------------|
 | **Manifests** | `.claude-plugin/plugin.json` vs `.cursor-plugin/plugin.json` vs `.codex-plugin/plugin.json` |
 | **MCP auth** | Claude Code uses `headers`, Codex uses `bearer_token_env_var`, Cursor uses Claude Desktop format |
@@ -32,32 +32,32 @@ But a plugin is more than skills. A plugin bundles:
 | **Subagents** | Different formats per platform |
 | **OpenCode** | Needs a generated JS/TS module, not just config files |
 
-Without plugahh you maintain 2-4 copies of the same plugin. With plugahh you maintain one.
+Without pluxx you maintain 2-4 copies of the same plugin. With pluxx you maintain one.
 
 ## Quick Start
 
 ```bash
 # Scaffold a new plugin
-npx plugahh init my-plugin
+npx pluxx init my-plugin
 cd my-plugin
 
-# Edit plugahh.config.ts, create skills in ./skills/
+# Edit pluxx.config.ts, create skills in ./skills/
 
 # Build for all platforms
-npx plugahh build
+npx pluxx build
 
 # Build for specific platforms
-npx plugahh build --target claude-code cursor
+npx pluxx build --target claude-code cursor
 
 # Validate your config
-npx plugahh validate
+npx pluxx validate
 ```
 
 ## Config
 
 ```typescript
-// plugahh.config.ts
-import { definePlugin } from 'plugahh'
+// pluxx.config.ts
+import { definePlugin } from 'pluxx'
 
 export default definePlugin({
   name: 'my-plugin',
@@ -174,11 +174,11 @@ platforms: {
 
 ## Real-World Example
 
-The [example/megamind](./example/megamind) directory contains a full plugin that was previously hand-maintained as two separate copies ([source](https://github.com/The-Kiln-Dev/projectmegamind)). With plugahh, one `plugahh.config.ts` generates **34 files across 4 platforms**.
+The [example/megamind](./example/megamind) directory contains a full plugin that was previously hand-maintained as two separate copies ([source](https://github.com/The-Kiln-Dev/projectmegamind)). With pluxx, one `pluxx.config.ts` generates **34 files across 4 platforms**.
 
 ```bash
 cd example/megamind
-npx plugahh build
+npx pluxx build
 # Generated: 34 files across claude-code/, cursor/, codex/, opencode/
 ```
 
@@ -203,7 +203,7 @@ ln -s $(pwd)/dist/codex ~/plugins/my-plugin
 ## How It Works
 
 ```
-plugahh.config.ts          ← You define your plugin once
+pluxx.config.ts          ← You define your plugin once
        │
        ▼
   ┌─────────┐
@@ -224,7 +224,7 @@ Each generator knows the exact file structure, manifest schema, MCP auth format,
 
 ## Comparison
 
-| | plugahh | npx skills | SkillKit |
+| | pluxx | npx skills | SkillKit |
 |---|:---:|:---:|:---:|
 | Install skills to multiple agents | - | Yes | Yes |
 | Generate plugin manifests | Yes | - | - |
@@ -235,7 +235,7 @@ Each generator knows the exact file structure, manifest schema, MCP auth format,
 | OpenCode plugin wrapper | Yes | - | - |
 | Subagent configs | Yes | - | - |
 
-**plugahh builds plugins. The others install skills.** They're complementary — use `npx skills` to distribute your skills, use plugahh to build the full plugin package.
+**pluxx builds plugins. The others install skills.** They're complementary — use `npx skills` to distribute your skills, use pluxx to build the full plugin package.
 
 ## Built On
 
@@ -250,11 +250,11 @@ Each generator knows the exact file structure, manifest schema, MCP auth format,
 - [x] CLI: `build`, `validate`, `init`
 - [x] MCP auth normalization across platforms
 - [x] Real-world example (Megamind plugin)
-- [ ] `plugahh install <platform>` — auto-symlink for local testing
-- [ ] `plugahh dev` — watch mode with auto-rebuild
-- [ ] `plugahh migrate` — import existing single-platform plugin
-- [ ] `plugahh diff` — show what changed per platform
-- [ ] `plugahh publish` — push to platform marketplaces
+- [ ] `pluxx install <platform>` — auto-symlink for local testing
+- [ ] `pluxx dev` — watch mode with auto-rebuild
+- [ ] `pluxx migrate` — import existing single-platform plugin
+- [ ] `pluxx diff` — show what changed per platform
+- [ ] `pluxx publish` — push to platform marketplaces
 - [ ] Plugin analytics dashboard
 - [ ] CI/CD GitHub Action
 - [ ] Additional generators (Windsurf, Zed, Gemini CLI)

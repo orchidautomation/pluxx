@@ -7,7 +7,7 @@
 - **What**: Package manager for agent skills. Install SKILL.md to 44 agents.
 - **Strengths**: Vercel backing, massive adoption, simple UX
 - **Weakness**: Skills only. No manifests, MCP config, hooks, brand metadata, or plugin packaging.
-- **Relationship to us**: Complementary. Use skills to distribute skills, use plugahh to build the full plugin.
+- **Relationship to us**: Complementary. Use skills to distribute skills, use pluxx to build the full plugin.
 
 ### SkillKit — skillkit.sh
 - **Stars**: 708
@@ -20,7 +20,7 @@
 - **What**: Scaffolding CLI for SKILL.md files
 - **Strengths**: Simple, does one thing well
 - **Weakness**: Just scaffolding. No build, no multi-platform.
-- **Relationship to us**: We could absorb this into `plugahh init`.
+- **Relationship to us**: We could absorb this into `pluxx init`.
 
 ### SkillHub Desktop
 - **Stars**: 502
@@ -58,7 +58,7 @@
 
 ## Gap Analysis
 
-| Capability | plugahh | npx skills | SkillKit | Speakeasy |
+| Capability | pluxx | npx skills | SkillKit | Speakeasy |
 |-----------|:---:|:---:|:---:|:---:|
 | SKILL.md scaffolding | Yes | Yes | Yes | - |
 | Skill installation | - | Yes | Yes | - |

@@ -1,6 +1,6 @@
 # Naming Brainstorm
 
-## Current: plugahh
+## Current: pluxx
 - Pros: Memorable, playful, available on npm/GitHub
 - Cons: Hard to spell, doesn't communicate what it does, might not be taken seriously by enterprise
 
@@ -29,7 +29,7 @@
 ### Category: Clever / Punny
 | Name | npm | .com | Vibe |
 |------|:---:|:----:|------|
-| **plugahh** | avail | ? | Current. Playful. "Plug ahh" = eureka moment. |
+| **pluxx** | avail | ? | Current. Playful. "Plug ahh" = eureka moment. |
 | **plug-n-play** | taken | taken | Perfect meaning but too generic/taken. |
 | **replug** | ? | ? | Re-plug your plugin everywhere. |
 | **unplug** | taken | taken | Ironic. Bad idea. |
@@ -46,7 +46,7 @@
 
 ## My Top 5 Recommendations
 
-1. **plugahh** — Keep it. It's memorable, available, and you've already shipped with it. Rename later if needed (see: Vercel was ZEIT, Bun was "Zig's package manager").
+1. **pluxx** — Keep it. It's memorable, available, and you've already shipped with it. Rename later if needed (see: Vercel was ZEIT, Bun was "Zig's package manager").
 
 2. **shipkit** — "Ship your plugins everywhere." Action-oriented, professional, easy to spell. `npx shipkit build`. shipkit.dev.
 
@@ -58,14 +58,14 @@
 
 ## Decision Framework
 
-If targeting **indie devs + open source**: Keep plugahh. Fun > professional.
+If targeting **indie devs + open source**: Keep pluxx. Fun > professional.
 If targeting **enterprise + SaaS companies**: Rename to shipkit or plugforge. Professional > fun.
-If targeting **both** (open core model): Start with plugahh, rename to something professional when you launch the paid tier.
+If targeting **both** (open core model): Start with pluxx, rename to something professional when you launch the paid tier.
 
 ## Action: Check Availability
 ```bash
 # npm
-npm view plugahh
+npm view pluxx
 npm view shipkit
 npm view plugforge
 npm view agentpack
