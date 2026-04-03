@@ -340,7 +340,7 @@ function copyDirectories(
   dirs: MigrateResult['directories'],
 ): string[] {
   const copied: string[] = []
-  const toCopy = ['skills', 'commands', 'agents', 'scripts'] as const
+  const toCopy = ['skills', 'commands', 'agents', 'scripts', 'assets'] as const
 
   for (const dir of toCopy) {
     if (!dirs[dir]) continue
@@ -409,6 +409,9 @@ function generateConfigTs(result: MigrateResult): string {
   }
   if (result.directories.scripts) {
     lines.push(`  scripts: './scripts/',`)
+  }
+  if (result.directories.assets) {
+    lines.push(`  assets: './assets/',`)
   }
   if (result.instructions) {
     lines.push(`  instructions: ${quote(result.instructions)},`)
