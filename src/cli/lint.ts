@@ -11,7 +11,27 @@ const CODEX_RULES = {
   manifestPaths: { requiredPrefix: './' },
   mcp: { serverNamePattern: /^[a-z0-9_-]+$/ },
   hooks: { supportedEvents: ['SessionStart', 'PreToolUse', 'PostToolUse', 'UserPromptSubmit', 'Stop'] as const },
+  agents: { maxThreadsMin: 1, maxDepthMin: 1 },
+  settings: { validKeys: ['agent'] as const },
 }
+
+const CLAUDE_CODE_HOOK_EVENTS = [
+  'SessionStart', 'PreToolUse', 'PostToolUse', 'UserPromptSubmit',
+  'PermissionRequest', 'PermissionDenied', 'PostToolUseFailure',
+  'Notification', 'SubagentStart', 'SubagentStop',
+  'TaskCreated', 'TaskCompleted', 'Stop', 'StopFailure',
+  'TeammateIdle', 'InstructionsLoaded', 'ConfigChange', 'CwdChanged',
+  'FileChanged', 'WorktreeCreate', 'WorktreeRemove',
+  'PreCompact', 'PostCompact', 'Elicitation', 'ElicitationResult', 'SessionEnd',
+] as const
+
+const CLAUDE_CODE_HOOK_TYPES = ['command', 'http', 'prompt', 'agent'] as const
+
+const AGENT_FORBIDDEN_FRONTMATTER = ['hooks', 'mcpServers', 'permissionMode'] as const
+
+const SEMVER_REGEX = /^\d+\.\d+\.\d+$/
+
+const PLUGIN_NAME_KEBAB = /^[a-z0-9]+(-[a-z0-9]+)*$/
 
 type LintLevel = 'error' | 'warning'
 
@@ -569,6 +589,411 @@ function lintRulesFileLimits(config: PluginConfig, dir: string, issues: LintIssu
   }
 }
 
+// ── Gotcha #1: Plugin directories must be at plugin root, not inside .claude-plugin/ ──
+function lintPluginDirectoryPlacement(dir: string, issues: LintIssue[]): void {
+  const pluginSubDirs = ['commands', 'agents', 'skills', 'hooks']
+  const nestedParents = ['.claude-plugin', '.plugin']
+
+  for (const parent of nestedParents) {
+    for (const subDir of pluginSubDirs) {
+      const nestedPath = resolve(dir, parent, subDir)
+      if (existsSync(nestedPath)) {
+        pushIssue(issues, {
+          level: 'error',
+          code: 'plugin-dir-nested',
+          message: `"${subDir}/" must be at the plugin root, not inside ${parent}/. Move ${parent}/${subDir}/ to ./${subDir}/`,
+          file: `${parent}/${subDir}/`,
+          platform: 'Claude Code',
+        })
+      }
+    }
+  }
+}
+
+// ── Gotcha #2 & #3: Manifest paths must be relative with ./ prefix, no ../ traversal ──
+function lintManifestPaths(config: PluginConfig, issues: LintIssue[]): void {
+  const pathFields: { name: string; value: string | undefined }[] = [
+    { name: 'skills', value: config.skills },
+    { name: 'commands', value: config.commands },
+    { name: 'agents', value: config.agents },
+    { name: 'instructions', value: config.instructions },
+    { name: 'scripts', value: config.scripts },
+    { name: 'assets', value: config.assets },
+    { name: 'outDir', value: config.outDir },
+  ]
+
+  for (const field of pathFields) {
+    if (!field.value) continue
+
+    if (!field.value.startsWith('./')) {
+      pushIssue(issues, {
+        level: 'error',
+        code: 'manifest-path-prefix',
+        message: `Config path "${field.name}" must start with "./" (got "${field.value}").`,
+        file: 'pluxx.config.ts',
+        platform: 'Plugin Structure',
+      })
+    }
+
+    if (field.value.includes('..')) {
+      pushIssue(issues, {
+        level: 'error',
+        code: 'manifest-path-traversal',
+        message: `Config path "${field.name}" must not traverse outside plugin root (contains "..").`,
+        file: 'pluxx.config.ts',
+        platform: 'Plugin Structure',
+      })
+    }
+  }
+}
+
+// ── Gotcha #4: Plugin name must be kebab-case ──
+function lintPluginName(config: PluginConfig, issues: LintIssue[]): void {
+  if (!PLUGIN_NAME_KEBAB.test(config.name)) {
+    pushIssue(issues, {
+      level: 'error',
+      code: 'plugin-name-kebab',
+      message: `Plugin name "${config.name}" must be kebab-case (lowercase letters, numbers, hyphens, no spaces).`,
+      file: 'pluxx.config.ts',
+      platform: 'Plugin Structure',
+    })
+  }
+}
+
+// ── Gotcha #5 & #6: Validate hook event names and hook types ──
+function lintHookEvents(config: PluginConfig, issues: LintIssue[]): void {
+  if (!config.hooks) return
+
+  // Normalize hook keys from camelCase to PascalCase for comparison
+  const camelToPascal = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1)
+
+  for (const [hookEvent, hookEntries] of Object.entries(config.hooks)) {
+    const pascalEvent = camelToPascal(hookEvent)
+    if (!(CLAUDE_CODE_HOOK_EVENTS as readonly string[]).includes(pascalEvent)) {
+      pushIssue(issues, {
+        level: 'warning',
+        code: 'hook-event-unknown',
+        message: `Hook event "${hookEvent}" (as "${pascalEvent}") is not a recognized Claude Code hook event. Valid events: ${CLAUDE_CODE_HOOK_EVENTS.join(', ')}`,
+        file: 'pluxx.config.ts',
+        platform: 'Claude Code',
+      })
+    }
+
+    if (!Array.isArray(hookEntries)) continue
+    for (const entry of hookEntries) {
+      if (!entry || typeof entry !== 'object') continue
+      const hookType = (entry as Record<string, unknown>).type as string | undefined
+      if (hookType && !(CLAUDE_CODE_HOOK_TYPES as readonly string[]).includes(hookType)) {
+        pushIssue(issues, {
+          level: 'error',
+          code: 'hook-type-invalid',
+          message: `Hook type "${hookType}" in "${hookEvent}" is not valid. Must be one of: ${CLAUDE_CODE_HOOK_TYPES.join(', ')}`,
+          file: 'pluxx.config.ts',
+          platform: 'Claude Code',
+        })
+      }
+    }
+  }
+}
+
+// ── Gotcha #7: Agent frontmatter must not include hooks, mcpServers, permissionMode ──
+function lintAgentFrontmatter(dir: string, issues: LintIssue[]): void {
+  const agentsDir = resolve(dir, 'agents')
+  if (!existsSync(agentsDir)) return
+
+  const agentFiles = collectMarkdownFiles(agentsDir)
+  for (const file of agentFiles) {
+    const content = readFileSync(file, 'utf-8')
+    const parsed = parseFrontmatter(content)
+    if (!parsed.valid) continue
+
+    for (const forbidden of AGENT_FORBIDDEN_FRONTMATTER) {
+      if (parsed.fields.has(forbidden)) {
+        pushIssue(issues, {
+          level: 'warning',
+          code: 'agent-forbidden-frontmatter',
+          message: `Agent file uses "${forbidden}" in frontmatter. Plugin agents do not support hooks, mcpServers, or permissionMode.`,
+          file,
+          platform: 'Claude Code',
+        })
+      }
+    }
+  }
+}
+
+function collectMarkdownFiles(dir: string): string[] {
+  if (!existsSync(dir)) return []
+  const files: string[] = []
+  const entries = readdirSync(dir, { withFileTypes: true })
+  for (const entry of entries) {
+    const fullPath = resolve(dir, entry.name)
+    if (entry.isDirectory()) {
+      files.push(...collectMarkdownFiles(fullPath))
+    } else if (entry.isFile() && entry.name.endsWith('.md')) {
+      files.push(fullPath)
+    }
+  }
+  return files
+}
+
+// ── Gotcha #8: Agent isolation field only accepts "worktree" ──
+function lintAgentIsolation(dir: string, issues: LintIssue[]): void {
+  const agentsDir = resolve(dir, 'agents')
+  if (!existsSync(agentsDir)) return
+
+  const agentFiles = collectMarkdownFiles(agentsDir)
+  for (const file of agentFiles) {
+    const content = readFileSync(file, 'utf-8')
+    const parsed = parseFrontmatter(content)
+    if (!parsed.valid) continue
+
+    const isolation = parsed.fields.get('isolation')
+    if (isolation && isolation.value !== 'worktree') {
+      pushIssue(issues, {
+        level: 'error',
+        code: 'agent-isolation-invalid',
+        message: `Agent isolation field must be "worktree" (got "${isolation.value}").`,
+        file,
+        platform: 'Claude Code',
+      })
+    }
+  }
+}
+
+// ── Gotcha #9: Warn if absolute paths used in hooks/MCP instead of ${CLAUDE_PLUGIN_ROOT} ──
+function lintAbsolutePaths(config: PluginConfig, issues: LintIssue[]): void {
+  const absolutePathPattern = /^\/[a-zA-Z]|^[A-Z]:\\/
+
+  // Check hooks commands
+  if (config.hooks) {
+    for (const [eventName, hookEntries] of Object.entries(config.hooks)) {
+      if (!Array.isArray(hookEntries)) continue
+      for (const entry of hookEntries) {
+        if (!entry || typeof entry !== 'object') continue
+        const cmd = (entry as Record<string, unknown>).command
+        if (typeof cmd === 'string' && absolutePathPattern.test(cmd)) {
+          pushIssue(issues, {
+            level: 'warning',
+            code: 'hook-absolute-path',
+            message: `Hook "${eventName}" uses an absolute path in command. Use \${CLAUDE_PLUGIN_ROOT} for portability.`,
+            file: 'pluxx.config.ts',
+            platform: 'Claude Code',
+          })
+        }
+      }
+    }
+  }
+
+  // Check MCP server commands
+  if (config.mcp) {
+    for (const [serverName, server] of Object.entries(config.mcp)) {
+      if ('command' in server && typeof server.command === 'string' && absolutePathPattern.test(server.command)) {
+        pushIssue(issues, {
+          level: 'warning',
+          code: 'mcp-absolute-path',
+          message: `MCP server "${serverName}" uses an absolute path in command. Use \${CLAUDE_PLUGIN_ROOT} for portability.`,
+          file: 'pluxx.config.ts',
+          platform: 'Claude Code',
+        })
+      }
+    }
+  }
+}
+
+// ── Gotcha #11: settings.json only supports "agent" key ──
+function lintSettingsJson(dir: string, issues: LintIssue[]): void {
+  const settingsPath = resolve(dir, 'settings.json')
+  if (!existsSync(settingsPath)) return
+
+  try {
+    const content = JSON.parse(readFileSync(settingsPath, 'utf-8'))
+    if (typeof content === 'object' && content !== null) {
+      const keys = Object.keys(content)
+      for (const key of keys) {
+        if (!(CODEX_RULES.settings.validKeys as readonly string[]).includes(key)) {
+          pushIssue(issues, {
+            level: 'warning',
+            code: 'settings-unknown-key',
+            message: `settings.json key "${key}" is not recognized. Currently only "${CODEX_RULES.settings.validKeys.join(', ')}" is supported.`,
+            file: 'settings.json',
+            platform: 'Claude Code',
+          })
+        }
+      }
+    }
+  } catch {
+    // If settings.json can't be parsed, skip
+  }
+}
+
+// ── Gotcha #12: Version must follow semver ──
+function lintVersionFormat(config: PluginConfig, issues: LintIssue[]): void {
+  if (!SEMVER_REGEX.test(config.version)) {
+    pushIssue(issues, {
+      level: 'error',
+      code: 'version-semver',
+      message: `Version "${config.version}" must follow semantic versioning (MAJOR.MINOR.PATCH).`,
+      file: 'pluxx.config.ts',
+      platform: 'Plugin Structure',
+    })
+  }
+}
+
+// ── Gotcha #13: commands/ is legacy, skills/ is recommended ──
+function lintLegacyCommandsDir(dir: string, config: PluginConfig, issues: LintIssue[]): void {
+  const commandsDir = resolve(dir, 'commands')
+  const hasCommandsDir = existsSync(commandsDir)
+  const hasCommandsConfig = !!config.commands
+
+  if (hasCommandsDir || hasCommandsConfig) {
+    const skillsDir = resolve(dir, config.skills)
+    const hasSkillsDir = existsSync(skillsDir)
+    if (!hasSkillsDir) {
+      pushIssue(issues, {
+        level: 'warning',
+        code: 'commands-legacy',
+        message: '"commands/" is legacy. Migrate to "skills/" which is the recommended directory for all platforms.',
+        file: hasCommandsConfig ? 'pluxx.config.ts' : 'commands/',
+        platform: 'Claude Code',
+      })
+    } else {
+      pushIssue(issues, {
+        level: 'warning',
+        code: 'commands-legacy',
+        message: '"commands/" is legacy. Consider migrating commands to "skills/" for consistency.',
+        file: hasCommandsConfig ? 'pluxx.config.ts' : 'commands/',
+        platform: 'Claude Code',
+      })
+    }
+  }
+}
+
+// ── Gotcha #15: Codex agents.max_threads minimum is 1 ──
+// ── Gotcha #16: Codex agents.max_depth minimum is 1 ──
+function lintCodexAgentsConfig(config: PluginConfig, issues: LintIssue[]): void {
+  if (!isCodexTargetEnabled(config)) return
+
+  const codexOverrides = asRecord(config.platforms?.codex)
+  if (!codexOverrides) return
+
+  const agents = asRecord(codexOverrides.agents)
+  if (!agents) return
+
+  if (typeof agents.max_threads === 'number' && agents.max_threads < CODEX_RULES.agents.maxThreadsMin) {
+    pushIssue(issues, {
+      level: 'error',
+      code: 'codex-agents-max-threads',
+      message: `Codex agents.max_threads must be at least ${CODEX_RULES.agents.maxThreadsMin} (got ${agents.max_threads}).`,
+      file: 'pluxx.config.ts',
+      platform: 'Codex',
+    })
+  }
+
+  if (typeof agents.max_depth === 'number' && agents.max_depth < CODEX_RULES.agents.maxDepthMin) {
+    pushIssue(issues, {
+      level: 'error',
+      code: 'codex-agents-max-depth',
+      message: `Codex agents.max_depth must be at least ${CODEX_RULES.agents.maxDepthMin} (got ${agents.max_depth}).`,
+      file: 'pluxx.config.ts',
+      platform: 'Codex',
+    })
+  }
+}
+
+// ── Gotcha #18: Codex hooks need features.codex_hooks = true ──
+function lintCodexHooksFeatureFlag(config: PluginConfig, issues: LintIssue[]): void {
+  if (!isCodexTargetEnabled(config) || !config.hooks) return
+  if (Object.keys(config.hooks).length === 0) return
+
+  const codexOverrides = asRecord(config.platforms?.codex)
+  const features = codexOverrides ? asRecord(codexOverrides.features) : null
+  const codexHooksEnabled = features && features.codex_hooks === true
+
+  if (!codexHooksEnabled) {
+    pushIssue(issues, {
+      level: 'warning',
+      code: 'codex-hooks-feature-flag',
+      message: 'Codex requires features.codex_hooks = true to enable hooks. Without it, hooks will be silently ignored.',
+      file: 'pluxx.config.ts',
+      platform: 'Codex',
+    })
+  }
+}
+
+// ── Cursor-specific hook + frontmatter checks (fixes failing test) ──
+function lintCursorHooks(config: PluginConfig, issues: LintIssue[]): void {
+  if (!config.targets.includes('cursor') || !config.hooks) return
+
+  // Cursor only supports specific hook events
+  const cursorSupportedEvents = ['preToolUse', 'postToolUse']
+
+  for (const [hookEvent, hookEntries] of Object.entries(config.hooks)) {
+    if (!cursorSupportedEvents.includes(hookEvent)) {
+      pushIssue(issues, {
+        level: 'warning',
+        code: 'cursor-hook-event-unknown',
+        message: `Cursor does not support hook event "${hookEvent}". Supported: ${cursorSupportedEvents.join(', ')}`,
+        file: 'pluxx.config.ts',
+        platform: 'Cursor',
+      })
+    }
+
+    if (!Array.isArray(hookEntries)) continue
+    for (const entry of hookEntries) {
+      if (!entry || typeof entry !== 'object') continue
+      const rec = entry as Record<string, unknown>
+
+      if (rec.matcher && !cursorSupportedEvents.includes(hookEvent)) {
+        pushIssue(issues, {
+          level: 'warning',
+          code: 'cursor-hook-matcher-unsupported-event',
+          message: `Hook "${hookEvent}" has a matcher but Cursor only supports matchers on ${cursorSupportedEvents.join(', ')}.`,
+          file: 'pluxx.config.ts',
+          platform: 'Cursor',
+        })
+      }
+
+      if (rec.loop_limit !== undefined) {
+        pushIssue(issues, {
+          level: 'warning',
+          code: 'cursor-hook-loop-limit-unsupported-event',
+          message: `Hook "${hookEvent}" has loop_limit but Cursor does not support loop_limit on hooks.`,
+          file: 'pluxx.config.ts',
+          platform: 'Cursor',
+        })
+      }
+    }
+  }
+}
+
+function lintCursorSkillFrontmatter(config: PluginConfig, dir: string, issues: LintIssue[]): void {
+  if (!config.targets.includes('cursor')) return
+
+  const skillsDir = resolve(dir, config.skills)
+  if (!existsSync(skillsDir)) return
+
+  const skillFiles = collectSkillFiles(skillsDir)
+  const cursorSupportedFrontmatter = ['name', 'description', 'license', 'compatibility', 'metadata', 'disable-model-invocation']
+
+  for (const skillFile of skillFiles) {
+    const content = readFileSync(skillFile, 'utf-8')
+    const parsed = parseFrontmatter(content)
+    if (!parsed.valid) continue
+
+    for (const [key] of parsed.fields) {
+      if (!cursorSupportedFrontmatter.includes(key)) {
+        pushIssue(issues, {
+          level: 'warning',
+          code: 'cursor-skill-frontmatter-unsupported',
+          message: `Skill frontmatter field "${key}" is not supported by Cursor. Supported: ${cursorSupportedFrontmatter.join(', ')}`,
+          file: skillFile,
+          platform: 'Cursor',
+        })
+      }
+    }
+  }
+}
+
 function sortIssues(issues: LintIssue[]): LintIssue[] {
   return [...issues].sort((a, b) => {
     if (a.level === b.level) {
@@ -595,10 +1020,32 @@ export async function lintProject(dir: string = process.cwd()): Promise<LintResu
     return { errors: 1, warnings: 0, issues }
   }
 
+  // Plugin structure checks
+  lintPluginName(config, issues)
+  lintVersionFormat(config, issues)
+  lintManifestPaths(config, issues)
+  lintPluginDirectoryPlacement(dir, issues)
+  lintAbsolutePaths(config, issues)
+  lintSettingsJson(dir, issues)
+  lintLegacyCommandsDir(dir, config, issues)
+
+  // Hook and event validation
+  lintHookEvents(config, issues)
+
+  // Agent file checks
+  lintAgentFrontmatter(dir, issues)
+  lintAgentIsolation(dir, issues)
+
+  // MCP and brand
   lintMcpUrls(config, issues)
   lintBrandMetadata(config, issues)
   lintCodexOverrides(config, issues)
   lintCodexHookCompatibility(config, issues)
+  lintCodexAgentsConfig(config, issues)
+  lintCodexHooksFeatureFlag(config, issues)
+
+  // Cursor-specific checks
+  lintCursorHooks(config, issues)
 
   const skillsDir = resolve(dir, config.skills)
   if (!existsSync(skillsDir)) {
@@ -625,6 +1072,9 @@ export async function lintProject(dir: string = process.cwd()): Promise<LintResu
       lintSkillFile(skillFile, config.targets, issues)
     }
   }
+
+  // Cursor skill frontmatter checks
+  lintCursorSkillFrontmatter(config, dir, issues)
 
   // Platform limit checks for manifest prompts (Codex)
   lintManifestPromptLimits(config, issues)

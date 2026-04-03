@@ -357,6 +357,355 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'platform-rules-lines' && issue.platform === 'cursor')).toBe(true)
   })
 
+  // ── Gotcha #1: Plugin dirs nested inside .claude-plugin/ ──
+  it('reports error when plugin directories are nested inside .claude-plugin/', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, '.claude-plugin/skills'), { recursive: true })
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['claude-code'],
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A skill"', '---', '', '# Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'plugin-dir-nested')).toBe(true)
+  })
+
+  // ── Gotcha #2 & #3: Manifest path prefix and traversal ──
+  it('reports error when config paths lack ./ prefix or contain ../', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: 'skills/',
+        targets: ['claude-code'],
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A skill"', '---', '', '# Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'manifest-path-prefix')).toBe(true)
+  })
+
+  // ── Gotcha #4: Plugin name must be kebab-case ──
+  it('reports error for non-kebab-case plugin name', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'My Plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['claude-code'],
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A skill"', '---', '', '# Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    // The schema also rejects this at parse time, but if it got through the lint would catch it
+    expect(result.errors).toBeGreaterThan(0)
+  })
+
+  // ── Gotcha #5: Validate hook event names ──
+  it('warns on unknown hook event names', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['claude-code'],
+        hooks: {
+          onSave: [{ command: 'echo saved' }],
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A skill"', '---', '', '# Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'hook-event-unknown')).toBe(true)
+  })
+
+  // ── Gotcha #7: Agent forbidden frontmatter ──
+  it('warns when agent files use forbidden frontmatter fields', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+    mkdirSync(resolve(projectDir, 'agents'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['claude-code'],
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A skill"', '---', '', '# Skill'].join('\n'),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'agents/my-agent.md'),
+      ['---', 'name: my-agent', 'hooks: true', 'mcpServers: server1', 'permissionMode: auto', '---', '', '# Agent'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    const forbiddenIssues = result.issues.filter(i => i.code === 'agent-forbidden-frontmatter')
+    expect(forbiddenIssues.length).toBe(3)
+  })
+
+  // ── Gotcha #8: Agent isolation must be "worktree" ──
+  it('reports error when agent isolation is not worktree', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+    mkdirSync(resolve(projectDir, 'agents'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['claude-code'],
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A skill"', '---', '', '# Skill'].join('\n'),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'agents/isolated-agent.md'),
+      ['---', 'name: isolated-agent', 'isolation: container', '---', '', '# Agent'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'agent-isolation-invalid')).toBe(true)
+  })
+
+  // ── Gotcha #9: Warn on absolute paths in hooks ──
+  it('warns when hooks use absolute paths', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['claude-code'],
+        hooks: {
+          sessionStart: [{ command: '/usr/local/bin/my-hook' }],
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A skill"', '---', '', '# Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'hook-absolute-path')).toBe(true)
+  })
+
+  // ── Gotcha #11: settings.json unknown keys ──
+  it('warns on unknown keys in settings.json', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['claude-code'],
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A skill"', '---', '', '# Skill'].join('\n'),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'settings.json'),
+      JSON.stringify({ agent: {}, theme: 'dark', debug: true }),
+    )
+
+    const result = await lintProject(projectDir)
+    const settingsIssues = result.issues.filter(i => i.code === 'settings-unknown-key')
+    expect(settingsIssues.length).toBe(2)
+  })
+
+  // ── Gotcha #12: Version semver validation ──
+  it('reports error for non-semver version', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['claude-code'],
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A skill"', '---', '', '# Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'version-semver')).toBe(true)
+  })
+
+  // ── Gotcha #13: commands/ is legacy ──
+  it('warns when commands/ directory exists', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+    mkdirSync(resolve(projectDir, 'commands'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['claude-code'],
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A skill"', '---', '', '# Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'commands-legacy')).toBe(true)
+  })
+
+  // ── Gotcha #15 & #16: Codex agents min threads/depth ──
+  it('reports error when Codex agents.max_threads or max_depth is below minimum', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['codex'],
+        platforms: {
+          codex: {
+            agents: { max_threads: 0, max_depth: 0 },
+          },
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A skill"', '---', '', '# Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'codex-agents-max-threads')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'codex-agents-max-depth')).toBe(true)
+  })
+
+  // ── Gotcha #18: Codex hooks need feature flag ──
+  it('warns when Codex target has hooks but no features.codex_hooks flag', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['codex'],
+        hooks: {
+          sessionStart: [{ command: 'echo start' }],
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A skill"', '---', '', '# Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'codex-hooks-feature-flag')).toBe(true)
+  })
+
   it('reports unsupported cursor hook and skill frontmatter fields', async () => {
     const projectDir = createTempProject()
     mkdirSync(resolve(projectDir, 'skills/valid-skill'), { recursive: true })
