@@ -1,46 +1,57 @@
 import { describe, expect, it } from 'bun:test'
-import {
-  getPlatformRule,
-  isCopilotManifestClaudeCompatible,
-  PLATFORM_RULES,
-} from '../src/validation/platform-rules'
+import { PLATFORM_VALIDATION_RULES, getPlatformRules } from '../src/validation/platform-rules'
 
-describe('platform rules', () => {
-  it('has rule entries for claude-code and github-copilot', () => {
-    expect(PLATFORM_RULES['claude-code']).toBeDefined()
-    expect(PLATFORM_RULES['github-copilot']).toBeDefined()
-  })
-
-  it('codifies copilot manifest lookup locations', () => {
-    const copilot = getPlatformRule('github-copilot')
-    expect(copilot.manifest.fileLookupOrder).toEqual([
-      '.plugin/plugin.json',
-      'plugin.json',
-      '.github/plugin/plugin.json',
-      '.claude-plugin/plugin.json',
+describe('PLATFORM_VALIDATION_RULES', () => {
+  it('codifies all six researched platforms', () => {
+    expect(Object.keys(PLATFORM_VALIDATION_RULES).sort()).toEqual([
+      'amp',
+      'cline',
+      'gemini-cli',
+      'openhands',
+      'roo-code',
+      'warp',
     ])
   })
 
-  it('codifies copilot skill discovery directories', () => {
-    const copilot = getPlatformRule('github-copilot')
-    expect(copilot.skills.discoveryOrder).toContain('.github/skills/')
-    expect(copilot.skills.discoveryOrder).toContain('.agents/skills/')
-    expect(copilot.skills.discoveryOrder).toContain('.claude/skills/')
-    expect(copilot.skills.discoveryOrder).toContain('~/.copilot/skills/')
+  it('includes required manifest expectations for OpenHands and Gemini CLI', () => {
+    const openhands = getPlatformRules('openhands')
+    const gemini = getPlatformRules('gemini-cli')
+
+    expect(openhands.manifest.required).toBe(true)
+    expect(openhands.manifest.files).toContain('.plugin/plugin.json')
+
+    expect(gemini.manifest.required).toBe(true)
+    expect(gemini.manifest.files).toContain('gemini-extension.json')
   })
 
-  it('codifies copilot skill frontmatter fields', () => {
-    const copilot = getPlatformRule('github-copilot')
-    const names = copilot.skills.frontmatter.map(field => field.name)
+  it('captures MCP and rules paths for Roo Code and Cline', () => {
+    const roo = getPlatformRules('roo-code')
+    const cline = getPlatformRules('cline')
 
-    expect(names).toContain('name')
-    expect(names).toContain('description')
-    expect(names).toContain('allowed-tools')
-    expect(names).toContain('user-invocable')
-    expect(names).toContain('disable-model-invocation')
+    expect(roo.mcp.files).toContain('.roo/mcp.json')
+    expect(roo.instructions.files).toContain('.roo/rules/')
+
+    expect(cline.mcp.files).toContain('.cline/mcp.json')
+    expect(cline.instructions.files).toContain('.clinerules/')
   })
 
-  it('keeps core plugin component fields Claude-compatible', () => {
-    expect(isCopilotManifestClaudeCompatible()).toBe(true)
+  it('tracks AGENTS/AGENT instruction conventions for Warp and AMP', () => {
+    const warp = getPlatformRules('warp')
+    const amp = getPlatformRules('amp')
+
+    expect(warp.instructions.files).toContain('AGENTS.md')
+    expect(warp.instructions.files).toContain('WARP.md')
+
+    expect(amp.instructions.files).toContain('AGENTS.md')
+    expect(amp.instructions.files).toContain('AGENT.md')
+  })
+
+  it('stores at least one documentation source per platform', () => {
+    for (const rules of Object.values(PLATFORM_VALIDATION_RULES)) {
+      expect(rules.sources.length).toBeGreaterThan(0)
+      for (const source of rules.sources) {
+        expect(source.url.startsWith('https://')).toBe(true)
+      }
+    }
   })
 })
