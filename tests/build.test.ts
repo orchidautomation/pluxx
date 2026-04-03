@@ -115,4 +115,47 @@ describe('build', () => {
       ).toBe(true)
     }
   })
+
+  it('warns when unsupported hook fields are dropped', async () => {
+    const warningConfig: PluginConfig = {
+      ...testConfig,
+      hooks: {
+        preToolUse: [{
+          command: '${PLUGIN_ROOT}/scripts/validate.sh',
+          matcher: 'Write',
+          failClosed: false,
+        }],
+      },
+      targets: ['claude-code', 'codex', 'gemini-cli', 'amp'],
+    }
+
+    const originalWarn = console.warn
+    const warnings: string[] = []
+    console.warn = (...args: unknown[]) => {
+      warnings.push(args.map(arg => String(arg)).join(' '))
+    }
+
+    try {
+      await build(warningConfig, TEST_DIR)
+    } finally {
+      console.warn = originalWarn
+    }
+
+    for (const platform of ['claude-code', 'codex', 'gemini-cli', 'amp']) {
+      expect(
+        warnings.some(msg => (
+          msg.includes(`${platform} generator`) &&
+          msg.includes('"matcher"') &&
+          msg.includes('"preToolUse"')
+        ))
+      ).toBe(true)
+      expect(
+        warnings.some(msg => (
+          msg.includes(`${platform} generator`) &&
+          msg.includes('"failClosed"') &&
+          msg.includes('"preToolUse"')
+        ))
+      ).toBe(true)
+    }
+  })
 })

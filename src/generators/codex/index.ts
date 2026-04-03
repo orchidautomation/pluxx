@@ -1,6 +1,7 @@
 import { resolve } from 'path'
 import { existsSync } from 'fs'
 import { Generator } from '../base'
+import { warnDroppedHookFields } from '../hooks-warning'
 import type { TargetPlatform } from '../../schema'
 
 export class CodexGenerator extends Generator {
@@ -116,6 +117,7 @@ export class CodexGenerator extends Generator {
 
     for (const [event, entries] of Object.entries(this.config.hooks)) {
       if (!entries) continue
+      warnDroppedHookFields(this.platform, event, entries)
       // Codex uses PascalCase event names like Claude Code
       const codexEvent = event.charAt(0).toUpperCase() + event.slice(1)
       hooks[codexEvent] = entries.map(entry => ({

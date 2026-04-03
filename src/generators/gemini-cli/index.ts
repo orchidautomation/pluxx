@@ -1,6 +1,7 @@
 import { resolve } from 'path'
 import { existsSync } from 'fs'
 import { Generator } from '../base'
+import { warnDroppedHookFields } from '../hooks-warning'
 import type { TargetPlatform } from '../../schema'
 
 /**
@@ -68,6 +69,7 @@ export class GeminiCliGenerator extends Generator {
 
       for (const [event, entries] of Object.entries(this.config.hooks)) {
         if (!entries) continue
+        warnDroppedHookFields(this.platform, event, entries)
         hooks[event] = entries.map(entry => ({
           command: entry.command.replace('${PLUGIN_ROOT}', '.'),
         }))
