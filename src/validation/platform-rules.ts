@@ -21,7 +21,7 @@ export interface SkillFrontmatterRule {
 }
 
 export interface PlatformRule {
-  platform: 'claude-code' | 'github-copilot'
+  platform: 'claude-code' | 'github-copilot' | 'roo-code'
   sourceUrls: string[]
   notes: string[]
   manifest: {
@@ -220,9 +220,78 @@ const GITHUB_COPILOT_RULES: PlatformRule = {
   },
 }
 
+const ROO_CODE_RULES: PlatformRule = {
+  platform: 'roo-code',
+  sourceUrls: [
+    'https://docs.roocode.com/basic-usage/using-mcp',
+    'https://docs.roocode.com/features/custom-instructions',
+    'https://docs.roocode.com/features/custom-rules',
+    'https://docs.roocode.com/features/skills',
+    'https://kilo.ai/docs/customize/skills',
+  ],
+  notes: [
+    'Roo Code does not use a plugin manifest; conventions are file-system driven.',
+    'Project MCP config is loaded from .roo/mcp.json with top-level mcpServers.',
+    'Global MCP config is loaded from Roo settings mcp_settings.json.',
+    'Rule loading prefers .roo/rules/ (and .roo/rules-{mode}/) before legacy .roorules files.',
+    'Skill mode scoping is modeSlugs[] (preferred), legacy mode string, then directory fallback skills-{mode}/.',
+  ],
+  manifest: {
+    requiredFileName: '(none)',
+    requiredFields: [],
+    optionalMetadataFields: [],
+    componentPathFields: [],
+    fileLookupOrder: [],
+  },
+  skills: {
+    frontmatter: [
+      { name: 'name', required: true, type: 'string' },
+      {
+        name: 'description',
+        required: true,
+        type: 'string',
+        notes: '1-1024 chars after trimming.',
+      },
+      {
+        name: 'modeSlugs',
+        required: false,
+        type: 'string|string[]',
+        notes: 'Preferred mode-specific activation field (array of mode slugs).',
+      },
+      {
+        name: 'mode',
+        required: false,
+        type: 'string',
+        notes: 'Legacy single-mode fallback when modeSlugs is absent.',
+      },
+    ],
+    discoveryOrder: [
+      '~/.agents/skills/ and ~/.agents/skills-{mode}/',
+      '.agents/skills/ and .agents/skills-{mode}/',
+      '~/.roo/skills/ and ~/.roo/skills-{mode}/',
+      '.roo/skills/ and .roo/skills-{mode}/',
+    ],
+  },
+  mcp: {
+    supported: true,
+    manifestField: 'mcpServers',
+    configLookupOrder: [
+      '.roo/mcp.json (project)',
+      'mcp_settings.json (global Roo settings)',
+    ],
+  },
+  hooks: {
+    supported: false,
+    manifestField: '(none)',
+    form: 'path-or-inline',
+    defaultFiles: [],
+  },
+}
+
 export const PLATFORM_RULES: Record<PlatformRule['platform'], PlatformRule> = {
   'claude-code': CLAUDE_CODE_RULES,
   'github-copilot': GITHUB_COPILOT_RULES,
+  'roo-code': ROO_CODE_RULES,
 }
 
 export function getPlatformRule(platform: PlatformRule['platform']): PlatformRule {
