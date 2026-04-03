@@ -2,21 +2,70 @@ import { z } from 'zod'
 
 // ── MCP Server Auth ──────────────────────────────────────────────
 
-export const McpAuthSchema = z.object({
-  type: z.enum(['bearer', 'header', 'none']).default('bearer'),
-  envVar: z.string().optional(),
+const McpAuthNoneSchema = z.object({
+  type: z.literal('none'),
+}).strict()
+
+const McpAuthBearerSchema = z.object({
+  type: z.literal('bearer'),
+  envVar: z.string(),
   headerName: z.string().default('Authorization'),
   headerTemplate: z.string().default('Bearer ${value}'),
-})
+}).strict()
 
-export const McpServerSchema = z.object({
+const McpAuthHeaderSchema = z.object({
+  type: z.literal('header'),
+  envVar: z.string(),
+  headerName: z.string(),
+  headerTemplate: z.string().default('Bearer ${value}'),
+}).strict()
+
+export const McpAuthSchema = z.preprocess(
+  (value) => {
+    if (value && typeof value === 'object' && !('type' in value as object)) {
+      return { ...(value as Record<string, unknown>), type: 'bearer' }
+    }
+    return value
+  },
+  z.discriminatedUnion('type', [McpAuthNoneSchema, McpAuthBearerSchema, McpAuthHeaderSchema])
+)
+
+const McpServerHttpSchema = z.object({
+  transport: z.literal('http'),
   url: z.string().url(),
-  auth: McpAuthSchema.optional(),
-  transport: z.enum(['http', 'sse', 'stdio']).default('http'),
-  command: z.string().optional(),
+  command: z.never().optional(),
   args: z.array(z.string()).optional(),
   env: z.record(z.string()).optional(),
-})
+  auth: McpAuthSchema.optional(),
+}).strict()
+
+const McpServerSseSchema = z.object({
+  transport: z.literal('sse'),
+  url: z.string().url(),
+  command: z.never().optional(),
+  args: z.array(z.string()).optional(),
+  env: z.record(z.string()).optional(),
+  auth: McpAuthSchema.optional(),
+}).strict()
+
+const McpServerStdioSchema = z.object({
+  transport: z.literal('stdio'),
+  command: z.string(),
+  url: z.never().optional(),
+  args: z.array(z.string()).optional(),
+  env: z.record(z.string()).optional(),
+  auth: McpAuthSchema.optional(),
+}).strict()
+
+export const McpServerSchema = z.preprocess(
+  (value) => {
+    if (value && typeof value === 'object' && !('transport' in value as object)) {
+      return { ...(value as Record<string, unknown>), transport: 'http' }
+    }
+    return value
+  },
+  z.discriminatedUnion('transport', [McpServerHttpSchema, McpServerSseSchema, McpServerStdioSchema])
+)
 
 // ── Hooks ────────────────────────────────────────────────────────
 
