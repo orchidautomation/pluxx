@@ -115,4 +115,116 @@ describe('build', () => {
       ).toBe(true)
     }
   })
+
+  it('supports auth.type=header in cursor, warp, gemini-cli, roo-code, cline, and amp', async () => {
+    const headerConfig: PluginConfig = {
+      ...testConfig,
+      outDir: './dist-header',
+      targets: ['cursor', 'warp', 'gemini-cli', 'roo-code', 'cline', 'amp'],
+      mcp: {
+        'test-server': {
+          url: 'https://test.example.com/mcp',
+          transport: 'http',
+          auth: {
+            type: 'header',
+            envVar: 'CUSTOM_HEADER_KEY',
+            headerName: 'X-API-Key',
+            headerTemplate: 'Token ${value}',
+          },
+        },
+      },
+    }
+
+    const headerOutDir = resolve(TEST_DIR, 'dist-header')
+    await build(headerConfig, TEST_DIR)
+
+    const expectedHeaderValue = 'Token ${CUSTOM_HEADER_KEY}'
+
+    const cursor = JSON.parse(readFileSync(resolve(headerOutDir, 'cursor/mcp.json'), 'utf-8'))
+    expect(cursor.mcpServers['test-server'].headers['X-API-Key']).toBe(expectedHeaderValue)
+
+    const warp = JSON.parse(readFileSync(resolve(headerOutDir, 'warp/mcp.json'), 'utf-8'))
+    expect(warp.mcpServers['test-server'].headers['X-API-Key']).toBe(expectedHeaderValue)
+
+    const gemini = JSON.parse(
+      readFileSync(resolve(headerOutDir, 'gemini-cli/gemini-extension.json'), 'utf-8')
+    )
+    expect(gemini.mcpServers['test-server'].headers['X-API-Key']).toBe(expectedHeaderValue)
+
+    const roo = JSON.parse(readFileSync(resolve(headerOutDir, 'roo-code/.roo/mcp.json'), 'utf-8'))
+    expect(roo.mcpServers['test-server'].headers['X-API-Key']).toBe(expectedHeaderValue)
+
+    const cline = JSON.parse(readFileSync(resolve(headerOutDir, 'cline/.cline/mcp.json'), 'utf-8'))
+    expect(cline.mcpServers['test-server'].headers['X-API-Key']).toBe(expectedHeaderValue)
+
+    const amp = JSON.parse(readFileSync(resolve(headerOutDir, 'amp/mcp.json'), 'utf-8'))
+    expect(amp.mcpServers['test-server'].headers['X-API-Key']).toBe(expectedHeaderValue)
+  })
+
+  it('maps codex auth.type=header Authorization/Bearer to bearer_token_env_var', async () => {
+    const codexHeaderConfig: PluginConfig = {
+      ...testConfig,
+      outDir: './dist-codex-header',
+      targets: ['codex'],
+      mcp: {
+        'test-server': {
+          url: 'https://test.example.com/mcp',
+          transport: 'http',
+          auth: {
+            type: 'header',
+            envVar: 'CODEX_HEADER_KEY',
+            headerName: 'Authorization',
+            headerTemplate: 'Bearer ${value}',
+          },
+        },
+      },
+    }
+
+    const codexOutDir = resolve(TEST_DIR, 'dist-codex-header')
+    await build(codexHeaderConfig, TEST_DIR)
+
+    const mcpJson = JSON.parse(
+      readFileSync(resolve(codexOutDir, 'codex/.mcp.json'), 'utf-8')
+    )
+    expect(mcpJson.mcpServers['test-server'].bearer_token_env_var).toBe('CODEX_HEADER_KEY')
+  })
+
+  it('warns when codex receives unsupported custom header auth', async () => {
+    const codexCustomHeaderConfig: PluginConfig = {
+      ...testConfig,
+      outDir: './dist-codex-custom-header',
+      targets: ['codex'],
+      mcp: {
+        'test-server': {
+          url: 'https://test.example.com/mcp',
+          transport: 'http',
+          auth: {
+            type: 'header',
+            envVar: 'CODEX_CUSTOM_HEADER_KEY',
+            headerName: 'X-API-Key',
+            headerTemplate: 'Token ${value}',
+          },
+        },
+      },
+    }
+
+    const codexOutDir = resolve(TEST_DIR, 'dist-codex-custom-header')
+    const originalWarn = console.warn
+    const warnings: string[] = []
+    console.warn = (...args: unknown[]) => {
+      warnings.push(args.map(arg => String(arg)).join(' '))
+    }
+
+    try {
+      await build(codexCustomHeaderConfig, TEST_DIR)
+    } finally {
+      console.warn = originalWarn
+    }
+
+    const mcpJson = JSON.parse(
+      readFileSync(resolve(codexOutDir, 'codex/.mcp.json'), 'utf-8')
+    )
+    expect(mcpJson.mcpServers['test-server'].bearer_token_env_var).toBeUndefined()
+    expect(warnings.some(msg => msg.includes('custom headers were omitted'))).toBe(true)
+  })
 })
