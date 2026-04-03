@@ -6,10 +6,10 @@ import {
 } from '../src/validation/platform-rules'
 
 describe('platform rules', () => {
-  it('has rule entries for claude-code, github-copilot, and roo-code', () => {
+  it('has rule entries for claude-code, github-copilot, and openhands', () => {
     expect(PLATFORM_RULES['claude-code']).toBeDefined()
     expect(PLATFORM_RULES['github-copilot']).toBeDefined()
-    expect(PLATFORM_RULES['roo-code']).toBeDefined()
+    expect(PLATFORM_RULES.openhands).toBeDefined()
   })
 
   it('codifies copilot manifest lookup locations', () => {
@@ -45,29 +45,23 @@ describe('platform rules', () => {
     expect(isCopilotManifestClaudeCompatible()).toBe(true)
   })
 
-  it('codifies roo code MCP config locations', () => {
-    const roo = getPlatformRule('roo-code')
-    expect(roo.mcp.configLookupOrder).toEqual([
-      '.roo/mcp.json (project)',
-      'mcp_settings.json (global Roo settings)',
-    ])
+  it('codifies openhands manifest location and required metadata', () => {
+    const openhands = getPlatformRule('openhands')
+    expect(openhands.manifest.fileLookupOrder).toEqual(['.plugin/plugin.json'])
+    expect(openhands.manifest.requiredFileName).toBe('plugin.json')
+    expect(openhands.manifest.requiredFields.map(field => field.name)).toContain('name')
   })
 
-  it('codifies roo skill discovery directories and mode-specific variants', () => {
-    const roo = getPlatformRule('roo-code')
-    expect(roo.skills.discoveryOrder).toContain('~/.agents/skills/ and ~/.agents/skills-{mode}/')
-    expect(roo.skills.discoveryOrder).toContain('.agents/skills/ and .agents/skills-{mode}/')
-    expect(roo.skills.discoveryOrder).toContain('~/.roo/skills/ and ~/.roo/skills-{mode}/')
-    expect(roo.skills.discoveryOrder).toContain('.roo/skills/ and .roo/skills-{mode}/')
-  })
+  it('codifies openhands skills, hooks, and mcp conventions', () => {
+    const openhands = getPlatformRule('openhands')
+    const frontmatter = openhands.skills.frontmatter.map(field => field.name)
 
-  it('codifies roo frontmatter mode fields', () => {
-    const roo = getPlatformRule('roo-code')
-    const names = roo.skills.frontmatter.map(field => field.name)
+    expect(frontmatter).toContain('name')
+    expect(frontmatter).toContain('description')
+    expect(frontmatter).toContain('trigger')
+    expect(frontmatter).toContain('triggers')
 
-    expect(names).toContain('name')
-    expect(names).toContain('description')
-    expect(names).toContain('modeSlugs')
-    expect(names).toContain('mode')
+    expect(openhands.hooks.defaultFiles).toContain('hooks/hooks.json')
+    expect(openhands.mcp.configLookupOrder).toContain('.mcp.json')
   })
 })

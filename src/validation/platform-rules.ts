@@ -16,12 +16,12 @@ export interface ManifestFieldRule {
 export interface SkillFrontmatterRule {
   name: string
   required: boolean
-  type: 'string' | 'boolean' | 'string|string[]'
+  type: 'string' | 'boolean' | 'object' | 'string|string[]'
   notes?: string
 }
 
 export interface PlatformRule {
-  platform: 'claude-code' | 'github-copilot' | 'roo-code'
+  platform: 'claude-code' | 'github-copilot' | 'openhands'
   sourceUrls: string[]
   notes: string[]
   manifest: {
@@ -220,78 +220,86 @@ const GITHUB_COPILOT_RULES: PlatformRule = {
   },
 }
 
-const ROO_CODE_RULES: PlatformRule = {
-  platform: 'roo-code',
+const OPENHANDS_RULES: PlatformRule = {
+  platform: 'openhands',
   sourceUrls: [
-    'https://docs.roocode.com/basic-usage/using-mcp',
-    'https://docs.roocode.com/features/custom-instructions',
-    'https://docs.roocode.com/features/custom-rules',
-    'https://docs.roocode.com/features/skills',
-    'https://kilo.ai/docs/customize/skills',
+    'https://docs.openhands.dev/sdk/guides/plugins',
+    'https://docs.openhands.dev/sdk/guides/skill',
+    'https://docs.openhands.dev/openhands/usage/cli/mcp-servers',
   ],
   notes: [
-    'Roo Code does not use a plugin manifest; conventions are file-system driven.',
-    'Project MCP config is loaded from .roo/mcp.json with top-level mcpServers.',
-    'Global MCP config is loaded from Roo settings mcp_settings.json.',
-    'Rule loading prefers .roo/rules/ (and .roo/rules-{mode}/) before legacy .roorules files.',
-    'Skill mode scoping is modeSlugs[] (preferred), legacy mode string, then directory fallback skills-{mode}/.',
+    'OpenHands plugin format is documented as Claude Code-compatible, but manifest location is .plugin/plugin.json (not .claude-plugin/plugin.json).',
+    'Unlike Claude Code, OpenHands docs mark plugin metadata as required.',
+    'OpenHands supports the AgentSkills standard with optional keyword trigger frontmatter fields.',
   ],
   manifest: {
-    requiredFileName: '(none)',
-    requiredFields: [],
-    optionalMetadataFields: [],
-    componentPathFields: [],
-    fileLookupOrder: [],
+    requiredFileName: 'plugin.json',
+    requiredFields: [
+      { name: 'name', required: true, type: 'string' },
+    ],
+    optionalMetadataFields: [
+      { name: 'version', required: false, type: 'string' },
+      { name: 'description', required: false, type: 'string' },
+      { name: 'author', required: false, type: 'object' },
+      { name: 'homepage', required: false, type: 'string' },
+      { name: 'repository', required: false, type: 'string' },
+      { name: 'license', required: false, type: 'string' },
+      { name: 'keywords', required: false, type: 'string[]' },
+    ],
+    componentPathFields: [
+      { name: 'commands', required: false, type: 'string|string[]' },
+      { name: 'agents', required: false, type: 'string|string[]' },
+      { name: 'skills', required: false, type: 'string|string[]' },
+      { name: 'hooks', required: false, type: 'string|object' },
+      { name: 'mcpServers', required: false, type: 'string|object' },
+      { name: 'outputStyles', required: false, type: 'string|string[]' },
+      { name: 'lspServers', required: false, type: 'string|object' },
+      { name: 'userConfig', required: false, type: 'object' },
+      { name: 'channels', required: false, type: 'object' },
+    ],
+    fileLookupOrder: ['.plugin/plugin.json'],
   },
   skills: {
     frontmatter: [
       { name: 'name', required: true, type: 'string' },
+      { name: 'description', required: true, type: 'string' },
       {
-        name: 'description',
-        required: true,
-        type: 'string',
-        notes: '1-1024 chars after trimming.',
+        name: 'trigger',
+        required: false,
+        type: 'object',
+        notes: 'OpenHands supports keyword trigger objects in SKILL.md frontmatter.',
       },
       {
-        name: 'modeSlugs',
+        name: 'triggers',
         required: false,
-        type: 'string|string[]',
-        notes: 'Preferred mode-specific activation field (array of mode slugs).',
-      },
-      {
-        name: 'mode',
-        required: false,
-        type: 'string',
-        notes: 'Legacy single-mode fallback when modeSlugs is absent.',
+        type: 'object',
+        notes: 'AgentSkills-style trigger metadata is supported for progressive disclosure + keyword activation.',
       },
     ],
     discoveryOrder: [
-      '~/.agents/skills/ and ~/.agents/skills-{mode}/',
-      '.agents/skills/ and .agents/skills-{mode}/',
-      '~/.roo/skills/ and ~/.roo/skills-{mode}/',
-      '.roo/skills/ and .roo/skills-{mode}/',
+      'skills/ (plugin root default)',
+      '.agents/skills/',
+      '.openhands/skills/installed/',
+      'AGENTS.md, CLAUDE.md, GEMINI.md at workspace root',
     ],
   },
   mcp: {
     supported: true,
     manifestField: 'mcpServers',
-    configLookupOrder: [
-      '.roo/mcp.json (project)',
-      'mcp_settings.json (global Roo settings)',
-    ],
+    configLookupOrder: ['.mcp.json', '~/.openhands/mcp.json'],
   },
   hooks: {
-    supported: false,
-    manifestField: '(none)',
+    supported: true,
+    manifestField: 'hooks',
     form: 'path-or-inline',
-    defaultFiles: [],
+    defaultFiles: ['hooks/hooks.json', '.openhands/hooks.json'],
   },
 }
 
 export const PLATFORM_RULES: Record<PlatformRule['platform'], PlatformRule> = {
   'claude-code': CLAUDE_CODE_RULES,
   'github-copilot': GITHUB_COPILOT_RULES,
-  'roo-code': ROO_CODE_RULES,
+  openhands: OPENHANDS_RULES,
 }
 
 export function getPlatformRule(platform: PlatformRule['platform']): PlatformRule {
