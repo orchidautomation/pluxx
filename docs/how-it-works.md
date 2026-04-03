@@ -1,0 +1,200 @@
+# How pluxx Works
+
+## The Problem
+
+Every AI coding tool has its own plugin format. If you want your tool inside Claude Code, Cursor, Codex, OpenCode, and GitHub Copilot, you need to maintain separate manifests, MCP configs, hooks, and rules for each one.
+
+```
+Claude Code wants: .claude-plugin/plugin.json + headers auth + CLAUDE.md + PascalCase hooks
+Cursor wants:      .cursor-plugin/plugin.json + headers auth + AGENTS.md + .mdc rules + camelCase hooks  
+Codex wants:       .codex-plugin/plugin.json + bearer_token_env_var + AGENTS.md + PascalCase hooks
+OpenCode wants:    package.json + index.ts wrapper + dot.notation events
+```
+
+Each platform also has its own validation rules that only surface at runtime — Codex rejects skill descriptions over 1024 characters, Claude Code silently truncates at 250, Cursor requires skill names to match directory names. Discovering these gotchas is trial and error.
+
+## The Solution
+
+pluxx lets you define your plugin once and generates correct, validated output for every platform.
+
+```
+pluxx.config.ts          ← You write one config
+       │
+       ▼
+  ┌─────────┐
+  │  Parse   │            Zod schema validation
+  └────┬────┘
+       │
+       ▼
+  ┌──────────┐
+  │  Lint    │            47 checks across all platforms
+  └────┬────┘
+       │
+       ▼
+  ┌────────────┐
+  │ Generate  │            11 platform-specific generators
+  └─┬──┬──┬──┬┘
+    │  │  │  │
+    ▼  ▼  ▼  ▼
+  Claude  Cursor  Codex  OpenCode  +7 more
+  Code
+```
+
+## How You Use It
+
+### Step 1: Define your plugin
+
+```typescript
+// pluxx.config.ts
+import { definePlugin } from 'pluxx'
+
+export default definePlugin({
+  name: 'my-plugin',
+  description: 'What your plugin does',
+  author: { name: 'Your Name' },
+
+  // MCP server (auth format auto-translated per platform)
+  mcp: {
+    'my-server': {
+      url: 'https://api.example.com/mcp',
+      auth: { type: 'bearer', envVar: 'API_KEY' },
+    },
+  },
+
+  // Skills (Agent Skills standard, shared across all platforms)
+  skills: './skills/',
+
+  // Hooks (mapped to each platform's event system)
+  hooks: {
+    sessionStart: [{
+      command: '${PLUGIN_ROOT}/scripts/setup.sh',
+    }],
+  },
+
+  // Brand metadata (used by platforms that support it)
+  brand: {
+    displayName: 'My Plugin',
+    color: '#6366f1',
+    icon: './assets/icon.svg',
+  },
+
+  // Target platforms
+  targets: ['claude-code', 'cursor', 'codex', 'opencode'],
+})
+```
+
+### Step 2: Build
+
+```bash
+$ npx pluxx build
+
+Building for: claude-code, cursor, codex, opencode, github-copilot, openhands, warp
+
+  dist/claude-code/    .claude-plugin/plugin.json, .mcp.json, CLAUDE.md
+  dist/cursor/         .cursor-plugin/plugin.json, mcp.json, hooks.json
+  dist/codex/          .codex-plugin/plugin.json, interface metadata
+  dist/opencode/       package.json, index.ts wrapper
+  ...
+
+Done! 85 files generated across 11 platforms.
+```
+
+### Step 3: Lint
+
+```bash
+$ npx pluxx lint
+
+  ✓ Plugin name is valid kebab-case
+  ✓ Version follows semver format
+  ✓ Skills directory found with 3 skills
+
+  ⚠ warning: Description will be truncated in claude-code (display limit: 250)
+  ✗ error: Description exceeds codex max of 1024 characters
+  ✗ error: Skill name "My-Skill" doesn't match directory "my-skill" (required by cursor, codex, cline)
+  ⚠ warning: Hook event "afterFileEdit" — not in Claude Code's supported events (use PostToolUse)
+
+  2 errors, 2 warnings
+```
+
+### Step 4: Test locally
+
+```bash
+$ npx pluxx install --target claude-code
+
+  claude-code -> ~/.claude/plugins/my-plugin
+
+Installed 1 plugin(s). Restart Claude Code to pick it up.
+
+$ claude plugin validate ~/.claude/plugins/my-plugin
+
+  ✓ Validation passed
+```
+
+### Step 5: Ship
+
+Deploy to whichever marketplaces you want, with correct manifests already generated.
+
+## What pluxx Handles
+
+### MCP Auth Translation
+
+You write one auth config. pluxx generates the correct format for each platform:
+
+| Platform | Generated auth format |
+|----------|----------------------|
+| Claude Code | `"headers": { "Authorization": "Bearer ${API_KEY}" }` |
+| Codex | `"bearer_token_env_var": "API_KEY"` |
+| Cursor | `"headers": { "Authorization": "Bearer ${API_KEY}" }` |
+| OpenCode | Env var validation in generated TypeScript wrapper |
+
+### Hook Event Translation
+
+| Your config | Claude Code | Cursor | Codex |
+|-------------|-------------|--------|-------|
+| `sessionStart` | `SessionStart` | `sessionStart` | `SessionStart` |
+| `preToolUse` | `PreToolUse` | `preToolUse` | `PreToolUse` |
+| `afterFileEdit` | `PostToolUse` | `afterFileEdit` | `PostToolUse` |
+
+### Instructions Generation
+
+Your single `INSTRUCTIONS.md` becomes the right file for each platform:
+
+| Platform | Generated file |
+|----------|----------------|
+| Claude Code | `CLAUDE.md` |
+| Cursor | `AGENTS.md` + `.cursor/rules/*.mdc` |
+| Codex | `AGENTS.md` |
+| Warp | `AGENTS.md` |
+| Gemini CLI | `GEMINI.md` |
+| Roo Code | `.roorules` |
+| Cline | `.clinerules` |
+| AMP | `AGENT.md` |
+
+### 47 Lint Checks
+
+pluxx catches platform-specific gotchas before you ship:
+
+- Codex rejects SKILL.md descriptions over 1024 characters
+- Claude Code silently truncates descriptions at 250 characters
+- Cursor and Cline require skill names to match their directory names
+- Codex manifest allows max 3 default prompts, 128 chars each
+- Claude Code hook events must be PascalCase (26 valid events)
+- Manifest paths must start with `./` and cannot contain `../`
+- Plugin directories must be at root, not inside `.claude-plugin/`
+- And 40 more checks across all 11 platforms
+
+## Supported Platforms
+
+| Platform | Manifest | Skills | MCP | Hooks | Rules |
+|----------|:--------:|:------:|:---:|:-----:|:-----:|
+| Claude Code | `.claude-plugin/` | Yes | Yes | Yes | CLAUDE.md |
+| Cursor | `.cursor-plugin/` | Yes | Yes | Yes | .mdc + AGENTS.md |
+| Codex | `.codex-plugin/` | Yes | Yes | Yes | AGENTS.md |
+| OpenCode | JS/TS module | Yes | Yes | Yes | AGENTS.md |
+| GitHub Copilot | `.claude-plugin/` | Yes | Yes | Yes | AGENTS.md |
+| OpenHands | `.plugin/` | Yes | Yes | Yes | AGENTS.md |
+| Warp | Skills only | Yes | Yes | No | AGENTS.md |
+| Gemini CLI | `gemini-extension.json` | Yes | Yes | Yes | GEMINI.md |
+| Roo Code | Config files | Yes | Yes | No | .roorules |
+| Cline | Config files | Yes | Yes | Yes | .clinerules |
+| AMP | Config files | Yes | Yes | Yes | AGENT.md |
