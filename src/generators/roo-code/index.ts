@@ -1,4 +1,3 @@
-import { resolve } from 'path'
 import { existsSync } from 'fs'
 import { Generator } from '../base'
 import type { TargetPlatform } from '../../schema'
@@ -57,7 +56,7 @@ export class RooCodeGenerator extends Generator {
 
   private async generateRules(): Promise<void> {
     if (!this.config.instructions) return
-    const srcPath = resolve(this.rootDir, this.config.instructions)
+    const srcPath = this.resolveConfigPath(this.config.instructions, 'instructions')
     if (!existsSync(srcPath)) return
 
     const content = await Bun.file(srcPath).text()
@@ -66,6 +65,6 @@ export class RooCodeGenerator extends Generator {
 
   /** Copy skills into .roo/skills/ instead of the default skills/ */
   private copyRooSkills(): void {
-    this.copyDir(this.config.skills, '.roo/skills/')
+    this.copyDir(this.config.skills, '.roo/skills/', 'skills')
   }
 }

@@ -198,4 +198,26 @@ describe('build', () => {
       'resolves outside the project root'
     )
   })
+
+  it('guards against path traversal for configured content paths', async () => {
+    const guardedPathKeys = [
+      'skills',
+      'commands',
+      'agents',
+      'scripts',
+      'assets',
+      'instructions',
+    ] as const
+
+    for (const key of guardedPathKeys) {
+      const unsafeConfig: PluginConfig = {
+        ...testConfig,
+        [key]: '../outside',
+      }
+
+      await expect(build(unsafeConfig, TEST_DIR)).rejects.toThrow(
+        `${key} path "../outside" resolves outside the project root`
+      )
+    }
+  })
 })
