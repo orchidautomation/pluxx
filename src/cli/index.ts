@@ -2,7 +2,7 @@
 
 import { loadConfig } from '../config/load'
 import { build } from '../generators'
-import { installPlugin, uninstallPlugin } from './install'
+import { ensureHookTrust, installPlugin, uninstallPlugin } from './install'
 import { runDev } from './dev'
 import { migrate } from './migrate'
 import { runLint } from './lint'
@@ -237,6 +237,7 @@ Example prompt or command here
 
 async function runInstall() {
   const targetFlag = args.indexOf('--target')
+  const trust = args.includes('--trust')
   let targets: TargetPlatform[] | undefined
 
   if (targetFlag !== -1) {
@@ -248,6 +249,11 @@ async function runInstall() {
   const platforms = targets ?? config.targets
 
   console.log(`Installing ${config.name} plugin...`)
+  await ensureHookTrust({
+    pluginName: config.name,
+    hooks: config.hooks,
+    trust,
+  })
   await installPlugin(distDir, config.name, platforms)
 }
 
@@ -289,7 +295,7 @@ Usage:
   pluxx lint                              Lint skills and cross-platform metadata
   pluxx init [name]                       Create a new pluxx.config.ts
   pluxx migrate <path>                    Import an existing plugin into pluxx
-  pluxx install [--target <platforms>]    Symlink built plugins for local testing
+  pluxx install [--target <platforms>] [--trust]  Symlink built plugins for local testing
   pluxx uninstall [--target <platforms>]  Remove symlinked plugins
   pluxx help                              Show this help
 
@@ -302,6 +308,7 @@ Examples:
   pluxx init my-plugin                    Scaffold a new plugin config
   pluxx install                           Install to all detected tools
   pluxx install --target claude-code      Install to Claude Code only
+  pluxx install --trust                   Install without hook trust confirmation
 `)
 }
 

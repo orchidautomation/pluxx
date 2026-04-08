@@ -1,11 +1,88 @@
 import { resolve, basename } from 'path'
 import { existsSync, symlinkSync, mkdirSync, rmSync } from 'fs'
-import type { TargetPlatform } from '../schema'
+import * as readline from 'readline'
+import type { PluginConfig, TargetPlatform } from '../schema'
 
 interface InstallTarget {
   platform: TargetPlatform
   pluginDir: string
   description: string
+}
+
+export interface HookCommand {
+  event: string
+  command: string
+}
+
+type PluginHooks = PluginConfig['hooks']
+
+export function listHookCommands(hooks?: PluginHooks): HookCommand[] {
+  if (!hooks) return []
+
+  const commands: HookCommand[] = []
+  for (const [event, entries] of Object.entries(hooks)) {
+    for (const entry of entries) {
+      if (entry.type === 'command' && entry.command) {
+        commands.push({ event, command: entry.command })
+      }
+    }
+  }
+
+  return commands
+}
+
+async function promptTrustConfirmation(question: string): Promise<boolean> {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  })
+
+  try {
+    const answer = await new Promise<string>((resolveAnswer) => {
+      rl.question(question, (value) => resolveAnswer(value))
+    })
+    const normalized = answer.trim().toLowerCase()
+    return normalized === 'y' || normalized === 'yes'
+  } finally {
+    rl.close()
+  }
+}
+
+interface EnsureHookTrustOptions {
+  pluginName: string
+  hooks?: PluginHooks
+  trust?: boolean
+  isTTY?: boolean
+  confirmPrompt?: (question: string) => Promise<boolean>
+}
+
+export async function ensureHookTrust(options: EnsureHookTrustOptions): Promise<void> {
+  const commands = listHookCommands(options.hooks)
+  if (commands.length === 0) return
+  if (options.trust) return
+
+  console.warn('\n⚠️  This plugin defines hook commands that run shell code on your machine:')
+  console.warn('')
+  for (const { event, command } of commands) {
+    console.warn(`  - ${event}: ${command}`)
+  }
+  console.warn('')
+  console.warn(
+    `Installing "${options.pluginName}" means trusting this plugin author with local command execution.`
+  )
+
+  const isTTY = options.isTTY ?? process.stdin.isTTY === true
+  if (!isTTY) {
+    throw new Error(
+      `Refusing to install plugin with hooks in non-interactive mode. Re-run with --trust to continue.`
+    )
+  }
+
+  const confirm = options.confirmPrompt ?? promptTrustConfirmation
+  const approved = await confirm('Continue install? (y/N): ')
+  if (!approved) {
+    throw new Error('Install cancelled. Re-run with --trust to bypass confirmation.')
+  }
 }
 
 function getInstallTargets(pluginName: string): InstallTarget[] {
