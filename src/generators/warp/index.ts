@@ -13,7 +13,7 @@ export class WarpGenerator extends Generator {
   async generate(): Promise<void> {
     await Promise.all([
       this.generateAgentsMd(),
-      this.generateMcpConfig(),
+      this.generateMcpConfig('mcp.json'),
     ])
 
     this.copySkills()
@@ -29,38 +29,4 @@ export class WarpGenerator extends Generator {
     await this.writeFile('AGENTS.md', content)
   }
 
-  private async generateMcpConfig(): Promise<void> {
-    if (!this.config.mcp) return
-
-    const mcpServers: Record<string, unknown> = {}
-
-    for (const [name, server] of Object.entries(this.config.mcp)) {
-      if (server.transport === 'stdio' && server.command) {
-        mcpServers[name] = {
-          command: server.command,
-          args: server.args ?? [],
-          env: server.env ?? {},
-        }
-      } else {
-        const entry: Record<string, unknown> = {
-          url: server.url,
-        }
-        if (server.auth?.type === 'bearer' && server.auth.envVar) {
-          entry.headers = {
-            Authorization: `Bearer \${${server.auth.envVar}}`,
-          }
-        } else if (server.auth?.type === 'header' && server.auth.envVar) {
-          entry.headers = {
-            [server.auth.headerName]: server.auth.headerTemplate.replace(
-              '${value}',
-              `\${${server.auth.envVar}}`
-            ),
-          }
-        }
-        mcpServers[name] = entry
-      }
-    }
-
-    await this.writeJson('mcp.json', { mcpServers })
-  }
 }

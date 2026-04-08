@@ -30,39 +30,13 @@ export class GeminiCliGenerator extends Generator {
     }
 
     // MCP servers block
-    if (this.config.mcp) {
-      const mcpServers: Record<string, unknown> = {}
-
-      for (const [name, server] of Object.entries(this.config.mcp)) {
-        if (server.transport === 'stdio' && server.command) {
-          mcpServers[name] = {
-            command: server.command,
-            args: server.args ?? [],
-            env: server.env ?? {},
-          }
-        } else {
-          const entry: Record<string, unknown> = {
-            type: server.transport === 'sse' ? 'sse' : 'http',
-            url: server.url,
-          }
-
-          if (server.auth?.type === 'bearer' && server.auth.envVar) {
-            entry.headers = {
-              Authorization: `Bearer \${${server.auth.envVar}}`,
-            }
-          } else if (server.auth?.type === 'header' && server.auth.envVar) {
-            entry.headers = {
-              [server.auth.headerName]: server.auth.headerTemplate.replace(
-                '${value}',
-                `\${${server.auth.envVar}}`
-              ),
-            }
-          }
-
-          mcpServers[name] = entry
-        }
-      }
-
+    const mcpServers = this.buildMcpServers({
+      transformRemoteEntry: ({ server, entry }) => ({
+        type: server.transport === 'sse' ? 'sse' : 'http',
+        ...entry,
+      }),
+    })
+    if (mcpServers) {
       manifest.mcpServers = mcpServers
     }
 
