@@ -50,6 +50,10 @@ interface FrontmatterField {
   quoted: boolean
 }
 
+interface ParsedFrontmatterFile {
+  parsed: { fields: Map<string, FrontmatterField>; valid: boolean }
+}
+
 export interface LintResult {
   errors: number
   warnings: number
@@ -138,6 +142,17 @@ function parseFrontmatter(content: string): { fields: Map<string, FrontmatterFie
   return { fields, valid: true }
 }
 
+function getParsedFrontmatterFile(filePath: string, cache: Map<string, ParsedFrontmatterFile>): ParsedFrontmatterFile {
+  const cached = cache.get(filePath)
+  if (cached) return cached
+
+  const entry = {
+    parsed: parseFrontmatter(readFileSync(filePath, 'utf-8')),
+  }
+  cache.set(filePath, entry)
+  return entry
+}
+
 function needsQuotes(value: string): boolean {
   const startsWithSpecial = /^[\[\]{},&*!|>@`]/.test(value)
   const containsCommentChar = /\s#/.test(value)
@@ -167,9 +182,13 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>
 }
 
-function lintSkillFile(skillFile: string, targets: TargetPlatform[], issues: LintIssue[]): void {
-  const content = readFileSync(skillFile, 'utf-8')
-  const parsed = parseFrontmatter(content)
+function lintSkillFile(
+  skillFile: string,
+  targets: TargetPlatform[],
+  issues: LintIssue[],
+  frontmatterCache: Map<string, ParsedFrontmatterFile>,
+): void {
+  const { parsed } = getParsedFrontmatterFile(skillFile, frontmatterCache)
 
   if (!parsed.valid) {
     pushIssue(issues, {
@@ -697,14 +716,13 @@ function lintHookEvents(config: PluginConfig, issues: LintIssue[]): void {
 }
 
 // ── Gotcha #7: Agent frontmatter must not include hooks, mcpServers, permissionMode ──
-function lintAgentFrontmatter(dir: string, issues: LintIssue[]): void {
-  const agentsDir = resolve(dir, 'agents')
-  if (!existsSync(agentsDir)) return
-
-  const agentFiles = collectMarkdownFiles(agentsDir)
+function lintAgentFrontmatter(
+  agentFiles: string[],
+  issues: LintIssue[],
+  frontmatterCache: Map<string, ParsedFrontmatterFile>,
+): void {
   for (const file of agentFiles) {
-    const content = readFileSync(file, 'utf-8')
-    const parsed = parseFrontmatter(content)
+    const { parsed } = getParsedFrontmatterFile(file, frontmatterCache)
     if (!parsed.valid) continue
 
     for (const forbidden of AGENT_FORBIDDEN_FRONTMATTER) {
@@ -737,14 +755,13 @@ function collectMarkdownFiles(dir: string): string[] {
 }
 
 // ── Gotcha #8: Agent isolation field only accepts "worktree" ──
-function lintAgentIsolation(dir: string, issues: LintIssue[]): void {
-  const agentsDir = resolve(dir, 'agents')
-  if (!existsSync(agentsDir)) return
-
-  const agentFiles = collectMarkdownFiles(agentsDir)
+function lintAgentIsolation(
+  agentFiles: string[],
+  issues: LintIssue[],
+  frontmatterCache: Map<string, ParsedFrontmatterFile>,
+): void {
   for (const file of agentFiles) {
-    const content = readFileSync(file, 'utf-8')
-    const parsed = parseFrontmatter(content)
+    const { parsed } = getParsedFrontmatterFile(file, frontmatterCache)
     if (!parsed.valid) continue
 
     const isolation = parsed.fields.get('isolation')
@@ -966,18 +983,18 @@ function lintCursorHooks(config: PluginConfig, issues: LintIssue[]): void {
   }
 }
 
-function lintCursorSkillFrontmatter(config: PluginConfig, dir: string, issues: LintIssue[]): void {
+function lintCursorSkillFrontmatter(
+  config: PluginConfig,
+  skillFiles: string[],
+  issues: LintIssue[],
+  frontmatterCache: Map<string, ParsedFrontmatterFile>,
+): void {
   if (!config.targets.includes('cursor')) return
 
-  const skillsDir = resolve(dir, config.skills)
-  if (!existsSync(skillsDir)) return
-
-  const skillFiles = collectSkillFiles(skillsDir)
   const cursorSupportedFrontmatter = ['name', 'description', 'license', 'compatibility', 'metadata', 'disable-model-invocation']
 
   for (const skillFile of skillFiles) {
-    const content = readFileSync(skillFile, 'utf-8')
-    const parsed = parseFrontmatter(content)
+    const { parsed } = getParsedFrontmatterFile(skillFile, frontmatterCache)
     if (!parsed.valid) continue
 
     for (const [key] of parsed.fields) {
@@ -1005,6 +1022,7 @@ function sortIssues(issues: LintIssue[]): LintIssue[] {
 
 export async function lintProject(dir: string = process.cwd()): Promise<LintResult> {
   const issues: LintIssue[] = []
+  const frontmatterCache = new Map<string, ParsedFrontmatterFile>()
 
   let config: PluginConfig
   try {
@@ -1033,8 +1051,10 @@ export async function lintProject(dir: string = process.cwd()): Promise<LintResu
   lintHookEvents(config, issues)
 
   // Agent file checks
-  lintAgentFrontmatter(dir, issues)
-  lintAgentIsolation(dir, issues)
+  const agentsDir = resolve(dir, 'agents')
+  const agentFiles = existsSync(agentsDir) ? collectMarkdownFiles(agentsDir) : []
+  lintAgentFrontmatter(agentFiles, issues, frontmatterCache)
+  lintAgentIsolation(agentFiles, issues, frontmatterCache)
 
   // MCP and brand
   lintMcpUrls(config, issues)
@@ -1048,6 +1068,7 @@ export async function lintProject(dir: string = process.cwd()): Promise<LintResu
   lintCursorHooks(config, issues)
 
   const skillsDir = resolve(dir, config.skills)
+  let skillFiles: string[] = []
   if (!existsSync(skillsDir)) {
     pushIssue(issues, {
       level: 'error',
@@ -1057,7 +1078,7 @@ export async function lintProject(dir: string = process.cwd()): Promise<LintResu
       platform: 'Agent Skills',
     })
   } else {
-    const skillFiles = collectSkillFiles(skillsDir)
+    skillFiles = collectSkillFiles(skillsDir)
     if (skillFiles.length === 0) {
       pushIssue(issues, {
         level: 'warning',
@@ -1069,12 +1090,12 @@ export async function lintProject(dir: string = process.cwd()): Promise<LintResu
     }
 
     for (const skillFile of skillFiles) {
-      lintSkillFile(skillFile, config.targets, issues)
+      lintSkillFile(skillFile, config.targets, issues, frontmatterCache)
     }
   }
 
   // Cursor skill frontmatter checks
-  lintCursorSkillFrontmatter(config, dir, issues)
+  lintCursorSkillFrontmatter(config, skillFiles, issues, frontmatterCache)
 
   // Platform limit checks for manifest prompts (Codex)
   lintManifestPromptLimits(config, issues)
