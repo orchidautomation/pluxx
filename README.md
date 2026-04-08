@@ -235,6 +235,18 @@ claude plugin validate ~/.claude/plugins/my-plugin
 # ✓ Validation passed
 ```
 
+## Hook Trust Model
+
+Hook commands are shell commands that execute on your machine when hook events fire. If you install a third-party plugin with hooks, you are trusting that plugin author with local command execution.
+
+`pluxx install` now warns when the plugin config contains command hooks and prints each event/command pair before install proceeds.
+
+Use `--trust` to bypass the confirmation prompt (useful in CI/non-interactive environments):
+
+```bash
+npx pluxx install --trust
+```
+
 ## CLI Commands
 
 | Command | What it does |
@@ -243,7 +255,8 @@ claude plugin validate ~/.claude/plugins/my-plugin
 | `pluxx build` | Generate plugin packages for all target platforms |
 | `pluxx lint` | 47 checks against all platform rules |
 | `pluxx validate` | Validate your config schema |
-| `pluxx install` | Symlink built plugins for local testing |
+| `pluxx install` | Symlink built plugins for local testing (prompts when hook commands exist) |
+| `pluxx install --trust` | Bypass hook trust confirmation |
 | `pluxx uninstall` | Remove symlinked plugins |
 | `pluxx dev` | Watch mode with auto-rebuild on file changes |
 | `pluxx migrate <path>` | Import an existing single-platform plugin |

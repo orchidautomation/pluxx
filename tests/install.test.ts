@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
 import { mkdirSync, rmSync, existsSync, lstatSync, readlinkSync } from 'fs'
 import { resolve } from 'path'
-import { installPlugin, uninstallPlugin } from '../src/cli/install'
-import type { TargetPlatform } from '../src/schema'
+import { ensureHookTrust, installPlugin, listHookCommands, uninstallPlugin } from '../src/cli/install'
+import type { PluginConfig, TargetPlatform } from '../src/schema'
 
 const TEST_DIR = resolve(import.meta.dir, '.install-fixture')
 const DIST_DIR = resolve(TEST_DIR, 'dist')
@@ -34,6 +34,16 @@ const INSTALL_PATHS: Record<TargetPlatform, string> = {
   'roo-code': '.roo/plugins/megamind',
   cline: '.cline/plugins/megamind',
   amp: '.amp/plugins/megamind',
+}
+
+const HOOKS_WITH_COMMANDS: NonNullable<PluginConfig['hooks']> = {
+  sessionStart: [
+    { type: 'command', command: 'echo setup' },
+    { type: 'prompt', prompt: 'continue?' },
+  ],
+  beforeSubmitPrompt: [
+    { type: 'command', command: 'bash -lc "echo validate"' },
+  ],
 }
 
 beforeEach(() => {
@@ -84,5 +94,45 @@ describe('install', () => {
 
     expect(existsSync(resolve(HOME_DIR, INSTALL_PATHS.cursor))).toBe(false)
     expect(existsSync(resolve(HOME_DIR, INSTALL_PATHS.openhands))).toBe(true)
+  })
+
+  it('lists only command hooks for install trust warning', () => {
+    const commands = listHookCommands(HOOKS_WITH_COMMANDS)
+    expect(commands).toEqual([
+      { event: 'sessionStart', command: 'echo setup' },
+      { event: 'beforeSubmitPrompt', command: 'bash -lc "echo validate"' },
+    ])
+  })
+
+  it('skips confirmation when --trust is provided', async () => {
+    await expect(
+      ensureHookTrust({
+        pluginName: 'megamind',
+        hooks: HOOKS_WITH_COMMANDS,
+        trust: true,
+        isTTY: false,
+      }),
+    ).resolves.toBeUndefined()
+  })
+
+  it('fails non-interactive installs with hook commands unless --trust is set', async () => {
+    await expect(
+      ensureHookTrust({
+        pluginName: 'megamind',
+        hooks: HOOKS_WITH_COMMANDS,
+        isTTY: false,
+      }),
+    ).rejects.toThrow('Re-run with --trust')
+  })
+
+  it('cancels install when user declines trust confirmation', async () => {
+    await expect(
+      ensureHookTrust({
+        pluginName: 'megamind',
+        hooks: HOOKS_WITH_COMMANDS,
+        isTTY: true,
+        confirmPrompt: async () => false,
+      }),
+    ).rejects.toThrow('Install cancelled')
   })
 })
