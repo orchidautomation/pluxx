@@ -82,18 +82,9 @@ export class CodexGenerator extends Generator {
   }
 
   private async generateMcpConfig(): Promise<void> {
-    if (!this.config.mcp) return
-
-    const mcpServers: Record<string, unknown> = {}
-
-    for (const [name, server] of Object.entries(this.config.mcp)) {
-      if (server.transport === 'stdio' && server.command) {
-        mcpServers[name] = {
-          command: server.command,
-          args: server.args ?? [],
-          env: server.env ?? {},
-        }
-      } else {
+    await this.writeMcpConfig('.mcp.json', {
+      includeDefaultAuthHeaders: false,
+      transformRemoteEntry: ({ name, server }) => {
         const entry: Record<string, unknown> = {
           url: server.url,
         }
@@ -116,11 +107,9 @@ export class CodexGenerator extends Generator {
           }
         }
 
-        mcpServers[name] = entry
-      }
-    }
-
-    await this.writeJson('.mcp.json', { mcpServers })
+        return entry
+      },
+    })
   }
 
   private async generateHooks(): Promise<void> {

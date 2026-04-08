@@ -51,41 +51,12 @@ export class ClaudeCodeGenerator extends Generator {
   }
 
   protected async generateMcpConfig(): Promise<void> {
-    if (!this.config.mcp) return
-
-    const mcpServers: Record<string, unknown> = {}
-
-    for (const [name, server] of Object.entries(this.config.mcp)) {
-      if (server.transport === 'stdio' && server.command) {
-        mcpServers[name] = {
-          command: server.command,
-          args: server.args ?? [],
-          env: server.env ?? {},
-        }
-      } else {
-        const entry: Record<string, unknown> = {
-          type: server.transport === 'sse' ? 'sse' : 'http',
-          url: server.url,
-        }
-
-        if (server.auth?.type === 'bearer' && server.auth.envVar) {
-          entry.headers = {
-            Authorization: `Bearer \${${server.auth.envVar}}`,
-          }
-        } else if (server.auth?.type === 'header' && server.auth.envVar) {
-          entry.headers = {
-            [server.auth.headerName]: server.auth.headerTemplate.replace(
-              '${value}',
-              `\${${server.auth.envVar}}`
-            ),
-          }
-        }
-
-        mcpServers[name] = entry
-      }
-    }
-
-    await this.writeJson('.mcp.json', { mcpServers })
+    await this.writeMcpConfig('.mcp.json', {
+      transformRemoteEntry: ({ server, entry }) => ({
+        type: server.transport === 'sse' ? 'sse' : 'http',
+        ...entry,
+      }),
+    })
   }
 
   protected async generateHooks(): Promise<void> {

@@ -9,7 +9,7 @@ export class CursorGenerator extends Generator {
   async generate(): Promise<void> {
     await Promise.all([
       this.generateManifest(),
-      this.generateMcpConfig(),
+      this.writeMcpConfig('mcp.json'),
       this.generateHooks(),
       this.generateRules(),
       this.generateAgentsMd(),
@@ -29,44 +29,6 @@ export class CursorGenerator extends Generator {
     }
 
     await this.writeJson('.cursor-plugin/plugin.json', manifest)
-  }
-
-  private async generateMcpConfig(): Promise<void> {
-    if (!this.config.mcp) return
-
-    // Cursor uses Claude Desktop format
-    const mcpServers: Record<string, unknown> = {}
-
-    for (const [name, server] of Object.entries(this.config.mcp)) {
-      if (server.transport === 'stdio' && server.command) {
-        mcpServers[name] = {
-          command: server.command,
-          args: server.args ?? [],
-          env: server.env ?? {},
-        }
-      } else {
-        const entry: Record<string, unknown> = {
-          url: server.url,
-        }
-
-        if (server.auth?.type === 'bearer' && server.auth.envVar) {
-          entry.headers = {
-            Authorization: `Bearer \${${server.auth.envVar}}`,
-          }
-        } else if (server.auth?.type === 'header' && server.auth.envVar) {
-          entry.headers = {
-            [server.auth.headerName]: server.auth.headerTemplate.replace(
-              '${value}',
-              `\${${server.auth.envVar}}`
-            ),
-          }
-        }
-
-        mcpServers[name] = entry
-      }
-    }
-
-    await this.writeJson('mcp.json', { mcpServers })
   }
 
   private async generateHooks(): Promise<void> {

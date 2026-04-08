@@ -1,6 +1,17 @@
 import { resolve, join } from 'path'
 import { mkdirSync, existsSync, cpSync } from 'fs'
-import type { PluginConfig, TargetPlatform } from '../schema'
+import type { PluginConfig, TargetPlatform, McpServer } from '../schema'
+
+type McpRemoteServer = Exclude<McpServer, { transport: 'stdio' }>
+
+interface McpConfigOptions {
+  includeDefaultAuthHeaders?: boolean
+  transformRemoteEntry?: (context: {
+    name: string
+    server: McpRemoteServer
+    entry: Record<string, unknown>
+  }) => Record<string, unknown>
+}
 
 export abstract class Generator {
   abstract readonly platform: TargetPlatform
@@ -71,5 +82,79 @@ export abstract class Generator {
     if (this.config.assets) {
       this.copyDir(this.config.assets, 'assets/')
     }
+  }
+
+  /** Build canonical MCP server configs for target-specific output shaping. */
+  protected buildMcpServers(options: McpConfigOptions = {}): Record<string, unknown> | undefined {
+    if (!this.config.mcp) return undefined
+
+    const {
+      includeDefaultAuthHeaders = true,
+      transformRemoteEntry,
+    } = options
+
+    const mcpServers: Record<string, unknown> = {}
+
+    for (const [name, server] of Object.entries(this.config.mcp)) {
+      if (server.transport === 'stdio') {
+        mcpServers[name] = {
+          command: server.command,
+          args: server.args ?? [],
+          env: server.env ?? {},
+        }
+        continue
+      }
+
+      const remoteServer: McpRemoteServer = server
+
+      let entry: Record<string, unknown> = {
+        url: remoteServer.url,
+      }
+
+      if (includeDefaultAuthHeaders) {
+        const headers = this.getMcpAuthHeaders(remoteServer)
+        if (headers) {
+          entry.headers = headers
+        }
+      }
+
+      if (transformRemoteEntry) {
+        entry = transformRemoteEntry({ name, server: remoteServer, entry })
+      }
+
+      mcpServers[name] = entry
+    }
+
+    return mcpServers
+  }
+
+  /** Write MCP servers to a JSON file in the common `{ mcpServers }` shape. */
+  protected async writeMcpConfig(relativePath: string, options: McpConfigOptions = {}): Promise<void> {
+    const mcpServers = this.buildMcpServers(options)
+    if (!mcpServers) return
+    await this.writeJson(relativePath, { mcpServers })
+  }
+
+  private getMcpAuthHeaders(server: McpRemoteServer): Record<string, string> | undefined {
+    if (server.auth?.type === 'bearer' && server.auth.envVar) {
+      return {
+        Authorization: `Bearer ${this.getEnvVarReference(server.auth.envVar)}`,
+      }
+    }
+
+    if (server.auth?.type === 'header' && server.auth.envVar) {
+      return {
+        [server.auth.headerName]: server.auth.headerTemplate.replace(
+          '${value}',
+          this.getEnvVarReference(server.auth.envVar),
+        ),
+      }
+    }
+
+    return undefined
+  }
+
+  private getEnvVarReference(envVar: string): string {
+    return `\${${envVar}}`
   }
 }
