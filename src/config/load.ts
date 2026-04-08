@@ -6,8 +6,6 @@ const CONFIG_FILES = [
   'pluxx.config.ts',
   'pluxx.config.js',
   'pluxx.config.json',
-  'pluxx.config.yaml',
-  'pluxx.config.yml',
 ]
 
 /**
@@ -30,8 +28,6 @@ export async function loadConfig(dir: string = process.cwd()): Promise<PluginCon
       const text = await Bun.file(filepath).text()
       return PluginConfigSchema.parse(JSON.parse(text))
     }
-
-    // TODO: YAML support
   }
 
   throw new Error(
