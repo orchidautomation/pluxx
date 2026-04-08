@@ -14,7 +14,7 @@ export class WarpGenerator extends Generator {
   async generate(): Promise<void> {
     await Promise.all([
       this.generateAgentsMd(),
-      this.writeMcpConfig('mcp.json'),
+      this.generateMcpConfig('mcp.json'),
     ])
 
     this.copySkills()

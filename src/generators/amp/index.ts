@@ -15,7 +15,7 @@ export class AmpGenerator extends Generator {
     await Promise.all([
       this.generateAgentMd(),
       this.generateSettings(),
-      this.writeMcpConfig('mcp.json'),
+      this.generateMcpConfig('mcp.json'),
     ])
 
     this.copySkills()

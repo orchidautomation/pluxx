@@ -9,7 +9,7 @@ export class CursorGenerator extends Generator {
   async generate(): Promise<void> {
     await Promise.all([
       this.generateManifest(),
-      this.writeMcpConfig('mcp.json'),
+      this.generateMcpConfig('mcp.json'),
       this.generateHooks(),
       this.generateRules(),
       this.generateAgentsMd(),

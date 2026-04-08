@@ -10,7 +10,34 @@ export class CodexGenerator extends Generator {
   async generate(): Promise<void> {
     await Promise.all([
       this.generateManifest(),
-      this.generateMcpConfig(),
+      this.generateMcpConfig('.mcp.json', {
+        includeDefaultAuthHeaders: false,
+        transformRemoteEntry: ({ name, server }) => {
+          const entry: Record<string, unknown> = {
+            url: server.url,
+          }
+
+          // Codex uses bearer_token_env_var pattern.
+          if (server.auth?.type === 'bearer' && server.auth.envVar) {
+            entry.bearer_token_env_var = server.auth.envVar
+          } else if (server.auth?.type === 'header' && server.auth.envVar) {
+            const isBearerAuthorizationHeader =
+              server.auth.headerName === 'Authorization'
+              && server.auth.headerTemplate === 'Bearer ${value}'
+
+            if (isBearerAuthorizationHeader) {
+              entry.bearer_token_env_var = server.auth.envVar
+            } else {
+              console.warn(
+                `[pluxx] codex generator: MCP server "${name}" uses auth.type "header" with unsupported custom header settings. `
+                + 'Codex only supports bearer_token_env_var; custom headers were omitted.'
+              )
+            }
+          }
+
+          return entry
+        },
+      }),
       this.generateHooks(),
       this.generateAgentsMd(),
     ])
@@ -79,37 +106,6 @@ export class CodexGenerator extends Generator {
     }
 
     await this.writeJson('.codex-plugin/plugin.json', manifest)
-  }
-
-  private async generateMcpConfig(): Promise<void> {
-    await this.writeMcpConfig('.mcp.json', {
-      includeDefaultAuthHeaders: false,
-      transformRemoteEntry: ({ name, server }) => {
-        const entry: Record<string, unknown> = {
-          url: server.url,
-        }
-
-        // Codex uses bearer_token_env_var pattern.
-        if (server.auth?.type === 'bearer' && server.auth.envVar) {
-          entry.bearer_token_env_var = server.auth.envVar
-        } else if (server.auth?.type === 'header' && server.auth.envVar) {
-          const isBearerAuthorizationHeader =
-            server.auth.headerName === 'Authorization'
-            && server.auth.headerTemplate === 'Bearer ${value}'
-
-          if (isBearerAuthorizationHeader) {
-            entry.bearer_token_env_var = server.auth.envVar
-          } else {
-            console.warn(
-              `[pluxx] codex generator: MCP server "${name}" uses auth.type "header" with unsupported custom header settings. `
-              + 'Codex only supports bearer_token_env_var; custom headers were omitted.'
-            )
-          }
-        }
-
-        return entry
-      },
-    })
   }
 
   private async generateHooks(): Promise<void> {

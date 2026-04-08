@@ -12,7 +12,7 @@ export class RooCodeGenerator extends Generator {
 
   async generate(): Promise<void> {
     await Promise.all([
-      this.writeMcpConfig('.roo/mcp.json'),
+      this.generateMcpConfig('.roo/mcp.json'),
       this.generateRules(),
     ])
 

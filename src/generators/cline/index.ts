@@ -12,7 +12,7 @@ export class ClineGenerator extends Generator {
 
   async generate(): Promise<void> {
     await Promise.all([
-      this.writeMcpConfig('.cline/mcp.json'),
+      this.generateMcpConfig('.cline/mcp.json'),
       this.generateRules(),
     ])
 

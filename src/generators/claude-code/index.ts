@@ -15,7 +15,12 @@ export class ClaudeCodeGenerator extends Generator {
   async generate(): Promise<void> {
     await Promise.all([
       this.generateManifest(),
-      this.generateMcpConfig(),
+      this.generateMcpConfig('.mcp.json', {
+        transformRemoteEntry: ({ server, entry }) => ({
+          type: server.transport === 'sse' ? 'sse' : 'http',
+          ...entry,
+        }),
+      }),
       this.generateHooks(),
       this.generateInstructions(),
     ])
@@ -48,15 +53,6 @@ export class ClaudeCodeGenerator extends Generator {
     manifest.skills = './skills/'
 
     await this.writeJson(this.manifestPath, manifest)
-  }
-
-  protected async generateMcpConfig(): Promise<void> {
-    await this.writeMcpConfig('.mcp.json', {
-      transformRemoteEntry: ({ server, entry }) => ({
-        type: server.transport === 'sse' ? 'sse' : 'http',
-        ...entry,
-      }),
-    })
   }
 
   protected async generateHooks(): Promise<void> {

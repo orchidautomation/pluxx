@@ -128,8 +128,8 @@ export abstract class Generator {
     return mcpServers
   }
 
-  /** Write MCP servers to a JSON file in the common `{ mcpServers }` shape. */
-  protected async writeMcpConfig(relativePath: string, options: McpConfigOptions = {}): Promise<void> {
+  /** Generate MCP config JSON in the common `{ mcpServers }` shape. */
+  protected async generateMcpConfig(relativePath: string, options: McpConfigOptions = {}): Promise<void> {
     const mcpServers = this.buildMcpServers(options)
     if (!mcpServers) return
     await this.writeJson(relativePath, { mcpServers })
