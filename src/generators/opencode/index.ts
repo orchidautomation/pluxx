@@ -326,7 +326,7 @@ export class OpenCodeGenerator extends Generator {
   private getOpenCodeCommandDefinitions(): Record<string, { template: string; description?: string }> {
     if (!this.config.commands) return {}
 
-    const commandsDir = resolve(this.rootDir, this.config.commands)
+    const commandsDir = this.resolveConfigPath(this.config.commands, 'commands')
     if (!existsSync(commandsDir)) return {}
 
     const files = this.walkFiles(commandsDir).filter(file => extname(file) === '.md')
@@ -351,7 +351,7 @@ export class OpenCodeGenerator extends Generator {
 
   private getInstructionsContent(): string | null {
     if (!this.config.instructions) return null
-    const instructionsPath = resolve(this.rootDir, this.config.instructions)
+    const instructionsPath = this.resolveConfigPath(this.config.instructions, 'instructions')
     if (!existsSync(instructionsPath)) return null
     return readFileSync(instructionsPath, 'utf-8').trim()
   }

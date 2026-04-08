@@ -1,4 +1,3 @@
-import { resolve } from 'path'
 import { existsSync } from 'fs'
 import { Generator } from '../base'
 import type { TargetPlatform } from '../../schema'
@@ -57,7 +56,7 @@ export class ClineGenerator extends Generator {
 
   private async generateRules(): Promise<void> {
     if (!this.config.instructions) return
-    const srcPath = resolve(this.rootDir, this.config.instructions)
+    const srcPath = this.resolveConfigPath(this.config.instructions, 'instructions')
     if (!existsSync(srcPath)) return
 
     const content = await Bun.file(srcPath).text()
@@ -66,6 +65,6 @@ export class ClineGenerator extends Generator {
 
   /** Copy skills into .cline/skills/ instead of the default skills/ */
   private copyClineSkills(): void {
-    this.copyDir(this.config.skills, '.cline/skills/')
+    this.copyDir(this.config.skills, '.cline/skills/', 'skills')
   }
 }

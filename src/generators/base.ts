@@ -1,4 +1,4 @@
-import { resolve, join } from 'path'
+import { resolve, join, relative } from 'path'
 import { mkdirSync, existsSync, cpSync } from 'fs'
 import type { PluginConfig, TargetPlatform } from '../schema'
 
@@ -32,44 +32,56 @@ export abstract class Generator {
   }
 
   /** Copy a directory from source to output */
-  protected copyDir(srcRelative: string, destRelative: string): void {
-    const src = resolve(this.rootDir, srcRelative)
+  protected copyDir(srcRelative: string, destRelative: string, configKey: string): void {
+    const src = this.resolveConfigPath(srcRelative, configKey)
     if (!existsSync(src)) return
     const dest = join(this.outDir, destRelative)
     mkdirSync(dest, { recursive: true })
     cpSync(src, dest, { recursive: true })
   }
 
+  /** Resolve a user-configured path and ensure it stays within the project root. */
+  protected resolveConfigPath(configPath: string, configKey: string): string {
+    const resolvedPath = resolve(this.rootDir, configPath)
+    const rel = relative(this.rootDir, resolvedPath)
+    if (rel.startsWith('..')) {
+      throw new Error(
+        `${configKey} path "${configPath}" resolves outside the project root.`
+      )
+    }
+    return resolvedPath
+  }
+
   /** Copy skills directory, applying any platform-specific frontmatter */
   protected copySkills(): void {
-    this.copyDir(this.config.skills, 'skills/')
+    this.copyDir(this.config.skills, 'skills/', 'skills')
   }
 
   /** Copy commands directory if it exists */
   protected copyCommands(): void {
     if (this.config.commands) {
-      this.copyDir(this.config.commands, 'commands/')
+      this.copyDir(this.config.commands, 'commands/', 'commands')
     }
   }
 
   /** Copy agents directory if it exists */
   protected copyAgents(): void {
     if (this.config.agents) {
-      this.copyDir(this.config.agents, 'agents/')
+      this.copyDir(this.config.agents, 'agents/', 'agents')
     }
   }
 
   /** Copy scripts directory if it exists */
   protected copyScripts(): void {
     if (this.config.scripts) {
-      this.copyDir(this.config.scripts, 'scripts/')
+      this.copyDir(this.config.scripts, 'scripts/', 'scripts')
     }
   }
 
   /** Copy assets directory if it exists */
   protected copyAssets(): void {
     if (this.config.assets) {
-      this.copyDir(this.config.assets, 'assets/')
+      this.copyDir(this.config.assets, 'assets/', 'assets')
     }
   }
 }

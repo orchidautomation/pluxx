@@ -1,4 +1,3 @@
-import { resolve } from 'path'
 import { existsSync } from 'fs'
 import { Generator } from '../base'
 import type { TargetPlatform } from '../../schema'
@@ -133,7 +132,7 @@ export class CursorGenerator extends Generator {
 
   private async generateAgentsMd(): Promise<void> {
     if (!this.config.instructions) return
-    const srcPath = resolve(this.rootDir, this.config.instructions)
+    const srcPath = this.resolveConfigPath(this.config.instructions, 'instructions')
     if (!existsSync(srcPath)) return
 
     const content = await Bun.file(srcPath).text()
