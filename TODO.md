@@ -2,6 +2,8 @@
 
 ## Immediate (Next Session)
 
+- [ ] Define an "agent-native CLI profile" in `pluxx.config` (search/read/download/draft/apply command split)
+- [ ] Add companion skill template generation for CLIs (usage trigger, output-size rules, write-approval boundary)
 - [ ] `npm login` + `npm publish` so `npx pluxx init` works for real
 - [ ] Update Codex CLI (`npm install -g @openai/codex`) and run review
 - [ ] Custom domain for landing page (pluxx.dev)
@@ -12,6 +14,7 @@
 
 ## Polish Before Launch
 
+- [ ] Add lint checks for agent-native CLI ergonomics (auth check required, read-by-id required, no giant default output)
 - [ ] Add more tests (migrate command, new generators, init flow)
 - [ ] Fix help text to list all 11 platforms (currently only shows 4)
 - [ ] Update README to reflect 11 generators (currently says 7)
@@ -22,6 +25,7 @@
 
 ## Features — Phase 2
 
+- [ ] `pluxx test --agent-native` — verify installed CLI from another directory (`command -v`, `--help`, safe read flow, file export flow)
 - [ ] `pluxx diff` — show what changed per platform since last build
 - [ ] `pluxx publish` — push to Cursor marketplace, npm (OpenCode), Codex marketplace
 - [ ] `pluxx lint` — validate skills + plugin against all platform rules:
