@@ -356,3 +356,54 @@ The project-megamind repo contains **two hand-maintained plugin variants**:
 7. **Distribution varies wildly** — Cursor has a marketplace, Codex has local marketplace.json, Claude Code uses file paths, OpenCode uses npm. The SDK should generate install scripts and registry entries for each.
 
 8. **The Agent Skills standard is the foundation** — Build on it, don't fight it. Extend where platforms extend, but keep the core portable.
+
+---
+
+## 7. Agent-Native CLI Requirements (Codex Use Case, April 2026)
+
+Source reviewed: OpenAI Codex use case "Create a CLI Codex can use" (the link in PLUXX-34).
+
+This guidance clarifies what "agent native" should mean for both the generated plugin and the CLI surface itself:
+
+1. **Composable command surface first**
+   - Split actions into narrow commands (`search/list`, `read-by-id`, `download/export`, `draft-write`, `live-write`) instead of one large command.
+   - Favor commands that chain well with `rg`, `jq`, `git`, and existing repo scripts.
+
+2. **Small defaults, full payloads to files**
+   - Default output should be compact and deterministic.
+   - Large logs, traces, exports, or API payloads should be written to files and return only path + short summary.
+
+3. **Safe write boundary**
+   - Support "draft first" behavior for mutating actions.
+   - Ensure "live write" commands are explicitly separated and guarded (never run as an implicit step).
+
+4. **Discovery -> read workflow**
+   - Every integration should support a two-step flow: discover candidate records, then fetch exact object by stable ID.
+   - This prevents giant result blobs and improves repeatability in agent workflows.
+
+5. **Auth/setup checks as first-class behavior**
+   - CLI must fail clearly when auth is missing and tell the user how to fix it.
+   - Auth should be environment/config driven, never embedded in prompts.
+
+6. **Install verification from outside project root**
+   - "Agent native" requires proving the command is on PATH and works from another folder.
+   - Validation should test `command -v`, `--help`, one safe discovery command, and one exact read command.
+
+7. **Companion skill is required, not optional**
+   - The skill should encode when to invoke the CLI, which command to run first, output size constraints, file output locations, and write approval rules.
+   - The skill should provide a short reusable invocation phrase for future sessions.
+
+### Implications for pluxx
+
+- Add a reusable "agent-native CLI profile" in config/generators that scaffolds:
+  - command taxonomy (search/read/download/draft/apply),
+  - safety defaults (draft-by-default),
+  - deterministic output conventions,
+  - companion skill templates with explicit approval boundaries.
+- Add lint rules to detect anti-patterns:
+  - giant default JSON output,
+  - mixed read/write commands,
+  - missing read-by-id after search,
+  - missing auth check,
+  - missing companion skill.
+- Add a `pluxx test` scenario for "works from another directory" to validate real agent ergonomics.
