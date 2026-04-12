@@ -59,7 +59,15 @@ async function setupMegamindSource(platform: 'claude' | 'cursor' | 'codex' | 'op
     },
   })
 
-  await writeJson(resolve(sourceDir, 'hooks.json'), {
+  const hooksPath = platform === 'codex'
+    ? resolve(sourceDir, '.codex/hooks.json')
+    : resolve(sourceDir, 'hooks.json')
+
+  if (platform === 'codex') {
+    mkdirSync(resolve(sourceDir, '.codex'), { recursive: true })
+  }
+
+  await writeJson(hooksPath, {
     hooks: {
       SessionStart: [
         {

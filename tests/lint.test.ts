@@ -703,8 +703,8 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'codex-agents-max-depth')).toBe(true)
   })
 
-  // ── Gotcha #18: Codex hooks need feature flag ──
-  it('warns when Codex target has hooks but no features.codex_hooks flag', async () => {
+  // ── Gotcha #18: Codex hooks are external config ──
+  it('warns that Codex hooks are configured outside generated plugin bundles', async () => {
     const projectDir = createTempProject()
     mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
 
@@ -729,7 +729,7 @@ describe('lintProject', () => {
     )
 
     const result = await lintProject(projectDir)
-    expect(result.issues.some(issue => issue.code === 'codex-hooks-feature-flag')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'codex-hooks-external-config')).toBe(true)
   })
 
   it('does not warn for supported Codex canonical hook aliases', async () => {

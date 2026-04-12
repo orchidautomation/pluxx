@@ -111,6 +111,7 @@ describe('build', () => {
     // Codex
     expect(existsSync(resolve(OUT_DIR, 'codex/.codex-plugin/plugin.json'))).toBe(true)
     expect(existsSync(resolve(OUT_DIR, 'codex/.mcp.json'))).toBe(true)
+    expect(existsSync(resolve(OUT_DIR, 'codex/hooks.json'))).toBe(false)
 
     // OpenCode
     expect(existsSync(resolve(OUT_DIR, 'opencode/package.json'))).toBe(true)
@@ -175,24 +176,24 @@ describe('build', () => {
     expect(indexTs).toContain('TEST_API_KEY')
   })
 
-  it('maps canonical hook aliases to PascalCase platform events', async () => {
+  it('writes documented hook outputs and omits undocumented Codex hook bundles', async () => {
     const claudeHooks = JSON.parse(
       readFileSync(resolve(OUT_DIR, 'claude-code/hooks/hooks.json'), 'utf-8')
     )
-    const codexHooks = JSON.parse(
-      readFileSync(resolve(OUT_DIR, 'codex/hooks.json'), 'utf-8')
-    )
 
     expect(claudeHooks.hooks.UserPromptSubmit).toBeDefined()
-    expect(codexHooks.hooks.UserPromptSubmit).toBeDefined()
+    expect(existsSync(resolve(OUT_DIR, 'codex/hooks.json'))).toBe(false)
   })
 
-  it('writes documented manifest paths for Claude Code and Cursor plugin components', async () => {
+  it('writes documented manifest paths for Claude Code, Cursor, and Codex plugin components', async () => {
     const claudeManifest = JSON.parse(
       readFileSync(resolve(OUT_DIR, 'claude-code/.claude-plugin/plugin.json'), 'utf-8')
     )
     const cursorManifest = JSON.parse(
       readFileSync(resolve(OUT_DIR, 'cursor/.cursor-plugin/plugin.json'), 'utf-8')
+    )
+    const codexManifest = JSON.parse(
+      readFileSync(resolve(OUT_DIR, 'codex/.codex-plugin/plugin.json'), 'utf-8')
     )
 
     expect(claudeManifest.commands).toBe('./commands/')
@@ -206,6 +207,10 @@ describe('build', () => {
     expect(cursorManifest.rules).toBe('./rules/')
     expect(cursorManifest.hooks).toBe('./hooks/hooks.json')
     expect(cursorManifest.mcpServers).toBe('./mcp.json')
+
+    expect(codexManifest.skills).toBe('./skills/')
+    expect(codexManifest.mcpServers).toBe('./.mcp.json')
+    expect(codexManifest.hooks).toBeUndefined()
   })
 
   it('copies skills to all targets', async () => {

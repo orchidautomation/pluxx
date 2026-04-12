@@ -6,8 +6,8 @@ Every AI coding tool has its own plugin format. If you want your tool inside Cla
 
 ```
 Claude Code wants: .claude-plugin/plugin.json + headers auth + CLAUDE.md + PascalCase hooks
-Cursor wants:      .cursor-plugin/plugin.json + headers auth + AGENTS.md + rules/ + hooks/hooks.json  
-Codex wants:       .codex-plugin/plugin.json + bearer_token_env_var + AGENTS.md + PascalCase hooks
+Cursor wants:      .cursor-plugin/plugin.json + headers auth + AGENTS.md + rules/ + hooks/hooks.json
+Codex wants:       .codex-plugin/plugin.json + bearer_token_env_var + AGENTS.md + external hooks in .codex/hooks.json
 OpenCode wants:    package.json + index.ts wrapper + dot.notation events
 ```
 
@@ -92,7 +92,7 @@ Building for: claude-code, cursor, codex, opencode, github-copilot, openhands, w
 
   dist/claude-code/    .claude-plugin/plugin.json, .mcp.json, CLAUDE.md, hooks/hooks.json
   dist/cursor/         .cursor-plugin/plugin.json, mcp.json, hooks/hooks.json, rules/
-  dist/codex/          .codex-plugin/plugin.json, interface metadata
+  dist/codex/          .codex-plugin/plugin.json, .mcp.json, AGENTS.md, interface metadata
   dist/opencode/       package.json, index.ts wrapper
   ...
 
@@ -149,8 +149,10 @@ You write one auth config. pluxx generates the correct format for each platform:
 
 ### Hook Event Translation
 
-| Your config | Claude Code | Cursor | Codex |
-|-------------|-------------|--------|-------|
+Pluxx maps canonical hook names for plugin-packaged hook targets and validates Codex compatibility for external Codex hook config.
+
+| Your config | Claude Code | Cursor | Codex external config |
+|-------------|-------------|--------|------------------------|
 | `sessionStart` | `SessionStart` | `sessionStart` | `SessionStart` |
 | `preToolUse` | `PreToolUse` | `preToolUse` | `PreToolUse` |
 | `beforeSubmitPrompt` | `UserPromptSubmit` | `beforeSubmitPrompt` | `UserPromptSubmit` |
@@ -189,7 +191,7 @@ pluxx catches platform-specific gotchas before you ship:
 |----------|:--------:|:------:|:---:|:-----:|:-----:|
 | Claude Code | `.claude-plugin/` | Yes | Yes | Yes | CLAUDE.md |
 | Cursor | `.cursor-plugin/` | Yes | Yes | Yes | .mdc + AGENTS.md |
-| Codex | `.codex-plugin/` | Yes | Yes | Yes | AGENTS.md |
+| Codex | `.codex-plugin/` | Yes | Yes | External (`.codex/hooks.json`) | AGENTS.md |
 | OpenCode | JS/TS module | Yes | Yes | Yes | AGENTS.md |
 | GitHub Copilot | `.claude-plugin/` | Yes | Yes | Yes | AGENTS.md |
 | OpenHands | `.plugin/` | Yes | Yes | Yes | AGENTS.md |

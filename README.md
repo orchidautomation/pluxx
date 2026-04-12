@@ -2,7 +2,7 @@
 
 **Build AI agent plugins once. Ship them everywhere.**
 
-pluxx generates native plugin packages for Claude Code, Cursor, Codex, and OpenCode from a single config file. One source of truth &mdash; platform-specific outputs with the right manifests, MCP configs, hooks, rules, and install scripts.
+pluxx generates native plugin packages for Claude Code, Cursor, Codex, and OpenCode from a single config file. One source of truth &mdash; platform-specific outputs with the right manifests, MCP configs, rules, install scripts, and hook handling for the platforms that support plugin-packaged hooks.
 
 pluxx is Bun-first today. Use `bunx` or run it from a Bun workspace.
 
@@ -14,7 +14,7 @@ bunx pluxx build
 dist/
   claude-code/   .claude-plugin/plugin.json, .mcp.json, CLAUDE.md, hooks/hooks.json, skills
   cursor/        .cursor-plugin/plugin.json, mcp.json, hooks/hooks.json, AGENTS.md, rules/
-  codex/         .codex-plugin/plugin.json, .mcp.json, hooks.json, AGENTS.md, interface metadata
+  codex/         .codex-plugin/plugin.json, .mcp.json, AGENTS.md, interface metadata
 ```
 
 ## Platform Support
@@ -23,7 +23,7 @@ dist/
 |----------|--------|-----------|
 | **Claude Code** | Primary | `claude plugin validate` PASSED |
 | **Cursor** | Primary | Docs-audited, hooks + rules covered in lint |
-| **Codex** | Primary | Docs-audited, still tightening parity with current plugin docs |
+| **Codex** | Primary | Docs-audited, plugin packaging aligned; hooks remain external Codex config |
 | **OpenCode** | Primary | Generates JS/TS wrapper, active docs-parity work |
 | GitHub Copilot | Beta | Reuses Claude Code format (confirmed compatible) |
 | OpenHands | Beta | Generates .plugin/ manifest, needs live testing |
@@ -46,7 +46,7 @@ But a plugin is more than skills. A plugin bundles:
 |-----------|---------------------|
 | **Manifests** | `.claude-plugin/plugin.json` vs `.cursor-plugin/plugin.json` vs `.codex-plugin/plugin.json` |
 | **MCP auth** | Claude Code uses `headers`, Codex uses `bearer_token_env_var`, Cursor uses Claude Desktop format |
-| **Hooks** | Different event names, different JSON schemas, different path conventions |
+| **Hooks** | Different event names, different JSON schemas, and in Codex's case a separate runtime config path |
 | **Rules** | `CLAUDE.md` vs `rules/*.mdc` vs `AGENTS.md` |
 | **Brand metadata** | Codex has icons, colors, screenshots, default prompts. Others don't. |
 | **Subagents** | Different formats per platform |
@@ -103,7 +103,8 @@ export default definePlugin({
     },
   },
 
-  // Hooks (mapped to each platform's event system)
+  // Hooks (generated where the platform supports plugin-packaged hooks;
+  // Codex currently keeps hook config in .codex/hooks.json outside plugin bundles)
   hooks: {
     sessionStart: [{
       command: '${PLUGIN_ROOT}/scripts/setup.sh',
@@ -159,7 +160,7 @@ Each platform gets its native manifest format:
 
 - **Claude Code**: `.claude-plugin/plugin.json` with skills, commands paths
 - **Cursor**: `.cursor-plugin/plugin.json` with explicit `rules/`, `hooks/hooks.json`, and `mcp.json` component paths
-- **Codex**: `.codex-plugin/plugin.json` with full `interface` block (brand color, icons, screenshots, default prompts, capabilities)
+- **Codex**: `.codex-plugin/plugin.json` with full `interface` block (brand color, icons, screenshots, default prompts, capabilities) plus external hooks via `.codex/hooks.json`
 - **OpenCode**: npm package + JS/TS plugin wrapper
 
 ### Instructions to Platform-Native Rules

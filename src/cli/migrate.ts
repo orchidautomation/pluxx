@@ -234,6 +234,7 @@ const HOOK_EVENT_MAP: Record<string, string> = {
 
 function parseHooks(pluginDir: string, detection: DetectionResult): ParsedHooks {
   const hooksPaths = [
+    resolve(pluginDir, '.codex', 'hooks.json'),
     resolve(pluginDir, 'hooks.json'),
     resolve(pluginDir, 'hooks', 'hooks.json'),
   ]

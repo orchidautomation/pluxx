@@ -1,8 +1,6 @@
 import { existsSync } from 'fs'
 import { Generator } from '../base'
-import { warnDroppedHookFields } from '../hooks-warning'
 import type { TargetPlatform } from '../../schema'
-import { mapHookEventToPascalCase } from '../../hook-events'
 
 export class CodexGenerator extends Generator {
   readonly platform: TargetPlatform = 'codex'
@@ -38,7 +36,6 @@ export class CodexGenerator extends Generator {
           return entry
         },
       }),
-      this.generateHooks(),
       this.generateAgentsMd(),
     ])
 
@@ -63,7 +60,6 @@ export class CodexGenerator extends Generator {
     if (this.config.keywords) manifest.keywords = this.config.keywords
 
     manifest.skills = './skills/'
-    if (this.config.hooks) manifest.hooks = './hooks.json'
     if (this.config.mcp) manifest.mcpServers = './.mcp.json'
 
     // Codex supports rich interface metadata
@@ -107,31 +103,6 @@ export class CodexGenerator extends Generator {
 
     await this.writeJson('.codex-plugin/plugin.json', manifest)
   }
-
-  private async generateHooks(): Promise<void> {
-    if (!this.config.hooks) return
-
-    const hooks: Record<string, unknown[]> = {}
-
-    for (const [event, entries] of Object.entries(this.config.hooks)) {
-      if (!entries) continue
-      warnDroppedHookFields(this.platform, event, entries)
-      // Codex uses PascalCase event names, with a few aliases from the
-      // canonical config shape (for example beforeSubmitPrompt -> UserPromptSubmit).
-      const codexEvent = mapHookEventToPascalCase(event)
-      const commandEntries = entries.filter(entry => entry.type !== 'prompt' && entry.command)
-      if (commandEntries.length === 0) continue
-      hooks[codexEvent] = commandEntries.map(entry => ({
-        hooks: [{
-          type: 'command',
-          command: entry.command!.replace('${PLUGIN_ROOT}', '.'),
-        }],
-      }))
-    }
-
-    await this.writeJson('hooks.json', { hooks })
-  }
-
   private async generateAgentsMd(): Promise<void> {
     if (!this.config.instructions) return
     const srcPath = this.resolveConfigPath(this.config.instructions, 'instructions')

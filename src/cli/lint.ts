@@ -922,24 +922,26 @@ function lintCodexAgentsConfig(config: PluginConfig, issues: LintIssue[]): void 
   }
 }
 
-// ── Gotcha #18: Codex hooks need features.codex_hooks = true ──
-function lintCodexHooksFeatureFlag(config: PluginConfig, issues: LintIssue[]): void {
+// ── Gotcha #18: Codex hooks live in Codex config, not plugin bundles ──
+function lintCodexHooksExternalConfig(config: PluginConfig, issues: LintIssue[]): void {
   if (!isCodexTargetEnabled(config) || !config.hooks) return
   if (Object.keys(config.hooks).length === 0) return
 
   const codexOverrides = asRecord(config.platforms?.codex)
   const features = codexOverrides ? asRecord(codexOverrides.features) : null
-  const codexHooksEnabled = features && features.codex_hooks === true
+  const hasPluxxCodexHooksFlag = features && features.codex_hooks === true
 
-  if (!codexHooksEnabled) {
-    pushIssue(issues, {
-      level: 'warning',
-      code: 'codex-hooks-feature-flag',
-      message: 'Codex requires features.codex_hooks = true to enable hooks. Without it, hooks will be silently ignored.',
-      file: 'pluxx.config.ts',
-      platform: 'Codex',
-    })
-  }
+  const featureNote = hasPluxxCodexHooksFlag
+    ? 'Note: `platforms.codex.features.codex_hooks` in pluxx.config.ts is not emitted into Codex plugin output today.'
+    : 'If you want Codex to run these hooks, configure them in `~/.codex/hooks.json` or `<repo>/.codex/hooks.json` and enable `codex_hooks = true` in Codex itself.'
+
+  pushIssue(issues, {
+    level: 'warning',
+    code: 'codex-hooks-external-config',
+    message: `Codex plugin docs currently separate hook configuration from plugin packaging, so Pluxx does not bundle Codex hooks into generated plugin output. ${featureNote}`,
+    file: 'pluxx.config.ts',
+    platform: 'Codex',
+  })
 }
 
 // ── Cursor-specific hook + frontmatter checks (fixes failing test) ──
@@ -1054,7 +1056,7 @@ export async function lintProject(dir: string = process.cwd()): Promise<LintResu
   lintCodexOverrides(config, issues)
   lintCodexHookCompatibility(config, issues)
   lintCodexAgentsConfig(config, issues)
-  lintCodexHooksFeatureFlag(config, issues)
+  lintCodexHooksExternalConfig(config, issues)
 
   // Cursor-specific checks
   lintCursorHooks(config, issues)
