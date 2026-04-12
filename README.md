@@ -61,6 +61,9 @@ The launch focus is MCP-first authoring: start from an existing MCP server, gene
 # Preferred: run via bunx
 bunx pluxx init my-plugin
 
+# Scaffold directly from an MCP server
+bunx pluxx init --from-mcp https://example.com/mcp
+
 # Optional: global install still shells out to Bun
 npm install -g pluxx
 pluxx init my-plugin
@@ -263,7 +266,7 @@ bunx pluxx install --trust
 
 | Command | What it does |
 |---------|-------------|
-| `pluxx init` | Interactive scaffold with MCP, hooks, brand prompts |
+| `pluxx init` | Interactive scaffold for a new plugin or `--from-mcp` import |
 | `pluxx build` | Generate plugin packages for all target platforms |
 | `pluxx lint` | 47 checks against all platform rules |
 | `pluxx validate` | Validate your config schema |
@@ -328,7 +331,7 @@ pluxx.config.ts          <- You define your plugin once
 - [x] 47 lint checks from official docs (Firecrawl-verified)
 - [x] Real-world examples (Megamind + Prospeo)
 - [ ] `pluxx lint --fix` — auto-apply suggested fixes
-- [ ] `pluxx init --from-mcp` — auto-scaffold plugins from existing MCP servers
+- [x] `pluxx init --from-mcp` — auto-scaffold plugins from existing MCP servers
 - [ ] `pluxx publish` — push to platform marketplaces
 - [ ] `pluxx diff` — show what changed per platform
 - [ ] Plugin analytics dashboard

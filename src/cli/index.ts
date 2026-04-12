@@ -4,8 +4,10 @@ import { loadConfig } from '../config/load'
 import { build } from '../generators'
 import { ensureHookTrust, installPlugin, uninstallPlugin } from './install'
 import { runDev } from './dev'
+import { derivePluginName, parseMcpSourceInput, writeMcpScaffold } from './init-from-mcp'
 import { migrate } from './migrate'
 import { runLint } from './lint'
+import { introspectMcpServer, McpIntrospectionError } from '../mcp/introspect'
 import { promptText, promptYesNo, closePrompts } from './prompt'
 import type { TargetPlatform } from '../schema'
 import { basename } from 'path'
@@ -115,7 +117,20 @@ function toTsString(value: string): string {
 }
 
 async function runInit() {
-  const dirName = basename(process.cwd()).toLowerCase().replace(/[^a-z0-9-]/g, '-')
+  const positionalName = args[1] && !args[1].startsWith('-') ? args[1] : undefined
+  const fromMcpFlag = args.indexOf('--from-mcp')
+  const fromMcpInput = fromMcpFlag !== -1 && args[fromMcpFlag + 1] && !args[fromMcpFlag + 1].startsWith('-')
+    ? args[fromMcpFlag + 1]
+    : undefined
+
+  if (fromMcpFlag !== -1) {
+    await runInitFromMcp(positionalName, fromMcpInput)
+    return
+  }
+
+  const dirName = positionalName
+    ? toKebabCase(positionalName)
+    : basename(process.cwd()).toLowerCase().replace(/[^a-z0-9-]/g, '-')
 
   console.log('')
   console.log('  pluxx init — Create a new plugin')
@@ -250,9 +265,87 @@ Example prompt or command here
     console.log('    2. Run: pluxx build')
     console.log('    3. Run: pluxx install')
     console.log('')
-  } catch {
+  } catch (error) {
     closePrompts()
-    throw new Error('Init cancelled')
+    throw error instanceof Error ? error : new Error('Init cancelled')
+  }
+}
+
+async function runInitFromMcp(initialName?: string, initialSource?: string) {
+  const defaultTargets = 'claude-code,cursor,codex,opencode'
+
+  console.log('')
+  console.log('  pluxx init --from-mcp — Scaffold from an MCP server')
+  console.log('  ─────────────────────────────────────────────────────')
+  console.log('')
+
+  try {
+    const rawSource = initialSource ?? await promptText('MCP server URL or local command')
+    let source = parseMcpSourceInput(rawSource)
+
+    let introspection
+    try {
+      introspection = await introspectMcpServer(source)
+    } catch (error) {
+      if (
+        error instanceof McpIntrospectionError
+        && source.transport !== 'stdio'
+        && (error.status === 401 || error.status === 403)
+      ) {
+        const envVar = await promptText('Bearer auth env var for this MCP server')
+        if (!envVar) {
+          throw new Error('This MCP server requires auth. Re-run init and provide an auth env var name.')
+        }
+
+        source = {
+          ...source,
+          auth: {
+            type: 'bearer',
+            envVar,
+            headerName: 'Authorization',
+            headerTemplate: 'Bearer ${value}',
+          },
+        }
+        introspection = await introspectMcpServer(source)
+      } else {
+        throw error
+      }
+    }
+
+    const pluginName = toKebabCase(
+      await promptText('Plugin name', initialName ? toKebabCase(initialName) : derivePluginName(introspection, source)),
+    )
+    const authorName = await promptText('Author name', process.env.USER ?? '')
+    const targetsRaw = await promptText('Which platforms? (comma-separated)', defaultTargets)
+    const targets = targetsRaw.split(',').map((target) => target.trim()).filter(Boolean) as TargetPlatform[]
+
+    closePrompts()
+
+    const result = await writeMcpScaffold({
+      rootDir: process.cwd(),
+      pluginName,
+      authorName,
+      targets,
+      source,
+      introspection,
+    })
+
+    console.log('')
+    console.log('  Created:')
+    console.log('    pluxx.config.ts')
+    console.log(`    ${result.instructionsPath}`)
+    for (const skillDir of result.skillDirectories) {
+      console.log(`    ${skillDir}/SKILL.md`)
+    }
+    console.log('')
+    console.log('  Next steps:')
+    console.log('    1. Review INSTRUCTIONS.md and the generated skill files')
+    console.log('    2. Run: pluxx build')
+    console.log('    3. Run: pluxx lint')
+    console.log('')
+  } catch (error) {
+    closePrompts()
+    throw error instanceof Error ? error : new Error('Init cancelled')
   }
 }
 
@@ -314,7 +407,7 @@ Usage:
   pluxx dev [--target <platforms...>]     Watch for changes and auto-rebuild
   pluxx validate                          Validate your config
   pluxx lint                              Lint skills and cross-platform metadata
-  pluxx init [name]                       Create a new pluxx.config.ts
+  pluxx init [name] [--from-mcp <source>] Create a new pluxx.config.ts
   pluxx migrate <path>                    Import an existing plugin into pluxx
   pluxx install [--target <platforms>] [--trust]  Symlink built plugins for local testing
   pluxx uninstall [--target <platforms>]  Remove symlinked plugins
@@ -328,6 +421,8 @@ Examples:
   pluxx build                             Build for all configured targets
   pluxx build --target claude-code cursor  Build for specific platforms
   pluxx init my-plugin                    Scaffold a new plugin config
+  pluxx init --from-mcp https://example.com/mcp  Scaffold from a remote MCP server
+  pluxx init --from-mcp "npx -y @acme/mcp"       Scaffold from a local MCP command
   pluxx install                           Install to all configured targets
   pluxx install --target claude-code      Install to Claude Code only
   pluxx install --trust                   Install without hook trust confirmation

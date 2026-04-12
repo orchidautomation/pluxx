@@ -5,14 +5,15 @@
 
 import * as readline from 'readline'
 
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-})
-
 function ask(question: string): Promise<string> {
   return new Promise((resolve) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    })
+
     rl.question(question, (answer) => {
+      rl.close()
       resolve(answer)
     })
   })
@@ -42,5 +43,5 @@ export async function promptYesNo(label: string, defaultYes = false): Promise<bo
  * Close the readline interface. Must be called when done prompting.
  */
 export function closePrompts(): void {
-  rl.close()
+  // Prompts are created per-question, so there is nothing to close here.
 }

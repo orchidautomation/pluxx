@@ -46,6 +46,12 @@ pluxx.config.ts          ← You write one config
 
 ### Step 1: Define your plugin
 
+You can either author from scratch or scaffold directly from a live MCP server:
+
+```bash
+$ bunx pluxx init --from-mcp https://example.com/mcp
+```
+
 ```typescript
 // pluxx.config.ts
 import { definePlugin } from 'pluxx'
