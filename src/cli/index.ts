@@ -328,7 +328,7 @@ Examples:
   pluxx build                             Build for all configured targets
   pluxx build --target claude-code cursor  Build for specific platforms
   pluxx init my-plugin                    Scaffold a new plugin config
-  pluxx install                           Install to all detected tools
+  pluxx install                           Install to all configured targets
   pluxx install --target claude-code      Install to Claude Code only
   pluxx install --trust                   Install without hook trust confirmation
 `)

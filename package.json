@@ -5,17 +5,24 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "bin": {
-    "pluxx": "src/cli/index.ts"
+    "pluxx": "./bin/pluxx.js"
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir dist --target node",
+    "build": "bun build src/index.ts --outdir dist --target node && tsc --emitDeclarationOnly",
     "dev": "bun --watch src/cli/index.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "bun run typecheck && bun test"
+    "prepublishOnly": "bun run build && bun run typecheck && bun test"
   },
   "files": [
+    "bin/**/*",
     "src/**/*",
     "dist/**/*",
     "README.md",

@@ -17,6 +17,8 @@ Each platform also has its own validation rules that only surface at runtime —
 
 pluxx lets you define your plugin once and generates correct, validated output for every platform.
 
+Runtime today: Bun. Use `bunx pluxx ...` or install the npm package on machines that already have Bun available.
+
 ```
 pluxx.config.ts          ← You write one config
        │

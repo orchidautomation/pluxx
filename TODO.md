@@ -2,7 +2,7 @@
 
 ## Immediate (Next Session)
 
-- [ ] `npm login` + `npm publish` so `npx pluxx init` works for real
+- [ ] `npm login` + `npm publish` and verify the Bun runtime launcher on a clean machine
 - [ ] Update Codex CLI (`npm install -g @openai/codex`) and run review
 - [ ] Custom domain for landing page (pluxx.dev)
 - [ ] Write launch blog post: "I built one config that generates AI agent plugins for 11 platforms"
@@ -15,7 +15,6 @@
 - [ ] Add more tests (migrate command, new generators, init flow)
 - [ ] Fix help text to list all 11 platforms (currently only shows 4)
 - [ ] Update README to reflect 11 generators (currently says 7)
-- [ ] Update landing page agent count (currently says 7 in hero subhead)
 - [ ] Add CONTRIBUTING.md
 - [ ] Create Discord server
 - [ ] Record 2-minute demo video (terminal recording: init → build → install → validate)

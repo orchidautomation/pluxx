@@ -166,17 +166,18 @@ footer{border-top:1px solid var(--border);padding:64px 0;text-align:center}
   <div class="container">
     <div class="badge"><span class="badge-dot"></span> Open source &middot; MIT licensed</div>
     <h1>Build AI agent plugins once.<br><em>Ship them everywhere.</em></h1>
-    <p class="hero-sub">One config generates native plugin packages for Claude Code, Cursor, and Codex &mdash; with 8 more platforms in beta. Stop maintaining separate copies of the same plugin.</p>
+    <p class="hero-sub">One config generates native plugin packages for Claude Code, Cursor, Codex, and OpenCode &mdash; with 7 more platforms in beta. Stop maintaining separate copies of the same plugin.</p>
     <div class="hero-actions">
-      <div class="cmd mono" onclick="navigator.clipboard.writeText('npx pluxx init')">
+      <div class="cmd mono" onclick="navigator.clipboard.writeText('bunx pluxx init')">
         <span class="prompt">$</span>
-        <span>npx pluxx init</span>
+        <span>bunx pluxx init</span>
       </div>
       <a href="https://github.com/orchidautomation/pluxx" target="_blank" class="gh-link">
         <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
         View on GitHub
       </a>
     </div>
+    <p class="mono" style="margin-top:14px;color:var(--text-tertiary);font-size:0.9rem">Bun runtime required today.</p>
   </div>
 </section>
 
@@ -189,7 +190,7 @@ footer{border-top:1px solid var(--border);padding:64px 0;text-align:center}
         <span class="terminal-title mono">pluxx</span>
         <span style="width:30px"></span>
       </div>
-      <pre class="mono"><span class="a">$</span> <span class="w">npx pluxx build</span>
+      <pre class="mono"><span class="a">$</span> <span class="w">bunx pluxx build</span>
 
 <span class="d">Loading config...</span>
 Building for: <span class="w">claude-code</span>, <span class="w">cursor</span>, <span class="w">codex</span>, <span class="w">opencode</span>, <span class="w">github-copilot</span>, <span class="w">openhands</span>, <span class="w">warp</span>
@@ -212,17 +213,17 @@ Building for: <span class="w">claude-code</span>, <span class="w">cursor</span>,
   <div class="container">
     <div class="section-header">
       <h2>Supported platforms</h2>
-      <p class="section-desc center">Fully validated plugin generation for 3 platforms. 8 more in beta.</p>
+      <p class="section-desc center">Primary support for 4 platforms. 7 more in beta.</p>
     </div>
     <p class="soon-label" style="margin-top:0">Fully supported</p>
     <div class="agents-grid">
       <div class="agent"><span class="agent-dot dc1"></span>Claude Code</div>
       <div class="agent"><span class="agent-dot dc2"></span>Cursor</div>
       <div class="agent"><span class="agent-dot dc3"></span>Codex</div>
+      <div class="agent"><span class="agent-dot dc4"></span>OpenCode</div>
     </div>
     <p class="soon-label">Beta</p>
     <div class="agents-grid">
-      <div class="agent soon"><span class="agent-dot dc4"></span>OpenCode</div>
       <div class="agent soon"><span class="agent-dot dc5"></span>GitHub Copilot</div>
       <div class="agent soon"><span class="agent-dot dc6"></span>OpenHands</div>
       <div class="agent soon"><span class="agent-dot dc7"></span>Warp</div>
@@ -369,9 +370,9 @@ Building for: <span class="w">claude-code</span>, <span class="w">cursor</span>,
 <footer>
   <div class="container">
     <h2 style="font-size:clamp(1.4rem,3vw,1.8rem);margin-bottom:20px">Start building in 30 seconds</h2>
-    <div class="cmd mono" style="margin:0 auto;justify-content:center;max-width:380px" onclick="navigator.clipboard.writeText('npx pluxx init my-plugin')">
+    <div class="cmd mono" style="margin:0 auto;justify-content:center;max-width:380px" onclick="navigator.clipboard.writeText('bunx pluxx init my-plugin')">
       <span class="prompt">$</span>
-      <span>npx pluxx init my-plugin</span>
+      <span>bunx pluxx init my-plugin</span>
     </div>
     <div class="footer-links">
       <a href="https://github.com/orchidautomation/pluxx" target="_blank">GitHub</a>

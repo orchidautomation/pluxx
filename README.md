@@ -4,7 +4,7 @@
 
 pluxx generates native plugin packages for Claude Code, Cursor, Codex, and OpenCode from a single config file. One source of truth &mdash; platform-specific outputs with the right manifests, MCP configs, rules, install scripts, and hook handling for the platforms that support plugin-packaged hooks.
 
-pluxx is Bun-first today. Use `bunx` or run it from a Bun workspace.
+pluxx is Bun-first today. Use `bunx` or run it from a Bun workspace. The npm package includes a small launcher for global installs, but it still requires Bun at runtime.
 
 ```bash
 bunx pluxx build
@@ -58,8 +58,14 @@ The launch focus is MCP-first authoring: start from an existing MCP server, gene
 ## Quick Start
 
 ```bash
-# Scaffold a new plugin
+# Preferred: run via bunx
 bunx pluxx init my-plugin
+
+# Optional: global install still shells out to Bun
+npm install -g pluxx
+pluxx init my-plugin
+
+# Scaffold a new plugin
 cd my-plugin
 
 # Edit pluxx.config.ts, create skills in ./skills/
