@@ -4,7 +4,11 @@ import { PLATFORM_VALIDATION_RULES, PLATFORM_LIMITS, getPlatformRules } from '..
 describe('PLATFORM_VALIDATION_RULES', () => {
   it('has entries for all researched platforms', () => {
     const platforms = Object.keys(PLATFORM_VALIDATION_RULES)
-    expect(platforms.length).toBeGreaterThanOrEqual(6)
+    expect(platforms.length).toBeGreaterThanOrEqual(10)
+    expect(platforms).toContain('claude-code')
+    expect(platforms).toContain('cursor')
+    expect(platforms).toContain('codex')
+    expect(platforms).toContain('opencode')
   })
 
   it('each entry has required fields', () => {
@@ -16,8 +20,8 @@ describe('PLATFORM_VALIDATION_RULES', () => {
   })
 
   it('getPlatformRules returns correct platform', () => {
-    const rules = getPlatformRules('openhands')
-    expect(rules.platform).toBe('openhands')
+    const rules = getPlatformRules('claude-code')
+    expect(rules.platform).toBe('claude-code')
   })
 })
 

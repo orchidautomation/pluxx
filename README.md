@@ -12,9 +12,9 @@ bunx pluxx build
 
 ```
 dist/
-  claude-code/   .claude-plugin/plugin.json, .mcp.json, CLAUDE.md, hooks, skills
-  cursor/        .cursor-plugin/plugin.json, mcp.json, hooks.json, AGENTS.md, rules
-  codex/         .codex-plugin/plugin.json, .mcp.json, hooks, AGENTS.md, interface metadata
+  claude-code/   .claude-plugin/plugin.json, .mcp.json, CLAUDE.md, hooks/hooks.json, skills
+  cursor/        .cursor-plugin/plugin.json, mcp.json, hooks/hooks.json, AGENTS.md, rules/
+  codex/         .codex-plugin/plugin.json, .mcp.json, hooks.json, AGENTS.md, interface metadata
 ```
 
 ## Platform Support
@@ -47,7 +47,7 @@ But a plugin is more than skills. A plugin bundles:
 | **Manifests** | `.claude-plugin/plugin.json` vs `.cursor-plugin/plugin.json` vs `.codex-plugin/plugin.json` |
 | **MCP auth** | Claude Code uses `headers`, Codex uses `bearer_token_env_var`, Cursor uses Claude Desktop format |
 | **Hooks** | Different event names, different JSON schemas, different path conventions |
-| **Rules** | `CLAUDE.md` vs `.cursor/rules/*.mdc` vs `AGENTS.md` |
+| **Rules** | `CLAUDE.md` vs `rules/*.mdc` vs `AGENTS.md` |
 | **Brand metadata** | Codex has icons, colors, screenshots, default prompts. Others don't. |
 | **Subagents** | Different formats per platform |
 
@@ -158,7 +158,7 @@ mcp: {
 Each platform gets its native manifest format:
 
 - **Claude Code**: `.claude-plugin/plugin.json` with skills, commands paths
-- **Cursor**: `.cursor-plugin/plugin.json` with marketplace-compatible schema
+- **Cursor**: `.cursor-plugin/plugin.json` with explicit `rules/`, `hooks/hooks.json`, and `mcp.json` component paths
 - **Codex**: `.codex-plugin/plugin.json` with full `interface` block (brand color, icons, screenshots, default prompts, capabilities)
 - **OpenCode**: npm package + JS/TS plugin wrapper
 
@@ -167,7 +167,7 @@ Each platform gets its native manifest format:
 Your single `INSTRUCTIONS.md` becomes:
 - `CLAUDE.md` for Claude Code
 - `AGENTS.md` for Codex and Cursor
-- `.mdc` rule files for Cursor (with frontmatter) when you specify rules in platform overrides
+- `.mdc` rule files in `rules/` for Cursor (with frontmatter) when you specify rules in platform overrides
 
 ### 47 Lint Checks
 

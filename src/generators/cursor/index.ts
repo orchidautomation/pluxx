@@ -15,6 +15,8 @@ export class CursorGenerator extends Generator {
     ])
 
     this.copySkills()
+    this.copyCommands()
+    this.copyAgents()
     this.copyScripts()
     this.copyAssets()
   }
@@ -26,6 +28,19 @@ export class CursorGenerator extends Generator {
       version: this.config.version,
       author: this.config.author,
     }
+
+    if (this.config.repository) manifest.repository = this.config.repository
+    if (this.config.license) manifest.license = this.config.license
+    if (this.config.keywords) manifest.keywords = this.config.keywords
+    if (this.config.brand?.websiteURL) manifest.homepage = this.config.brand.websiteURL
+    if (this.config.brand?.icon) manifest.logo = this.config.brand.icon
+
+    manifest.skills = './skills/'
+    if (this.config.commands) manifest.commands = './commands/'
+    if (this.config.agents) manifest.agents = './agents/'
+    if (this.config.platforms?.cursor?.rules?.length) manifest.rules = './rules/'
+    if (this.config.hooks) manifest.hooks = './hooks/hooks.json'
+    if (this.config.mcp) manifest.mcpServers = './mcp.json'
 
     await this.writeJson('.cursor-plugin/plugin.json', manifest)
   }
@@ -55,7 +70,7 @@ export class CursorGenerator extends Generator {
       })
     }
 
-    await this.writeJson('hooks.json', { version: 1, hooks })
+    await this.writeJson('hooks/hooks.json', { version: 1, hooks })
   }
 
   private async generateRules(): Promise<void> {
@@ -86,7 +101,7 @@ export class CursorGenerator extends Generator {
         .replace(/^-|-$/g, '')
 
       await this.writeFile(
-        `.cursor/rules/${filename}.mdc`,
+        `rules/${filename}.mdc`,
         frontmatter.join('\n') + '\n\n' + content
       )
     }

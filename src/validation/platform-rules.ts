@@ -134,10 +134,180 @@ export const PLATFORM_LIMITS: Record<TargetPlatform, PlatformLimits> = {
 
 type ResearchTarget = Extract<
   TargetPlatform,
-  'openhands' | 'warp' | 'gemini-cli' | 'roo-code' | 'cline' | 'amp'
+  | 'claude-code'
+  | 'cursor'
+  | 'codex'
+  | 'opencode'
+  | 'openhands'
+  | 'warp'
+  | 'gemini-cli'
+  | 'roo-code'
+  | 'cline'
+  | 'amp'
 >
 
 export const PLATFORM_VALIDATION_RULES: Record<ResearchTarget, PlatformRules> = {
+  'claude-code': {
+    platform: 'claude-code',
+    summary: 'Claude Code plugins use an optional manifest at .claude-plugin/plugin.json with auto-discovery for skills, commands, agents, hooks, MCP, and output styles.',
+    limits: PLATFORM_LIMITS['claude-code'],
+    skillDiscoveryDirs: [
+      { path: 'skills/', level: 'supported' },
+    ],
+    frontmatter: {
+      standard: [...STANDARD_SKILL_FRONTMATTER],
+      additional: [],
+    },
+    manifest: {
+      files: ['.claude-plugin/plugin.json'],
+      required: false,
+      notes: 'The manifest is optional; if present, name is the only required field.',
+    },
+    mcp: {
+      files: ['.mcp.json'],
+      rootKey: 'mcpServers',
+      transports: ['stdio', 'http', 'sse'],
+      auth: ['headers', 'env interpolation'],
+      notes: 'Claude Code supports either inline MCP config in plugin.json or a separate .mcp.json file.',
+    },
+    hooks: {
+      supported: true,
+      files: ['hooks/hooks.json'],
+      eventNames: [],
+      notes: 'Hook configs can be stored in hooks/hooks.json or inlined in plugin.json.',
+    },
+    instructions: {
+      files: ['CLAUDE.md'],
+      format: 'markdown',
+    },
+    sources: [
+      { label: 'Claude Code plugins reference', url: 'https://code.claude.com/docs/en/plugins-reference' },
+      { label: 'Claude Code hooks docs', url: 'https://code.claude.com/docs/en/hooks' },
+      { label: 'Claude Code skills docs', url: 'https://code.claude.com/docs/en/skills' },
+    ],
+  },
+  'cursor': {
+    platform: 'cursor',
+    summary: 'Cursor plugins use .cursor-plugin/plugin.json plus auto-discovered rules, skills, agents, commands, hooks, and mcp.json at the plugin root.',
+    limits: PLATFORM_LIMITS['cursor'],
+    skillDiscoveryDirs: [
+      { path: 'skills/', level: 'supported' },
+      { path: 'SKILL.md', level: 'fallback', notes: 'Used when no skills directory or manifest skill path is present.' },
+    ],
+    frontmatter: {
+      standard: [...STANDARD_SKILL_FRONTMATTER],
+      additional: [],
+    },
+    manifest: {
+      files: ['.cursor-plugin/plugin.json'],
+      required: true,
+      notes: 'Cursor documents plugin.json as the required plugin manifest.',
+    },
+    mcp: {
+      files: ['mcp.json'],
+      rootKey: 'mcpServers',
+      transports: ['stdio', 'http', 'sse'],
+      auth: ['headers', 'env interpolation'],
+    },
+    hooks: {
+      supported: true,
+      files: ['hooks/hooks.json'],
+      eventNames: [],
+      notes: 'Cursor plugin hooks live under hooks/hooks.json; project hooks also exist separately in .cursor/hooks.json.',
+    },
+    instructions: {
+      files: ['rules/', 'AGENTS.md'],
+      format: 'mdc + markdown',
+      notes: 'rules/ is the plugin-native instruction surface. AGENTS.md remains useful as shared repo guidance.',
+    },
+    sources: [
+      { label: 'Cursor plugins reference', url: 'https://cursor.com/docs/reference/plugins' },
+      { label: 'Cursor hooks docs', url: 'https://cursor.com/docs/hooks' },
+      { label: 'Cursor skills docs', url: 'https://cursor.com/docs/skills' },
+      { label: 'Cursor rules docs', url: 'https://cursor.com/docs/rules' },
+      { label: 'Cursor MCP docs', url: 'https://cursor.com/docs/mcp' },
+    ],
+  },
+  'codex': {
+    platform: 'codex',
+    summary: 'Codex plugins use .codex-plugin/plugin.json with skills, .mcp.json, optional app mappings, and AGENTS.md; current docs separate plugin packaging from hooks configuration.',
+    limits: PLATFORM_LIMITS['codex'],
+    skillDiscoveryDirs: [
+      { path: 'skills/', level: 'supported' },
+    ],
+    frontmatter: {
+      standard: [...STANDARD_SKILL_FRONTMATTER],
+      additional: [],
+    },
+    manifest: {
+      files: ['.codex-plugin/plugin.json'],
+      required: true,
+      notes: 'The build plugins guide documents plugin.json, skills/, .mcp.json, .app.json, and assets/ as the standard plugin structure.',
+    },
+    mcp: {
+      files: ['.mcp.json'],
+      rootKey: 'mcpServers',
+      transports: ['stdio', 'http', 'sse'],
+      auth: ['bearer_token_env_var', 'platform-managed auth'],
+      notes: 'The current build guide documents mcpServers as a path to .mcp.json in the plugin bundle.',
+    },
+    hooks: {
+      supported: true,
+      files: ['.codex/hooks.json', '~/.codex/hooks.json'],
+      eventNames: [],
+      notes: 'Codex documents hooks in project/user config, but the current plugin build guide does not document plugin-packaged hooks.',
+    },
+    instructions: {
+      files: ['AGENTS.md'],
+      format: 'markdown',
+    },
+    sources: [
+      { label: 'Codex build plugins docs', url: 'https://developers.openai.com/codex/plugins/build' },
+      { label: 'Codex hooks docs', url: 'https://developers.openai.com/codex/hooks' },
+      { label: 'Codex skills docs', url: 'https://developers.openai.com/codex/skills' },
+      { label: 'Codex MCP docs', url: 'https://developers.openai.com/codex/mcp' },
+      { label: 'Codex AGENTS.md guide', url: 'https://developers.openai.com/codex/guides/agents-md' },
+    ],
+  },
+  'opencode': {
+    platform: 'opencode',
+    summary: 'OpenCode plugins are code-first TypeScript or JavaScript modules that register skills, commands, MCP servers, and hook handlers programmatically.',
+    limits: PLATFORM_LIMITS['opencode'],
+    skillDiscoveryDirs: [
+      { path: 'skills/', level: 'supported' },
+    ],
+    frontmatter: {
+      standard: [...STANDARD_SKILL_FRONTMATTER],
+      additional: [],
+    },
+    manifest: {
+      files: ['package.json', 'index.ts'],
+      required: true,
+      notes: 'OpenCode plugins are loaded as local modules or npm packages rather than a JSON manifest-only bundle.',
+    },
+    mcp: {
+      files: ['index.ts'],
+      transports: ['local', 'remote'],
+      auth: ['headers', 'programmatic env interpolation', 'OAuth'],
+      notes: 'OpenCode plugin code mutates Config["mcp"] programmatically; the underlying platform config supports local and remote servers.',
+    },
+    hooks: {
+      supported: true,
+      files: ['index.ts'],
+      eventNames: [],
+      notes: 'OpenCode hooks are plugin event handlers implemented in code, not a separate hooks.json file.',
+    },
+    instructions: {
+      files: ['index.ts'],
+      format: 'typescript',
+      notes: 'Plugins inject instructions into the runtime system prompt from code.',
+    },
+    sources: [
+      { label: 'OpenCode plugins docs', url: 'https://opencode.ai/docs/plugins/' },
+      { label: 'OpenCode skills docs', url: 'https://opencode.ai/docs/skills/' },
+      { label: 'OpenCode MCP servers docs', url: 'https://opencode.ai/docs/mcp-servers/' },
+    ],
+  },
   'openhands': {
     platform: 'openhands',
     summary: 'OpenHands plugins use a Claude-style manifest at .plugin/plugin.json and support skills, hooks, and MCP.',

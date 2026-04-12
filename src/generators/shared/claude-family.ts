@@ -59,7 +59,16 @@ async function writeManifest(
   if (config.commands) {
     manifest.commands = './commands/'
   }
+  if (config.agents) {
+    manifest.agents = './agents/'
+  }
   manifest.skills = './skills/'
+  if (config.hooks) {
+    manifest.hooks = './hooks/hooks.json'
+  }
+  if (config.mcp) {
+    manifest.mcpServers = './.mcp.json'
+  }
 
   await writeJson(manifestPath, manifest)
 }
@@ -132,7 +141,7 @@ async function writeHooks(
     }))
   }
 
-  await writeJson('hooks.json', { hooks })
+  await writeJson('hooks/hooks.json', { hooks })
 }
 
 async function writeInstructions(

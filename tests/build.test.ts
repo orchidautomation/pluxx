@@ -41,6 +41,10 @@ const testConfig: PluginConfig = {
       command: '${PLUGIN_ROOT}/scripts/check-prompt.sh',
     }],
   },
+  commands: './commands/',
+  agents: './agents/',
+  scripts: './scripts/',
+  assets: './assets/',
   instructions: './INSTRUCTIONS.md',
   platforms: {
     cursor: {
@@ -74,6 +78,14 @@ beforeAll(async () => {
     resolve(TEST_DIR, 'skills/hello/SKILL.md'),
     '---\nname: hello\ndescription: Say hello\n---\n\nSay hello to the user.\n',
   )
+  mkdirSync(resolve(TEST_DIR, 'commands/'), { recursive: true })
+  await Bun.write(resolve(TEST_DIR, 'commands/pulse.md'), '# Pulse\n')
+  mkdirSync(resolve(TEST_DIR, 'agents/'), { recursive: true })
+  await Bun.write(resolve(TEST_DIR, 'agents/escalation.md'), '# Escalation\n')
+  mkdirSync(resolve(TEST_DIR, 'scripts/'), { recursive: true })
+  await Bun.write(resolve(TEST_DIR, 'scripts/validate.sh'), '#!/usr/bin/env bash\n')
+  mkdirSync(resolve(TEST_DIR, 'assets/'), { recursive: true })
+  await Bun.write(resolve(TEST_DIR, 'assets/icon.svg'), '<svg />\n')
   await Bun.write(resolve(TEST_DIR, 'INSTRUCTIONS.md'), 'Use test-plugin consistently.\n')
 })
 
@@ -88,11 +100,13 @@ describe('build', () => {
     // Claude Code
     expect(existsSync(resolve(OUT_DIR, 'claude-code/.claude-plugin/plugin.json'))).toBe(true)
     expect(existsSync(resolve(OUT_DIR, 'claude-code/.mcp.json'))).toBe(true)
-    expect(existsSync(resolve(OUT_DIR, 'claude-code/hooks.json'))).toBe(true)
+    expect(existsSync(resolve(OUT_DIR, 'claude-code/hooks/hooks.json'))).toBe(true)
 
     // Cursor
     expect(existsSync(resolve(OUT_DIR, 'cursor/.cursor-plugin/plugin.json'))).toBe(true)
     expect(existsSync(resolve(OUT_DIR, 'cursor/mcp.json'))).toBe(true)
+    expect(existsSync(resolve(OUT_DIR, 'cursor/hooks/hooks.json'))).toBe(true)
+    expect(existsSync(resolve(OUT_DIR, 'cursor/rules/megamind-operating-conventions.mdc'))).toBe(true)
 
     // Codex
     expect(existsSync(resolve(OUT_DIR, 'codex/.codex-plugin/plugin.json'))).toBe(true)
@@ -163,7 +177,7 @@ describe('build', () => {
 
   it('maps canonical hook aliases to PascalCase platform events', async () => {
     const claudeHooks = JSON.parse(
-      readFileSync(resolve(OUT_DIR, 'claude-code/hooks.json'), 'utf-8')
+      readFileSync(resolve(OUT_DIR, 'claude-code/hooks/hooks.json'), 'utf-8')
     )
     const codexHooks = JSON.parse(
       readFileSync(resolve(OUT_DIR, 'codex/hooks.json'), 'utf-8')
@@ -171,6 +185,27 @@ describe('build', () => {
 
     expect(claudeHooks.hooks.UserPromptSubmit).toBeDefined()
     expect(codexHooks.hooks.UserPromptSubmit).toBeDefined()
+  })
+
+  it('writes documented manifest paths for Claude Code and Cursor plugin components', async () => {
+    const claudeManifest = JSON.parse(
+      readFileSync(resolve(OUT_DIR, 'claude-code/.claude-plugin/plugin.json'), 'utf-8')
+    )
+    const cursorManifest = JSON.parse(
+      readFileSync(resolve(OUT_DIR, 'cursor/.cursor-plugin/plugin.json'), 'utf-8')
+    )
+
+    expect(claudeManifest.commands).toBe('./commands/')
+    expect(claudeManifest.agents).toBe('./agents/')
+    expect(claudeManifest.hooks).toBe('./hooks/hooks.json')
+    expect(claudeManifest.mcpServers).toBe('./.mcp.json')
+
+    expect(cursorManifest.skills).toBe('./skills/')
+    expect(cursorManifest.commands).toBe('./commands/')
+    expect(cursorManifest.agents).toBe('./agents/')
+    expect(cursorManifest.rules).toBe('./rules/')
+    expect(cursorManifest.hooks).toBe('./hooks/hooks.json')
+    expect(cursorManifest.mcpServers).toBe('./mcp.json')
   })
 
   it('copies skills to all targets', async () => {
@@ -195,8 +230,13 @@ describe('build', () => {
     expect(existsSync(resolve(OUT_DIR, 'cline/.cline/skills/hello/SKILL.md'))).toBe(true)
   })
 
-  it('writes Cursor rules to .cursor/rules/', async () => {
-    const rulePath = resolve(OUT_DIR, 'cursor/.cursor/rules/megamind-operating-conventions.mdc')
+  it('copies commands and agents to Cursor plugin roots', async () => {
+    expect(existsSync(resolve(OUT_DIR, 'cursor/commands/pulse.md'))).toBe(true)
+    expect(existsSync(resolve(OUT_DIR, 'cursor/agents/escalation.md'))).toBe(true)
+  })
+
+  it('writes Cursor rules to rules/', async () => {
+    const rulePath = resolve(OUT_DIR, 'cursor/rules/megamind-operating-conventions.mdc')
     expect(existsSync(rulePath)).toBe(true)
 
     const content = readFileSync(rulePath, 'utf-8')

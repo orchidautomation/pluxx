@@ -6,7 +6,7 @@ Every AI coding tool has its own plugin format. If you want your tool inside Cla
 
 ```
 Claude Code wants: .claude-plugin/plugin.json + headers auth + CLAUDE.md + PascalCase hooks
-Cursor wants:      .cursor-plugin/plugin.json + headers auth + AGENTS.md + .mdc rules + camelCase hooks  
+Cursor wants:      .cursor-plugin/plugin.json + headers auth + AGENTS.md + rules/ + hooks/hooks.json  
 Codex wants:       .codex-plugin/plugin.json + bearer_token_env_var + AGENTS.md + PascalCase hooks
 OpenCode wants:    package.json + index.ts wrapper + dot.notation events
 ```
@@ -90,8 +90,8 @@ $ bunx pluxx build
 
 Building for: claude-code, cursor, codex, opencode, github-copilot, openhands, warp
 
-  dist/claude-code/    .claude-plugin/plugin.json, .mcp.json, CLAUDE.md
-  dist/cursor/         .cursor-plugin/plugin.json, mcp.json, hooks.json
+  dist/claude-code/    .claude-plugin/plugin.json, .mcp.json, CLAUDE.md, hooks/hooks.json
+  dist/cursor/         .cursor-plugin/plugin.json, mcp.json, hooks/hooks.json, rules/
   dist/codex/          .codex-plugin/plugin.json, interface metadata
   dist/opencode/       package.json, index.ts wrapper
   ...
@@ -162,7 +162,7 @@ Your single `INSTRUCTIONS.md` becomes the right file for each platform:
 | Platform | Generated file |
 |----------|----------------|
 | Claude Code | `CLAUDE.md` |
-| Cursor | `AGENTS.md` + `.cursor/rules/*.mdc` |
+| Cursor | `AGENTS.md` + `rules/*.mdc` |
 | Codex | `AGENTS.md` |
 | Warp | `AGENTS.md` |
 | Gemini CLI | `GEMINI.md` |
