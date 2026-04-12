@@ -2,10 +2,12 @@
 
 **Build AI agent plugins once. Ship them everywhere.**
 
-pluxx generates native plugin packages for Claude Code, Cursor, and Codex from a single config file. One source of truth &mdash; platform-specific outputs with correct manifests, MCP configs, hooks, rules, and install scripts.
+pluxx generates native plugin packages for Claude Code, Cursor, Codex, and OpenCode from a single config file. One source of truth &mdash; platform-specific outputs with the right manifests, MCP configs, hooks, rules, and install scripts.
+
+pluxx is Bun-first today. Use `bunx` or run it from a Bun workspace.
 
 ```bash
-npx pluxx build
+bunx pluxx build
 ```
 
 ```
@@ -19,10 +21,10 @@ dist/
 
 | Platform | Status | Validated |
 |----------|--------|-----------|
-| **Claude Code** | Fully supported | `claude plugin validate` PASSED |
-| **Codex** | Fully supported | Docs-verified, config schema cross-referenced |
-| **Cursor** | Fully supported | Docs-verified, hooks + rules validated |
-| OpenCode | Beta | Generates JS/TS wrapper, needs live testing |
+| **Claude Code** | Primary | `claude plugin validate` PASSED |
+| **Cursor** | Primary | Docs-audited, hooks + rules covered in lint |
+| **Codex** | Primary | Docs-audited, still tightening parity with current plugin docs |
+| **OpenCode** | Primary | Generates JS/TS wrapper, active docs-parity work |
 | GitHub Copilot | Beta | Reuses Claude Code format (confirmed compatible) |
 | OpenHands | Beta | Generates .plugin/ manifest, needs live testing |
 | Warp | Beta | Generates skills + AGENTS.md |
@@ -31,8 +33,8 @@ dist/
 | Cline | Beta | Generates .clinerules + skills |
 | AMP | Beta | Generates AGENT.md + skills |
 
-**Fully supported** = docs scraped, rules codified, lint checks implemented, output validated.
-**Beta** = generates correct file structure from docs, but not yet tested against the live tool.
+**Primary** = first-class launch target, actively maintained.
+**Beta** = generated, but less validated against live tool behavior.
 
 ## Why?
 
@@ -51,26 +53,28 @@ But a plugin is more than skills. A plugin bundles:
 
 Without pluxx you maintain separate copies for each platform. With pluxx you maintain one.
 
+The launch focus is MCP-first authoring: start from an existing MCP server, generate a maintainable plugin scaffold, then keep shipping from one config.
+
 ## Quick Start
 
 ```bash
 # Scaffold a new plugin
-npx pluxx init my-plugin
+bunx pluxx init my-plugin
 cd my-plugin
 
 # Edit pluxx.config.ts, create skills in ./skills/
 
 # Build for all platforms
-npx pluxx build
+bunx pluxx build
 
 # Lint against all platform rules (47 checks)
-npx pluxx lint
+bunx pluxx lint
 
 # Build for specific platforms
-npx pluxx build --target claude-code cursor codex
+bunx pluxx build --target claude-code cursor codex opencode
 
 # Validate your config
-npx pluxx validate
+bunx pluxx validate
 ```
 
 ## Config
@@ -118,7 +122,7 @@ export default definePlugin({
   },
 
   // Target platforms
-  targets: ['claude-code', 'cursor', 'codex'],
+  targets: ['claude-code', 'cursor', 'codex', 'opencode'],
 })
 ```
 
@@ -156,6 +160,7 @@ Each platform gets its native manifest format:
 - **Claude Code**: `.claude-plugin/plugin.json` with skills, commands paths
 - **Cursor**: `.cursor-plugin/plugin.json` with marketplace-compatible schema
 - **Codex**: `.codex-plugin/plugin.json` with full `interface` block (brand color, icons, screenshots, default prompts, capabilities)
+- **OpenCode**: npm package + JS/TS plugin wrapper
 
 ### Instructions to Platform-Native Rules
 
@@ -210,7 +215,7 @@ The [example/megamind](./example/megamind) directory contains a full plugin that
 
 ```bash
 cd example/megamind
-npx pluxx build
+bunx pluxx build
 ```
 
 ### Prospeo (sales intelligence MCP)
@@ -219,16 +224,16 @@ The [examples/prospeo-mcp](./examples/prospeo-mcp) directory wraps a real MCP se
 
 ```bash
 cd examples/prospeo-mcp
-npx pluxx build   # 52 files across 7 platforms
-npx pluxx lint    # Catches 3 real platform gotchas
+bunx pluxx build   # 52 files across 7 platforms
+bunx pluxx lint    # Catches real platform gotchas
 ```
 
 ## Testing Locally
 
 ```bash
 # Build and install to Claude Code
-npx pluxx build
-npx pluxx install --target claude-code
+bunx pluxx build
+bunx pluxx install --target claude-code
 
 # Validate with Claude Code's own validator
 claude plugin validate ~/.claude/plugins/my-plugin
@@ -244,7 +249,7 @@ Hook commands are shell commands that execute on your machine when hook events f
 Use `--trust` to bypass the confirmation prompt (useful in CI/non-interactive environments):
 
 ```bash
-npx pluxx install --trust
+bunx pluxx install --trust
 ```
 
 ## CLI Commands

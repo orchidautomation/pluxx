@@ -645,6 +645,32 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'commands-legacy')).toBe(true)
   })
 
+  it('does not warn about commands/ when Claude Code is not a target', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+    mkdirSync(resolve(projectDir, 'commands'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['cursor'],
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A skill"', '---', '', '# Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'commands-legacy')).toBe(false)
+  })
+
   // ── Gotcha #15 & #16: Codex agents min threads/depth ──
   it('reports error when Codex agents.max_threads or max_depth is below minimum', async () => {
     const projectDir = createTempProject()
@@ -706,7 +732,41 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'codex-hooks-feature-flag')).toBe(true)
   })
 
-  it('reports unsupported cursor hook and skill frontmatter fields', async () => {
+  it('does not warn for supported Codex canonical hook aliases', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['codex'],
+        hooks: {
+          sessionStart: [{ command: 'echo start' }],
+          beforeSubmitPrompt: [{ command: 'echo prompt' }],
+        },
+        platforms: {
+          codex: {
+            features: { codex_hooks: true },
+          },
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A skill"', '---', '', '# Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'codex-hook-event-unsupported')).toBe(false)
+  })
+
+  it('reports unknown cursor hook, unsupported loop_limit, and unsupported skill frontmatter fields', async () => {
     const projectDir = createTempProject()
     mkdirSync(resolve(projectDir, 'skills/valid-skill'), { recursive: true })
 
@@ -719,15 +779,26 @@ describe('lintProject', () => {
         author: { name: 'Test Author' },
         skills: './skills/',
         hooks: {
+          sessionStart: [
+            {
+              command: 'echo test',
+              matcher: 'Bash',
+            },
+          ],
           unknownHook: [
             {
               command: 'echo test',
-              matcher: 'Shell',
             },
           ],
           preToolUse: [
             {
               command: 'echo test',
+              loop_limit: 3,
+            },
+          ],
+          stop: [
+            {
+              command: 'echo stop',
               loop_limit: 3,
             },
           ],
@@ -749,8 +820,7 @@ describe('lintProject', () => {
     )
 
     const result = await lintProject(projectDir)
-    expect(result.issues.some(issue => issue.code === 'cursor-hook-event-unknown')).toBe(true)
-    expect(result.issues.some(issue => issue.code === 'cursor-hook-matcher-unsupported-event')).toBe(true)
+    expect(result.issues.filter(issue => issue.code === 'cursor-hook-event-unknown')).toHaveLength(1)
     expect(result.issues.some(issue => issue.code === 'cursor-hook-loop-limit-unsupported-event')).toBe(true)
     expect(result.issues.some(issue => issue.code === 'cursor-skill-frontmatter-unsupported')).toBe(true)
   })

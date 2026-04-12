@@ -86,7 +86,7 @@ export default definePlugin({
 ### Step 2: Build
 
 ```bash
-$ npx pluxx build
+$ bunx pluxx build
 
 Building for: claude-code, cursor, codex, opencode, github-copilot, openhands, warp
 
@@ -102,7 +102,7 @@ Done! 85 files generated across 11 platforms.
 ### Step 3: Lint
 
 ```bash
-$ npx pluxx lint
+$ bunx pluxx lint
 
   ✓ Plugin name is valid kebab-case
   ✓ Version follows semver format
@@ -111,7 +111,7 @@ $ npx pluxx lint
   ⚠ warning: Description will be truncated in claude-code (display limit: 250)
   ✗ error: Description exceeds codex max of 1024 characters
   ✗ error: Skill name "My-Skill" doesn't match directory "my-skill" (required by cursor, codex, cline)
-  ⚠ warning: Hook event "afterFileEdit" — not in Claude Code's supported events (use PostToolUse)
+  ⚠ warning: Hook event "afterFileEdit" (as "AfterFileEdit") is not a recognized Claude Code hook event
 
   2 errors, 2 warnings
 ```
@@ -119,7 +119,7 @@ $ npx pluxx lint
 ### Step 4: Test locally
 
 ```bash
-$ npx pluxx install --target claude-code
+$ bunx pluxx install --target claude-code
 
   claude-code -> ~/.claude/plugins/my-plugin
 
@@ -153,7 +153,7 @@ You write one auth config. pluxx generates the correct format for each platform:
 |-------------|-------------|--------|-------|
 | `sessionStart` | `SessionStart` | `sessionStart` | `SessionStart` |
 | `preToolUse` | `PreToolUse` | `preToolUse` | `PreToolUse` |
-| `afterFileEdit` | `PostToolUse` | `afterFileEdit` | `PostToolUse` |
+| `beforeSubmitPrompt` | `UserPromptSubmit` | `beforeSubmitPrompt` | `UserPromptSubmit` |
 
 ### Instructions Generation
 

@@ -3,6 +3,11 @@ import { resolve, relative, basename, dirname } from 'path'
 import { loadConfig } from '../config/load'
 import type { PluginConfig, TargetPlatform } from '../schema'
 import { PLATFORM_LIMITS } from '../validation/platform-rules'
+import {
+  CURSOR_LOOP_LIMIT_HOOK_EVENTS,
+  CURSOR_SUPPORTED_HOOK_EVENTS,
+  mapHookEventToPascalCase,
+} from '../hook-events'
 
 const AGENT_SKILLS_RULES = { name: { pattern: /^[a-z0-9-]+$/, maxLength: 64 }, description: { maxLength: 1024 } }
 const CLAUDE_CODE_RULES = { description: { maxDisplayLength: 250 } }
@@ -510,11 +515,12 @@ function lintCodexHookCompatibility(config: PluginConfig, issues: LintIssue[]): 
   if (!isCodexTargetEnabled(config) || !config.hooks) return
 
   for (const hookEvent of Object.keys(config.hooks)) {
-    if (!CODEX_RULES.hooks.supportedEvents.includes(hookEvent as typeof CODEX_RULES.hooks.supportedEvents[number])) {
+    const mappedEvent = mapHookEventToPascalCase(hookEvent)
+    if (!CODEX_RULES.hooks.supportedEvents.includes(mappedEvent as typeof CODEX_RULES.hooks.supportedEvents[number])) {
       pushIssue(issues, {
         level: 'warning',
         code: 'codex-hook-event-unsupported',
-        message: `Codex hooks only support ${CODEX_RULES.hooks.supportedEvents.join(', ')}; "${hookEvent}" will not map cleanly.`,
+        message: `Codex hooks only support ${CODEX_RULES.hooks.supportedEvents.join(', ')}; "${hookEvent}" maps to "${mappedEvent}", which is not supported.`,
         file: 'pluxx.config.ts',
         platform: 'Codex',
       })
@@ -683,11 +689,8 @@ function lintPluginName(config: PluginConfig, issues: LintIssue[]): void {
 function lintHookEvents(config: PluginConfig, issues: LintIssue[]): void {
   if (!config.hooks) return
 
-  // Normalize hook keys from camelCase to PascalCase for comparison
-  const camelToPascal = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1)
-
   for (const [hookEvent, hookEntries] of Object.entries(config.hooks)) {
-    const pascalEvent = camelToPascal(hookEvent)
+    const pascalEvent = mapHookEventToPascalCase(hookEvent)
     if (!(CLAUDE_CODE_HOOK_EVENTS as readonly string[]).includes(pascalEvent)) {
       pushIssue(issues, {
         level: 'warning',
@@ -858,6 +861,8 @@ function lintVersionFormat(config: PluginConfig, issues: LintIssue[]): void {
 
 // ── Gotcha #13: commands/ is legacy, skills/ is recommended ──
 function lintLegacyCommandsDir(dir: string, config: PluginConfig, issues: LintIssue[]): void {
+  if (!config.targets.includes('claude-code')) return
+
   const commandsDir = resolve(dir, 'commands')
   const hasCommandsDir = existsSync(commandsDir)
   const hasCommandsConfig = !!config.commands
@@ -941,15 +946,12 @@ function lintCodexHooksFeatureFlag(config: PluginConfig, issues: LintIssue[]): v
 function lintCursorHooks(config: PluginConfig, issues: LintIssue[]): void {
   if (!config.targets.includes('cursor') || !config.hooks) return
 
-  // Cursor only supports specific hook events
-  const cursorSupportedEvents = ['preToolUse', 'postToolUse']
-
   for (const [hookEvent, hookEntries] of Object.entries(config.hooks)) {
-    if (!cursorSupportedEvents.includes(hookEvent)) {
+    if (!(CURSOR_SUPPORTED_HOOK_EVENTS as readonly string[]).includes(hookEvent)) {
       pushIssue(issues, {
         level: 'warning',
         code: 'cursor-hook-event-unknown',
-        message: `Cursor does not support hook event "${hookEvent}". Supported: ${cursorSupportedEvents.join(', ')}`,
+        message: `Cursor does not support hook event "${hookEvent}". Supported: ${CURSOR_SUPPORTED_HOOK_EVENTS.join(', ')}`,
         file: 'pluxx.config.ts',
         platform: 'Cursor',
       })
@@ -960,21 +962,11 @@ function lintCursorHooks(config: PluginConfig, issues: LintIssue[]): void {
       if (!entry || typeof entry !== 'object') continue
       const rec = entry as Record<string, unknown>
 
-      if (rec.matcher && !cursorSupportedEvents.includes(hookEvent)) {
-        pushIssue(issues, {
-          level: 'warning',
-          code: 'cursor-hook-matcher-unsupported-event',
-          message: `Hook "${hookEvent}" has a matcher but Cursor only supports matchers on ${cursorSupportedEvents.join(', ')}.`,
-          file: 'pluxx.config.ts',
-          platform: 'Cursor',
-        })
-      }
-
-      if (rec.loop_limit !== undefined) {
+      if (rec.loop_limit !== undefined && !(CURSOR_LOOP_LIMIT_HOOK_EVENTS as readonly string[]).includes(hookEvent)) {
         pushIssue(issues, {
           level: 'warning',
           code: 'cursor-hook-loop-limit-unsupported-event',
-          message: `Hook "${hookEvent}" has loop_limit but Cursor does not support loop_limit on hooks.`,
+          message: `Hook "${hookEvent}" has loop_limit but Cursor only supports loop_limit on ${CURSOR_LOOP_LIMIT_HOOK_EVENTS.join(', ')}.`,
           file: 'pluxx.config.ts',
           platform: 'Cursor',
         })

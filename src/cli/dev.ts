@@ -6,7 +6,7 @@ import type { TargetPlatform } from '../schema'
 
 /** Patterns that trigger a rebuild when changed */
 const WATCH_PATTERNS = [
-  /^pluxx\.config\.(ts|js|json|yaml|yml)$/,
+  /^pluxx\.config\.(ts|js|json)$/,
   /^skills\//,
   /^commands\//,
   /^agents\//,

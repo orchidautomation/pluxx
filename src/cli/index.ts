@@ -102,6 +102,18 @@ async function runLintCommand() {
   }
 }
 
+function toKebabCase(value: string): string {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+function toTsString(value: string): string {
+  return JSON.stringify(value)
+}
+
 async function runInit() {
   const dirName = basename(process.cwd()).toLowerCase().replace(/[^a-z0-9-]/g, '-')
 
@@ -141,19 +153,27 @@ async function runInit() {
 
     closePrompts()
 
+    const pluginName = toKebabCase(name) || dirName
+    const skillName = pluginName
+
+    if (pluginName !== name) {
+      console.log(`  Normalized plugin name to ${pluginName}`)
+      console.log('')
+    }
+
     // Build the config file content
-    const targetsList = targets.map(t => `'${t}'`).join(', ')
+    const targetsList = targets.map(toTsString).join(', ')
     let mcpBlock = ''
     if (hasMcp && mcpUrl) {
-      const serverName = name.replace(/[^a-z0-9]/g, '-')
+      const serverName = pluginName
       mcpBlock = `
   // MCP servers your plugin connects to
   mcp: {
-    '${serverName}': {
-      url: '${mcpUrl}',${mcpEnvVar ? `
+    ${toTsString(serverName)}: {
+      url: ${toTsString(mcpUrl)},${mcpEnvVar ? `
       auth: {
         type: 'bearer',
-        envVar: '${mcpEnvVar}',
+        envVar: ${toTsString(mcpEnvVar)},
       },` : ''}
     },
   },
@@ -165,8 +185,8 @@ async function runInit() {
       brandBlock = `
   // Brand metadata
   brand: {
-    displayName: '${displayName}',${brandColor ? `
-    color: '${brandColor}',` : ''}
+    displayName: ${toTsString(displayName)},${brandColor ? `
+    color: ${toTsString(brandColor)},` : ''}
   },
 `
     }
@@ -174,11 +194,11 @@ async function runInit() {
     const template = `import { definePlugin } from 'pluxx'
 
 export default definePlugin({
-  name: '${name}',
+  name: ${toTsString(pluginName)},
   version: '0.1.0',
-  description: '${description.replace(/'/g, "\\'")}',
+  description: ${toTsString(description)},
   author: {
-    name: '${authorName.replace(/'/g, "\\'")}',
+    name: ${toTsString(authorName)},
   },
   license: 'MIT',
 
@@ -194,17 +214,18 @@ ${mcpBlock}${brandBlock}
     await Bun.write('pluxx.config.ts', template)
 
     // Create skills directory with a starter SKILL.md
-    await mkdir('skills', { recursive: true })
+    const skillDir = `skills/${skillName}`
+    await mkdir(skillDir, { recursive: true })
 
     const skillContent = `---
-name: ${name}
-description: ${description || 'A starter skill for ' + name}
+name: ${JSON.stringify(skillName)}
+description: ${JSON.stringify(description || `A starter skill for ${skillName}`)}
 version: 0.1.0
 ---
 
-# ${displayName || name}
+# ${displayName || pluginName}
 
-${description || 'TODO: Describe what this skill does.'}
+${description || `TODO: Describe what ${displayName || pluginName} does.`}
 
 ## Usage
 
@@ -217,15 +238,15 @@ Example prompt or command here
 \`\`\`
 `
 
-    await Bun.write('skills/SKILL.md', skillContent)
+    await Bun.write(`${skillDir}/SKILL.md`, skillContent)
 
     console.log('')
     console.log('  Created:')
     console.log('    pluxx.config.ts')
-    console.log('    skills/SKILL.md')
+    console.log(`    ${skillDir}/SKILL.md`)
     console.log('')
     console.log('  Next steps:')
-    console.log('    1. Edit skills/SKILL.md with your skill instructions')
+    console.log(`    1. Edit ${skillDir}/SKILL.md with your skill instructions`)
     console.log('    2. Run: pluxx build')
     console.log('    3. Run: pluxx install')
     console.log('')
@@ -300,7 +321,8 @@ Usage:
   pluxx help                              Show this help
 
 Targets:
-  claude-code, cursor, codex, opencode
+  claude-code, cursor, codex, opencode, github-copilot, openhands,
+  warp, gemini-cli, roo-code, cline, amp
 
 Examples:
   pluxx build                             Build for all configured targets

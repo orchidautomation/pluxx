@@ -37,6 +37,9 @@ const testConfig: PluginConfig = {
     sessionStart: [{
       command: '${PLUGIN_ROOT}/scripts/validate.sh',
     }],
+    beforeSubmitPrompt: [{
+      command: '${PLUGIN_ROOT}/scripts/check-prompt.sh',
+    }],
   },
   instructions: './INSTRUCTIONS.md',
   platforms: {
@@ -156,6 +159,18 @@ describe('build', () => {
     const indexTs = readFileSync(resolve(OUT_DIR, 'opencode/index.ts'), 'utf-8')
     expect(indexTs).toContain('TestPluginPlugin')
     expect(indexTs).toContain('TEST_API_KEY')
+  })
+
+  it('maps canonical hook aliases to PascalCase platform events', async () => {
+    const claudeHooks = JSON.parse(
+      readFileSync(resolve(OUT_DIR, 'claude-code/hooks.json'), 'utf-8')
+    )
+    const codexHooks = JSON.parse(
+      readFileSync(resolve(OUT_DIR, 'codex/hooks.json'), 'utf-8')
+    )
+
+    expect(claudeHooks.hooks.UserPromptSubmit).toBeDefined()
+    expect(codexHooks.hooks.UserPromptSubmit).toBeDefined()
   })
 
   it('copies skills to all targets', async () => {

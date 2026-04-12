@@ -2,6 +2,7 @@ import { existsSync } from 'fs'
 import { Generator } from '../base'
 import { warnDroppedHookFields } from '../hooks-warning'
 import type { TargetPlatform } from '../../schema'
+import { mapHookEventToPascalCase } from '../../hook-events'
 
 export class CodexGenerator extends Generator {
   readonly platform: TargetPlatform = 'codex'
@@ -115,8 +116,9 @@ export class CodexGenerator extends Generator {
     for (const [event, entries] of Object.entries(this.config.hooks)) {
       if (!entries) continue
       warnDroppedHookFields(this.platform, event, entries)
-      // Codex uses PascalCase event names like Claude Code
-      const codexEvent = event.charAt(0).toUpperCase() + event.slice(1)
+      // Codex uses PascalCase event names, with a few aliases from the
+      // canonical config shape (for example beforeSubmitPrompt -> UserPromptSubmit).
+      const codexEvent = mapHookEventToPascalCase(event)
       const commandEntries = entries.filter(entry => entry.type !== 'prompt' && entry.command)
       if (commandEntries.length === 0) continue
       hooks[codexEvent] = commandEntries.map(entry => ({

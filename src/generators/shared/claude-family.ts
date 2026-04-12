@@ -2,6 +2,7 @@ import { existsSync } from 'fs'
 import { resolve } from 'path'
 import { warnDroppedHookFields } from '../hooks-warning'
 import type { PluginConfig, TargetPlatform } from '../../schema'
+import { mapHookEventToPascalCase } from '../../hook-events'
 
 export interface ClaudeFamilyOptions {
   manifestPath: string
@@ -159,10 +160,5 @@ async function writeInstructions(
 }
 
 function defaultMapEventName(event: string): string {
-  const map: Record<string, string> = {
-    sessionStart: 'SessionStart',
-    preToolUse: 'PreToolUse',
-    postToolUse: 'PostToolUse',
-  }
-  return map[event] ?? event.charAt(0).toUpperCase() + event.slice(1)
+  return mapHookEventToPascalCase(event)
 }
