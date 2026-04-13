@@ -2,7 +2,7 @@ import { describe, expect, it, beforeEach, afterEach } from 'bun:test'
 import { existsSync, readFileSync, rmSync } from 'fs'
 import { resolve } from 'path'
 import { loadConfig } from '../src/config/load'
-import { derivePluginName, parseMcpSourceInput, planSkillScaffolds, writeMcpScaffold } from '../src/cli/init-from-mcp'
+import { derivePluginName, detectMutatingTools, parseMcpSourceInput, planSkillScaffolds, writeMcpScaffold } from '../src/cli/init-from-mcp'
 import type { IntrospectedMcpServer } from '../src/mcp/introspect'
 
 const TEST_DIR = resolve(import.meta.dir, '.init-from-mcp')
@@ -240,5 +240,156 @@ describe('init-from-mcp scaffold', () => {
     const loadedConfig = await loadConfig(TEST_DIR)
     expect(loadedConfig.name).toBe('sumble')
     expect(loadedConfig.brand?.displayName).toBe('Sumble MCP')
+  })
+
+  it('generates mutation confirmation hooks when safe mode detects mutating tools', async () => {
+    const mutatingIntrospection: IntrospectedMcpServer = {
+      ...introspection,
+      tools: [
+        ...introspection.tools,
+        { name: 'createIssue', description: 'Create a new issue.' },
+        { name: 'delete_record', description: 'Delete a record by ID.' },
+        { name: 'update-contact', description: 'Update an existing contact.' },
+      ],
+    }
+
+    const result = await writeMcpScaffold({
+      rootDir: TEST_DIR,
+      pluginName: 'test-mcp',
+      authorName: 'Test Author',
+      targets: ['claude-code'],
+      source: { transport: 'http', url: 'https://mcp.example.com/' },
+      introspection: mutatingIntrospection,
+      hookMode: 'safe',
+    })
+
+    expect(result.generatedFiles).toContain('scripts/confirm-mutation.sh')
+    expect(result.generatedHookEvents).toContain('preToolUse')
+
+    const confirmScript = readFileSync(resolve(TEST_DIR, 'scripts/confirm-mutation.sh'), 'utf-8')
+    expect(confirmScript).toContain(JSON.stringify([
+      'createIssue',
+      'delete_record',
+      'update-contact',
+    ]))
+    expect(confirmScript).toContain('pluxx: This tool modifies data')
+
+    const config = readFileSync(resolve(TEST_DIR, 'pluxx.config.ts'), 'utf-8')
+    expect(config).toContain('preToolUse')
+    expect(config).toContain('confirm-mutation.sh')
+    expect(config).toContain('matcher: "mcp__sumble__createIssue"')
+    expect(config).toContain('matcher: "mcp__sumble__delete_record"')
+    expect(config).toContain('matcher: "mcp__sumble__update-contact"')
+    expect(config).not.toContain('matcher: "mcp__sumble"')
+  })
+
+  it('filters invalid shell env names from generated safe hook scripts', async () => {
+    const result = await writeMcpScaffold({
+      rootDir: TEST_DIR,
+      pluginName: 'test-mcp',
+      authorName: 'Test Author',
+      targets: ['claude-code'],
+      source: {
+        transport: 'stdio',
+        command: 'npx',
+        args: ['-y', '@sumble/mcp'],
+        env: {
+          SAFE_KEY: '1',
+          'BAD-NAME\nrm -rf /': '2',
+        },
+        auth: {
+          type: 'bearer',
+          envVar: 'ALSO BAD\nNAME',
+        },
+      },
+      introspection,
+      hookMode: 'safe',
+    })
+
+    expect(result.generatedFiles).toContain('scripts/check-env.sh')
+
+    const envScript = readFileSync(resolve(TEST_DIR, 'scripts/check-env.sh'), 'utf-8')
+    expect(envScript).toContain('SAFE_KEY')
+    expect(envScript).not.toContain('BAD-NAME')
+    expect(envScript).not.toContain('ALSO BAD')
+  })
+
+  it('sanitizes dangerous tool names in generated confirmation scripts', async () => {
+    const dangerousTool = 'createIssue\nrm -rf /'
+    const mutatingIntrospection: IntrospectedMcpServer = {
+      ...introspection,
+      tools: [
+        ...introspection.tools,
+        { name: dangerousTool, description: 'Create an issue.' },
+      ],
+    }
+
+    await writeMcpScaffold({
+      rootDir: TEST_DIR,
+      pluginName: 'test-mcp',
+      authorName: 'Test Author',
+      targets: ['claude-code'],
+      source: { transport: 'http', url: 'https://mcp.example.com/' },
+      introspection: mutatingIntrospection,
+      hookMode: 'safe',
+    })
+
+    const confirmScript = readFileSync(resolve(TEST_DIR, 'scripts/confirm-mutation.sh'), 'utf-8')
+    expect(confirmScript).toContain(JSON.stringify(['createIssue rm -rf /']))
+    expect(confirmScript).not.toContain(dangerousTool)
+  })
+})
+
+describe('detectMutatingTools', () => {
+  it('detects camelCase mutating tool names', () => {
+    const tools = [
+      { name: 'createIssue', description: 'Create an issue.' },
+      { name: 'getIssue', description: 'Get an issue.' },
+      { name: 'updateRecord', description: 'Update a record.' },
+      { name: 'deleteUser', description: 'Delete a user.' },
+    ]
+    expect(detectMutatingTools(tools)).toEqual(['createIssue', 'updateRecord', 'deleteUser'])
+  })
+
+  it('detects snake_case mutating tool names', () => {
+    const tools = [
+      { name: 'add_contact', description: 'Add a contact.' },
+      { name: 'list_contacts', description: 'List all contacts.' },
+      { name: 'remove_contact', description: 'Remove a contact.' },
+      { name: 'insert_row', description: 'Insert a row.' },
+    ]
+    expect(detectMutatingTools(tools)).toEqual(['add_contact', 'remove_contact', 'insert_row'])
+  })
+
+  it('detects kebab-case mutating tool names', () => {
+    const tools = [
+      { name: 'publish-post', description: 'Publish a post.' },
+      { name: 'read-post', description: 'Read a post.' },
+      { name: 'send-email', description: 'Send an email.' },
+    ]
+    expect(detectMutatingTools(tools)).toEqual(['publish-post', 'send-email'])
+  })
+
+  it('detects bulk and destroy prefixes', () => {
+    const tools = [
+      { name: 'bulk_import', description: 'Bulk import records.' },
+      { name: 'destroy_session', description: 'Destroy a session.' },
+      { name: 'drop_table', description: 'Drop a table.' },
+      { name: 'purge_cache', description: 'Purge cache.' },
+    ]
+    expect(detectMutatingTools(tools)).toEqual(['bulk_import', 'destroy_session', 'drop_table', 'purge_cache'])
+  })
+
+  it('returns empty array when no tools match', () => {
+    const tools = [
+      { name: 'getUser', description: 'Get user.' },
+      { name: 'list_items', description: 'List items.' },
+      { name: 'search-docs', description: 'Search docs.' },
+    ]
+    expect(detectMutatingTools(tools)).toEqual([])
+  })
+
+  it('returns empty array for empty input', () => {
+    expect(detectMutatingTools([])).toEqual([])
   })
 })

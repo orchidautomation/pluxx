@@ -190,7 +190,7 @@ export async function writeMcpScaffold(options: McpScaffoldOptions): Promise<Mcp
   const plannedSkills = planSkillScaffolds(options.introspection.tools, options.skillGrouping)
   const skillDirectories: string[] = []
   const generatedFiles = ['pluxx.config.ts', './INSTRUCTIONS.md']
-  const generatedHooks = planGeneratedHooks(options.source, options.hookMode)
+  const generatedHooks = planGeneratedHooks(options.source, options.introspection.tools, serverName, options.hookMode)
   const metadataPath = MCP_SCAFFOLD_METADATA_PATH
 
   await Bun.write(
@@ -572,42 +572,95 @@ function serializeHooks(hooks: Record<string, HookEntry[]>): string {
   return `{\n${entries}\n  }`
 }
 
-function planGeneratedHooks(source: McpServer, hookMode: McpHookMode = 'none'): GeneratedHookScaffold {
+const MUTATING_PREFIXES = [
+  'create', 'add', 'insert',
+  'update', 'edit', 'modify', 'patch',
+  'delete', 'remove', 'destroy', 'drop', 'purge',
+  'bulk', 'send', 'post', 'publish',
+] as const
+
+const MUTATING_PREFIX_PATTERN = new RegExp(`^(${MUTATING_PREFIXES.join('|')})\\b`, 'i')
+
+export function detectMutatingTools(tools: IntrospectedMcpTool[]): string[] {
+  return tools
+    .filter((tool) => {
+      const normalized = normalizeIdentifier(tool.name).trim().toLowerCase()
+      return MUTATING_PREFIX_PATTERN.test(normalized)
+    })
+    .map((tool) => tool.name)
+}
+
+function planGeneratedHooks(source: McpServer, tools: IntrospectedMcpTool[], serverName: string, hookMode: McpHookMode = 'none'): GeneratedHookScaffold {
   if (hookMode !== 'safe') {
     return { mode: 'none', files: [] }
   }
 
   const envVars = collectRequiredEnvVars(source)
-  if (envVars.length === 0) {
+  const mutatingTools = detectMutatingTools(tools)
+
+  if (envVars.length === 0 && mutatingTools.length === 0) {
     return { mode: 'none', files: [] }
+  }
+
+  const hookEntries: Record<string, HookEntry[]> = {}
+  const files: Array<{ relativePath: string; content: string }> = []
+
+  if (envVars.length > 0) {
+    hookEntries.sessionStart = [{
+      type: 'command',
+      command: 'bash "${PLUGIN_ROOT}/scripts/check-env.sh"',
+    }]
+    files.push({
+      relativePath: 'scripts/check-env.sh',
+      content: buildEnvValidationScript(envVars),
+    })
+  }
+
+  if (mutatingTools.length > 0) {
+    hookEntries.preToolUse = mutatingTools.map((toolName) => ({
+      type: 'command',
+      command: 'bash "${PLUGIN_ROOT}/scripts/confirm-mutation.sh"',
+      matcher: buildMcpToolMatcher(serverName, toolName),
+    }))
+    files.push({
+      relativePath: 'scripts/confirm-mutation.sh',
+      content: buildMutationConfirmationScript(mutatingTools),
+    })
   }
 
   return {
     mode: 'safe',
     scriptsPath: './scripts/',
-    hookEntries: {
-      sessionStart: [{
-        type: 'command',
-        command: 'bash "${PLUGIN_ROOT}/scripts/check-env.sh"',
-      }],
-    },
-    files: [{
-      relativePath: 'scripts/check-env.sh',
-      content: buildEnvValidationScript(envVars),
-    }],
+    hookEntries,
+    files,
   }
+}
+
+export function buildMutationConfirmationScript(mutatingTools: string[]): string {
+  const toolList = JSON.stringify(mutatingTools.map(sanitizeShellCommentText))
+  return `#!/usr/bin/env bash
+set -euo pipefail
+# This hook runs before mutating MCP tools.
+# The platform will prompt the user for confirmation.
+# Mutating tools: ${toolList}
+echo "pluxx: This tool modifies data. The agent should confirm before proceeding." >&2
+`
 }
 
 function collectRequiredEnvVars(source: McpServer): string[] {
   const envVars = new Set<string>()
 
   if (source.auth?.type && source.auth.type !== 'none') {
-    envVars.add(source.auth.envVar)
+    if (isValidShellEnvVarName(source.auth.envVar)) {
+      envVars.add(source.auth.envVar)
+    }
   }
 
   if (source.transport === 'stdio') {
     for (const key of Object.keys(source.env ?? {})) {
-      envVars.add(key)
+      if (isValidShellEnvVarName(key)) {
+        envVars.add(key)
+      }
     }
   }
 
@@ -627,6 +680,18 @@ set -euo pipefail
 
 ${checks}
 `
+}
+
+function buildMcpToolMatcher(serverName: string, toolName: string): string {
+  return `mcp__${serverName}__${toolName}`
+}
+
+function sanitizeShellCommentText(value: string): string {
+  return value.replace(/[\u0000-\u001f\u007f\u2028\u2029]/g, ' ').trim()
+}
+
+function isValidShellEnvVarName(value: string): boolean {
+  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(value)
 }
 
 function buildMcpScaffoldMetadata(input: {
