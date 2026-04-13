@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
 import { introspectMcpServer } from '../src/mcp/introspect'
-import { syncFromMcp } from '../src/cli/sync-from-mcp'
+import { detectSkillRenames, detectToolRenames, syncFromMcp } from '../src/cli/sync-from-mcp'
 import { writeMcpScaffold } from '../src/cli/init-from-mcp'
 
 const TEST_DIR = resolve(import.meta.dir, '.sync-from-mcp')
@@ -65,6 +65,59 @@ afterEach(() => {
 })
 
 describe('sync-from-mcp', () => {
+  it('does not treat identical descriptions as a rename without corroborating evidence', () => {
+    const renames = detectToolRenames(
+      [
+        {
+          name: 'SearchCustomers',
+          description: 'Search customer records.',
+        },
+      ],
+      [
+        {
+          name: 'ArchiveInvoices',
+          description: 'Search customer records.',
+        },
+      ],
+    )
+
+    expect(renames.size).toBe(0)
+  })
+
+  it('matches skills 1:1 before transferring custom content', () => {
+    const toolRenames = new Map([
+      ['FindOrganizations', 'SearchOrganizations'],
+      ['FindPeople', 'SearchPeople'],
+    ])
+
+    const skillRenames = detectSkillRenames(
+      [
+        {
+          dirName: 'legacy-organizations',
+          title: 'Legacy Organizations',
+          toolNames: ['FindOrganizations'],
+        },
+        {
+          dirName: 'legacy-people',
+          title: 'Legacy People',
+          toolNames: ['FindPeople'],
+        },
+      ],
+      [
+        {
+          dirName: 'account-research',
+          title: 'Account Research',
+          toolNames: ['SearchOrganizations', 'SearchPeople'],
+        },
+      ],
+      toolRenames,
+    )
+
+    expect(skillRenames.size).toBe(1)
+    expect([...skillRenames.values()]).toEqual(['account-research'])
+    expect([...skillRenames.keys()]).toContain('legacy-organizations')
+  })
+
   it('updates managed MCP-derived files and preserves user-owned files', async () => {
     writeFileSync(
       STATE_PATH,

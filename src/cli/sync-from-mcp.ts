@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, rmSync, readdirSync, rmdirSync, writeFileSync } from 'fs'
-import { dirname, relative, resolve } from 'path'
+import { dirname, isAbsolute, relative, resolve } from 'path'
 import { loadConfig } from '../config/load'
 import { introspectMcpServer, type IntrospectedMcpTool } from '../mcp/introspect'
 import type { McpServer } from '../schema'
@@ -29,7 +29,7 @@ export interface SyncFromMcpResult {
 }
 
 export async function readMcpScaffoldMetadata(rootDir: string): Promise<McpScaffoldMetadata> {
-  const filepath = resolve(rootDir, MCP_SCAFFOLD_METADATA_PATH)
+  const filepath = resolveWithinRoot(rootDir, MCP_SCAFFOLD_METADATA_PATH)
   if (!existsSync(filepath)) {
     throw new Error(
       `No MCP scaffold metadata found at ${MCP_SCAFFOLD_METADATA_PATH}. Run "pluxx init --from-mcp" first.`,
@@ -47,21 +47,7 @@ export async function syncFromMcp(options: SyncFromMcpOptions): Promise<SyncFrom
   const beforeContents = snapshotManagedFiles(options.rootDir, metadata.managedFiles)
 
   // Step 1: Detect renames between old and new tool lists
-  const renames = detectToolRenames(metadata.tools, introspection.tools)
-
-  // Step 2: Read custom content from old skill files that are being renamed
-  const renamedCustomContent = new Map<string, string>()
-  for (const [oldToolName, newToolName] of renames) {
-    const oldSkill = metadata.skills.find((s) => s.toolNames.includes(oldToolName))
-    if (!oldSkill) continue
-    const oldSkillPath = resolve(options.rootDir, `skills/${oldSkill.dirName}/SKILL.md`)
-    if (!existsSync(oldSkillPath)) continue
-    const oldContent = readFileSync(oldSkillPath, 'utf-8')
-    const extracted = extractMixedMarkdownContent(oldContent, '')
-    if (extracted.customContent && extracted.customContent.trim()) {
-      renamedCustomContent.set(newToolName, extracted.customContent)
-    }
-  }
+  const toolRenames = detectToolRenames(metadata.tools, introspection.tools)
 
   // Step 3: Generate new scaffold
   const result = await writeMcpScaffold({
@@ -76,16 +62,25 @@ export async function syncFromMcp(options: SyncFromMcpOptions): Promise<SyncFrom
     hookMode: metadata.settings.requestedHookMode,
   })
 
-  // Step 4: Inject preserved custom content into renamed skill files
-  const newMetadataPath = resolve(options.rootDir, MCP_SCAFFOLD_METADATA_PATH)
+  const newMetadataPath = resolveWithinRoot(options.rootDir, MCP_SCAFFOLD_METADATA_PATH)
   const newMetadata: McpScaffoldMetadata = JSON.parse(readFileSync(newMetadataPath, 'utf-8'))
-  for (const [newToolName, customContent] of renamedCustomContent) {
-    const newSkill = newMetadata.skills.find((s) => s.toolNames.includes(newToolName))
+  const skillRenames = detectSkillRenames(metadata.skills, newMetadata.skills, toolRenames)
+
+  // Step 4: Inject preserved custom content into renamed skill files
+  for (const [oldSkillDir, newSkillDir] of skillRenames) {
+    const oldSkillPath = resolveWithinRoot(options.rootDir, `skills/${oldSkillDir}/SKILL.md`)
+    if (!existsSync(oldSkillPath)) continue
+    const oldContent = readFileSync(oldSkillPath, 'utf-8')
+    const extracted = extractMixedMarkdownContent(oldContent, '')
+    if (!hasMeaningfulCustomContent(oldContent)) continue
+
+    const newSkill = newMetadata.skills.find((s) => s.dirName === newSkillDir)
     if (!newSkill) continue
-    const newSkillPath = resolve(options.rootDir, `skills/${newSkill.dirName}/SKILL.md`)
+
+    const newSkillPath = resolveWithinRoot(options.rootDir, `skills/${newSkill.dirName}/SKILL.md`)
     if (!existsSync(newSkillPath)) continue
     const currentContent = readFileSync(newSkillPath, 'utf-8')
-    const updatedContent = injectCustomContent(currentContent, customContent)
+    const updatedContent = injectCustomContent(currentContent, extracted.customContent)
     writeFileSync(newSkillPath, updatedContent, 'utf-8')
   }
 
@@ -93,17 +88,13 @@ export async function syncFromMcp(options: SyncFromMcpOptions): Promise<SyncFrom
   const renamedFiles: Array<{ from: string; to: string }> = []
   const renamedOldDirs = new Set<string>()
   const renamedNewDirs = new Set<string>()
-  for (const [oldToolName, newToolName] of renames) {
-    const oldSkill = metadata.skills.find((s) => s.toolNames.includes(oldToolName))
-    const newSkill = newMetadata.skills.find((s) => s.toolNames.includes(newToolName))
-    if (!oldSkill || !newSkill || oldSkill.dirName === newSkill.dirName) continue
-    const fromDir = `skills/${oldSkill.dirName}/`
-    const toDir = `skills/${newSkill.dirName}/`
-    if (!renamedOldDirs.has(fromDir) && !renamedNewDirs.has(toDir)) {
-      renamedFiles.push({ from: fromDir, to: toDir })
-      renamedOldDirs.add(fromDir)
-      renamedNewDirs.add(toDir)
-    }
+  for (const [oldSkillDir, newSkillDir] of skillRenames) {
+    const fromDir = `skills/${oldSkillDir}/`
+    const toDir = `skills/${newSkillDir}/`
+    if (renamedOldDirs.has(fromDir) || renamedNewDirs.has(toDir)) continue
+    renamedFiles.push({ from: fromDir, to: toDir })
+    renamedOldDirs.add(fromDir)
+    renamedNewDirs.add(toDir)
   }
 
   const afterManaged = new Set(result.generatedFiles)
@@ -139,7 +130,7 @@ export async function syncFromMcp(options: SyncFromMcpOptions): Promise<SyncFrom
   const updatedFiles = [...afterManaged].filter((file) => {
     if (!beforeManaged.has(file)) return false
     const before = beforeContents.get(file)
-    const currentPath = resolve(options.rootDir, file)
+    const currentPath = resolveWithinRoot(options.rootDir, file)
     if (!existsSync(currentPath)) return false
     const after = readFileSync(currentPath, 'utf-8')
     return before !== after
@@ -159,7 +150,7 @@ export async function syncFromMcp(options: SyncFromMcpOptions): Promise<SyncFrom
 function snapshotManagedFiles(rootDir: string, files: string[]): Map<string, string> {
   const contents = new Map<string, string>()
   for (const file of files) {
-    const filepath = resolve(rootDir, file)
+    const filepath = resolveWithinRoot(rootDir, file)
     if (!existsSync(filepath)) continue
     contents.set(file, readFileSync(filepath, 'utf-8'))
   }
@@ -167,7 +158,7 @@ function snapshotManagedFiles(rootDir: string, files: string[]): Map<string, str
 }
 
 function removeManagedFile(rootDir: string, relativePath: string): void {
-  const filepath = resolve(rootDir, relativePath)
+  const filepath = resolveWithinRoot(rootDir, relativePath)
   if (!existsSync(filepath)) return
 
   rmSync(filepath, { force: true })
@@ -177,7 +168,7 @@ function removeManagedFile(rootDir: string, relativePath: string): void {
 function shouldPreserveManagedFile(rootDir: string, relativePath: string): boolean {
   if (!relativePath.endsWith('.md')) return false
 
-  const filepath = resolve(rootDir, relativePath)
+  const filepath = resolveWithinRoot(rootDir, relativePath)
   if (!existsSync(filepath)) return false
 
   return hasMeaningfulCustomContent(readFileSync(filepath, 'utf-8'))
@@ -245,16 +236,15 @@ export function detectToolRenames(
 }
 
 const RENAME_SCORE_THRESHOLD = 0.5
+const SKILL_RENAME_SCORE_THRESHOLD = 0.6
 
 function computeRenameScore(oldTool: IntrospectedMcpTool, newTool: IntrospectedMcpTool): number {
   let score = 0
-  let signals = 0
+  let hasCorroboratingSignal = false
 
-  // Same description -> high confidence
   if (oldTool.description && newTool.description) {
-    signals++
     if (oldTool.description === newTool.description) {
-      score += 1.0
+      score += 0.45
     } else {
       // Partial description similarity (Jaccard on words)
       const oldWords = new Set(oldTool.description.toLowerCase().split(/\s+/))
@@ -263,39 +253,42 @@ function computeRenameScore(oldTool: IntrospectedMcpTool, newTool: IntrospectedM
       const union = new Set([...oldWords, ...newWords]).size
       const jaccard = union > 0 ? intersection / union : 0
       if (jaccard >= 0.7) {
-        score += 0.6
+        score += 0.35
       }
     }
   }
 
-  // Similar name (edit distance)
-  signals++
   const distance = levenshteinDistance(oldTool.name, newTool.name)
   if (distance <= 3) {
-    score += 0.8
+    score += 0.35
+    hasCorroboratingSignal = true
   } else if (distance <= 6 && Math.max(oldTool.name.length, newTool.name.length) > 10) {
-    score += 0.3
+    score += 0.2
+    hasCorroboratingSignal = true
   }
 
-  // Same input schema shape (same required field names)
   const oldRequired = getRequiredFieldNames(oldTool.inputSchema)
   const newRequired = getRequiredFieldNames(newTool.inputSchema)
   if (oldRequired.length > 0 || newRequired.length > 0) {
-    signals++
     if (oldRequired.length === newRequired.length && oldRequired.every((f) => newRequired.includes(f))) {
-      score += 0.7
+      score += 0.35
+      hasCorroboratingSignal = true
     } else {
       // Partial overlap
       const overlap = oldRequired.filter((f) => newRequired.includes(f)).length
       const total = new Set([...oldRequired, ...newRequired]).size
       if (total > 0 && overlap / total >= 0.7) {
-        score += 0.4
+        score += 0.2
+        hasCorroboratingSignal = true
       }
     }
   }
 
-  // Normalize by number of signals considered
-  return signals > 0 ? score / signals : 0
+  if (oldTool.description && newTool.description && oldTool.description === newTool.description) {
+    return hasCorroboratingSignal ? score : 0
+  }
+
+  return score
 }
 
 function getRequiredFieldNames(inputSchema?: Record<string, unknown>): string[] {
@@ -347,6 +340,82 @@ function injectCustomContent(fileContent: string, customContent: string): string
     '\n' +
     fileContent.slice(customEnd)
   )
+}
+
+interface SkillRenameCandidate {
+  oldSkill: McpScaffoldMetadata['skills'][number]
+  newSkill: McpScaffoldMetadata['skills'][number]
+  score: number
+}
+
+export function detectSkillRenames(
+  oldSkills: McpScaffoldMetadata['skills'],
+  newSkills: McpScaffoldMetadata['skills'],
+  toolRenames: Map<string, string>,
+): Map<string, string> {
+  const candidates: SkillRenameCandidate[] = []
+
+  for (const oldSkill of oldSkills) {
+    for (const newSkill of newSkills) {
+      if (oldSkill.dirName === newSkill.dirName) continue
+
+      const score = computeSkillRenameScore(oldSkill, newSkill, toolRenames)
+      if (score >= SKILL_RENAME_SCORE_THRESHOLD) {
+        candidates.push({ oldSkill, newSkill, score })
+      }
+    }
+  }
+
+  candidates.sort((a, b) => b.score - a.score)
+
+  const renames = new Map<string, string>()
+  const usedOld = new Set<string>()
+  const usedNew = new Set<string>()
+
+  for (const candidate of candidates) {
+    if (usedOld.has(candidate.oldSkill.dirName) || usedNew.has(candidate.newSkill.dirName)) continue
+    renames.set(candidate.oldSkill.dirName, candidate.newSkill.dirName)
+    usedOld.add(candidate.oldSkill.dirName)
+    usedNew.add(candidate.newSkill.dirName)
+  }
+
+  return renames
+}
+
+function computeSkillRenameScore(
+  oldSkill: McpScaffoldMetadata['skills'][number],
+  newSkill: McpScaffoldMetadata['skills'][number],
+  toolRenames: Map<string, string>,
+): number {
+  const mappedOldTools = new Set(oldSkill.toolNames.map((toolName) => toolRenames.get(toolName) ?? toolName))
+  const newTools = new Set(newSkill.toolNames)
+  const overlap = [...mappedOldTools].filter((toolName) => newTools.has(toolName)).length
+
+  if (overlap === 0) return 0
+
+  const precision = overlap / newTools.size
+  const recall = overlap / mappedOldTools.size
+  let score = (precision + recall) / 2
+
+  const normalizedOldTitle = oldSkill.title.toLowerCase().replace(/[^a-z0-9]+/g, '')
+  const normalizedNewTitle = newSkill.title.toLowerCase().replace(/[^a-z0-9]+/g, '')
+  if (normalizedOldTitle === normalizedNewTitle) {
+    score += 0.1
+  }
+
+  return score
+}
+
+function resolveWithinRoot(rootDir: string, relativePath: string): string {
+  const rootPath = resolve(rootDir)
+  const filepath = resolve(rootPath, relativePath)
+  const relativePathFromRoot = relative(rootPath, filepath)
+
+  if (relativePathFromRoot === '' || (!relativePathFromRoot.startsWith('..') && !isAbsolute(relativePathFromRoot))) {
+    return filepath
+  }
+
+  throw new Error(`Refusing to access path outside root: ${relativePath}`)
 }
 
 export function formatSyncSummary(result: SyncFromMcpResult, rootDir: string): string[] {
