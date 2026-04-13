@@ -43,6 +43,35 @@ describe('CLI init option parsing', () => {
     })
   })
 
+  it('parses --transport flag for SSE transport override', () => {
+    const options = parseInitFromMcpOptions(
+      [
+        'init',
+        '--from-mcp',
+        'https://example.com/mcp',
+        '--transport',
+        'sse',
+        '--yes',
+      ],
+      undefined,
+      'https://example.com/mcp',
+    )
+
+    expect(options.transport).toBe('sse')
+    expect(options.source).toBe('https://example.com/mcp')
+    expect(options.assumeDefaults).toBe(true)
+  })
+
+  it('leaves transport undefined when --transport is not provided', () => {
+    const options = parseInitFromMcpOptions(
+      ['init', '--from-mcp', 'https://example.com/mcp'],
+      undefined,
+      'https://example.com/mcp',
+    )
+
+    expect(options.transport).toBeUndefined()
+  })
+
   it('lets the positional name seed the MCP scaffold flow', () => {
     const options = parseInitFromMcpOptions(
       ['init', 'sumble', '--from-mcp', 'npx -y @sumble/mcp'],

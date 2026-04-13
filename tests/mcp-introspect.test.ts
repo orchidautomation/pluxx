@@ -184,4 +184,190 @@ describe('MCP introspection', () => {
       globalThis.fetch = originalFetch
     }
   })
+
+  it('introspects legacy SSE MCP servers via the advertised endpoint event', async () => {
+    let sawStreamAuthHeader = false
+    let sawPostAuthHeader = false
+    let sawSessionHeader = false
+    const originalFetch = globalThis.fetch
+    const encoder = new TextEncoder()
+    let controller: ReadableStreamDefaultController<Uint8Array> | null = null
+
+    const stream = new ReadableStream<Uint8Array>({
+      start(streamController) {
+        controller = streamController
+        streamController.enqueue(encoder.encode('event: endpoint\ndata: /messages\n\n'))
+      },
+    })
+
+    globalThis.fetch = (async (input, init) => {
+      const request = new Request(input, init)
+
+      if (request.method === 'GET') {
+        sawStreamAuthHeader = request.headers.get('Authorization') === 'Bearer legacy-token'
+        return new Response(stream, {
+          status: 200,
+          headers: {
+            'Content-Type': 'text/event-stream',
+          },
+        })
+      }
+
+      const message = await request.json() as Record<string, unknown>
+
+      if (request.url === 'https://example.com/messages' && message.method === 'initialize') {
+        sawPostAuthHeader = request.headers.get('Authorization') === 'Bearer legacy-token'
+        controller?.enqueue(encoder.encode(`event: message\ndata: ${JSON.stringify({
+          jsonrpc: '2.0',
+          id: message.id,
+          result: {
+            protocolVersion: '2025-03-26',
+            capabilities: { tools: { listChanged: false } },
+            serverInfo: {
+              name: 'legacy-sse',
+              title: 'Legacy SSE',
+            },
+          },
+        })}\n\n`))
+
+        return new Response(null, {
+          status: 202,
+          headers: {
+            'Mcp-Session-Id': 'legacy-session',
+          },
+        })
+      }
+
+      if (request.url === 'https://example.com/messages' && message.method === 'notifications/initialized') {
+        sawSessionHeader = request.headers.get('Mcp-Session-Id') === 'legacy-session'
+        return new Response(null, { status: 202 })
+      }
+
+      if (request.url === 'https://example.com/messages' && message.method === 'tools/list') {
+        sawSessionHeader = sawSessionHeader && request.headers.get('Mcp-Session-Id') === 'legacy-session'
+        controller?.enqueue(encoder.encode(`event: message\ndata: ${JSON.stringify({
+          jsonrpc: '2.0',
+          id: message.id,
+          result: {
+            tools: [{
+              name: 'search_legacy_companies',
+              description: 'Search companies via legacy SSE.',
+            }],
+          },
+        })}\n\n`))
+        controller?.close()
+        return new Response(null, { status: 202 })
+      }
+
+      return new Response('Unhandled', { status: 500 })
+    }) as typeof fetch
+
+    process.env.TEST_LEGACY_SSE_TOKEN = 'legacy-token'
+
+    try {
+      const result = await introspectMcpServer({
+        transport: 'sse',
+        url: 'https://example.com/sse',
+        auth: {
+          type: 'bearer',
+          envVar: 'TEST_LEGACY_SSE_TOKEN',
+        },
+      })
+
+      expect(result.serverInfo.name).toBe('legacy-sse')
+      expect(result.tools.map((tool) => tool.name)).toEqual(['search_legacy_companies'])
+      expect(sawStreamAuthHeader).toBe(true)
+      expect(sawPostAuthHeader).toBe(true)
+      expect(sawSessionHeader).toBe(true)
+    } finally {
+      delete process.env.TEST_LEGACY_SSE_TOKEN
+      globalThis.fetch = originalFetch
+    }
+  })
+
+  it('falls back from HTTP initialize failures to legacy SSE transport', async () => {
+    let attemptedHttpInitialize = false
+    const originalFetch = globalThis.fetch
+    const encoder = new TextEncoder()
+    let controller: ReadableStreamDefaultController<Uint8Array> | null = null
+
+    const stream = new ReadableStream<Uint8Array>({
+      start(streamController) {
+        controller = streamController
+        streamController.enqueue(encoder.encode('event: endpoint\ndata: /messages\n\n'))
+      },
+    })
+
+    globalThis.fetch = (async (input, init) => {
+      const request = new Request(input, init)
+
+      if (request.url === 'https://example.com/legacy' && request.method === 'POST') {
+        const message = await request.json() as Record<string, unknown>
+        if (message.method === 'initialize') {
+          attemptedHttpInitialize = true
+          return new Response('Method Not Allowed', { status: 405, statusText: 'Method Not Allowed' })
+        }
+      }
+
+      if (request.url === 'https://example.com/legacy' && request.method === 'GET') {
+        return new Response(stream, {
+          status: 200,
+          headers: {
+            'Content-Type': 'text/event-stream',
+          },
+        })
+      }
+
+      const message = await request.json() as Record<string, unknown>
+      if (request.url === 'https://example.com/messages' && message.method === 'initialize') {
+        controller?.enqueue(encoder.encode(`event: message\ndata: ${JSON.stringify({
+          jsonrpc: '2.0',
+          id: message.id,
+          result: {
+            protocolVersion: '2025-03-26',
+            capabilities: { tools: { listChanged: false } },
+            serverInfo: {
+              name: 'fallback-legacy',
+              title: 'Fallback Legacy',
+            },
+          },
+        })}\n\n`))
+        return new Response(null, { status: 202 })
+      }
+
+      if (request.url === 'https://example.com/messages' && message.method === 'notifications/initialized') {
+        return new Response(null, { status: 202 })
+      }
+
+      if (request.url === 'https://example.com/messages' && message.method === 'tools/list') {
+        controller?.enqueue(encoder.encode(`event: message\ndata: ${JSON.stringify({
+          jsonrpc: '2.0',
+          id: message.id,
+          result: {
+            tools: [{
+              name: 'search_fallback_companies',
+              description: 'Search companies after HTTP fallback.',
+            }],
+          },
+        })}\n\n`))
+        controller?.close()
+        return new Response(null, { status: 202 })
+      }
+
+      return new Response('Unhandled', { status: 500 })
+    }) as typeof fetch
+
+    try {
+      const result = await introspectMcpServer({
+        transport: 'http',
+        url: 'https://example.com/legacy',
+      })
+
+      expect(attemptedHttpInitialize).toBe(true)
+      expect(result.serverInfo.name).toBe('fallback-legacy')
+      expect(result.tools.map((tool) => tool.name)).toEqual(['search_fallback_companies'])
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
 })
