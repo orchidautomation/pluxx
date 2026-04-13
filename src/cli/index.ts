@@ -2,13 +2,16 @@
 
 import { loadConfig } from '../config/load'
 import { build } from '../generators'
-import { ensureHookTrust, installPlugin, uninstallPlugin } from './install'
+import { doctorProject, printDoctorReport } from './doctor'
+import { ensureHookTrust, installPlugin, listHookCommands, planInstallPlugin, uninstallPlugin } from './install'
 import { runDev } from './dev'
 import {
+  applyMcpScaffoldPlan,
   buildToolExampleRequest,
   derivePluginName,
   MCP_HOOK_MODES,
   MCP_SKILL_GROUPINGS,
+  planMcpScaffold,
   type McpHookMode,
   parseMcpSourceInput,
   type McpSkillGrouping,
@@ -22,10 +25,13 @@ import * as clack from '@clack/prompts'
 import type { TargetPlatform } from '../schema'
 import { basename } from 'path'
 import { mkdir } from 'fs/promises'
-import { formatSyncSummary, syncFromMcp } from './sync-from-mcp'
+import { formatSyncSummary, planSyncFromMcp, syncFromMcp } from './sync-from-mcp'
+import { createCliRuntime, createSpinner, printJson, readMultiValueOption, readOption } from './runtime'
+import { printTestResult, runTestSuite } from './test'
 
 const args = process.argv.slice(2)
 const command = args[0]
+const runtime = createCliRuntime(args)
 const DEFAULT_INIT_TARGETS = ['claude-code', 'cursor', 'codex', 'opencode'] as const satisfies readonly TargetPlatform[]
 const ALL_TARGET_PLATFORMS = [
   'claude-code',
@@ -66,12 +72,15 @@ interface InitFromMcpSummary {
   hookMode: McpHookMode
   hookEvents: string[]
   files: string[]
+  createdFiles: string[]
+  updatedFiles: string[]
   lint: {
     errors: number
     warnings: number
   }
   notes: string[]
   nextSteps: string[]
+  dryRun?: boolean
 }
 
 export async function main() {
@@ -88,6 +97,9 @@ export async function main() {
     case 'lint':
       await runLintCommand()
       break
+    case 'doctor':
+      await runDoctor()
+      break
     case 'init':
       await runInit()
       break
@@ -103,6 +115,9 @@ export async function main() {
     case 'migrate':
       await runMigrate()
       break
+    case 'test':
+      await runTestCommand()
+      break
     case undefined:
     case 'help':
     case '--help':
@@ -117,24 +132,47 @@ export async function main() {
 }
 
 async function runBuild() {
-  const targetFlag = args.indexOf('--target')
-  let targets: TargetPlatform[] | undefined
+  const targets = parseTargetFlagValues(args)
+  const config = await loadConfig()
+  const platforms = targets ?? config.targets
 
-  if (targetFlag !== -1) {
-    targets = args.slice(targetFlag + 1).filter(a => !a.startsWith('-')) as TargetPlatform[]
+  if (runtime.dryRun) {
+    const summary = {
+      dryRun: true,
+      targets: platforms,
+      outDir: config.outDir,
+      outputPaths: platforms.map((platform) => `${config.outDir}/${platform}/`),
+    }
+    if (runtime.jsonOutput) {
+      printJson(summary)
+    } else if (!runtime.quiet) {
+      console.log(`Dry run: would build ${platforms.join(', ')}`)
+      summary.outputPaths.forEach((path) => console.log(`  ${path}`))
+    }
+    return
   }
 
-  console.log('Loading config...')
-  const config = await loadConfig()
-
-  const platforms = targets ?? config.targets
-  console.log(`Building for: ${platforms.join(', ')}`)
+  if (!runtime.jsonOutput && !runtime.quiet) {
+    console.log(`Building for: ${platforms.join(', ')}`)
+  }
 
   await build(config, process.cwd(), { targets })
 
-  console.log(`Done! Output in ${config.outDir}/`)
-  for (const platform of platforms) {
-    console.log(`  ${config.outDir}/${platform}/`)
+  if (runtime.jsonOutput) {
+    printJson({
+      ok: true,
+      targets: platforms,
+      outDir: config.outDir,
+      outputPaths: platforms.map((platform) => `${config.outDir}/${platform}/`),
+    })
+    return
+  }
+
+  if (!runtime.quiet) {
+    console.log(`Done! Output in ${config.outDir}/`)
+    for (const platform of platforms) {
+      console.log(`  ${config.outDir}/${platform}/`)
+    }
   }
 }
 
@@ -159,6 +197,26 @@ async function runValidate() {
 }
 
 async function runLintCommand() {
+  if (runtime.jsonOutput) {
+    const result = await lintProject(process.cwd())
+    printJson(result)
+    if (result.errors > 0) {
+      process.exit(1)
+    }
+    return
+  }
+
+  if (runtime.quiet) {
+    const result = await lintProject(process.cwd())
+    if (result.errors > 0 || result.warnings > 0) {
+      printLintResult(result, process.cwd())
+    }
+    if (result.errors > 0) {
+      process.exit(1)
+    }
+    return
+  }
+
   const exitCode = await runLint(process.cwd())
   if (exitCode !== 0) {
     process.exit(exitCode)
@@ -227,6 +285,12 @@ function parseTargetPlatforms(raw: string): TargetPlatform[] {
   return targets as TargetPlatform[]
 }
 
+function parseTargetFlagValues(rawArgs: string[]): TargetPlatform[] | undefined {
+  const values = readMultiValueOption(rawArgs, '--target')
+  if (!values) return undefined
+  return parseTargetPlatforms(values.join(','))
+}
+
 function defaultHookMode(source: { auth?: { type: string; envVar?: string }; transport?: string; env?: Record<string, string> }): McpHookMode {
   if (source.auth?.type && source.auth.type !== 'none' && source.auth.envVar) {
     return 'safe'
@@ -278,7 +342,10 @@ function buildInitSummary(input: {
   hookMode: McpHookMode
   hookEvents: string[]
   files: string[]
+  createdFiles: string[]
+  updatedFiles: string[]
   lint: { errors: number; warnings: number }
+  dryRun?: boolean
 }): InitFromMcpSummary {
   const installTarget = input.targets[0]
   const installCommand = input.hookMode === 'safe'
@@ -309,36 +376,27 @@ function buildInitSummary(input: {
     hookMode: input.hookMode,
     hookEvents: input.hookEvents,
     files: input.files,
+    createdFiles: input.createdFiles,
+    updatedFiles: input.updatedFiles,
     lint: input.lint,
     notes,
     nextSteps,
+    dryRun: input.dryRun,
   }
 }
 
 export function parseInitFromMcpOptions(rawArgs: string[], initialName?: string, initialSource?: string): InitFromMcpOptions {
-  const read = (flag: string): string | undefined => {
-    const index = rawArgs.indexOf(flag)
-    if (index === -1) return undefined
-
-    const value = rawArgs[index + 1]
-    if (!value || value.startsWith('-')) {
-      return undefined
-    }
-
-    return value
-  }
-
   return {
-    source: initialSource ?? read('--from-mcp'),
+    source: initialSource ?? readOption(rawArgs, '--from-mcp'),
     assumeDefaults: rawArgs.includes('--yes'),
-    name: read('--name') ?? initialName,
-    author: read('--author'),
-    displayName: read('--display-name'),
-    targets: read('--targets'),
-    authEnv: read('--auth-env'),
-    grouping: read('--grouping'),
-    hooks: read('--hooks'),
-    transport: read('--transport'),
+    name: readOption(rawArgs, '--name') ?? initialName,
+    author: readOption(rawArgs, '--author'),
+    displayName: readOption(rawArgs, '--display-name'),
+    targets: readOption(rawArgs, '--targets'),
+    authEnv: readOption(rawArgs, '--auth-env'),
+    grouping: readOption(rawArgs, '--grouping'),
+    hooks: readOption(rawArgs, '--hooks'),
+    transport: readOption(rawArgs, '--transport'),
     jsonOutput: rawArgs.includes('--json'),
   }
 }
@@ -365,6 +423,10 @@ async function runInit() {
   if (fromMcpFlag !== -1) {
     await runInitFromMcp(positionalName, fromMcpInput)
     return
+  }
+
+  if (!runtime.isInteractive) {
+    throw new Error('pluxx init requires an interactive terminal unless you use `pluxx init --from-mcp ... --yes`.')
   }
 
   const dirName = positionalName
@@ -515,9 +577,9 @@ Example prompt or command here
 async function runInitFromMcp(initialName?: string, initialSource?: string) {
   const options = parseInitFromMcpOptions(args, initialName, initialSource)
   const defaultTargets = DEFAULT_INIT_TARGETS.join(',')
-  const interactive = !options.jsonOutput && !options.assumeDefaults
+  const interactive = !options.jsonOutput && !options.assumeDefaults && runtime.isInteractive
 
-  if (!options.jsonOutput) {
+  if (!options.jsonOutput && !runtime.quiet) {
     clack.intro('pluxx init --from-mcp')
   }
 
@@ -533,7 +595,7 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
 
     let source = parseMcpSourceInput(rawSource, options.transport)
 
-    const s = !options.jsonOutput ? clack.spinner() : undefined
+    const s = createSpinner(runtime)
     s?.start('Step 1/4 \u00b7 Connecting to MCP server...')
 
     let introspection
@@ -594,7 +656,7 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
 
     // ── Step 2/4 · Plugin identity ───────────────────────────────────
 
-    if (!options.jsonOutput) {
+    if (!options.jsonOutput && !runtime.quiet) {
       clack.log.step('Step 2/4 \u00b7 Plugin identity')
     }
 
@@ -615,7 +677,7 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
 
     // ── Step 3/4 · Build settings ────────────────────────────────────
 
-    if (!options.jsonOutput) {
+    if (!options.jsonOutput && !runtime.quiet) {
       clack.log.step('Step 3/4 \u00b7 Build settings')
     }
 
@@ -647,10 +709,9 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
 
     // ── Step 4/4 · Generating scaffold ───────────────────────────────
 
-    const g = !options.jsonOutput ? clack.spinner() : undefined
+    const g = createSpinner(runtime)
     g?.start('Step 4/4 \u00b7 Generating scaffold...')
-
-    const result = await writeMcpScaffold({
+    const plan = await planMcpScaffold({
       rootDir: process.cwd(),
       pluginName,
       authorName,
@@ -661,7 +722,20 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
       skillGrouping: grouping,
       hookMode,
     })
-    const lintResult = await lintProject(process.cwd())
+    const createdFiles = plan.files
+      .filter((file) => file.action === 'create')
+      .map((file) => file.relativePath)
+    const updatedFiles = plan.files
+      .filter((file) => file.action === 'update')
+      .map((file) => file.relativePath)
+
+    if (!runtime.dryRun) {
+      await applyMcpScaffoldPlan(process.cwd(), plan)
+    }
+
+    const lintResult = runtime.dryRun
+      ? { errors: 0, warnings: 0, issues: [] }
+      : await lintProject(process.cwd())
     const summary = buildInitSummary({
       pluginName,
       displayName,
@@ -670,30 +744,49 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
       targets,
       grouping,
       requestedHookMode: hookMode,
-      hookMode: result.generatedHookMode,
-      hookEvents: result.generatedHookEvents,
-      files: result.generatedFiles,
+      hookMode: plan.generatedHookMode,
+      hookEvents: plan.generatedHookEvents,
+      files: plan.generatedFiles,
+      createdFiles,
+      updatedFiles,
       lint: {
         errors: lintResult.errors,
         warnings: lintResult.warnings,
       },
+      dryRun: runtime.dryRun,
     })
 
     if (options.jsonOutput) {
-      console.log(JSON.stringify(summary, null, 2))
+      printJson(summary)
       return
     }
 
-    g?.stop(`Created ${summary.files.length} files`)
-    if (lintResult.errors > 0) {
-      clack.log.error(`Lint: ${lintResult.errors} errors, ${lintResult.warnings} warnings`)
-    } else if (lintResult.warnings > 0) {
-      clack.log.warn(`Lint: ${lintResult.errors} errors, ${lintResult.warnings} warnings`)
-    } else {
-      clack.log.success('Lint: 0 errors, 0 warnings')
+    g?.stop(`${runtime.dryRun ? 'Planned' : 'Created'} ${summary.files.length} files`)
+
+    if (runtime.quiet) {
+      return
     }
 
-    if (lintResult.issues.length > 0) {
+    if (summary.createdFiles.length > 0) {
+      clack.log.info(`Create: ${summary.createdFiles.join(', ')}`)
+    }
+    if (summary.updatedFiles.length > 0) {
+      clack.log.info(`Update: ${summary.updatedFiles.join(', ')}`)
+    }
+
+    if (!runtime.dryRun) {
+      if (lintResult.errors > 0) {
+        clack.log.error(`Lint: ${lintResult.errors} errors, ${lintResult.warnings} warnings`)
+      } else if (lintResult.warnings > 0) {
+        clack.log.warn(`Lint: ${lintResult.errors} errors, ${lintResult.warnings} warnings`)
+      } else {
+        clack.log.success('Lint: 0 errors, 0 warnings')
+      }
+    } else {
+      clack.log.info('Dry run only: scaffold files were not written and lint was skipped.')
+    }
+
+    if (!runtime.dryRun && lintResult.issues.length > 0) {
       for (const issue of lintResult.issues) {
         const levelLabel = issue.level === 'error' ? 'ERROR' : 'WARN '
         const platformLabel = issue.platform ? `[${issue.platform}] ` : ''
@@ -734,10 +827,10 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
 
     clack.note(nextStepLines.join('\n'), 'Next steps')
 
-    clack.outro('Scaffold complete')
+    clack.outro(runtime.dryRun ? 'Dry run complete' : 'Scaffold complete')
   } catch (error) {
     if (error instanceof PromptCancelledError) {
-      if (!options.jsonOutput) {
+      if (!options.jsonOutput && !runtime.quiet) {
         clack.cancel(error.message)
       }
       return
@@ -783,53 +876,129 @@ async function runSync() {
     ? args[fromMcpFlag + 1]
     : undefined
   const source = fromMcpInput ? parseMcpSourceInput(fromMcpInput) : undefined
-  const result = await syncFromMcp({
-    rootDir: process.cwd(),
-    source,
-  })
+  const result = runtime.dryRun
+    ? await planSyncFromMcp({
+        rootDir: process.cwd(),
+        source,
+      })
+    : await syncFromMcp({
+        rootDir: process.cwd(),
+        source,
+      })
 
-  if (args.includes('--json')) {
-    console.log(JSON.stringify(result, null, 2))
+  if (runtime.jsonOutput) {
+    printJson({
+      ...result,
+      dryRun: runtime.dryRun,
+    })
     return
   }
 
-  formatSyncSummary(result, process.cwd()).forEach((line) => console.log(line))
+  if (runtime.quiet) {
+    return
+  }
+
+  const lines = formatSyncSummary(result, process.cwd())
+  if (runtime.dryRun) {
+    console.log('Dry run: planned sync changes')
+  }
+  lines.forEach((line) => console.log(line))
+}
+
+async function runDoctor() {
+  const report = await doctorProject(process.cwd())
+
+  if (runtime.jsonOutput) {
+    printJson(report)
+  } else if (!runtime.quiet) {
+    printDoctorReport(report)
+  }
+
+  if (!report.ok) {
+    process.exit(1)
+  }
+}
+
+async function runTestCommand() {
+  const targets = parseTargetFlagValues(args)
+  const result = await runTestSuite({
+    rootDir: process.cwd(),
+    targets,
+  })
+
+  if (runtime.jsonOutput) {
+    printJson(result)
+    return
+  }
+
+  if (!runtime.quiet) {
+    printTestResult(result)
+  }
+
+  if (!result.ok) {
+    process.exit(1)
+  }
 }
 
 async function runInstall() {
-  const targetFlag = args.indexOf('--target')
   const trust = args.includes('--trust')
-  let targets: TargetPlatform[] | undefined
-
-  if (targetFlag !== -1) {
-    targets = args.slice(targetFlag + 1).filter(a => !a.startsWith('-')) as TargetPlatform[]
-  }
+  const targets = parseTargetFlagValues(args)
 
   const config = await loadConfig()
   const distDir = `${process.cwd()}/${config.outDir}`
   const platforms = targets ?? config.targets
 
-  console.log(`Installing ${config.name} plugin...`)
+  if (runtime.dryRun) {
+    const plan = planInstallPlugin(distDir, config.name, platforms)
+    const hookCommands = listHookCommands(config.hooks)
+    const summary = {
+      dryRun: true,
+      pluginName: config.name,
+      platforms,
+      trustRequired: hookCommands.length > 0,
+      installTargets: plan.map((target) => ({
+        platform: target.platform,
+        sourceDir: target.sourceDir,
+        pluginDir: target.description,
+        built: target.built,
+        existing: target.existing,
+      })),
+    }
+    if (runtime.jsonOutput) {
+      printJson(summary)
+    } else if (!runtime.quiet) {
+      console.log(`Dry run: would install ${config.name} for ${platforms.join(', ')}`)
+      plan.forEach((target) => {
+        console.log(`  ${target.platform} -> ${target.description}${target.built ? '' : ' (not built)'}`)
+      })
+      if (listHookCommands(config.hooks).length > 0) {
+        console.log('  trust reminder: this plugin defines local hook commands; install requires review or --trust')
+      }
+    }
+    return
+  }
+
+  if (!runtime.jsonOutput && !runtime.quiet) {
+    console.log(`Installing ${config.name} plugin...`)
+  }
   await ensureHookTrust({
     pluginName: config.name,
     hooks: config.hooks,
     trust,
+    isTTY: runtime.isInteractive,
   })
-  await installPlugin(distDir, config.name, platforms)
+  await installPlugin(distDir, config.name, platforms, { quiet: runtime.quiet })
 }
 
 async function runUninstall() {
-  const targetFlag = args.indexOf('--target')
-  let targets: TargetPlatform[] | undefined
-
-  if (targetFlag !== -1) {
-    targets = args.slice(targetFlag + 1).filter(a => !a.startsWith('-')) as TargetPlatform[]
-  }
+  const targets = parseTargetFlagValues(args)
 
   const config = await loadConfig()
 
-  console.log(`Uninstalling ${config.name} plugin...`)
-  await uninstallPlugin(config.name, targets)
+  if (!runtime.jsonOutput && !runtime.quiet) {
+    console.log(`Uninstalling ${config.name} plugin...`)
+  }
+  await uninstallPlugin(config.name, targets, { quiet: runtime.quiet })
 }
 
 async function runMigrate() {
@@ -854,12 +1023,19 @@ Usage:
   pluxx dev [--target <platforms...>]     Watch for changes and auto-rebuild
   pluxx validate                          Validate your config
   pluxx lint                              Lint skills and cross-platform metadata
+  pluxx doctor                            Check runtime, config, paths, MCP, and trust advisories
   pluxx init [name] [--from-mcp <source>] Create a new pluxx.config.ts
   pluxx sync [--from-mcp <source>]        Refresh MCP-derived scaffold files
   pluxx migrate <path>                    Import an existing plugin into pluxx
+  pluxx test [--target <platforms...>]    Run config, lint, build, and smoke checks
   pluxx install [--target <platforms>] [--trust]  Symlink built plugins for local testing
   pluxx uninstall [--target <platforms>]  Remove symlinked plugins
   pluxx help                              Show this help
+
+Common flags:
+  --json                                  Print machine-readable output
+  --quiet                                 Suppress non-error chatter
+  --dry-run                               Show planned work without writing files or installing anything
 
 Targets:
   claude-code, cursor, codex, opencode, github-copilot, openhands,
@@ -873,10 +1049,14 @@ Examples:
   pluxx init --from-mcp "npx -y @acme/mcp"       Scaffold from a local MCP command
   pluxx init --from-mcp https://example.com/mcp --yes --name acme --display-name "Acme" --author "Acme" --targets claude-code,codex --grouping workflow --hooks safe --json
   pluxx init --from-mcp https://example.com/sse --transport sse   Scaffold from an SSE-transport MCP server
+  pluxx init --from-mcp https://example.com/mcp --yes --dry-run   Preview scaffold files without writing
   pluxx sync                              Refresh a scaffold using .pluxx/mcp.json metadata
   pluxx sync --from-mcp https://example.com/mcp  Refresh using an explicit MCP source override
+  pluxx doctor --json                     Inspect project health as JSON
+  pluxx test --target claude-code codex  Verify selected target outputs
   pluxx install                           Install to all configured targets
   pluxx install --target claude-code      Install to Claude Code only
+  pluxx install --dry-run                 Preview local install paths and trust implications
   pluxx install --trust                   Install without hook trust confirmation
 `)
 }

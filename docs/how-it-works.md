@@ -52,6 +52,12 @@ You can either author from scratch or scaffold directly from a live MCP server:
 $ bunx pluxx init --from-mcp https://example.com/mcp
 ```
 
+That import flow supports:
+
+- remote HTTP MCP servers
+- legacy SSE MCP servers via `--transport sse`
+- local stdio MCP commands such as `bunx pluxx init --from-mcp "npx -y @acme/mcp"`
+
 That flow introspects the server, reads its tool metadata, and drafts workflow-oriented skills instead of mirroring raw tool names one-to-one whenever the tool set supports a clearer grouping.
 
 For automation or CI-style setup, the same flow supports headless flags:
@@ -136,7 +142,34 @@ $ bunx pluxx lint
   2 errors, 2 warnings
 ```
 
-### Step 4: Test locally
+### Step 4: Diagnose and test locally
+
+```bash
+$ bunx pluxx doctor
+
+SUCCESS bun-version Supported Bun runtime detected
+SUCCESS config-valid Config parsed successfully
+WARNING hooks-trust-required Hook commands require install trust
+
+Doctor summary: 0 error(s), 1 warning(s), 1 info message(s)
+```
+
+`pluxx doctor` is read-only. It checks runtime health, config validity, configured paths, MCP auth/transport shape, scaffold metadata, and trust advisories.
+
+```bash
+$ bunx pluxx test
+
+Config: my-plugin@0.1.0
+Lint: 0 error(s), 0 warning(s)
+Build: claude-code, cursor, codex, opencode -> ./dist
+PASS claude-code: .claude-plugin/plugin.json
+PASS cursor: .cursor-plugin/plugin.json
+PASS codex: .codex-plugin/plugin.json
+PASS opencode: package.json
+pluxx test passed.
+```
+
+### Step 5: Install locally
 
 ```bash
 $ bunx pluxx install --target claude-code
@@ -150,7 +183,15 @@ $ claude plugin validate ~/.claude/plugins/my-plugin
   ✓ Validation passed
 ```
 
-### Step 5: Ship
+### Step 6: Sync later
+
+```bash
+$ bunx pluxx sync --dry-run --json
+```
+
+The sync flow refreshes MCP-derived scaffold content while preserving the custom sections in generated Markdown files.
+
+### Step 7: Ship
 
 Deploy to whichever marketplaces you want, with correct manifests already generated.
 

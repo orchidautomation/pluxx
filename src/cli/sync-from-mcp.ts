@@ -1,5 +1,6 @@
-import { existsSync, readFileSync, rmSync, readdirSync, rmdirSync, writeFileSync } from 'fs'
+import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, readdirSync, rmdirSync, writeFileSync } from 'fs'
 import { dirname, isAbsolute, relative, resolve } from 'path'
+import { tmpdir } from 'os'
 import { loadConfig } from '../config/load'
 import { introspectMcpServer, type IntrospectedMcpTool } from '../mcp/introspect'
 import type { McpServer } from '../schema'
@@ -144,6 +145,21 @@ export async function syncFromMcp(options: SyncFromMcpOptions): Promise<SyncFrom
     removedFiles: removedFiles.sort(),
     preservedFiles: preservedFiles.sort(),
     renamedFiles: renamedFiles.sort((a, b) => a.from.localeCompare(b.from)),
+  }
+}
+
+export async function planSyncFromMcp(options: SyncFromMcpOptions): Promise<SyncFromMcpResult> {
+  const tempRoot = mkdtempSync(resolve(tmpdir(), 'pluxx-sync-dry-run-'))
+  const projectDir = resolve(tempRoot, 'project')
+
+  try {
+    cpSync(options.rootDir, projectDir, { recursive: true })
+    return await syncFromMcp({
+      rootDir: projectDir,
+      source: options.source,
+    })
+  } finally {
+    rmSync(tempRoot, { recursive: true, force: true })
   }
 }
 

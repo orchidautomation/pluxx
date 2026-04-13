@@ -1,0 +1,95 @@
+name: Pluxx Plugin Check
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: Directory that contains pluxx.config.ts
+        required: false
+        type: string
+        default: .
+      bun-version:
+        description: Bun version used to run pluxx
+        required: false
+        type: string
+        default: 1.2.17
+      pluxx-version:
+        description: Published pluxx package version to run
+        required: false
+        type: string
+        default: latest
+      targets:
+        description: Optional space-separated target platforms passed to pluxx test --target
+        required: false
+        type: string
+        default: ""
+      quiet:
+        description: Run pluxx test with --quiet
+        required: false
+        type: boolean
+        default: false
+  workflow_dispatch:
+    inputs:
+      working-directory:
+        description: Directory that contains pluxx.config.ts
+        required: false
+        type: string
+        default: .
+      bun-version:
+        description: Bun version used to run pluxx
+        required: false
+        type: string
+        default: 1.2.17
+      pluxx-version:
+        description: Published pluxx package version to run
+        required: false
+        type: string
+        default: latest
+      targets:
+        description: Optional space-separated target platforms passed to pluxx test --target
+        required: false
+        type: string
+        default: ""
+      quiet:
+        description: Run pluxx test with --quiet
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ inputs.bun-version || github.event.inputs.bun-version || '1.2.17' }}
+
+      - name: Run pluxx test
+        working-directory: ${{ inputs.working-directory || github.event.inputs.working-directory || '.' }}
+        shell: bash
+        env:
+          PLUXX_VERSION: ${{ inputs.pluxx-version || github.event.inputs.pluxx-version || 'latest' }}
+          PLUXX_TARGETS: ${{ inputs.targets || github.event.inputs.targets || '' }}
+          PLUXX_QUIET: ${{ inputs.quiet || github.event.inputs.quiet || 'false' }}
+        run: |
+          set -euo pipefail
+          cmd=(bunx --bun "pluxx@${PLUXX_VERSION}" test)
+
+          if [ -n "${PLUXX_TARGETS}" ]; then
+            read -r -a target_args <<< "${PLUXX_TARGETS}"
+            cmd+=(--target "${target_args[@]}")
+          fi
+
+          if [ "${PLUXX_QUIET}" = "true" ]; then
+            cmd+=(--quiet)
+          fi
+
+          printf 'Running:'
+          printf ' %q' "${cmd[@]}"
+          printf '\n'
+          "${cmd[@]}"

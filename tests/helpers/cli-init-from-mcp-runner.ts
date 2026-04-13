@@ -15,6 +15,8 @@ const INSTALL_PATH = resolve(import.meta.dir, '../../src/cli/install.ts')
 const DEV_PATH = resolve(import.meta.dir, '../../src/cli/dev.ts')
 const MIGRATE_PATH = resolve(import.meta.dir, '../../src/cli/migrate.ts')
 const SYNC_PATH = resolve(import.meta.dir, '../../src/cli/sync-from-mcp.ts')
+const originalStdinIsTTY = process.stdin.isTTY
+const originalStdoutIsTTY = process.stdout.isTTY
 
 type Issue = {
   level: 'error' | 'warning'
@@ -109,10 +111,27 @@ function installMocks(options: {
 
   mock.module(INIT_FROM_MCP_PATH, () => ({
     MCP_HOOK_MODES: ['none', 'safe'],
+    MCP_SCAFFOLD_METADATA_PATH: '.pluxx/mcp.json',
     MCP_SKILL_GROUPINGS: ['workflow', 'tool'],
+    PLUXX_CUSTOM_END: '<!-- pluxx:custom:end -->',
+    PLUXX_CUSTOM_START: '<!-- pluxx:custom:start -->',
+    applyMcpScaffoldPlan: async () => {},
     buildToolExampleRequest: () => 'Find organizations for Acme',
     derivePluginName: () => 'stub-server',
-    parseMcpSourceInput: (raw: string) => ({ transport: 'http', url: raw }),
+    extractMixedMarkdownContent: () => ({ hasMarkers: true, customContent: '' }),
+    hasMeaningfulCustomContent: () => false,
+    planMcpScaffold: async () => ({
+      generatedFiles: ['pluxx.config.ts', './INSTRUCTIONS.md'],
+      generatedHookMode: 'none',
+      generatedHookEvents: [],
+      instructionsPath: 'INSTRUCTIONS.md',
+      skillDirectories: ['skills/account-research'],
+      metadataPath: '.pluxx/mcp.json',
+      files: [
+        { relativePath: 'pluxx.config.ts', content: '', action: 'create' },
+        { relativePath: './INSTRUCTIONS.md', content: '', action: 'create' },
+      ],
+    }),
     writeMcpScaffold: async () => ({
       generatedFiles: ['pluxx.config.ts', './INSTRUCTIONS.md'],
       generatedHookMode: 'none',
@@ -121,6 +140,7 @@ function installMocks(options: {
       skillDirectories: ['skills/account-research'],
       metadataPath: '.pluxx/mcp.json',
     }),
+    parseMcpSourceInput: (raw: string) => ({ transport: 'http', url: raw }),
   }))
 
   mock.module(LINT_PATH, () => ({
@@ -134,6 +154,7 @@ function installMocks(options: {
   }))
 
   mock.module(LOAD_CONFIG_PATH, () => ({
+    CONFIG_FILES: ['pluxx.config.ts', 'pluxx.config.js', 'pluxx.config.json'],
     loadConfig: async () => {
       throw new Error('loadConfig should not be called in init --from-mcp tests')
     },
@@ -148,6 +169,8 @@ function installMocks(options: {
   mock.module(INSTALL_PATH, () => ({
     ensureHookTrust: async () => {},
     installPlugin: async () => {},
+    listHookCommands: () => [],
+    planInstallPlugin: () => [],
     uninstallPlugin: async () => {},
   }))
 
@@ -161,6 +184,12 @@ function installMocks(options: {
 
   mock.module(SYNC_PATH, () => ({
     formatSyncSummary: () => [],
+    planSyncFromMcp: async () => ({
+      updatedFiles: [],
+      removedFiles: [],
+      preservedFiles: [],
+      skippedFiles: [],
+    }),
     syncFromMcp: async () => ({
       updatedFiles: [],
       removedFiles: [],
@@ -179,6 +208,8 @@ async function loadCli(tag: string) {
 afterEach(() => {
   process.argv = [...originalArgv]
   process.chdir(originalCwd)
+  Object.defineProperty(process.stdin, 'isTTY', { value: originalStdinIsTTY, configurable: true })
+  Object.defineProperty(process.stdout, 'isTTY', { value: originalStdoutIsTTY, configurable: true })
   mock.restore()
 })
 
@@ -188,6 +219,8 @@ describe('isolated init --from-mcp CLI checks', () => {
 
     try {
       process.chdir(cwd)
+      Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true })
+      Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true })
       process.argv = ['bun', 'pluxx', 'init', '--from-mcp', 'https://example.com/mcp']
       const cancelToken = Symbol('cancel')
 
@@ -212,6 +245,8 @@ describe('isolated init --from-mcp CLI checks', () => {
 
     try {
       process.chdir(cwd)
+      Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true })
+      Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true })
       process.argv = ['bun', 'pluxx', 'init', '--from-mcp', 'https://example.com/mcp']
 
       const { calls } = installMocks({

@@ -66,14 +66,29 @@ bunx pluxx init my-plugin
 # Scaffold directly from an MCP server
 bunx pluxx init --from-mcp https://example.com/mcp
 
+# Legacy SSE MCP import
+bunx pluxx init --from-mcp https://example.com/sse --transport sse
+
+# Local stdio MCP import
+bunx pluxx init --from-mcp "npx -y @acme/mcp"
+
 # pluxx will introspect the server and draft grouped skills like
 # account-research, contact-discovery, hiring-signals, or technographics
 
 # Headless / CI-friendly import
 bunx pluxx init --from-mcp https://example.com/mcp --yes --name acme --display-name "Acme" --author "Acme" --targets claude-code,codex --grouping workflow --hooks safe --json
 
+# Inspect the generated project without mutating files
+bunx pluxx doctor
+bunx pluxx init --from-mcp https://example.com/mcp --yes --dry-run
+
 # Refresh MCP-derived files later while preserving the custom sections
 bunx pluxx sync --json
+
+# Validate, build, and smoke-test the generated plugin
+bunx pluxx lint
+bunx pluxx build
+bunx pluxx test
 ```
 
 Generated MCP skill files include deterministic example requests derived from tool names and required inputs, so the first scaffold is useful before any AI refinement.
@@ -93,6 +108,12 @@ bunx pluxx build
 
 # Lint against all platform rules (47 checks)
 bunx pluxx lint
+
+# Diagnose local runtime + config health
+bunx pluxx doctor
+
+# Run config, lint, build, and smoke checks together
+bunx pluxx test
 
 # Build for specific platforms
 bunx pluxx build --target claude-code cursor codex opencode
@@ -208,6 +229,13 @@ Your single `INSTRUCTIONS.md` becomes:
 - Version must follow semver format
 - And 39 more checks across all platforms
 
+### Read-Only Diagnostics And Verification
+
+- `pluxx doctor` checks Bun/runtime health, config loadability, configured paths, MCP auth/transport shape, scaffold metadata, and install trust advisories.
+- `pluxx test` runs the default verification stack for a plugin project: config load, lint, build, and generated-output smoke checks.
+- `--json` is available for machine-readable output on `init --from-mcp`, `sync`, `doctor`, `lint`, `build`, `install --dry-run`, and `test`.
+- `--dry-run` previews file writes for `init --from-mcp` and `sync`, install paths for `install`, and output targets for `build`.
+
 ### Platform Overrides
 
 For the 10% of cases where platforms diverge:
@@ -256,14 +284,50 @@ bunx pluxx lint    # Catches real platform gotchas
 ## Testing Locally
 
 ```bash
+# Check project health before generating anything
+bunx pluxx doctor
+
 # Build and install to Claude Code
 bunx pluxx build
 bunx pluxx install --target claude-code
+
+# Run the full plugin verification contract
+bunx pluxx test
 
 # Validate with Claude Code's own validator
 claude plugin validate ~/.claude/plugins/my-plugin
 # ✓ Validation passed
 ```
+
+## CI / Automation
+
+Pluxx now ships a reusable GitHub workflow for plugin repos:
+
+```yaml
+name: Plugin Check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    uses: orchidautomation/pluxx/.github/workflows/pluxx-plugin-check.yml@main
+    with:
+      working-directory: .
+      pluxx-version: latest
+```
+
+For headless local automation, prefer:
+
+```bash
+bunx pluxx init --from-mcp https://example.com/mcp --yes --json
+bunx pluxx sync --dry-run --json
+bunx pluxx test --json
+```
+
+See [docs/getting-started.md](./docs/getting-started.md) for the full MCP-first walkthrough.
 
 ## Hook Trust Model
 
@@ -282,8 +346,11 @@ bunx pluxx install --trust
 | Command | What it does |
 |---------|-------------|
 | `pluxx init` | Interactive scaffold for a new plugin or `--from-mcp` import |
+| `pluxx doctor` | Read-only runtime, config, MCP, and trust diagnostics |
 | `pluxx build` | Generate plugin packages for all target platforms |
 | `pluxx lint` | 47 checks against all platform rules |
+| `pluxx test` | Run config, lint, build, and smoke checks together |
+| `pluxx sync` | Refresh MCP-derived scaffold files while preserving custom sections |
 | `pluxx validate` | Validate your config schema |
 | `pluxx install` | Symlink built plugins for local testing (prompts when hook commands exist) |
 | `pluxx install --trust` | Bypass hook trust confirmation |
@@ -347,10 +414,12 @@ pluxx.config.ts          <- You define your plugin once
 - [x] Real-world examples (Megamind + Prospeo)
 - [ ] `pluxx lint --fix` — auto-apply suggested fixes
 - [x] `pluxx init --from-mcp` — auto-scaffold plugins from existing MCP servers
+- [x] `pluxx doctor` — project and runtime health checks
+- [x] `pluxx test` — verification command for plugin repos
+- [x] CI/CD GitHub Action / reusable workflow
 - [ ] `pluxx publish` — push to platform marketplaces
 - [ ] `pluxx diff` — show what changed per platform
 - [ ] Plugin analytics dashboard
-- [ ] CI/CD GitHub Action
 - [ ] Promote beta platforms to fully supported
 
 ## License

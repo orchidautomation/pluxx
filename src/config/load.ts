@@ -4,7 +4,7 @@ import { rm } from 'fs/promises'
 import { fileURLToPath, pathToFileURL } from 'url'
 import { PluginConfigSchema, type PluginConfig } from '../schema'
 
-const CONFIG_FILES = [
+export const CONFIG_FILES = [
   'pluxx.config.ts',
   'pluxx.config.js',
   'pluxx.config.json',

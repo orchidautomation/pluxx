@@ -27,6 +27,16 @@ export interface McpScaffoldResult {
   metadataPath: string
 }
 
+export interface McpScaffoldPlannedFile {
+  relativePath: string
+  content: string
+  action: 'create' | 'update' | 'unchanged'
+}
+
+export interface McpScaffoldPlan extends McpScaffoldResult {
+  files: McpScaffoldPlannedFile[]
+}
+
 interface PlannedSkill {
   dirName: string
   title: string
@@ -174,6 +184,31 @@ export function parseMcpSourceInput(input: string, transportOverride?: string): 
 }
 
 export async function writeMcpScaffold(options: McpScaffoldOptions): Promise<McpScaffoldResult> {
+  const plan = await planMcpScaffold(options)
+  await applyMcpScaffoldPlan(options.rootDir, plan)
+
+  return {
+    instructionsPath: plan.instructionsPath,
+    skillDirectories: plan.skillDirectories,
+    generatedFiles: plan.generatedFiles,
+    generatedHookMode: plan.generatedHookMode,
+    generatedHookEvents: plan.generatedHookEvents,
+    metadataPath: plan.metadataPath,
+  }
+}
+
+export async function applyMcpScaffoldPlan(rootDir: string, plan: McpScaffoldPlan): Promise<void> {
+  for (const file of plan.files) {
+    const filePath = resolve(rootDir, file.relativePath)
+    const parentDir = file.relativePath.split('/').slice(0, -1).join('/')
+    if (parentDir) {
+      await mkdir(resolve(rootDir, parentDir), { recursive: true })
+    }
+    await Bun.write(filePath, file.content)
+  }
+}
+
+export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpScaffoldPlan> {
   const pluginName = toKebabCase(options.pluginName) || 'mcp-plugin'
   const displayName = options.displayName
     ?? options.introspection.serverInfo.title
@@ -192,9 +227,18 @@ export async function writeMcpScaffold(options: McpScaffoldOptions): Promise<Mcp
   const generatedFiles = ['pluxx.config.ts', './INSTRUCTIONS.md']
   const generatedHooks = planGeneratedHooks(options.source, options.introspection.tools, serverName, options.hookMode)
   const metadataPath = MCP_SCAFFOLD_METADATA_PATH
+  const files: McpScaffoldPlannedFile[] = []
 
-  await Bun.write(
-    resolve(options.rootDir, 'pluxx.config.ts'),
+  const addPlannedFile = async (relativePath: string, content: string) => {
+    const filePath = resolve(options.rootDir, relativePath)
+    const action = existsSync(filePath)
+      ? ((await Bun.file(filePath).text()) === content ? 'unchanged' : 'update')
+      : 'create'
+    files.push({ relativePath, content, action })
+  }
+
+  await addPlannedFile(
+    'pluxx.config.ts',
     buildConfigTemplate({
       pluginName,
       authorName: options.authorName,
@@ -209,8 +253,8 @@ export async function writeMcpScaffold(options: McpScaffoldOptions): Promise<Mcp
     }),
   )
 
-  await Bun.write(
-    instructionsPath,
+  await addPlannedFile(
+    './INSTRUCTIONS.md',
     wrapManagedMarkdown(
       buildInstructionsContent({
         displayName,
@@ -228,14 +272,11 @@ export async function writeMcpScaffold(options: McpScaffoldOptions): Promise<Mcp
     ),
   )
 
-  await mkdir(skillRoot, { recursive: true })
-
   for (const skill of plannedSkills) {
-    const toolDir = resolve(skillRoot, skill.dirName)
-    await mkdir(toolDir, { recursive: true })
-    const skillPath = resolve(toolDir, 'SKILL.md')
-    await Bun.write(
-      skillPath,
+    const relativeSkillPath = `skills/${skill.dirName}`
+    const skillPath = resolve(skillRoot, skill.dirName, 'SKILL.md')
+    await addPlannedFile(
+      `${relativeSkillPath}/SKILL.md`,
       wrapManagedMarkdown(
         buildSkillContent(skill),
         existsSync(skillPath) ? await Bun.file(skillPath).text() : undefined,
@@ -245,22 +286,15 @@ export async function writeMcpScaffold(options: McpScaffoldOptions): Promise<Mcp
         },
       ),
     )
-    const relativeSkillPath = `skills/${skill.dirName}`
     skillDirectories.push(relativeSkillPath)
     generatedFiles.push(`${relativeSkillPath}/SKILL.md`)
   }
 
   for (const file of generatedHooks.files) {
-    const filePath = resolve(options.rootDir, file.relativePath)
-    const parentDir = file.relativePath.split('/').slice(0, -1).join('/')
-    if (parentDir) {
-      await mkdir(resolve(options.rootDir, parentDir), { recursive: true })
-    }
-    await Bun.write(filePath, file.content)
+    await addPlannedFile(file.relativePath, file.content)
     generatedFiles.push(file.relativePath)
   }
 
-  await mkdir(resolve(options.rootDir, '.pluxx'), { recursive: true })
   const metadata = buildMcpScaffoldMetadata({
     source: options.source,
     introspection: options.introspection,
@@ -273,7 +307,7 @@ export async function writeMcpScaffold(options: McpScaffoldOptions): Promise<Mcp
     plannedSkills,
     managedFiles: [...generatedFiles, metadataPath],
   })
-  await Bun.write(resolve(options.rootDir, metadataPath), `${JSON.stringify(metadata, null, 2)}\n`)
+  await addPlannedFile(metadataPath, `${JSON.stringify(metadata, null, 2)}\n`)
   generatedFiles.push(metadataPath)
 
   return {
@@ -283,6 +317,7 @@ export async function writeMcpScaffold(options: McpScaffoldOptions): Promise<Mcp
     generatedHookMode: generatedHooks.mode,
     generatedHookEvents: Object.keys(generatedHooks.hookEntries ?? {}),
     metadataPath,
+    files,
   }
 }
 

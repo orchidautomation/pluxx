@@ -9,6 +9,12 @@ interface InstallTarget {
   description: string
 }
 
+export interface PlannedInstallTarget extends InstallTarget {
+  sourceDir: string
+  built: boolean
+  existing: boolean
+}
+
 export interface HookCommand {
   event: string
   command: string
@@ -146,22 +152,42 @@ function getInstallTargets(pluginName: string): InstallTarget[] {
   ]
 }
 
-export async function installPlugin(
+export function planInstallPlugin(
   distDir: string,
   pluginName: string,
   platforms?: TargetPlatform[],
-): Promise<void> {
+): PlannedInstallTarget[] {
   const targets = getInstallTargets(pluginName)
   const filtered = platforms
     ? targets.filter(t => platforms.includes(t.platform))
     : targets
 
+  return filtered.map((target) => {
+    const sourceDir = resolve(distDir, target.platform)
+    return {
+      ...target,
+      sourceDir,
+      built: existsSync(sourceDir),
+      existing: existsSync(target.pluginDir),
+    }
+  })
+}
+
+export async function installPlugin(
+  distDir: string,
+  pluginName: string,
+  platforms?: TargetPlatform[],
+  options: { quiet?: boolean } = {},
+): Promise<void> {
+  const filtered = planInstallPlugin(distDir, pluginName, platforms)
+
   let installed = 0
 
   for (const target of filtered) {
-    const srcDir = resolve(distDir, target.platform)
-    if (!existsSync(srcDir)) {
-      console.log(`  skip ${target.platform} (not built)`)
+    if (!target.built) {
+      if (!options.quiet) {
+        console.log(`  skip ${target.platform} (not built)`)
+      }
       continue
     }
 
@@ -175,14 +201,16 @@ export async function installPlugin(
     }
 
     // Create symlink
-    symlinkSync(srcDir, target.pluginDir)
-    console.log(`  ${target.platform} -> ${target.description}`)
+    symlinkSync(target.sourceDir, target.pluginDir)
+    if (!options.quiet) {
+      console.log(`  ${target.platform} -> ${target.description}`)
+    }
     installed++
   }
 
-  if (installed === 0) {
+  if (installed === 0 && !options.quiet) {
     console.log('Nothing to install. Run `pluxx build` first.')
-  } else {
+  } else if (!options.quiet) {
     console.log(`\nInstalled ${installed} plugin(s). Restart your tools to pick them up.`)
   }
 }
@@ -190,6 +218,7 @@ export async function installPlugin(
 export async function uninstallPlugin(
   pluginName: string,
   platforms?: TargetPlatform[],
+  options: { quiet?: boolean } = {},
 ): Promise<void> {
   const targets = getInstallTargets(pluginName)
   const filtered = platforms
@@ -201,14 +230,16 @@ export async function uninstallPlugin(
   for (const target of filtered) {
     if (existsSync(target.pluginDir)) {
       rmSync(target.pluginDir, { recursive: true, force: true })
-      console.log(`  removed ${target.description}`)
+      if (!options.quiet) {
+        console.log(`  removed ${target.description}`)
+      }
       removed++
     }
   }
 
-  if (removed === 0) {
+  if (removed === 0 && !options.quiet) {
     console.log('Nothing to uninstall.')
-  } else {
+  } else if (!options.quiet) {
     console.log(`\nRemoved ${removed} plugin(s).`)
   }
 }
