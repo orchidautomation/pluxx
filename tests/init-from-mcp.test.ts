@@ -102,11 +102,29 @@ describe('init-from-mcp scaffold', () => {
     })
   })
 
+  it('auto-detects SSE transport for trailing-slash SSE paths', () => {
+    expect(parseMcpSourceInput('https://mcp.example.com/sse/')).toEqual({
+      transport: 'sse',
+      url: 'https://mcp.example.com/sse/',
+    })
+
+    expect(parseMcpSourceInput('https://mcp.example.com/v1/sse/')).toEqual({
+      transport: 'sse',
+      url: 'https://mcp.example.com/v1/sse/',
+    })
+  })
+
   it('defaults to http transport when URL path does not end with /sse', () => {
     expect(parseMcpSourceInput('https://mcp.example.com/mcp')).toEqual({
       transport: 'http',
       url: 'https://mcp.example.com/mcp',
     })
+  })
+
+  it('rejects invalid transport overrides', () => {
+    expect(() => parseMcpSourceInput('https://mcp.example.com/v1', 'websocket')).toThrow(
+      'Transport must be one of: http, sse',
+    )
   })
 
   it('ignores transport override for stdio commands', () => {
