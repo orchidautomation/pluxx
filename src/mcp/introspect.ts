@@ -86,10 +86,35 @@ interface McpClient {
 }
 
 export async function introspectMcpServer(server: McpServer): Promise<IntrospectedMcpServer> {
-  const client = server.transport === 'stdio'
-    ? await createStdioClient(server)
-    : createHttpClient(server)
+  if (server.transport === 'stdio') {
+    const client = await createStdioClient(server)
+    return await introspectWithClient(client)
+  }
 
+  if (server.transport === 'sse') {
+    const client = await createSseClient(server)
+    return await introspectWithClient(client)
+  }
+
+  try {
+    return await introspectWithClient(createHttpClient(server))
+  } catch (error) {
+    if (
+      error instanceof McpIntrospectionError
+      && (error.status === 400 || error.status === 404 || error.status === 405)
+    ) {
+      const sseClient = await createSseClient({
+        ...server,
+        transport: 'sse',
+      })
+      return await introspectWithClient(sseClient)
+    }
+
+    throw error
+  }
+}
+
+async function introspectWithClient(client: McpClient): Promise<IntrospectedMcpServer> {
   try {
     const initialize = await client.request<InitializeResult>('initialize', {
       protocolVersion: MCP_PROTOCOL_VERSION,
@@ -198,6 +223,287 @@ function createHttpClient(server: Exclude<McpServer, { transport: 'stdio' }>): M
       } catch {
         // Session cleanup is best effort only.
       }
+    },
+  }
+}
+
+async function createSseClient(server: Extract<McpServer, { transport: 'sse' }>): Promise<McpClient> {
+  let sessionId: string | null = null
+  let endpointUrl: string | null = null
+  let isClosed = false
+  const pending = new Map<number, {
+    resolve: (value: unknown) => void
+    reject: (error: Error) => void
+    timeout: ReturnType<typeof setTimeout>
+  }>()
+  const abortController = new AbortController()
+  let resolveEndpoint!: (value: string) => void
+  let rejectEndpoint!: (error: Error) => void
+  let endpointSettled = false
+
+  const endpointReady = new Promise<string>((resolve, reject) => {
+    resolveEndpoint = (value) => {
+      endpointSettled = true
+      resolve(value)
+    }
+    rejectEndpoint = (error) => {
+      endpointSettled = true
+      reject(error)
+    }
+  })
+
+  const streamPromise = (async () => {
+    const response = await fetch(server.url, {
+      method: 'GET',
+      headers: buildSseStreamHeaders(server.auth, sessionId),
+      signal: abortController.signal,
+    })
+
+    if (!response.ok) {
+      throw new McpIntrospectionError(
+        `MCP SSE stream failed with ${response.status} ${response.statusText}.`,
+        response.status,
+      )
+    }
+
+    const contentType = response.headers.get('content-type') ?? ''
+    if (!contentType.includes('text/event-stream')) {
+      throw new McpIntrospectionError(`Unsupported MCP SSE response content type: ${contentType || 'unknown'}.`)
+    }
+
+    sessionId = response.headers.get('Mcp-Session-Id') ?? sessionId
+
+    if (!response.body) {
+      throw new McpIntrospectionError('MCP SSE stream opened without a readable response body.')
+    }
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let eventName = 'message'
+    let dataLines: string[] = []
+
+    const flushEvent = () => {
+      if (dataLines.length === 0) {
+        eventName = 'message'
+        return
+      }
+
+      const data = dataLines.join('\n').trim()
+      dataLines = []
+      const currentEvent = eventName || 'message'
+      eventName = 'message'
+
+      if (!data) {
+        return
+      }
+
+      if (currentEvent === 'endpoint') {
+        endpointUrl = new URL(data, server.url).toString()
+        if (!endpointSettled) {
+          resolveEndpoint(endpointUrl)
+        }
+        return
+      }
+
+      if (currentEvent !== 'message') {
+        return
+      }
+
+      const envelope = JSON.parse(data) as JsonRpcEnvelope<unknown>
+      if (typeof envelope !== 'object' || envelope === null || !('id' in envelope)) {
+        return
+      }
+
+      const requestId = typeof envelope.id === 'number' ? envelope.id : Number.NaN
+      if (!Number.isFinite(requestId)) return
+
+      const entry = pending.get(requestId)
+      if (!entry) return
+
+      pending.delete(requestId)
+      clearTimeout(entry.timeout)
+
+      try {
+        entry.resolve(unwrapEnvelope(envelope))
+      } catch (error) {
+        entry.reject(error instanceof Error ? error : new Error(String(error)))
+      }
+    }
+
+    while (true) {
+      const { value, done } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split(/\r?\n/)
+      buffer = lines.pop() ?? ''
+
+      for (const line of lines) {
+        if (line === '') {
+          flushEvent()
+          continue
+        }
+
+        if (line.startsWith(':')) {
+          continue
+        }
+
+        const separatorIndex = line.indexOf(':')
+        const field = separatorIndex === -1 ? line : line.slice(0, separatorIndex)
+        const rawValue = separatorIndex === -1 ? '' : line.slice(separatorIndex + 1).trimStart()
+
+        if (field === 'event') {
+          eventName = rawValue || 'message'
+        } else if (field === 'data') {
+          dataLines.push(rawValue)
+        }
+      }
+    }
+
+    if (buffer) {
+      const tailLines = buffer.split(/\r?\n/)
+      for (const line of tailLines) {
+        if (line.startsWith('data:')) {
+          dataLines.push(line.slice(5).trimStart())
+        }
+      }
+    }
+    flushEvent()
+
+    if (!endpointSettled) {
+      rejectEndpoint(new McpIntrospectionError('MCP SSE stream did not provide the required endpoint event.'))
+      return
+    }
+
+    if (!isClosed && pending.size > 0) {
+      const error = new McpIntrospectionError('MCP SSE stream ended before pluxx finished introspecting it.')
+      for (const entry of pending.values()) {
+        clearTimeout(entry.timeout)
+        entry.reject(error)
+      }
+      pending.clear()
+    }
+  })().catch((error) => {
+    if (isClosed && error instanceof DOMException && error.name === 'AbortError') {
+      return
+    }
+
+    const wrapped = error instanceof Error
+      ? error
+      : new McpIntrospectionError(String(error))
+
+    if (!endpointSettled) {
+      rejectEndpoint(wrapped)
+    }
+
+    for (const entry of pending.values()) {
+      clearTimeout(entry.timeout)
+      entry.reject(wrapped)
+    }
+    pending.clear()
+  })
+
+  await endpointReady
+
+  return {
+    async request<T>(method: string, params?: Record<string, unknown>): Promise<T> {
+      const requestId = nextRequestId()
+      const endpoint = endpointUrl ?? await endpointReady
+
+      const resultPromise = new Promise<T>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          pending.delete(requestId)
+          reject(new McpIntrospectionError(`Timed out waiting for MCP SSE response to ${method}.`))
+        }, DEFAULT_TIMEOUT_MS)
+
+        pending.set(requestId, {
+          resolve: (value) => {
+            clearTimeout(timeout)
+            resolve(value as T)
+          },
+          reject: (error) => {
+            clearTimeout(timeout)
+            reject(error)
+          },
+          timeout,
+        })
+      })
+
+      let response: Response
+      try {
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: buildHttpHeaders(server.auth, sessionId),
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: requestId,
+            method,
+            ...(params ? { params } : {}),
+          }),
+        })
+      } catch (error) {
+        const entry = pending.get(requestId)
+        if (entry) {
+          pending.delete(requestId)
+          clearTimeout(entry.timeout)
+        }
+        throw new McpIntrospectionError(`MCP SSE request failed: ${error instanceof Error ? error.message : String(error)}`)
+      }
+
+      if (!response.ok && response.status !== 202) {
+        const entry = pending.get(requestId)
+        if (entry) {
+          pending.delete(requestId)
+          clearTimeout(entry.timeout)
+        }
+        throw new McpIntrospectionError(
+          `MCP SSE request failed with ${response.status} ${response.statusText}.`,
+          response.status,
+        )
+      }
+
+      sessionId = response.headers.get('Mcp-Session-Id') ?? sessionId
+      const contentType = response.headers.get('content-type') ?? ''
+      if (contentType.includes('application/json') || contentType.includes('text/event-stream')) {
+        const entry = pending.get(requestId)
+        if (entry) {
+          pending.delete(requestId)
+          clearTimeout(entry.timeout)
+        }
+        const envelope = await parseHttpEnvelope<T>(response, requestId)
+        return unwrapEnvelope(envelope)
+      }
+
+      return await resultPromise
+    },
+
+    async notify(method: string, params?: Record<string, unknown>): Promise<void> {
+      const endpoint = endpointUrl ?? await endpointReady
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: buildHttpHeaders(server.auth, sessionId),
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          method,
+          ...(params ? { params } : {}),
+        }),
+      })
+
+      if (!response.ok && response.status !== 202) {
+        throw new McpIntrospectionError(
+          `MCP SSE notification failed with ${response.status} ${response.statusText}.`,
+          response.status,
+        )
+      }
+
+      sessionId = response.headers.get('Mcp-Session-Id') ?? sessionId
+    },
+
+    async close(): Promise<void> {
+      isClosed = true
+      abortController.abort()
+      await streamPromise
     },
   }
 }
@@ -316,6 +622,24 @@ function buildHttpHeaders(auth: McpAuth | undefined, sessionId: string | null): 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     Accept: 'application/json, text/event-stream',
+    'Mcp-Protocol-Version': MCP_PROTOCOL_VERSION,
+  }
+
+  if (sessionId) {
+    headers['Mcp-Session-Id'] = sessionId
+  }
+
+  const authHeader = resolveAuthHeader(auth)
+  if (authHeader) {
+    headers[authHeader.name] = authHeader.value
+  }
+
+  return headers
+}
+
+function buildSseStreamHeaders(auth: McpAuth | undefined, sessionId: string | null): HeadersInit {
+  const headers: Record<string, string> = {
+    Accept: 'text/event-stream',
     'Mcp-Protocol-Version': MCP_PROTOCOL_VERSION,
   }
 
