@@ -52,6 +52,8 @@ You can either author from scratch or scaffold directly from a live MCP server:
 $ bunx pluxx init --from-mcp https://example.com/mcp
 ```
 
+That flow introspects the server, reads its tool metadata, and drafts workflow-oriented skills instead of mirroring raw tool names one-to-one whenever the tool set supports a clearer grouping.
+
 ```typescript
 // pluxx.config.ts
 import { definePlugin } from 'pluxx'

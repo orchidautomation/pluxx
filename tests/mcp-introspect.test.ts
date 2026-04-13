@@ -101,78 +101,73 @@ describe('MCP introspection', () => {
     let sawInitialized = false
     let sawSessionHeader = false
     let sawAuthHeader = false
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = (async (input, init) => {
+      const request = new Request(input, init)
 
-    const server = Bun.serve({
-      port: 0,
-      fetch(request) {
-        const body = request.method === 'POST'
-          ? request.json() as Promise<Record<string, unknown>>
-          : Promise.resolve({})
+      if (request.method === 'DELETE') {
+        sawSessionHeader = request.headers.get('Mcp-Session-Id') === 'test-session'
+        return new Response(null, { status: 204 })
+      }
 
-        return body.then((message) => {
-          if (request.method === 'DELETE') {
-            sawSessionHeader = request.headers.get('Mcp-Session-Id') === 'test-session'
-            return new Response(null, { status: 204 })
-          }
+      const message = await request.json() as Record<string, unknown>
 
-          if (message.method === 'initialize') {
-            sawAuthHeader = request.headers.get('Authorization') === 'Bearer test-token'
-            return new Response(JSON.stringify({
-              jsonrpc: '2.0',
-              id: message.id,
-              result: {
-                protocolVersion: '2025-03-26',
-                capabilities: { tools: { listChanged: false } },
-                serverInfo: {
-                  name: 'http-server',
-                  title: 'HTTP Server',
-                },
-              },
-            }), {
-              status: 200,
-              headers: {
-                'Content-Type': 'application/json',
-                'Mcp-Session-Id': 'test-session',
-              },
-            })
-          }
-
-          if (message.method === 'notifications/initialized') {
-            sawInitialized = true
-            sawSessionHeader = request.headers.get('Mcp-Session-Id') === 'test-session'
-            return new Response(null, { status: 202 })
-          }
-
-          if (message.method === 'tools/list') {
-            sawSessionHeader = request.headers.get('Mcp-Session-Id') === 'test-session'
-            return new Response(JSON.stringify({
-              jsonrpc: '2.0',
-              id: message.id,
-              result: {
-                tools: [{
-                  name: 'search_companies',
-                  description: 'Search companies.',
-                }],
-              },
-            }), {
-              status: 200,
-              headers: {
-                'Content-Type': 'application/json',
-              },
-            })
-          }
-
-          return new Response('Unhandled', { status: 500 })
+      if (message.method === 'initialize') {
+        sawAuthHeader = request.headers.get('Authorization') === 'Bearer test-token'
+        return new Response(JSON.stringify({
+          jsonrpc: '2.0',
+          id: message.id,
+          result: {
+            protocolVersion: '2025-03-26',
+            capabilities: { tools: { listChanged: false } },
+            serverInfo: {
+              name: 'http-server',
+              title: 'HTTP Server',
+            },
+          },
+        }), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Mcp-Session-Id': 'test-session',
+          },
         })
-      },
-    })
+      }
+
+      if (message.method === 'notifications/initialized') {
+        sawInitialized = true
+        sawSessionHeader = request.headers.get('Mcp-Session-Id') === 'test-session'
+        return new Response(null, { status: 202 })
+      }
+
+      if (message.method === 'tools/list') {
+        sawSessionHeader = request.headers.get('Mcp-Session-Id') === 'test-session'
+        return new Response(JSON.stringify({
+          jsonrpc: '2.0',
+          id: message.id,
+          result: {
+            tools: [{
+              name: 'search_companies',
+              description: 'Search companies.',
+            }],
+          },
+        }), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        })
+      }
+
+      return new Response('Unhandled', { status: 500 })
+    }) as typeof fetch
 
     process.env.TEST_REMOTE_MCP_TOKEN = 'test-token'
 
     try {
       const result = await introspectMcpServer({
         transport: 'http',
-        url: `http://127.0.0.1:${server.port}/mcp`,
+        url: 'https://example.com/mcp',
         auth: {
           type: 'bearer',
           envVar: 'TEST_REMOTE_MCP_TOKEN',
@@ -186,7 +181,7 @@ describe('MCP introspection', () => {
       expect(sawAuthHeader).toBe(true)
     } finally {
       delete process.env.TEST_REMOTE_MCP_TOKEN
-      await server.stop(true)
+      globalThis.fetch = originalFetch
     }
   })
 })

@@ -55,6 +55,8 @@ Without pluxx you maintain separate copies for each platform. With pluxx you mai
 
 The launch focus is MCP-first authoring: start from an existing MCP server, generate a maintainable plugin scaffold, then keep shipping from one config.
 
+When you scaffold from an MCP server, pluxx now drafts workflow-oriented skills from the discovered tools so the first pass is closer to a usable plugin.
+
 ## Quick Start
 
 ```bash
@@ -63,6 +65,9 @@ bunx pluxx init my-plugin
 
 # Scaffold directly from an MCP server
 bunx pluxx init --from-mcp https://example.com/mcp
+
+# pluxx will introspect the server and draft grouped skills like
+# account-research, contact-discovery, hiring-signals, or technographics
 
 # Optional: global install still shells out to Bun
 npm install -g pluxx

@@ -20,12 +20,64 @@ export interface McpScaffoldResult {
   skillDirectories: string[]
 }
 
+interface PlannedSkill {
+  dirName: string
+  title: string
+  description: string
+  tools: IntrospectedMcpTool[]
+}
+
 interface SchemaField {
   name: string
   type: string
   required: boolean
   description?: string
 }
+
+const WORKFLOW_SKILL_DEFINITIONS = [
+  {
+    key: 'account-research',
+    title: 'Account Research',
+    description: 'Research companies, organizations, and account context before taking action.',
+    match: ['organization', 'organisation', 'company', 'account', 'firmographic'],
+  },
+  {
+    key: 'contact-discovery',
+    title: 'Contact Discovery',
+    description: 'Find people, contacts, and buyer-side context at the right accounts.',
+    match: ['people', 'person', 'contact', 'buyer', 'prospect', 'lead'],
+  },
+  {
+    key: 'hiring-signals',
+    title: 'Hiring Signals',
+    description: 'Use hiring activity and open roles as timing signals for outreach and research.',
+    match: ['job', 'jobs', 'hiring', 'hire', 'role', 'roles', 'recruit', 'career'],
+  },
+  {
+    key: 'technographics',
+    title: 'Technographics',
+    description: 'Research technologies, tools, and stack adoption across target accounts.',
+    match: ['technology', 'technologies', 'tech', 'stack', 'tooling', 'software'],
+  },
+  {
+    key: 'list-management',
+    title: 'List Management',
+    description: 'Manage lists, segments, and saved collections of accounts or contacts.',
+    match: ['list', 'lists', 'segment', 'segments', 'audience', 'audiences', 'collection'],
+  },
+  {
+    key: 'enrichment',
+    title: 'Enrichment',
+    description: 'Enrich known records with additional context before deciding on next steps.',
+    match: ['enrich', 'enrichment', 'append', 'profile'],
+  },
+  {
+    key: 'general-research',
+    title: 'General Research',
+    description: 'Handle broad search and query workflows when there is not a more specific skill match.',
+    match: ['search', 'query', 'lookup', 'look up', 'discover', 'find'],
+  },
+] as const
 
 export function parseMcpSourceInput(input: string): McpServer {
   const value = input.trim()
@@ -71,7 +123,7 @@ export async function writeMcpScaffold(options: McpScaffoldOptions): Promise<Mcp
 
   const instructionsPath = resolve(options.rootDir, 'INSTRUCTIONS.md')
   const skillRoot = resolve(options.rootDir, 'skills')
-  const allocatedSkillDirs = allocateSkillDirectories(options.introspection.tools)
+  const plannedSkills = planSkillScaffolds(options.introspection.tools)
   const skillDirectories: string[] = []
 
   await Bun.write(
@@ -95,17 +147,18 @@ export async function writeMcpScaffold(options: McpScaffoldOptions): Promise<Mcp
       description,
       serverName,
       instructions: options.introspection.instructions,
+      skills: plannedSkills,
       tools: options.introspection.tools,
     }),
   )
 
   await mkdir(skillRoot, { recursive: true })
 
-  for (const [tool, dirName] of allocatedSkillDirs) {
-    const toolDir = resolve(skillRoot, dirName)
+  for (const skill of plannedSkills) {
+    const toolDir = resolve(skillRoot, skill.dirName)
     await mkdir(toolDir, { recursive: true })
-    await Bun.write(resolve(toolDir, 'SKILL.md'), buildSkillContent(tool, dirName))
-    skillDirectories.push(`skills/${dirName}`)
+    await Bun.write(resolve(toolDir, 'SKILL.md'), buildSkillContent(skill))
+    skillDirectories.push(`skills/${skill.dirName}`)
   }
 
   return {
@@ -114,47 +167,53 @@ export async function writeMcpScaffold(options: McpScaffoldOptions): Promise<Mcp
   }
 }
 
-export function buildSkillContent(tool: IntrospectedMcpTool, dirName: string): string {
-  const displayName = tool.title ?? humanizeName(tool.name)
-  const description = truncate(tool.description ?? `Use the ${tool.name} MCP tool.`, 220)
-  const fields = getTopLevelSchemaFields(tool.inputSchema)
+export function buildSkillContent(skill: PlannedSkill): string {
+  const description = truncate(skill.description, 220)
 
   const lines = [
     '---',
-    `name: ${JSON.stringify(dirName)}`,
+    `name: ${JSON.stringify(skill.dirName)}`,
     `description: ${JSON.stringify(description)}`,
     'version: 0.1.0',
     '---',
     '',
-    `# ${displayName}`,
+    `# ${skill.title}`,
     '',
-    `Use this skill when you need the MCP tool \`${tool.name}\`.`,
+    skill.description,
     '',
-    '## What It Does',
-    '',
-    tool.description ?? `Calls \`${tool.name}\` on the configured MCP server.`,
+    '## Tools In This Skill',
     '',
   ]
 
-  if (fields.length > 0) {
-    lines.push('## Inputs', '')
-    for (const field of fields) {
-      const required = field.required ? ', required' : ''
-      const detail = field.description ? `: ${field.description}` : ''
-      lines.push(`- \`${field.name}\` (${field.type}${required})${detail}`)
-    }
+  for (const tool of skill.tools) {
+    lines.push(`### \`${tool.name}\``)
     lines.push('')
+    lines.push(tool.description ?? `Calls \`${tool.name}\` on the configured MCP server.`)
+    lines.push('')
+
+    const fields = getTopLevelSchemaFields(tool.inputSchema)
+    if (fields.length > 0) {
+      lines.push('Inputs:')
+      for (const field of fields) {
+        const required = field.required ? ', required' : ''
+        const detail = field.description ? `: ${field.description}` : ''
+        lines.push(`- \`${field.name}\` (${field.type}${required})${detail}`)
+      }
+      lines.push('')
+    }
   }
 
   lines.push(
     '## Usage',
     '',
-    `Confirm the user intent and gather the required inputs before calling \`${tool.name}\`. Use the tool result directly in your response and summarize the key output clearly.`,
+    '- Pick the most specific tool in this skill for the user request.',
+    '- Gather required inputs before calling a tool.',
+    '- Summarize the returned data clearly instead of dumping raw JSON unless the user asks for it.',
     '',
     '## Example',
     '',
     '```',
-    `Use ${tool.name} to help with this request.`,
+    `Use the ${skill.title} skill to help with this request.`,
     '```',
     '',
   )
@@ -167,6 +226,7 @@ export function buildInstructionsContent(input: {
   description: string
   serverName: string
   instructions?: string
+  skills: PlannedSkill[]
   tools: IntrospectedMcpTool[]
 }): string {
   const lines = [
@@ -182,6 +242,17 @@ export function buildInstructionsContent(input: {
 
   for (const tool of input.tools) {
     lines.push(`- \`${tool.name}\`: ${tool.description ?? 'No description provided.'}`)
+  }
+
+  lines.push(
+    '',
+    '## Generated Skills',
+    '',
+  )
+
+  for (const skill of input.skills) {
+    const toolNames = skill.tools.map((tool) => `\`${tool.name}\``).join(', ')
+    lines.push(`- \`${skill.dirName}\`: ${skill.description} Tools: ${toolNames}.`)
   }
 
   lines.push(
@@ -274,11 +345,53 @@ function buildMcpBlock(serverName: string, source: McpServer): string {
     },`
 }
 
-function allocateSkillDirectories(tools: IntrospectedMcpTool[]): Array<[IntrospectedMcpTool, string]> {
+export function planSkillScaffolds(tools: IntrospectedMcpTool[]): PlannedSkill[] {
+  const categoryBuckets = new Map<string, IntrospectedMcpTool[]>()
+  const standaloneTools: IntrospectedMcpTool[] = []
+
+  for (const tool of tools) {
+    const category = classifyToolWorkflow(tool)
+    if (!category) {
+      standaloneTools.push(tool)
+      continue
+    }
+
+    const bucket = categoryBuckets.get(category) ?? []
+    bucket.push(tool)
+    categoryBuckets.set(category, bucket)
+  }
+
+  const plannedSkills: PlannedSkill[] = []
+
+  for (const definition of WORKFLOW_SKILL_DEFINITIONS) {
+    const bucket = categoryBuckets.get(definition.key)
+    if (!bucket || bucket.length === 0) continue
+
+    plannedSkills.push({
+      dirName: definition.key,
+      title: definition.title,
+      description: definition.description,
+      tools: bucket.sort((a, b) => a.name.localeCompare(b.name)),
+    })
+  }
+
+  for (const tool of standaloneTools.sort((a, b) => a.name.localeCompare(b.name))) {
+    plannedSkills.push({
+      dirName: toKebabCase(tool.name) || 'tool',
+      title: tool.title ?? humanizeName(tool.name),
+      description: tool.description ?? `Use the \`${tool.name}\` MCP tool for this workflow.`,
+      tools: [tool],
+    })
+  }
+
+  return allocateSkillDirectoryNames(plannedSkills)
+}
+
+function allocateSkillDirectoryNames(skills: PlannedSkill[]): PlannedSkill[] {
   const used = new Set<string>()
 
-  return tools.map((tool) => {
-    const base = toKebabCase(tool.name) || 'tool'
+  return skills.map((skill) => {
+    const base = toKebabCase(skill.dirName) || 'skill'
     let candidate = base
     let suffix = 2
 
@@ -288,8 +401,42 @@ function allocateSkillDirectories(tools: IntrospectedMcpTool[]): Array<[Introspe
     }
 
     used.add(candidate)
-    return [tool, candidate]
+    return {
+      ...skill,
+      dirName: candidate,
+    }
   })
+}
+
+function classifyToolWorkflow(tool: IntrospectedMcpTool): string | null {
+  const primaryText = [
+    normalizeIdentifier(tool.name).toLowerCase(),
+    normalizeIdentifier(tool.title ?? '').toLowerCase(),
+  ].join(' ')
+  const secondaryText = (tool.description ?? '').toLowerCase()
+
+  let bestMatch: string | null = null
+  let bestScore = 0
+
+  for (const definition of WORKFLOW_SKILL_DEFINITIONS) {
+    let score = 0
+
+    for (const needle of definition.match) {
+      if (primaryText.includes(needle)) {
+        score += 3
+      }
+      if (secondaryText.includes(needle)) {
+        score += 1
+      }
+    }
+
+    if (score > bestScore) {
+      bestScore = score
+      bestMatch = definition.key
+    }
+  }
+
+  return bestMatch
 }
 
 function getTopLevelSchemaFields(inputSchema?: Record<string, unknown>): SchemaField[] {
@@ -327,9 +474,7 @@ function formatSchemaType(value: unknown): string {
 }
 
 function humanizeName(value: string): string {
-  return value
-    .replace(/[._/]+/g, ' ')
-    .replace(/-/g, ' ')
+  return normalizeIdentifier(value)
     .split(/\s+/)
     .filter(Boolean)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
@@ -337,11 +482,19 @@ function humanizeName(value: string): string {
 }
 
 function toKebabCase(value: string): string {
-  return value
+  return normalizeIdentifier(value)
     .toLowerCase()
     .trim()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
+}
+
+function normalizeIdentifier(value: string): string {
+  return value
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .replace(/[._/]+/g, ' ')
+    .replace(/-/g, ' ')
 }
 
 function truncate(value: string, maxLength: number): string {
