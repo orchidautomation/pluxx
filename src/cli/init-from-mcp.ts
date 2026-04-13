@@ -53,7 +53,7 @@ interface GeneratedHookScaffold {
   files: Array<{ relativePath: string; content: string }>
 }
 
-interface McpScaffoldMetadata {
+export interface McpScaffoldMetadata {
   version: 1
   source: McpServer
   serverInfo: IntrospectedMcpServer['serverInfo']
@@ -73,6 +73,8 @@ interface McpScaffoldMetadata {
   }>
   managedFiles: string[]
 }
+
+export const MCP_SCAFFOLD_METADATA_PATH = '.pluxx/mcp.json'
 
 const WORKFLOW_SKILL_DEFINITIONS = [
   {
@@ -167,7 +169,7 @@ export async function writeMcpScaffold(options: McpScaffoldOptions): Promise<Mcp
   const skillDirectories: string[] = []
   const generatedFiles = ['pluxx.config.ts', './INSTRUCTIONS.md']
   const generatedHooks = planGeneratedHooks(options.source, options.hookMode)
-  const metadataPath = '.pluxx/mcp.json'
+  const metadataPath = MCP_SCAFFOLD_METADATA_PATH
 
   await Bun.write(
     resolve(options.rootDir, 'pluxx.config.ts'),

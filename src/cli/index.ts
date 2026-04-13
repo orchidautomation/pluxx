@@ -20,6 +20,7 @@ import { promptText, promptYesNo, closePrompts } from './prompt'
 import type { TargetPlatform } from '../schema'
 import { basename } from 'path'
 import { mkdir } from 'fs/promises'
+import { formatSyncSummary, syncFromMcp } from './sync-from-mcp'
 
 const args = process.argv.slice(2)
 const command = args[0]
@@ -92,6 +93,9 @@ export async function main() {
       break
     case 'uninstall':
       await runUninstall()
+      break
+    case 'sync':
+      await runSync()
       break
     case 'migrate':
       await runMigrate()
@@ -680,6 +684,25 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
   }
 }
 
+async function runSync() {
+  const fromMcpFlag = args.indexOf('--from-mcp')
+  const fromMcpInput = fromMcpFlag !== -1 && args[fromMcpFlag + 1] && !args[fromMcpFlag + 1].startsWith('-')
+    ? args[fromMcpFlag + 1]
+    : undefined
+  const source = fromMcpInput ? parseMcpSourceInput(fromMcpInput) : undefined
+  const result = await syncFromMcp({
+    rootDir: process.cwd(),
+    source,
+  })
+
+  if (args.includes('--json')) {
+    console.log(JSON.stringify(result, null, 2))
+    return
+  }
+
+  formatSyncSummary(result, process.cwd()).forEach((line) => console.log(line))
+}
+
 async function runInstall() {
   const targetFlag = args.indexOf('--target')
   const trust = args.includes('--trust')
@@ -739,6 +762,7 @@ Usage:
   pluxx validate                          Validate your config
   pluxx lint                              Lint skills and cross-platform metadata
   pluxx init [name] [--from-mcp <source>] Create a new pluxx.config.ts
+  pluxx sync [--from-mcp <source>]        Refresh MCP-derived scaffold files
   pluxx migrate <path>                    Import an existing plugin into pluxx
   pluxx install [--target <platforms>] [--trust]  Symlink built plugins for local testing
   pluxx uninstall [--target <platforms>]  Remove symlinked plugins
@@ -755,6 +779,8 @@ Examples:
   pluxx init --from-mcp https://example.com/mcp  Scaffold from a remote MCP server
   pluxx init --from-mcp "npx -y @acme/mcp"       Scaffold from a local MCP command
   pluxx init --from-mcp https://example.com/mcp --yes --name acme --display-name "Acme" --author "Acme" --targets claude-code,codex --grouping workflow --hooks safe --json
+  pluxx sync                              Refresh a scaffold using .pluxx/mcp.json metadata
+  pluxx sync --from-mcp https://example.com/mcp  Refresh using an explicit MCP source override
   pluxx install                           Install to all configured targets
   pluxx install --target claude-code      Install to Claude Code only
   pluxx install --trust                   Install without hook trust confirmation
