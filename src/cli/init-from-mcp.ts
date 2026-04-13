@@ -863,7 +863,7 @@ function getTopLevelSchemaFields(inputSchema?: Record<string, unknown>): SchemaF
   })
 }
 
-function buildToolExampleRequest(tool: IntrospectedMcpTool): string {
+export function buildToolExampleRequest(tool: IntrospectedMcpTool): string {
   const action = inferToolAction(tool)
   const objectLabel = inferToolObject(tool)
   const context = buildToolRequestContext(tool)

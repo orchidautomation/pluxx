@@ -5,16 +5,51 @@
 
 import * as readline from 'readline'
 
+export class PromptCancelledError extends Error {
+  constructor() {
+    super('Init cancelled')
+    this.name = 'PromptCancelledError'
+  }
+}
+
 function ask(question: string): Promise<string> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
     })
 
+    let settled = false
+
+    const settle = (fn: () => void) => {
+      if (settled) return
+      settled = true
+      rl.removeListener('SIGINT', onCancel)
+      rl.removeListener('close', onClose)
+      fn()
+    }
+
+    const onCancel = () => {
+      settle(() => {
+        rl.close()
+        reject(new PromptCancelledError())
+      })
+    }
+
+    const onClose = () => {
+      settle(() => {
+        reject(new PromptCancelledError())
+      })
+    }
+
+    rl.once('SIGINT', onCancel)
+    rl.once('close', onClose)
+
     rl.question(question, (answer) => {
-      rl.close()
-      resolve(answer)
+      settle(() => {
+        resolve(answer)
+        rl.close()
+      })
     })
   })
 }
