@@ -220,15 +220,76 @@ describe('init-from-mcp scaffold', () => {
     expect(result.generatedHookEvents).toContain('preToolUse')
 
     const confirmScript = readFileSync(resolve(TEST_DIR, 'scripts/confirm-mutation.sh'), 'utf-8')
-    expect(confirmScript).toContain('createIssue')
-    expect(confirmScript).toContain('delete_record')
-    expect(confirmScript).toContain('update-contact')
+    expect(confirmScript).toContain(JSON.stringify([
+      'createIssue',
+      'delete_record',
+      'update-contact',
+    ]))
     expect(confirmScript).toContain('pluxx: This tool modifies data')
 
     const config = readFileSync(resolve(TEST_DIR, 'pluxx.config.ts'), 'utf-8')
     expect(config).toContain('preToolUse')
     expect(config).toContain('confirm-mutation.sh')
-    expect(config).toContain('mcp__sumble')
+    expect(config).toContain('matcher: "mcp__sumble__createIssue"')
+    expect(config).toContain('matcher: "mcp__sumble__delete_record"')
+    expect(config).toContain('matcher: "mcp__sumble__update-contact"')
+    expect(config).not.toContain('matcher: "mcp__sumble"')
+  })
+
+  it('filters invalid shell env names from generated safe hook scripts', async () => {
+    const result = await writeMcpScaffold({
+      rootDir: TEST_DIR,
+      pluginName: 'test-mcp',
+      authorName: 'Test Author',
+      targets: ['claude-code'],
+      source: {
+        transport: 'stdio',
+        command: 'npx',
+        args: ['-y', '@sumble/mcp'],
+        env: {
+          SAFE_KEY: '1',
+          'BAD-NAME\nrm -rf /': '2',
+        },
+        auth: {
+          type: 'bearer',
+          envVar: 'ALSO BAD\nNAME',
+        },
+      },
+      introspection,
+      hookMode: 'safe',
+    })
+
+    expect(result.generatedFiles).toContain('scripts/check-env.sh')
+
+    const envScript = readFileSync(resolve(TEST_DIR, 'scripts/check-env.sh'), 'utf-8')
+    expect(envScript).toContain('SAFE_KEY')
+    expect(envScript).not.toContain('BAD-NAME')
+    expect(envScript).not.toContain('ALSO BAD')
+  })
+
+  it('sanitizes dangerous tool names in generated confirmation scripts', async () => {
+    const dangerousTool = 'createIssue\nrm -rf /'
+    const mutatingIntrospection: IntrospectedMcpServer = {
+      ...introspection,
+      tools: [
+        ...introspection.tools,
+        { name: dangerousTool, description: 'Create an issue.' },
+      ],
+    }
+
+    await writeMcpScaffold({
+      rootDir: TEST_DIR,
+      pluginName: 'test-mcp',
+      authorName: 'Test Author',
+      targets: ['claude-code'],
+      source: { transport: 'http', url: 'https://mcp.example.com/' },
+      introspection: mutatingIntrospection,
+      hookMode: 'safe',
+    })
+
+    const confirmScript = readFileSync(resolve(TEST_DIR, 'scripts/confirm-mutation.sh'), 'utf-8')
+    expect(confirmScript).toContain(JSON.stringify(['createIssue rm -rf /']))
+    expect(confirmScript).not.toContain(dangerousTool)
   })
 })
 

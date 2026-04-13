@@ -571,13 +571,13 @@ const MUTATING_PREFIXES = [
   'bulk', 'send', 'post', 'publish',
 ] as const
 
-export function detectMutatingTools(tools: IntrospectedMcpTool[]): string[] {
-  const prefixPattern = new RegExp(`^(${MUTATING_PREFIXES.join('|')})\\b`, 'i')
+const MUTATING_PREFIX_PATTERN = new RegExp(`^(${MUTATING_PREFIXES.join('|')})\\b`, 'i')
 
+export function detectMutatingTools(tools: IntrospectedMcpTool[]): string[] {
   return tools
     .filter((tool) => {
       const normalized = normalizeIdentifier(tool.name).trim().toLowerCase()
-      return prefixPattern.test(normalized)
+      return MUTATING_PREFIX_PATTERN.test(normalized)
     })
     .map((tool) => tool.name)
 }
@@ -609,11 +609,11 @@ function planGeneratedHooks(source: McpServer, tools: IntrospectedMcpTool[], ser
   }
 
   if (mutatingTools.length > 0) {
-    hookEntries.preToolUse = [{
+    hookEntries.preToolUse = mutatingTools.map((toolName) => ({
       type: 'command',
       command: 'bash "${PLUGIN_ROOT}/scripts/confirm-mutation.sh"',
-      matcher: `mcp__${serverName}`,
-    }]
+      matcher: buildMcpToolMatcher(serverName, toolName),
+    }))
     files.push({
       relativePath: 'scripts/confirm-mutation.sh',
       content: buildMutationConfirmationScript(mutatingTools),
@@ -629,7 +629,7 @@ function planGeneratedHooks(source: McpServer, tools: IntrospectedMcpTool[], ser
 }
 
 export function buildMutationConfirmationScript(mutatingTools: string[]): string {
-  const toolList = mutatingTools.join(', ')
+  const toolList = JSON.stringify(mutatingTools.map(sanitizeShellCommentText))
   return `#!/usr/bin/env bash
 set -euo pipefail
 # This hook runs before mutating MCP tools.
@@ -643,12 +643,16 @@ function collectRequiredEnvVars(source: McpServer): string[] {
   const envVars = new Set<string>()
 
   if (source.auth?.type && source.auth.type !== 'none') {
-    envVars.add(source.auth.envVar)
+    if (isValidShellEnvVarName(source.auth.envVar)) {
+      envVars.add(source.auth.envVar)
+    }
   }
 
   if (source.transport === 'stdio') {
     for (const key of Object.keys(source.env ?? {})) {
-      envVars.add(key)
+      if (isValidShellEnvVarName(key)) {
+        envVars.add(key)
+      }
     }
   }
 
@@ -668,6 +672,18 @@ set -euo pipefail
 
 ${checks}
 `
+}
+
+function buildMcpToolMatcher(serverName: string, toolName: string): string {
+  return `mcp__${serverName}__${toolName}`
+}
+
+function sanitizeShellCommentText(value: string): string {
+  return value.replace(/[\u0000-\u001f\u007f\u2028\u2029]/g, ' ').trim()
+}
+
+function isValidShellEnvVarName(value: string): boolean {
+  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(value)
 }
 
 function buildMcpScaffoldMetadata(input: {
