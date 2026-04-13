@@ -23,6 +23,7 @@ export interface McpScaffoldResult {
   generatedFiles: string[]
   generatedHookMode: McpHookMode
   generatedHookEvents: string[]
+  metadataPath: string
 }
 
 interface PlannedSkill {
@@ -50,6 +51,27 @@ interface GeneratedHookScaffold {
   scriptsPath?: string
   hookEntries?: Record<string, HookEntry[]>
   files: Array<{ relativePath: string; content: string }>
+}
+
+interface McpScaffoldMetadata {
+  version: 1
+  source: McpServer
+  serverInfo: IntrospectedMcpServer['serverInfo']
+  settings: {
+    pluginName: string
+    displayName: string
+    skillGrouping: McpSkillGrouping
+    requestedHookMode: McpHookMode
+    generatedHookMode: McpHookMode
+    generatedHookEvents: string[]
+  }
+  tools: IntrospectedMcpTool[]
+  skills: Array<{
+    dirName: string
+    title: string
+    toolNames: string[]
+  }>
+  managedFiles: string[]
 }
 
 const WORKFLOW_SKILL_DEFINITIONS = [
@@ -145,6 +167,7 @@ export async function writeMcpScaffold(options: McpScaffoldOptions): Promise<Mcp
   const skillDirectories: string[] = []
   const generatedFiles = ['pluxx.config.ts', './INSTRUCTIONS.md']
   const generatedHooks = planGeneratedHooks(options.source, options.hookMode)
+  const metadataPath = '.pluxx/mcp.json'
 
   await Bun.write(
     resolve(options.rootDir, 'pluxx.config.ts'),
@@ -195,12 +218,29 @@ export async function writeMcpScaffold(options: McpScaffoldOptions): Promise<Mcp
     generatedFiles.push(file.relativePath)
   }
 
+  await mkdir(resolve(options.rootDir, '.pluxx'), { recursive: true })
+  const metadata = buildMcpScaffoldMetadata({
+    source: options.source,
+    introspection: options.introspection,
+    pluginName,
+    displayName,
+    skillGrouping: options.skillGrouping ?? 'workflow',
+    requestedHookMode: options.hookMode ?? 'none',
+    generatedHookMode: generatedHooks.mode,
+    generatedHookEvents: Object.keys(generatedHooks.hookEntries ?? {}),
+    plannedSkills,
+    managedFiles: [...generatedFiles, metadataPath],
+  })
+  await Bun.write(resolve(options.rootDir, metadataPath), `${JSON.stringify(metadata, null, 2)}\n`)
+  generatedFiles.push(metadataPath)
+
   return {
     instructionsPath: './INSTRUCTIONS.md',
     skillDirectories,
     generatedFiles,
     generatedHookMode: generatedHooks.mode,
     generatedHookEvents: Object.keys(generatedHooks.hookEntries ?? {}),
+    metadataPath,
   }
 }
 
@@ -470,6 +510,40 @@ set -euo pipefail
 
 ${checks}
 `
+}
+
+function buildMcpScaffoldMetadata(input: {
+  source: McpServer
+  introspection: IntrospectedMcpServer
+  pluginName: string
+  displayName: string
+  skillGrouping: McpSkillGrouping
+  requestedHookMode: McpHookMode
+  generatedHookMode: McpHookMode
+  generatedHookEvents: string[]
+  plannedSkills: PlannedSkill[]
+  managedFiles: string[]
+}): McpScaffoldMetadata {
+  return {
+    version: 1,
+    source: input.source,
+    serverInfo: input.introspection.serverInfo,
+    settings: {
+      pluginName: input.pluginName,
+      displayName: input.displayName,
+      skillGrouping: input.skillGrouping,
+      requestedHookMode: input.requestedHookMode,
+      generatedHookMode: input.generatedHookMode,
+      generatedHookEvents: input.generatedHookEvents,
+    },
+    tools: input.introspection.tools,
+    skills: input.plannedSkills.map((skill) => ({
+      dirName: skill.dirName,
+      title: skill.title,
+      toolNames: skill.tools.map((tool) => tool.name),
+    })),
+    managedFiles: input.managedFiles,
+  }
 }
 
 export function planSkillScaffolds(

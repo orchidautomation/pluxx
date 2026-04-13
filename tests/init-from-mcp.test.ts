@@ -142,11 +142,21 @@ describe('init-from-mcp scaffold', () => {
       'skills/get-organization',
     ])
     expect(result.generatedFiles).toContain('scripts/check-env.sh')
+    expect(result.generatedFiles).toContain('.pluxx/mcp.json')
 
     const config = readFileSync(resolve(TEST_DIR, 'pluxx.config.ts'), 'utf-8')
     const instructionsFile = readFileSync(resolve(TEST_DIR, 'INSTRUCTIONS.md'), 'utf-8')
     const organizationSkill = readFileSync(resolve(TEST_DIR, 'skills/find-organizations/SKILL.md'), 'utf-8')
     const envScript = readFileSync(resolve(TEST_DIR, 'scripts/check-env.sh'), 'utf-8')
+    const metadata = JSON.parse(readFileSync(resolve(TEST_DIR, '.pluxx/mcp.json'), 'utf-8')) as {
+      version: number
+      settings: {
+        skillGrouping: string
+        generatedHookMode: string
+      }
+      managedFiles: string[]
+      skills: Array<{ dirName: string }>
+    }
 
     expect(config).toContain(`name: "sumble"`)
     expect(config).toContain(`envVar: "SUMBLE_API_KEY"`)
@@ -167,6 +177,15 @@ describe('init-from-mcp scaffold', () => {
     expect(organizationSkill).toContain('`query` (string, required)')
     expect(envScript).toContain('SUMBLE_API_KEY')
     expect(envScript).toContain('pluxx: SUMBLE_API_KEY is not set')
+    expect(metadata.version).toBe(1)
+    expect(metadata.settings.skillGrouping).toBe('tool')
+    expect(metadata.settings.generatedHookMode).toBe('safe')
+    expect(metadata.managedFiles).toContain('.pluxx/mcp.json')
+    expect(metadata.skills.map((skill) => skill.dirName)).toEqual([
+      'find-organizations',
+      'find-people',
+      'get-organization',
+    ])
     expect(existsSync(resolve(TEST_DIR, 'skills/find-people/SKILL.md'))).toBe(true)
 
     const loadedConfig = await loadConfig(TEST_DIR)
