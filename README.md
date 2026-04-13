@@ -69,6 +69,9 @@ bunx pluxx init --from-mcp https://example.com/mcp
 # pluxx will introspect the server and draft grouped skills like
 # account-research, contact-discovery, hiring-signals, or technographics
 
+# Headless / CI-friendly import
+bunx pluxx init --from-mcp https://example.com/mcp --yes --name acme --display-name "Acme" --author "Acme" --targets claude-code,codex --grouping workflow --hooks safe --json
+
 # Optional: global install still shells out to Bun
 npm install -g pluxx
 pluxx init my-plugin

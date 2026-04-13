@@ -8,7 +8,13 @@ const binDir = dirname(fileURLToPath(import.meta.url))
 const cliPath = resolve(binDir, '..', 'src', 'cli', 'index.ts')
 
 if (process.versions.bun) {
-  await import(pathToFileURL(cliPath).href)
+  const cli = await import(pathToFileURL(cliPath).href)
+  if (typeof cli.main !== 'function') {
+    console.error('pluxx launcher failed to resolve the CLI entrypoint.')
+    process.exit(1)
+  }
+
+  await cli.main()
 } else {
   const bunBinary = process.platform === 'win32' ? 'bun.exe' : 'bun'
   const result = spawnSync(bunBinary, [cliPath, ...process.argv.slice(2)], {

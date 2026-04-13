@@ -1,6 +1,6 @@
 import { mkdir } from 'fs/promises'
 import { basename, resolve } from 'path'
-import type { McpServer, TargetPlatform } from '../schema'
+import type { HookEntry, McpServer, TargetPlatform } from '../schema'
 import type { IntrospectedMcpServer, IntrospectedMcpTool } from '../mcp/introspect'
 
 export interface McpScaffoldOptions {
@@ -13,11 +13,14 @@ export interface McpScaffoldOptions {
   serverName?: string
   displayName?: string
   description?: string
+  skillGrouping?: McpSkillGrouping
+  hookMode?: McpHookMode
 }
 
 export interface McpScaffoldResult {
   instructionsPath: string
   skillDirectories: string[]
+  generatedFiles: string[]
 }
 
 interface PlannedSkill {
@@ -32,6 +35,18 @@ interface SchemaField {
   type: string
   required: boolean
   description?: string
+}
+
+export const MCP_SKILL_GROUPINGS = ['workflow', 'tool'] as const
+export type McpSkillGrouping = typeof MCP_SKILL_GROUPINGS[number]
+
+export const MCP_HOOK_MODES = ['none', 'safe'] as const
+export type McpHookMode = typeof MCP_HOOK_MODES[number]
+
+interface GeneratedHookScaffold {
+  scriptsPath?: string
+  hookEntries?: Record<string, HookEntry[]>
+  files: Array<{ relativePath: string; content: string }>
 }
 
 const WORKFLOW_SKILL_DEFINITIONS = [
@@ -123,8 +138,10 @@ export async function writeMcpScaffold(options: McpScaffoldOptions): Promise<Mcp
 
   const instructionsPath = resolve(options.rootDir, 'INSTRUCTIONS.md')
   const skillRoot = resolve(options.rootDir, 'skills')
-  const plannedSkills = planSkillScaffolds(options.introspection.tools)
+  const plannedSkills = planSkillScaffolds(options.introspection.tools, options.skillGrouping)
   const skillDirectories: string[] = []
+  const generatedFiles = ['pluxx.config.ts', './INSTRUCTIONS.md']
+  const generatedHooks = planGeneratedHooks(options.source, options.hookMode)
 
   await Bun.write(
     resolve(options.rootDir, 'pluxx.config.ts'),
@@ -137,6 +154,8 @@ export async function writeMcpScaffold(options: McpScaffoldOptions): Promise<Mcp
       source: options.source,
       websiteUrl: options.introspection.serverInfo.websiteUrl,
       targets: options.targets,
+      hooks: generatedHooks.hookEntries,
+      scriptsPath: generatedHooks.scriptsPath,
     }),
   )
 
@@ -158,12 +177,25 @@ export async function writeMcpScaffold(options: McpScaffoldOptions): Promise<Mcp
     const toolDir = resolve(skillRoot, skill.dirName)
     await mkdir(toolDir, { recursive: true })
     await Bun.write(resolve(toolDir, 'SKILL.md'), buildSkillContent(skill))
-    skillDirectories.push(`skills/${skill.dirName}`)
+    const relativeSkillPath = `skills/${skill.dirName}`
+    skillDirectories.push(relativeSkillPath)
+    generatedFiles.push(`${relativeSkillPath}/SKILL.md`)
+  }
+
+  for (const file of generatedHooks.files) {
+    const filePath = resolve(options.rootDir, file.relativePath)
+    const parentDir = file.relativePath.split('/').slice(0, -1).join('/')
+    if (parentDir) {
+      await mkdir(resolve(options.rootDir, parentDir), { recursive: true })
+    }
+    await Bun.write(filePath, file.content)
+    generatedFiles.push(file.relativePath)
   }
 
   return {
     instructionsPath: './INSTRUCTIONS.md',
     skillDirectories,
+    generatedFiles,
   }
 }
 
@@ -281,6 +313,8 @@ export function buildConfigTemplate(input: {
   source: McpServer
   websiteUrl?: string
   targets: TargetPlatform[]
+  hooks?: Record<string, HookEntry[]>
+  scriptsPath?: string
 }): string {
   const targets = input.targets.map((target) => JSON.stringify(target)).join(', ')
   const mcpBlock = buildMcpBlock(input.serverName, input.source)
@@ -288,6 +322,8 @@ export function buildConfigTemplate(input: {
     `displayName: ${JSON.stringify(input.displayName)}`,
     input.websiteUrl ? `websiteURL: ${JSON.stringify(input.websiteUrl)}` : null,
   ].filter(Boolean).join(',\n    ')
+  const scriptsBlock = input.scriptsPath ? `  scripts: ${JSON.stringify(input.scriptsPath)},\n` : ''
+  const hooksBlock = input.hooks ? `\n  hooks: ${serializeHooks(input.hooks)},\n` : ''
 
   return `import { definePlugin } from 'pluxx'
 
@@ -302,10 +338,12 @@ export default definePlugin({
 
   skills: './skills/',
   instructions: './INSTRUCTIONS.md',
+${scriptsBlock}
 
   mcp: {
 ${mcpBlock}
   },
+${hooksBlock}
 
   brand: {
     ${brandFields}
@@ -345,7 +383,86 @@ function buildMcpBlock(serverName: string, source: McpServer): string {
     },`
 }
 
-export function planSkillScaffolds(tools: IntrospectedMcpTool[]): PlannedSkill[] {
+function serializeHooks(hooks: Record<string, HookEntry[]>): string {
+  const entries = Object.entries(hooks)
+    .map(([event, hookEntries]) => {
+      const serializedEntries = hookEntries
+        .map((entry) => {
+          const fields = [
+            entry.type && entry.type !== 'command' ? `type: ${JSON.stringify(entry.type)}` : null,
+            entry.command ? `command: ${JSON.stringify(entry.command)}` : null,
+            entry.prompt ? `prompt: ${JSON.stringify(entry.prompt)}` : null,
+            entry.model ? `model: ${JSON.stringify(entry.model)}` : null,
+            entry.timeout !== undefined ? `timeout: ${entry.timeout}` : null,
+            entry.matcher ? `matcher: ${JSON.stringify(entry.matcher)}` : null,
+            entry.failClosed !== undefined ? `failClosed: ${entry.failClosed}` : null,
+            entry.loop_limit !== undefined ? `loop_limit: ${entry.loop_limit}` : null,
+          ].filter(Boolean)
+
+          return `      {\n        ${fields.join(',\n        ')}\n      }`
+        })
+        .join(',\n')
+
+      return `    ${event}: [\n${serializedEntries}\n    ]`
+    })
+    .join(',\n')
+
+  return `{\n${entries}\n  }`
+}
+
+function planGeneratedHooks(source: McpServer, hookMode: McpHookMode = 'none'): GeneratedHookScaffold {
+  if (hookMode !== 'safe') {
+    return { files: [] }
+  }
+
+  const authEnvVar = source.auth?.type && source.auth.type !== 'none' ? source.auth.envVar : undefined
+  if (!authEnvVar) {
+    return { files: [] }
+  }
+
+  return {
+    scriptsPath: './scripts/',
+    hookEntries: {
+      sessionStart: [{
+        type: 'command',
+        command: 'bash "${PLUGIN_ROOT}/scripts/check-env.sh"',
+      }],
+    },
+    files: [{
+      relativePath: 'scripts/check-env.sh',
+      content: buildEnvValidationScript(authEnvVar),
+    }],
+  }
+}
+
+function buildEnvValidationScript(envVar: string): string {
+  return `#!/usr/bin/env bash
+set -euo pipefail
+
+if [ -z "\${${envVar}:-}" ]; then
+  echo "pluxx: ${envVar} is not set. Export it before using this plugin." >&2
+  exit 1
+fi
+`
+}
+
+export function planSkillScaffolds(
+  tools: IntrospectedMcpTool[],
+  grouping: McpSkillGrouping = 'workflow',
+): PlannedSkill[] {
+  if (grouping === 'tool') {
+    return allocateSkillDirectoryNames(
+      tools
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((tool) => ({
+          dirName: toKebabCase(tool.name) || 'tool',
+          title: tool.title ?? humanizeName(tool.name),
+          description: tool.description ?? `Use the \`${tool.name}\` MCP tool for this workflow.`,
+          tools: [tool],
+        })),
+    )
+  }
+
   const categoryBuckets = new Map<string, IntrospectedMcpTool[]>()
   const standaloneTools: IntrospectedMcpTool[] = []
 

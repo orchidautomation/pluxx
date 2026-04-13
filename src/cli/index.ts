@@ -4,9 +4,17 @@ import { loadConfig } from '../config/load'
 import { build } from '../generators'
 import { ensureHookTrust, installPlugin, uninstallPlugin } from './install'
 import { runDev } from './dev'
-import { derivePluginName, parseMcpSourceInput, writeMcpScaffold } from './init-from-mcp'
+import {
+  derivePluginName,
+  MCP_HOOK_MODES,
+  MCP_SKILL_GROUPINGS,
+  type McpHookMode,
+  parseMcpSourceInput,
+  type McpSkillGrouping,
+  writeMcpScaffold,
+} from './init-from-mcp'
 import { migrate } from './migrate'
-import { runLint } from './lint'
+import { lintProject, printLintResult, runLint } from './lint'
 import { introspectMcpServer, McpIntrospectionError } from '../mcp/introspect'
 import { promptText, promptYesNo, closePrompts } from './prompt'
 import type { TargetPlatform } from '../schema'
@@ -15,8 +23,51 @@ import { mkdir } from 'fs/promises'
 
 const args = process.argv.slice(2)
 const command = args[0]
+const DEFAULT_INIT_TARGETS = ['claude-code', 'cursor', 'codex', 'opencode'] as const satisfies readonly TargetPlatform[]
+const ALL_TARGET_PLATFORMS = [
+  'claude-code',
+  'cursor',
+  'codex',
+  'opencode',
+  'github-copilot',
+  'openhands',
+  'warp',
+  'gemini-cli',
+  'roo-code',
+  'cline',
+  'amp',
+] as const satisfies readonly TargetPlatform[]
 
-async function main() {
+export interface InitFromMcpOptions {
+  source?: string
+  assumeDefaults: boolean
+  name?: string
+  author?: string
+  displayName?: string
+  targets?: string
+  authEnv?: string
+  grouping?: string
+  hooks?: string
+  jsonOutput: boolean
+}
+
+interface InitFromMcpSummary {
+  pluginName: string
+  displayName: string
+  source: string
+  toolCount: number
+  targets: TargetPlatform[]
+  grouping: McpSkillGrouping
+  hookMode: McpHookMode
+  files: string[]
+  lint: {
+    errors: number
+    warnings: number
+  }
+  nextSteps: string[]
+}
+
+export async function main() {
   switch (command) {
     case 'build':
       await runBuild()
@@ -101,6 +152,134 @@ async function runLintCommand() {
   const exitCode = await runLint(process.cwd())
   if (exitCode !== 0) {
     process.exit(exitCode)
+  }
+}
+
+async function resolveTextOption(options: {
+  label: string
+  defaultValue?: string
+  providedValue?: string
+  assumeDefaults?: boolean
+}): Promise<string> {
+  if (options.providedValue !== undefined) {
+    return options.providedValue
+  }
+
+  if (options.assumeDefaults) {
+    return options.defaultValue ?? ''
+  }
+
+  return await promptText(options.label, options.defaultValue)
+}
+
+async function resolveChoiceOption<T extends string>(options: {
+  label: string
+  values: readonly T[]
+  defaultValue: T
+  providedValue?: string
+  assumeDefaults?: boolean
+}): Promise<T> {
+  const raw = await resolveTextOption({
+    label: `${options.label} (${options.values.join('/')})`,
+    defaultValue: options.defaultValue,
+    providedValue: options.providedValue,
+    assumeDefaults: options.assumeDefaults,
+  })
+  return parseChoiceOption(raw, options.values, options.label)
+}
+
+function parseChoiceOption<T extends string>(value: string, validValues: readonly T[], label: string): T {
+  const normalized = value.trim().toLowerCase()
+  const match = validValues.find((entry) => entry.toLowerCase() === normalized)
+  if (!match) {
+    throw new Error(`${label} must be one of: ${validValues.join(', ')}`)
+  }
+  return match
+}
+
+function parseTargetPlatforms(raw: string): TargetPlatform[] {
+  const targets = raw
+    .split(',')
+    .map((target) => target.trim())
+    .filter(Boolean)
+
+  if (targets.length === 0) {
+    throw new Error('Provide at least one target platform.')
+  }
+
+  const invalid = targets.filter((target) => !(ALL_TARGET_PLATFORMS as readonly string[]).includes(target))
+  if (invalid.length > 0) {
+    throw new Error(
+      `Unknown target platform(s): ${invalid.join(', ')}. Supported: ${ALL_TARGET_PLATFORMS.join(', ')}`,
+    )
+  }
+
+  return targets as TargetPlatform[]
+}
+
+function defaultHookMode(source: { auth?: { type: string; envVar?: string } }): McpHookMode {
+  return source.auth?.type && source.auth.type !== 'none' && source.auth.envVar ? 'safe' : 'none'
+}
+
+function buildInitSummary(input: {
+  pluginName: string
+  displayName: string
+  source: string
+  toolCount: number
+  targets: TargetPlatform[]
+  grouping: McpSkillGrouping
+  hookMode: McpHookMode
+  files: string[]
+  lint: { errors: number; warnings: number }
+}): InitFromMcpSummary {
+  const installTarget = input.targets[0]
+  const installCommand = input.hookMode === 'safe'
+    ? `Run: pluxx install --trust --target ${installTarget}`
+    : `Run: pluxx install --target ${installTarget}`
+  const nextSteps = [
+    'Review INSTRUCTIONS.md and the generated skills before publishing.',
+    'Run: pluxx build',
+    installCommand,
+  ]
+
+  return {
+    pluginName: input.pluginName,
+    displayName: input.displayName,
+    source: input.source,
+    toolCount: input.toolCount,
+    targets: input.targets,
+    grouping: input.grouping,
+    hookMode: input.hookMode,
+    files: input.files,
+    lint: input.lint,
+    nextSteps,
+  }
+}
+
+export function parseInitFromMcpOptions(rawArgs: string[], initialName?: string, initialSource?: string): InitFromMcpOptions {
+  const read = (flag: string): string | undefined => {
+    const index = rawArgs.indexOf(flag)
+    if (index === -1) return undefined
+
+    const value = rawArgs[index + 1]
+    if (!value || value.startsWith('-')) {
+      return undefined
+    }
+
+    return value
+  }
+
+  return {
+    source: initialSource ?? read('--from-mcp'),
+    assumeDefaults: rawArgs.includes('--yes'),
+    name: read('--name') ?? initialName,
+    author: read('--author'),
+    displayName: read('--display-name'),
+    targets: read('--targets'),
+    authEnv: read('--auth-env'),
+    grouping: read('--grouping'),
+    hooks: read('--hooks'),
+    jsonOutput: rawArgs.includes('--json'),
   }
 }
 
@@ -272,15 +451,28 @@ Example prompt or command here
 }
 
 async function runInitFromMcp(initialName?: string, initialSource?: string) {
-  const defaultTargets = 'claude-code,cursor,codex,opencode'
+  const options = parseInitFromMcpOptions(args, initialName, initialSource)
+  const defaultTargets = DEFAULT_INIT_TARGETS.join(',')
+  const log = (...values: Array<string | number>) => {
+    if (!options.jsonOutput) {
+      console.log(...values)
+    }
+  }
 
-  console.log('')
-  console.log('  pluxx init --from-mcp — Scaffold from an MCP server')
-  console.log('  ─────────────────────────────────────────────────────')
-  console.log('')
+  log('')
+  log('  pluxx init --from-mcp — Scaffold from an MCP server')
+  log('  ─────────────────────────────────────────────────────')
+  log('')
 
   try {
-    const rawSource = initialSource ?? await promptText('MCP server URL or local command')
+    const rawSource = options.source ?? await resolveTextOption({
+      label: 'MCP server URL or local command',
+      assumeDefaults: options.assumeDefaults,
+    })
+    if (!rawSource) {
+      throw new Error('Provide an MCP server URL or local command. Example: pluxx init --from-mcp https://example.com/mcp')
+    }
+
     let source = parseMcpSourceInput(rawSource)
 
     let introspection
@@ -292,9 +484,15 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
         && source.transport !== 'stdio'
         && (error.status === 401 || error.status === 403)
       ) {
-        const envVar = await promptText('Bearer auth env var for this MCP server')
+        const envVar = await resolveTextOption({
+          label: 'Bearer auth env var for this MCP server',
+          providedValue: options.authEnv,
+          assumeDefaults: options.assumeDefaults,
+        })
         if (!envVar) {
-          throw new Error('This MCP server requires auth. Re-run init and provide an auth env var name.')
+          throw new Error(
+            'This MCP server requires auth. Re-run init with --auth-env YOUR_ENV_VAR or provide an auth env var name interactively.',
+          )
         }
 
         source = {
@@ -312,12 +510,51 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
       }
     }
 
+    log(`  Detected MCP server: ${introspection.serverInfo.title ?? introspection.serverInfo.name}`)
+    log(`  Discovered tools: ${introspection.tools.length}`)
+    log('')
+
     const pluginName = toKebabCase(
-      await promptText('Plugin name', initialName ? toKebabCase(initialName) : derivePluginName(introspection, source)),
+      await resolveTextOption({
+        label: 'Plugin name',
+        defaultValue: options.name ? toKebabCase(options.name) : derivePluginName(introspection, source),
+        providedValue: options.name,
+        assumeDefaults: options.assumeDefaults,
+      }),
     )
-    const authorName = await promptText('Author name', process.env.USER ?? '')
-    const targetsRaw = await promptText('Which platforms? (comma-separated)', defaultTargets)
-    const targets = targetsRaw.split(',').map((target) => target.trim()).filter(Boolean) as TargetPlatform[]
+    const authorName = await resolveTextOption({
+      label: 'Author name',
+      defaultValue: process.env.USER ?? '',
+      providedValue: options.author,
+      assumeDefaults: options.assumeDefaults,
+    })
+    const displayName = await resolveTextOption({
+      label: 'Display name',
+      defaultValue: options.displayName ?? introspection.serverInfo.title ?? pluginName,
+      providedValue: options.displayName,
+      assumeDefaults: options.assumeDefaults,
+    })
+    const targetsRaw = await resolveTextOption({
+      label: 'Which platforms? (comma-separated)',
+      defaultValue: options.targets ?? defaultTargets,
+      providedValue: options.targets,
+      assumeDefaults: options.assumeDefaults,
+    })
+    const targets = parseTargetPlatforms(targetsRaw)
+    const grouping = await resolveChoiceOption<McpSkillGrouping>({
+      label: 'Skill grouping strategy',
+      values: MCP_SKILL_GROUPINGS,
+      defaultValue: 'workflow',
+      providedValue: options.grouping,
+      assumeDefaults: options.assumeDefaults,
+    })
+    const hookMode = await resolveChoiceOption<McpHookMode>({
+      label: 'Install-ready hooks',
+      values: MCP_HOOK_MODES,
+      defaultValue: defaultHookMode(source),
+      providedValue: options.hooks,
+      assumeDefaults: options.assumeDefaults,
+    })
 
     closePrompts()
 
@@ -328,20 +565,43 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
       targets,
       source,
       introspection,
+      displayName,
+      skillGrouping: grouping,
+      hookMode,
     })
+    const lintResult = await lintProject(process.cwd())
+    const summary = buildInitSummary({
+      pluginName,
+      displayName,
+      source: rawSource,
+      toolCount: introspection.tools.length,
+      targets,
+      grouping,
+      hookMode,
+      files: result.generatedFiles,
+      lint: {
+        errors: lintResult.errors,
+        warnings: lintResult.warnings,
+      },
+    })
+
+    if (options.jsonOutput) {
+      console.log(JSON.stringify(summary, null, 2))
+      return
+    }
 
     console.log('')
     console.log('  Created:')
-    console.log('    pluxx.config.ts')
-    console.log(`    ${result.instructionsPath}`)
-    for (const skillDir of result.skillDirectories) {
-      console.log(`    ${skillDir}/SKILL.md`)
+    for (const file of summary.files) {
+      console.log(`    ${file}`)
     }
     console.log('')
+    printLintResult(lintResult, process.cwd())
+    console.log('')
     console.log('  Next steps:')
-    console.log('    1. Review INSTRUCTIONS.md and the generated skill files')
-    console.log('    2. Run: pluxx build')
-    console.log('    3. Run: pluxx lint')
+    summary.nextSteps.forEach((step, index) => {
+      console.log(`    ${index + 1}. ${step}`)
+    })
     console.log('')
   } catch (error) {
     closePrompts()
@@ -423,13 +683,16 @@ Examples:
   pluxx init my-plugin                    Scaffold a new plugin config
   pluxx init --from-mcp https://example.com/mcp  Scaffold from a remote MCP server
   pluxx init --from-mcp "npx -y @acme/mcp"       Scaffold from a local MCP command
+  pluxx init --from-mcp https://example.com/mcp --yes --name acme --display-name "Acme" --author "Acme" --targets claude-code,codex --grouping workflow --hooks safe --json
   pluxx install                           Install to all configured targets
   pluxx install --target claude-code      Install to Claude Code only
   pluxx install --trust                   Install without hook trust confirmation
 `)
 }
 
-main().catch(err => {
-  console.error(err)
-  process.exit(1)
-})
+if (import.meta.main) {
+  main().catch(err => {
+    console.error(err)
+    process.exit(1)
+  })
+}

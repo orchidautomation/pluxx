@@ -54,6 +54,12 @@ $ bunx pluxx init --from-mcp https://example.com/mcp
 
 That flow introspects the server, reads its tool metadata, and drafts workflow-oriented skills instead of mirroring raw tool names one-to-one whenever the tool set supports a clearer grouping.
 
+For automation or CI-style setup, the same flow supports headless flags:
+
+```bash
+$ bunx pluxx init --from-mcp https://example.com/mcp --yes --name acme --display-name "Acme" --author "Acme" --targets claude-code,codex --grouping workflow --hooks safe --json
+```
+
 ```typescript
 // pluxx.config.ts
 import { definePlugin } from 'pluxx'

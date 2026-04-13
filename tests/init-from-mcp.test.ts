@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach, afterEach } from 'bun:test'
 import { existsSync, readFileSync, rmSync } from 'fs'
 import { resolve } from 'path'
+import { loadConfig } from '../src/config/load'
 import { derivePluginName, parseMcpSourceInput, planSkillScaffolds, writeMcpScaffold } from '../src/cli/init-from-mcp'
 import type { IntrospectedMcpServer } from '../src/mcp/introspect'
 
@@ -104,11 +105,25 @@ describe('init-from-mcp scaffold', () => {
     ])
   })
 
+  it('supports one-skill-per-tool grouping for agent-friendly headless scaffolds', () => {
+    const skills = planSkillScaffolds(introspection.tools, 'tool')
+
+    expect(skills.map((skill) => skill.dirName)).toEqual([
+      'find-organizations',
+      'find-people',
+      'get-organization',
+    ])
+    expect(skills.every((skill) => skill.tools.length === 1)).toBe(true)
+  })
+
   it('writes config, instructions, and grouped skills from discovered tools', async () => {
     const result = await writeMcpScaffold({
       rootDir: TEST_DIR,
       pluginName: 'sumble',
       authorName: 'Anthony Goldbloom',
+      displayName: 'Sumble MCP',
+      skillGrouping: 'tool',
+      hookMode: 'safe',
       targets: ['claude-code', 'cursor', 'codex', 'opencode'],
       source: {
         transport: 'http',
@@ -122,28 +137,40 @@ describe('init-from-mcp scaffold', () => {
     })
 
     expect(result.skillDirectories).toEqual([
-      'skills/account-research',
-      'skills/contact-discovery',
+      'skills/find-organizations',
+      'skills/find-people',
+      'skills/get-organization',
     ])
+    expect(result.generatedFiles).toContain('scripts/check-env.sh')
 
     const config = readFileSync(resolve(TEST_DIR, 'pluxx.config.ts'), 'utf-8')
     const instructionsFile = readFileSync(resolve(TEST_DIR, 'INSTRUCTIONS.md'), 'utf-8')
-    const accountSkill = readFileSync(resolve(TEST_DIR, 'skills/account-research/SKILL.md'), 'utf-8')
+    const organizationSkill = readFileSync(resolve(TEST_DIR, 'skills/find-organizations/SKILL.md'), 'utf-8')
+    const envScript = readFileSync(resolve(TEST_DIR, 'scripts/check-env.sh'), 'utf-8')
 
     expect(config).toContain(`name: "sumble"`)
     expect(config).toContain(`envVar: "SUMBLE_API_KEY"`)
     expect(config).toContain(`instructions: './INSTRUCTIONS.md'`)
+    expect(config).toContain(`scripts: "./scripts/"`)
+    expect(config).toContain(`sessionStart`)
+    expect(config).toContain('check-env.sh')
+    expect(config).toContain(`displayName: "Sumble MCP"`)
     expect(config).toContain(`websiteURL: "https://sumble.com/"`)
 
-    expect(instructionsFile).toContain('# Sumble')
+    expect(instructionsFile).toContain('# Sumble MCP')
     expect(instructionsFile).toContain('Prefer the most specific Sumble tool for the request.')
     expect(instructionsFile).toContain('`FindOrganizations`')
-    expect(instructionsFile).toContain('`account-research`')
+    expect(instructionsFile).toContain('`find-organizations`')
 
-    expect(accountSkill).toContain('# Account Research')
-    expect(accountSkill).toContain('### `FindOrganizations`')
-    expect(accountSkill).toContain('### `GetOrganization`')
-    expect(accountSkill).toContain('`query` (string, required)')
-    expect(existsSync(resolve(TEST_DIR, 'skills/contact-discovery/SKILL.md'))).toBe(true)
+    expect(organizationSkill).toContain('# Find Organizations')
+    expect(organizationSkill).toContain('### `FindOrganizations`')
+    expect(organizationSkill).toContain('`query` (string, required)')
+    expect(envScript).toContain('SUMBLE_API_KEY')
+    expect(envScript).toContain('pluxx: SUMBLE_API_KEY is not set')
+    expect(existsSync(resolve(TEST_DIR, 'skills/find-people/SKILL.md'))).toBe(true)
+
+    const loadedConfig = await loadConfig(TEST_DIR)
+    expect(loadedConfig.name).toBe('sumble')
+    expect(loadedConfig.brand?.displayName).toBe('Sumble MCP')
   })
 })
