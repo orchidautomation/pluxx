@@ -60,6 +60,8 @@ For automation or CI-style setup, the same flow supports headless flags:
 $ bunx pluxx init --from-mcp https://example.com/mcp --yes --name acme --display-name "Acme" --author "Acme" --targets claude-code,codex --grouping workflow --hooks safe --json
 ```
 
+Generated `INSTRUCTIONS.md` and MCP-derived `SKILL.md` files now use a mixed-ownership format: Pluxx owns the generated block, and a separate custom section is preserved across `pluxx sync --from-mcp`.
+
 ```typescript
 // pluxx.config.ts
 import { definePlugin } from 'pluxx'

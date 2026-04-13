@@ -1,3 +1,4 @@
+import { existsSync } from 'fs'
 import { mkdir } from 'fs/promises'
 import { basename, resolve } from 'path'
 import type { HookEntry, McpServer, TargetPlatform } from '../schema'
@@ -75,6 +76,19 @@ export interface McpScaffoldMetadata {
 }
 
 export const MCP_SCAFFOLD_METADATA_PATH = '.pluxx/mcp.json'
+export const PLUXX_GENERATED_START = '<!-- pluxx:generated:start -->'
+export const PLUXX_GENERATED_END = '<!-- pluxx:generated:end -->'
+export const PLUXX_CUSTOM_START = '<!-- pluxx:custom:start -->'
+export const PLUXX_CUSTOM_END = '<!-- pluxx:custom:end -->'
+
+const DEFAULT_INSTRUCTIONS_CUSTOM_CONTENT = 'Add custom plugin instructions here. This section is preserved across `pluxx sync --from-mcp`.'
+const DEFAULT_SKILL_CUSTOM_CONTENT = 'Add custom guidance, examples, or caveats here. This section is preserved across `pluxx sync --from-mcp`.'
+const LEGACY_MIXED_CONTENT_NOTE = 'Migrated from a previous unstructured scaffold. Review and trim this section as needed.'
+
+interface MixedMarkdownContent {
+  hasMarkers: boolean
+  customContent: string
+}
 
 const WORKFLOW_SKILL_DEFINITIONS = [
   {
@@ -189,14 +203,21 @@ export async function writeMcpScaffold(options: McpScaffoldOptions): Promise<Mcp
 
   await Bun.write(
     instructionsPath,
-    buildInstructionsContent({
-      displayName,
-      description,
-      serverName,
-      instructions: options.introspection.instructions,
-      skills: plannedSkills,
-      tools: options.introspection.tools,
-    }),
+    wrapManagedMarkdown(
+      buildInstructionsContent({
+        displayName,
+        description,
+        serverName,
+        instructions: options.introspection.instructions,
+        skills: plannedSkills,
+        tools: options.introspection.tools,
+      }),
+      existsSync(instructionsPath) ? await Bun.file(instructionsPath).text() : undefined,
+      {
+        customHeading: '## Custom Instructions',
+        defaultCustomContent: DEFAULT_INSTRUCTIONS_CUSTOM_CONTENT,
+      },
+    ),
   )
 
   await mkdir(skillRoot, { recursive: true })
@@ -204,7 +225,18 @@ export async function writeMcpScaffold(options: McpScaffoldOptions): Promise<Mcp
   for (const skill of plannedSkills) {
     const toolDir = resolve(skillRoot, skill.dirName)
     await mkdir(toolDir, { recursive: true })
-    await Bun.write(resolve(toolDir, 'SKILL.md'), buildSkillContent(skill))
+    const skillPath = resolve(toolDir, 'SKILL.md')
+    await Bun.write(
+      skillPath,
+      wrapManagedMarkdown(
+        buildSkillContent(skill),
+        existsSync(skillPath) ? await Bun.file(skillPath).text() : undefined,
+        {
+          customHeading: '## Custom Notes',
+          defaultCustomContent: DEFAULT_SKILL_CUSTOM_CONTENT,
+        },
+      ),
+    )
     const relativeSkillPath = `skills/${skill.dirName}`
     skillDirectories.push(relativeSkillPath)
     generatedFiles.push(`${relativeSkillPath}/SKILL.md`)
@@ -244,6 +276,74 @@ export async function writeMcpScaffold(options: McpScaffoldOptions): Promise<Mcp
     generatedHookEvents: Object.keys(generatedHooks.hookEntries ?? {}),
     metadataPath,
   }
+}
+
+export function wrapManagedMarkdown(
+  generatedContent: string,
+  existingContent: string | undefined,
+  options: {
+    customHeading: string
+    defaultCustomContent: string
+  },
+): string {
+  const mixedContent = extractMixedMarkdownContent(existingContent, options.defaultCustomContent)
+  const customContent = mixedContent.customContent.trim() || options.defaultCustomContent
+
+  return [
+    PLUXX_GENERATED_START,
+    generatedContent.trim(),
+    PLUXX_GENERATED_END,
+    '',
+    options.customHeading,
+    '',
+    PLUXX_CUSTOM_START,
+    customContent,
+    PLUXX_CUSTOM_END,
+    '',
+  ].join('\n')
+}
+
+export function extractMixedMarkdownContent(
+  content: string | undefined,
+  defaultCustomContent: string,
+): MixedMarkdownContent {
+  if (!content) {
+    return {
+      hasMarkers: false,
+      customContent: defaultCustomContent,
+    }
+  }
+
+  const customStart = content.indexOf(PLUXX_CUSTOM_START)
+  const customEnd = content.indexOf(PLUXX_CUSTOM_END)
+
+  if (customStart !== -1 && customEnd !== -1 && customEnd > customStart) {
+    const customContent = content
+      .slice(customStart + PLUXX_CUSTOM_START.length, customEnd)
+      .trim()
+
+    return {
+      hasMarkers: true,
+      customContent: customContent || defaultCustomContent,
+    }
+  }
+
+  const trimmed = content.trim()
+  return {
+    hasMarkers: false,
+    customContent: trimmed
+      ? `${LEGACY_MIXED_CONTENT_NOTE}\n\n${trimmed}`
+      : defaultCustomContent,
+  }
+}
+
+export function hasMeaningfulCustomContent(content: string | undefined): boolean {
+  if (!content) return false
+
+  const extracted = extractMixedMarkdownContent(content, DEFAULT_INSTRUCTIONS_CUSTOM_CONTENT)
+  const normalized = extracted.customContent.trim()
+
+  return normalized !== '' && normalized !== DEFAULT_INSTRUCTIONS_CUSTOM_CONTENT && normalized !== DEFAULT_SKILL_CUSTOM_CONTENT
 }
 
 export function buildSkillContent(skill: PlannedSkill): string {

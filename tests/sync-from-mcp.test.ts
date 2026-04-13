@@ -118,6 +118,28 @@ describe('sync-from-mcp', () => {
       hookMode: 'safe',
     })
 
+    writeFileSync(
+      resolve(TEST_DIR, 'INSTRUCTIONS.md'),
+      readFileSync(resolve(TEST_DIR, 'INSTRUCTIONS.md'), 'utf-8').replace(
+        'Add custom plugin instructions here. This section is preserved across `pluxx sync --from-mcp`.',
+        'Always mention the curated onboarding checklist.',
+      ),
+    )
+    writeFileSync(
+      resolve(TEST_DIR, 'skills/find-organizations/SKILL.md'),
+      readFileSync(resolve(TEST_DIR, 'skills/find-organizations/SKILL.md'), 'utf-8').replace(
+        'Add custom guidance, examples, or caveats here. This section is preserved across `pluxx sync --from-mcp`.',
+        'Custom note: emphasize enterprise account research.',
+      ),
+    )
+    writeFileSync(
+      resolve(TEST_DIR, 'skills/find-people/SKILL.md'),
+      readFileSync(resolve(TEST_DIR, 'skills/find-people/SKILL.md'), 'utf-8').replace(
+        'Add custom guidance, examples, or caveats here. This section is preserved across `pluxx sync --from-mcp`.',
+        'Custom note: this legacy skill should be kept for manual follow-up.',
+      ),
+    )
+
     mkdirSync(resolve(TEST_DIR, 'skills/custom'), { recursive: true })
     writeFileSync(
       resolve(TEST_DIR, 'skills/custom/SKILL.md'),
@@ -158,16 +180,24 @@ describe('sync-from-mcp', () => {
     const result = await syncFromMcp({ rootDir: TEST_DIR })
 
     expect(result.addedFiles).toContain('skills/search-technologies/SKILL.md')
-    expect(result.removedFiles).toContain('skills/find-people/SKILL.md')
+    expect(result.removedFiles).not.toContain('skills/find-people/SKILL.md')
+    expect(result.preservedFiles).toContain('skills/find-people/SKILL.md')
     expect(result.updatedFiles).toContain('skills/find-organizations/SKILL.md')
+    expect(result.updatedFiles).toContain('./INSTRUCTIONS.md')
     expect(result.updatedFiles).toContain('.pluxx/mcp.json')
 
     expect(existsSync(resolve(TEST_DIR, 'skills/search-technologies/SKILL.md'))).toBe(true)
-    expect(existsSync(resolve(TEST_DIR, 'skills/find-people/SKILL.md'))).toBe(false)
+    expect(existsSync(resolve(TEST_DIR, 'skills/find-people/SKILL.md'))).toBe(true)
     expect(existsSync(resolve(TEST_DIR, 'skills/custom/SKILL.md'))).toBe(true)
 
     const instructions = readFileSync(resolve(TEST_DIR, 'INSTRUCTIONS.md'), 'utf-8')
+    const organizationSkill = readFileSync(resolve(TEST_DIR, 'skills/find-organizations/SKILL.md'), 'utf-8')
+    const preservedPeopleSkill = readFileSync(resolve(TEST_DIR, 'skills/find-people/SKILL.md'), 'utf-8')
     expect(instructions).toContain('Use the updated fake tools carefully.')
+    expect(instructions).toContain('Always mention the curated onboarding checklist.')
+    expect(organizationSkill).toContain('Search organizations with richer filters.')
+    expect(organizationSkill).toContain('Custom note: emphasize enterprise account research.')
+    expect(preservedPeopleSkill).toContain('Custom note: this legacy skill should be kept for manual follow-up.')
 
     const metadata = JSON.parse(readFileSync(resolve(TEST_DIR, '.pluxx/mcp.json'), 'utf-8')) as {
       skills: Array<{ dirName: string }>

@@ -72,6 +72,9 @@ bunx pluxx init --from-mcp https://example.com/mcp
 # Headless / CI-friendly import
 bunx pluxx init --from-mcp https://example.com/mcp --yes --name acme --display-name "Acme" --author "Acme" --targets claude-code,codex --grouping workflow --hooks safe --json
 
+# Refresh MCP-derived files later while preserving the custom sections
+bunx pluxx sync --json
+
 # Optional: global install still shells out to Bun
 npm install -g pluxx
 pluxx init my-plugin

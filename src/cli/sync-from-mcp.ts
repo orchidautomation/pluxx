@@ -5,6 +5,7 @@ import { introspectMcpServer, type IntrospectedMcpServer } from '../mcp/introspe
 import type { McpServer } from '../schema'
 import {
   MCP_SCAFFOLD_METADATA_PATH,
+  hasMeaningfulCustomContent,
   type McpScaffoldMetadata,
   writeMcpScaffold,
 } from './init-from-mcp'
@@ -20,6 +21,7 @@ export interface SyncFromMcpResult {
   addedFiles: string[]
   updatedFiles: string[]
   removedFiles: string[]
+  preservedFiles: string[]
 }
 
 export async function readMcpScaffoldMetadata(rootDir: string): Promise<McpScaffoldMetadata> {
@@ -55,9 +57,18 @@ export async function syncFromMcp(options: SyncFromMcpOptions): Promise<SyncFrom
   const afterManaged = new Set(result.generatedFiles)
   const beforeManaged = new Set(metadata.managedFiles)
 
-  const removedFiles = [...beforeManaged].filter((file) => !afterManaged.has(file))
-  for (const file of removedFiles) {
+  const removedCandidates = [...beforeManaged].filter((file) => !afterManaged.has(file))
+  const removedFiles: string[] = []
+  const preservedFiles: string[] = []
+
+  for (const file of removedCandidates) {
+    if (shouldPreserveManagedFile(options.rootDir, file)) {
+      preservedFiles.push(file)
+      continue
+    }
+
     removeManagedFile(options.rootDir, file)
+    removedFiles.push(file)
   }
 
   const addedFiles = [...afterManaged].filter((file) => !beforeManaged.has(file))
@@ -76,6 +87,7 @@ export async function syncFromMcp(options: SyncFromMcpOptions): Promise<SyncFrom
     addedFiles: addedFiles.sort(),
     updatedFiles: updatedFiles.sort(),
     removedFiles: removedFiles.sort(),
+    preservedFiles: preservedFiles.sort(),
   }
 }
 
@@ -95,6 +107,15 @@ function removeManagedFile(rootDir: string, relativePath: string): void {
 
   rmSync(filepath, { force: true })
   pruneEmptyDirectories(rootDir, dirname(filepath))
+}
+
+function shouldPreserveManagedFile(rootDir: string, relativePath: string): boolean {
+  if (!relativePath.endsWith('.md')) return false
+
+  const filepath = resolve(rootDir, relativePath)
+  if (!existsSync(filepath)) return false
+
+  return hasMeaningfulCustomContent(readFileSync(filepath, 'utf-8'))
 }
 
 function pruneEmptyDirectories(rootDir: string, startDir: string): void {
@@ -122,6 +143,8 @@ export function formatSyncSummary(result: SyncFromMcpResult, rootDir: string): s
   result.updatedFiles.forEach((file) => lines.push(`  ~ ${relative(rootDir, resolve(rootDir, file))}`))
   lines.push(`Removed: ${result.removedFiles.length}`)
   result.removedFiles.forEach((file) => lines.push(`  - ${relative(rootDir, resolve(rootDir, file))}`))
+  lines.push(`Preserved: ${result.preservedFiles.length}`)
+  result.preservedFiles.forEach((file) => lines.push(`  ! ${relative(rootDir, resolve(rootDir, file))}`))
 
   return lines
 }
