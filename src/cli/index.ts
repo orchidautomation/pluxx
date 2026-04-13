@@ -17,7 +17,7 @@ import {
 import { migrate } from './migrate'
 import { lintProject, printLintResult, runLint } from './lint'
 import { introspectMcpServer, McpIntrospectionError } from '../mcp/introspect'
-import { promptText, promptYesNo, closePrompts } from './prompt'
+import { promptText, promptYesNo, PromptCancelledError } from './prompt'
 import * as clack from '@clack/prompts'
 import type { TargetPlatform } from '../schema'
 import { basename } from 'path'
@@ -403,8 +403,6 @@ async function runInit() {
       brandColor = await promptText('Brand color (hex)', '#000000')
     }
 
-    closePrompts()
-
     const pluginName = toKebabCase(name) || dirName
     const skillName = pluginName
 
@@ -503,8 +501,12 @@ Example prompt or command here
     console.log('    3. Run: pluxx install')
     console.log('')
   } catch (error) {
-    closePrompts()
-    throw error instanceof Error ? error : new Error('Init cancelled')
+    if (error instanceof PromptCancelledError) {
+      console.log('Init cancelled')
+      return
+    }
+
+    throw error instanceof Error ? error : new Error(String(error))
   }
 }
 
@@ -641,8 +643,6 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
           ], defaultHookModeValue)
         : defaultHookModeValue
 
-    closePrompts()
-
     // ── Step 4/4 · Generating scaffold ───────────────────────────────
 
     const g = !options.jsonOutput ? clack.spinner() : undefined
@@ -683,14 +683,25 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
     }
 
     g?.stop(`Created ${summary.files.length} files`)
-    clack.log.success(`Lint: ${lintResult.errors} errors, ${lintResult.warnings} warnings`)
+    if (lintResult.errors > 0) {
+      clack.log.error(`Lint: ${lintResult.errors} errors, ${lintResult.warnings} warnings`)
+    } else if (lintResult.warnings > 0) {
+      clack.log.warn(`Lint: ${lintResult.errors} errors, ${lintResult.warnings} warnings`)
+    } else {
+      clack.log.success('Lint: 0 errors, 0 warnings')
+    }
 
     if (lintResult.issues.length > 0) {
       for (const issue of lintResult.issues) {
         const levelLabel = issue.level === 'error' ? 'ERROR' : 'WARN '
         const platformLabel = issue.platform ? `[${issue.platform}] ` : ''
         const loc = issue.file ? `${issue.file}: ` : ''
-        clack.log.warn(`${levelLabel} ${issue.code} ${platformLabel}${loc}${issue.message}`)
+        const message = `${levelLabel} ${issue.code} ${platformLabel}${loc}${issue.message}`
+        if (issue.level === 'error') {
+          clack.log.error(message)
+        } else {
+          clack.log.warn(message)
+        }
       }
     }
 
@@ -723,11 +734,14 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
 
     clack.outro('Scaffold complete')
   } catch (error) {
-    closePrompts()
-    if (!options.jsonOutput) {
-      clack.cancel('Init cancelled')
+    if (error instanceof PromptCancelledError) {
+      if (!options.jsonOutput) {
+        clack.cancel(error.message)
+      }
+      return
     }
-    throw error instanceof Error ? error : new Error('Init cancelled')
+
+    throw error instanceof Error ? error : new Error(String(error))
   }
 }
 
@@ -739,8 +753,7 @@ async function clackText(message: string, defaultValue?: string): Promise<string
     placeholder: defaultValue,
   })
   if (clack.isCancel(result)) {
-    clack.cancel('Init cancelled')
-    process.exit(0)
+    throw new PromptCancelledError()
   }
   return result
 }
@@ -757,8 +770,7 @@ async function clackSelect<T extends string>(
     initialValue: initialValue as string,
   })
   if (clack.isCancel(result)) {
-    clack.cancel('Init cancelled')
-    process.exit(0)
+    throw new PromptCancelledError()
   }
   return result as T
 }
