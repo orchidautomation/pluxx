@@ -49,6 +49,7 @@ export interface InitFromMcpOptions {
   authEnv?: string
   grouping?: string
   hooks?: string
+  transport?: string
   jsonOutput: boolean
 }
 
@@ -335,6 +336,7 @@ export function parseInitFromMcpOptions(rawArgs: string[], initialName?: string,
     authEnv: read('--auth-env'),
     grouping: read('--grouping'),
     hooks: read('--hooks'),
+    transport: read('--transport'),
     jsonOutput: rawArgs.includes('--json'),
   }
 }
@@ -529,7 +531,7 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
       throw new Error('Provide an MCP server URL or local command. Example: pluxx init --from-mcp https://example.com/mcp')
     }
 
-    let source = parseMcpSourceInput(rawSource)
+    let source = parseMcpSourceInput(rawSource, options.transport)
 
     let introspection
     try {
@@ -779,6 +781,7 @@ Examples:
   pluxx init --from-mcp https://example.com/mcp  Scaffold from a remote MCP server
   pluxx init --from-mcp "npx -y @acme/mcp"       Scaffold from a local MCP command
   pluxx init --from-mcp https://example.com/mcp --yes --name acme --display-name "Acme" --author "Acme" --targets claude-code,codex --grouping workflow --hooks safe --json
+  pluxx init --from-mcp https://example.com/sse --transport sse   Scaffold from an SSE-transport MCP server
   pluxx sync                              Refresh a scaffold using .pluxx/mcp.json metadata
   pluxx sync --from-mcp https://example.com/mcp  Refresh using an explicit MCP source override
   pluxx install                           Install to all configured targets

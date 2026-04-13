@@ -135,7 +135,7 @@ const WORKFLOW_SKILL_DEFINITIONS = [
   },
 ] as const
 
-export function parseMcpSourceInput(input: string): McpServer {
+export function parseMcpSourceInput(input: string, transportOverride?: string): McpServer {
   const value = input.trim()
   if (!value) {
     throw new Error('Expected an MCP server URL or a local command.')
@@ -144,8 +144,11 @@ export function parseMcpSourceInput(input: string): McpServer {
   try {
     const url = new URL(value)
     if (url.protocol === 'http:' || url.protocol === 'https:') {
+      const transport = transportOverride === 'sse' || (!transportOverride && url.pathname.endsWith('/sse'))
+        ? 'sse' as const
+        : 'http' as const
       return {
-        transport: 'http',
+        transport,
         url: url.toString(),
       }
     }

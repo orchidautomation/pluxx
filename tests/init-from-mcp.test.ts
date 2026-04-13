@@ -88,6 +88,35 @@ describe('init-from-mcp scaffold', () => {
     })
   })
 
+  it('parses URL with explicit SSE transport override', () => {
+    expect(parseMcpSourceInput('https://mcp.example.com/v1', 'sse')).toEqual({
+      transport: 'sse',
+      url: 'https://mcp.example.com/v1',
+    })
+  })
+
+  it('auto-detects SSE transport when URL path ends with /sse', () => {
+    expect(parseMcpSourceInput('https://mcp.example.com/sse')).toEqual({
+      transport: 'sse',
+      url: 'https://mcp.example.com/sse',
+    })
+  })
+
+  it('defaults to http transport when URL path does not end with /sse', () => {
+    expect(parseMcpSourceInput('https://mcp.example.com/mcp')).toEqual({
+      transport: 'http',
+      url: 'https://mcp.example.com/mcp',
+    })
+  })
+
+  it('ignores transport override for stdio commands', () => {
+    expect(parseMcpSourceInput('npx -y @acme/mcp', 'sse')).toEqual({
+      transport: 'stdio',
+      command: 'npx',
+      args: ['-y', '@acme/mcp'],
+    })
+  })
+
   it('derives a stable plugin name from MCP metadata', () => {
     expect(derivePluginName(introspection, { transport: 'http', url: 'https://mcp.sumble.com/' })).toBe('sumble')
   })
