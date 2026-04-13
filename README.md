@@ -74,7 +74,11 @@ bunx pluxx init --from-mcp https://example.com/mcp --yes --name acme --display-n
 
 # Refresh MCP-derived files later while preserving the custom sections
 bunx pluxx sync --json
+```
 
+Generated MCP skill files include deterministic example requests derived from tool names and required inputs, so the first scaffold is useful before any AI refinement.
+
+```bash
 # Optional: global install still shells out to Bun
 npm install -g pluxx
 pluxx init my-plugin

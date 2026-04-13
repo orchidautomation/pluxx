@@ -62,6 +62,8 @@ $ bunx pluxx init --from-mcp https://example.com/mcp --yes --name acme --display
 
 Generated `INSTRUCTIONS.md` and MCP-derived `SKILL.md` files now use a mixed-ownership format: Pluxx owns the generated block, and a separate custom section is preserved across `pluxx sync --from-mcp`.
 
+Those generated skills also include deterministic example requests based on the discovered tool names and required input fields, so the scaffold is immediately usable before any manual or AI-assisted rewriting.
+
 ```typescript
 // pluxx.config.ts
 import { definePlugin } from 'pluxx'

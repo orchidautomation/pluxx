@@ -348,6 +348,9 @@ export function hasMeaningfulCustomContent(content: string | undefined): boolean
 
 export function buildSkillContent(skill: PlannedSkill): string {
   const description = truncate(skill.description, 220)
+  const exampleRequests = skill.tools
+    .map((tool) => buildToolExampleRequest(tool))
+    .filter((example, index, values) => values.indexOf(example) === index)
 
   const lines = [
     '---',
@@ -383,17 +386,21 @@ export function buildSkillContent(skill: PlannedSkill): string {
   }
 
   lines.push(
+    '## Example Requests',
+    '',
+  )
+
+  for (const example of exampleRequests) {
+    lines.push(`- "${example}"`)
+  }
+
+  lines.push(
+    '',
     '## Usage',
     '',
     '- Pick the most specific tool in this skill for the user request.',
     '- Gather required inputs before calling a tool.',
     '- Summarize the returned data clearly instead of dumping raw JSON unless the user asks for it.',
-    '',
-    '## Example',
-    '',
-    '```',
-    `Use the ${skill.title} skill to help with this request.`,
-    '```',
     '',
   )
 
@@ -781,6 +788,70 @@ function getTopLevelSchemaFields(inputSchema?: Record<string, unknown>): SchemaF
       description: typeof schema.description === 'string' ? schema.description : undefined,
     }
   })
+}
+
+function buildToolExampleRequest(tool: IntrospectedMcpTool): string {
+  const action = inferToolAction(tool)
+  const objectLabel = inferToolObject(tool)
+  const context = buildToolRequestContext(tool)
+
+  const sentence = context
+    ? `${action} ${objectLabel} ${context}.`
+    : `${action} ${objectLabel}.`
+
+  return sentence.charAt(0).toUpperCase() + sentence.slice(1)
+}
+
+function inferToolAction(tool: IntrospectedMcpTool): string {
+  const identifier = normalizeIdentifier(tool.title ?? tool.name).toLowerCase()
+
+  if (/^(get|fetch|lookup|look up)\b/.test(identifier)) return 'look up'
+  if (/^(create|add)\b/.test(identifier)) return 'create'
+  if (/^(update|edit)\b/.test(identifier)) return 'update'
+  if (/^(delete|remove)\b/.test(identifier)) return 'delete'
+  if (/^(list)\b/.test(identifier)) return 'list'
+  if (/^(query)\b/.test(identifier)) return 'query'
+  if (/^(search)\b/.test(identifier)) return 'search'
+  return 'find'
+}
+
+function inferToolObject(tool: IntrospectedMcpTool): string {
+  const raw = normalizeIdentifier(tool.title ?? tool.name).trim()
+  const stripped = raw.replace(/^(find|get|fetch|lookup|look up|search|list|create|add|update|edit|delete|remove|query)\s+/i, '')
+  const candidate = stripped || raw
+  return candidate ? candidate.toLowerCase() : 'results'
+}
+
+function buildToolRequestContext(tool: IntrospectedMcpTool): string {
+  const requiredFields = getTopLevelSchemaFields(tool.inputSchema).filter((field) => field.required)
+  const preferredField = requiredFields[0]
+
+  if (!preferredField) return ''
+
+  const placeholder = `<${preferredField.name}>`
+  const fieldName = preferredField.name.toLowerCase()
+
+  if (fieldName.endsWith('id') || fieldName === 'id') {
+    return `using ${placeholder}`
+  }
+
+  if (fieldName.includes('query') || fieldName.includes('keyword') || fieldName.includes('search')) {
+    return `matching ${placeholder}`
+  }
+
+  if (fieldName.includes('role') || fieldName.includes('title')) {
+    return `for ${placeholder}`
+  }
+
+  if (fieldName.includes('company') || fieldName.includes('organization') || fieldName.includes('organisation') || fieldName.includes('account')) {
+    return `for ${placeholder}`
+  }
+
+  if (fieldName.includes('domain') || fieldName.includes('email') || fieldName.includes('url')) {
+    return `using ${placeholder}`
+  }
+
+  return `with ${placeholder}`
 }
 
 function formatSchemaType(value: unknown): string {

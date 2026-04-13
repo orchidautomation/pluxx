@@ -175,6 +175,8 @@ describe('init-from-mcp scaffold', () => {
     expect(organizationSkill).toContain('# Find Organizations')
     expect(organizationSkill).toContain('### `FindOrganizations`')
     expect(organizationSkill).toContain('`query` (string, required)')
+    expect(organizationSkill).toContain('## Example Requests')
+    expect(organizationSkill).toContain('"Find organizations matching <query>."')
     expect(envScript).toContain('SUMBLE_API_KEY')
     expect(envScript).toContain('pluxx: SUMBLE_API_KEY is not set')
     expect(metadata.version).toBe(1)
