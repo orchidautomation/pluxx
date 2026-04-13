@@ -220,8 +220,44 @@ function parseTargetPlatforms(raw: string): TargetPlatform[] {
   return targets as TargetPlatform[]
 }
 
-function defaultHookMode(source: { auth?: { type: string; envVar?: string } }): McpHookMode {
-  return source.auth?.type && source.auth.type !== 'none' && source.auth.envVar ? 'safe' : 'none'
+function defaultHookMode(source: { auth?: { type: string; envVar?: string }; transport?: string; env?: Record<string, string> }): McpHookMode {
+  if (source.auth?.type && source.auth.type !== 'none' && source.auth.envVar) {
+    return 'safe'
+  }
+
+  if (source.transport === 'stdio' && source.env && Object.keys(source.env).length > 0) {
+    return 'safe'
+  }
+
+  return 'none'
+}
+
+function applyGeneratedAuthEnv(source: ReturnType<typeof parseMcpSourceInput>, envVar?: string) {
+  if (!envVar) return source
+
+  if (source.transport === 'stdio') {
+    return {
+      ...source,
+      env: {
+        ...(source.env ?? {}),
+        [envVar]: `\${${envVar}}`,
+      },
+    }
+  }
+
+  if (!source.auth) {
+    return {
+      ...source,
+      auth: {
+        type: 'bearer' as const,
+        envVar,
+        headerName: 'Authorization',
+        headerTemplate: 'Bearer ${value}',
+      },
+    }
+  }
+
+  return source
 }
 
 function buildInitSummary(input: {
@@ -244,7 +280,7 @@ function buildInitSummary(input: {
   const notes: string[] = []
 
   if (input.requestedHookMode === 'safe' && input.hookMode === 'none') {
-    notes.push('No safe hooks were generated for this MCP source. Safe hooks currently require an explicit auth env var.')
+    notes.push('No safe hooks were generated for this MCP source. Safe hooks currently require explicit env vars in the generated MCP config.')
   } else if (input.hookMode === 'safe') {
     notes.push(`Generated install-ready hook events: ${input.hookEvents.join(', ')}`)
   }
@@ -529,6 +565,16 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
     log(`  Detected MCP server: ${introspection.serverInfo.title ?? introspection.serverInfo.name}`)
     log(`  Discovered tools: ${introspection.tools.length}`)
     log('')
+
+    const generatedAuthEnv = source.transport === 'stdio'
+      ? await resolveTextOption({
+          label: 'Auth env var for generated plugin (optional)',
+          providedValue: options.authEnv,
+          assumeDefaults: options.assumeDefaults,
+        })
+      : options.authEnv
+
+    source = applyGeneratedAuthEnv(source, generatedAuthEnv)
 
     const pluginName = toKebabCase(
       await resolveTextOption({

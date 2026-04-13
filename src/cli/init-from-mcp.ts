@@ -420,8 +420,8 @@ function planGeneratedHooks(source: McpServer, hookMode: McpHookMode = 'none'): 
     return { mode: 'none', files: [] }
   }
 
-  const authEnvVar = source.auth?.type && source.auth.type !== 'none' ? source.auth.envVar : undefined
-  if (!authEnvVar) {
+  const envVars = collectRequiredEnvVars(source)
+  if (envVars.length === 0) {
     return { mode: 'none', files: [] }
   }
 
@@ -436,19 +436,39 @@ function planGeneratedHooks(source: McpServer, hookMode: McpHookMode = 'none'): 
     },
     files: [{
       relativePath: 'scripts/check-env.sh',
-      content: buildEnvValidationScript(authEnvVar),
+      content: buildEnvValidationScript(envVars),
     }],
   }
 }
 
-function buildEnvValidationScript(envVar: string): string {
+function collectRequiredEnvVars(source: McpServer): string[] {
+  const envVars = new Set<string>()
+
+  if (source.auth?.type && source.auth.type !== 'none') {
+    envVars.add(source.auth.envVar)
+  }
+
+  if (source.transport === 'stdio') {
+    for (const key of Object.keys(source.env ?? {})) {
+      envVars.add(key)
+    }
+  }
+
+  return [...envVars]
+}
+
+function buildEnvValidationScript(envVars: string[]): string {
+  const checks = envVars
+    .map((envVar) => `if [ -z "\${${envVar}:-}" ]; then
+  echo "pluxx: ${envVar} is not set. Export it before using this plugin." >&2
+  exit 1
+fi`)
+    .join('\n\n')
+
   return `#!/usr/bin/env bash
 set -euo pipefail
 
-if [ -z "\${${envVar}:-}" ]; then
-  echo "pluxx: ${envVar} is not set. Export it before using this plugin." >&2
-  exit 1
-fi
+${checks}
 `
 }
 
