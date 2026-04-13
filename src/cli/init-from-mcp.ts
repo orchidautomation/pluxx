@@ -21,6 +21,8 @@ export interface McpScaffoldResult {
   instructionsPath: string
   skillDirectories: string[]
   generatedFiles: string[]
+  generatedHookMode: McpHookMode
+  generatedHookEvents: string[]
 }
 
 interface PlannedSkill {
@@ -44,6 +46,7 @@ export const MCP_HOOK_MODES = ['none', 'safe'] as const
 export type McpHookMode = typeof MCP_HOOK_MODES[number]
 
 interface GeneratedHookScaffold {
+  mode: McpHookMode
   scriptsPath?: string
   hookEntries?: Record<string, HookEntry[]>
   files: Array<{ relativePath: string; content: string }>
@@ -196,6 +199,8 @@ export async function writeMcpScaffold(options: McpScaffoldOptions): Promise<Mcp
     instructionsPath: './INSTRUCTIONS.md',
     skillDirectories,
     generatedFiles,
+    generatedHookMode: generatedHooks.mode,
+    generatedHookEvents: Object.keys(generatedHooks.hookEntries ?? {}),
   }
 }
 
@@ -412,15 +417,16 @@ function serializeHooks(hooks: Record<string, HookEntry[]>): string {
 
 function planGeneratedHooks(source: McpServer, hookMode: McpHookMode = 'none'): GeneratedHookScaffold {
   if (hookMode !== 'safe') {
-    return { files: [] }
+    return { mode: 'none', files: [] }
   }
 
   const authEnvVar = source.auth?.type && source.auth.type !== 'none' ? source.auth.envVar : undefined
   if (!authEnvVar) {
-    return { files: [] }
+    return { mode: 'none', files: [] }
   }
 
   return {
+    mode: 'safe',
     scriptsPath: './scripts/',
     hookEntries: {
       sessionStart: [{

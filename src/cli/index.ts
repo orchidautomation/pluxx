@@ -58,12 +58,15 @@ interface InitFromMcpSummary {
   toolCount: number
   targets: TargetPlatform[]
   grouping: McpSkillGrouping
+  requestedHookMode: McpHookMode
   hookMode: McpHookMode
+  hookEvents: string[]
   files: string[]
   lint: {
     errors: number
     warnings: number
   }
+  notes: string[]
   nextSteps: string[]
 }
 
@@ -228,7 +231,9 @@ function buildInitSummary(input: {
   toolCount: number
   targets: TargetPlatform[]
   grouping: McpSkillGrouping
+  requestedHookMode: McpHookMode
   hookMode: McpHookMode
+  hookEvents: string[]
   files: string[]
   lint: { errors: number; warnings: number }
 }): InitFromMcpSummary {
@@ -236,6 +241,14 @@ function buildInitSummary(input: {
   const installCommand = input.hookMode === 'safe'
     ? `Run: pluxx install --trust --target ${installTarget}`
     : `Run: pluxx install --target ${installTarget}`
+  const notes: string[] = []
+
+  if (input.requestedHookMode === 'safe' && input.hookMode === 'none') {
+    notes.push('No safe hooks were generated for this MCP source. Safe hooks currently require an explicit auth env var.')
+  } else if (input.hookMode === 'safe') {
+    notes.push(`Generated install-ready hook events: ${input.hookEvents.join(', ')}`)
+  }
+
   const nextSteps = [
     'Review INSTRUCTIONS.md and the generated skills before publishing.',
     'Run: pluxx build',
@@ -249,9 +262,12 @@ function buildInitSummary(input: {
     toolCount: input.toolCount,
     targets: input.targets,
     grouping: input.grouping,
+    requestedHookMode: input.requestedHookMode,
     hookMode: input.hookMode,
+    hookEvents: input.hookEvents,
     files: input.files,
     lint: input.lint,
+    notes,
     nextSteps,
   }
 }
@@ -577,7 +593,9 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
       toolCount: introspection.tools.length,
       targets,
       grouping,
-      hookMode,
+      requestedHookMode: hookMode,
+      hookMode: result.generatedHookMode,
+      hookEvents: result.generatedHookEvents,
       files: result.generatedFiles,
       lint: {
         errors: lintResult.errors,
@@ -597,6 +615,13 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
     }
     console.log('')
     printLintResult(lintResult, process.cwd())
+    if (summary.notes.length > 0) {
+      console.log('')
+      console.log('  Notes:')
+      summary.notes.forEach((note) => {
+        console.log(`    - ${note}`)
+      })
+    }
     console.log('')
     console.log('  Next steps:')
     summary.nextSteps.forEach((step, index) => {
