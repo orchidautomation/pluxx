@@ -36,6 +36,8 @@ dist/
 **Primary** = first-class launch target, actively maintained.
 **Beta** = generated, but less validated against live tool behavior.
 
+The mechanically generated source of truth for support and verification is [docs/compatibility.md](./docs/compatibility.md).
+
 ## Why?
 
 Tools like `npx skills` install SKILL.md files across agents. That covers **skills**.
@@ -45,7 +47,7 @@ But a plugin is more than skills. A plugin bundles:
 | Component | What pluxx handles |
 |-----------|---------------------|
 | **Manifests** | `.claude-plugin/plugin.json` vs `.cursor-plugin/plugin.json` vs `.codex-plugin/plugin.json` |
-| **MCP auth** | Claude Code uses `headers`, Codex uses `bearer_token_env_var`, Cursor uses Claude Desktop format |
+| **MCP auth** | Claude Code uses `headers`, Codex uses `bearer_token_env_var` plus `env_http_headers` / `http_headers`, Cursor uses Claude Desktop format |
 | **Hooks** | Different event names, different JSON schemas, and in Codex's case a separate runtime config path |
 | **Rules** | `CLAUDE.md` vs `rules/*.mdc` vs `AGENTS.md` |
 | **Brand metadata** | Codex has icons, colors, screenshots, default prompts. Others don't. |
@@ -56,6 +58,8 @@ Without pluxx you maintain separate copies for each platform. With pluxx you mai
 The launch focus is MCP-first authoring: start from an existing MCP server, generate a maintainable plugin scaffold, then keep shipping from one config.
 
 When you scaffold from an MCP server, pluxx now drafts workflow-oriented skills from the discovered tools so the first pass is closer to a usable plugin.
+
+The next layer is `Agent` mode: Pluxx prepares the scaffold, context pack, and prompt pack; Claude Code or Codex does the semantic refinement. The product direction is documented in [docs/agent-mode.md](./docs/agent-mode.md).
 
 ## Quick Start
 
@@ -78,12 +82,24 @@ bunx pluxx init --from-mcp "npx -y @acme/mcp"
 # Headless / CI-friendly import
 bunx pluxx init --from-mcp https://example.com/mcp --yes --name acme --display-name "Acme" --author "Acme" --targets claude-code,codex --grouping workflow --hooks safe --json
 
+# Remote MCPs that use custom header auth
+bunx pluxx init --from-mcp https://mcp.playkit.sh/mcp --yes --auth-env PLAYKIT_API_KEY --auth-type header --auth-header X-API-Key --auth-template '${value}'
+
 # Inspect the generated project without mutating files
 bunx pluxx doctor
 bunx pluxx init --from-mcp https://example.com/mcp --yes --dry-run
 
 # Refresh MCP-derived files later while preserving the custom sections
 bunx pluxx sync --json
+
+# Prepare an agent-facing context pack and prompt pack
+bunx pluxx agent prepare
+bunx pluxx agent prompt taxonomy
+
+# Or let Claude/OpenCode/Codex consume the pack headlessly
+bunx pluxx agent run taxonomy --runner claude
+bunx pluxx agent run taxonomy --runner codex
+bunx pluxx agent run review --runner opencode --attach http://localhost:4096 --no-verify
 
 # Validate, build, and smoke-test the generated plugin
 bunx pluxx lint
@@ -92,6 +108,10 @@ bunx pluxx test
 ```
 
 Generated MCP skill files include deterministic example requests derived from tool names and required inputs, so the first scaffold is useful before any AI refinement.
+
+Agent Mode stays file-first: Pluxx writes `.pluxx/agent/context.md`, `.pluxx/agent/plan.json`, and the prompt packs, then optional runner adapters can hand those files to `claude`, `opencode`, or `codex` in headless mode.
+
+For dogfooding inside Codex, this repo also ships a local plugin/skill pack at [plugins/pluxx](/Users/brandonguerrero/Documents/Orchid Automation/Orchid Labs/pluxx/plugins/pluxx) with focused skills for import, taxonomy refinement, instructions, review, and sync.
 
 ```bash
 # Optional: global install still shells out to Bun
@@ -193,7 +213,11 @@ mcp: {
 { "headers": { "Authorization": "Bearer ${API_KEY}" } }
 
 // Codex gets:
-{ "bearer_token_env_var": "API_KEY" }
+{
+  "env_http_headers": {
+    "X-API-Key": "API_KEY"
+  }
+}
 
 // Cursor gets:
 { "headers": { "Authorization": "Bearer ${API_KEY}" } }

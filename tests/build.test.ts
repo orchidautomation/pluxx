@@ -161,6 +161,37 @@ describe('build', () => {
     expect(mcpJson.mcpServers['test-server'].url).toBe('https://test.example.com/mcp')
   })
 
+  it('generates correct Codex MCP config with env_http_headers for header auth', async () => {
+    const headerAuthConfig: PluginConfig = {
+      ...testConfig,
+      name: 'header-auth-plugin',
+      mcp: {
+        'header-server': {
+          url: 'https://header.example.com/mcp',
+          transport: 'http',
+          auth: {
+            type: 'header',
+            envVar: 'PLAYKIT_API_KEY',
+            headerName: 'X-API-Key',
+            headerTemplate: '${value}',
+          },
+        },
+      },
+      outDir: './header-dist',
+    }
+
+    await build(headerAuthConfig, TEST_DIR)
+
+    const mcpJson = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'header-dist/codex/.mcp.json'), 'utf-8')
+    )
+    expect(mcpJson.mcpServers['header-server'].url).toBe('https://header.example.com/mcp')
+    expect(mcpJson.mcpServers['header-server'].env_http_headers).toEqual({
+      'X-API-Key': 'PLAYKIT_API_KEY',
+    })
+    expect(mcpJson.mcpServers['header-server'].bearer_token_env_var).toBeUndefined()
+  })
+
   it('generates Codex manifest with interface metadata', async () => {
     const manifest = JSON.parse(
       readFileSync(resolve(OUT_DIR, 'codex/.codex-plugin/plugin.json'), 'utf-8')

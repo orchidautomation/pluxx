@@ -7,7 +7,7 @@ Every AI coding tool has its own plugin format. If you want your tool inside Cla
 ```
 Claude Code wants: .claude-plugin/plugin.json + headers auth + CLAUDE.md + PascalCase hooks
 Cursor wants:      .cursor-plugin/plugin.json + headers auth + AGENTS.md + rules/ + hooks/hooks.json
-Codex wants:       .codex-plugin/plugin.json + bearer_token_env_var + AGENTS.md + external hooks in .codex/hooks.json
+Codex wants:       .codex-plugin/plugin.json + .mcp.json (`bearer_token_env_var` / `env_http_headers` / `http_headers`) + AGENTS.md + external hooks in .codex/hooks.json
 OpenCode wants:    package.json + index.ts wrapper + dot.notation events
 ```
 
@@ -16,6 +16,13 @@ Each platform also has its own validation rules that only surface at runtime —
 ## The Solution
 
 pluxx lets you define your plugin once and generates correct, validated output for every platform.
+
+The product now has two intentional layers:
+
+- `Core`: deterministic scaffolding, linting, build, install, and sync
+- `Agent`: prompt packs and context packs for Claude Code / Codex to semantically refine the scaffold
+
+See [Agent Mode](./agent-mode.md) for the semantic-authoring layer.
 
 Runtime today: Bun. Use `bunx pluxx ...` or install the npm package on machines that already have Bun available.
 
@@ -191,7 +198,24 @@ $ bunx pluxx sync --dry-run --json
 
 The sync flow refreshes MCP-derived scaffold content while preserving the custom sections in generated Markdown files.
 
-### Step 7: Ship
+### Step 7: Hand it to the host agent
+
+```bash
+$ bunx pluxx agent prepare
+$ bunx pluxx agent prompt taxonomy
+$ bunx pluxx agent run taxonomy --runner claude
+$ bunx pluxx agent run taxonomy --runner codex
+```
+
+That generates:
+
+- `.pluxx/agent/context.md`
+- `.pluxx/agent/plan.json`
+- `.pluxx/agent/*-prompt.md`
+
+The intent is simple: Pluxx owns the structure and write boundaries, while the host agent uses those files to refine the generated scaffold without drifting into auth wiring or platform config. `pluxx agent run` is just a thin adapter over that same pack. The current supported runners are `claude`, `opencode`, and `codex`.
+
+### Step 8: Ship
 
 Deploy to whichever marketplaces you want, with correct manifests already generated.
 
@@ -204,7 +228,7 @@ You write one auth config. pluxx generates the correct format for each platform:
 | Platform | Generated auth format |
 |----------|----------------------|
 | Claude Code | `"headers": { "Authorization": "Bearer ${API_KEY}" }` |
-| Codex | `"bearer_token_env_var": "API_KEY"` |
+| Codex | `"bearer_token_env_var": "API_KEY"` or `"env_http_headers": { "X-API-Key": "API_KEY" }"` |
 | Cursor | `"headers": { "Authorization": "Bearer ${API_KEY}" }` |
 | OpenCode | Env var validation in generated TypeScript wrapper |
 
@@ -247,6 +271,8 @@ pluxx catches platform-specific gotchas before you ship:
 - And 40 more checks across all 11 platforms
 
 ## Supported Platforms
+
+The generated source of truth for support status and verification coverage is [docs/compatibility.md](./compatibility.md).
 
 | Platform | Manifest | Skills | MCP | Hooks | Rules |
 |----------|:--------:|:------:|:---:|:-----:|:-----:|

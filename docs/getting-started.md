@@ -18,7 +18,17 @@ Pluxx accepts three MCP source shapes today:
 - legacy SSE: `bunx pluxx init --from-mcp https://example.com/sse --transport sse`
 - local stdio: `bunx pluxx init --from-mcp "npx -y @acme/mcp"`
 
-If the remote server requires bearer auth and responds with `401` or `403`, Pluxx will prompt for the auth env var name and regenerate the scaffold with a runtime placeholder.
+If the remote server requires auth and responds with `401`, `402`, or `403`, Pluxx can scaffold it with either bearer auth or a custom header. Use the auth flags up front for non-interactive imports:
+
+```bash
+bunx pluxx init \
+  --from-mcp https://mcp.playkit.sh/mcp \
+  --yes \
+  --auth-env PLAYKIT_API_KEY \
+  --auth-type header \
+  --auth-header X-API-Key \
+  --auth-template '${value}'
+```
 
 ## 2. Scaffold A Plugin
 
@@ -40,6 +50,24 @@ bunx pluxx init \
   --targets claude-code,cursor,codex,opencode \
   --grouping workflow \
   --hooks safe
+```
+
+Headless import with custom header auth:
+
+```bash
+bunx pluxx init \
+  --from-mcp https://mcp.playkit.sh/mcp \
+  --yes \
+  --name playkit \
+  --display-name "PlayKit" \
+  --author "PlayKit" \
+  --targets claude-code,cursor,codex,opencode \
+  --grouping workflow \
+  --hooks safe \
+  --auth-env PLAYKIT_API_KEY \
+  --auth-type header \
+  --auth-header X-API-Key \
+  --auth-template '${value}'
 ```
 
 Preview without writing files:

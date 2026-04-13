@@ -185,6 +185,82 @@ describe('MCP introspection', () => {
     }
   })
 
+  it('supports remote HTTP MCPs that use custom header auth instead of bearer auth', async () => {
+    let sawAuthHeader = false
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = (async (input, init) => {
+      const request = new Request(input, init)
+      const message = await request.json() as Record<string, unknown>
+
+      if (message.method === 'initialize') {
+        sawAuthHeader = request.headers.get('X-API-Key') === 'playkit-test-key'
+        return new Response(JSON.stringify({
+          jsonrpc: '2.0',
+          id: message.id,
+          result: {
+            protocolVersion: '2025-03-26',
+            capabilities: { tools: { listChanged: false } },
+            serverInfo: {
+              name: 'playkit',
+              title: 'PlayKit',
+            },
+          },
+        }), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        })
+      }
+
+      if (message.method === 'notifications/initialized') {
+        return new Response(null, { status: 202 })
+      }
+
+      if (message.method === 'tools/list') {
+        return new Response(JSON.stringify({
+          jsonrpc: '2.0',
+          id: message.id,
+          result: {
+            tools: [{
+              name: 'ask_clay',
+              description: 'Ask a Clay question.',
+            }],
+          },
+        }), {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        })
+      }
+
+      return new Response('Unhandled', { status: 500 })
+    }) as typeof fetch
+
+    process.env.PLAYKIT_API_KEY = 'playkit-test-key'
+
+    try {
+      const result = await introspectMcpServer({
+        transport: 'http',
+        url: 'https://mcp.playkit.sh/mcp',
+        auth: {
+          type: 'header',
+          envVar: 'PLAYKIT_API_KEY',
+          headerName: 'X-API-Key',
+          headerTemplate: '${value}',
+        },
+      })
+
+      expect(result.serverInfo.name).toBe('playkit')
+      expect(result.tools.map((tool) => tool.name)).toEqual(['ask_clay'])
+      expect(sawAuthHeader).toBe(true)
+    } finally {
+      delete process.env.PLAYKIT_API_KEY
+      globalThis.fetch = originalFetch
+    }
+  })
+
   it('introspects legacy SSE MCP servers via the advertised endpoint event', async () => {
     let sawStreamAuthHeader = false
     let sawPostAuthHeader = false

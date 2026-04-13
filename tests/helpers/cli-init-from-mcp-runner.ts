@@ -115,6 +115,8 @@ function installMocks(options: {
     MCP_SKILL_GROUPINGS: ['workflow', 'tool'],
     PLUXX_CUSTOM_END: '<!-- pluxx:custom:end -->',
     PLUXX_CUSTOM_START: '<!-- pluxx:custom:start -->',
+    PLUXX_GENERATED_END: '<!-- pluxx:generated:end -->',
+    PLUXX_GENERATED_START: '<!-- pluxx:generated:start -->',
     applyMcpScaffoldPlan: async () => {},
     buildToolExampleRequest: () => 'Find organizations for Acme',
     derivePluginName: () => 'stub-server',

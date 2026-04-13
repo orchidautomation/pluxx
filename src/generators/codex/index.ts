@@ -15,7 +15,6 @@ export class CodexGenerator extends Generator {
             url: server.url,
           }
 
-          // Codex uses bearer_token_env_var pattern.
           if (server.auth?.type === 'bearer' && server.auth.envVar) {
             entry.bearer_token_env_var = server.auth.envVar
           } else if (server.auth?.type === 'header' && server.auth.envVar) {
@@ -25,10 +24,18 @@ export class CodexGenerator extends Generator {
 
             if (isBearerAuthorizationHeader) {
               entry.bearer_token_env_var = server.auth.envVar
+            } else if (server.auth.headerTemplate === '${value}') {
+              entry.env_http_headers = {
+                [server.auth.headerName]: server.auth.envVar,
+              }
+            } else if (!server.auth.headerTemplate.includes('${value}')) {
+              entry.http_headers = {
+                [server.auth.headerName]: server.auth.headerTemplate,
+              }
             } else {
               console.warn(
-                `[pluxx] codex generator: MCP server "${name}" uses auth.type "header" with unsupported custom header settings. `
-                + 'Codex only supports bearer_token_env_var; custom headers were omitted.'
+                `[pluxx] codex generator: MCP server "${name}" uses auth.type "header" with a templated header Codex cannot express exactly. `
+                + 'Supported Codex auth outputs are bearer_token_env_var, env_http_headers, and http_headers; this header was omitted.'
               )
             }
           }

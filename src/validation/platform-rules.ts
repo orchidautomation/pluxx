@@ -248,7 +248,7 @@ export const PLATFORM_VALIDATION_RULES: Record<ResearchTarget, PlatformRules> = 
       files: ['.mcp.json'],
       rootKey: 'mcpServers',
       transports: ['stdio', 'http', 'sse'],
-      auth: ['bearer_token_env_var', 'platform-managed auth'],
+      auth: ['bearer_token_env_var', 'env_http_headers', 'http_headers', 'platform-managed auth'],
       notes: 'The current build guide documents mcpServers as a path to .mcp.json in the plugin bundle.',
     },
     hooks: {

@@ -197,6 +197,20 @@ function parseMcp(pluginDir: string, detection: DetectionResult): ParsedMcp {
           }
         }
 
+        // Codex-style env_http_headers
+        if (cfg.env_http_headers && typeof cfg.env_http_headers === 'object') {
+          const envHeaders = Object.entries(cfg.env_http_headers as Record<string, string>)
+          if (envHeaders.length > 0) {
+            const [headerName, envVar] = envHeaders[0]
+            entry.auth = {
+              type: 'header',
+              envVar,
+              headerName,
+              headerTemplate: '${value}',
+            }
+          }
+        }
+
         result[name] = entry
       }
 

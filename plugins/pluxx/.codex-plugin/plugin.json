@@ -1,0 +1,43 @@
+{
+  "name": "pluxx",
+  "version": "0.1.0",
+  "description": "Scaffold, refine, and maintain Pluxx plugins from MCP servers inside Codex.",
+  "author": {
+    "name": "Orchid Automation",
+    "url": "https://github.com/orchidautomation"
+  },
+  "homepage": "https://github.com/orchidautomation/pluxx",
+  "repository": "https://github.com/orchidautomation/pluxx",
+  "license": "MIT",
+  "keywords": [
+    "mcp",
+    "plugins",
+    "codex",
+    "claude-code",
+    "cursor",
+    "opencode"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Pluxx",
+    "shortDescription": "Turn MCPs into maintainable plugins and refine them safely",
+    "longDescription": "Use Pluxx inside Codex to scaffold plugins from MCP servers, prepare agent context packs, refine skill taxonomy and instructions, and keep generated scaffolds synced over time.",
+    "developerName": "Orchid Automation",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/orchidautomation/pluxx",
+    "privacyPolicyURL": "https://github.com/orchidautomation/pluxx",
+    "termsOfServiceURL": "https://github.com/orchidautomation/pluxx",
+    "defaultPrompt": [
+      "Use Pluxx to scaffold a plugin from this MCP and test the core four.",
+      "Refine this Pluxx scaffold taxonomy with the agent pack and keep edits safe.",
+      "Sync this Pluxx MCP scaffold and tell me what changed."
+    ],
+    "brandColor": "#0F172A",
+    "screenshots": []
+  }
+}

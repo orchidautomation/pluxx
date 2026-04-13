@@ -2,6 +2,18 @@
 
 import { loadConfig } from '../config/load'
 import { build } from '../generators'
+import {
+  AGENT_PROMPT_KINDS,
+  AGENT_RUNNERS,
+  applyAgentPreparePlan,
+  applyAgentPromptPlan,
+  planAgentPrepare,
+  planAgentPrompt,
+  planAgentRun,
+  runAgentPlan,
+  type AgentPromptKind,
+  type AgentRunner,
+} from './agent'
 import { doctorProject, printDoctorReport } from './doctor'
 import { ensureHookTrust, installPlugin, listHookCommands, planInstallPlugin, uninstallPlugin } from './install'
 import { runDev } from './dev'
@@ -22,7 +34,7 @@ import { lintProject, printLintResult, runLint } from './lint'
 import { introspectMcpServer, McpIntrospectionError } from '../mcp/introspect'
 import { promptText, promptYesNo, PromptCancelledError } from './prompt'
 import * as clack from '@clack/prompts'
-import type { TargetPlatform } from '../schema'
+import type { McpAuth, McpServer, TargetPlatform } from '../schema'
 import { basename } from 'path'
 import { mkdir } from 'fs/promises'
 import { formatSyncSummary, planSyncFromMcp, syncFromMcp } from './sync-from-mcp'
@@ -55,6 +67,9 @@ export interface InitFromMcpOptions {
   displayName?: string
   targets?: string
   authEnv?: string
+  authType?: string
+  authHeader?: string
+  authTemplate?: string
   grouping?: string
   hooks?: string
   transport?: string
@@ -99,6 +114,9 @@ export async function main() {
       break
     case 'doctor':
       await runDoctor()
+      break
+    case 'agent':
+      await runAgent()
       break
     case 'init':
       await runInit()
@@ -303,7 +321,51 @@ function defaultHookMode(source: { auth?: { type: string; envVar?: string }; tra
   return 'none'
 }
 
-function applyGeneratedAuthEnv(source: ReturnType<typeof parseMcpSourceInput>, envVar?: string) {
+export function resolveRemoteAuthType(options: Pick<InitFromMcpOptions, 'authType' | 'authHeader'>): 'bearer' | 'header' {
+  if (options.authType) {
+    return parseChoiceOption(options.authType, ['bearer', 'header'] as const, 'Auth type')
+  }
+
+  if (options.authHeader && options.authHeader.trim() && options.authHeader.trim().toLowerCase() !== 'authorization') {
+    return 'header'
+  }
+
+  return 'bearer'
+}
+
+export function buildRemoteAuthConfig(options: Pick<InitFromMcpOptions, 'authEnv' | 'authType' | 'authHeader' | 'authTemplate'>): McpAuth | undefined {
+  const envVar = options.authEnv?.trim()
+  if (!envVar) return undefined
+
+  const authType = resolveRemoteAuthType(options)
+
+  if (authType === 'header') {
+    const headerName = options.authHeader?.trim()
+    if (!headerName) {
+      throw new Error('Header auth requires --auth-header HEADER_NAME.')
+    }
+
+    return {
+      type: 'header',
+      envVar,
+      headerName,
+      headerTemplate: options.authTemplate?.trim() || '${value}',
+    }
+  }
+
+  return {
+    type: 'bearer',
+    envVar,
+    headerName: options.authHeader?.trim() || 'Authorization',
+    headerTemplate: options.authTemplate?.trim() || 'Bearer ${value}',
+  }
+}
+
+function applyGeneratedAuthEnv(
+  source: ReturnType<typeof parseMcpSourceInput>,
+  envVar?: string,
+  remoteAuthOptions?: Pick<InitFromMcpOptions, 'authType' | 'authHeader' | 'authTemplate'>,
+) {
   if (!envVar) return source
 
   if (source.transport === 'stdio') {
@@ -317,14 +379,15 @@ function applyGeneratedAuthEnv(source: ReturnType<typeof parseMcpSourceInput>, e
   }
 
   if (!source.auth) {
+    const auth = buildRemoteAuthConfig({
+      authEnv: envVar,
+      authType: remoteAuthOptions?.authType,
+      authHeader: remoteAuthOptions?.authHeader,
+      authTemplate: remoteAuthOptions?.authTemplate,
+    })
     return {
       ...source,
-      auth: {
-        type: 'bearer' as const,
-        envVar,
-        headerName: 'Authorization',
-        headerTemplate: 'Bearer ${value}',
-      },
+      auth,
     }
   }
 
@@ -394,6 +457,9 @@ export function parseInitFromMcpOptions(rawArgs: string[], initialName?: string,
     displayName: readOption(rawArgs, '--display-name'),
     targets: readOption(rawArgs, '--targets'),
     authEnv: readOption(rawArgs, '--auth-env'),
+    authType: readOption(rawArgs, '--auth-type'),
+    authHeader: readOption(rawArgs, '--auth-header'),
+    authTemplate: readOption(rawArgs, '--auth-template'),
     grouping: readOption(rawArgs, '--grouping'),
     hooks: readOption(rawArgs, '--hooks'),
     transport: readOption(rawArgs, '--transport'),
@@ -534,7 +600,6 @@ ${mcpBlock}${brandBlock}
     const skillContent = `---
 name: ${JSON.stringify(skillName)}
 description: ${JSON.stringify(description || `A starter skill for ${skillName}`)}
-version: 0.1.0
 ---
 
 # ${displayName || pluginName}
@@ -594,6 +659,15 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
     }
 
     let source = parseMcpSourceInput(rawSource, options.transport)
+    const configuredRemoteAuth = source.transport === 'stdio'
+      ? undefined
+      : buildRemoteAuthConfig(options)
+    if (configuredRemoteAuth && !source.auth) {
+      source = {
+        ...source,
+        auth: configuredRemoteAuth,
+      } satisfies McpServer
+    }
 
     const s = createSpinner(runtime)
     s?.start('Step 1/4 \u00b7 Connecting to MCP server...')
@@ -605,26 +679,46 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
       if (
         error instanceof McpIntrospectionError
         && source.transport !== 'stdio'
-        && (error.status === 401 || error.status === 403)
+        && (error.status === 401 || error.status === 402 || error.status === 403)
       ) {
         s?.stop('Server requires authentication')
         const envVar = options.authEnv ?? (interactive
-          ? await clackText('Bearer auth env var for this MCP server')
+          ? await clackText('Auth env var for this MCP server')
           : '')
         if (!envVar) {
           throw new Error(
-            'This MCP server requires auth. Re-run init with --auth-env YOUR_ENV_VAR or provide an auth env var name interactively.',
+            'This MCP server requires auth. Re-run init with --auth-env YOUR_ENV_VAR and, for custom headers, --auth-type header --auth-header HEADER_NAME.',
           )
+        }
+
+        let authType = options.authType
+        let authHeader = options.authHeader
+        let authTemplate = options.authTemplate
+
+        if (interactive && !authType) {
+          authType = await clackSelect<'bearer' | 'header'>('Auth type', [
+            { value: 'bearer', label: 'bearer', hint: 'Authorization: Bearer <token>' },
+            { value: 'header', label: 'header', hint: 'Custom header such as X-API-Key' },
+          ], 'bearer')
+        }
+
+        if (resolveRemoteAuthType({ authType, authHeader }) === 'header') {
+          if (interactive && !authHeader) {
+            authHeader = await clackText('Auth header name', 'X-API-Key')
+          }
+          if (interactive && !authTemplate) {
+            authTemplate = await clackText('Auth header template', '${value}')
+          }
         }
 
         source = {
           ...source,
-          auth: {
-            type: 'bearer',
-            envVar,
-            headerName: 'Authorization',
-            headerTemplate: 'Bearer ${value}',
-          },
+          auth: buildRemoteAuthConfig({
+            authEnv: envVar,
+            authType,
+            authHeader,
+            authTemplate,
+          }),
         }
         s?.start('Step 1/4 \u00b7 Reconnecting with auth...')
         introspection = await introspectMcpServer(source)
@@ -919,6 +1013,179 @@ async function runDoctor() {
   }
 }
 
+async function runAgent() {
+  const subcommand = args[1]
+
+  if (subcommand === 'prepare') {
+    const plan = await planAgentPrepare(process.cwd(), {
+      docsUrl: readOption(args, '--docs'),
+      websiteUrl: readOption(args, '--website'),
+      contextPaths: readMultiValueOption(args, '--context'),
+    })
+
+    if (!runtime.dryRun) {
+      await applyAgentPreparePlan(process.cwd(), plan)
+    }
+
+    const summary = {
+      pluginName: plan.pluginName,
+      targetCount: plan.targetCount,
+      toolCount: plan.toolCount,
+      skillCount: plan.skillCount,
+      editableFiles: plan.editableFiles,
+      protectedFiles: plan.protectedFiles,
+      generatedFiles: plan.generatedFiles,
+      createdFiles: plan.createdFiles,
+      updatedFiles: plan.updatedFiles,
+      lint: plan.lint,
+      contextInputs: plan.contextInputs,
+      dryRun: runtime.dryRun,
+    }
+
+    if (runtime.jsonOutput) {
+      printJson(summary)
+      return
+    }
+
+    if (runtime.quiet) {
+      return
+    }
+
+    console.log(`${runtime.dryRun ? 'Planned' : 'Prepared'} agent context for ${plan.pluginName}`)
+    if (plan.createdFiles.length > 0) {
+      console.log(`  Create: ${plan.createdFiles.join(', ')}`)
+    }
+    if (plan.updatedFiles.length > 0) {
+      console.log(`  Update: ${plan.updatedFiles.join(', ')}`)
+    }
+    console.log(`  Editable files: ${plan.editableFiles.join(', ')}`)
+    console.log(`  Protected files: ${plan.protectedFiles.join(', ')}`)
+    console.log(`  Lint snapshot: ${plan.lint.errors} error(s), ${plan.lint.warnings} warning(s)`)
+    if (plan.contextInputs.length > 0) {
+      console.log(`  Context inputs: ${plan.contextInputs.join(', ')}`)
+    }
+    console.log('')
+    console.log('Next steps:')
+    console.log('  1. Review .pluxx/agent/context.md')
+    console.log('  2. Hand the context pack to Claude Code or Codex')
+    console.log('  3. Keep edits inside Pluxx-managed sections')
+    return
+  }
+
+  if (subcommand === 'prompt') {
+    const kind = args[2] as AgentPromptKind | undefined
+    if (!kind || !AGENT_PROMPT_KINDS.includes(kind)) {
+      console.error(`Usage: pluxx agent prompt <${AGENT_PROMPT_KINDS.join('|')}> [--json] [--dry-run] [--quiet]`)
+      process.exit(1)
+    }
+
+    const plan = await planAgentPrompt(process.cwd(), kind)
+    if (!runtime.dryRun) {
+      await applyAgentPromptPlan(process.cwd(), plan)
+    }
+
+    const summary = {
+      pluginName: plan.pluginName,
+      kind: plan.kind,
+      outputPath: plan.outputPath,
+      createdFiles: plan.createdFiles,
+      updatedFiles: plan.updatedFiles,
+      dryRun: runtime.dryRun,
+    }
+
+    if (runtime.jsonOutput) {
+      printJson(summary)
+      return
+    }
+
+    if (runtime.quiet) {
+      return
+    }
+
+    console.log(`${runtime.dryRun ? 'Planned' : 'Generated'} ${plan.kind} prompt for ${plan.pluginName}`)
+    console.log(`  Output: ${plan.outputPath}`)
+    return
+  }
+
+  if (subcommand === 'run') {
+    const kind = args[2] as AgentPromptKind | undefined
+    if (!kind || !AGENT_PROMPT_KINDS.includes(kind)) {
+      console.error(`Usage: pluxx agent run <${AGENT_PROMPT_KINDS.join('|')}> --runner <${AGENT_RUNNERS.join('|')}> [--model NAME] [--attach URL] [--no-verify] [--json] [--dry-run] [--quiet]`)
+      process.exit(1)
+    }
+
+    const runnerRaw = readOption(args, '--runner')
+    if (!runnerRaw || !AGENT_RUNNERS.includes(runnerRaw as AgentRunner)) {
+      console.error(`Usage: pluxx agent run <${AGENT_PROMPT_KINDS.join('|')}> --runner <${AGENT_RUNNERS.join('|')}> [--model NAME] [--attach URL] [--no-verify] [--json] [--dry-run] [--quiet]`)
+      process.exit(1)
+    }
+
+    const plan = await planAgentRun(process.cwd(), kind, {
+      runner: runnerRaw as AgentRunner,
+      model: readOption(args, '--model'),
+      attach: readOption(args, '--attach'),
+      verify: !args.includes('--no-verify'),
+    }, {
+      docsUrl: readOption(args, '--docs'),
+      websiteUrl: readOption(args, '--website'),
+      contextPaths: readMultiValueOption(args, '--context'),
+    })
+
+    const summary = {
+      pluginName: plan.pluginName,
+      kind: plan.kind,
+      runner: plan.runner,
+      verify: plan.verify,
+      command: plan.command,
+      commandDisplay: plan.commandDisplay,
+      promptPath: plan.promptPath,
+      contextPath: plan.contextPath,
+      createdFiles: plan.createdFiles,
+      updatedFiles: plan.updatedFiles,
+      contextInputs: plan.contextInputs,
+      dryRun: runtime.dryRun,
+    }
+
+    if (runtime.dryRun) {
+      if (runtime.jsonOutput) {
+        printJson(summary)
+      } else if (!runtime.quiet) {
+        console.log(`Planned ${plan.kind} run for ${plan.pluginName}`)
+        console.log(`  Runner: ${plan.runner}`)
+        console.log(`  Command: ${plan.commandDisplay}`)
+      }
+      return
+    }
+
+    const result = await runAgentPlan(process.cwd(), plan, {
+      streamOutput: !runtime.jsonOutput && !runtime.quiet,
+    })
+
+    if (runtime.jsonOutput) {
+      printJson(result)
+      if (!result.ok) {
+        process.exit(1)
+      }
+      return
+    }
+
+    if (!runtime.quiet) {
+      console.log(`Completed ${result.kind} run for ${result.pluginName} via ${result.runner}`)
+      if (result.verification) {
+        console.log(`  Verification: ${result.verification.ok ? 'passed' : 'failed'}`)
+      }
+    }
+
+    if (!result.ok) {
+      process.exit(1)
+    }
+    return
+  }
+
+  console.error(`Usage: pluxx agent <prepare|prompt|run> [--docs URL] [--website URL] [--context <files...>] [--json] [--dry-run] [--quiet]`)
+  process.exit(1)
+}
+
 async function runTestCommand() {
   const targets = parseTargetFlagValues(args)
   const result = await runTestSuite({
@@ -1024,6 +1291,9 @@ Usage:
   pluxx validate                          Validate your config
   pluxx lint                              Lint skills and cross-platform metadata
   pluxx doctor                            Check runtime, config, paths, MCP, and trust advisories
+  pluxx agent prepare                     Generate agent context + boundary files for host agents
+  pluxx agent prompt <kind>               Generate a prompt pack (taxonomy, instructions, review)
+  pluxx agent run <kind> --runner <id>    Execute a prompt pack via Claude, Codex, or OpenCode headlessly
   pluxx init [name] [--from-mcp <source>] Create a new pluxx.config.ts
   pluxx sync [--from-mcp <source>]        Refresh MCP-derived scaffold files
   pluxx migrate <path>                    Import an existing plugin into pluxx
@@ -1048,10 +1318,17 @@ Examples:
   pluxx init --from-mcp https://example.com/mcp  Scaffold from a remote MCP server
   pluxx init --from-mcp "npx -y @acme/mcp"       Scaffold from a local MCP command
   pluxx init --from-mcp https://example.com/mcp --yes --name acme --display-name "Acme" --author "Acme" --targets claude-code,codex --grouping workflow --hooks safe --json
+  pluxx init --from-mcp https://example.com/mcp --yes --auth-env API_KEY --auth-type header --auth-header X-API-Key --auth-template "\${value}"
   pluxx init --from-mcp https://example.com/sse --transport sse   Scaffold from an SSE-transport MCP server
   pluxx init --from-mcp https://example.com/mcp --yes --dry-run   Preview scaffold files without writing
   pluxx sync                              Refresh a scaffold using .pluxx/mcp.json metadata
   pluxx sync --from-mcp https://example.com/mcp  Refresh using an explicit MCP source override
+  pluxx agent prepare --dry-run           Preview agent context files without writing
+  pluxx agent prepare --website https://example.com --docs https://docs.example.com
+  pluxx agent prompt taxonomy             Generate the taxonomy prompt pack
+  pluxx agent run taxonomy --runner claude
+  pluxx agent run taxonomy --runner codex
+  pluxx agent run review --runner opencode --attach http://localhost:4096 --no-verify
   pluxx doctor --json                     Inspect project health as JSON
   pluxx test --target claude-code codex  Verify selected target outputs
   pluxx install                           Install to all configured targets

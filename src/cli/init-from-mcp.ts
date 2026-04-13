@@ -331,10 +331,12 @@ export function wrapManagedMarkdown(
 ): string {
   const mixedContent = extractMixedMarkdownContent(existingContent, options.defaultCustomContent)
   const customContent = mixedContent.customContent.trim() || options.defaultCustomContent
+  const { frontmatter, body } = splitMarkdownFrontmatter(generatedContent.trim())
 
-  return [
+  const lines = [
+    ...(frontmatter ? [frontmatter, ''] : []),
     PLUXX_GENERATED_START,
-    generatedContent.trim(),
+    body.trim(),
     PLUXX_GENERATED_END,
     '',
     options.customHeading,
@@ -343,7 +345,39 @@ export function wrapManagedMarkdown(
     customContent,
     PLUXX_CUSTOM_END,
     '',
-  ].join('\n')
+  ]
+
+  return lines.join('\n')
+}
+
+function splitMarkdownFrontmatter(content: string): { frontmatter: string; body: string } {
+  const lines = content.split(/\r?\n/)
+  if (lines[0]?.trim() !== '---') {
+    return {
+      frontmatter: '',
+      body: content,
+    }
+  }
+
+  let endIndex = -1
+  for (let index = 1; index < lines.length; index += 1) {
+    if (lines[index].trim() === '---') {
+      endIndex = index
+      break
+    }
+  }
+
+  if (endIndex === -1) {
+    return {
+      frontmatter: '',
+      body: content,
+    }
+  }
+
+  return {
+    frontmatter: lines.slice(0, endIndex + 1).join('\n'),
+    body: lines.slice(endIndex + 1).join('\n').replace(/^\n+/, ''),
+  }
 }
 
 export function extractMixedMarkdownContent(
@@ -399,7 +433,6 @@ export function buildSkillContent(skill: PlannedSkill): string {
     '---',
     `name: ${JSON.stringify(skill.dirName)}`,
     `description: ${JSON.stringify(description)}`,
-    'version: 0.1.0',
     '---',
     '',
     `# ${skill.title}`,

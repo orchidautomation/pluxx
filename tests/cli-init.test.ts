@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { parseInitFromMcpOptions } from '../src/cli/index'
+import { buildRemoteAuthConfig, parseInitFromMcpOptions, resolveRemoteAuthType } from '../src/cli/index'
 
 describe('CLI init option parsing', () => {
   it('parses headless init --from-mcp flags for automation-friendly setup', () => {
@@ -37,8 +37,12 @@ describe('CLI init option parsing', () => {
       author: 'Anthony Goldbloom',
       targets: 'claude-code,codex',
       authEnv: 'SUMBLE_API_KEY',
+      authType: undefined,
+      authHeader: undefined,
+      authTemplate: undefined,
       grouping: 'workflow',
       hooks: 'safe',
+      transport: undefined,
       jsonOutput: true,
     })
   })
@@ -72,6 +76,31 @@ describe('CLI init option parsing', () => {
     expect(options.transport).toBeUndefined()
   })
 
+  it('parses explicit header auth flags for remote MCP imports', () => {
+    const options = parseInitFromMcpOptions(
+      [
+        'init',
+        '--from-mcp',
+        'https://mcp.playkit.sh/mcp',
+        '--auth-env',
+        'PLAYKIT_API_KEY',
+        '--auth-type',
+        'header',
+        '--auth-header',
+        'X-API-Key',
+        '--auth-template',
+        '${value}',
+      ],
+      undefined,
+      'https://mcp.playkit.sh/mcp',
+    )
+
+    expect(options.authEnv).toBe('PLAYKIT_API_KEY')
+    expect(options.authType).toBe('header')
+    expect(options.authHeader).toBe('X-API-Key')
+    expect(options.authTemplate).toBe('${value}')
+  })
+
   it('lets the positional name seed the MCP scaffold flow', () => {
     const options = parseInitFromMcpOptions(
       ['init', 'sumble', '--from-mcp', 'npx -y @sumble/mcp'],
@@ -82,7 +111,39 @@ describe('CLI init option parsing', () => {
     expect(options.source).toBe('npx -y @sumble/mcp')
     expect(options.name).toBe('sumble')
     expect(options.assumeDefaults).toBe(false)
+    expect(options.authType).toBeUndefined()
+    expect(options.authHeader).toBeUndefined()
+    expect(options.authTemplate).toBeUndefined()
     expect(options.hooks).toBeUndefined()
     expect(options.jsonOutput).toBe(false)
+  })
+
+  it('builds header auth config for custom-header MCPs', () => {
+    expect(resolveRemoteAuthType({ authType: undefined, authHeader: 'X-API-Key' })).toBe('header')
+    expect(buildRemoteAuthConfig({
+      authEnv: 'PLAYKIT_API_KEY',
+      authType: 'header',
+      authHeader: 'X-API-Key',
+      authTemplate: '${value}',
+    })).toEqual({
+      type: 'header',
+      envVar: 'PLAYKIT_API_KEY',
+      headerName: 'X-API-Key',
+      headerTemplate: '${value}',
+    })
+  })
+
+  it('defaults bearer auth config when only --auth-env is provided', () => {
+    expect(buildRemoteAuthConfig({
+      authEnv: 'SUMBLE_API_KEY',
+      authType: undefined,
+      authHeader: undefined,
+      authTemplate: undefined,
+    })).toEqual({
+      type: 'bearer',
+      envVar: 'SUMBLE_API_KEY',
+      headerName: 'Authorization',
+      headerTemplate: 'Bearer ${value}',
+    })
   })
 })

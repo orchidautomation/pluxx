@@ -95,6 +95,34 @@ async function setupMegamindSource(platform: 'claude' | 'cursor' | 'codex' | 'op
   return sourceDir
 }
 
+async function setupCodexHeaderSource() {
+  const sourceDir = resolve(TEST_DIR, 'source-codex-header')
+  mkdirSync(resolve(sourceDir, '.codex-plugin'), { recursive: true })
+
+  await writeJson(resolve(sourceDir, '.codex-plugin/plugin.json'), {
+    name: 'playkit',
+    version: '0.1.0',
+    description: 'PlayKit for Codex.',
+    author: { name: 'Orchid' },
+  })
+
+  await writeJson(resolve(sourceDir, '.mcp.json'), {
+    mcpServers: {
+      playkit: {
+        url: 'https://mcp.playkit.sh/mcp',
+        env_http_headers: {
+          'X-API-Key': 'PLAYKIT_API_KEY',
+        },
+      },
+    },
+  })
+
+  mkdirSync(resolve(sourceDir, 'skills/playkit'), { recursive: true })
+  await Bun.write(resolve(sourceDir, 'skills/playkit/SKILL.md'), '# PlayKit\n')
+
+  return sourceDir
+}
+
 beforeEach(() => {
   rmSync(TEST_DIR, { recursive: true, force: true })
   mkdirSync(TEST_DIR, { recursive: true })
@@ -135,4 +163,25 @@ describe('migrate', () => {
       expect(existsSync(resolve(outputDir, 'INSTRUCTIONS.md'))).toBe(true)
     })
   }
+
+  it('migrates Codex env_http_headers auth into pluxx header auth config', async () => {
+    const sourceDir = await setupCodexHeaderSource()
+    const outputDir = resolve(TEST_DIR, 'out-codex-header')
+    mkdirSync(outputDir, { recursive: true })
+
+    const previousCwd = process.cwd()
+    process.chdir(outputDir)
+    try {
+      await migrate(sourceDir)
+    } finally {
+      process.chdir(previousCwd)
+    }
+
+    const config = readFileSync(resolve(outputDir, 'pluxx.config.ts'), 'utf-8')
+    expect(config).toContain("name: 'playkit'")
+    expect(config).toContain("type: 'header'")
+    expect(config).toContain("envVar: 'PLAYKIT_API_KEY'")
+    expect(config).toContain("headerName: 'X-API-Key'")
+    expect(config).toContain("headerTemplate: '${value}'")
+  })
 })

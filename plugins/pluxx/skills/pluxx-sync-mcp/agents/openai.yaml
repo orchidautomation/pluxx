@@ -1,0 +1,4 @@
+interface:
+  display_name: "Sync MCP"
+  short_description: "Refresh an MCP-derived Pluxx scaffold safely"
+  default_prompt: "Use Pluxx to sync this MCP scaffold, preserve custom sections, and tell me what changed."

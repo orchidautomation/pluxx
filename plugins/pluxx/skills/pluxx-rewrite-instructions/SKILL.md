@@ -1,0 +1,33 @@
+---
+name: pluxx-rewrite-instructions
+description: Use when the user wants to improve the generated INSTRUCTIONS.md block for a Pluxx scaffold so the plugin explains itself clearly to Claude Code, Codex, Cursor, and OpenCode agents.
+---
+
+# Pluxx Rewrite Instructions
+
+Use this skill when the scaffold structure is fine but the shared instructions need to sound more like the actual MCP product.
+
+## Workflow
+
+1. Refresh context:
+   - `bunx pluxx agent prepare`
+   - include `--website`, `--docs`, and local context files when they clarify the product
+2. Generate or run the instructions prompt:
+   - `bunx pluxx agent prompt instructions`
+   - or `bunx pluxx agent run instructions --runner codex`
+3. Limit edits to the generated block in `INSTRUCTIONS.md`.
+4. Re-run:
+   - `bunx pluxx lint`
+   - `bunx pluxx test`
+
+## Rules
+
+- Keep the output concise and operational.
+- Make setup/auth caveats explicit when they affect tool usage.
+- Explain what the plugin is for, how the skills should be used, and what the host agent must not do.
+- Do not rewrite custom sections unless the user explicitly asks.
+
+## Output
+
+- Summarize the instruction changes.
+- Mention any setup/auth caveats that still need manual confirmation.

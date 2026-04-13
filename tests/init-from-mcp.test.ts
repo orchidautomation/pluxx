@@ -224,6 +224,8 @@ describe('init-from-mcp scaffold', () => {
     expect(organizationSkill).toContain('`query` (string, required)')
     expect(organizationSkill).toContain('## Example Requests')
     expect(organizationSkill).toContain('"Find organizations matching <query>."')
+    expect(organizationSkill.startsWith('---\n')).toBe(true)
+    expect(organizationSkill).toContain('\n<!-- pluxx:generated:start -->\n# Find Organizations')
     expect(envScript).toContain('SUMBLE_API_KEY')
     expect(envScript).toContain('pluxx: SUMBLE_API_KEY is not set')
     expect(metadata.version).toBe(1)
@@ -240,6 +242,42 @@ describe('init-from-mcp scaffold', () => {
     const loadedConfig = await loadConfig(TEST_DIR)
     expect(loadedConfig.name).toBe('sumble')
     expect(loadedConfig.brand?.displayName).toBe('Sumble MCP')
+  })
+
+  it('preserves custom remote header auth in the generated config', async () => {
+    await writeMcpScaffold({
+      rootDir: TEST_DIR,
+      pluginName: 'playkit',
+      authorName: 'Orchid Automation',
+      displayName: 'PlayKit',
+      skillGrouping: 'workflow',
+      hookMode: 'safe',
+      targets: ['claude-code', 'cursor', 'codex', 'opencode'],
+      source: {
+        transport: 'http',
+        url: 'https://mcp.playkit.sh/mcp',
+        auth: {
+          type: 'header',
+          envVar: 'PLAYKIT_API_KEY',
+          headerName: 'X-API-Key',
+          headerTemplate: '${value}',
+        },
+      },
+      introspection: {
+        ...introspection,
+        serverInfo: {
+          ...introspection.serverInfo,
+          name: 'playkit',
+          title: 'PlayKit',
+        },
+      },
+    })
+
+    const config = readFileSync(resolve(TEST_DIR, 'pluxx.config.ts'), 'utf-8')
+    expect(config).toContain(`type: "header"`)
+    expect(config).toContain(`envVar: "PLAYKIT_API_KEY"`)
+    expect(config).toContain(`headerName: "X-API-Key"`)
+    expect(config).toContain(`headerTemplate: "\${value}"`)
   })
 
   it('generates mutation confirmation hooks when safe mode detects mutating tools', async () => {
