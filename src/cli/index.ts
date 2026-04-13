@@ -5,6 +5,7 @@ import { build } from '../generators'
 import { ensureHookTrust, installPlugin, uninstallPlugin } from './install'
 import { runDev } from './dev'
 import {
+  buildToolExampleRequest,
   derivePluginName,
   MCP_HOOK_MODES,
   MCP_SKILL_GROUPINGS,
@@ -17,6 +18,7 @@ import { migrate } from './migrate'
 import { lintProject, printLintResult, runLint } from './lint'
 import { introspectMcpServer, McpIntrospectionError } from '../mcp/introspect'
 import { promptText, promptYesNo, closePrompts } from './prompt'
+import * as clack from '@clack/prompts'
 import type { TargetPlatform } from '../schema'
 import { basename } from 'path'
 import { mkdir } from 'fs/promises'
@@ -509,27 +511,26 @@ Example prompt or command here
 async function runInitFromMcp(initialName?: string, initialSource?: string) {
   const options = parseInitFromMcpOptions(args, initialName, initialSource)
   const defaultTargets = DEFAULT_INIT_TARGETS.join(',')
-  const log = (...values: Array<string | number>) => {
-    if (!options.jsonOutput) {
-      console.log(...values)
-    }
+  const interactive = !options.jsonOutput && !options.assumeDefaults
+
+  if (!options.jsonOutput) {
+    clack.intro('pluxx init --from-mcp')
   }
 
-  log('')
-  log('  pluxx init --from-mcp — Scaffold from an MCP server')
-  log('  ─────────────────────────────────────────────────────')
-  log('')
-
   try {
-    const rawSource = options.source ?? await resolveTextOption({
-      label: 'MCP server URL or local command',
-      assumeDefaults: options.assumeDefaults,
-    })
+    // ── Step 1/4 · Connecting to MCP server ──────────────────────────
+
+    const rawSource = options.source ?? (interactive
+      ? await clackText('MCP server URL or local command')
+      : '')
     if (!rawSource) {
       throw new Error('Provide an MCP server URL or local command. Example: pluxx init --from-mcp https://example.com/mcp')
     }
 
     let source = parseMcpSourceInput(rawSource)
+
+    const s = !options.jsonOutput ? clack.spinner() : undefined
+    s?.start('Step 1/4 \u00b7 Connecting to MCP server...')
 
     let introspection
     try {
@@ -540,11 +541,10 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
         && source.transport !== 'stdio'
         && (error.status === 401 || error.status === 403)
       ) {
-        const envVar = await resolveTextOption({
-          label: 'Bearer auth env var for this MCP server',
-          providedValue: options.authEnv,
-          assumeDefaults: options.assumeDefaults,
-        })
+        s?.stop('Server requires authentication')
+        const envVar = options.authEnv ?? (interactive
+          ? await clackText('Bearer auth env var for this MCP server')
+          : '')
         if (!envVar) {
           throw new Error(
             'This MCP server requires auth. Re-run init with --auth-env YOUR_ENV_VAR or provide an auth env var name interactively.',
@@ -560,69 +560,93 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
             headerTemplate: 'Bearer ${value}',
           },
         }
+        s?.start('Step 1/4 \u00b7 Reconnecting with auth...')
         introspection = await introspectMcpServer(source)
       } else {
+        s?.stop('Connection failed')
         throw error
       }
     }
 
-    log(`  Detected MCP server: ${introspection.serverInfo.title ?? introspection.serverInfo.name}`)
-    log(`  Discovered tools: ${introspection.tools.length}`)
-    log('')
+    const serverLabel = introspection.serverInfo.title ?? introspection.serverInfo.name
+    s?.stop(`Connected: ${serverLabel} (${introspection.tools.length} tools discovered)`)
 
-    const generatedAuthEnv = source.transport === 'stdio'
-      ? await resolveTextOption({
-          label: 'Auth env var for generated plugin (optional)',
-          providedValue: options.authEnv,
-          assumeDefaults: options.assumeDefaults,
-        })
-      : options.authEnv
+    // Only ask for stdio auth env when the source has no env vars and no auth already
+    const stdioHasEnv = source.transport === 'stdio'
+      && source.env
+      && Object.keys(source.env).length > 0
+    const stdioNeedsAuthPrompt = source.transport === 'stdio'
+      && !stdioHasEnv
+      && !source.auth
+      && !options.authEnv
+
+    const generatedAuthEnv = stdioNeedsAuthPrompt && interactive
+      ? await clackText('Auth env var for generated plugin (optional)', '')
+      : source.transport === 'stdio'
+        ? (options.authEnv ?? undefined)
+        : options.authEnv
 
     source = applyGeneratedAuthEnv(source, generatedAuthEnv)
 
+    // ── Step 2/4 · Plugin identity ───────────────────────────────────
+
+    if (!options.jsonOutput) {
+      clack.log.step('Step 2/4 \u00b7 Plugin identity')
+    }
+
+    const defaultPluginName = options.name ? toKebabCase(options.name) : derivePluginName(introspection, source)
     const pluginName = toKebabCase(
-      await resolveTextOption({
-        label: 'Plugin name',
-        defaultValue: options.name ? toKebabCase(options.name) : derivePluginName(introspection, source),
-        providedValue: options.name,
-        assumeDefaults: options.assumeDefaults,
-      }),
+      options.name ?? (interactive
+        ? await clackText('Plugin name', defaultPluginName)
+        : defaultPluginName),
     )
-    const authorName = await resolveTextOption({
-      label: 'Author name',
-      defaultValue: process.env.USER ?? '',
-      providedValue: options.author,
-      assumeDefaults: options.assumeDefaults,
-    })
-    const displayName = await resolveTextOption({
-      label: 'Display name',
-      defaultValue: options.displayName ?? introspection.serverInfo.title ?? pluginName,
-      providedValue: options.displayName,
-      assumeDefaults: options.assumeDefaults,
-    })
-    const targetsRaw = await resolveTextOption({
-      label: 'Which platforms? (comma-separated)',
-      defaultValue: options.targets ?? defaultTargets,
-      providedValue: options.targets,
-      assumeDefaults: options.assumeDefaults,
-    })
+    const defaultDisplayName = options.displayName ?? introspection.serverInfo.title ?? pluginName
+    const displayName = options.displayName ?? (interactive
+      ? await clackText('Display name', defaultDisplayName)
+      : defaultDisplayName)
+    const defaultAuthor = process.env.USER ?? ''
+    const authorName = options.author ?? (interactive
+      ? await clackText('Author name', defaultAuthor)
+      : defaultAuthor)
+
+    // ── Step 3/4 · Build settings ────────────────────────────────────
+
+    if (!options.jsonOutput) {
+      clack.log.step('Step 3/4 \u00b7 Build settings')
+    }
+
+    const defaultTargetsValue = options.targets ?? defaultTargets
+    const targetsRaw = options.targets ?? (interactive
+      ? await clackText('Platforms (comma-separated)', defaultTargetsValue)
+      : defaultTargetsValue)
     const targets = parseTargetPlatforms(targetsRaw)
-    const grouping = await resolveChoiceOption<McpSkillGrouping>({
-      label: 'Skill grouping strategy',
-      values: MCP_SKILL_GROUPINGS,
-      defaultValue: 'workflow',
-      providedValue: options.grouping,
-      assumeDefaults: options.assumeDefaults,
-    })
-    const hookMode = await resolveChoiceOption<McpHookMode>({
-      label: 'Install-ready hooks',
-      values: MCP_HOOK_MODES,
-      defaultValue: defaultHookMode(source),
-      providedValue: options.hooks,
-      assumeDefaults: options.assumeDefaults,
-    })
+
+    const defaultGrouping: McpSkillGrouping = 'workflow'
+    const grouping: McpSkillGrouping = options.grouping
+      ? parseChoiceOption(options.grouping, MCP_SKILL_GROUPINGS, 'Skill grouping')
+      : interactive
+        ? await clackSelect<McpSkillGrouping>('Skill grouping', [
+            { value: 'workflow', label: 'workflow', hint: 'Group related tools into workflow skills' },
+            { value: 'tool', label: 'tool', hint: 'One skill per tool' },
+          ], defaultGrouping)
+        : defaultGrouping
+
+    const defaultHookModeValue = defaultHookMode(source)
+    const hookMode: McpHookMode = options.hooks
+      ? parseChoiceOption(options.hooks, MCP_HOOK_MODES, 'Install-ready hooks')
+      : interactive
+        ? await clackSelect<McpHookMode>('Install-ready hooks', [
+            { value: 'none', label: 'none', hint: 'No install hooks' },
+            { value: 'safe', label: 'safe', hint: 'Auto-generate safe install hooks' },
+          ], defaultHookModeValue)
+        : defaultHookModeValue
 
     closePrompts()
+
+    // ── Step 4/4 · Generating scaffold ───────────────────────────────
+
+    const g = !options.jsonOutput ? clack.spinner() : undefined
+    g?.start('Step 4/4 \u00b7 Generating scaffold...')
 
     const result = await writeMcpScaffold({
       rootDir: process.cwd(),
@@ -658,30 +682,85 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
       return
     }
 
-    console.log('')
-    console.log('  Created:')
-    for (const file of summary.files) {
-      console.log(`    ${file}`)
+    g?.stop(`Created ${summary.files.length} files`)
+    clack.log.success(`Lint: ${lintResult.errors} errors, ${lintResult.warnings} warnings`)
+
+    if (lintResult.issues.length > 0) {
+      for (const issue of lintResult.issues) {
+        const levelLabel = issue.level === 'error' ? 'ERROR' : 'WARN '
+        const platformLabel = issue.platform ? `[${issue.platform}] ` : ''
+        const loc = issue.file ? `${issue.file}: ` : ''
+        clack.log.warn(`${levelLabel} ${issue.code} ${platformLabel}${loc}${issue.message}`)
+      }
     }
-    console.log('')
-    printLintResult(lintResult, process.cwd())
+
     if (summary.notes.length > 0) {
-      console.log('')
-      console.log('  Notes:')
-      summary.notes.forEach((note) => {
-        console.log(`    - ${note}`)
-      })
+      for (const n of summary.notes) {
+        clack.log.info(n)
+      }
     }
-    console.log('')
-    console.log('  Next steps:')
-    summary.nextSteps.forEach((step, index) => {
-      console.log(`    ${index + 1}. ${step}`)
-    })
-    console.log('')
+
+    // Build a concrete test prompt from the first tool's example request
+    const firstTool = introspection.tools[0]
+    const testPrompt = firstTool ? buildToolExampleRequest(firstTool) : undefined
+    const installTarget = targets[0]
+    const installCommand = summary.hookMode === 'safe'
+      ? `pluxx install --trust --target ${installTarget}`
+      : `pluxx install --target ${installTarget}`
+
+    const nextStepLines = [
+      '1. Review INSTRUCTIONS.md and skills/',
+      '2. pluxx build',
+      `3. ${installCommand}`,
+    ]
+    if (testPrompt) {
+      nextStepLines.push(`4. Test in ${installTarget}: "${testPrompt}"`)
+    }
+    nextStepLines.push('')
+    nextStepLines.push(`To refresh later: pluxx sync --from-mcp`)
+
+    clack.note(nextStepLines.join('\n'), 'Next steps')
+
+    clack.outro('Scaffold complete')
   } catch (error) {
     closePrompts()
+    if (!options.jsonOutput) {
+      clack.cancel('Init cancelled')
+    }
     throw error instanceof Error ? error : new Error('Init cancelled')
   }
+}
+
+/** Wrapper for clack.text that handles cancellation. */
+async function clackText(message: string, defaultValue?: string): Promise<string> {
+  const result = await clack.text({
+    message,
+    defaultValue,
+    placeholder: defaultValue,
+  })
+  if (clack.isCancel(result)) {
+    clack.cancel('Init cancelled')
+    process.exit(0)
+  }
+  return result
+}
+
+/** Wrapper for clack.select that handles cancellation. */
+async function clackSelect<T extends string>(
+  message: string,
+  options: Array<{ value: T; label: string; hint?: string }>,
+  initialValue: T,
+): Promise<T> {
+  const result = await clack.select({
+    message,
+    options: options as Array<{ value: string; label: string; hint?: string }>,
+    initialValue: initialValue as string,
+  })
+  if (clack.isCancel(result)) {
+    clack.cancel('Init cancelled')
+    process.exit(0)
+  }
+  return result as T
 }
 
 async function runSync() {
