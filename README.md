@@ -110,6 +110,49 @@ bunx pluxx build
 bunx pluxx test
 ```
 
+## Product Boundary And Lifecycle
+
+Pluxx is for MCP developers and teams shipping MCP-backed plugins.
+
+Pluxx owns:
+
+- plugin authoring scaffold from MCP introspection
+- validation (`lint`, `doctor`, `test`)
+- platform bundle generation (`build`)
+- local installation for testing (`install`)
+- ongoing MCP-to-plugin maintenance (`sync`)
+
+Pluxx does not own:
+
+- deploying or hosting your MCP backend service
+- running your production MCP infrastructure
+
+The normal lifecycle is:
+
+1. Import from local stdio MCP during development.
+2. Refine the generated plugin repo.
+3. Validate/build/install locally.
+4. Repoint sync to deployed HTTP/SSE MCP when production is ready.
+5. Keep the same generated plugin repo as the long-term source of truth.
+
+Example local-to-production transition:
+
+```bash
+# Local development MCP
+bunx pluxx init --from-mcp "npx -y @acme/mcp"
+
+# Later, after your MCP backend is deployed
+bunx pluxx sync --from-mcp https://mcp.acme.com/mcp
+```
+
+Publish/distribution today is repo-first:
+
+1. Commit the generated plugin source repo (`pluxx.config.ts`, `skills/`, `INSTRUCTIONS.md`, `.pluxx/mcp.json`).
+2. Build platform bundles with `bunx pluxx build`.
+3. Distribute those bundles through your target channels (internal repo, releases, or platform-specific publish paths).
+
+Pluxx is the distribution and maintenance layer for plugin artifacts; MCP service deployment remains your responsibility.
+
 Generated MCP skill files include deterministic example requests derived from tool names and required inputs, so the first scaffold is useful before any AI refinement.
 
 Agent Mode stays file-first: Pluxx writes `.pluxx/agent/context.md`, `.pluxx/agent/plan.json`, and the prompt packs, then optional runner adapters can hand those files to `claude`, `opencode`, or `codex` in headless mode. Durable project-level prompt and context customization now lives in `pluxx.agent.md`, so users do not need to edit generated `.pluxx/agent/*.md` files directly.

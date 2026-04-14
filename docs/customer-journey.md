@@ -77,6 +77,11 @@ What Pluxx does:
 - generates initial workflow skills
 - generates platform bundles
 
+What Pluxx does not do:
+
+- deploy or host the MCP backend service itself
+- run production MCP infrastructure for the customer
+
 ## Stage 4: Immediate Output
 
 The customer now has something concrete:
@@ -183,6 +188,12 @@ The customer can now:
 - put it in a public repo
 - treat it as the canonical plugin project for that MCP
 
+Typical shipping pattern:
+
+1. Commit/version the generated plugin source repo.
+2. Build bundles from that source with `pluxx build`.
+3. Publish/share bundles through the team's chosen channels.
+
 Pluxx becomes the maintenance repo, not just a one-time generator.
 
 ## Stage 10: Ongoing Maintenance
@@ -197,7 +208,7 @@ The MCP changes later:
 The customer runs:
 
 ```bash
-bunx pluxx sync --from-mcp
+bunx pluxx sync --from-mcp https://mcp.example.com/mcp
 ```
 
 What Pluxx does:
@@ -239,4 +250,3 @@ For a product like PlayKit, the journey looks like:
 
 - When should users reach for `pluxx autopilot` versus the manual Agent Mode steps?
 - How much of Agent Mode should be exposed as simple presets for non-technical users?
-- What is the best publish/share workflow after install and validation?
