@@ -107,7 +107,9 @@ That is the intended semantic-authoring flow.
 Phase 1 should support:
 
 ```bash
-pluxx autopilot --from-mcp https://example.com/mcp --runner codex --yes --name acme --display-name "Acme" --author "Acme"
+pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode quick --yes
+pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode standard --yes --name acme --display-name "Acme" --author "Acme"
+pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode thorough --yes --review
 pluxx agent prepare
 pluxx agent prompt taxonomy
 pluxx agent prompt instructions
@@ -119,6 +121,12 @@ pluxx agent run review --runner opencode --attach http://localhost:4096 --no-ver
 ```
 
 `--attach` is only supported for the `opencode` runner.
+
+Autopilot mode defaults:
+
+- `quick`: keep the run near-deterministic unless metadata warnings force a taxonomy cleanup pass
+- `standard`: the default; only invoke expensive passes when metadata quality or extra docs/context suggest they will help
+- `thorough`: always run taxonomy and instructions, and include review by default
 
 Optional flags:
 

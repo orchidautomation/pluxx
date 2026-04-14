@@ -63,16 +63,22 @@ Pluxx does not run its own model stack. It uses the coding agent you already wor
 Use this when you want the quickest end-to-end result.
 
 ```bash
-bunx pluxx autopilot --from-mcp https://example.com/mcp --runner codex --yes
+bunx pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode quick --yes
 ```
 
 This does:
 
 1. import the MCP
 2. generate the scaffold
-3. prepare agent context/prompt packs
-4. run taxonomy and instructions passes
-5. run verification
+3. optionally prepare agent context/prompt packs if the selected mode needs them
+4. run only the agent passes justified by the mode and MCP quality
+5. run verification unless you opt out with `--no-verify`
+
+Autopilot modes:
+
+- `quick`: fastest path; usually scaffold + verify, with taxonomy only when metadata warnings make it necessary
+- `standard`: balanced default; uses quality signals and docs/context to decide whether taxonomy or instructions are worth running
+- `thorough`: always runs taxonomy, instructions, and review before verification
 
 ### Path B: manual but controlled
 

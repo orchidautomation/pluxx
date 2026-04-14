@@ -48,6 +48,7 @@ const args = process.argv.slice(2)
 const command = args[0]
 const runtime = createCliRuntime(args)
 const DEFAULT_INIT_TARGETS = ['claude-code', 'cursor', 'codex', 'opencode'] as const satisfies readonly TargetPlatform[]
+const AUTOPILOT_MODES = ['quick', 'standard', 'thorough'] as const
 const ALL_TARGET_PLATFORMS = [
   'claude-code',
   'cursor',
@@ -107,6 +108,7 @@ interface AutopilotSummary {
   pluginName: string
   displayName: string
   source: string
+  mode: AutopilotMode
   runner: AgentRunner
   targets: TargetPlatform[]
   toolCount: number
@@ -117,6 +119,7 @@ interface AutopilotSummary {
   quality: McpQualityReport
   review: boolean
   verify: boolean
+  steps: number
   init: {
     createdFiles: string[]
     updatedFiles: string[]
@@ -124,32 +127,49 @@ interface AutopilotSummary {
   }
   agent: {
     taxonomy: {
-      command: string[]
-      commandDisplay: string
+      enabled: boolean
+      reason: string
+      command?: string[]
+      commandDisplay?: string
       createdFiles: string[]
       updatedFiles: string[]
       runnerExitCode?: number
+      durationMs?: number
     }
     instructions: {
-      command: string[]
-      commandDisplay: string
+      enabled: boolean
+      reason: string
+      command?: string[]
+      commandDisplay?: string
       createdFiles: string[]
       updatedFiles: string[]
       runnerExitCode?: number
+      durationMs?: number
     }
     review?: {
-      command: string[]
-      commandDisplay: string
+      enabled: boolean
+      reason: string
+      command?: string[]
+      commandDisplay?: string
       createdFiles: string[]
       updatedFiles: string[]
       runnerExitCode?: number
+      durationMs?: number
     }
   }
   verification?: TestRunResult
+  verificationDurationMs?: number
   runnerLogsStreamed?: boolean
   failureStage?: 'auth' | 'introspection' | 'runner' | 'verification'
   failureMessage?: string
   dryRun?: boolean
+}
+
+type AutopilotMode = typeof AUTOPILOT_MODES[number]
+
+interface AutopilotPassDecision {
+  enabled: boolean
+  reason: string
 }
 
 export async function main() {
@@ -204,6 +224,114 @@ export async function main() {
       printHelp()
       process.exit(1)
   }
+}
+
+function hasAgentContextHints(input: {
+  docsUrl?: string
+  websiteUrl?: string
+  contextPaths?: string[]
+}): boolean {
+  return Boolean(input.docsUrl || input.websiteUrl || (input.contextPaths?.length ?? 0) > 0)
+}
+
+function planAutopilotPasses(input: {
+  mode: AutopilotMode
+  quality: McpQualityReport
+  reviewRequested: boolean
+  docsUrl?: string
+  websiteUrl?: string
+  contextPaths?: string[]
+}): Record<AgentPromptKind, AutopilotPassDecision> {
+  const qualityHasWarnings = input.quality.warnings > 0
+  const qualityHasSignals = qualityHasWarnings || input.quality.infos > 0
+  const hasContext = hasAgentContextHints(input)
+
+  if (input.mode === 'quick') {
+    return {
+      taxonomy: qualityHasWarnings
+        ? { enabled: true, reason: 'quick mode runs taxonomy only when MCP metadata warnings are present' }
+        : { enabled: false, reason: 'quick mode skips taxonomy when MCP metadata already looks usable' },
+      instructions: { enabled: false, reason: 'quick mode skips the separate instructions rewrite pass' },
+      review: { enabled: false, reason: 'quick mode never runs review; use standard or thorough for critique passes' },
+    }
+  }
+
+  if (input.mode === 'standard') {
+    return {
+      taxonomy: qualityHasSignals || hasContext
+        ? {
+            enabled: true,
+            reason: qualityHasSignals
+              ? 'standard mode runs taxonomy when MCP metadata signals cleanup work'
+              : 'standard mode runs taxonomy when docs, website, or extra context are provided',
+          }
+        : { enabled: false, reason: 'standard mode skips taxonomy when the deterministic scaffold already has strong metadata' },
+      instructions: qualityHasWarnings || hasContext
+        ? {
+            enabled: true,
+            reason: qualityHasWarnings
+              ? 'standard mode rewrites instructions when MCP metadata warnings are present'
+              : 'standard mode rewrites instructions when richer docs or website context are provided',
+          }
+        : { enabled: false, reason: 'standard mode skips the separate instructions pass to keep refinement lighter' },
+      review: input.reviewRequested
+        ? { enabled: true, reason: 'review requested explicitly via --review' }
+        : { enabled: false, reason: 'review is opt-in in standard mode' },
+    }
+  }
+
+  return {
+    taxonomy: { enabled: true, reason: 'thorough mode always runs taxonomy refinement' },
+    instructions: { enabled: true, reason: 'thorough mode always runs instructions refinement' },
+    review: input.reviewRequested
+      ? { enabled: true, reason: 'review requested explicitly via --review' }
+      : { enabled: true, reason: 'thorough mode includes a review pass by default' },
+  }
+}
+
+function countAutopilotSteps(input: {
+  taxonomy: AutopilotPassDecision
+  instructions: AutopilotPassDecision
+  review: AutopilotPassDecision
+  verify: boolean
+}): number {
+  return 2
+    + Number(input.taxonomy.enabled)
+    + Number(input.instructions.enabled)
+    + Number(input.review.enabled)
+    + Number(input.verify)
+}
+
+function formatAutopilotPassLine(label: string, decision: AutopilotPassDecision): string {
+  return `${label}: ${decision.enabled ? 'run' : 'skip'} (${decision.reason})`
+}
+
+function summarizeAutopilotWorkload(input: {
+  taxonomy: AutopilotPassDecision
+  instructions: AutopilotPassDecision
+  review: AutopilotPassDecision
+  verify: boolean
+}): string {
+  const agentPassCount = Number(input.taxonomy.enabled) + Number(input.instructions.enabled) + Number(input.review.enabled)
+  if (agentPassCount === 0 && !input.verify) {
+    return 'deterministic scaffold only'
+  }
+  if (agentPassCount === 0) {
+    return 'deterministic scaffold + verification'
+  }
+  return `${agentPassCount} agent pass${agentPassCount === 1 ? '' : 'es'}${input.verify ? ' + verification' : ''}`
+}
+
+function formatDuration(durationMs?: number): string | undefined {
+  if (durationMs === undefined) {
+    return undefined
+  }
+
+  if (durationMs < 1000) {
+    return `${durationMs}ms`
+  }
+
+  return `${(durationMs / 1000).toFixed(durationMs >= 10_000 ? 0 : 1)}s`
 }
 
 async function runBuild() {
@@ -1335,12 +1463,13 @@ async function runAgent() {
 async function runAutopilot() {
   const initOptions = parseInitFromMcpOptions(args)
   let runnerRaw = readOption(args, '--runner')
+  let modeRaw = readOption(args, '--mode')
   let docsUrl = readOption(args, '--docs')
   let websiteUrl = readOption(args, '--website')
   const contextPaths = readMultiValueOption(args, '--context')
   const model = readOption(args, '--model')
   const attach = readOption(args, '--attach')
-  const review = args.includes('--review')
+  const reviewRequested = args.includes('--review')
   const verify = !args.includes('--no-verify')
   const verboseRunner = args.includes('--verbose-runner')
   const interactive = !runtime.jsonOutput && runtime.isInteractive && !initOptions.assumeDefaults
@@ -1350,12 +1479,17 @@ async function runAutopilot() {
   let authTemplate = initOptions.authTemplate
 
   if (!initOptions.source && !interactive) {
-    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--auth-env ENV] [--auth-type bearer|header] [--auth-header NAME] [--auth-template TEMPLATE] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
+    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--auth-env ENV] [--auth-type bearer|header] [--auth-header NAME] [--auth-template TEMPLATE] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
     process.exit(1)
   }
 
   if ((!runnerRaw || !AGENT_RUNNERS.includes(runnerRaw as AgentRunner)) && !interactive) {
-    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--auth-env ENV] [--auth-type bearer|header] [--auth-header NAME] [--auth-template TEMPLATE] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
+    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--auth-env ENV] [--auth-type bearer|header] [--auth-header NAME] [--auth-template TEMPLATE] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
+    process.exit(1)
+  }
+
+  if (modeRaw && !AUTOPILOT_MODES.includes(modeRaw as AutopilotMode)) {
+    console.error(`Autopilot mode must be one of: ${AUTOPILOT_MODES.join(', ')}`)
     process.exit(1)
   }
   let tempDir: string | undefined
@@ -1383,6 +1517,20 @@ async function runAutopilot() {
           ], 'codex')
         : (() => { throw new Error(`Choose a runner: ${AGENT_RUNNERS.join(', ')}`) })()
 
+    const mode = modeRaw && AUTOPILOT_MODES.includes(modeRaw as AutopilotMode)
+      ? modeRaw as AutopilotMode
+      : interactive
+        ? await clackSelect<AutopilotMode>('Autopilot mode', [
+            { value: 'quick', label: 'quick', hint: 'Fastest path; skip most agent work unless metadata is weak' },
+            { value: 'standard', label: 'standard', hint: 'Balanced path; run agent passes only when they add value' },
+            { value: 'thorough', label: 'thorough', hint: 'Always run taxonomy + instructions and include review' },
+          ], 'standard')
+        : 'standard'
+
+    if (runner !== 'opencode' && attach) {
+      throw new Error('--attach is only supported for the opencode runner.')
+    }
+
     let source = parseMcpSourceInput(rawSource, initOptions.transport)
     const configuredRemoteAuth = source.transport === 'stdio'
       ? undefined
@@ -1401,7 +1549,7 @@ async function runAutopilot() {
     }
 
     const connectSpinner = createSpinner(runtime)
-    connectSpinner?.start('Autopilot 1/4 · Connecting to MCP server...')
+    connectSpinner?.start('Autopilot · Connecting to MCP server...')
 
     let introspection
     try {
@@ -1441,7 +1589,7 @@ async function runAutopilot() {
             authTemplate,
           }),
         }
-        connectSpinner?.start('Autopilot 1/4 · Reconnecting with auth...')
+        connectSpinner?.start('Autopilot · Reconnecting with auth...')
         try {
           introspection = await introspectMcpServer(source)
         } catch (retryError) {
@@ -1521,6 +1669,21 @@ ${formatAuthRequiredMessage('autopilot', retryError)}`)
       }
     }
 
+    const passDecisions = planAutopilotPasses({
+      mode,
+      quality,
+      reviewRequested,
+      docsUrl,
+      websiteUrl,
+      contextPaths,
+    })
+    const totalSteps = countAutopilotSteps({
+      taxonomy: passDecisions.taxonomy,
+      instructions: passDecisions.instructions,
+      review: passDecisions.review,
+      verify,
+    })
+
     const workspaceRoot = runtime.dryRun
       ? await mkdtemp(`${tmpdir()}/pluxx-autopilot-`)
       : process.cwd()
@@ -1530,7 +1693,7 @@ ${formatAuthRequiredMessage('autopilot', retryError)}`)
     connectSpinner?.stop(`Connected: ${introspection.serverInfo.title ?? introspection.serverInfo.name} (${introspection.tools.length} tools discovered)`)
 
     const scaffoldSpinner = createSpinner(runtime)
-    scaffoldSpinner?.start('Autopilot 2/4 · Planning scaffold...')
+    scaffoldSpinner?.start(`Autopilot 2/${totalSteps} · Planning scaffold...`)
     const scaffoldPlan = await planMcpScaffold({
       rootDir: workspaceRoot,
       pluginName,
@@ -1555,28 +1718,47 @@ ${formatAuthRequiredMessage('autopilot', retryError)}`)
     }
 
     const agentSpinner = createSpinner(runtime)
-    agentSpinner?.start('Autopilot 3/4 · Planning agent runs...')
-    const taxonomyPlan = await planAgentRun(workspaceRoot, 'taxonomy', {
-      runner,
-      model,
-      attach,
-      verify: false,
-    }, agentContextOptions)
-    const instructionsPlan = await planAgentRun(workspaceRoot, 'instructions', {
-      runner,
-      model,
-      attach,
-      verify: false,
-    }, agentContextOptions)
-    const reviewPlan = review
-      ? await planAgentRun(workspaceRoot, 'review', {
-          runner,
-          model,
-          attach,
-          verify: false,
-        }, agentContextOptions)
+    const taxonomyPlan = passDecisions.taxonomy.enabled
+      ? await (async () => {
+          agentSpinner?.start(`Autopilot 3/${totalSteps} · Planning taxonomy pass...`)
+          const plan = await planAgentRun(workspaceRoot, 'taxonomy', {
+            runner,
+            model,
+            attach,
+            verify: false,
+          }, agentContextOptions)
+          agentSpinner?.stop('Planned taxonomy pass')
+          return plan
+        })()
       : undefined
-    agentSpinner?.stop('Planned agent refinement')
+    const instructionsPlan = passDecisions.instructions.enabled
+      ? await (async () => {
+          const step = 3 + Number(passDecisions.taxonomy.enabled)
+          agentSpinner?.start(`Autopilot ${step}/${totalSteps} · Planning instructions pass...`)
+          const plan = await planAgentRun(workspaceRoot, 'instructions', {
+            runner,
+            model,
+            attach,
+            verify: false,
+          }, agentContextOptions)
+          agentSpinner?.stop('Planned instructions pass')
+          return plan
+        })()
+      : undefined
+    const reviewPlan = passDecisions.review.enabled
+      ? await (async () => {
+          const step = 3 + Number(passDecisions.taxonomy.enabled) + Number(passDecisions.instructions.enabled)
+          agentSpinner?.start(`Autopilot ${step}/${totalSteps} · Planning review pass...`)
+          const plan = await planAgentRun(workspaceRoot, 'review', {
+            runner,
+            model,
+            attach,
+            verify: false,
+          }, agentContextOptions)
+          agentSpinner?.stop('Planned review pass')
+          return plan
+        })()
+      : undefined
 
     if (runtime.dryRun) {
       const summary: AutopilotSummary = {
@@ -1584,6 +1766,7 @@ ${formatAuthRequiredMessage('autopilot', retryError)}`)
         pluginName,
         displayName,
         source: rawSource,
+        mode,
         runner,
         targets,
         toolCount: introspection.tools.length,
@@ -1592,8 +1775,9 @@ ${formatAuthRequiredMessage('autopilot', retryError)}`)
         hookMode: scaffoldPlan.generatedHookMode,
         hookEvents: scaffoldPlan.generatedHookEvents,
         quality,
-        review,
+        review: passDecisions.review.enabled,
         verify,
+        steps: totalSteps,
         init: {
           createdFiles: initCreatedFiles,
           updatedFiles: initUpdatedFiles,
@@ -1601,27 +1785,29 @@ ${formatAuthRequiredMessage('autopilot', retryError)}`)
         },
         agent: {
           taxonomy: {
-            command: taxonomyPlan.command,
-            commandDisplay: taxonomyPlan.commandDisplay,
-            createdFiles: taxonomyPlan.createdFiles,
-            updatedFiles: taxonomyPlan.updatedFiles,
+            enabled: passDecisions.taxonomy.enabled,
+            reason: passDecisions.taxonomy.reason,
+            command: taxonomyPlan?.command,
+            commandDisplay: taxonomyPlan?.commandDisplay,
+            createdFiles: taxonomyPlan?.createdFiles ?? [],
+            updatedFiles: taxonomyPlan?.updatedFiles ?? [],
           },
           instructions: {
-            command: instructionsPlan.command,
-            commandDisplay: instructionsPlan.commandDisplay,
-            createdFiles: instructionsPlan.createdFiles,
-            updatedFiles: instructionsPlan.updatedFiles,
+            enabled: passDecisions.instructions.enabled,
+            reason: passDecisions.instructions.reason,
+            command: instructionsPlan?.command,
+            commandDisplay: instructionsPlan?.commandDisplay,
+            createdFiles: instructionsPlan?.createdFiles ?? [],
+            updatedFiles: instructionsPlan?.updatedFiles ?? [],
           },
-          ...(reviewPlan
-            ? {
-                review: {
-                  command: reviewPlan.command,
-                  commandDisplay: reviewPlan.commandDisplay,
-                  createdFiles: reviewPlan.createdFiles,
-                  updatedFiles: reviewPlan.updatedFiles,
-                },
-              }
-            : {}),
+          review: {
+            enabled: passDecisions.review.enabled,
+            reason: passDecisions.review.reason,
+            command: reviewPlan?.command,
+            commandDisplay: reviewPlan?.commandDisplay,
+            createdFiles: reviewPlan?.createdFiles ?? [],
+            updatedFiles: reviewPlan?.updatedFiles ?? [],
+          },
         },
         dryRun: true,
         runnerLogsStreamed: verboseRunner,
@@ -1631,52 +1817,100 @@ ${formatAuthRequiredMessage('autopilot', retryError)}`)
         printJson(summary)
       } else if (!runtime.quiet) {
         console.log(`Planned autopilot for ${pluginName}`)
+        console.log(`  Mode: ${mode}`)
         console.log(`  Import: ${introspection.tools.length} tools -> ${targets.join(', ')}`)
         console.log(`  Runner: ${runner}`)
+        console.log(`  Workload: ${summarizeAutopilotWorkload({
+          taxonomy: passDecisions.taxonomy,
+          instructions: passDecisions.instructions,
+          review: passDecisions.review,
+          verify,
+        })}`)
         console.log(`  Quality: ${quality.warnings} warning(s), ${quality.infos} info message(s)`)
         console.log(`  Scaffold create/update: ${[...initCreatedFiles, ...initUpdatedFiles].join(', ') || 'none'}`)
-        console.log(`  Taxonomy: ${taxonomyPlan.commandDisplay}`)
-        console.log(`  Instructions: ${instructionsPlan.commandDisplay}`)
-        if (reviewPlan) {
-          console.log(`  Review: ${reviewPlan.commandDisplay}`)
+        console.log(`  ${formatAutopilotPassLine('Taxonomy', passDecisions.taxonomy)}`)
+        if (taxonomyPlan?.commandDisplay) {
+          console.log(`    ${taxonomyPlan.commandDisplay}`)
+        }
+        console.log(`  ${formatAutopilotPassLine('Instructions', passDecisions.instructions)}`)
+        if (instructionsPlan?.commandDisplay) {
+          console.log(`    ${instructionsPlan.commandDisplay}`)
+        }
+        console.log(`  ${formatAutopilotPassLine('Review', passDecisions.review)}`)
+        if (reviewPlan?.commandDisplay) {
+          console.log(`    ${reviewPlan.commandDisplay}`)
         }
         if (verify) {
           console.log('  Verification: pluxx test')
+        } else {
+          console.log('  Verification: skipped (--no-verify)')
         }
       }
       return
     }
 
     const streamOutput = verboseRunner && !runtime.jsonOutput && !runtime.quiet
-    agentSpinner?.start('Autopilot 3/4 · Running taxonomy pass...')
-    const taxonomyResult = await runAgentPlan(workspaceRoot, taxonomyPlan, { streamOutput })
-    agentSpinner?.stop(`Taxonomy pass ${taxonomyResult.runnerExitCode === 0 ? 'complete' : 'failed'} (exit ${taxonomyResult.runnerExitCode})`)
+    let stepNumber = 3
+    let taxonomyDurationMs: number | undefined
+    let instructionsDurationMs: number | undefined
+    let reviewDurationMs: number | undefined
+    let verificationDurationMs: number | undefined
 
-    agentSpinner?.start('Autopilot 3/4 · Running instructions pass...')
-    const instructionsResult = await runAgentPlan(workspaceRoot, instructionsPlan, { streamOutput })
-    agentSpinner?.stop(`Instructions pass ${instructionsResult.runnerExitCode === 0 ? 'complete' : 'failed'} (exit ${instructionsResult.runnerExitCode})`)
+    const taxonomyResult = taxonomyPlan
+      ? await (async () => {
+          agentSpinner?.start(`Autopilot ${stepNumber}/${totalSteps} · Running taxonomy pass...`)
+          const startedAt = Date.now()
+          const result = await runAgentPlan(workspaceRoot, taxonomyPlan, { streamOutput })
+          taxonomyDurationMs = Date.now() - startedAt
+          agentSpinner?.stop(`Taxonomy pass ${result.runnerExitCode === 0 ? 'complete' : 'failed'} (exit ${result.runnerExitCode})`)
+          stepNumber += 1
+          return result
+        })()
+      : undefined
+
+    const instructionsResult = instructionsPlan
+      ? await (async () => {
+          agentSpinner?.start(`Autopilot ${stepNumber}/${totalSteps} · Running instructions pass...`)
+          const startedAt = Date.now()
+          const result = await runAgentPlan(workspaceRoot, instructionsPlan, { streamOutput })
+          instructionsDurationMs = Date.now() - startedAt
+          agentSpinner?.stop(`Instructions pass ${result.runnerExitCode === 0 ? 'complete' : 'failed'} (exit ${result.runnerExitCode})`)
+          stepNumber += 1
+          return result
+        })()
+      : undefined
 
     const reviewResult = reviewPlan
       ? await (async () => {
-          agentSpinner?.start('Autopilot 3/4 · Running review pass...')
+          agentSpinner?.start(`Autopilot ${stepNumber}/${totalSteps} · Running review pass...`)
+          const startedAt = Date.now()
           const result = await runAgentPlan(workspaceRoot, reviewPlan, { streamOutput })
+          reviewDurationMs = Date.now() - startedAt
           agentSpinner?.stop(`Review pass ${result.runnerExitCode === 0 ? 'complete' : 'failed'} (exit ${result.runnerExitCode})`)
+          stepNumber += 1
           return result
         })()
       : undefined
 
     const verification = verify
-      ? await runTestSuite({ rootDir: workspaceRoot, targets })
+      ? await (async () => {
+          agentSpinner?.start(`Autopilot ${stepNumber}/${totalSteps} · Verifying scaffold...`)
+          const startedAt = Date.now()
+          const result = await runTestSuite({ rootDir: workspaceRoot, targets })
+          verificationDurationMs = Date.now() - startedAt
+          agentSpinner?.stop(`Verification ${result.ok ? 'passed' : 'failed'}`)
+          return result
+        })()
       : undefined
 
-    const ok = taxonomyResult.ok
-      && instructionsResult.ok
+    const ok = (taxonomyResult?.ok ?? true)
+      && (instructionsResult?.ok ?? true)
       && (reviewResult?.ok ?? true)
       && (verification?.ok ?? true)
 
-    const failureStage: AutopilotSummary['failureStage'] = taxonomyResult.runnerExitCode !== 0
+    const failureStage: AutopilotSummary['failureStage'] = taxonomyResult && taxonomyResult.runnerExitCode !== 0
       ? 'runner'
-      : instructionsResult.runnerExitCode !== 0
+      : instructionsResult && instructionsResult.runnerExitCode !== 0
         ? 'runner'
         : reviewResult && reviewResult.runnerExitCode !== 0
           ? 'runner'
@@ -1694,6 +1928,7 @@ ${formatAuthRequiredMessage('autopilot', retryError)}`)
       pluginName,
       displayName,
       source: rawSource,
+      mode,
       runner,
       targets,
       toolCount: introspection.tools.length,
@@ -1702,8 +1937,9 @@ ${formatAuthRequiredMessage('autopilot', retryError)}`)
       hookMode: scaffoldPlan.generatedHookMode,
       hookEvents: scaffoldPlan.generatedHookEvents,
       quality,
-      review,
+      review: passDecisions.review.enabled,
       verify,
+      steps: totalSteps,
       runnerLogsStreamed: verboseRunner,
       init: {
         createdFiles: initCreatedFiles,
@@ -1712,32 +1948,38 @@ ${formatAuthRequiredMessage('autopilot', retryError)}`)
       },
       agent: {
         taxonomy: {
-          command: taxonomyPlan.command,
-          commandDisplay: taxonomyPlan.commandDisplay,
-          createdFiles: taxonomyPlan.createdFiles,
-          updatedFiles: taxonomyPlan.updatedFiles,
-          runnerExitCode: taxonomyResult.runnerExitCode,
+          enabled: passDecisions.taxonomy.enabled,
+          reason: passDecisions.taxonomy.reason,
+          command: taxonomyPlan?.command,
+          commandDisplay: taxonomyPlan?.commandDisplay,
+          createdFiles: taxonomyPlan?.createdFiles ?? [],
+          updatedFiles: taxonomyPlan?.updatedFiles ?? [],
+          runnerExitCode: taxonomyResult?.runnerExitCode,
+          durationMs: taxonomyDurationMs,
         },
         instructions: {
-          command: instructionsPlan.command,
-          commandDisplay: instructionsPlan.commandDisplay,
-          createdFiles: instructionsPlan.createdFiles,
-          updatedFiles: instructionsPlan.updatedFiles,
-          runnerExitCode: instructionsResult.runnerExitCode,
+          enabled: passDecisions.instructions.enabled,
+          reason: passDecisions.instructions.reason,
+          command: instructionsPlan?.command,
+          commandDisplay: instructionsPlan?.commandDisplay,
+          createdFiles: instructionsPlan?.createdFiles ?? [],
+          updatedFiles: instructionsPlan?.updatedFiles ?? [],
+          runnerExitCode: instructionsResult?.runnerExitCode,
+          durationMs: instructionsDurationMs,
         },
-        ...(reviewPlan
-          ? {
-              review: {
-                command: reviewPlan.command,
-                commandDisplay: reviewPlan.commandDisplay,
-                createdFiles: reviewPlan.createdFiles,
-                updatedFiles: reviewPlan.updatedFiles,
-                runnerExitCode: reviewResult?.runnerExitCode,
-              },
-            }
-          : {}),
+        review: {
+          enabled: passDecisions.review.enabled,
+          reason: passDecisions.review.reason,
+          command: reviewPlan?.command,
+          commandDisplay: reviewPlan?.commandDisplay,
+          createdFiles: reviewPlan?.createdFiles ?? [],
+          updatedFiles: reviewPlan?.updatedFiles ?? [],
+          runnerExitCode: reviewResult?.runnerExitCode,
+          durationMs: reviewDurationMs,
+        },
       },
       verification,
+      verificationDurationMs,
       failureStage,
       failureMessage,
     }
@@ -1746,14 +1988,35 @@ ${formatAuthRequiredMessage('autopilot', retryError)}`)
       printJson(summary)
     } else if (!runtime.quiet) {
       console.log(`Autopilot ${ok ? 'completed' : 'failed'} for ${pluginName}`)
+      console.log(`  Mode: ${mode}`)
       console.log(`  Import: ${introspection.tools.length} tools -> ${targets.join(', ')}`)
       console.log(`  Runner: ${runner}`)
+      console.log(`  Workload: ${summarizeAutopilotWorkload({
+        taxonomy: passDecisions.taxonomy,
+        instructions: passDecisions.instructions,
+        review: passDecisions.review,
+        verify,
+      })}`)
       console.log(`  Quality: ${quality.warnings} warning(s), ${quality.infos} info message(s)`)
       if (!verboseRunner) {
         console.log('  Runner logs: suppressed (use --verbose-runner to stream)')
       }
+      console.log(`  ${formatAutopilotPassLine('Taxonomy', passDecisions.taxonomy)}`)
+      if (taxonomyResult && formatDuration(taxonomyDurationMs)) {
+        console.log(`    Duration: ${formatDuration(taxonomyDurationMs)}`)
+      }
+      console.log(`  ${formatAutopilotPassLine('Instructions', passDecisions.instructions)}`)
+      if (instructionsResult && formatDuration(instructionsDurationMs)) {
+        console.log(`    Duration: ${formatDuration(instructionsDurationMs)}`)
+      }
+      console.log(`  ${formatAutopilotPassLine('Review', passDecisions.review)}`)
+      if (reviewResult && formatDuration(reviewDurationMs)) {
+        console.log(`    Duration: ${formatDuration(reviewDurationMs)}`)
+      }
       if (verification) {
-        console.log(`  Verification: ${verification.ok ? 'passed' : 'failed'}`)
+        console.log(`  Verification: ${verification.ok ? 'passed' : 'failed'}${formatDuration(verificationDurationMs) ? ` (${formatDuration(verificationDurationMs)})` : ''}`)
+      } else {
+        console.log('  Verification: skipped (--no-verify)')
       }
       if (failureStage && failureMessage) {
         console.log(`  Failure stage: ${failureStage}`)
@@ -1761,7 +2024,7 @@ ${formatAuthRequiredMessage('autopilot', retryError)}`)
       }
       console.log('  Next steps:')
       console.log('  1. Review INSTRUCTIONS.md and skills/')
-      console.log('  2. Run: pluxx build')
+      console.log(`  2. Run: pluxx build${mode === 'quick' && !passDecisions.taxonomy.enabled && !passDecisions.instructions.enabled && !passDecisions.review.enabled ? ' (agent refinement was skipped; only do this if the deterministic scaffold already looks good)' : ''}`)
       console.log(`  3. Run: pluxx install${scaffoldPlan.generatedHookMode === 'safe' ? ' --trust' : ''} --target ${targets[0]}`)
     }
 
@@ -1897,6 +2160,7 @@ Common flags:
   --quiet                                 Suppress non-error chatter
   --verbose-runner                        Stream runner stdout/stderr for agent run/autopilot
   --dry-run                               Show planned work without writing files or installing anything
+  --mode quick|standard|thorough          Control how much agent refinement autopilot performs
 
 Targets:
   claude-code, cursor, codex, opencode, github-copilot, openhands,
@@ -1923,8 +2187,9 @@ Examples:
   pluxx agent run taxonomy --runner codex --verbose-runner
   pluxx agent run review --runner opencode --attach http://localhost:4096 --no-verify
   --attach is only supported for the opencode runner
-  pluxx autopilot --from-mcp https://example.com/mcp --runner codex --yes --name acme --display-name "Acme"
-  pluxx autopilot --from-mcp https://example.com/mcp --runner codex --yes --verbose-runner
+  pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode quick --yes
+  pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode standard --yes --name acme --display-name "Acme"
+  pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode thorough --yes --verbose-runner
   pluxx autopilot --from-mcp "npx -y @acme/mcp" --runner claude --targets claude-code,codex --website https://example.com --docs https://docs.example.com
   pluxx doctor --json                     Inspect project health as JSON
   pluxx test --target claude-code codex  Verify selected target outputs

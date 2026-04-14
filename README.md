@@ -102,8 +102,9 @@ bunx pluxx agent prepare
 bunx pluxx agent prompt taxonomy
 
 # Or run the full import -> refine -> verify path in one shot
-bunx pluxx autopilot --from-mcp https://example.com/mcp --runner codex --yes --name acme --display-name "Acme" --author "Acme"
-bunx pluxx autopilot --from-mcp https://example.com/mcp --runner codex --yes --verbose-runner
+bunx pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode quick --yes
+bunx pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode standard --yes --name acme --display-name "Acme" --author "Acme"
+bunx pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode thorough --yes --verbose-runner
 
 # Or let Claude/Cursor/OpenCode/Codex consume the pack headlessly
 bunx pluxx agent run taxonomy --runner claude
@@ -118,6 +119,12 @@ bunx pluxx test
 ```
 
 `--attach` is only supported for the `opencode` runner.
+
+Autopilot modes:
+
+- `quick`: deterministic scaffold first, and only a taxonomy pass when MCP metadata warnings make it necessary
+- `standard`: balanced default; only runs the expensive passes when quality signals or extra docs/context justify them
+- `thorough`: always runs taxonomy, instructions, and review before verification
 
 ## Product Boundary And Lifecycle
 

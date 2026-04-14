@@ -17,7 +17,11 @@ function spawnCli(argv: string[], cwd: string, env: Record<string, string> = {})
   })
 }
 
-function createStubServerFixture() {
+function createStubServerFixture(overrides: {
+  tools?: unknown[]
+  instructions?: string
+  serverInfo?: Record<string, unknown>
+} = {}) {
   const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-autopilot-'))
   const statePath = resolve(dir, 'server-state.json')
   const stubServerPath = resolve(dir, 'stub-server.js')
@@ -76,9 +80,10 @@ rl.on('line', (line) => {
         title: 'Stub Server',
         version: '1.0.0',
         description: 'A fake MCP server for autopilot tests.',
+        ...overrides.serverInfo,
       },
-      instructions: 'Prefer the most specific tool for the request.',
-      tools: [
+      instructions: overrides.instructions ?? 'Prefer the most specific tool for the request.',
+      tools: overrides.tools ?? [
         {
           name: 'FindOrganizations',
           description: 'Search organizations.',
@@ -138,19 +143,28 @@ describe('autopilot command', () => {
       const summary = JSON.parse(stdout) as {
         ok: boolean
         dryRun: boolean
+        mode: string
         runner: string
         quality: { warnings: number; infos: number }
         init: { createdFiles: string[] }
-        agent: { taxonomy: { command: string[] } }
+        agent: {
+          taxonomy: { enabled: boolean; command?: string[] }
+          instructions: { enabled: boolean; command?: string[] }
+          review: { enabled: boolean; command?: string[] }
+        }
       }
 
       expect(summary.ok).toBe(true)
       expect(summary.dryRun).toBe(true)
+      expect(summary.mode).toBe('standard')
       expect(summary.runner).toBe('codex')
       expect(typeof summary.quality.warnings).toBe('number')
       expect(typeof summary.quality.infos).toBe('number')
       expect(summary.init.createdFiles).toContain('pluxx.config.ts')
-      expect(summary.agent.taxonomy.command.slice(0, 3)).toEqual(['codex', 'exec', '--full-auto'])
+      expect(summary.agent.taxonomy.enabled).toBe(false)
+      expect(summary.agent.taxonomy.command).toBeUndefined()
+      expect(summary.agent.instructions.enabled).toBe(false)
+      expect(summary.agent.review.enabled).toBe(false)
       expect(existsSync(resolve(dir, 'pluxx.config.ts'))).toBe(false)
       expect(existsSync(resolve(dir, '.pluxx/agent/context.md'))).toBe(false)
     } finally {
@@ -158,7 +172,71 @@ describe('autopilot command', () => {
     }
   })
 
-  it('supports Cursor as an autopilot runner in dry-run mode', async () => {
+  it('runs only the taxonomy pass in quick mode when MCP metadata is weak', async () => {
+    const { dir, statePath, stubServerPath } = createStubServerFixture({
+      tools: [
+        {
+          name: 'Query',
+          description: 'Run things.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              a: { type: 'string' },
+              b: { type: 'string' },
+            },
+          },
+        },
+      ],
+    })
+
+    try {
+      const proc = spawnCli([
+        'autopilot',
+        '--from-mcp',
+        `bun ${stubServerPath} ${statePath}`,
+        '--runner',
+        'codex',
+        '--mode',
+        'quick',
+        '--name',
+        'stub-server',
+        '--display-name',
+        'Stub Server',
+        '--author',
+        'Test Author',
+        '--json',
+        '--dry-run',
+      ], dir)
+
+      const stdout = await new Response(proc.stdout).text()
+      const stderr = await new Response(proc.stderr).text()
+      const exitCode = await proc.exited
+
+      expect(exitCode).toBe(0)
+      expect(stderr).toBe('')
+
+      const summary = JSON.parse(stdout) as {
+        mode: string
+        quality: { warnings: number }
+        agent: {
+          taxonomy: { enabled: boolean; command?: string[] }
+          instructions: { enabled: boolean }
+          review: { enabled: boolean }
+        }
+      }
+
+      expect(summary.mode).toBe('quick')
+      expect(summary.quality.warnings).toBeGreaterThan(0)
+      expect(summary.agent.taxonomy.enabled).toBe(true)
+      expect(summary.agent.taxonomy.command?.slice(0, 3)).toEqual(['codex', 'exec', '--full-auto'])
+      expect(summary.agent.instructions.enabled).toBe(false)
+      expect(summary.agent.review.enabled).toBe(false)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('supports Cursor as an autopilot runner in thorough dry-run mode', async () => {
     const { dir, statePath, stubServerPath } = createStubServerFixture()
 
     try {
@@ -168,6 +246,8 @@ describe('autopilot command', () => {
         `bun ${stubServerPath} ${statePath}`,
         '--runner',
         'cursor',
+        '--mode',
+        'thorough',
         '--name',
         'stub-server',
         '--display-name',
@@ -187,20 +267,25 @@ describe('autopilot command', () => {
 
       const summary = JSON.parse(stdout) as {
         ok: boolean
+        mode: string
         runner: string
         agent: {
           taxonomy: { command: string[] }
           instructions: { command: string[] }
+          review: { command: string[]; enabled: boolean }
         }
       }
 
       expect(summary.ok).toBe(true)
+      expect(summary.mode).toBe('thorough')
       expect(summary.runner).toBe('cursor')
       expect(summary.agent.taxonomy.command[0]).toBe('agent')
       expect(summary.agent.taxonomy.command).toContain('-p')
       expect(summary.agent.taxonomy.command).toContain('--workspace')
       expect(summary.agent.taxonomy.command).toContain('--force')
       expect(summary.agent.instructions.command).toContain('--force')
+      expect(summary.agent.review.enabled).toBe(true)
+      expect(summary.agent.review.command).toContain('-p')
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
@@ -259,6 +344,8 @@ describe('autopilot command', () => {
         `bun ${stubServerPath} ${statePath}`,
         '--runner',
         'claude',
+        '--mode',
+        'thorough',
         '--name',
         'stub-server',
         '--display-name',
@@ -282,35 +369,43 @@ describe('autopilot command', () => {
 
       const summary = JSON.parse(stdout) as {
         ok: boolean
+        mode: string
         runner: string
         quality: { warnings: number; infos: number }
         verification?: { ok: boolean }
+        review: boolean
         agent: {
           taxonomy: { runnerExitCode?: number }
           instructions: { runnerExitCode?: number }
+          review: { runnerExitCode?: number }
         }
       }
 
       expect(summary.ok).toBe(true)
+      expect(summary.mode).toBe('thorough')
       expect(summary.runner).toBe('claude')
+      expect(summary.review).toBe(true)
       expect(typeof summary.quality.warnings).toBe('number')
       expect(typeof summary.quality.infos).toBe('number')
       expect(summary.agent.taxonomy.runnerExitCode).toBe(0)
       expect(summary.agent.instructions.runnerExitCode).toBe(0)
+      expect(summary.agent.review.runnerExitCode).toBe(0)
       expect(summary.verification?.ok).toBe(true)
 
       expect(existsSync(resolve(dir, 'pluxx.config.ts'))).toBe(true)
       expect(existsSync(resolve(dir, '.pluxx/agent/context.md'))).toBe(true)
       expect(existsSync(resolve(dir, '.pluxx/agent/taxonomy-prompt.md'))).toBe(true)
       expect(existsSync(resolve(dir, '.pluxx/agent/instructions-prompt.md'))).toBe(true)
+      expect(existsSync(resolve(dir, '.pluxx/agent/review-prompt.md'))).toBe(true)
       expect(existsSync(resolve(dir, 'dist/claude-code/.claude-plugin/plugin.json'))).toBe(true)
       expect(existsSync(resolve(dir, 'dist/codex/.codex-plugin/plugin.json'))).toBe(true)
 
       const runnerArgs = readFileSync(runnerArgsPath, 'utf-8').split('\0').filter(Boolean)
-      expect(runnerArgs.filter((arg) => arg === '-p').length).toBe(2)
+      expect(runnerArgs.filter((arg) => arg === '-p').length).toBe(3)
       expect(runnerArgs.some((arg) => arg.includes('.pluxx/agent/context.md'))).toBe(true)
       expect(runnerArgs.some((arg) => arg.includes('.pluxx/agent/taxonomy-prompt.md'))).toBe(true)
       expect(runnerArgs.some((arg) => arg.includes('.pluxx/agent/instructions-prompt.md'))).toBe(true)
+      expect(runnerArgs.some((arg) => arg.includes('.pluxx/agent/review-prompt.md'))).toBe(true)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
@@ -337,6 +432,8 @@ describe('autopilot command', () => {
           `bun ${stubServerPath} ${statePath}`,
           '--runner',
           'claude',
+          '--mode',
+          'thorough',
           '--name',
           'stub-server',
           '--display-name',
