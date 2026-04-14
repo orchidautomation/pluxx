@@ -177,6 +177,8 @@ describe('agent mode', () => {
     expect(prompt).toContain('.pluxx/agent/context.md')
     expect(prompt).toContain('Only edit Pluxx-managed generated sections.')
     expect(prompt).toContain('- each skill represents a real user workflow or product surface')
+    expect(prompt).toContain('skill names are product-shaped and avoid raw MCP tool/server identifiers when possible')
+    expect(prompt).toContain('singleton skills are avoided unless they represent a real standalone user workflow')
   })
 
   it('supports CLI dry-run for prompt generation without writing files', async () => {
@@ -463,8 +465,10 @@ describe('agent mode', () => {
     expect(taxonomyPrompt).toContain('Project overrides:')
     expect(taxonomyPrompt).toContain('Grouping hints:')
     expect(taxonomyPrompt).toContain('Prefer product-shaped skills over raw tool buckets.')
+    expect(taxonomyPrompt).toContain('Remove misleading skill labels and avoid tiny singleton/admin-only skills unless clearly justified.')
     expect(instructionsPrompt).toContain('Instructions guidance:')
     expect(instructionsPrompt).toContain('Make the Clay auth boundary explicit in the shared instructions.')
+    expect(instructionsPrompt).toContain('wording is branded and product-facing, not raw MCP-internal naming')
     expect(reviewPrompt).toContain('Additional review criteria:')
     expect(reviewPrompt).toContain('Flag any skill grouping that mixes setup/admin tools with runtime workflows.')
   })

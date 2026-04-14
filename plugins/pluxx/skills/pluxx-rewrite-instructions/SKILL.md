@@ -24,6 +24,8 @@ Use this skill when the scaffold structure is fine but the shared instructions n
 
 - Keep the output concise and operational.
 - Make setup/auth caveats explicit when they affect tool usage.
+- Use branded product-facing language and avoid raw MCP server/tool naming unless technically required.
+- Clarify setup/admin/account/runtime boundaries so agents know where each skill belongs.
 - Explain what the plugin is for, how the skills should be used, and what the host agent must not do.
 - Do not rewrite custom sections unless the user explicitly asks.
 

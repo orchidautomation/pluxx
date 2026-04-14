@@ -30,6 +30,8 @@ Use this skill when the initial MCP scaffold is valid but the generated skills a
 - Preserve all custom-note blocks.
 - Do not rewrite auth wiring or target config while refining taxonomy.
 - Favor a small set of product-shaped skills over one skill per tool when the MCP represents real workflows.
+- Avoid misleading labels and merge tiny singleton/admin-only skills unless they represent a real standalone workflow.
+- Keep setup/onboarding, account-admin, and runtime workflows separated when appropriate.
 - If the grouping is already good enough, say so instead of churning files.
 
 ## Output
