@@ -96,6 +96,9 @@ bunx pluxx sync --json
 bunx pluxx agent prepare
 bunx pluxx agent prompt taxonomy
 
+# Or run the full import -> refine -> verify path in one shot
+bunx pluxx autopilot --from-mcp https://example.com/mcp --runner codex --yes --name acme --display-name "Acme" --author "Acme"
+
 # Or let Claude/OpenCode/Codex consume the pack headlessly
 bunx pluxx agent run taxonomy --runner claude
 bunx pluxx agent run taxonomy --runner codex
@@ -109,7 +112,7 @@ bunx pluxx test
 
 Generated MCP skill files include deterministic example requests derived from tool names and required inputs, so the first scaffold is useful before any AI refinement.
 
-Agent Mode stays file-first: Pluxx writes `.pluxx/agent/context.md`, `.pluxx/agent/plan.json`, and the prompt packs, then optional runner adapters can hand those files to `claude`, `opencode`, or `codex` in headless mode.
+Agent Mode stays file-first: Pluxx writes `.pluxx/agent/context.md`, `.pluxx/agent/plan.json`, and the prompt packs, then optional runner adapters can hand those files to `claude`, `opencode`, or `codex` in headless mode. Durable project-level prompt and context customization now lives in `pluxx.agent.md`, so users do not need to edit generated `.pluxx/agent/*.md` files directly.
 
 For dogfooding inside Codex, this repo also ships a local plugin/skill pack at [plugins/pluxx](/Users/brandonguerrero/Documents/Orchid Automation/Orchid Labs/pluxx/plugins/pluxx) with focused skills for import, taxonomy refinement, instructions, review, and sync.
 

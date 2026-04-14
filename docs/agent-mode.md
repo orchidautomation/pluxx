@@ -107,6 +107,7 @@ That is the intended semantic-authoring flow.
 Phase 1 should support:
 
 ```bash
+pluxx autopilot --from-mcp https://example.com/mcp --runner codex --yes --name acme --display-name "Acme" --author "Acme"
 pluxx agent prepare
 pluxx agent prompt taxonomy
 pluxx agent prompt instructions
@@ -142,6 +143,8 @@ Current built-in runners:
 - `opencode`
 - `codex`
 
+If you want the entire deterministic + agent flow in one command, use `pluxx autopilot`. It composes scaffold import, agent refinement, and final verification without introducing a separate authoring engine.
+
 ### Verification Contract
 
 For edit-oriented runs like `taxonomy` and `instructions`, Pluxx verifies the scaffold after the host agent exits by running the normal Pluxx verification flow.
@@ -168,6 +171,43 @@ Prompt packs are generated separately:
     ├── taxonomy-prompt.md
     ├── instructions-prompt.md
     └── review-prompt.md
+```
+
+Project-owned overrides live outside the generated `.pluxx/agent/` directory:
+
+```text
+pluxx.agent.md
+```
+
+Use that file for durable Agent Mode customization. The generated prompt packs are disposable.
+
+Example:
+
+```md
+# Pluxx Agent Overrides
+
+## Context Paths
+- docs/product.md
+- notes/playbook.md
+
+## Product Hints
+This MCP has a clear split between knowledge tools and runtime API tools.
+
+## Setup/Auth Notes
+Knowledge tools work immediately. Runtime API tools require secondary auth.
+
+## Grouping Hints
+- setup-and-auth: connect, status
+- knowledge: ask, compare, catalog
+
+## Taxonomy Guidance
+Prefer product-shaped skills over raw tool buckets.
+
+## Instructions Guidance
+Make the setup and auth boundary explicit in shared instructions.
+
+## Review Criteria
+Flag any skill grouping that mixes setup/admin tools with runtime workflows.
 ```
 
 ### `context.md`
@@ -227,6 +267,7 @@ The host agent must not edit unless explicitly requested:
 - target platform configuration
 - user-owned custom sections
 - generated platform bundles in `dist/`
+- `pluxx.agent.md`
 
 This lets agents do meaningful semantic work without turning the scaffold into an unreviewable mess.
 

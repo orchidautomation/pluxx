@@ -177,6 +177,6 @@ Pluxx is not a destination app. It is:
 
 ## Open Questions
 
-- Should Pluxx add a one-shot autopilot command that chains `init -> prepare -> taxonomy -> instructions -> test`?
-- Should project-level prompt overrides live in config or in a dedicated `agent-overrides.md` file?
+- How much of the default first-run flow should live behind `pluxx autopilot` versus remain manual and explicit?
+- How opinionated should the shipped `pluxx.agent.md` override format become before it turns into another config system?
 - How much semantic understanding should stay in host agents vs move into Pluxx heuristics?

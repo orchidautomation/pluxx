@@ -16,6 +16,7 @@ import {
 
 export const AGENT_CONTEXT_PATH = '.pluxx/agent/context.md'
 export const AGENT_PLAN_PATH = '.pluxx/agent/plan.json'
+export const AGENT_OVERRIDES_PATH = 'pluxx.agent.md'
 export const AGENT_PROMPT_KINDS = ['taxonomy', 'instructions', 'review'] as const
 export const AGENT_RUNNERS = ['claude', 'opencode', 'codex'] as const
 export type AgentPromptKind = typeof AGENT_PROMPT_KINDS[number]
@@ -154,6 +155,17 @@ interface AgentContextSource {
   summary: string
 }
 
+interface AgentOverrides {
+  path: string
+  contextPaths: string[]
+  productHints?: string
+  setupAuthNotes?: string
+  groupingHints?: string
+  taxonomyGuidance?: string
+  instructionsGuidance?: string
+  reviewCriteria?: string
+}
+
 export async function planAgentPrepare(
   rootDir: string = process.cwd(),
   options: AgentPrepareOptions = {},
@@ -161,11 +173,12 @@ export async function planAgentPrepare(
   const config = await loadConfig(rootDir)
   const metadata = await loadMcpScaffoldMetadata(rootDir)
   const lint = await lintProject(rootDir)
-  const contextSources = await collectAgentContextSources(rootDir, options)
+  const overrides = await loadAgentOverrides(rootDir)
+  const contextSources = await collectAgentContextSources(rootDir, options, overrides)
   const editableFiles = buildEditableFiles(metadata)
   const protectedFiles = buildProtectedFiles()
   const generatedFiles = [AGENT_CONTEXT_PATH, AGENT_PLAN_PATH]
-  const contextContent = buildAgentContext(config, metadata, lint, contextSources)
+  const contextContent = buildAgentContext(config, metadata, lint, contextSources, overrides)
   const planContent = buildAgentModePlanJson(config, metadata, lint, editableFiles, protectedFiles, generatedFiles, contextSources)
 
   const files = await Promise.all([
@@ -210,6 +223,7 @@ export async function planAgentPrompt(
 ): Promise<AgentPromptPlan> {
   const config = await loadConfig(rootDir)
   const metadata = await loadMcpScaffoldMetadata(rootDir)
+  const overrides = await loadAgentOverrides(rootDir)
   const contextPath = resolve(rootDir, AGENT_CONTEXT_PATH)
 
   if (!options.allowMissingContext && !existsSync(contextPath)) {
@@ -221,6 +235,7 @@ export async function planAgentPrompt(
     pluginName: config.name,
     displayName: config.brand?.displayName ?? metadata.settings.displayName ?? config.name,
     skillPaths: metadata.skills.map((skill) => `skills/${skill.dirName}/SKILL.md`),
+    overrides,
   })
   const file = await planFile(rootDir, outputPath, content)
 
@@ -337,6 +352,7 @@ function buildProtectedFiles(): string[] {
     'pluxx.config.ts',
     'pluxx.config.js',
     'pluxx.config.json',
+    AGENT_OVERRIDES_PATH,
     MCP_SCAFFOLD_METADATA_PATH,
     'dist/',
   ]
@@ -371,6 +387,7 @@ function buildAgentContext(
   metadata: McpScaffoldMetadata,
   lint: LintResult,
   contextSources: AgentContextSource[],
+  overrides: AgentOverrides | null,
 ): string {
   const serverEntry = Object.entries(config.mcp ?? {})[0]
   const [serverName, server] = serverEntry ?? ['unknown', undefined]
@@ -428,6 +445,20 @@ function buildAgentContext(
       lines.push(source.summary)
       lines.push('')
     }
+  }
+
+  if (overrides) {
+    lines.push('## Project Overrides')
+    lines.push('')
+    lines.push(`- Source: \`${overrides.path}\``)
+    lines.push('')
+
+    appendOverrideSection(lines, 'Product Hints', overrides.productHints)
+    appendOverrideSection(lines, 'Setup/Auth Notes', overrides.setupAuthNotes)
+    appendOverrideSection(lines, 'Grouping Hints', overrides.groupingHints)
+    appendOverrideSection(lines, 'Taxonomy Guidance', overrides.taxonomyGuidance)
+    appendOverrideSection(lines, 'Instructions Guidance', overrides.instructionsGuidance)
+    appendOverrideSection(lines, 'Review Criteria', overrides.reviewCriteria)
   }
 
   lines.push('## Write Contract')
@@ -491,8 +522,13 @@ function buildAgentModePlanJson(
   return JSON.stringify(plan, null, 2)
 }
 
-async function collectAgentContextSources(rootDir: string, options: AgentPrepareOptions): Promise<AgentContextSource[]> {
+async function collectAgentContextSources(
+  rootDir: string,
+  options: AgentPrepareOptions,
+  overrides: AgentOverrides | null,
+): Promise<AgentContextSource[]> {
   const sources: AgentContextSource[] = []
+  const seenFilePaths = new Set<string>()
 
   if (options.websiteUrl) {
     sources.push(await fetchContextSource(options.websiteUrl, 'website'))
@@ -502,7 +538,14 @@ async function collectAgentContextSources(rootDir: string, options: AgentPrepare
     sources.push(await fetchContextSource(options.docsUrl, 'docs'))
   }
 
-  for (const relativePath of options.contextPaths ?? []) {
+  const contextPaths = [
+    ...(overrides?.contextPaths ?? []),
+    ...(options.contextPaths ?? []),
+  ]
+
+  for (const relativePath of contextPaths) {
+    if (seenFilePaths.has(relativePath)) continue
+    seenFilePaths.add(relativePath)
     const filePath = resolve(rootDir, relativePath)
     if (!existsSync(filePath)) {
       sources.push({
@@ -621,6 +664,7 @@ function buildAgentPrompt(
     pluginName: string
     displayName: string
     skillPaths: string[]
+    overrides: AgentOverrides | null
   },
 ): string {
   const sharedIntro = [
@@ -643,14 +687,14 @@ function buildAgentPrompt(
   ]
 
   if (kind === 'taxonomy') {
-    return `${sharedIntro.join('\n')}Your job:\n1. Infer the MCP's real product surfaces and workflows.\n2. Merge, split, or rename generated skills if needed.\n3. Rewrite the generated blocks in the skill files so each skill represents a real user workflow.\n4. Keep setup/admin/account surfaces separate from runtime workflows when appropriate.\n\nSuccess criteria:\n- each skill represents a real user workflow or product surface\n- setup/admin/account tools are grouped intentionally\n- examples are concrete and realistic\n`
+    return `${sharedIntro.join('\n')}Your job:\n1. Infer the MCP's real product surfaces and workflows.\n2. Merge, split, or rename generated skills if needed.\n3. Rewrite the generated blocks in the skill files so each skill represents a real user workflow.\n4. Keep setup/admin/account surfaces separate from runtime workflows when appropriate.\n${buildPromptOverrideBlock(kind, input.overrides)}\nSuccess criteria:\n- each skill represents a real user workflow or product surface\n- setup/admin/account tools are grouped intentionally\n- examples are concrete and realistic\n`
   }
 
   if (kind === 'instructions') {
-    return `${sharedIntro.join('\n')}Your job:\n1. Rewrite only the generated block in \`INSTRUCTIONS.md\`.\n2. Explain what the plugin is for, how the skills should be used, and any setup/auth caveats the agent must respect.\n3. Keep the wording aligned with the MCP's actual product narrative.\n\nSuccess criteria:\n- instructions are concise, actionable, and product-shaped\n- auth/setup guidance is explicit when relevant\n- the file remains safe for future \`pluxx sync --from-mcp\`\n`
+    return `${sharedIntro.join('\n')}Your job:\n1. Rewrite only the generated block in \`INSTRUCTIONS.md\`.\n2. Explain what the plugin is for, how the skills should be used, and any setup/auth caveats the agent must respect.\n3. Keep the wording aligned with the MCP's actual product narrative.\n${buildPromptOverrideBlock(kind, input.overrides)}\nSuccess criteria:\n- instructions are concise, actionable, and product-shaped\n- auth/setup guidance is explicit when relevant\n- the file remains safe for future \`pluxx sync --from-mcp\`\n`
   }
 
-  return `${sharedIntro.join('\n')}Your job:\n1. Review the current scaffold critically.\n2. Call out weak skill groupings, missing setup guidance, vague examples, or product/category mismatches.\n3. Propose only the highest-value changes needed to make the scaffold useful.\n\nSuccess criteria:\n- findings are concrete and tied to files\n- suggested changes improve user-facing plugin quality\n- recommendations stay inside Pluxx-managed boundaries\n`
+  return `${sharedIntro.join('\n')}Your job:\n1. Review the current scaffold critically.\n2. Call out weak skill groupings, missing setup guidance, vague examples, or product/category mismatches.\n3. Propose only the highest-value changes needed to make the scaffold useful.\n${buildPromptOverrideBlock(kind, input.overrides)}\nSuccess criteria:\n- findings are concrete and tied to files\n- suggested changes improve user-facing plugin quality\n- recommendations stay inside Pluxx-managed boundaries\n`
 }
 
 function buildAgentRunnerPrompt(kind: AgentPromptKind, promptPath: string): string {
@@ -780,4 +824,125 @@ function describeAuth(server: { auth?: { type: string; envVar?: string; headerNa
 
 function titleCase(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1)
+}
+
+async function loadAgentOverrides(rootDir: string): Promise<AgentOverrides | null> {
+  const overridesPath = resolve(rootDir, AGENT_OVERRIDES_PATH)
+  if (!existsSync(overridesPath)) {
+    return null
+  }
+
+  const content = await Bun.file(overridesPath).text()
+  return parseAgentOverrides(content, AGENT_OVERRIDES_PATH)
+}
+
+function parseAgentOverrides(content: string, path: string): AgentOverrides {
+  const sections = new Map<string, string[]>()
+  let currentSection: string | null = null
+
+  for (const rawLine of content.split(/\r?\n/)) {
+    const heading = rawLine.match(/^##\s+(.+?)\s*$/)
+    if (heading) {
+      currentSection = normalizeOverrideHeading(heading[1])
+      if (currentSection && !sections.has(currentSection)) {
+        sections.set(currentSection, [])
+      }
+      continue
+    }
+
+    if (!currentSection) continue
+    sections.get(currentSection)?.push(rawLine)
+  }
+
+  const contextPaths = extractListItems(sections.get('context-paths') ?? [])
+
+  return {
+    path,
+    contextPaths,
+    productHints: normalizeOverrideBody(sections.get('product-hints')),
+    setupAuthNotes: normalizeOverrideBody(sections.get('setup-auth-notes')),
+    groupingHints: normalizeOverrideBody(sections.get('grouping-hints')),
+    taxonomyGuidance: normalizeOverrideBody(sections.get('taxonomy-guidance')),
+    instructionsGuidance: normalizeOverrideBody(sections.get('instructions-guidance')),
+    reviewCriteria: normalizeOverrideBody(sections.get('review-criteria')),
+  }
+}
+
+function normalizeOverrideHeading(value: string): string | null {
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+  const aliases: Record<string, string> = {
+    'context-paths': 'context-paths',
+    'context-files': 'context-paths',
+    'product-hints': 'product-hints',
+    'setup-auth-notes': 'setup-auth-notes',
+    'setup-and-auth-notes': 'setup-auth-notes',
+    'setup-auth-guidance': 'setup-auth-notes',
+    'grouping-hints': 'grouping-hints',
+    'tool-grouping-hints': 'grouping-hints',
+    'taxonomy-guidance': 'taxonomy-guidance',
+    'instructions-guidance': 'instructions-guidance',
+    'review-criteria': 'review-criteria',
+  }
+
+  return aliases[normalized] ?? null
+}
+
+function extractListItems(lines: string[]): string[] {
+  return lines
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith('- ') || line.startsWith('* '))
+    .map((line) => line.slice(2).trim())
+    .filter(Boolean)
+}
+
+function normalizeOverrideBody(lines: string[] | undefined): string | undefined {
+  if (!lines) return undefined
+  const value = lines.join('\n').trim()
+  return value || undefined
+}
+
+function appendOverrideSection(lines: string[], heading: string, content: string | undefined): void {
+  if (!content) return
+  lines.push(`### ${heading}`)
+  lines.push('')
+  lines.push(content)
+  lines.push('')
+}
+
+function buildPromptOverrideBlock(kind: AgentPromptKind, overrides: AgentOverrides | null): string {
+  if (!overrides) return ''
+
+  const additions: string[] = []
+
+  if (overrides.productHints) {
+    additions.push(`Product hints:\n${overrides.productHints}`)
+  }
+  if (overrides.setupAuthNotes) {
+    additions.push(`Setup/auth notes:\n${overrides.setupAuthNotes}`)
+  }
+
+  if (kind === 'taxonomy') {
+    if (overrides.groupingHints) {
+      additions.push(`Grouping hints:\n${overrides.groupingHints}`)
+    }
+    if (overrides.taxonomyGuidance) {
+      additions.push(`Taxonomy guidance:\n${overrides.taxonomyGuidance}`)
+    }
+  }
+
+  if (kind === 'instructions' && overrides.instructionsGuidance) {
+    additions.push(`Instructions guidance:\n${overrides.instructionsGuidance}`)
+  }
+
+  if (kind === 'review' && overrides.reviewCriteria) {
+    additions.push(`Additional review criteria:\n${overrides.reviewCriteria}`)
+  }
+
+  if (additions.length === 0) return ''
+  return `\nProject overrides:\n${additions.map((block) => `- ${block.replace(/\n/g, '\n  ')}`).join('\n')}\n`
 }

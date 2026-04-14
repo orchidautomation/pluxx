@@ -5,6 +5,7 @@ import {
   applyAgentPreparePlan,
   applyAgentPromptPlan,
   AGENT_CONTEXT_PATH,
+  AGENT_OVERRIDES_PATH,
   AGENT_PLAN_PATH,
   planAgentPrepare,
   planAgentPrompt,
@@ -401,5 +402,70 @@ describe('agent mode', () => {
     } finally {
       globalThis.fetch = originalFetch
     }
+  })
+
+  it('applies project-level agent overrides to context collection and prompt generation', async () => {
+    writeFileSync(
+      resolve(TEST_DIR, AGENT_OVERRIDES_PATH),
+      [
+        '# Pluxx Agent Overrides',
+        '',
+        '## Context Paths',
+        '- notes.md',
+        '',
+        '## Product Hints',
+        'PlayKit has a split between knowledge tools and Clay API tools.',
+        '',
+        '## Setup/Auth Notes',
+        'Knowledge tools work immediately. Clay API tools require Clay auth.',
+        '',
+        '## Grouping Hints',
+        '- setup-and-auth: clay_connect, clay_status',
+        '- clay-knowledge: ask_clay',
+        '',
+        '## Taxonomy Guidance',
+        'Prefer product-shaped skills over raw tool buckets.',
+        '',
+        '## Instructions Guidance',
+        'Make the Clay auth boundary explicit in the shared instructions.',
+        '',
+        '## Review Criteria',
+        'Flag any skill grouping that mixes setup/admin tools with runtime workflows.',
+        '',
+      ].join('\n'),
+    )
+    writeFileSync(resolve(TEST_DIR, 'notes.md'), '# Notes\n\nTreat usage and pricing as account/admin surfaces.')
+
+    const preparePlan = await planAgentPrepare(TEST_DIR)
+    await applyAgentPreparePlan(TEST_DIR, preparePlan)
+
+    expect(preparePlan.contextInputs).toContain('notes.md')
+    expect(preparePlan.protectedFiles).toContain(AGENT_OVERRIDES_PATH)
+
+    const context = readFileSync(resolve(TEST_DIR, AGENT_CONTEXT_PATH), 'utf-8')
+    expect(context).toContain('## Project Overrides')
+    expect(context).toContain('PlayKit has a split between knowledge tools and Clay API tools.')
+    expect(context).toContain('Knowledge tools work immediately. Clay API tools require Clay auth.')
+    expect(context).toContain('setup-and-auth: clay_connect, clay_status')
+    expect(context).toContain('Treat usage and pricing as account/admin surfaces.')
+
+    const taxonomyPlan = await planAgentPrompt(TEST_DIR, 'taxonomy')
+    await applyAgentPromptPlan(TEST_DIR, taxonomyPlan)
+    const instructionsPlan = await planAgentPrompt(TEST_DIR, 'instructions')
+    await applyAgentPromptPlan(TEST_DIR, instructionsPlan)
+    const reviewPlan = await planAgentPrompt(TEST_DIR, 'review')
+    await applyAgentPromptPlan(TEST_DIR, reviewPlan)
+
+    const taxonomyPrompt = readFileSync(resolve(TEST_DIR, '.pluxx/agent/taxonomy-prompt.md'), 'utf-8')
+    const instructionsPrompt = readFileSync(resolve(TEST_DIR, '.pluxx/agent/instructions-prompt.md'), 'utf-8')
+    const reviewPrompt = readFileSync(resolve(TEST_DIR, '.pluxx/agent/review-prompt.md'), 'utf-8')
+
+    expect(taxonomyPrompt).toContain('Project overrides:')
+    expect(taxonomyPrompt).toContain('Grouping hints:')
+    expect(taxonomyPrompt).toContain('Prefer product-shaped skills over raw tool buckets.')
+    expect(instructionsPrompt).toContain('Instructions guidance:')
+    expect(instructionsPrompt).toContain('Make the Clay auth boundary explicit in the shared instructions.')
+    expect(reviewPrompt).toContain('Additional review criteria:')
+    expect(reviewPrompt).toContain('Flag any skill grouping that mixes setup/admin tools with runtime workflows.')
   })
 })

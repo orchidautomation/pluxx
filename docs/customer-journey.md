@@ -129,6 +129,12 @@ For richer MCPs, the user wants:
 This is where Agent Mode enters:
 
 ```bash
+bunx pluxx autopilot --from-mcp https://example.com/mcp --runner codex --yes --name acme --display-name "Acme" --author "Acme"
+```
+
+Or step through the refinement passes manually:
+
+```bash
 bunx pluxx agent prepare
 bunx pluxx agent run taxonomy --runner codex
 bunx pluxx agent run instructions --runner codex
@@ -231,6 +237,6 @@ For a product like PlayKit, the journey looks like:
 
 ## Open Questions
 
-- Should the first-run experience be a one-shot autopilot command?
+- When should users reach for `pluxx autopilot` versus the manual Agent Mode steps?
 - How much of Agent Mode should be exposed as simple presets for non-technical users?
 - What is the best publish/share workflow after install and validation?

@@ -202,6 +202,12 @@ The sync flow refreshes MCP-derived scaffold content while preserving the custom
 ### Step 7: Hand it to the host agent
 
 ```bash
+$ bunx pluxx autopilot --from-mcp https://example.com/mcp --runner codex --yes --name acme --display-name "Acme" --author "Acme"
+```
+
+Or step through Agent Mode manually:
+
+```bash
 $ bunx pluxx agent prepare
 $ bunx pluxx agent prompt taxonomy
 $ bunx pluxx agent run taxonomy --runner claude
@@ -215,6 +221,8 @@ That generates:
 - `.pluxx/agent/*-prompt.md`
 
 The intent is simple: Pluxx owns the structure and write boundaries, while the host agent uses those files to refine the generated scaffold without drifting into auth wiring or platform config. `pluxx agent run` is just a thin adapter over that same pack. The current supported runners are `claude`, `opencode`, and `codex`.
+
+If you want durable Agent Mode customization, create `pluxx.agent.md` at the project root. Pluxx will pull extra context paths, product/setup hints, grouping guidance, and prompt additions from that file without requiring edits to generated `.pluxx/agent/*.md` files.
 
 ### Step 8: Ship
 

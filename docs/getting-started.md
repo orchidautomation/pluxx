@@ -61,6 +61,21 @@ bunx pluxx init \
   --hooks safe
 ```
 
+One-shot autopilot:
+
+```bash
+bunx pluxx autopilot \
+  --from-mcp https://example.com/mcp \
+  --runner codex \
+  --yes \
+  --name acme \
+  --display-name "Acme" \
+  --author "Acme" \
+  --targets claude-code,cursor,codex,opencode \
+  --grouping workflow \
+  --hooks safe
+```
+
 Headless import with custom header auth:
 
 ```bash
@@ -101,6 +116,8 @@ Generated `INSTRUCTIONS.md` and `SKILL.md` files use mixed ownership:
 - a preserved custom block for manual edits
 
 That lets `pluxx sync --from-mcp` refresh discovered MCP content later without throwing away curated notes.
+
+If you want to steer Agent Mode without editing generated prompt packs, add a project-owned `pluxx.agent.md` file. Pluxx will read it during `agent prepare`, `agent prompt`, `agent run`, and `autopilot`.
 
 ## 4. Check Project Health
 

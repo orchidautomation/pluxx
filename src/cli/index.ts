@@ -36,10 +36,11 @@ import { promptText, promptYesNo, PromptCancelledError } from './prompt'
 import * as clack from '@clack/prompts'
 import type { McpAuth, McpServer, TargetPlatform } from '../schema'
 import { basename } from 'path'
-import { mkdir } from 'fs/promises'
+import { mkdir, mkdtemp, rm } from 'fs/promises'
+import { tmpdir } from 'os'
 import { formatSyncSummary, planSyncFromMcp, syncFromMcp } from './sync-from-mcp'
 import { createCliRuntime, createSpinner, printJson, readMultiValueOption, readOption } from './runtime'
-import { printTestResult, runTestSuite } from './test'
+import { printTestResult, runTestSuite, type TestRunResult } from './test'
 
 const args = process.argv.slice(2)
 const command = args[0]
@@ -98,6 +99,52 @@ interface InitFromMcpSummary {
   dryRun?: boolean
 }
 
+interface AutopilotSummary {
+  ok: boolean
+  pluginName: string
+  displayName: string
+  source: string
+  runner: AgentRunner
+  targets: TargetPlatform[]
+  toolCount: number
+  grouping: McpSkillGrouping
+  requestedHookMode: McpHookMode
+  hookMode: McpHookMode
+  hookEvents: string[]
+  review: boolean
+  verify: boolean
+  init: {
+    createdFiles: string[]
+    updatedFiles: string[]
+    files: string[]
+  }
+  agent: {
+    taxonomy: {
+      command: string[]
+      commandDisplay: string
+      createdFiles: string[]
+      updatedFiles: string[]
+      runnerExitCode?: number
+    }
+    instructions: {
+      command: string[]
+      commandDisplay: string
+      createdFiles: string[]
+      updatedFiles: string[]
+      runnerExitCode?: number
+    }
+    review?: {
+      command: string[]
+      commandDisplay: string
+      createdFiles: string[]
+      updatedFiles: string[]
+      runnerExitCode?: number
+    }
+  }
+  verification?: TestRunResult
+  dryRun?: boolean
+}
+
 export async function main() {
   switch (command) {
     case 'build':
@@ -117,6 +164,9 @@ export async function main() {
       break
     case 'agent':
       await runAgent()
+      break
+    case 'autopilot':
+      await runAutopilot()
       break
     case 'init':
       await runInit()
@@ -1186,6 +1236,314 @@ async function runAgent() {
   process.exit(1)
 }
 
+async function runAutopilot() {
+  const initOptions = parseInitFromMcpOptions(args)
+  const runnerRaw = readOption(args, '--runner')
+  const docsUrl = readOption(args, '--docs')
+  const websiteUrl = readOption(args, '--website')
+  const contextPaths = readMultiValueOption(args, '--context')
+  const model = readOption(args, '--model')
+  const attach = readOption(args, '--attach')
+  const review = args.includes('--review')
+  const verify = !args.includes('--no-verify')
+
+  if (!initOptions.source) {
+    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--auth-env ENV] [--auth-type bearer|header] [--auth-header NAME] [--auth-template TEMPLATE] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--json] [--dry-run] [--quiet]`)
+    process.exit(1)
+  }
+
+  if (!runnerRaw || !AGENT_RUNNERS.includes(runnerRaw as AgentRunner)) {
+    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--auth-env ENV] [--auth-type bearer|header] [--auth-header NAME] [--auth-template TEMPLATE] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--json] [--dry-run] [--quiet]`)
+    process.exit(1)
+  }
+
+  const runner = runnerRaw as AgentRunner
+  let tempDir: string | undefined
+
+  try {
+    const rawSource = initOptions.source
+    let source = parseMcpSourceInput(rawSource, initOptions.transport)
+    const configuredRemoteAuth = source.transport === 'stdio'
+      ? undefined
+      : buildRemoteAuthConfig(initOptions)
+
+    if (configuredRemoteAuth && !source.auth) {
+      source = {
+        ...source,
+        auth: configuredRemoteAuth,
+      } satisfies McpServer
+    }
+
+    const connectSpinner = createSpinner(runtime)
+    connectSpinner?.start('Autopilot 1/4 · Connecting to MCP server...')
+
+    let introspection
+    try {
+      introspection = await introspectMcpServer(source)
+    } catch (error) {
+      if (
+        error instanceof McpIntrospectionError
+        && source.transport !== 'stdio'
+        && (error.status === 401 || error.status === 402 || error.status === 403)
+      ) {
+        connectSpinner?.stop('Server requires authentication')
+        if (!initOptions.authEnv) {
+          throw new Error(
+            'This MCP server requires auth. Re-run autopilot with --auth-env YOUR_ENV_VAR and, for custom headers, --auth-type header --auth-header HEADER_NAME.',
+          )
+        }
+
+        source = {
+          ...source,
+          auth: buildRemoteAuthConfig(initOptions),
+        }
+        connectSpinner?.start('Autopilot 1/4 · Reconnecting with auth...')
+        introspection = await introspectMcpServer(source)
+      } else {
+        connectSpinner?.stop('Connection failed')
+        throw error
+      }
+    }
+
+    const stdioHasEnv = source.transport === 'stdio'
+      && source.env
+      && Object.keys(source.env).length > 0
+    const generatedAuthEnv = source.transport === 'stdio' && !stdioHasEnv
+      ? initOptions.authEnv ?? undefined
+      : initOptions.authEnv
+
+    source = applyGeneratedAuthEnv(source, generatedAuthEnv, initOptions)
+
+    const defaultPluginName = initOptions.name ? toKebabCase(initOptions.name) : derivePluginName(introspection, source)
+    const pluginName = toKebabCase(initOptions.name ?? defaultPluginName)
+    const displayName = initOptions.displayName ?? introspection.serverInfo.title ?? pluginName
+    const authorName = initOptions.author ?? process.env.USER ?? ''
+    const targets = parseTargetPlatforms(initOptions.targets ?? DEFAULT_INIT_TARGETS.join(','))
+    const grouping = initOptions.grouping
+      ? parseChoiceOption(initOptions.grouping, MCP_SKILL_GROUPINGS, 'Skill grouping')
+      : 'workflow'
+    const requestedHookMode = initOptions.hooks
+      ? parseChoiceOption(initOptions.hooks, MCP_HOOK_MODES, 'Install-ready hooks')
+      : defaultHookMode(source)
+    const workspaceRoot = runtime.dryRun
+      ? await mkdtemp(`${tmpdir()}/pluxx-autopilot-`)
+      : process.cwd()
+
+    tempDir = runtime.dryRun ? workspaceRoot : undefined
+
+    connectSpinner?.stop(`Connected: ${introspection.serverInfo.title ?? introspection.serverInfo.name} (${introspection.tools.length} tools discovered)`)
+
+    const scaffoldSpinner = createSpinner(runtime)
+    scaffoldSpinner?.start('Autopilot 2/4 · Planning scaffold...')
+    const scaffoldPlan = await planMcpScaffold({
+      rootDir: workspaceRoot,
+      pluginName,
+      authorName,
+      targets,
+      source,
+      introspection,
+      displayName,
+      skillGrouping: grouping,
+      hookMode: requestedHookMode,
+    })
+    const initCreatedFiles = scaffoldPlan.files.filter((file) => file.action === 'create').map((file) => file.relativePath)
+    const initUpdatedFiles = scaffoldPlan.files.filter((file) => file.action === 'update').map((file) => file.relativePath)
+
+    await applyMcpScaffoldPlan(workspaceRoot, scaffoldPlan)
+    scaffoldSpinner?.stop(`${runtime.dryRun ? 'Planned' : 'Generated'} scaffold for ${pluginName}`)
+
+    const agentContextOptions = {
+      docsUrl,
+      websiteUrl,
+      contextPaths,
+    }
+
+    const agentSpinner = createSpinner(runtime)
+    agentSpinner?.start('Autopilot 3/4 · Planning agent runs...')
+    const taxonomyPlan = await planAgentRun(workspaceRoot, 'taxonomy', {
+      runner,
+      model,
+      attach,
+      verify: false,
+    }, agentContextOptions)
+    const instructionsPlan = await planAgentRun(workspaceRoot, 'instructions', {
+      runner,
+      model,
+      attach,
+      verify: false,
+    }, agentContextOptions)
+    const reviewPlan = review
+      ? await planAgentRun(workspaceRoot, 'review', {
+          runner,
+          model,
+          attach,
+          verify: false,
+        }, agentContextOptions)
+      : undefined
+    agentSpinner?.stop('Planned agent refinement')
+
+    if (runtime.dryRun) {
+      const summary: AutopilotSummary = {
+        ok: true,
+        pluginName,
+        displayName,
+        source: rawSource,
+        runner,
+        targets,
+        toolCount: introspection.tools.length,
+        grouping,
+        requestedHookMode,
+        hookMode: scaffoldPlan.generatedHookMode,
+        hookEvents: scaffoldPlan.generatedHookEvents,
+        review,
+        verify,
+        init: {
+          createdFiles: initCreatedFiles,
+          updatedFiles: initUpdatedFiles,
+          files: scaffoldPlan.generatedFiles,
+        },
+        agent: {
+          taxonomy: {
+            command: taxonomyPlan.command,
+            commandDisplay: taxonomyPlan.commandDisplay,
+            createdFiles: taxonomyPlan.createdFiles,
+            updatedFiles: taxonomyPlan.updatedFiles,
+          },
+          instructions: {
+            command: instructionsPlan.command,
+            commandDisplay: instructionsPlan.commandDisplay,
+            createdFiles: instructionsPlan.createdFiles,
+            updatedFiles: instructionsPlan.updatedFiles,
+          },
+          ...(reviewPlan
+            ? {
+                review: {
+                  command: reviewPlan.command,
+                  commandDisplay: reviewPlan.commandDisplay,
+                  createdFiles: reviewPlan.createdFiles,
+                  updatedFiles: reviewPlan.updatedFiles,
+                },
+              }
+            : {}),
+        },
+        dryRun: true,
+      }
+
+      if (runtime.jsonOutput) {
+        printJson(summary)
+      } else if (!runtime.quiet) {
+        console.log(`Planned autopilot for ${pluginName}`)
+        console.log(`  Import: ${introspection.tools.length} tools -> ${targets.join(', ')}`)
+        console.log(`  Runner: ${runner}`)
+        console.log(`  Scaffold create/update: ${[...initCreatedFiles, ...initUpdatedFiles].join(', ') || 'none'}`)
+        console.log(`  Taxonomy: ${taxonomyPlan.commandDisplay}`)
+        console.log(`  Instructions: ${instructionsPlan.commandDisplay}`)
+        if (reviewPlan) {
+          console.log(`  Review: ${reviewPlan.commandDisplay}`)
+        }
+        if (verify) {
+          console.log('  Verification: pluxx test')
+        }
+      }
+      return
+    }
+
+    const streamOutput = !runtime.jsonOutput && !runtime.quiet
+    agentSpinner?.start('Autopilot 3/4 · Running taxonomy pass...')
+    const taxonomyResult = await runAgentPlan(workspaceRoot, taxonomyPlan, { streamOutput })
+    agentSpinner?.stop('Taxonomy pass complete')
+
+    agentSpinner?.start('Autopilot 3/4 · Running instructions pass...')
+    const instructionsResult = await runAgentPlan(workspaceRoot, instructionsPlan, { streamOutput })
+    agentSpinner?.stop('Instructions pass complete')
+
+    const reviewResult = reviewPlan
+      ? await runAgentPlan(workspaceRoot, reviewPlan, { streamOutput })
+      : undefined
+
+    const verification = verify
+      ? await runTestSuite({ rootDir: workspaceRoot, targets })
+      : undefined
+
+    const ok = taxonomyResult.ok
+      && instructionsResult.ok
+      && (reviewResult?.ok ?? true)
+      && (verification?.ok ?? true)
+
+    const summary: AutopilotSummary = {
+      ok,
+      pluginName,
+      displayName,
+      source: rawSource,
+      runner,
+      targets,
+      toolCount: introspection.tools.length,
+      grouping,
+      requestedHookMode,
+      hookMode: scaffoldPlan.generatedHookMode,
+      hookEvents: scaffoldPlan.generatedHookEvents,
+      review,
+      verify,
+      init: {
+        createdFiles: initCreatedFiles,
+        updatedFiles: initUpdatedFiles,
+        files: scaffoldPlan.generatedFiles,
+      },
+      agent: {
+        taxonomy: {
+          command: taxonomyPlan.command,
+          commandDisplay: taxonomyPlan.commandDisplay,
+          createdFiles: taxonomyPlan.createdFiles,
+          updatedFiles: taxonomyPlan.updatedFiles,
+          runnerExitCode: taxonomyResult.runnerExitCode,
+        },
+        instructions: {
+          command: instructionsPlan.command,
+          commandDisplay: instructionsPlan.commandDisplay,
+          createdFiles: instructionsPlan.createdFiles,
+          updatedFiles: instructionsPlan.updatedFiles,
+          runnerExitCode: instructionsResult.runnerExitCode,
+        },
+        ...(reviewPlan
+          ? {
+              review: {
+                command: reviewPlan.command,
+                commandDisplay: reviewPlan.commandDisplay,
+                createdFiles: reviewPlan.createdFiles,
+                updatedFiles: reviewPlan.updatedFiles,
+                runnerExitCode: reviewResult?.runnerExitCode,
+              },
+            }
+          : {}),
+      },
+      verification,
+    }
+
+    if (runtime.jsonOutput) {
+      printJson(summary)
+    } else if (!runtime.quiet) {
+      console.log(`Autopilot ${ok ? 'completed' : 'failed'} for ${pluginName}`)
+      console.log(`  Import: ${introspection.tools.length} tools -> ${targets.join(', ')}`)
+      console.log(`  Runner: ${runner}`)
+      if (verification) {
+        console.log(`  Verification: ${verification.ok ? 'passed' : 'failed'}`)
+      }
+      console.log('  Next steps:')
+      console.log('  1. Review INSTRUCTIONS.md and skills/')
+      console.log('  2. Run: pluxx build')
+      console.log(`  3. Run: pluxx install${scaffoldPlan.generatedHookMode === 'safe' ? ' --trust' : ''} --target ${targets[0]}`)
+    }
+
+    if (!ok) {
+      process.exit(1)
+    }
+  } finally {
+    if (tempDir) {
+      await rm(tempDir, { recursive: true, force: true })
+    }
+  }
+}
+
 async function runTestCommand() {
   const targets = parseTargetFlagValues(args)
   const result = await runTestSuite({
@@ -1294,6 +1652,7 @@ Usage:
   pluxx agent prepare                     Generate agent context + boundary files for host agents
   pluxx agent prompt <kind>               Generate a prompt pack (taxonomy, instructions, review)
   pluxx agent run <kind> --runner <id>    Execute a prompt pack via Claude, Codex, or OpenCode headlessly
+  pluxx autopilot --from-mcp ...          Run import + agent refinement + verification in one command
   pluxx init [name] [--from-mcp <source>] Create a new pluxx.config.ts
   pluxx sync [--from-mcp <source>]        Refresh MCP-derived scaffold files
   pluxx migrate <path>                    Import an existing plugin into pluxx
@@ -1329,6 +1688,8 @@ Examples:
   pluxx agent run taxonomy --runner claude
   pluxx agent run taxonomy --runner codex
   pluxx agent run review --runner opencode --attach http://localhost:4096 --no-verify
+  pluxx autopilot --from-mcp https://example.com/mcp --runner codex --yes --name acme --display-name "Acme"
+  pluxx autopilot --from-mcp "npx -y @acme/mcp" --runner claude --targets claude-code,codex --website https://example.com --docs https://docs.example.com
   pluxx doctor --json                     Inspect project health as JSON
   pluxx test --target claude-code codex  Verify selected target outputs
   pluxx install                           Install to all configured targets
