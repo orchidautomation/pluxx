@@ -188,7 +188,7 @@ export const PLATFORM_VALIDATION_RULES: Record<ResearchTarget, PlatformRules> = 
   },
   'cursor': {
     platform: 'cursor',
-    summary: 'Cursor plugins use .cursor-plugin/plugin.json plus auto-discovered rules, skills, agents, commands, hooks, and mcp.json at the plugin root.',
+    summary: 'Cursor plugins use .cursor-plugin/plugin.json plus auto-discovered rules, skills, agents, commands, hooks, and mcp.json at the plugin root; Cursor subagents are a related but separate surface under .cursor/agents and ~/.cursor/agents.',
     limits: PLATFORM_LIMITS['cursor'],
     skillDiscoveryDirs: [
       { path: 'skills/', level: 'supported' },
@@ -218,14 +218,19 @@ export const PLATFORM_VALIDATION_RULES: Record<ResearchTarget, PlatformRules> = 
     instructions: {
       files: ['rules/', 'AGENTS.md'],
       format: 'mdc + markdown',
-      notes: 'rules/ is the plugin-native instruction surface. AGENTS.md remains useful as shared repo guidance.',
+      notes: 'rules/ is the plugin-native instruction surface. AGENTS.md remains useful as shared repo guidance. Cursor subagents use markdown files under .cursor/agents or ~/.cursor/agents (with .claude/.codex compatibility paths).',
     },
     sources: [
       { label: 'Cursor plugins reference', url: 'https://cursor.com/docs/reference/plugins' },
+      { label: 'Cursor plugins overview', url: 'https://cursor.com/docs/plugins' },
       { label: 'Cursor hooks docs', url: 'https://cursor.com/docs/hooks' },
       { label: 'Cursor skills docs', url: 'https://cursor.com/docs/skills' },
       { label: 'Cursor rules docs', url: 'https://cursor.com/docs/rules' },
       { label: 'Cursor MCP docs', url: 'https://cursor.com/docs/mcp' },
+      { label: 'Cursor CLI headless docs', url: 'https://cursor.com/docs/cli/headless' },
+      { label: 'Cursor CLI parameters', url: 'https://cursor.com/docs/cli/reference/parameters' },
+      { label: 'Cursor CLI authentication', url: 'https://cursor.com/docs/cli/reference/authentication' },
+      { label: 'Cursor subagents docs', url: 'https://cursor.com/docs/subagents' },
     ],
   },
   'codex': {

@@ -272,8 +272,11 @@ Use:
 
 ```bash
 bunx pluxx install --target claude-code
+bunx pluxx install --target cursor
 bunx pluxx install --target codex
 ```
+
+Cursor dogfood flow: `pluxx install --target cursor` links `dist/cursor/` into `~/.cursor/plugins/local/<plugin-name>`, which matches Cursor's documented local plugin test path.
 
 Use `--trust` if the plugin includes command hooks and you have already reviewed them.
 

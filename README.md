@@ -105,8 +105,9 @@ bunx pluxx agent prompt taxonomy
 bunx pluxx autopilot --from-mcp https://example.com/mcp --runner codex --yes --name acme --display-name "Acme" --author "Acme"
 bunx pluxx autopilot --from-mcp https://example.com/mcp --runner codex --yes --verbose-runner
 
-# Or let Claude/OpenCode/Codex consume the pack headlessly
+# Or let Claude/Cursor/OpenCode/Codex consume the pack headlessly
 bunx pluxx agent run taxonomy --runner claude
+bunx pluxx agent run taxonomy --runner cursor
 bunx pluxx agent run taxonomy --runner codex
 bunx pluxx agent run review --runner opencode --attach http://localhost:4096 --no-verify
 

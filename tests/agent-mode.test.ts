@@ -321,6 +321,160 @@ describe('agent mode', () => {
     expect(summary.verify).toBe(false)
   })
 
+  it('supports CLI dry-run for Cursor runs and uses workspace + force semantics', async () => {
+    const proc = Bun.spawn(
+      ['bun', resolve(ROOT, 'bin/pluxx.js'), 'agent', 'run', 'taxonomy', '--runner', 'cursor', '--model', 'gpt-5-mini', '--json', '--dry-run'],
+      {
+        cwd: TEST_DIR,
+        stdout: 'pipe',
+        stderr: 'pipe',
+      },
+    )
+
+    const stdout = await new Response(proc.stdout).text()
+    const stderr = await new Response(proc.stderr).text()
+    const exitCode = await proc.exited
+
+    expect(exitCode).toBe(0)
+    expect(stderr).toBe('')
+
+    const summary = JSON.parse(stdout) as {
+      runner: string
+      command: string[]
+      verify: boolean
+    }
+
+    expect(summary.runner).toBe('cursor')
+    expect(summary.command[0]).toBe('agent')
+    expect(summary.command).toContain('-p')
+    expect(summary.command).toContain('--trust')
+    expect(summary.command).toContain('--workspace')
+    expect(summary.command).toContain(TEST_DIR)
+    expect(summary.command).toContain('--force')
+    expect(summary.command).toContain('--model')
+    expect(summary.command).toContain('gpt-5-mini')
+    expect(summary.verify).toBe(true)
+  })
+
+  it('keeps Cursor review runs read-only in dry-run mode', async () => {
+    const proc = Bun.spawn(
+      ['bun', resolve(ROOT, 'bin/pluxx.js'), 'agent', 'run', 'review', '--runner', 'cursor', '--json', '--dry-run'],
+      {
+        cwd: TEST_DIR,
+        stdout: 'pipe',
+        stderr: 'pipe',
+      },
+    )
+
+    const stdout = await new Response(proc.stdout).text()
+    const stderr = await new Response(proc.stderr).text()
+    const exitCode = await proc.exited
+
+    expect(exitCode).toBe(0)
+    expect(stderr).toBe('')
+
+    const summary = JSON.parse(stdout) as {
+      runner: string
+      command: string[]
+      verify: boolean
+    }
+
+    expect(summary.runner).toBe('cursor')
+    expect(summary.command[0]).toBe('agent')
+    expect(summary.command).toContain('-p')
+    expect(summary.command).toContain('--trust')
+    expect(summary.command).toContain('--workspace')
+    expect(summary.command).not.toContain('--force')
+    expect(summary.verify).toBe(false)
+  })
+
+  it('executes the Cursor runner in non-interactive mode and checks auth status first', async () => {
+    const binDir = resolve(TEST_DIR, '.bin')
+    const runnerArgsPath = resolve(TEST_DIR, 'cursor-runner-args.txt')
+    const cursorAgentPath = resolve(binDir, 'agent')
+
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(
+      cursorAgentPath,
+      '#!/bin/sh\nprintf "%s\\0" "$@" >> "$PLUXX_RUNNER_ARGS"\nif [ "$1" = "status" ]; then\n  exit 0\nfi\nexit 0\n',
+    )
+    chmodSync(cursorAgentPath, 0o755)
+
+    const proc = Bun.spawn(
+      ['bun', resolve(ROOT, 'bin/pluxx.js'), 'agent', 'run', 'taxonomy', '--runner', 'cursor', '--json', '--no-verify'],
+      {
+        cwd: TEST_DIR,
+        env: {
+          ...process.env,
+          PATH: `${binDir}:${process.env.PATH ?? ''}`,
+          PLUXX_RUNNER_ARGS: runnerArgsPath,
+        },
+        stdout: 'pipe',
+        stderr: 'pipe',
+      },
+    )
+
+    const stdout = await new Response(proc.stdout).text()
+    const stderr = await new Response(proc.stderr).text()
+    const exitCode = await proc.exited
+
+    expect(exitCode).toBe(0)
+    expect(stderr).toBe('')
+
+    const summary = JSON.parse(stdout) as {
+      ok: boolean
+      runner: string
+      runnerExitCode: number
+      verify: boolean
+    }
+    expect(summary.ok).toBe(true)
+    expect(summary.runner).toBe('cursor')
+    expect(summary.runnerExitCode).toBe(0)
+    expect(summary.verify).toBe(false)
+
+    const runnerArgs = readFileSync(runnerArgsPath, 'utf-8').split('\0').filter(Boolean)
+    expect(runnerArgs).toContain('status')
+    expect(runnerArgs).toContain('-p')
+    expect(runnerArgs).toContain('--workspace')
+    expect(runnerArgs).toContain('--force')
+  })
+
+  it('prints actionable guidance when Cursor auth is missing', async () => {
+    const binDir = resolve(TEST_DIR, '.bin')
+    const cursorAgentPath = resolve(binDir, 'agent')
+
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(
+      cursorAgentPath,
+      '#!/bin/sh\nif [ "$1" = "status" ]; then\n  exit 1\nfi\nexit 0\n',
+    )
+    chmodSync(cursorAgentPath, 0o755)
+
+    const proc = Bun.spawn(
+      ['bun', resolve(ROOT, 'bin/pluxx.js'), 'agent', 'run', 'taxonomy', '--runner', 'cursor', '--no-verify'],
+      {
+        cwd: TEST_DIR,
+        env: {
+          ...process.env,
+          PATH: `${binDir}:${process.env.PATH ?? ''}`,
+          CURSOR_API_KEY: '',
+        },
+        stdout: 'pipe',
+        stderr: 'pipe',
+      },
+    )
+
+    const stdout = await new Response(proc.stdout).text()
+    const stderr = await new Response(proc.stderr).text()
+    const exitCode = await proc.exited
+
+    expect(exitCode).toBe(1)
+    expect(stdout).toBe('')
+    expect(stderr).toContain('Cursor CLI authentication is required')
+    expect(stderr).toContain('agent login')
+    expect(stderr).toContain('CURSOR_API_KEY')
+  })
+
   it('executes the Claude runner, writes the agent pack, and verifies the scaffold', async () => {
     const binDir = resolve(TEST_DIR, '.bin')
     const runnerArgsPath = resolve(TEST_DIR, 'runner-args.txt')

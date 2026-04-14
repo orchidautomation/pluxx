@@ -26,7 +26,7 @@ What users will want is:
 ## Proposed Command
 
 ```bash
-pluxx autopilot --from-mcp <source> --runner <codex|claude|opencode>
+pluxx autopilot --from-mcp <source> --runner <codex|claude|cursor|opencode>
 ```
 
 Example:
@@ -115,7 +115,7 @@ This keeps the semantic layer honest.
 ### Required
 
 - `--from-mcp <source>`
-- `--runner <codex|claude|opencode>`
+- `--runner <codex|claude|cursor|opencode>`
 
 ### Common scaffold flags
 

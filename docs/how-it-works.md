@@ -220,6 +220,7 @@ Or step through Agent Mode manually:
 $ bunx pluxx agent prepare
 $ bunx pluxx agent prompt taxonomy
 $ bunx pluxx agent run taxonomy --runner claude
+$ bunx pluxx agent run taxonomy --runner cursor
 $ bunx pluxx agent run taxonomy --runner codex
 ```
 
@@ -229,7 +230,7 @@ That generates:
 - `.pluxx/agent/plan.json`
 - `.pluxx/agent/*-prompt.md`
 
-The intent is simple: Pluxx owns the structure and write boundaries, while the host agent uses those files to refine the generated scaffold without drifting into auth wiring or platform config. `pluxx agent run` is just a thin adapter over that same pack. The current supported runners are `claude`, `opencode`, and `codex`.
+The intent is simple: Pluxx owns the structure and write boundaries, while the host agent uses those files to refine the generated scaffold without drifting into auth wiring or platform config. `pluxx agent run` is just a thin adapter over that same pack. The current supported runners are `claude`, `cursor`, `opencode`, and `codex`.
 
 If you want durable Agent Mode customization, create `pluxx.agent.md` at the project root. Pluxx will pull extra context paths, product/setup hints, grouping guidance, and prompt additions from that file without requiring edits to generated `.pluxx/agent/*.md` files.
 

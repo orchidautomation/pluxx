@@ -113,6 +113,7 @@ pluxx agent prompt taxonomy
 pluxx agent prompt instructions
 pluxx agent prompt review
 pluxx agent run taxonomy --runner claude
+pluxx agent run taxonomy --runner cursor
 pluxx agent run taxonomy --runner codex
 pluxx agent run review --runner opencode --attach http://localhost:4096 --no-verify
 ```
@@ -140,6 +141,7 @@ Agent Mode is file-first. The runner layer is optional.
 Current built-in runners:
 
 - `claude`
+- `cursor`
 - `opencode`
 - `codex`
 

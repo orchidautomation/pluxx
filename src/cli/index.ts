@@ -1378,6 +1378,7 @@ async function runAutopilot() {
         ? await clackSelect<AgentRunner>('Agent runner', [
             { value: 'codex', label: 'codex', hint: 'Use Codex headless mode for refinement' },
             { value: 'claude', label: 'claude', hint: 'Use Claude Code headless mode for refinement' },
+            { value: 'cursor', label: 'cursor', hint: 'Use Cursor CLI headless mode for refinement' },
             { value: 'opencode', label: 'opencode', hint: 'Use OpenCode run mode for refinement' },
           ], 'codex')
         : (() => { throw new Error(`Choose a runner: ${AGENT_RUNNERS.join(', ')}`) })()
@@ -1881,7 +1882,7 @@ Usage:
   pluxx doctor                            Check runtime, config, paths, MCP, and trust advisories
   pluxx agent prepare                     Generate agent context + boundary files for host agents
   pluxx agent prompt <kind>               Generate a prompt pack (taxonomy, instructions, review)
-  pluxx agent run <kind> --runner <id>    Execute a prompt pack via Claude, Codex, or OpenCode headlessly
+  pluxx agent run <kind> --runner <id>    Execute a prompt pack via Claude, Cursor, Codex, or OpenCode headlessly
   pluxx autopilot --from-mcp ...          Run import + agent refinement + verification in one command
   pluxx init [name] [--from-mcp <source>] Create a new pluxx.config.ts
   pluxx sync [--from-mcp <source>]        Refresh MCP-derived scaffold files
@@ -1917,6 +1918,7 @@ Examples:
   pluxx agent prepare --website https://example.com --docs https://docs.example.com
   pluxx agent prompt taxonomy             Generate the taxonomy prompt pack
   pluxx agent run taxonomy --runner claude
+  pluxx agent run taxonomy --runner cursor
   pluxx agent run taxonomy --runner codex
   pluxx agent run taxonomy --runner codex --verbose-runner
   pluxx agent run review --runner opencode --attach http://localhost:4096 --no-verify

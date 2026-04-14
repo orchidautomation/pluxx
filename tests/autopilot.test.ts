@@ -158,6 +158,54 @@ describe('autopilot command', () => {
     }
   })
 
+  it('supports Cursor as an autopilot runner in dry-run mode', async () => {
+    const { dir, statePath, stubServerPath } = createStubServerFixture()
+
+    try {
+      const proc = spawnCli([
+        'autopilot',
+        '--from-mcp',
+        `bun ${stubServerPath} ${statePath}`,
+        '--runner',
+        'cursor',
+        '--name',
+        'stub-server',
+        '--display-name',
+        'Stub Server',
+        '--author',
+        'Test Author',
+        '--json',
+        '--dry-run',
+      ], dir)
+
+      const stdout = await new Response(proc.stdout).text()
+      const stderr = await new Response(proc.stderr).text()
+      const exitCode = await proc.exited
+
+      expect(exitCode).toBe(0)
+      expect(stderr).toBe('')
+
+      const summary = JSON.parse(stdout) as {
+        ok: boolean
+        runner: string
+        agent: {
+          taxonomy: { command: string[] }
+          instructions: { command: string[] }
+        }
+      }
+
+      expect(summary.ok).toBe(true)
+      expect(summary.runner).toBe('cursor')
+      expect(summary.agent.taxonomy.command[0]).toBe('agent')
+      expect(summary.agent.taxonomy.command).toContain('-p')
+      expect(summary.agent.taxonomy.command).toContain('--workspace')
+      expect(summary.agent.taxonomy.command).toContain('--force')
+      expect(summary.agent.instructions.command).toContain('--force')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('runs the full autopilot flow with a headless runner and verifies the scaffold', async () => {
     const { dir, statePath, stubServerPath } = createStubServerFixture()
     const binDir = resolve(dir, '.bin')
