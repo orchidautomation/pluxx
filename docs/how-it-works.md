@@ -22,6 +22,8 @@ The product now has two intentional layers:
 - `Core`: deterministic scaffolding, linting, build, install, and sync
 - `Agent`: prompt packs and context packs for Claude Code / Codex to semantically refine the scaffold
 
+Pluxx is intentionally the plugin authoring/distribution layer, not the MCP hosting layer. You still deploy and operate your MCP backend service.
+
 See [Agent Mode](./agent-mode.md) for the semantic-authoring layer.
 See [Architecture](./architecture.md) for the system view and [Customer Journey](./customer-journey.md) for the end-to-end user path.
 
@@ -65,6 +67,12 @@ That import flow supports:
 - remote HTTP MCP servers
 - legacy SSE MCP servers via `--transport sse`
 - local stdio MCP commands such as `bunx pluxx init --from-mcp "npx -y @acme/mcp"`
+
+A common production transition is:
+
+1. Start from local stdio MCP during development.
+2. Build and validate the generated plugin repo.
+3. Repoint sync to the deployed remote MCP endpoint: `bunx pluxx sync --from-mcp https://mcp.example.com/mcp`.
 
 That flow introspects the server, reads its tool metadata, and drafts workflow-oriented skills instead of mirroring raw tool names one-to-one whenever the tool set supports a clearer grouping.
 
@@ -226,7 +234,15 @@ If you want durable Agent Mode customization, create `pluxx.agent.md` at the pro
 
 ### Step 8: Ship
 
-Deploy to whichever marketplaces you want, with correct manifests already generated.
+Pluxx prepares the correct plugin bundles and manifests, then your team ships them through your own channels.
+
+Typical flow:
+
+1. Commit/version the generated plugin source repo.
+2. Build bundles with `bunx pluxx build`.
+3. Publish/share those bundles through release artifacts or platform-specific distribution paths.
+
+Pluxx does not deploy the MCP backend service; it keeps plugin distribution and maintenance consistent as that backend evolves.
 
 ## What pluxx Handles
 

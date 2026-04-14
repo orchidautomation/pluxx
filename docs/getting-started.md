@@ -19,6 +19,29 @@ Related docs:
 - [Homepage messaging](./homepage-messaging.md)
 - [PlayKit case study](./playkit-case-study.md)
 
+## Product Boundary
+
+Pluxx is the plugin authoring and maintenance layer for MCP teams.
+
+Pluxx owns:
+
+- scaffold generation from local or remote MCPs
+- plugin validation, build, local install, and sync
+- keeping generated plugin repos maintainable as MCPs evolve
+
+Pluxx does not own:
+
+- deploying or hosting the MCP backend service itself
+- operating production MCP infrastructure
+
+## Lifecycle At A Glance
+
+1. Start from a local stdio MCP while developing quickly.
+2. Generate and refine one plugin source repo.
+3. Validate/build/install locally.
+4. When your MCP is deployed, repoint sync to the remote endpoint.
+5. Keep the generated plugin repo as your long-term source of truth.
+
 ## 1. Bring An MCP Server
 
 Pluxx accepts three MCP source shapes today:
@@ -174,6 +197,12 @@ When the MCP server changes:
 bunx pluxx sync
 ```
 
+If your MCP moved from local stdio development to a deployed endpoint, repoint sync explicitly:
+
+```bash
+bunx pluxx sync --from-mcp https://mcp.example.com/mcp
+```
+
 Preview sync changes first:
 
 ```bash
@@ -188,7 +217,17 @@ Pluxx preserves custom mixed-ownership Markdown sections and reports:
 - preserved files
 - renamed skill directories
 
-## 7. Run In CI
+## 7. Publish And Distribute
+
+After build/install validation, ship the generated plugin repo and bundles:
+
+1. Commit and version the plugin source repo (`pluxx.config.ts`, `skills/`, `INSTRUCTIONS.md`, `.pluxx/mcp.json`).
+2. Build release bundles with `bunx pluxx build`.
+3. Publish/share through your target channels (team repo, release artifacts, or platform-specific publish flows).
+
+This keeps Pluxx as the distribution and maintenance layer while your MCP backend deployment stays separate.
+
+## 8. Run In CI
 
 Use the reusable workflow shipped in this repo:
 
