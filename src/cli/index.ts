@@ -18,11 +18,13 @@ import { doctorProject, printDoctorReport } from './doctor'
 import { ensureHookTrust, installPlugin, listHookCommands, planInstallPlugin, uninstallPlugin } from './install'
 import { runDev } from './dev'
 import {
+  analyzeMcpQuality,
   applyMcpScaffoldPlan,
   buildToolExampleRequest,
   derivePluginName,
   MCP_HOOK_MODES,
   MCP_SKILL_GROUPINGS,
+  type McpQualityReport,
   planMcpScaffold,
   type McpHookMode,
   parseMcpSourceInput,
@@ -94,6 +96,7 @@ interface InitFromMcpSummary {
     errors: number
     warnings: number
   }
+  quality: McpQualityReport
   notes: string[]
   nextSteps: string[]
   dryRun?: boolean
@@ -111,6 +114,7 @@ interface AutopilotSummary {
   requestedHookMode: McpHookMode
   hookMode: McpHookMode
   hookEvents: string[]
+  quality: McpQualityReport
   review: boolean
   verify: boolean
   init: {
@@ -458,6 +462,7 @@ function buildInitSummary(input: {
   createdFiles: string[]
   updatedFiles: string[]
   lint: { errors: number; warnings: number }
+  quality: McpQualityReport
   dryRun?: boolean
 }): InitFromMcpSummary {
   const installTarget = input.targets[0]
@@ -470,6 +475,14 @@ function buildInitSummary(input: {
     notes.push('No safe hooks were generated for this MCP source. Safe hooks currently require explicit env vars in the generated MCP config.')
   } else if (input.hookMode === 'safe') {
     notes.push(`Generated install-ready hook events: ${input.hookEvents.join(', ')}`)
+  }
+
+  if (input.quality.warnings > 0 || input.quality.infos > 0) {
+    notes.push(`MCP quality: ${input.quality.warnings} warning(s), ${input.quality.infos} info message(s)`)
+  }
+
+  if (input.quality.warnings > 0) {
+    notes.push('Consider using pluxx autopilot with --website/--docs or adding pluxx.agent.md hints before publishing this plugin.')
   }
 
   const nextSteps = [
@@ -492,10 +505,21 @@ function buildInitSummary(input: {
     createdFiles: input.createdFiles,
     updatedFiles: input.updatedFiles,
     lint: input.lint,
+    quality: input.quality,
     notes,
     nextSteps,
     dryRun: input.dryRun,
   }
+}
+
+function formatMcpQualityLines(report: McpQualityReport): string[] {
+  const lines = [`MCP quality: ${report.warnings} warning(s), ${report.infos} info message(s)`]
+
+  for (const issue of report.issues) {
+    lines.push(`- [${issue.level}] ${issue.title}: ${issue.detail}`)
+  }
+
+  return lines
 }
 
 export function parseInitFromMcpOptions(rawArgs: string[], initialName?: string, initialSource?: string): InitFromMcpOptions {
@@ -780,6 +804,11 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
 
     const serverLabel = introspection.serverInfo.title ?? introspection.serverInfo.name
     s?.stop(`Connected: ${serverLabel} (${introspection.tools.length} tools discovered)`)
+    const quality = analyzeMcpQuality(introspection.tools)
+
+    if (!options.jsonOutput && !runtime.quiet && quality.issues.length > 0) {
+      clack.note(formatMcpQualityLines(quality).join('\n'), 'MCP quality check')
+    }
 
     // Only ask for stdio auth env when the source has no env vars and no auth already
     const stdioHasEnv = source.transport === 'stdio'
@@ -897,6 +926,7 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
         errors: lintResult.errors,
         warnings: lintResult.warnings,
       },
+      quality,
       dryRun: runtime.dryRun,
     })
 
@@ -947,6 +977,12 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
     if (summary.notes.length > 0) {
       for (const n of summary.notes) {
         clack.log.info(n)
+      }
+    }
+
+    if (summary.quality.issues.length > 0) {
+      for (const line of formatMcpQualityLines(summary.quality)) {
+        clack.log.info(line)
       }
     }
 
@@ -1238,34 +1274,62 @@ async function runAgent() {
 
 async function runAutopilot() {
   const initOptions = parseInitFromMcpOptions(args)
-  const runnerRaw = readOption(args, '--runner')
-  const docsUrl = readOption(args, '--docs')
-  const websiteUrl = readOption(args, '--website')
+  let runnerRaw = readOption(args, '--runner')
+  let docsUrl = readOption(args, '--docs')
+  let websiteUrl = readOption(args, '--website')
   const contextPaths = readMultiValueOption(args, '--context')
   const model = readOption(args, '--model')
   const attach = readOption(args, '--attach')
   const review = args.includes('--review')
   const verify = !args.includes('--no-verify')
+  const interactive = !runtime.jsonOutput && runtime.isInteractive && !initOptions.assumeDefaults
+  let authEnv = initOptions.authEnv
+  let authType = initOptions.authType
+  let authHeader = initOptions.authHeader
+  let authTemplate = initOptions.authTemplate
 
-  if (!initOptions.source) {
+  if (!initOptions.source && !interactive) {
     console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--auth-env ENV] [--auth-type bearer|header] [--auth-header NAME] [--auth-template TEMPLATE] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--json] [--dry-run] [--quiet]`)
     process.exit(1)
   }
 
-  if (!runnerRaw || !AGENT_RUNNERS.includes(runnerRaw as AgentRunner)) {
+  if ((!runnerRaw || !AGENT_RUNNERS.includes(runnerRaw as AgentRunner)) && !interactive) {
     console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--auth-env ENV] [--auth-type bearer|header] [--auth-header NAME] [--auth-template TEMPLATE] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--json] [--dry-run] [--quiet]`)
     process.exit(1)
   }
-
-  const runner = runnerRaw as AgentRunner
   let tempDir: string | undefined
 
   try {
-    const rawSource = initOptions.source
+    if (!runtime.jsonOutput && !runtime.quiet && interactive) {
+      clack.intro('pluxx autopilot')
+    }
+
+    const rawSource = initOptions.source ?? (interactive
+      ? await clackText('MCP server URL or local command')
+      : '')
+    if (!rawSource) {
+      throw new Error('Provide an MCP server URL or local command. Example: pluxx autopilot --from-mcp https://example.com/mcp --runner codex')
+    }
+
+    const runner = runnerRaw && AGENT_RUNNERS.includes(runnerRaw as AgentRunner)
+      ? runnerRaw as AgentRunner
+      : interactive
+        ? await clackSelect<AgentRunner>('Agent runner', [
+            { value: 'codex', label: 'codex', hint: 'Use Codex headless mode for refinement' },
+            { value: 'claude', label: 'claude', hint: 'Use Claude Code headless mode for refinement' },
+            { value: 'opencode', label: 'opencode', hint: 'Use OpenCode run mode for refinement' },
+          ], 'codex')
+        : (() => { throw new Error(`Choose a runner: ${AGENT_RUNNERS.join(', ')}`) })()
+
     let source = parseMcpSourceInput(rawSource, initOptions.transport)
     const configuredRemoteAuth = source.transport === 'stdio'
       ? undefined
-      : buildRemoteAuthConfig(initOptions)
+      : buildRemoteAuthConfig({
+          authEnv,
+          authType,
+          authHeader,
+          authTemplate,
+        })
 
     if (configuredRemoteAuth && !source.auth) {
       source = {
@@ -1287,15 +1351,39 @@ async function runAutopilot() {
         && (error.status === 401 || error.status === 402 || error.status === 403)
       ) {
         connectSpinner?.stop('Server requires authentication')
-        if (!initOptions.authEnv) {
+        authEnv = authEnv ?? (interactive
+          ? await clackText('Auth env var for this MCP server')
+          : '')
+        if (!authEnv) {
           throw new Error(
             'This MCP server requires auth. Re-run autopilot with --auth-env YOUR_ENV_VAR and, for custom headers, --auth-type header --auth-header HEADER_NAME.',
           )
         }
 
+        if (interactive && !authType) {
+          authType = await clackSelect<'bearer' | 'header'>('Auth type', [
+            { value: 'bearer', label: 'bearer', hint: 'Authorization: Bearer <token>' },
+            { value: 'header', label: 'header', hint: 'Custom header such as X-API-Key' },
+          ], 'bearer')
+        }
+
+        if (resolveRemoteAuthType({ authType, authHeader }) === 'header') {
+          if (interactive && !authHeader) {
+            authHeader = await clackText('Auth header name', 'X-API-Key')
+          }
+          if (interactive && !authTemplate) {
+            authTemplate = await clackText('Auth header template', '${value}')
+          }
+        }
+
         source = {
           ...source,
-          auth: buildRemoteAuthConfig(initOptions),
+          auth: buildRemoteAuthConfig({
+            authEnv,
+            authType,
+            authHeader,
+            authTemplate,
+          }),
         }
         connectSpinner?.start('Autopilot 1/4 · Reconnecting with auth...')
         introspection = await introspectMcpServer(source)
@@ -1309,22 +1397,66 @@ async function runAutopilot() {
       && source.env
       && Object.keys(source.env).length > 0
     const generatedAuthEnv = source.transport === 'stdio' && !stdioHasEnv
-      ? initOptions.authEnv ?? undefined
-      : initOptions.authEnv
+      ? authEnv ?? undefined
+      : authEnv
 
-    source = applyGeneratedAuthEnv(source, generatedAuthEnv, initOptions)
+    source = applyGeneratedAuthEnv(source, generatedAuthEnv, {
+      authType,
+      authHeader,
+      authTemplate,
+    })
+    const quality = analyzeMcpQuality(introspection.tools)
+
+    if (!runtime.jsonOutput && !runtime.quiet && quality.issues.length > 0) {
+      clack.note(formatMcpQualityLines(quality).join('\n'), 'MCP quality check')
+    }
 
     const defaultPluginName = initOptions.name ? toKebabCase(initOptions.name) : derivePluginName(introspection, source)
-    const pluginName = toKebabCase(initOptions.name ?? defaultPluginName)
-    const displayName = initOptions.displayName ?? introspection.serverInfo.title ?? pluginName
-    const authorName = initOptions.author ?? process.env.USER ?? ''
-    const targets = parseTargetPlatforms(initOptions.targets ?? DEFAULT_INIT_TARGETS.join(','))
+    const pluginName = toKebabCase(
+      initOptions.name ?? (interactive
+        ? await clackText('Plugin name', defaultPluginName)
+        : defaultPluginName),
+    )
+    const defaultDisplayName = initOptions.displayName ?? introspection.serverInfo.title ?? pluginName
+    const displayName = initOptions.displayName ?? (interactive
+      ? await clackText('Display name', defaultDisplayName)
+      : defaultDisplayName)
+    const defaultAuthorName = initOptions.author ?? process.env.USER ?? ''
+    const authorName = initOptions.author ?? (interactive
+      ? await clackText('Author name', defaultAuthorName)
+      : defaultAuthorName)
+    const targetsRaw = initOptions.targets ?? (interactive
+      ? await clackText('Platforms (comma-separated)', DEFAULT_INIT_TARGETS.join(','))
+      : DEFAULT_INIT_TARGETS.join(','))
+    const targets = parseTargetPlatforms(targetsRaw)
     const grouping = initOptions.grouping
       ? parseChoiceOption(initOptions.grouping, MCP_SKILL_GROUPINGS, 'Skill grouping')
-      : 'workflow'
+      : interactive
+        ? await clackSelect<McpSkillGrouping>('Skill grouping', [
+            { value: 'workflow', label: 'workflow', hint: 'Group related tools into workflow skills' },
+            { value: 'tool', label: 'tool', hint: 'One skill per tool' },
+          ], 'workflow')
+        : 'workflow'
     const requestedHookMode = initOptions.hooks
       ? parseChoiceOption(initOptions.hooks, MCP_HOOK_MODES, 'Install-ready hooks')
-      : defaultHookMode(source)
+      : interactive
+        ? await clackSelect<McpHookMode>('Install-ready hooks', [
+            { value: 'none', label: 'none', hint: 'No install hooks' },
+            { value: 'safe', label: 'safe', hint: 'Auto-generate safe install hooks' },
+          ], defaultHookMode(source))
+        : defaultHookMode(source)
+
+    if (quality.warnings > 0) {
+      if (!websiteUrl) {
+        websiteUrl = introspection.serverInfo.websiteUrl
+      }
+
+      if (interactive) {
+        websiteUrl = await clackText('Website URL for agent context (optional)', websiteUrl ?? '')
+        docsUrl = await clackText('Docs URL for agent context (optional)', docsUrl ?? '')
+      }
+    }
+
     const workspaceRoot = runtime.dryRun
       ? await mkdtemp(`${tmpdir()}/pluxx-autopilot-`)
       : process.cwd()
@@ -1395,6 +1527,7 @@ async function runAutopilot() {
         requestedHookMode,
         hookMode: scaffoldPlan.generatedHookMode,
         hookEvents: scaffoldPlan.generatedHookEvents,
+        quality,
         review,
         verify,
         init: {
@@ -1435,6 +1568,7 @@ async function runAutopilot() {
         console.log(`Planned autopilot for ${pluginName}`)
         console.log(`  Import: ${introspection.tools.length} tools -> ${targets.join(', ')}`)
         console.log(`  Runner: ${runner}`)
+        console.log(`  Quality: ${quality.warnings} warning(s), ${quality.infos} info message(s)`)
         console.log(`  Scaffold create/update: ${[...initCreatedFiles, ...initUpdatedFiles].join(', ') || 'none'}`)
         console.log(`  Taxonomy: ${taxonomyPlan.commandDisplay}`)
         console.log(`  Instructions: ${instructionsPlan.commandDisplay}`)
@@ -1482,6 +1616,7 @@ async function runAutopilot() {
       requestedHookMode,
       hookMode: scaffoldPlan.generatedHookMode,
       hookEvents: scaffoldPlan.generatedHookEvents,
+      quality,
       review,
       verify,
       init: {
@@ -1525,6 +1660,7 @@ async function runAutopilot() {
       console.log(`Autopilot ${ok ? 'completed' : 'failed'} for ${pluginName}`)
       console.log(`  Import: ${introspection.tools.length} tools -> ${targets.join(', ')}`)
       console.log(`  Runner: ${runner}`)
+      console.log(`  Quality: ${quality.warnings} warning(s), ${quality.infos} info message(s)`)
       if (verification) {
         console.log(`  Verification: ${verification.ok ? 'passed' : 'failed'}`)
       }

@@ -2,7 +2,7 @@ import { describe, expect, it, beforeEach, afterEach } from 'bun:test'
 import { existsSync, readFileSync, rmSync } from 'fs'
 import { resolve } from 'path'
 import { loadConfig } from '../src/config/load'
-import { derivePluginName, detectMutatingTools, parseMcpSourceInput, planSkillScaffolds, writeMcpScaffold } from '../src/cli/init-from-mcp'
+import { analyzeMcpQuality, derivePluginName, detectMutatingTools, parseMcpSourceInput, planSkillScaffolds, writeMcpScaffold } from '../src/cli/init-from-mcp'
 import type { IntrospectedMcpServer } from '../src/mcp/introspect'
 
 const TEST_DIR = resolve(import.meta.dir, '.init-from-mcp')
@@ -163,6 +163,30 @@ describe('init-from-mcp scaffold', () => {
     expect(skills.every((skill) => skill.tools.length === 1)).toBe(true)
   })
 
+  it('reports weak MCP metadata that will likely need agent refinement', () => {
+    const report = analyzeMcpQuality([
+      { name: 'query', description: '', inputSchema: { type: 'object', properties: {} } },
+      {
+        name: 'get_usage',
+        description: 'Get usage.\n\nReturns:\n- tier\n- credits',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            account_id: { type: 'string' },
+            workspace_id: { type: 'string' },
+          },
+        },
+      },
+    ])
+
+    expect(report.ok).toBe(false)
+    expect(report.warnings).toBeGreaterThanOrEqual(2)
+    expect(report.issues.some((issue) => issue.code === 'generic-tool-names')).toBe(true)
+    expect(report.issues.some((issue) => issue.code === 'missing-tool-descriptions')).toBe(true)
+    expect(report.issues.some((issue) => issue.code === 'verbose-tool-descriptions')).toBe(true)
+    expect(report.issues.some((issue) => issue.code === 'weak-input-schemas')).toBe(true)
+  })
+
   it('writes config, instructions, and grouped skills from discovered tools', async () => {
     const result = await writeMcpScaffold({
       rootDir: TEST_DIR,
@@ -218,6 +242,8 @@ describe('init-from-mcp scaffold', () => {
     expect(instructionsFile).toContain('Prefer the most specific Sumble tool for the request.')
     expect(instructionsFile).toContain('`FindOrganizations`')
     expect(instructionsFile).toContain('`find-organizations`')
+    expect(instructionsFile).toContain('Sumble MCP connects to its MCP over HTTP.')
+    expect(instructionsFile).not.toContain('connects to the `sumble` MCP server')
 
     expect(organizationSkill).toContain('# Find Organizations')
     expect(organizationSkill).toContain('### `FindOrganizations`')
@@ -278,6 +304,41 @@ describe('init-from-mcp scaffold', () => {
     expect(config).toContain(`envVar: "PLAYKIT_API_KEY"`)
     expect(config).toContain(`headerName: "X-API-Key"`)
     expect(config).toContain(`headerTemplate: "\${value}"`)
+  })
+
+  it('curates single-tool frontmatter descriptions instead of copying raw multiline tool help', async () => {
+    const multilineIntrospection: IntrospectedMcpServer = {
+      ...introspection,
+      tools: [
+        {
+          name: 'get_usage',
+          description: 'Get your current usage, remaining credits, and tier info.\n\nReturns:\n- Current tier\n- Credits remaining\n- Upgrade URL',
+          inputSchema: {
+            type: 'object',
+            properties: {},
+          },
+        },
+      ],
+    }
+
+    await writeMcpScaffold({
+      rootDir: TEST_DIR,
+      pluginName: 'playkit',
+      authorName: 'Orchid Automation',
+      displayName: 'PlayKit',
+      skillGrouping: 'workflow',
+      hookMode: 'none',
+      targets: ['codex'],
+      source: {
+        transport: 'http',
+        url: 'https://mcp.playkit.sh/mcp',
+      },
+      introspection: multilineIntrospection,
+    })
+
+    const skill = readFileSync(resolve(TEST_DIR, 'skills/account-and-usage/SKILL.md'), 'utf-8')
+    expect(skill).toContain('description: "Get your current usage, remaining credits, and tier info."')
+    expect(skill).not.toContain('description: "Get your current usage, remaining credits, and tier info.\\n\\nReturns:')
   })
 
   it('generates mutation confirmation hooks when safe mode detects mutating tools', async () => {

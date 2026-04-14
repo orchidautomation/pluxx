@@ -113,6 +113,7 @@ describe('CLI init JSON summary', () => {
         hookMode: string
         hookEvents: string[]
         files: string[]
+        quality: { warnings: number; infos: number }
         notes: string[]
         nextSteps: string[]
       }
@@ -121,6 +122,8 @@ describe('CLI init JSON summary', () => {
       expect(summary.hookMode).toBe('none')
       expect(summary.hookEvents).toEqual([])
       expect(summary.files).not.toContain('scripts/check-env.sh')
+      expect(typeof summary.quality.warnings).toBe('number')
+      expect(typeof summary.quality.infos).toBe('number')
       expect(summary.notes[0]).toContain('No safe hooks were generated')
       expect(summary.nextSteps[2]).toBe('Run: pluxx install --target claude-code')
     } finally {
@@ -175,6 +178,7 @@ describe('CLI init JSON summary', () => {
         hookMode: string
         hookEvents: string[]
         files: string[]
+        quality: { warnings: number; infos: number }
         notes: string[]
         nextSteps: string[]
       }
@@ -183,6 +187,8 @@ describe('CLI init JSON summary', () => {
       expect(summary.hookMode).toBe('safe')
       expect(summary.hookEvents).toEqual(['sessionStart'])
       expect(summary.files).toContain('scripts/check-env.sh')
+      expect(typeof summary.quality.warnings).toBe('number')
+      expect(typeof summary.quality.infos).toBe('number')
       expect(summary.notes[0]).toContain('sessionStart')
       expect(summary.nextSteps[2]).toBe('Run: pluxx install --trust --target claude-code')
 

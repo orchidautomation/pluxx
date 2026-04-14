@@ -139,6 +139,7 @@ describe('autopilot command', () => {
         ok: boolean
         dryRun: boolean
         runner: string
+        quality: { warnings: number; infos: number }
         init: { createdFiles: string[] }
         agent: { taxonomy: { command: string[] } }
       }
@@ -146,6 +147,8 @@ describe('autopilot command', () => {
       expect(summary.ok).toBe(true)
       expect(summary.dryRun).toBe(true)
       expect(summary.runner).toBe('codex')
+      expect(typeof summary.quality.warnings).toBe('number')
+      expect(typeof summary.quality.infos).toBe('number')
       expect(summary.init.createdFiles).toContain('pluxx.config.ts')
       expect(summary.agent.taxonomy.command.slice(0, 3)).toEqual(['codex', 'exec', '--full-auto'])
       expect(existsSync(resolve(dir, 'pluxx.config.ts'))).toBe(false)
@@ -199,6 +202,7 @@ describe('autopilot command', () => {
       const summary = JSON.parse(stdout) as {
         ok: boolean
         runner: string
+        quality: { warnings: number; infos: number }
         verification?: { ok: boolean }
         agent: {
           taxonomy: { runnerExitCode?: number }
@@ -208,6 +212,8 @@ describe('autopilot command', () => {
 
       expect(summary.ok).toBe(true)
       expect(summary.runner).toBe('claude')
+      expect(typeof summary.quality.warnings).toBe('number')
+      expect(typeof summary.quality.infos).toBe('number')
       expect(summary.agent.taxonomy.runnerExitCode).toBe(0)
       expect(summary.agent.instructions.runnerExitCode).toBe(0)
       expect(summary.verification?.ok).toBe(true)

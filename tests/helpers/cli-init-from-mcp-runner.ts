@@ -110,6 +110,12 @@ function installMocks(options: {
   }))
 
   mock.module(INIT_FROM_MCP_PATH, () => ({
+    analyzeMcpQuality: () => ({
+      ok: true,
+      warnings: 0,
+      infos: 0,
+      issues: [],
+    }),
     MCP_HOOK_MODES: ['none', 'safe'],
     MCP_SCAFFOLD_METADATA_PATH: '.pluxx/mcp.json',
     MCP_SKILL_GROUPINGS: ['workflow', 'tool'],

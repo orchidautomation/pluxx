@@ -51,6 +51,23 @@ interface SchemaField {
   description?: string
 }
 
+export type McpQualityLevel = 'warning' | 'info'
+
+export interface McpQualityIssue {
+  level: McpQualityLevel
+  code: string
+  title: string
+  detail: string
+  fix: string
+}
+
+export interface McpQualityReport {
+  ok: boolean
+  warnings: number
+  infos: number
+  issues: McpQualityIssue[]
+}
+
 export const MCP_SKILL_GROUPINGS = ['workflow', 'tool'] as const
 export type McpSkillGrouping = typeof MCP_SKILL_GROUPINGS[number]
 
@@ -102,6 +119,18 @@ interface MixedMarkdownContent {
 
 const WORKFLOW_SKILL_DEFINITIONS = [
   {
+    key: 'setup-and-auth',
+    title: 'Setup and Auth',
+    description: 'Confirm access, auth state, and session readiness before running operational workflows.',
+    match: ['connect', 'connected', 'connection', 'status', 'auth', 'session', 'cookie', 'workspace'],
+  },
+  {
+    key: 'workflow-design',
+    title: 'Workflow Design',
+    description: 'Define strategy, prompts, targeting, and workflow shape before building tables or running enrichments.',
+    match: ['workflow', 'design', 'play', 'prompt', 'icp', 'persona', 'audience', 'segment', 'brainstorm', 'outreach'],
+  },
+  {
     key: 'account-research',
     title: 'Account Research',
     description: 'Research companies, organizations, and account context before taking action.',
@@ -111,7 +140,7 @@ const WORKFLOW_SKILL_DEFINITIONS = [
     key: 'contact-discovery',
     title: 'Contact Discovery',
     description: 'Find people, contacts, and buyer-side context at the right accounts.',
-    match: ['people', 'person', 'contact', 'buyer', 'prospect', 'lead'],
+    match: ['people', 'person', 'contact', 'prospect', 'decision maker', 'org chart'],
   },
   {
     key: 'hiring-signals',
@@ -126,24 +155,42 @@ const WORKFLOW_SKILL_DEFINITIONS = [
     match: ['technology', 'technologies', 'tech', 'stack', 'tooling', 'software'],
   },
   {
-    key: 'list-management',
-    title: 'List Management',
-    description: 'Manage lists, segments, and saved collections of accounts or contacts.',
-    match: ['list', 'lists', 'segment', 'segments', 'audience', 'audiences', 'collection'],
+    key: 'table-operations',
+    title: 'Table Operations',
+    description: 'Build, inspect, run, document, and export tables, rows, and enrichment workflows.',
+    match: ['table', 'tables', 'schema', 'webhook', 'row', 'rows', 'export', 'audit', 'document', 'enrich', 'view'],
   },
   {
-    key: 'enrichment',
-    title: 'Enrichment',
-    description: 'Enrich known records with additional context before deciding on next steps.',
-    match: ['enrich', 'enrichment', 'append', 'profile'],
+    key: 'provider-research',
+    title: 'Provider Research',
+    description: 'Compare providers, integrations, and capability tradeoffs before choosing a workflow.',
+    match: ['provider', 'providers', 'integration', 'integrations', 'byoa', 'waterfall', 'compare', 'comparison'],
+  },
+  {
+    key: 'account-and-usage',
+    title: 'Account and Usage',
+    description: 'Check pricing, usage, limits, credits, and upgrade context for the current account.',
+    match: ['usage', 'tier', 'plan', 'pricing', 'price', 'cost', 'credits', 'checkout', 'upgrade', 'billing'],
   },
   {
     key: 'general-research',
     title: 'General Research',
-    description: 'Handle broad search and query workflows when there is not a more specific skill match.',
+    description: 'Handle broad search and query workflows when there is not a more specific product surface match.',
     match: ['search', 'query', 'lookup', 'look up', 'discover', 'find'],
   },
 ] as const
+
+const GENERIC_TOOL_NAMES = new Set([
+  'run',
+  'execute',
+  'query',
+  'invoke',
+  'action',
+  'tool',
+  'command',
+  'workflow',
+  'task',
+])
 
 export function parseMcpSourceInput(input: string, transportOverride?: string): McpServer {
   const value = input.trim()
@@ -259,7 +306,7 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
       buildInstructionsContent({
         displayName,
         description,
-        serverName,
+        source: options.source,
         instructions: options.introspection.instructions,
         skills: plannedSkills,
         tools: options.introspection.tools,
@@ -424,7 +471,7 @@ export function hasMeaningfulCustomContent(content: string | undefined): boolean
 }
 
 export function buildSkillContent(skill: PlannedSkill): string {
-  const description = truncate(skill.description, 220)
+  const description = buildSkillFrontmatterDescription(skill)
   const exampleRequests = skill.tools
     .map((tool) => buildToolExampleRequest(tool))
     .filter((example, index, values) => values.indexOf(example) === index)
@@ -486,17 +533,18 @@ export function buildSkillContent(skill: PlannedSkill): string {
 export function buildInstructionsContent(input: {
   displayName: string
   description: string
-  serverName: string
+  source: McpServer
   instructions?: string
   skills: PlannedSkill[]
   tools: IntrospectedMcpTool[]
 }): string {
+  const accessLine = describePluginAccess(input.displayName, input.source)
   const lines = [
     `# ${input.displayName}`,
     '',
     input.description,
     '',
-    `This plugin connects to the \`${input.serverName}\` MCP server.`,
+    accessLine,
     '',
     '## Available Tools',
     '',
@@ -854,6 +902,88 @@ export function planSkillScaffolds(
   return allocateSkillDirectoryNames(plannedSkills)
 }
 
+export function analyzeMcpQuality(
+  tools: IntrospectedMcpTool[],
+  plannedSkills: PlannedSkill[] = planSkillScaffolds(tools, 'workflow'),
+): McpQualityReport {
+  const issues: McpQualityIssue[] = []
+
+  const genericNameTools = tools.filter((tool) => {
+    const normalized = toKebabCase(tool.name)
+    return GENERIC_TOOL_NAMES.has(normalized)
+  })
+
+  if (genericNameTools.length > 0) {
+    issues.push({
+      level: 'warning',
+      code: 'generic-tool-names',
+      title: 'Generic MCP tool names',
+      detail: `${genericNameTools.length} tool(s) use generic names: ${genericNameTools.slice(0, 5).map((tool) => tool.name).join(', ')}`,
+      fix: 'Add sharper tool names or use Agent Mode with docs/website context to recover better taxonomy.',
+    })
+  }
+
+  const missingDescriptionTools = tools.filter((tool) => cleanSingleLineText(tool.description).length < 12)
+  if (missingDescriptionTools.length > 0) {
+    issues.push({
+      level: 'warning',
+      code: 'missing-tool-descriptions',
+      title: 'Weak MCP tool descriptions',
+      detail: `${missingDescriptionTools.length} tool(s) have missing or too-short descriptions.`,
+      fix: 'Add clearer tool descriptions, or expect the scaffold to need more agent refinement.',
+    })
+  }
+
+  const verboseDescriptionTools = tools.filter((tool) => {
+    const description = tool.description ?? ''
+    return description.includes('\n') || /returns:|args:|usage:|example:/i.test(description) || description.length > 260
+  })
+  if (verboseDescriptionTools.length > 0) {
+    issues.push({
+      level: 'info',
+      code: 'verbose-tool-descriptions',
+      title: 'Tool descriptions look documentation-shaped',
+      detail: `${verboseDescriptionTools.length} tool(s) include long or multiline help text that may need agent cleanup in skills and instructions.`,
+      fix: 'Use autopilot or rerun agent refinement with docs/website context so the output becomes more product-shaped.',
+    })
+  }
+
+  const weakSchemaTools = tools.filter((tool) => {
+    const fields = getTopLevelSchemaFields(tool.inputSchema)
+    return fields.length >= 2 && fields.every((field) => !field.description)
+  })
+  if (weakSchemaTools.length > 0) {
+    issues.push({
+      level: 'info',
+      code: 'weak-input-schemas',
+      title: 'Input schemas lack field descriptions',
+      detail: `${weakSchemaTools.length} tool(s) define multi-field input schemas without per-field descriptions.`,
+      fix: 'Add input field descriptions or provide docs/context so agents can infer better examples and guidance.',
+    })
+  }
+
+  const workflowFallbackSkills = plannedSkills.filter((skill) => skill.tools.length === 1 && toKebabCase(skill.tools[0]?.name ?? '') === skill.dirName)
+  if (workflowFallbackSkills.length >= 2) {
+    issues.push({
+      level: 'warning',
+      code: 'workflow-fallback-skills',
+      title: 'Workflow grouping fell back to tool-level buckets',
+      detail: `${workflowFallbackSkills.length} generated skill(s) are still direct tool wrappers, which usually means the MCP metadata is too weak for clean workflow grouping.`,
+      fix: 'Use docs/website context, add pluxx.agent.md hints, or improve the MCP tool metadata before publishing.',
+    })
+  }
+
+  const warnings = issues.filter((issue) => issue.level === 'warning').length
+  const infos = issues.filter((issue) => issue.level === 'info').length
+
+  return {
+    ok: warnings === 0,
+    warnings,
+    infos,
+    issues,
+  }
+}
+
 function allocateSkillDirectoryNames(skills: PlannedSkill[]): PlannedSkill[] {
   const used = new Set<string>()
 
@@ -904,6 +1034,20 @@ function classifyToolWorkflow(tool: IntrospectedMcpTool): string | null {
   }
 
   return bestMatch
+}
+
+function buildSkillFrontmatterDescription(skill: PlannedSkill): string {
+  if (skill.tools.length === 1) {
+    const tool = skill.tools[0]
+    const cleanedDescription = cleanSingleLineText(tool.description)
+    const sentence = firstSentenceOf(cleanedDescription)
+
+    if (sentence) {
+      return truncate(sentence, 220)
+    }
+  }
+
+  return truncate(cleanSingleLineText(skill.description), 220)
 }
 
 function getTopLevelSchemaFields(inputSchema?: Record<string, unknown>): SchemaField[] {
@@ -1004,6 +1148,30 @@ function formatSchemaType(value: unknown): string {
   return 'unknown'
 }
 
+function describePluginAccess(displayName: string, source: McpServer): string {
+  if (source.transport === 'stdio') {
+    const command = [source.command, ...(source.args ?? [])].join(' ')
+    const authLine = describeAuthRequirement(source)
+    return `${displayName} connects through a local stdio MCP command (\`${command}\`).${authLine ? ` ${authLine}` : ''}`
+  }
+
+  const transportLabel = source.transport === 'sse' ? 'legacy SSE' : 'HTTP'
+  const authLine = describeAuthRequirement(source)
+  return `${displayName} connects to its MCP over ${transportLabel}.${authLine ? ` ${authLine}` : ''}`
+}
+
+function describeAuthRequirement(source: McpServer): string {
+  if (!source.auth || source.auth.type === 'none') {
+    return ''
+  }
+
+  if (source.auth.type === 'header') {
+    return `Export \`${source.auth.envVar}\` so Pluxx can send ${source.auth.headerName ?? 'the required auth header'}.`
+  }
+
+  return `Export \`${source.auth.envVar}\` before using authenticated tools.`
+}
+
 function humanizeName(value: string): string {
   return normalizeIdentifier(value)
     .split(/\s+/)
@@ -1031,6 +1199,22 @@ function normalizeIdentifier(value: string): string {
 function truncate(value: string, maxLength: number): string {
   if (value.length <= maxLength) return value
   return `${value.slice(0, maxLength - 1).trimEnd()}…`
+}
+
+function cleanSingleLineText(value: string | undefined): string {
+  if (!value) return ''
+
+  return value
+    .replace(/\s+/g, ' ')
+    .replace(/\s*[-*]\s+/g, ' ')
+    .trim()
+}
+
+function firstSentenceOf(value: string): string {
+  if (!value) return ''
+
+  const match = value.match(/^(.+?[.?!])(?:\s|$)/)
+  return (match?.[1] ?? value).trim()
 }
 
 function splitCommandString(command: string): string[] {

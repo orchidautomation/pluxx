@@ -472,6 +472,8 @@ function buildAgentContext(
   lines.push('')
   lines.push('- Each skill should represent a real user workflow or product surface.')
   lines.push('- Setup, admin, account, and runtime workflows should be grouped intentionally.')
+  lines.push('- Prefer branded product language in user-facing content; avoid exposing raw MCP server identifiers unless they are operationally required.')
+  lines.push('- Avoid tiny singleton skills unless the surface is genuinely standalone.')
   lines.push('- Examples should be concrete and specific, not generic placeholders.')
   lines.push('- The wording should match the MCP product narrative, not just raw tool names.')
   lines.push('')
@@ -687,11 +689,11 @@ function buildAgentPrompt(
   ]
 
   if (kind === 'taxonomy') {
-    return `${sharedIntro.join('\n')}Your job:\n1. Infer the MCP's real product surfaces and workflows.\n2. Merge, split, or rename generated skills if needed.\n3. Rewrite the generated blocks in the skill files so each skill represents a real user workflow.\n4. Keep setup/admin/account surfaces separate from runtime workflows when appropriate.\n${buildPromptOverrideBlock(kind, input.overrides)}\nSuccess criteria:\n- each skill represents a real user workflow or product surface\n- setup/admin/account tools are grouped intentionally\n- examples are concrete and realistic\n`
+    return `${sharedIntro.join('\n')}Your job:\n1. Infer the MCP's real product surfaces and workflows.\n2. Merge, split, or rename generated skills if needed.\n3. Rewrite the generated blocks in the skill files so each skill represents a real user workflow.\n4. Keep setup/admin/account surfaces separate from runtime workflows when appropriate.\n5. Eliminate misleading labels such as contact or people discovery when the tools do not actually perform direct lookup.\n6. Avoid tiny singleton skills unless the surface is genuinely standalone.\n${buildPromptOverrideBlock(kind, input.overrides)}\nSuccess criteria:\n- each skill represents a real user workflow or product surface\n- setup/admin/account tools are grouped intentionally\n- examples are concrete and realistic\n- taxonomy uses product-shaped names rather than lexical buckets\n`
   }
 
   if (kind === 'instructions') {
-    return `${sharedIntro.join('\n')}Your job:\n1. Rewrite only the generated block in \`INSTRUCTIONS.md\`.\n2. Explain what the plugin is for, how the skills should be used, and any setup/auth caveats the agent must respect.\n3. Keep the wording aligned with the MCP's actual product narrative.\n${buildPromptOverrideBlock(kind, input.overrides)}\nSuccess criteria:\n- instructions are concise, actionable, and product-shaped\n- auth/setup guidance is explicit when relevant\n- the file remains safe for future \`pluxx sync --from-mcp\`\n`
+    return `${sharedIntro.join('\n')}Your job:\n1. Rewrite only the generated block in \`INSTRUCTIONS.md\`.\n2. Explain what the plugin is for, how the skills should be used, and any setup/auth caveats the agent must respect.\n3. Keep the wording aligned with the MCP's actual product narrative.\n4. Prefer the branded product name in user-facing copy; do not lead with internal MCP server identifiers.\n${buildPromptOverrideBlock(kind, input.overrides)}\nSuccess criteria:\n- instructions are concise, actionable, and product-shaped\n- auth/setup guidance is explicit when relevant\n- raw MCP server identifiers are omitted unless operationally necessary\n- the file remains safe for future \`pluxx sync --from-mcp\`\n`
   }
 
   return `${sharedIntro.join('\n')}Your job:\n1. Review the current scaffold critically.\n2. Call out weak skill groupings, missing setup guidance, vague examples, or product/category mismatches.\n3. Propose only the highest-value changes needed to make the scaffold useful.\n${buildPromptOverrideBlock(kind, input.overrides)}\nSuccess criteria:\n- findings are concrete and tied to files\n- suggested changes improve user-facing plugin quality\n- recommendations stay inside Pluxx-managed boundaries\n`
