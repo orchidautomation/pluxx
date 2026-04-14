@@ -36,6 +36,7 @@ export class McpIntrospectionError extends Error {
     readonly context?: {
       responseHeaders?: Record<string, string>
       responseBodySnippet?: string
+      responseUrl?: string
     },
   ) {
     super(message)
@@ -183,6 +184,8 @@ function createHttpClient(server: Exclude<McpServer, { transport: 'stdio' }>): M
         }),
       })
 
+      await throwIfLikelyAuthRedirect(response, 'MCP HTTP request was redirected to an authentication page.')
+
       if (!response.ok) {
         const context = await extractHttpErrorContext(response)
         throw new McpIntrospectionError(
@@ -207,6 +210,8 @@ function createHttpClient(server: Exclude<McpServer, { transport: 'stdio' }>): M
           ...(params ? { params } : {}),
         }),
       })
+
+      await throwIfLikelyAuthRedirect(response, 'MCP HTTP notification was redirected to an authentication page.')
 
       if (!response.ok && response.status !== 202) {
         const context = await extractHttpErrorContext(response)
@@ -266,6 +271,8 @@ async function createSseClient(server: Extract<McpServer, { transport: 'sse' }>)
       headers: buildSseStreamHeaders(server.auth, sessionId),
       signal: abortController.signal,
     })
+
+    await throwIfLikelyAuthRedirect(response, 'MCP SSE stream was redirected to an authentication page.')
 
     if (!response.ok) {
       const context = await extractHttpErrorContext(response)
@@ -461,6 +468,8 @@ async function createSseClient(server: Extract<McpServer, { transport: 'sse' }>)
         throw new McpIntrospectionError(`MCP SSE request failed: ${error instanceof Error ? error.message : String(error)}`)
       }
 
+      await throwIfLikelyAuthRedirect(response, 'MCP SSE request was redirected to an authentication page.')
+
       if (!response.ok && response.status !== 202) {
         const entry = pending.get(requestId)
         if (entry) {
@@ -501,6 +510,8 @@ async function createSseClient(server: Extract<McpServer, { transport: 'sse' }>)
           ...(params ? { params } : {}),
         }),
       })
+
+      await throwIfLikelyAuthRedirect(response, 'MCP SSE notification was redirected to an authentication page.')
 
       if (!response.ok && response.status !== 202) {
         const context = await extractHttpErrorContext(response)
@@ -693,6 +704,7 @@ function resolveAuthHeader(auth: McpAuth | undefined): { name: string; value: st
 async function extractHttpErrorContext(response: Response): Promise<{
   responseHeaders?: Record<string, string>
   responseBodySnippet?: string
+  responseUrl?: string
 }> {
   const responseHeaders: Record<string, string> = {}
   for (const headerName of ['www-authenticate', 'location', 'content-type']) {
@@ -715,14 +727,43 @@ async function extractHttpErrorContext(response: Response): Promise<{
     // Body extraction is best effort only.
   }
 
-  if (Object.keys(responseHeaders).length === 0 && !responseBodySnippet) {
+  const responseUrl = response.redirected && response.url ? response.url : undefined
+
+  if (Object.keys(responseHeaders).length === 0 && !responseBodySnippet && !responseUrl) {
     return {}
   }
 
   return {
     ...(Object.keys(responseHeaders).length > 0 ? { responseHeaders } : {}),
     ...(responseBodySnippet ? { responseBodySnippet } : {}),
+    ...(responseUrl ? { responseUrl } : {}),
   }
+}
+
+function isLikelyAuthRedirectResponse(response: Response): boolean {
+  if (!response.redirected || !response.url) {
+    return false
+  }
+
+  const contentType = (response.headers.get('content-type') ?? '').toLowerCase()
+  const finalUrl = response.url.toLowerCase()
+
+  return (contentType.includes('text/html') || contentType.includes('text/plain'))
+    && (
+      finalUrl.includes('oauth')
+      || finalUrl.includes('authorize')
+      || finalUrl.includes('login')
+      || finalUrl.includes('signin')
+    )
+}
+
+async function throwIfLikelyAuthRedirect(response: Response, message: string): Promise<void> {
+  if (!isLikelyAuthRedirectResponse(response)) {
+    return
+  }
+
+  const context = await extractHttpErrorContext(response)
+  throw new McpIntrospectionError(message, 401, context)
 }
 
 async function parseHttpEnvelope<T>(

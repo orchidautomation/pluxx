@@ -288,18 +288,29 @@ describe('autopilot command', () => {
 
   it('prints explicit auth guidance for OAuth-first remote MCPs', async () => {
     const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-autopilot-auth-'))
+    let port = 0
     const server = Bun.serve({
       port: 0,
-      fetch() {
-        return new Response('OAuth login required', {
-          status: 401,
+      fetch(request) {
+        const url = new URL(request.url)
+        if (url.pathname === '/mcp') {
+          return new Response(null, {
+            status: 302,
+            headers: {
+              location: `http://127.0.0.1:${port}/oauth/login`,
+            },
+          })
+        }
+
+        return new Response('<html><body>OAuth login required</body></html>', {
+          status: 200,
           headers: {
-            'content-type': 'text/plain',
-            'www-authenticate': 'Bearer authorization_uri="https://auth.example.com/oauth/authorize"',
+            'content-type': 'text/html',
           },
         })
       },
     })
+    port = server.port
 
     try {
       const proc = spawnCli([

@@ -468,6 +468,7 @@ function isLikelyOAuthFirstError(error: McpIntrospectionError): boolean {
   const wwwAuthenticate = error.context?.responseHeaders?.['www-authenticate']?.toLowerCase() ?? ''
   const location = error.context?.responseHeaders?.location?.toLowerCase() ?? ''
   const body = error.context?.responseBodySnippet?.toLowerCase() ?? ''
+  const responseUrl = error.context?.responseUrl?.toLowerCase() ?? ''
 
   return message.includes('oauth')
     || wwwAuthenticate.includes('oauth')
@@ -475,6 +476,9 @@ function isLikelyOAuthFirstError(error: McpIntrospectionError): boolean {
     || location.includes('oauth')
     || location.includes('authorize')
     || location.includes('login')
+    || responseUrl.includes('oauth')
+    || responseUrl.includes('authorize')
+    || responseUrl.includes('login')
     || body.includes('oauth')
     || body.includes('authorize')
 }
@@ -1303,6 +1307,11 @@ async function runAutopilot() {
   const review = args.includes('--review')
   const verify = !args.includes('--no-verify')
   const verboseRunner = args.includes('--verbose-runner')
+  const interactive = !runtime.jsonOutput && runtime.isInteractive && !initOptions.assumeDefaults
+  let authEnv = initOptions.authEnv
+  let authType = initOptions.authType
+  let authHeader = initOptions.authHeader
+  let authTemplate = initOptions.authTemplate
 
   if (!initOptions.source) {
     console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--auth-env ENV] [--auth-type bearer|header] [--auth-header NAME] [--auth-template TEMPLATE] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
@@ -1322,7 +1331,12 @@ async function runAutopilot() {
     let source = parseMcpSourceInput(rawSource, initOptions.transport)
     const configuredRemoteAuth = source.transport === 'stdio'
       ? undefined
-      : buildRemoteAuthConfig(initOptions)
+      : buildRemoteAuthConfig({
+          authEnv,
+          authType,
+          authHeader,
+          authTemplate,
+        })
 
     if (configuredRemoteAuth && !source.auth) {
       source = {
@@ -1340,13 +1354,37 @@ async function runAutopilot() {
     } catch (error) {
       if (source.transport !== 'stdio' && isAuthRequiredError(error)) {
         connectSpinner?.stop('Server requires authentication')
-        if (!initOptions.authEnv) {
+        authEnv = authEnv ?? (interactive
+          ? await clackText('Auth env var for this MCP server')
+          : '')
+        if (!authEnv) {
           throw new Error(formatAuthRequiredMessage('autopilot', error))
+        }
+
+        if (interactive && !authType) {
+          authType = await clackSelect<'bearer' | 'header'>('Auth type', [
+            { value: 'bearer', label: 'bearer', hint: 'Authorization: Bearer <token>' },
+            { value: 'header', label: 'header', hint: 'Custom header such as X-API-Key' },
+          ], 'bearer')
+        }
+
+        if (resolveRemoteAuthType({ authType, authHeader }) === 'header') {
+          if (interactive && !authHeader) {
+            authHeader = await clackText('Auth header name', 'X-API-Key')
+          }
+          if (interactive && !authTemplate) {
+            authTemplate = await clackText('Auth header template', '${value}')
+          }
         }
 
         source = {
           ...source,
-          auth: buildRemoteAuthConfig(initOptions),
+          auth: buildRemoteAuthConfig({
+            authEnv,
+            authType,
+            authHeader,
+            authTemplate,
+          }),
         }
         connectSpinner?.start('Autopilot 1/4 · Reconnecting with auth...')
         try {
@@ -1368,10 +1406,14 @@ ${formatAuthRequiredMessage('autopilot', retryError)}`)
       && source.env
       && Object.keys(source.env).length > 0
     const generatedAuthEnv = source.transport === 'stdio' && !stdioHasEnv
-      ? initOptions.authEnv ?? undefined
-      : initOptions.authEnv
+      ? authEnv ?? undefined
+      : authEnv
 
-    source = applyGeneratedAuthEnv(source, generatedAuthEnv, initOptions)
+    source = applyGeneratedAuthEnv(source, generatedAuthEnv, {
+      authType,
+      authHeader,
+      authTemplate,
+    })
 
     const defaultPluginName = initOptions.name ? toKebabCase(initOptions.name) : derivePluginName(introspection, source)
     const pluginName = toKebabCase(initOptions.name ?? defaultPluginName)
