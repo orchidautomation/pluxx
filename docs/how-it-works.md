@@ -23,6 +23,7 @@ The product now has two intentional layers:
 - `Agent`: prompt packs and context packs for Claude Code / Codex to semantically refine the scaffold
 
 See [Agent Mode](./agent-mode.md) for the semantic-authoring layer.
+See [Architecture](./architecture.md) for the system view and [Customer Journey](./customer-journey.md) for the end-to-end user path.
 
 Runtime today: Bun. Use `bunx pluxx ...` or install the npm package on machines that already have Bun available.
 

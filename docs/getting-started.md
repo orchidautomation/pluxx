@@ -10,6 +10,15 @@ This walkthrough covers:
 - sync later when the MCP changes
 - run the same checks in CI
 
+Related docs:
+
+- [How it works](./how-it-works.md)
+- [Architecture](./architecture.md)
+- [Customer journey](./customer-journey.md)
+- [One-shot autopilot spec](./autopilot-spec.md)
+- [Homepage messaging](./homepage-messaging.md)
+- [PlayKit case study](./playkit-case-study.md)
+
 ## 1. Bring An MCP Server
 
 Pluxx accepts three MCP source shapes today:

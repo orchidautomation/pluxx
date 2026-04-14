@@ -1,5 +1,20 @@
 import type { HookEntry, TargetPlatform } from '../schema'
 
+const MATCHER_PASSTHROUGH_PLATFORMS = new Set<TargetPlatform>([
+  'claude-code',
+  'cursor',
+  'github-copilot',
+  'openhands',
+])
+
+const FAIL_CLOSED_PASSTHROUGH_PLATFORMS = new Set<TargetPlatform>([
+  'cursor',
+])
+
+const LOOP_LIMIT_PASSTHROUGH_PLATFORMS = new Set<TargetPlatform>([
+  'cursor',
+])
+
 export function warnDroppedHookFields(
   platform: TargetPlatform,
   event: string,
@@ -16,19 +31,19 @@ export function warnDroppedHookFields(
     )
   }
 
-  if (hasMatcher) {
+  if (hasMatcher && !MATCHER_PASSTHROUGH_PLATFORMS.has(platform)) {
     console.warn(
       `[pluxx] ${platform} generator dropped unsupported hook field "matcher" for event "${event}".`
     )
   }
 
-  if (hasFailClosed) {
+  if (hasFailClosed && !FAIL_CLOSED_PASSTHROUGH_PLATFORMS.has(platform)) {
     console.warn(
       `[pluxx] ${platform} generator dropped unsupported hook field "failClosed" for event "${event}".`
     )
   }
 
-  if (hasLoopLimit) {
+  if (hasLoopLimit && !LOOP_LIMIT_PASSTHROUGH_PLATFORMS.has(platform)) {
     console.warn(
       `[pluxx] ${platform} generator dropped unsupported hook field "loop_limit" for event "${event}".`
     )

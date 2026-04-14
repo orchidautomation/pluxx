@@ -84,6 +84,7 @@ beforeAll(async () => {
   await Bun.write(resolve(TEST_DIR, 'agents/escalation.md'), '# Escalation\n')
   mkdirSync(resolve(TEST_DIR, 'scripts/'), { recursive: true })
   await Bun.write(resolve(TEST_DIR, 'scripts/validate.sh'), '#!/usr/bin/env bash\n')
+  await Bun.write(resolve(TEST_DIR, 'scripts/confirm-mutation.sh'), '#!/usr/bin/env bash\n')
   mkdirSync(resolve(TEST_DIR, 'assets/'), { recursive: true })
   await Bun.write(resolve(TEST_DIR, 'assets/icon.svg'), '<svg />\n')
   await Bun.write(resolve(TEST_DIR, 'INSTRUCTIONS.md'), 'Use test-plugin consistently.\n')
@@ -242,6 +243,60 @@ describe('build', () => {
     expect(codexManifest.skills).toBe('./skills/')
     expect(codexManifest.mcpServers).toBe('./.mcp.json')
     expect(codexManifest.hooks).toBeUndefined()
+  })
+
+  it('preserves Linear-style preToolUse matchers in Claude Code and Cursor outputs', async () => {
+    const linearMatchers = [
+      'mcp__linear-mcp__create_attachment',
+      'mcp__linear-mcp__create_document',
+      'mcp__linear-mcp__create_issue_label',
+      'mcp__linear-mcp__delete_attachment',
+      'mcp__linear-mcp__delete_comment',
+      'mcp__linear-mcp__delete_status_update',
+      'mcp__linear-mcp__extract_images',
+    ] as const
+
+    const matcherConfig: PluginConfig = {
+      ...testConfig,
+      name: 'linear-matcher-plugin',
+      hooks: {
+        preToolUse: linearMatchers.map(matcher => ({
+          command: '${PLUGIN_ROOT}/scripts/confirm-mutation.sh',
+          matcher,
+        })),
+      },
+      targets: ['claude-code', 'cursor'],
+      outDir: './matcher-dist',
+    }
+
+    await build(matcherConfig, TEST_DIR)
+
+    const claudeHooks = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'matcher-dist/claude-code/hooks/hooks.json'), 'utf-8')
+    )
+    const cursorHooks = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'matcher-dist/cursor/hooks/hooks.json'), 'utf-8')
+    )
+
+    expect(claudeHooks.hooks.PreToolUse).toHaveLength(linearMatchers.length)
+    expect(
+      claudeHooks.hooks.PreToolUse.map((group: { matcher?: string }) => group.matcher)
+    ).toEqual([...linearMatchers])
+    expect(
+      claudeHooks.hooks.PreToolUse.every((group: { hooks: Array<{ command: string }> }) =>
+        group.hooks[0]?.command.includes('${CLAUDE_PLUGIN_ROOT}/scripts/confirm-mutation.sh')
+      )
+    ).toBe(true)
+
+    expect(cursorHooks.hooks.preToolUse).toHaveLength(linearMatchers.length)
+    expect(
+      cursorHooks.hooks.preToolUse.map((entry: { matcher?: string }) => entry.matcher)
+    ).toEqual([...linearMatchers])
+    expect(
+      cursorHooks.hooks.preToolUse.every((entry: { command: string }) =>
+        entry.command === './scripts/confirm-mutation.sh'
+      )
+    ).toBe(true)
   })
 
   it('copies skills to all targets', async () => {

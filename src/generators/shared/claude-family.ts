@@ -134,6 +134,7 @@ async function writeHooks(
     if (commandEntries.length === 0) continue
 
     hooks[mappedEvent] = commandEntries.map(entry => ({
+      ...(entry.matcher !== undefined ? { matcher: entry.matcher } : {}),
       hooks: [{
         type: 'command',
         command: entry.command!.replace('${PLUGIN_ROOT}', `\${${options.pluginRootVar}}`),

@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>pluxx — Build AI agent plugins once. Ship them everywhere.</title>
-<meta name="description" content="One config generates native plugin packages for Claude Code, Cursor, Codex, OpenCode, GitHub Copilot, and more.">
+<title>pluxx — Bring your MCP. Get plugins everywhere.</title>
+<meta name="description" content="Pluxx turns a raw MCP into a maintainable plugin project for Claude Code, Codex, Cursor, and OpenCode.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -164,20 +164,20 @@ footer{border-top:1px solid var(--border);padding:64px 0;text-align:center}
 <section class="hero">
   <div class="hero-glow"></div>
   <div class="container">
-    <div class="badge"><span class="badge-dot"></span> Open source &middot; MIT licensed</div>
-    <h1>Build AI agent plugins once.<br><em>Ship them everywhere.</em></h1>
-    <p class="hero-sub">One config generates native plugin packages for Claude Code, Cursor, Codex, and OpenCode &mdash; with 7 more platforms in beta. Stop maintaining separate copies of the same plugin.</p>
+    <div class="badge"><span class="badge-dot"></span> Open source core &middot; agent-native workflow</div>
+    <h1>Bring your MCP.<br><em>Get plugins everywhere.</em></h1>
+    <p class="hero-sub">Pluxx turns a raw MCP into a maintainable plugin project for Claude Code, Codex, Cursor, and OpenCode. Then Codex or Claude can refine the scaffold safely without breaking the structure.</p>
     <div class="hero-actions">
-      <div class="cmd mono" onclick="navigator.clipboard.writeText('bunx pluxx init')">
+      <div class="cmd mono" onclick="navigator.clipboard.writeText('bunx pluxx init --from-mcp https://example.com/mcp')">
         <span class="prompt">$</span>
-        <span>bunx pluxx init</span>
+        <span>bunx pluxx init --from-mcp https://example.com/mcp</span>
       </div>
       <a href="https://github.com/orchidautomation/pluxx" target="_blank" class="gh-link">
         <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
         View on GitHub
       </a>
     </div>
-    <p class="mono" style="margin-top:14px;color:var(--text-tertiary);font-size:0.9rem">Bun runtime required today.</p>
+    <p class="mono" style="margin-top:14px;color:var(--text-tertiary);font-size:0.9rem">Bun runtime required today. Core-four path is the prime-time launch surface.</p>
   </div>
 </section>
 
@@ -190,20 +190,20 @@ footer{border-top:1px solid var(--border);padding:64px 0;text-align:center}
         <span class="terminal-title mono">pluxx</span>
         <span style="width:30px"></span>
       </div>
-      <pre class="mono"><span class="a">$</span> <span class="w">bunx pluxx build</span>
+      <pre class="mono"><span class="a">$</span> <span class="w">bunx pluxx init --from-mcp https://mcp.playkit.sh/mcp --yes</span>
 
-<span class="d">Loading config...</span>
-Building for: <span class="w">claude-code</span>, <span class="w">cursor</span>, <span class="w">codex</span>, <span class="w">opencode</span>, <span class="w">github-copilot</span>, <span class="w">openhands</span>, <span class="w">warp</span>
+<span class="d">Introspecting MCP...</span>
+Discovered <span class="w">24 tools</span> and drafted <span class="w">8 workflow skills</span>
 
-  <span class="y">dist/claude-code/</span>    <span class="d">.claude-plugin/plugin.json, .mcp.json, CLAUDE.md</span>
-  <span class="y">dist/cursor/</span>         <span class="d">.cursor-plugin/plugin.json, mcp.json, hooks.json</span>
-  <span class="y">dist/codex/</span>          <span class="d">.codex-plugin/plugin.json, interface metadata</span>
-  <span class="y">dist/opencode/</span>       <span class="d">package.json, index.ts wrapper</span>
-  <span class="y">dist/github-copilot/</span> <span class="d">plugin.json, .mcp.json, skills</span>
-  <span class="y">dist/openhands/</span>      <span class="d">.plugin/plugin.json, skills</span>
-  <span class="y">dist/warp/</span>           <span class="d">AGENTS.md, mcp.json, skills</span>
+  <span class="y">pluxx.config.ts</span>     <span class="d">MCP source, targets, auth, hooks</span>
+  <span class="y">INSTRUCTIONS.md</span>      <span class="d">shared generated instructions + custom notes</span>
+  <span class="y">skills/</span>               <span class="d">workflow skill packs with examples</span>
+  <span class="y">dist/claude-code/</span>    <span class="d">installable Claude Code plugin bundle</span>
+  <span class="y">dist/cursor/</span>         <span class="d">installable Cursor plugin bundle</span>
+  <span class="y">dist/codex/</span>          <span class="d">installable Codex plugin bundle</span>
+  <span class="y">dist/opencode/</span>       <span class="d">installable OpenCode plugin bundle</span>
 
-<span class="g">Done! 60 files generated across 7 platforms.</span></pre>
+<span class="g">Ready for doctor, test, and agent refinement.</span></pre>
     </div>
   </div>
 </section>
@@ -239,16 +239,16 @@ Building for: <span class="w">claude-code</span>, <span class="w">cursor</span>,
 <section>
   <div class="container">
     <div class="section-header">
-      <h2>The plugin fragmentation problem</h2>
-      <p class="section-desc center">Every AI coding tool has its own plugin format. Building for all of them means maintaining separate manifests, configs, hooks, and rules.</p>
+      <h2>Your MCP is useful. Packaging it everywhere is not.</h2>
+      <p class="section-desc center">Every coding agent has its own plugin format, auth model, hooks surface, and instruction files. Without Pluxx, shipping one MCP across tools means maintaining separate plugin projects that drift over time.</p>
     </div>
     <div class="table-wrap">
       <table>
         <thead><tr><th></th><th>Claude Code</th><th>Cursor</th><th>Codex</th><th>OpenCode</th></tr></thead>
         <tbody>
           <tr><td style="font-weight:600">Manifest</td><td><code>.claude-plugin/</code></td><td><code>.cursor-plugin/</code></td><td><code>.codex-plugin/</code></td><td><code>package.json</code></td></tr>
-          <tr><td style="font-weight:600">MCP auth</td><td><code>headers: {}</code></td><td><code>headers: {}</code></td><td><code>bearer_token_env_var</code></td><td><code>env validation</code></td></tr>
-          <tr><td style="font-weight:600">Hooks</td><td><code>settings.json</code></td><td><code>hooks.json</code></td><td><code>hooks.json</code></td><td><code>JS events</code></td></tr>
+          <tr><td style="font-weight:600">MCP auth</td><td><code>headers: {}</code></td><td><code>headers: {}</code></td><td><code>bearer_token_env_var</code><br><code>env_http_headers</code></td><td><code>env validation</code></td></tr>
+          <tr><td style="font-weight:600">Hooks</td><td><code>hooks/hooks.json</code></td><td><code>hooks/hooks.json</code></td><td><code>.codex/hooks.json</code></td><td><code>JS events</code></td></tr>
           <tr><td style="font-weight:600">Rules</td><td><code>CLAUDE.md</code></td><td><code>.mdc + AGENTS.md</code></td><td><code>AGENTS.md</code></td><td><code>Config</code></td></tr>
           <tr><td style="font-weight:600">Brand</td><td><code>Basic</code></td><td><code>Basic</code></td><td><code>Rich</code></td><td><code>None</code></td></tr>
         </tbody>
@@ -261,8 +261,8 @@ Building for: <span class="w">claude-code</span>, <span class="w">cursor</span>,
 <section>
   <div class="container">
     <div class="section-header">
-      <h2>One config to rule them all</h2>
-      <p class="section-desc center">Define your plugin in a single TypeScript config. pluxx generates the correct output for every platform.</p>
+      <h2>One MCP in. One source project out.</h2>
+      <p class="section-desc center">Pluxx imports the MCP, generates the source project, validates it, and produces native plugin bundles for each target platform.</p>
     </div>
     <div class="codeblock mono" style="max-width:640px;margin:0 auto">
 <span class="cmt">// pluxx.config.ts</span>
@@ -276,7 +276,12 @@ Building for: <span class="w">claude-code</span>, <span class="w">cursor</span>,
   <span class="prop">mcp</span>: {
     <span class="str">'my-server'</span>: {
       <span class="prop">url</span>: <span class="str">'https://api.example.com/mcp'</span>,
-      <span class="prop">auth</span>: { <span class="prop">type</span>: <span class="str">'bearer'</span>, <span class="prop">envVar</span>: <span class="str">'API_KEY'</span> },
+      <span class="prop">auth</span>: {
+        <span class="prop">type</span>: <span class="str">'header'</span>,
+        <span class="prop">envVar</span>: <span class="str">'API_KEY'</span>,
+        <span class="prop">headerName</span>: <span class="str">'X-API-Key'</span>,
+        <span class="prop">headerTemplate</span>: <span class="str">'${value}'</span>,
+      },
     },
   },
 
@@ -295,23 +300,25 @@ Building for: <span class="w">claude-code</span>, <span class="w">cursor</span>,
   <div class="container">
     <div class="section-header">
       <h2>MCP auth translated automatically</h2>
-      <p class="section-desc center">Write your auth config once. pluxx translates it for each platform.</p>
+      <p class="section-desc center">Write auth once in the source project. Pluxx generates the correct transport shape for each platform.</p>
     </div>
     <div class="mcp-layout">
       <div>
         <p class="label-sm">You write</p>
         <div class="codeblock mono" style="font-size:12.5px;padding:20px">
 <span class="prop">auth</span>: {
-  <span class="prop">type</span>: <span class="str">'bearer'</span>,
+  <span class="prop">type</span>: <span class="str">'header'</span>,
   <span class="prop">envVar</span>: <span class="str">'API_KEY'</span>,
+  <span class="prop">headerName</span>: <span class="str">'X-API-Key'</span>,
+  <span class="prop">headerTemplate</span>: <span class="str">'${value}'</span>,
 }</div>
       </div>
       <div>
         <p class="label-sm">pluxx generates</p>
         <div class="mcp-outputs">
-          <div class="mcp-card mono"><div class="mcp-label">Claude Code</div><span class="d">"headers"</span>: {<br>&nbsp;&nbsp;<span class="str">"Authorization"</span>:<br>&nbsp;&nbsp;<span class="str">"Bearer ${API_KEY}"</span><br>}</div>
-          <div class="mcp-card mono"><div class="mcp-label">Codex</div><span class="str">"bearer_token_env_var"</span>:<br>&nbsp;&nbsp;<span class="str">"API_KEY"</span></div>
-          <div class="mcp-card mono"><div class="mcp-label">Cursor</div><span class="d">"headers"</span>: {<br>&nbsp;&nbsp;<span class="str">"Authorization"</span>:<br>&nbsp;&nbsp;<span class="str">"Bearer ${API_KEY}"</span><br>}</div>
+          <div class="mcp-card mono"><div class="mcp-label">Claude Code</div><span class="d">"headers"</span>: {<br>&nbsp;&nbsp;<span class="str">"X-API-Key"</span>:<br>&nbsp;&nbsp;<span class="str">"${API_KEY}"</span><br>}</div>
+          <div class="mcp-card mono"><div class="mcp-label">Codex</div><span class="d">"env_http_headers"</span>: {<br>&nbsp;&nbsp;<span class="str">"X-API-Key"</span>:<br>&nbsp;&nbsp;<span class="str">"API_KEY"</span><br>}</div>
+          <div class="mcp-card mono"><div class="mcp-label">Cursor</div><span class="d">"headers"</span>: {<br>&nbsp;&nbsp;<span class="str">"X-API-Key"</span>:<br>&nbsp;&nbsp;<span class="str">"${API_KEY}"</span><br>}</div>
           <div class="mcp-card mono"><div class="mcp-label">OpenCode</div><span class="kw">if</span> (!process.env.<span class="w">API_KEY</span>)<br>&nbsp;&nbsp;client.app.<span class="fn">log</span>({<br>&nbsp;&nbsp;&nbsp;&nbsp;<span class="prop">level</span>: <span class="str">"warn"</span> })</div>
         </div>
       </div>
@@ -324,28 +331,28 @@ Building for: <span class="w">claude-code</span>, <span class="w">cursor</span>,
   <div class="container">
     <div class="section-header">
       <h2>How it works</h2>
-      <p class="section-desc center">Four commands. Zero lock-in.</p>
+      <p class="section-desc center">Import, validate, refine, ship.</p>
     </div>
     <div class="steps">
       <div class="step">
         <div class="step-num mono">init</div>
-        <div class="step-title">Scaffold</div>
-        <div class="step-desc">Interactive setup creates your pluxx.config.ts with MCP, hooks, and targets.</div>
+        <div class="step-title">Import your MCP</div>
+        <div class="step-desc">Pluxx introspects a raw HTTP, SSE, or stdio MCP and scaffolds a valid plugin project.</div>
       </div>
       <div class="step">
-        <div class="step-num mono">write</div>
-        <div class="step-title">Add content</div>
-        <div class="step-desc">Write skills, configure MCP servers, add hooks and brand metadata.</div>
+        <div class="step-num mono">doctor</div>
+        <div class="step-title">Validate the baseline</div>
+        <div class="step-desc">Run doctor and test so you know the deterministic scaffold is healthy before any semantic refinement.</div>
+      </div>
+      <div class="step">
+        <div class="step-num mono">agent</div>
+        <div class="step-title">Refine with Codex or Claude</div>
+        <div class="step-desc">Agent Mode prepares context and prompts so the host coding agent improves only managed sections.</div>
       </div>
       <div class="step">
         <div class="step-num mono">build</div>
-        <div class="step-title">Generate</div>
-        <div class="step-desc">Native plugin packages for every target platform, generated in parallel.</div>
-      </div>
-      <div class="step">
-        <div class="step-num mono">install</div>
-        <div class="step-title">Ship</div>
-        <div class="step-desc">Symlink to local tools for testing. If hook commands are present, pluxx shows them and asks for trust confirmation (or use <span class="mono">--trust</span>).</div>
+        <div class="step-title">Ship and sync</div>
+        <div class="step-desc">Build platform bundles, install locally, and keep the source project updated later with <span class="mono">pluxx sync --from-mcp</span>.</div>
       </div>
     </div>
   </div>
@@ -356,23 +363,23 @@ Building for: <span class="w">claude-code</span>, <span class="w">cursor</span>,
   <div class="oss-glow"></div>
   <div class="container" style="position:relative">
     <div class="badge" style="margin-bottom:24px"><span class="badge-dot" style="background:var(--accent)"></span> MIT Licensed</div>
-    <h2>Open source. Free forever.</h2>
-    <p class="section-desc center" style="margin-bottom:32px">The CLI is free with zero restrictions. Build and test plugins across every platform locally.</p>
+    <h2>Open source core. Agent-native workflow.</h2>
+    <p class="section-desc center" style="margin-bottom:32px">Pluxx stays deterministic and open source. The host coding agent does the semantic refinement, which means the workflow gets better as Codex and Claude get better.</p>
     <a href="https://github.com/orchidautomation/pluxx" target="_blank" class="cmd mono" style="margin:0 auto">
       <svg width="15" height="15" viewBox="0 0 16 16" fill="var(--text)"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
       <span>Star on GitHub</span>
     </a>
-    <p class="oss-coming">Coming soon: pluxx.dev &mdash; publish to all marketplaces, analytics dashboard, team registries.</p>
+    <p class="oss-coming">Coming next: one-shot autopilot, project-level agent prompt overrides, and publish flows for shared plugin repos.</p>
   </div>
 </section>
 
 <!-- Footer -->
 <footer>
   <div class="container">
-    <h2 style="font-size:clamp(1.4rem,3vw,1.8rem);margin-bottom:20px">Start building in 30 seconds</h2>
-    <div class="cmd mono" style="margin:0 auto;justify-content:center;max-width:380px" onclick="navigator.clipboard.writeText('bunx pluxx init my-plugin')">
+    <h2 style="font-size:clamp(1.4rem,3vw,1.8rem);margin-bottom:20px">Bring your MCP in 30 seconds</h2>
+    <div class="cmd mono" style="margin:0 auto;justify-content:center;max-width:560px" onclick="navigator.clipboard.writeText('bunx pluxx init --from-mcp https://example.com/mcp')">
       <span class="prompt">$</span>
-      <span>bunx pluxx init my-plugin</span>
+      <span>bunx pluxx init --from-mcp https://example.com/mcp</span>
     </div>
     <div class="footer-links">
       <a href="https://github.com/orchidautomation/pluxx" target="_blank">GitHub</a>
