@@ -142,6 +142,9 @@ interface AutopilotSummary {
     }
   }
   verification?: TestRunResult
+  runnerLogsStreamed?: boolean
+  failureStage?: 'auth' | 'introspection' | 'runner' | 'verification'
+  failureMessage?: string
   dryRun?: boolean
 }
 
@@ -444,6 +447,53 @@ function applyGeneratedAuthEnv(
   return source
 }
 
+function isAuthRequiredError(error: unknown): error is McpIntrospectionError {
+  if (!(error instanceof McpIntrospectionError)) return false
+
+  if (error.status !== undefined && [401, 402, 403].includes(error.status)) {
+    return true
+  }
+
+  const message = error.message.toLowerCase()
+  if (message.includes('missing environment variable')) {
+    return true
+  }
+
+  const wwwAuthenticate = error.context?.responseHeaders?.['www-authenticate']?.toLowerCase() ?? ''
+  return wwwAuthenticate.includes('bearer') || wwwAuthenticate.includes('oauth')
+}
+
+function isLikelyOAuthFirstError(error: McpIntrospectionError): boolean {
+  const message = error.message.toLowerCase()
+  const wwwAuthenticate = error.context?.responseHeaders?.['www-authenticate']?.toLowerCase() ?? ''
+  const location = error.context?.responseHeaders?.location?.toLowerCase() ?? ''
+  const body = error.context?.responseBodySnippet?.toLowerCase() ?? ''
+
+  return message.includes('oauth')
+    || wwwAuthenticate.includes('oauth')
+    || wwwAuthenticate.includes('authorization_uri=')
+    || location.includes('oauth')
+    || location.includes('authorize')
+    || location.includes('login')
+    || body.includes('oauth')
+    || body.includes('authorize')
+}
+
+function formatAuthRequiredMessage(commandName: 'init' | 'autopilot', error?: McpIntrospectionError): string {
+  const rerun = `Re-run ${commandName} with --auth-env YOUR_ENV_VAR and either:
+- Bearer auth: --auth-type bearer
+- Custom header auth: --auth-type header --auth-header HEADER_NAME [--auth-template '\${value}']`
+  const oauthNote = error && isLikelyOAuthFirstError(error)
+    ? `
+
+This server appears OAuth-first. Complete the provider's OAuth flow first, export the resulting token/API key to YOUR_ENV_VAR, then rerun.
+If it requires browser-interactive OAuth during handshake, run a local stdio MCP wrapper/proxy and import that command instead.`
+    : ''
+
+  return `This MCP server requires authentication.
+${rerun}${oauthNote}`
+}
+
 function buildInitSummary(input: {
   pluginName: string
   displayName: string
@@ -726,19 +776,13 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
     try {
       introspection = await introspectMcpServer(source)
     } catch (error) {
-      if (
-        error instanceof McpIntrospectionError
-        && source.transport !== 'stdio'
-        && (error.status === 401 || error.status === 402 || error.status === 403)
-      ) {
+      if (source.transport !== 'stdio' && isAuthRequiredError(error)) {
         s?.stop('Server requires authentication')
         const envVar = options.authEnv ?? (interactive
           ? await clackText('Auth env var for this MCP server')
           : '')
         if (!envVar) {
-          throw new Error(
-            'This MCP server requires auth. Re-run init with --auth-env YOUR_ENV_VAR and, for custom headers, --auth-type header --auth-header HEADER_NAME.',
-          )
+          throw new Error(formatAuthRequiredMessage('init', error))
         }
 
         let authType = options.authType
@@ -771,10 +815,18 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
           }),
         }
         s?.start('Step 1/4 \u00b7 Reconnecting with auth...')
-        introspection = await introspectMcpServer(source)
+        try {
+          introspection = await introspectMcpServer(source)
+        } catch (retryError) {
+          if (isAuthRequiredError(retryError)) {
+            throw new Error(`Authentication failed after retry.
+${formatAuthRequiredMessage('init', retryError)}`)
+          }
+          throw new Error(`MCP introspection failed after auth retry: ${retryError instanceof Error ? retryError.message : String(retryError)}`)
+        }
       } else {
         s?.stop('Connection failed')
-        throw error
+        throw new Error(`MCP introspection failed: ${error instanceof Error ? error.message : String(error)}`)
       }
     }
 
@@ -1160,15 +1212,16 @@ async function runAgent() {
   if (subcommand === 'run') {
     const kind = args[2] as AgentPromptKind | undefined
     if (!kind || !AGENT_PROMPT_KINDS.includes(kind)) {
-      console.error(`Usage: pluxx agent run <${AGENT_PROMPT_KINDS.join('|')}> --runner <${AGENT_RUNNERS.join('|')}> [--model NAME] [--attach URL] [--no-verify] [--json] [--dry-run] [--quiet]`)
+      console.error(`Usage: pluxx agent run <${AGENT_PROMPT_KINDS.join('|')}> --runner <${AGENT_RUNNERS.join('|')}> [--model NAME] [--attach URL] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
       process.exit(1)
     }
 
     const runnerRaw = readOption(args, '--runner')
     if (!runnerRaw || !AGENT_RUNNERS.includes(runnerRaw as AgentRunner)) {
-      console.error(`Usage: pluxx agent run <${AGENT_PROMPT_KINDS.join('|')}> --runner <${AGENT_RUNNERS.join('|')}> [--model NAME] [--attach URL] [--no-verify] [--json] [--dry-run] [--quiet]`)
+      console.error(`Usage: pluxx agent run <${AGENT_PROMPT_KINDS.join('|')}> --runner <${AGENT_RUNNERS.join('|')}> [--model NAME] [--attach URL] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
       process.exit(1)
     }
+    const verboseRunner = args.includes('--verbose-runner')
 
     const plan = await planAgentRun(process.cwd(), kind, {
       runner: runnerRaw as AgentRunner,
@@ -1208,7 +1261,7 @@ async function runAgent() {
     }
 
     const result = await runAgentPlan(process.cwd(), plan, {
-      streamOutput: !runtime.jsonOutput && !runtime.quiet,
+      streamOutput: verboseRunner && !runtime.jsonOutput && !runtime.quiet,
     })
 
     if (runtime.jsonOutput) {
@@ -1221,6 +1274,9 @@ async function runAgent() {
 
     if (!runtime.quiet) {
       console.log(`Completed ${result.kind} run for ${result.pluginName} via ${result.runner}`)
+      if (!verboseRunner) {
+        console.log('  Runner logs: suppressed (use --verbose-runner to stream)')
+      }
       if (result.verification) {
         console.log(`  Verification: ${result.verification.ok ? 'passed' : 'failed'}`)
       }
@@ -1246,14 +1302,15 @@ async function runAutopilot() {
   const attach = readOption(args, '--attach')
   const review = args.includes('--review')
   const verify = !args.includes('--no-verify')
+  const verboseRunner = args.includes('--verbose-runner')
 
   if (!initOptions.source) {
-    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--auth-env ENV] [--auth-type bearer|header] [--auth-header NAME] [--auth-template TEMPLATE] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--json] [--dry-run] [--quiet]`)
+    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--auth-env ENV] [--auth-type bearer|header] [--auth-header NAME] [--auth-template TEMPLATE] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
     process.exit(1)
   }
 
   if (!runnerRaw || !AGENT_RUNNERS.includes(runnerRaw as AgentRunner)) {
-    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--auth-env ENV] [--auth-type bearer|header] [--auth-header NAME] [--auth-template TEMPLATE] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--json] [--dry-run] [--quiet]`)
+    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--auth-env ENV] [--auth-type bearer|header] [--auth-header NAME] [--auth-template TEMPLATE] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
     process.exit(1)
   }
 
@@ -1281,16 +1338,10 @@ async function runAutopilot() {
     try {
       introspection = await introspectMcpServer(source)
     } catch (error) {
-      if (
-        error instanceof McpIntrospectionError
-        && source.transport !== 'stdio'
-        && (error.status === 401 || error.status === 402 || error.status === 403)
-      ) {
+      if (source.transport !== 'stdio' && isAuthRequiredError(error)) {
         connectSpinner?.stop('Server requires authentication')
         if (!initOptions.authEnv) {
-          throw new Error(
-            'This MCP server requires auth. Re-run autopilot with --auth-env YOUR_ENV_VAR and, for custom headers, --auth-type header --auth-header HEADER_NAME.',
-          )
+          throw new Error(formatAuthRequiredMessage('autopilot', error))
         }
 
         source = {
@@ -1298,10 +1349,18 @@ async function runAutopilot() {
           auth: buildRemoteAuthConfig(initOptions),
         }
         connectSpinner?.start('Autopilot 1/4 · Reconnecting with auth...')
-        introspection = await introspectMcpServer(source)
+        try {
+          introspection = await introspectMcpServer(source)
+        } catch (retryError) {
+          if (isAuthRequiredError(retryError)) {
+            throw new Error(`Authentication failed after retry.
+${formatAuthRequiredMessage('autopilot', retryError)}`)
+          }
+          throw new Error(`MCP introspection failed after auth retry: ${retryError instanceof Error ? retryError.message : String(retryError)}`)
+        }
       } else {
         connectSpinner?.stop('Connection failed')
-        throw error
+        throw new Error(`MCP introspection failed: ${error instanceof Error ? error.message : String(error)}`)
       }
     }
 
@@ -1427,6 +1486,7 @@ async function runAutopilot() {
             : {}),
         },
         dryRun: true,
+        runnerLogsStreamed: verboseRunner,
       }
 
       if (runtime.jsonOutput) {
@@ -1448,17 +1508,22 @@ async function runAutopilot() {
       return
     }
 
-    const streamOutput = !runtime.jsonOutput && !runtime.quiet
+    const streamOutput = verboseRunner && !runtime.jsonOutput && !runtime.quiet
     agentSpinner?.start('Autopilot 3/4 · Running taxonomy pass...')
     const taxonomyResult = await runAgentPlan(workspaceRoot, taxonomyPlan, { streamOutput })
-    agentSpinner?.stop('Taxonomy pass complete')
+    agentSpinner?.stop(`Taxonomy pass ${taxonomyResult.runnerExitCode === 0 ? 'complete' : 'failed'} (exit ${taxonomyResult.runnerExitCode})`)
 
     agentSpinner?.start('Autopilot 3/4 · Running instructions pass...')
     const instructionsResult = await runAgentPlan(workspaceRoot, instructionsPlan, { streamOutput })
-    agentSpinner?.stop('Instructions pass complete')
+    agentSpinner?.stop(`Instructions pass ${instructionsResult.runnerExitCode === 0 ? 'complete' : 'failed'} (exit ${instructionsResult.runnerExitCode})`)
 
     const reviewResult = reviewPlan
-      ? await runAgentPlan(workspaceRoot, reviewPlan, { streamOutput })
+      ? await (async () => {
+          agentSpinner?.start('Autopilot 3/4 · Running review pass...')
+          const result = await runAgentPlan(workspaceRoot, reviewPlan, { streamOutput })
+          agentSpinner?.stop(`Review pass ${result.runnerExitCode === 0 ? 'complete' : 'failed'} (exit ${result.runnerExitCode})`)
+          return result
+        })()
       : undefined
 
     const verification = verify
@@ -1469,6 +1534,21 @@ async function runAutopilot() {
       && instructionsResult.ok
       && (reviewResult?.ok ?? true)
       && (verification?.ok ?? true)
+
+    const failureStage: AutopilotSummary['failureStage'] = taxonomyResult.runnerExitCode !== 0
+      ? 'runner'
+      : instructionsResult.runnerExitCode !== 0
+        ? 'runner'
+        : reviewResult && reviewResult.runnerExitCode !== 0
+          ? 'runner'
+          : verification && !verification.ok
+            ? 'verification'
+            : undefined
+    const failureMessage = failureStage === 'runner'
+      ? 'A headless runner command failed. Re-run with --verbose-runner to stream full runner output.'
+      : failureStage === 'verification'
+        ? 'Verification failed after scaffold/refinement. Run `pluxx test` for details.'
+        : undefined
 
     const summary: AutopilotSummary = {
       ok,
@@ -1484,6 +1564,7 @@ async function runAutopilot() {
       hookEvents: scaffoldPlan.generatedHookEvents,
       review,
       verify,
+      runnerLogsStreamed: verboseRunner,
       init: {
         createdFiles: initCreatedFiles,
         updatedFiles: initUpdatedFiles,
@@ -1517,6 +1598,8 @@ async function runAutopilot() {
           : {}),
       },
       verification,
+      failureStage,
+      failureMessage,
     }
 
     if (runtime.jsonOutput) {
@@ -1525,8 +1608,15 @@ async function runAutopilot() {
       console.log(`Autopilot ${ok ? 'completed' : 'failed'} for ${pluginName}`)
       console.log(`  Import: ${introspection.tools.length} tools -> ${targets.join(', ')}`)
       console.log(`  Runner: ${runner}`)
+      if (!verboseRunner) {
+        console.log('  Runner logs: suppressed (use --verbose-runner to stream)')
+      }
       if (verification) {
         console.log(`  Verification: ${verification.ok ? 'passed' : 'failed'}`)
+      }
+      if (failureStage && failureMessage) {
+        console.log(`  Failure stage: ${failureStage}`)
+        console.log(`  Failure detail: ${failureMessage}`)
       }
       console.log('  Next steps:')
       console.log('  1. Review INSTRUCTIONS.md and skills/')
@@ -1664,6 +1754,7 @@ Usage:
 Common flags:
   --json                                  Print machine-readable output
   --quiet                                 Suppress non-error chatter
+  --verbose-runner                        Stream runner stdout/stderr for agent run/autopilot
   --dry-run                               Show planned work without writing files or installing anything
 
 Targets:
@@ -1687,8 +1778,10 @@ Examples:
   pluxx agent prompt taxonomy             Generate the taxonomy prompt pack
   pluxx agent run taxonomy --runner claude
   pluxx agent run taxonomy --runner codex
+  pluxx agent run taxonomy --runner codex --verbose-runner
   pluxx agent run review --runner opencode --attach http://localhost:4096 --no-verify
   pluxx autopilot --from-mcp https://example.com/mcp --runner codex --yes --name acme --display-name "Acme"
+  pluxx autopilot --from-mcp https://example.com/mcp --runner codex --yes --verbose-runner
   pluxx autopilot --from-mcp "npx -y @acme/mcp" --runner claude --targets claude-code,codex --website https://example.com --docs https://docs.example.com
   pluxx doctor --json                     Inspect project health as JSON
   pluxx test --target claude-code codex  Verify selected target outputs

@@ -33,6 +33,10 @@ export class McpIntrospectionError extends Error {
   constructor(
     message: string,
     readonly status?: number,
+    readonly context?: {
+      responseHeaders?: Record<string, string>
+      responseBodySnippet?: string
+    },
   ) {
     super(message)
     this.name = 'McpIntrospectionError'
@@ -180,9 +184,11 @@ function createHttpClient(server: Exclude<McpServer, { transport: 'stdio' }>): M
       })
 
       if (!response.ok) {
+        const context = await extractHttpErrorContext(response)
         throw new McpIntrospectionError(
           `MCP HTTP request failed with ${response.status} ${response.statusText}.`,
           response.status,
+          context,
         )
       }
 
@@ -203,9 +209,11 @@ function createHttpClient(server: Exclude<McpServer, { transport: 'stdio' }>): M
       })
 
       if (!response.ok && response.status !== 202) {
+        const context = await extractHttpErrorContext(response)
         throw new McpIntrospectionError(
           `MCP HTTP notification failed with ${response.status} ${response.statusText}.`,
           response.status,
+          context,
         )
       }
     },
@@ -260,9 +268,11 @@ async function createSseClient(server: Extract<McpServer, { transport: 'sse' }>)
     })
 
     if (!response.ok) {
+      const context = await extractHttpErrorContext(response)
       throw new McpIntrospectionError(
         `MCP SSE stream failed with ${response.status} ${response.statusText}.`,
         response.status,
+        context,
       )
     }
 
@@ -457,9 +467,11 @@ async function createSseClient(server: Extract<McpServer, { transport: 'sse' }>)
           pending.delete(requestId)
           clearTimeout(entry.timeout)
         }
+        const context = await extractHttpErrorContext(response)
         throw new McpIntrospectionError(
           `MCP SSE request failed with ${response.status} ${response.statusText}.`,
           response.status,
+          context,
         )
       }
 
@@ -491,9 +503,11 @@ async function createSseClient(server: Extract<McpServer, { transport: 'sse' }>)
       })
 
       if (!response.ok && response.status !== 202) {
+        const context = await extractHttpErrorContext(response)
         throw new McpIntrospectionError(
           `MCP SSE notification failed with ${response.status} ${response.statusText}.`,
           response.status,
+          context,
         )
       }
 
@@ -673,6 +687,41 @@ function resolveAuthHeader(auth: McpAuth | undefined): { name: string; value: st
   return {
     name: headerName,
     value: headerTemplate.replace('${value}', envValue),
+  }
+}
+
+async function extractHttpErrorContext(response: Response): Promise<{
+  responseHeaders?: Record<string, string>
+  responseBodySnippet?: string
+}> {
+  const responseHeaders: Record<string, string> = {}
+  for (const headerName of ['www-authenticate', 'location', 'content-type']) {
+    const value = response.headers.get(headerName)
+    if (value) {
+      responseHeaders[headerName] = value
+    }
+  }
+
+  let responseBodySnippet: string | undefined
+  try {
+    const contentType = response.headers.get('content-type') ?? ''
+    if (contentType.includes('application/json') || contentType.includes('text/plain') || contentType.includes('text/html')) {
+      const body = (await response.text()).trim()
+      if (body) {
+        responseBodySnippet = body.slice(0, 500)
+      }
+    }
+  } catch {
+    // Body extraction is best effort only.
+  }
+
+  if (Object.keys(responseHeaders).length === 0 && !responseBodySnippet) {
+    return {}
+  }
+
+  return {
+    ...(Object.keys(responseHeaders).length > 0 ? { responseHeaders } : {}),
+    ...(responseBodySnippet ? { responseBodySnippet } : {}),
   }
 }
 
