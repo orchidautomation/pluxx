@@ -234,4 +234,118 @@ describe('autopilot command', () => {
       rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  it('suppresses runner logs by default and streams them with --verbose-runner', async () => {
+    const run = async (verboseRunner: boolean) => {
+      const { dir, statePath, stubServerPath } = createStubServerFixture()
+      const binDir = resolve(dir, '.bin')
+      const claudePath = resolve(binDir, 'claude')
+      const marker = 'PLUXX_RUNNER_STREAM_MARKER'
+
+      mkdirSync(binDir, { recursive: true })
+      writeFileSync(
+        claudePath,
+        `#!/bin/sh\necho "${marker}"\nexit 0\n`,
+      )
+      chmodSync(claudePath, 0o755)
+
+      try {
+        const argv = [
+          'autopilot',
+          '--from-mcp',
+          `bun ${stubServerPath} ${statePath}`,
+          '--runner',
+          'claude',
+          '--name',
+          'stub-server',
+          '--display-name',
+          'Stub Server',
+          '--author',
+          'Test Author',
+          '--no-verify',
+        ]
+        if (verboseRunner) {
+          argv.push('--verbose-runner')
+        }
+
+        const proc = spawnCli(argv, dir, {
+          PATH: `${binDir}:${process.env.PATH ?? ''}`,
+        })
+
+        const stdout = await new Response(proc.stdout).text()
+        const stderr = await new Response(proc.stderr).text()
+        const exitCode = await proc.exited
+
+        expect(exitCode).toBe(0)
+        expect(stderr).toBe('')
+        return { stdout, marker }
+      } finally {
+        rmSync(dir, { recursive: true, force: true })
+      }
+    }
+
+    const normal = await run(false)
+    expect(normal.stdout).not.toContain(normal.marker)
+    expect(normal.stdout).toContain('Runner logs: suppressed (use --verbose-runner to stream)')
+
+    const verbose = await run(true)
+    expect(verbose.stdout).toContain(verbose.marker)
+  })
+
+  it('prints explicit auth guidance for OAuth-first remote MCPs', async () => {
+    const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-autopilot-auth-'))
+    let port = 0
+    const server = Bun.serve({
+      port: 0,
+      fetch(request) {
+        const url = new URL(request.url)
+        if (url.pathname === '/mcp') {
+          return new Response(null, {
+            status: 302,
+            headers: {
+              location: `http://127.0.0.1:${port}/oauth/login`,
+            },
+          })
+        }
+
+        return new Response('<html><body>OAuth login required</body></html>', {
+          status: 200,
+          headers: {
+            'content-type': 'text/html',
+          },
+        })
+      },
+    })
+    port = server.port
+
+    try {
+      const proc = spawnCli([
+        'autopilot',
+        '--from-mcp',
+        `http://127.0.0.1:${server.port}/mcp`,
+        '--runner',
+        'codex',
+        '--yes',
+        '--name',
+        'oauth-stub',
+        '--display-name',
+        'OAuth Stub',
+        '--author',
+        'Test Author',
+      ], dir)
+
+      const stdout = await new Response(proc.stdout).text()
+      const stderr = await new Response(proc.stderr).text()
+      const exitCode = await proc.exited
+
+      expect(exitCode).toBe(1)
+      expect(stdout).toBe('')
+      expect(stderr).toContain('This MCP server requires authentication')
+      expect(stderr).toContain('--auth-env YOUR_ENV_VAR')
+      expect(stderr).toContain('OAuth-first')
+    } finally {
+      server.stop(true)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })

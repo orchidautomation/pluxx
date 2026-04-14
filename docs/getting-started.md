@@ -62,6 +62,16 @@ bunx pluxx init \
   --auth-template '${value}'
 ```
 
+For OAuth-first MCPs, complete the provider OAuth flow first, then export the resulting access token/API key and reuse the same auth flags:
+
+```bash
+bunx pluxx init \
+  --from-mcp https://example.com/mcp \
+  --yes \
+  --auth-env OAUTH_ACCESS_TOKEN \
+  --auth-type bearer
+```
+
 ## 2. Scaffold A Plugin
 
 Interactive:
@@ -98,6 +108,8 @@ bunx pluxx autopilot \
   --grouping workflow \
   --hooks safe
 ```
+
+By default, autopilot summarizes runner outcomes without streaming raw runner logs. Add `--verbose-runner` to stream full headless runner output.
 
 Headless import with custom header auth:
 

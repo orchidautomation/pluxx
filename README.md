@@ -85,6 +85,9 @@ bunx pluxx init --from-mcp https://example.com/mcp --yes --name acme --display-n
 # Remote MCPs that use custom header auth
 bunx pluxx init --from-mcp https://mcp.playkit.sh/mcp --yes --auth-env PLAYKIT_API_KEY --auth-type header --auth-header X-API-Key --auth-template '${value}'
 
+# OAuth-first MCPs: complete provider OAuth first, then pass the resulting token env var
+bunx pluxx init --from-mcp https://example.com/mcp --yes --auth-env OAUTH_ACCESS_TOKEN --auth-type bearer
+
 # Inspect the generated project without mutating files
 bunx pluxx doctor
 bunx pluxx init --from-mcp https://example.com/mcp --yes --dry-run
@@ -98,6 +101,7 @@ bunx pluxx agent prompt taxonomy
 
 # Or run the full import -> refine -> verify path in one shot
 bunx pluxx autopilot --from-mcp https://example.com/mcp --runner codex --yes --name acme --display-name "Acme" --author "Acme"
+bunx pluxx autopilot --from-mcp https://example.com/mcp --runner codex --yes --verbose-runner
 
 # Or let Claude/OpenCode/Codex consume the pack headlessly
 bunx pluxx agent run taxonomy --runner claude
@@ -156,6 +160,7 @@ Pluxx is the distribution and maintenance layer for plugin artifacts; MCP servic
 Generated MCP skill files include deterministic example requests derived from tool names and required inputs, so the first scaffold is useful before any AI refinement.
 
 Agent Mode stays file-first: Pluxx writes `.pluxx/agent/context.md`, `.pluxx/agent/plan.json`, and the prompt packs, then optional runner adapters can hand those files to `claude`, `opencode`, or `codex` in headless mode. Durable project-level prompt and context customization now lives in `pluxx.agent.md`, so users do not need to edit generated `.pluxx/agent/*.md` files directly.
+Runner output is summarized by default for `pluxx agent run` and `pluxx autopilot`; use `--verbose-runner` when you want full headless runner streaming.
 
 The dogfood coverage matrix across messy metadata, local stdio, OAuth-first servers, and production auth patterns is documented in [docs/mcp-dogfood-matrix.md](./docs/mcp-dogfood-matrix.md).
 

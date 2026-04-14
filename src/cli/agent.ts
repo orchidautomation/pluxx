@@ -772,7 +772,7 @@ async function ensureRunnerAvailable(runner: AgentRunner): Promise<void> {
 
 async function commandExists(binary: string): Promise<boolean> {
   return await new Promise<boolean>((resolvePromise) => {
-    const child = spawn('sh', ['-lc', `command -v ${shellQuote(binary)} >/dev/null 2>&1`], {
+    const child = spawn('sh', ['-c', `command -v ${shellQuote(binary)} >/dev/null 2>&1`], {
       stdio: 'ignore',
       env: process.env,
     })
