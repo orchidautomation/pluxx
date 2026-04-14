@@ -155,3 +155,14 @@ That is the story to keep pushing.
 - refine the generated skill taxonomy for PlayKit with Agent Mode
 - turn this into a public “raw MCP to working plugin” walkthrough
 - replace the draft quotes with final founder language
+
+## Prompt Pack Dogfood Result (PLUXX-91)
+
+With the updated prompt packs, the same PlayKit-shaped scaffold now reliably trends toward product-shaped output without manual prompt surgery:
+
+- lexical buckets are renamed to product surfaces
+- tiny singleton/admin-only skills are merged unless they are true standalone workflows
+- instructions prefer PlayKit/Clay product wording over raw MCP server/tool labels
+- setup/onboarding, account-admin, and runtime guidance is explicitly separated
+
+This is the quality bar Pluxx now expects from Codex/Claude refinement on complex MCPs.

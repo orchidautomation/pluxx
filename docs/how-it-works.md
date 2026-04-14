@@ -232,6 +232,11 @@ The intent is simple: Pluxx owns the structure and write boundaries, while the h
 
 If you want durable Agent Mode customization, create `pluxx.agent.md` at the project root. Pluxx will pull extra context paths, product/setup hints, grouping guidance, and prompt additions from that file without requiring edits to generated `.pluxx/agent/*.md` files.
 
+For complex MCPs, steer prompt behavior directly in that file:
+
+- `## Taxonomy Guidance`: avoid misleading/lexical labels and merge tiny singleton/admin-only skills unless justified.
+- `## Instructions Guidance`: enforce branded product wording over raw MCP identifiers and clarify setup/admin/account/runtime boundaries.
+
 ### Step 8: Ship
 
 Pluxx prepares the correct plugin bundles and manifests, then your team ships them through your own channels.

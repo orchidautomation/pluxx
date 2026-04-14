@@ -202,9 +202,12 @@ Knowledge tools work immediately. Runtime API tools require secondary auth.
 
 ## Taxonomy Guidance
 Prefer product-shaped skills over raw tool buckets.
+Reject misleading labels that sound like internal implementation details.
+Merge tiny singleton/admin-only skills unless they are a real standalone workflow.
 
 ## Instructions Guidance
-Make the setup and auth boundary explicit in shared instructions.
+Use product-facing branded language, not raw MCP server/tool identifiers.
+Make setup/admin/account/runtime boundaries explicit in shared instructions.
 
 ## Review Criteria
 Flag any skill grouping that mixes setup/admin tools with runtime workflows.
@@ -242,10 +245,12 @@ Prompt for:
 - grouping tools into real product/workflow skills
 - merging/splitting/renaming generated skills
 - identifying setup/admin/account surfaces
+- avoiding misleading labels and unnecessary singleton skills
 
 ### `instructions-prompt.md`
 
 Prompt for rewriting the generated block in `INSTRUCTIONS.md`.
+It should use branded product wording and avoid raw MCP-internal naming unless technically required.
 
 ### `review-prompt.md`
 
@@ -295,10 +300,22 @@ Your job:
 
 Success criteria:
 - each skill represents a real user workflow or product surface
-- setup/admin/account tools are grouped intentionally
+- skill names are product-shaped and avoid raw MCP tool/server identifiers when possible
+- setup/onboarding, account-admin, and runtime workflows are grouped intentionally
+- singleton skills are avoided unless they represent a real standalone user workflow
 - examples are concrete and realistic
 - wording matches the MCP's product narrative
 ```
+
+## Steering Complex MCPs With `pluxx.agent.md`
+
+For larger MCPs, use project overrides to steer taxonomy and instructions without editing Pluxx internals:
+
+- `## Grouping Hints`: propose durable product-surface buckets (for example `onboarding`, `account-and-usage`, `runtime-workflows`)
+- `## Taxonomy Guidance`: call out anti-patterns (misleading labels, one-tool singleton sprawl, setup/admin mixed into runtime)
+- `## Instructions Guidance`: force branded language and explicit setup/admin/account/runtime boundaries
+
+This keeps prompt shaping project-owned, durable, and safe across regenerated prompt packs.
 
 ## PlayKit Example
 
