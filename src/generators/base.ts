@@ -140,6 +140,18 @@ export abstract class Generator {
     return mcpServers
   }
 
+  protected getMcpAuthMode(): 'inline' | 'platform' {
+    if (this.platform === 'claude-code') {
+      return this.config.platforms?.['claude-code']?.mcpAuth ?? 'inline'
+    }
+
+    if (this.platform === 'cursor') {
+      return this.config.platforms?.cursor?.mcpAuth ?? 'inline'
+    }
+
+    return 'inline'
+  }
+
   /** Generate MCP config JSON in the common `{ mcpServers }` shape. */
   protected async generateMcpConfig(relativePath: string, options: McpConfigOptions = {}): Promise<void> {
     const mcpServers = this.buildMcpServers(options)
@@ -148,6 +160,10 @@ export abstract class Generator {
   }
 
   private getMcpAuthHeaders(server: McpRemoteServer): Record<string, string> | undefined {
+    if (this.getMcpAuthMode() === 'platform' || server.auth?.type === 'platform') {
+      return undefined
+    }
+
     if (server.auth?.type === 'bearer' && server.auth.envVar) {
       return {
         Authorization: `Bearer ${this.getEnvVarReference(server.auth.envVar)}`,

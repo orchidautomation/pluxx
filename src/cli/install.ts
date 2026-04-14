@@ -1,5 +1,6 @@
 import { resolve, basename } from 'path'
-import { existsSync, symlinkSync, mkdirSync, rmSync } from 'fs'
+import { existsSync, symlinkSync, mkdirSync, rmSync, readFileSync, writeFileSync } from 'fs'
+import { spawnSync } from 'child_process'
 import * as readline from 'readline'
 import type { PluginConfig, TargetPlatform } from '../schema'
 
@@ -14,6 +15,14 @@ export interface PlannedInstallTarget extends InstallTarget {
   built: boolean
   existing: boolean
 }
+
+interface CommandResult {
+  status: number | null
+  stdout: string
+  stderr: string
+}
+
+type CommandRunner = (command: string, args: string[]) => CommandResult
 
 export interface HookCommand {
   event: string
@@ -97,7 +106,7 @@ function getInstallTargets(pluginName: string): InstallTarget[] {
     {
       platform: 'claude-code',
       pluginDir: resolve(home, '.claude/plugins', pluginName),
-      description: `~/.claude/plugins/${pluginName}`,
+      description: `claude plugin install ${pluginName}@${getClaudeMarketplaceName(pluginName)}`,
     },
     {
       platform: 'cursor',
@@ -152,6 +161,128 @@ function getInstallTargets(pluginName: string): InstallTarget[] {
   ]
 }
 
+function runCommandDefault(command: string, args: string[]): CommandResult {
+  const result = spawnSync(command, args, { encoding: 'utf-8' })
+  return {
+    status: result.status,
+    stdout: result.stdout ?? '',
+    stderr: result.stderr ?? '',
+  }
+}
+
+function createSymlinkInstall(target: PlannedInstallTarget): void {
+  const parentDir = resolve(target.pluginDir, '..')
+  mkdirSync(parentDir, { recursive: true })
+
+  if (existsSync(target.pluginDir)) {
+    rmSync(target.pluginDir, { recursive: true, force: true })
+  }
+
+  symlinkSync(target.sourceDir, target.pluginDir)
+}
+
+function getClaudeMarketplaceName(pluginName: string): string {
+  return `pluxx-local-${pluginName}`
+}
+
+function getClaudeMarketplaceRoot(pluginName: string): string {
+  const home = process.env.HOME ?? '~'
+  return resolve(home, '.claude/plugins/data', getClaudeMarketplaceName(pluginName))
+}
+
+function ensureClaudeMarketplace(
+  pluginName: string,
+  sourceDir: string,
+): { marketplaceName: string; marketplaceRoot: string } {
+  const marketplaceName = getClaudeMarketplaceName(pluginName)
+  const marketplaceRoot = getClaudeMarketplaceRoot(pluginName)
+  const marketplaceManifestDir = resolve(marketplaceRoot, '.claude-plugin')
+  const marketplacePluginDir = resolve(marketplaceRoot, 'plugins', pluginName)
+  const pluginManifestPath = resolve(sourceDir, '.claude-plugin/plugin.json')
+
+  const pluginManifest = JSON.parse(readFileSync(pluginManifestPath, 'utf-8')) as {
+    description?: string
+    version?: string
+    author?: unknown
+    license?: string
+    homepage?: string
+    repository?: string
+    keywords?: string[]
+  }
+
+  rmSync(marketplaceRoot, { recursive: true, force: true })
+  mkdirSync(marketplaceManifestDir, { recursive: true })
+  mkdirSync(resolve(marketplaceRoot, 'plugins'), { recursive: true })
+  symlinkSync(sourceDir, marketplacePluginDir)
+
+  writeFileSync(
+    resolve(marketplaceManifestDir, 'marketplace.json'),
+    JSON.stringify({
+      name: marketplaceName,
+      owner: {
+        name: 'Pluxx',
+      },
+      plugins: [
+        {
+          name: pluginName,
+          source: `./plugins/${pluginName}`,
+          description: pluginManifest.description ?? `Local Pluxx-built ${pluginName} plugin.`,
+          version: pluginManifest.version ?? '0.1.0',
+          author: pluginManifest.author ?? { name: 'Pluxx' },
+          license: pluginManifest.license ?? 'MIT',
+          ...(pluginManifest.homepage ? { homepage: pluginManifest.homepage } : {}),
+          ...(pluginManifest.repository ? { repository: pluginManifest.repository } : {}),
+          ...(pluginManifest.keywords ? { keywords: pluginManifest.keywords } : {}),
+        },
+      ],
+    }, null, 2),
+  )
+
+  return { marketplaceName, marketplaceRoot }
+}
+
+function ensureClaudeMarketplaceRegistered(
+  pluginName: string,
+  sourceDir: string,
+  runCommand: CommandRunner,
+): string {
+  const { marketplaceName, marketplaceRoot } = ensureClaudeMarketplace(pluginName, sourceDir)
+  const marketplaces = runCommand('claude', ['plugin', 'marketplace', 'list', '--json'])
+
+  if (marketplaces.status !== 0) {
+    throw new Error(`Failed to list Claude marketplaces: ${marketplaces.stderr || marketplaces.stdout}`)
+  }
+
+  const known = JSON.parse(marketplaces.stdout) as Array<{ name?: string }>
+  if (!known.some(entry => entry.name === marketplaceName)) {
+    const add = runCommand('claude', ['plugin', 'marketplace', 'add', marketplaceRoot])
+    if (add.status !== 0) {
+      throw new Error(`Failed to add Claude marketplace: ${add.stderr || add.stdout}`)
+    }
+  }
+
+  return marketplaceName
+}
+
+function installClaudePlugin(
+  target: PlannedInstallTarget,
+  pluginName: string,
+  runCommand: CommandRunner,
+): void {
+  const marketplaceName = ensureClaudeMarketplaceRegistered(pluginName, target.sourceDir, runCommand)
+
+  if (existsSync(target.pluginDir)) {
+    rmSync(target.pluginDir, { recursive: true, force: true })
+  }
+
+  runCommand('claude', ['plugin', 'uninstall', `${pluginName}@${marketplaceName}`])
+
+  const install = runCommand('claude', ['plugin', 'install', `${pluginName}@${marketplaceName}`, '--scope', 'user'])
+  if (install.status !== 0) {
+    throw new Error(`Failed to install Claude plugin: ${install.stderr || install.stdout}`)
+  }
+}
+
 export function planInstallPlugin(
   distDir: string,
   pluginName: string,
@@ -177,9 +308,15 @@ export async function installPlugin(
   distDir: string,
   pluginName: string,
   platforms?: TargetPlatform[],
-  options: { quiet?: boolean } = {},
+  options: {
+    quiet?: boolean
+    useNativeClaudeInstall?: boolean
+    runCommand?: CommandRunner
+  } = {},
 ): Promise<void> {
   const filtered = planInstallPlugin(distDir, pluginName, platforms)
+  const runCommand = options.runCommand ?? runCommandDefault
+  const useNativeClaudeInstall = options.useNativeClaudeInstall ?? true
 
   let installed = 0
 
@@ -191,17 +328,11 @@ export async function installPlugin(
       continue
     }
 
-    // Ensure parent directory exists
-    const parentDir = resolve(target.pluginDir, '..')
-    mkdirSync(parentDir, { recursive: true })
-
-    // Remove existing symlink/dir
-    if (existsSync(target.pluginDir)) {
-      rmSync(target.pluginDir, { recursive: true, force: true })
+    if (target.platform === 'claude-code' && useNativeClaudeInstall) {
+      installClaudePlugin(target, pluginName, runCommand)
+    } else {
+      createSymlinkInstall(target)
     }
-
-    // Create symlink
-    symlinkSync(target.sourceDir, target.pluginDir)
     if (!options.quiet) {
       console.log(`  ${target.platform} -> ${target.description}`)
     }
@@ -211,7 +342,7 @@ export async function installPlugin(
   if (installed === 0 && !options.quiet) {
     console.log('Nothing to install. Run `pluxx build` first.')
   } else if (!options.quiet) {
-    console.log(`\nInstalled ${installed} plugin(s). Restart your tools to pick them up.`)
+    console.log(`\nInstalled ${installed} plugin(s). Reload or restart your tools to pick them up.`)
   }
 }
 

@@ -20,6 +20,11 @@ const McpAuthHeaderSchema = z.object({
   headerTemplate: z.string().default('Bearer ${value}'),
 }).strict()
 
+const McpAuthPlatformSchema = z.object({
+  type: z.literal('platform'),
+  mode: z.enum(['oauth']).default('oauth'),
+}).strict()
+
 export const McpAuthSchema = z.preprocess(
   (value) => {
     if (value && typeof value === 'object' && !('type' in (value as Record<string, unknown>))) {
@@ -27,7 +32,7 @@ export const McpAuthSchema = z.preprocess(
     }
     return value
   },
-  z.discriminatedUnion('type', [McpAuthNoneSchema, McpAuthBearerSchema, McpAuthHeaderSchema])
+  z.discriminatedUnion('type', [McpAuthNoneSchema, McpAuthBearerSchema, McpAuthHeaderSchema, McpAuthPlatformSchema])
 )
 
 const McpServerHttpSchema = z.object({
@@ -140,9 +145,11 @@ export const BrandSchema = z.object({
 
 export const ClaudeCodeOverridesSchema = z.object({
   skillDefaults: z.record(z.unknown()).optional(),
+  mcpAuth: z.enum(['inline', 'platform']).optional(),
 }).catchall(z.unknown())
 
 export const CursorOverridesSchema = z.object({
+  mcpAuth: z.enum(['inline', 'platform']).optional(),
   rules: z.array(z.object({
     description: z.string(),
     globs: z.union([z.string(), z.array(z.string())]).optional(),

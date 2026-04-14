@@ -311,13 +311,17 @@ export class OpenCodeGenerator extends Generator {
 
     const output: Record<string, OpenCodeMcpDefinition> = {}
     for (const [name, server] of Object.entries(this.config.mcp)) {
+      const auth = server.auth?.type === 'platform'
+        ? undefined
+        : server.auth
+
       output[name] = {
         transport: server.transport,
         ...(server.url ? { url: server.url } : {}),
         ...(server.command ? { command: server.command } : {}),
         ...(server.args ? { args: server.args } : {}),
         ...(server.env ? { env: server.env } : {}),
-        ...(server.auth ? { auth: server.auth } : {}),
+        ...(auth ? { auth } : {}),
       }
     }
     return output

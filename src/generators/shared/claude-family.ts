@@ -10,6 +10,7 @@ export interface ClaudeFamilyOptions {
   pluginRootVar: string
   titleSuffix?: string
   mapEventName?: (event: string) => string
+  includeStandardHooksManifest?: boolean
 }
 
 export async function generateClaudeFamilyOutputs(args: {
@@ -30,8 +31,8 @@ export async function generateClaudeFamilyOutputs(args: {
   } = args
 
   await Promise.all([
-    writeManifest(config, options.manifestPath, writeJson),
-    writeMcpConfig(config, writeJson),
+    writeManifest(config, options, writeJson),
+    writeMcpConfig(config, platform, writeJson),
     writeHooks(config, platform, options, writeJson),
     writeInstructions(config, rootDir, options, writeFile),
   ])
@@ -39,7 +40,7 @@ export async function generateClaudeFamilyOutputs(args: {
 
 async function writeManifest(
   config: PluginConfig,
-  manifestPath: string,
+  options: ClaudeFamilyOptions,
   writeJson: (relativePath: string, data: unknown) => Promise<void>,
 ): Promise<void> {
   const manifest: Record<string, unknown> = {
@@ -63,23 +64,26 @@ async function writeManifest(
     manifest.agents = './agents/'
   }
   manifest.skills = './skills/'
-  if (config.hooks) {
+  if (config.hooks && options.includeStandardHooksManifest !== false) {
     manifest.hooks = './hooks/hooks.json'
   }
   if (config.mcp) {
     manifest.mcpServers = './.mcp.json'
   }
 
-  await writeJson(manifestPath, manifest)
+  await writeJson(options.manifestPath, manifest)
 }
 
 async function writeMcpConfig(
   config: PluginConfig,
+  platform: TargetPlatform,
   writeJson: (relativePath: string, data: unknown) => Promise<void>,
 ): Promise<void> {
   if (!config.mcp) return
 
   const mcpServers: Record<string, unknown> = {}
+  const usesPlatformManagedAuth = platform === 'claude-code'
+    && config.platforms?.['claude-code']?.mcpAuth === 'platform'
 
   for (const [name, server] of Object.entries(config.mcp)) {
     if (server.transport === 'stdio' && server.command) {
@@ -92,6 +96,11 @@ async function writeMcpConfig(
       const entry: Record<string, unknown> = {
         type: server.transport === 'sse' ? 'sse' : 'http',
         url: server.url,
+      }
+
+      if (usesPlatformManagedAuth || server.auth?.type === 'platform') {
+        mcpServers[name] = entry
+        continue
       }
 
       if (server.auth?.type === 'bearer' && server.auth.envVar) {
@@ -124,13 +133,24 @@ async function writeHooks(
 
   const hooks: Record<string, unknown[]> = {}
   const mapEventName = options.mapEventName ?? defaultMapEventName
+  const usesPlatformManagedAuth = platform === 'claude-code'
+    && config.platforms?.['claude-code']?.mcpAuth === 'platform'
 
   for (const [event, entries] of Object.entries(config.hooks)) {
     if (!entries) continue
 
     warnDroppedHookFields(platform, event, entries)
     const mappedEvent = mapEventName(event)
-    const commandEntries = entries.filter(entry => entry.type !== 'prompt' && entry.command)
+    const commandEntries = entries.filter((entry) => {
+      if (entry.type === 'prompt' || !entry.command) return false
+      if (
+        usesPlatformManagedAuth
+        && entry.command.includes('check-env.sh')
+      ) {
+        return false
+      }
+      return true
+    })
     if (commandEntries.length === 0) continue
 
     hooks[mappedEvent] = commandEntries.map(entry => ({

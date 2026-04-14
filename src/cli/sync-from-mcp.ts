@@ -57,11 +57,12 @@ export async function syncFromMcp(options: SyncFromMcpOptions): Promise<SyncFrom
     authorName: config.author.name,
     targets: config.targets,
     source,
-    introspection,
-    displayName: config.brand?.displayName ?? metadata.settings.displayName,
-    skillGrouping: metadata.settings.skillGrouping,
-    hookMode: metadata.settings.requestedHookMode,
-  })
+      introspection,
+      displayName: config.brand?.displayName ?? metadata.settings.displayName,
+      skillGrouping: metadata.settings.skillGrouping,
+      hookMode: metadata.settings.requestedHookMode,
+      runtimeAuthMode: metadata.settings.runtimeAuthMode ?? 'inline',
+    })
 
   const newMetadataPath = resolveWithinRoot(options.rootDir, MCP_SCAFFOLD_METADATA_PATH)
   const newMetadata: McpScaffoldMetadata = JSON.parse(readFileSync(newMetadataPath, 'utf-8'))

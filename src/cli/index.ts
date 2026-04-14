@@ -23,10 +23,12 @@ import {
   buildToolExampleRequest,
   derivePluginName,
   MCP_HOOK_MODES,
+  MCP_RUNTIME_AUTH_MODES,
   MCP_SKILL_GROUPINGS,
   type McpQualityReport,
   planMcpScaffold,
   type McpHookMode,
+  type McpRuntimeAuthMode,
   parseMcpSourceInput,
   type McpSkillGrouping,
   writeMcpScaffold,
@@ -74,6 +76,7 @@ export interface InitFromMcpOptions {
   authType?: string
   authHeader?: string
   authTemplate?: string
+  runtimeAuth?: string
   grouping?: string
   hooks?: string
   transport?: string
@@ -334,6 +337,46 @@ function formatDuration(durationMs?: number): string | undefined {
   return `${(durationMs / 1000).toFixed(durationMs >= 10_000 ? 0 : 1)}s`
 }
 
+function logAutopilotRunnerWait(step: number, totalSteps: number, label: string, runner: AgentRunner): void {
+  if (runtime.jsonOutput || runtime.quiet || !runtime.isInteractive) {
+    return
+  }
+
+  clack.log.step(`Autopilot ${step}/${totalSteps} · ${label} via ${runner} headless runner. This can take a few minutes.`)
+}
+
+async function runTimedSpinnerTask<T>(input: {
+  spinner: ReturnType<typeof clack.spinner> | undefined
+  startLabel: string
+  waitLabel: string
+  successLabel: (result: T) => string
+  task: () => Promise<T>
+}): Promise<T> {
+  const startedAt = Date.now()
+  let interval: ReturnType<typeof setInterval> | undefined
+
+  input.spinner?.start(input.startLabel)
+  if (input.spinner) {
+    interval = setInterval(() => {
+      input.spinner?.message(`${input.waitLabel} (${formatDuration(Date.now() - startedAt) ?? '0ms'} elapsed)`)
+    }, 1000)
+  }
+
+  try {
+    const result = await input.task()
+    if (interval) {
+      clearInterval(interval)
+    }
+    input.spinner?.stop(input.successLabel(result))
+    return result
+  } catch (error) {
+    if (interval) {
+      clearInterval(interval)
+    }
+    throw error
+  }
+}
+
 async function runBuild() {
   const targets = parseTargetFlagValues(args)
   const config = await loadConfig()
@@ -546,6 +589,12 @@ export function buildRemoteAuthConfig(options: Pick<InitFromMcpOptions, 'authEnv
   }
 }
 
+function resolveRuntimeAuthMode(value?: string): McpRuntimeAuthMode {
+  return value
+    ? parseChoiceOption(value, MCP_RUNTIME_AUTH_MODES, 'Runtime auth mode')
+    : 'inline'
+}
+
 function applyGeneratedAuthEnv(
   source: ReturnType<typeof parseMcpSourceInput>,
   envVar?: string,
@@ -716,6 +765,7 @@ export function parseInitFromMcpOptions(rawArgs: string[], initialName?: string,
     authType: readOption(rawArgs, '--auth-type'),
     authHeader: readOption(rawArgs, '--auth-header'),
     authTemplate: readOption(rawArgs, '--auth-template'),
+    runtimeAuth: readOption(rawArgs, '--runtime-auth'),
     grouping: readOption(rawArgs, '--grouping'),
     hooks: readOption(rawArgs, '--hooks'),
     transport: readOption(rawArgs, '--transport'),
@@ -899,6 +949,7 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
   const options = parseInitFromMcpOptions(args, initialName, initialSource)
   const defaultTargets = DEFAULT_INIT_TARGETS.join(',')
   const interactive = !options.jsonOutput && !options.assumeDefaults && runtime.isInteractive
+  let runtimeAuthMode = resolveRuntimeAuthMode(options.runtimeAuth)
 
   if (!options.jsonOutput && !runtime.quiet) {
     clack.intro('pluxx init --from-mcp')
@@ -1011,6 +1062,19 @@ ${formatAuthRequiredMessage('init', retryError)}`)
 
     source = applyGeneratedAuthEnv(source, generatedAuthEnv)
 
+    if (
+      interactive
+      && source.transport !== 'stdio'
+      && source.auth
+      && source.auth.type !== 'none'
+      && !options.runtimeAuth
+    ) {
+      runtimeAuthMode = await clackSelect<McpRuntimeAuthMode>('Claude/Cursor runtime auth', [
+        { value: 'inline', label: 'inline', hint: 'Generate env/header auth directly into plugin output' },
+        { value: 'platform', label: 'platform', hint: 'Use native platform-managed auth (for example OAuth/custom connector flows)' },
+      ], runtimeAuthMode)
+    }
+
     // ── Step 2/4 · Plugin identity ───────────────────────────────────
 
     if (!options.jsonOutput && !runtime.quiet) {
@@ -1074,6 +1138,7 @@ ${formatAuthRequiredMessage('init', retryError)}`)
       authorName,
       targets,
       source,
+      runtimeAuthMode,
       introspection,
       displayName,
       skillGrouping: grouping,
@@ -1477,14 +1542,15 @@ async function runAutopilot() {
   let authType = initOptions.authType
   let authHeader = initOptions.authHeader
   let authTemplate = initOptions.authTemplate
+  let runtimeAuthMode = resolveRuntimeAuthMode(initOptions.runtimeAuth)
 
   if (!initOptions.source && !interactive) {
-    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--auth-env ENV] [--auth-type bearer|header] [--auth-header NAME] [--auth-template TEMPLATE] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
+    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--auth-env ENV] [--auth-type bearer|header] [--auth-header NAME] [--auth-template TEMPLATE] [--runtime-auth inline|platform] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
     process.exit(1)
   }
 
   if ((!runnerRaw || !AGENT_RUNNERS.includes(runnerRaw as AgentRunner)) && !interactive) {
-    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--auth-env ENV] [--auth-type bearer|header] [--auth-header NAME] [--auth-template TEMPLATE] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
+    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--auth-env ENV] [--auth-type bearer|header] [--auth-header NAME] [--auth-template TEMPLATE] [--runtime-auth inline|platform] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
     process.exit(1)
   }
 
@@ -1617,6 +1683,20 @@ ${formatAuthRequiredMessage('autopilot', retryError)}`)
       authHeader,
       authTemplate,
     })
+
+    if (
+      interactive
+      && source.transport !== 'stdio'
+      && source.auth
+      && source.auth.type !== 'none'
+      && !initOptions.runtimeAuth
+    ) {
+      runtimeAuthMode = await clackSelect<McpRuntimeAuthMode>('Claude/Cursor runtime auth', [
+        { value: 'inline', label: 'inline', hint: 'Generate env/header auth directly into plugin output' },
+        { value: 'platform', label: 'platform', hint: 'Use native platform-managed auth (for example OAuth/custom connector flows)' },
+      ], runtimeAuthMode)
+    }
+    connectSpinner?.stop(`Connected: ${introspection.serverInfo.title ?? introspection.serverInfo.name} (${introspection.tools.length} tools discovered)`)
     const quality = analyzeMcpQuality(introspection.tools)
 
     if (!runtime.jsonOutput && !runtime.quiet && quality.issues.length > 0) {
@@ -1690,8 +1770,6 @@ ${formatAuthRequiredMessage('autopilot', retryError)}`)
 
     tempDir = runtime.dryRun ? workspaceRoot : undefined
 
-    connectSpinner?.stop(`Connected: ${introspection.serverInfo.title ?? introspection.serverInfo.name} (${introspection.tools.length} tools discovered)`)
-
     const scaffoldSpinner = createSpinner(runtime)
     scaffoldSpinner?.start(`Autopilot 2/${totalSteps} · Planning scaffold...`)
     const scaffoldPlan = await planMcpScaffold({
@@ -1700,6 +1778,7 @@ ${formatAuthRequiredMessage('autopilot', retryError)}`)
       authorName,
       targets,
       source,
+      runtimeAuthMode,
       introspection,
       displayName,
       skillGrouping: grouping,
@@ -1858,11 +1937,20 @@ ${formatAuthRequiredMessage('autopilot', retryError)}`)
 
     const taxonomyResult = taxonomyPlan
       ? await (async () => {
-          agentSpinner?.start(`Autopilot ${stepNumber}/${totalSteps} · Running taxonomy pass...`)
-          const startedAt = Date.now()
-          const result = await runAgentPlan(workspaceRoot, taxonomyPlan, { streamOutput })
-          taxonomyDurationMs = Date.now() - startedAt
-          agentSpinner?.stop(`Taxonomy pass ${result.runnerExitCode === 0 ? 'complete' : 'failed'} (exit ${result.runnerExitCode})`)
+          logAutopilotRunnerWait(stepNumber, totalSteps, 'Running taxonomy pass', runner)
+          const step = stepNumber
+          const result = await runTimedSpinnerTask({
+            spinner: agentSpinner,
+            startLabel: `Autopilot ${step}/${totalSteps} · Starting taxonomy pass...`,
+            waitLabel: `Autopilot ${step}/${totalSteps} · Waiting for taxonomy result`,
+            successLabel: (passResult) => `Taxonomy pass ${passResult.runnerExitCode === 0 ? 'complete' : 'failed'} (exit ${passResult.runnerExitCode})`,
+            task: async () => {
+              const startedAt = Date.now()
+              const passResult = await runAgentPlan(workspaceRoot, taxonomyPlan, { streamOutput })
+              taxonomyDurationMs = Date.now() - startedAt
+              return passResult
+            },
+          })
           stepNumber += 1
           return result
         })()
@@ -1870,11 +1958,20 @@ ${formatAuthRequiredMessage('autopilot', retryError)}`)
 
     const instructionsResult = instructionsPlan
       ? await (async () => {
-          agentSpinner?.start(`Autopilot ${stepNumber}/${totalSteps} · Running instructions pass...`)
-          const startedAt = Date.now()
-          const result = await runAgentPlan(workspaceRoot, instructionsPlan, { streamOutput })
-          instructionsDurationMs = Date.now() - startedAt
-          agentSpinner?.stop(`Instructions pass ${result.runnerExitCode === 0 ? 'complete' : 'failed'} (exit ${result.runnerExitCode})`)
+          logAutopilotRunnerWait(stepNumber, totalSteps, 'Running instructions pass', runner)
+          const step = stepNumber
+          const result = await runTimedSpinnerTask({
+            spinner: agentSpinner,
+            startLabel: `Autopilot ${step}/${totalSteps} · Starting instructions pass...`,
+            waitLabel: `Autopilot ${step}/${totalSteps} · Waiting for instructions result`,
+            successLabel: (passResult) => `Instructions pass ${passResult.runnerExitCode === 0 ? 'complete' : 'failed'} (exit ${passResult.runnerExitCode})`,
+            task: async () => {
+              const startedAt = Date.now()
+              const passResult = await runAgentPlan(workspaceRoot, instructionsPlan, { streamOutput })
+              instructionsDurationMs = Date.now() - startedAt
+              return passResult
+            },
+          })
           stepNumber += 1
           return result
         })()
@@ -1882,11 +1979,20 @@ ${formatAuthRequiredMessage('autopilot', retryError)}`)
 
     const reviewResult = reviewPlan
       ? await (async () => {
-          agentSpinner?.start(`Autopilot ${stepNumber}/${totalSteps} · Running review pass...`)
-          const startedAt = Date.now()
-          const result = await runAgentPlan(workspaceRoot, reviewPlan, { streamOutput })
-          reviewDurationMs = Date.now() - startedAt
-          agentSpinner?.stop(`Review pass ${result.runnerExitCode === 0 ? 'complete' : 'failed'} (exit ${result.runnerExitCode})`)
+          logAutopilotRunnerWait(stepNumber, totalSteps, 'Running review pass', runner)
+          const step = stepNumber
+          const result = await runTimedSpinnerTask({
+            spinner: agentSpinner,
+            startLabel: `Autopilot ${step}/${totalSteps} · Starting review pass...`,
+            waitLabel: `Autopilot ${step}/${totalSteps} · Waiting for review result`,
+            successLabel: (passResult) => `Review pass ${passResult.runnerExitCode === 0 ? 'complete' : 'failed'} (exit ${passResult.runnerExitCode})`,
+            task: async () => {
+              const startedAt = Date.now()
+              const passResult = await runAgentPlan(workspaceRoot, reviewPlan, { streamOutput })
+              reviewDurationMs = Date.now() - startedAt
+              return passResult
+            },
+          })
           stepNumber += 1
           return result
         })()
@@ -1894,11 +2000,19 @@ ${formatAuthRequiredMessage('autopilot', retryError)}`)
 
     const verification = verify
       ? await (async () => {
-          agentSpinner?.start(`Autopilot ${stepNumber}/${totalSteps} · Verifying scaffold...`)
-          const startedAt = Date.now()
-          const result = await runTestSuite({ rootDir: workspaceRoot, targets })
-          verificationDurationMs = Date.now() - startedAt
-          agentSpinner?.stop(`Verification ${result.ok ? 'passed' : 'failed'}`)
+          const step = stepNumber
+          const result = await runTimedSpinnerTask({
+            spinner: agentSpinner,
+            startLabel: `Autopilot ${step}/${totalSteps} · Starting verification...`,
+            waitLabel: `Autopilot ${step}/${totalSteps} · Verifying scaffold`,
+            successLabel: (verificationResult) => `Verification ${verificationResult.ok ? 'passed' : 'failed'}`,
+            task: async () => {
+              const startedAt = Date.now()
+              const verificationResult = await runTestSuite({ rootDir: workspaceRoot, targets })
+              verificationDurationMs = Date.now() - startedAt
+              return verificationResult
+            },
+          })
           return result
         })()
       : undefined

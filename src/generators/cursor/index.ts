@@ -47,13 +47,27 @@ export class CursorGenerator extends Generator {
 
   private async generateHooks(): Promise<void> {
     if (!this.config.hooks) return
+    const usesPlatformManagedAuth = this.config.platforms?.cursor?.mcpAuth === 'platform'
 
     // Cursor hooks format matches the canonical format closely
     const hooks: Record<string, unknown[]> = {}
 
     for (const [event, entries] of Object.entries(this.config.hooks)) {
       if (!entries) continue
-      hooks[event] = entries.map(entry => {
+      const filteredEntries = entries.filter((entry) => {
+        if (
+          usesPlatformManagedAuth
+          && entry.type !== 'prompt'
+          && entry.command?.includes('check-env.sh')
+        ) {
+          return false
+        }
+        return true
+      })
+
+      if (filteredEntries.length === 0) continue
+
+      hooks[event] = filteredEntries.map(entry => {
         const hookDef: Record<string, unknown> = {}
         if (entry.type === 'prompt') {
           hookDef.type = 'prompt'

@@ -14,6 +14,7 @@ export class ClaudeCodeGenerator extends Generator {
         manifestPath: '.claude-plugin/plugin.json',
         instructionsFile: 'CLAUDE.md',
         pluginRootVar: 'CLAUDE_PLUGIN_ROOT',
+        includeStandardHooksManifest: false,
       },
       writeJson: (relativePath, data) => this.writeJson(relativePath, data),
       writeFile: (relativePath, content) => this.writeFile(relativePath, content),

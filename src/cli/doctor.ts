@@ -196,6 +196,18 @@ function checkMcpServer(checks: DoctorCheck[], serverName: string, server: McpSe
   }
 
   if (server.auth?.type && server.auth.type !== 'none') {
+    if (server.auth.type === 'platform') {
+      addCheck(checks, {
+        level: 'info',
+        code: 'mcp-auth-platform',
+        title: `Platform-managed auth declared for ${serverName}`,
+        detail: `${serverName} expects native platform auth at runtime (${server.auth.mode}).`,
+        fix: 'Complete the platform auth flow in Claude Code or Cursor before calling authenticated tools.',
+        path: basePath,
+      })
+      return
+    }
+
     if (!ENV_VAR_NAME.test(server.auth.envVar)) {
       addCheck(checks, {
         level: 'error',

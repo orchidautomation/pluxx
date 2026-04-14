@@ -306,6 +306,39 @@ describe('init-from-mcp scaffold', () => {
     expect(config).toContain(`headerTemplate: "\${value}"`)
   })
 
+  it('can emit platform-managed runtime auth hints for Claude Code and Cursor', async () => {
+    await writeMcpScaffold({
+      rootDir: TEST_DIR,
+      pluginName: 'sumble',
+      authorName: 'Anthony Goldbloom',
+      displayName: 'Sumble MCP',
+      skillGrouping: 'tool',
+      hookMode: 'safe',
+      runtimeAuthMode: 'platform',
+      targets: ['claude-code', 'cursor', 'codex', 'opencode'],
+      source: {
+        transport: 'http',
+        url: 'https://mcp.sumble.com/',
+        auth: {
+          type: 'bearer',
+          envVar: 'SUMBLE_API_KEY',
+        },
+      },
+      introspection,
+    })
+
+    const config = readFileSync(resolve(TEST_DIR, 'pluxx.config.ts'), 'utf-8')
+    const instructionsFile = readFileSync(resolve(TEST_DIR, 'INSTRUCTIONS.md'), 'utf-8')
+    const metadata = JSON.parse(readFileSync(resolve(TEST_DIR, '.pluxx/mcp.json'), 'utf-8')) as {
+      settings: { runtimeAuthMode: string }
+    }
+
+    expect(config).toContain("'claude-code': {\n      mcpAuth: 'platform'")
+    expect(config).toContain("cursor: {\n      mcpAuth: 'platform'")
+    expect(instructionsFile).toContain('platform-managed auth at runtime')
+    expect(metadata.settings.runtimeAuthMode).toBe('platform')
+  })
+
   it('curates single-tool frontmatter descriptions instead of copying raw multiline tool help', async () => {
     const multilineIntrospection: IntrospectedMcpServer = {
       ...introspection,

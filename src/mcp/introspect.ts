@@ -682,6 +682,7 @@ function buildSseStreamHeaders(auth: McpAuth | undefined, sessionId: string | nu
 
 function resolveAuthHeader(auth: McpAuth | undefined): { name: string; value: string } | null {
   if (!auth || auth.type === 'none') return null
+  if (auth.type === 'platform') return null
 
   const envValue = process.env[auth.envVar]
   if (!envValue) {

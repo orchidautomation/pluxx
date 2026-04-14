@@ -193,6 +193,54 @@ describe('build', () => {
     expect(mcpJson.mcpServers['header-server'].bearer_token_env_var).toBeUndefined()
   })
 
+  it('omits inline auth headers for Claude Code and Cursor when runtime auth is platform-managed', async () => {
+    const oauthishConfig: PluginConfig = {
+      ...testConfig,
+      name: 'oauthish-plugin',
+      platforms: {
+        ...testConfig.platforms,
+        'claude-code': {
+          mcpAuth: 'platform',
+        },
+        cursor: {
+          ...testConfig.platforms?.cursor,
+          mcpAuth: 'platform',
+        },
+      },
+      hooks: {
+        sessionStart: [{
+          command: '${PLUGIN_ROOT}/scripts/check-env.sh',
+        }],
+        beforeSubmitPrompt: [{
+          command: '${PLUGIN_ROOT}/scripts/check-prompt.sh',
+        }],
+      },
+      outDir: './oauthish-dist',
+    }
+
+    await build(oauthishConfig, TEST_DIR)
+
+    const claudeMcp = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'oauthish-dist/claude-code/.mcp.json'), 'utf-8')
+    )
+    const cursorMcp = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'oauthish-dist/cursor/mcp.json'), 'utf-8')
+    )
+    const claudeHooks = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'oauthish-dist/claude-code/hooks/hooks.json'), 'utf-8')
+    )
+    const cursorHooks = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'oauthish-dist/cursor/hooks/hooks.json'), 'utf-8')
+    )
+
+    expect(claudeMcp.mcpServers['test-server'].headers).toBeUndefined()
+    expect(cursorMcp.mcpServers['test-server'].headers).toBeUndefined()
+    expect(claudeHooks.hooks.SessionStart).toBeUndefined()
+    expect(cursorHooks.hooks.sessionStart).toBeUndefined()
+    expect(claudeHooks.hooks.UserPromptSubmit).toBeDefined()
+    expect(cursorHooks.hooks.beforeSubmitPrompt).toBeDefined()
+  })
+
   it('generates Codex manifest with interface metadata', async () => {
     const manifest = JSON.parse(
       readFileSync(resolve(OUT_DIR, 'codex/.codex-plugin/plugin.json'), 'utf-8')
@@ -230,7 +278,7 @@ describe('build', () => {
 
     expect(claudeManifest.commands).toBe('./commands/')
     expect(claudeManifest.agents).toBe('./agents/')
-    expect(claudeManifest.hooks).toBe('./hooks/hooks.json')
+    expect(claudeManifest.hooks).toBeUndefined()
     expect(claudeManifest.mcpServers).toBe('./.mcp.json')
 
     expect(cursorManifest.skills).toBe('./skills/')

@@ -16,6 +16,7 @@ export interface McpScaffoldOptions {
   description?: string
   skillGrouping?: McpSkillGrouping
   hookMode?: McpHookMode
+  runtimeAuthMode?: McpRuntimeAuthMode
 }
 
 export interface McpScaffoldResult {
@@ -73,6 +74,8 @@ export type McpSkillGrouping = typeof MCP_SKILL_GROUPINGS[number]
 
 export const MCP_HOOK_MODES = ['none', 'safe'] as const
 export type McpHookMode = typeof MCP_HOOK_MODES[number]
+export const MCP_RUNTIME_AUTH_MODES = ['inline', 'platform'] as const
+export type McpRuntimeAuthMode = typeof MCP_RUNTIME_AUTH_MODES[number]
 
 interface GeneratedHookScaffold {
   mode: McpHookMode
@@ -92,6 +95,7 @@ export interface McpScaffoldMetadata {
     requestedHookMode: McpHookMode
     generatedHookMode: McpHookMode
     generatedHookEvents: string[]
+    runtimeAuthMode: McpRuntimeAuthMode
   }
   tools: IntrospectedMcpTool[]
   skills: Array<{
@@ -266,6 +270,7 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
   const serverName = options.serverName
     ?? toKebabCase(options.introspection.serverInfo.name)
     ?? pluginName
+  const runtimeAuthMode = options.runtimeAuthMode ?? 'inline'
 
   const instructionsPath = resolve(options.rootDir, 'INSTRUCTIONS.md')
   const skillRoot = resolve(options.rootDir, 'skills')
@@ -297,6 +302,7 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
       targets: options.targets,
       hooks: generatedHooks.hookEntries,
       scriptsPath: generatedHooks.scriptsPath,
+      runtimeAuthMode,
     }),
   )
 
@@ -307,6 +313,7 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
         displayName,
         description,
         source: options.source,
+        runtimeAuthMode,
         instructions: options.introspection.instructions,
         skills: plannedSkills,
         tools: options.introspection.tools,
@@ -351,6 +358,7 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
     requestedHookMode: options.hookMode ?? 'none',
     generatedHookMode: generatedHooks.mode,
     generatedHookEvents: Object.keys(generatedHooks.hookEntries ?? {}),
+    runtimeAuthMode,
     plannedSkills,
     managedFiles: [...generatedFiles, metadataPath],
   })
@@ -534,11 +542,12 @@ export function buildInstructionsContent(input: {
   displayName: string
   description: string
   source: McpServer
+  runtimeAuthMode?: McpRuntimeAuthMode
   instructions?: string
   skills: PlannedSkill[]
   tools: IntrospectedMcpTool[]
 }): string {
-  const accessLine = describePluginAccess(input.displayName, input.source)
+  const accessLine = describePluginAccess(input.displayName, input.source, input.runtimeAuthMode ?? 'inline')
   const lines = [
     `# ${input.displayName}`,
     '',
@@ -593,6 +602,7 @@ export function buildConfigTemplate(input: {
   targets: TargetPlatform[]
   hooks?: Record<string, HookEntry[]>
   scriptsPath?: string
+  runtimeAuthMode?: McpRuntimeAuthMode
 }): string {
   const targets = input.targets.map((target) => JSON.stringify(target)).join(', ')
   const mcpBlock = buildMcpBlock(input.serverName, input.source)
@@ -602,6 +612,9 @@ export function buildConfigTemplate(input: {
   ].filter(Boolean).join(',\n    ')
   const scriptsBlock = input.scriptsPath ? `  scripts: ${JSON.stringify(input.scriptsPath)},\n` : ''
   const hooksBlock = input.hooks ? `\n  hooks: ${serializeHooks(input.hooks)},\n` : ''
+  const platformsBlock = input.runtimeAuthMode === 'platform'
+    ? `\n  platforms: {\n    'claude-code': {\n      mcpAuth: 'platform',\n    },\n    cursor: {\n      mcpAuth: 'platform',\n    },\n  },\n`
+    : ''
 
   return `import { definePlugin } from 'pluxx'
 
@@ -622,6 +635,7 @@ ${scriptsBlock}
 ${mcpBlock}
   },
 ${hooksBlock}
+${platformsBlock}
 
   brand: {
     ${brandFields}
@@ -648,7 +662,9 @@ function buildMcpBlock(serverName: string, source: McpServer): string {
   }
 
   const authLine = source.auth && source.auth.type !== 'none'
-    ? `,\n      auth: {\n        type: ${JSON.stringify(source.auth.type)},\n        envVar: ${JSON.stringify(source.auth.envVar)}${source.auth.type === 'header'
+    ? source.auth.type === 'platform'
+      ? `,\n      auth: {\n        type: 'platform',\n        mode: ${JSON.stringify(source.auth.mode ?? 'oauth')}\n      }`
+      : `,\n      auth: {\n        type: ${JSON.stringify(source.auth.type)},\n        envVar: ${JSON.stringify(source.auth.envVar)}${source.auth.type === 'header'
           ? `,\n        headerName: ${JSON.stringify(source.auth.headerName)},\n        headerTemplate: ${JSON.stringify(source.auth.headerTemplate)}`
           : ''}\n      }`
     : ''
@@ -766,7 +782,7 @@ echo "pluxx: This tool modifies data. The agent should confirm before proceeding
 function collectRequiredEnvVars(source: McpServer): string[] {
   const envVars = new Set<string>()
 
-  if (source.auth?.type && source.auth.type !== 'none') {
+  if (source.auth?.type && source.auth.type !== 'none' && source.auth.type !== 'platform') {
     if (isValidShellEnvVarName(source.auth.envVar)) {
       envVars.add(source.auth.envVar)
     }
@@ -819,6 +835,7 @@ function buildMcpScaffoldMetadata(input: {
   requestedHookMode: McpHookMode
   generatedHookMode: McpHookMode
   generatedHookEvents: string[]
+  runtimeAuthMode: McpRuntimeAuthMode
   plannedSkills: PlannedSkill[]
   managedFiles: string[]
 }): McpScaffoldMetadata {
@@ -833,6 +850,7 @@ function buildMcpScaffoldMetadata(input: {
       requestedHookMode: input.requestedHookMode,
       generatedHookMode: input.generatedHookMode,
       generatedHookEvents: input.generatedHookEvents,
+      runtimeAuthMode: input.runtimeAuthMode,
     },
     tools: input.introspection.tools,
     skills: input.plannedSkills.map((skill) => ({
@@ -1148,7 +1166,7 @@ function formatSchemaType(value: unknown): string {
   return 'unknown'
 }
 
-function describePluginAccess(displayName: string, source: McpServer): string {
+function describePluginAccess(displayName: string, source: McpServer, runtimeAuthMode: McpRuntimeAuthMode): string {
   if (source.transport === 'stdio') {
     const command = [source.command, ...(source.args ?? [])].join(' ')
     const authLine = describeAuthRequirement(source)
@@ -1156,13 +1174,21 @@ function describePluginAccess(displayName: string, source: McpServer): string {
   }
 
   const transportLabel = source.transport === 'sse' ? 'legacy SSE' : 'HTTP'
-  const authLine = describeAuthRequirement(source)
+  const authLine = describeAuthRequirement(source, runtimeAuthMode)
   return `${displayName} connects to its MCP over ${transportLabel}.${authLine ? ` ${authLine}` : ''}`
 }
 
-function describeAuthRequirement(source: McpServer): string {
+function describeAuthRequirement(source: McpServer, runtimeAuthMode: McpRuntimeAuthMode = 'inline'): string {
+  if (runtimeAuthMode === 'platform' && source.transport !== 'stdio') {
+    return 'Claude Code and Cursor use platform-managed auth at runtime (for example native OAuth/custom connector flows). Exported env vars remain useful for scaffold refreshes and other non-platform-managed targets.'
+  }
+
   if (!source.auth || source.auth.type === 'none') {
     return ''
+  }
+
+  if (source.auth.type === 'platform') {
+    return 'Use the platform-managed auth flow before calling authenticated tools.'
   }
 
   if (source.auth.type === 'header') {

@@ -870,6 +870,10 @@ function describeAuth(server: { auth?: { type: string; envVar?: string; headerNa
     return `header via ${auth.headerName ?? 'custom header'} from ${auth.envVar ?? 'env'}`
   }
 
+  if (auth.type === 'platform') {
+    return 'platform-managed auth'
+  }
+
   return `bearer via ${auth.envVar ?? 'env'}`
 }
 

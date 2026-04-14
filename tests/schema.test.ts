@@ -116,6 +116,14 @@ describe('McpAuthSchema auth validation', () => {
       }).success
     ).toBe(true)
   })
+
+  it('supports platform-managed auth', () => {
+    expect(
+      McpAuthSchema.safeParse({
+        type: 'platform',
+      }).success
+    ).toBe(true)
+  })
 })
 
 describe('HookEntrySchema hook type validation', () => {

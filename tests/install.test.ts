@@ -63,7 +63,7 @@ describe('install', () => {
       mkdirSync(resolve(DIST_DIR, platform), { recursive: true })
     }
 
-    await installPlugin(DIST_DIR, 'megamind')
+    await installPlugin(DIST_DIR, 'megamind', undefined, { useNativeClaudeInstall: false })
 
     for (const platform of ALL_PLATFORMS) {
       const installedPath = resolve(HOME_DIR, INSTALL_PATHS[platform])
@@ -78,7 +78,7 @@ describe('install', () => {
     mkdirSync(resolve(DIST_DIR, 'openhands'), { recursive: true })
     mkdirSync(resolve(DIST_DIR, 'claude-code'), { recursive: true })
 
-    await installPlugin(DIST_DIR, 'megamind', ['cursor', 'openhands'])
+    await installPlugin(DIST_DIR, 'megamind', ['cursor', 'openhands'], { useNativeClaudeInstall: false })
 
     expect(existsSync(resolve(HOME_DIR, INSTALL_PATHS.cursor))).toBe(true)
     expect(existsSync(resolve(HOME_DIR, INSTALL_PATHS.openhands))).toBe(true)
@@ -88,7 +88,7 @@ describe('install', () => {
   it('uninstalls installed symlinks for selected targets', async () => {
     mkdirSync(resolve(DIST_DIR, 'cursor'), { recursive: true })
     mkdirSync(resolve(DIST_DIR, 'openhands'), { recursive: true })
-    await installPlugin(DIST_DIR, 'megamind', ['cursor', 'openhands'])
+    await installPlugin(DIST_DIR, 'megamind', ['cursor', 'openhands'], { useNativeClaudeInstall: false })
 
     await uninstallPlugin('megamind', ['cursor'])
 
@@ -134,5 +134,42 @@ describe('install', () => {
         confirmPrompt: async () => false,
       }),
     ).rejects.toThrow('Install cancelled')
+  })
+
+  it('uses Claude native install flow via a generated local marketplace', async () => {
+    mkdirSync(resolve(DIST_DIR, 'claude-code/.claude-plugin'), { recursive: true })
+    await Bun.write(
+      resolve(DIST_DIR, 'claude-code/.claude-plugin/plugin.json'),
+      JSON.stringify({
+        name: 'megamind',
+        version: '1.2.3',
+        description: 'Megamind plugin',
+        author: { name: 'Test Author' },
+        license: 'MIT',
+      }),
+    )
+
+    const calls: Array<{ command: string; args: string[] }> = []
+    const runCommand = (command: string, args: string[]) => {
+      calls.push({ command, args })
+      if (args.join(' ') === 'plugin marketplace list --json') {
+        return { status: 0, stdout: '[]', stderr: '' }
+      }
+      return { status: 0, stdout: '', stderr: '' }
+    }
+
+    await installPlugin(DIST_DIR, 'megamind', ['claude-code'], { runCommand })
+
+    const marketplaceRoot = resolve(HOME_DIR, '.claude/plugins/data/pluxx-local-megamind')
+    const marketplaceManifest = resolve(marketplaceRoot, '.claude-plugin/marketplace.json')
+    expect(existsSync(marketplaceManifest)).toBe(true)
+    expect(lstatSync(resolve(marketplaceRoot, 'plugins/megamind')).isSymbolicLink()).toBe(true)
+
+    expect(calls).toEqual([
+      { command: 'claude', args: ['plugin', 'marketplace', 'list', '--json'] },
+      { command: 'claude', args: ['plugin', 'marketplace', 'add', marketplaceRoot] },
+      { command: 'claude', args: ['plugin', 'uninstall', 'megamind@pluxx-local-megamind'] },
+      { command: 'claude', args: ['plugin', 'install', 'megamind@pluxx-local-megamind', '--scope', 'user'] },
+    ])
   })
 })
