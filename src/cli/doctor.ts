@@ -27,6 +27,22 @@ export interface DoctorReport {
 
 const CORE_FOUR = new Set<TargetPlatform>(['claude-code', 'cursor', 'codex', 'opencode'])
 const ENV_VAR_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
+const GENERIC_TOOL_NAME_PATTERNS = [
+  /^tool[_-]?\d+$/i,
+  /^function[_-]?\d+$/i,
+  /^action[_-]?\d+$/i,
+  /^untitled/i,
+  /^mcp[-_]?tool/i,
+]
+const LOW_INFO_DESCRIPTION_PATTERNS = [
+  /^n\/?a$/i,
+  /^none$/i,
+  /^todo$/i,
+  /^tbd$/i,
+  /^description$/i,
+  /^no description provided\.?$/i,
+]
+const MIN_TOOL_DESCRIPTION_LENGTH = 18
 
 function addCheck(checks: DoctorCheck[], check: DoctorCheck): void {
   checks.push(check)
@@ -250,6 +266,68 @@ function isSafeManagedPath(path: string): boolean {
   return path !== '' && !path.startsWith('/') && !path.includes('..')
 }
 
+function formatSampleNames(values: string[]): string {
+  if (values.length === 0) return 'none'
+  const sample = values.slice(0, 3)
+  return values.length > sample.length
+    ? `${sample.join(', ')} (+${values.length - sample.length} more)`
+    : sample.join(', ')
+}
+
+function checkMcpMetadataQuality(checks: DoctorCheck[], metadata: McpScaffoldMetadata): void {
+  const tools = metadata.tools ?? []
+  if (tools.length === 0) {
+    return
+  }
+
+  const missingDescription = tools
+    .filter((tool) => !tool.description || tool.description.trim() === '')
+    .map((tool) => tool.name)
+  const lowInfoDescription = tools
+    .filter((tool) => {
+      const description = tool.description?.trim()
+      if (!description) return false
+      return description.length < MIN_TOOL_DESCRIPTION_LENGTH
+        || LOW_INFO_DESCRIPTION_PATTERNS.some((pattern) => pattern.test(description))
+    })
+    .map((tool) => tool.name)
+  const genericNames = tools
+    .filter((tool) => GENERIC_TOOL_NAME_PATTERNS.some((pattern) => pattern.test(tool.name.trim())))
+    .map((tool) => tool.name)
+
+  const findings: string[] = []
+  if (missingDescription.length > 0) {
+    findings.push(`missing descriptions: ${formatSampleNames(missingDescription)}`)
+  }
+  if (lowInfoDescription.length > 0) {
+    findings.push(`low-information descriptions: ${formatSampleNames(lowInfoDescription)}`)
+  }
+  if (genericNames.length > 0) {
+    findings.push(`generic tool names: ${formatSampleNames(genericNames)}`)
+  }
+
+  if (findings.length === 0) {
+    addCheck(checks, {
+      level: 'success',
+      code: 'mcp-metadata-quality-ok',
+      title: 'MCP metadata quality looks strong',
+      detail: `Tool metadata quality checks passed for ${tools.length} tool(s).`,
+      fix: 'No action needed.',
+      path: MCP_SCAFFOLD_METADATA_PATH,
+    })
+    return
+  }
+
+  addCheck(checks, {
+    level: 'warning',
+    code: 'mcp-metadata-quality-weak',
+    title: 'MCP metadata quality is weak in scaffold source',
+    detail: `Weak metadata signals detected across ${tools.length} tool(s): ${findings.join('; ')}`,
+    fix: 'Before publishing, run `pluxx agent run review` and refine generated sections with concrete tool descriptions and product-shaped naming.',
+    path: MCP_SCAFFOLD_METADATA_PATH,
+  })
+}
+
 function checkScaffoldMetadata(checks: DoctorCheck[], rootDir: string, config: PluginConfig): void {
   const metadataPath = resolve(rootDir, MCP_SCAFFOLD_METADATA_PATH)
   if (!existsSync(metadataPath)) {
@@ -306,6 +384,8 @@ function checkScaffoldMetadata(checks: DoctorCheck[], rootDir: string, config: P
         path: MCP_SCAFFOLD_METADATA_PATH,
       })
     }
+
+    checkMcpMetadataQuality(checks, metadata)
   } catch (error) {
     addCheck(checks, {
       level: 'error',

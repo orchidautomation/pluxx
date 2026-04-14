@@ -92,6 +92,45 @@ describe('doctorProject', () => {
     }
   })
 
+  it('warns when MCP scaffold metadata has weak tool metadata', async () => {
+    const dir = createProjectFixture()
+    mkdirSync(resolve(dir, '.pluxx'), { recursive: true })
+    writeFileSync(
+      resolve(dir, '.pluxx/mcp.json'),
+      JSON.stringify({
+        version: 1,
+        source: {
+          transport: 'http',
+          url: 'https://example.com/mcp',
+        },
+        serverInfo: {
+          name: 'fixture',
+        },
+        settings: {
+          pluginName: 'doctor-fixture',
+          displayName: 'Doctor Fixture',
+          skillGrouping: 'workflow',
+          requestedHookMode: 'none',
+          generatedHookMode: 'none',
+          generatedHookEvents: [],
+        },
+        tools: [
+          { name: 'tool_1', description: 'N/A' },
+          { name: 'search_accounts' },
+        ],
+        skills: [],
+        managedFiles: ['INSTRUCTIONS.md'],
+      }, null, 2),
+    )
+
+    try {
+      const report = await doctorProject(dir)
+      expect(report.checks.some((check) => check.code === 'mcp-metadata-quality-weak' && check.level === 'warning')).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('prints stable JSON from the CLI', async () => {
     const dir = createProjectFixture()
 
