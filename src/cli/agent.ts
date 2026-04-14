@@ -18,7 +18,7 @@ export const AGENT_CONTEXT_PATH = '.pluxx/agent/context.md'
 export const AGENT_PLAN_PATH = '.pluxx/agent/plan.json'
 export const AGENT_OVERRIDES_PATH = 'pluxx.agent.md'
 export const AGENT_PROMPT_KINDS = ['taxonomy', 'instructions', 'review'] as const
-export const AGENT_RUNNERS = ['claude', 'opencode', 'codex'] as const
+export const AGENT_RUNNERS = ['claude', 'opencode', 'codex', 'cursor'] as const
 export type AgentPromptKind = typeof AGENT_PROMPT_KINDS[number]
 export type AgentRunner = typeof AGENT_RUNNERS[number]
 
@@ -32,6 +32,7 @@ const AGENT_RUNNER_BINARIES: Record<AgentRunner, string> = {
   claude: 'claude',
   opencode: 'opencode',
   codex: 'codex',
+  cursor: 'agent',
 }
 
 export interface AgentPreparePlannedFile {
@@ -281,6 +282,7 @@ export async function planAgentRun(
   const command = buildAgentRunnerCommand(options.runner, kind, buildAgentRunnerPrompt(kind, promptPath), {
     model: options.model,
     attach: options.attach,
+    workspace: rootDir,
   })
 
   return {
@@ -316,6 +318,7 @@ export async function runAgentPlan(
   }
 
   await ensureRunnerAvailable(plan.runner)
+  await ensureRunnerAuthenticated(plan.runner)
   const runnerExitCode = await executeCommand(plan.command, rootDir, {
     streamOutput: options.streamOutput === true,
   })
@@ -729,6 +732,7 @@ function buildAgentRunnerCommand(
   options: {
     model?: string
     attach?: string
+    workspace?: string
   } = {},
 ): string[] {
   const binary = AGENT_RUNNER_BINARIES[runner]
@@ -751,6 +755,22 @@ function buildAgentRunnerCommand(
     return args
   }
 
+  if (runner === 'cursor') {
+    if (!options.workspace) {
+      throw new Error('Cursor runner requires a workspace path.')
+    }
+
+    const args = [binary, '-p', '--trust', '--workspace', options.workspace]
+    if (kind !== 'review') {
+      args.push('--force')
+    }
+    if (options.model) {
+      args.push('--model', options.model)
+    }
+    args.push(prompt)
+    return args
+  }
+
   const args = [binary, 'run']
   if (options.model) {
     args.push('--model', options.model)
@@ -766,13 +786,40 @@ async function ensureRunnerAvailable(runner: AgentRunner): Promise<void> {
   const binary = AGENT_RUNNER_BINARIES[runner]
   const available = await commandExists(binary)
   if (!available) {
+    if (runner === 'cursor') {
+      throw new Error('The cursor runner requires the Cursor CLI `agent` binary on PATH. Install it with `curl https://cursor.com/install -fsS | bash` or choose a different runner.')
+    }
     throw new Error(`The ${runner} runner is not available on PATH. Install \`${binary}\` or choose a different runner.`)
+  }
+}
+
+async function ensureRunnerAuthenticated(runner: AgentRunner): Promise<void> {
+  if (runner !== 'cursor') return
+
+  if (process.env.CURSOR_API_KEY && process.env.CURSOR_API_KEY.trim().length > 0) {
+    return
+  }
+
+  const isAuthenticated = await commandSucceeds(['agent', 'status'])
+  if (!isAuthenticated) {
+    throw new Error('Cursor CLI authentication is required. Run `agent login` (browser auth) or export `CURSOR_API_KEY` before running Pluxx with `--runner cursor`.')
   }
 }
 
 async function commandExists(binary: string): Promise<boolean> {
   return await new Promise<boolean>((resolvePromise) => {
     const child = spawn('sh', ['-c', `command -v ${shellQuote(binary)} >/dev/null 2>&1`], {
+      stdio: 'ignore',
+      env: process.env,
+    })
+    child.on('close', (code) => resolvePromise(code === 0))
+    child.on('error', () => resolvePromise(false))
+  })
+}
+
+async function commandSucceeds(command: string[]): Promise<boolean> {
+  return await new Promise<boolean>((resolvePromise) => {
+    const child = spawn(command[0], command.slice(1), {
       stdio: 'ignore',
       env: process.env,
     })
