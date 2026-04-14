@@ -214,6 +214,20 @@ describe('agent mode', () => {
     expect(existsSync(resolve(TEST_DIR, '.pluxx/agent/review-prompt.md'))).toBe(false)
   })
 
+  it('includes metadata-quality and scaffold-vs-runtime guidance in review prompts', async () => {
+    const preparePlan = await planAgentPrepare(TEST_DIR)
+    await applyAgentPreparePlan(TEST_DIR, preparePlan)
+
+    const promptPlan = await planAgentPrompt(TEST_DIR, 'review')
+    await applyAgentPromptPlan(TEST_DIR, promptPlan)
+
+    const promptPath = resolve(TEST_DIR, '.pluxx/agent/review-prompt.md')
+    const prompt = readFileSync(promptPath, 'utf-8')
+    expect(prompt).toContain('weak MCP metadata signals')
+    expect(prompt).toContain('Separate scaffold quality findings from runtime-correctness findings.')
+    expect(prompt).toContain('scaffold quality gaps are distinguished from runtime correctness')
+  })
+
   it('supports CLI dry-run for review runs and keeps Claude in plan mode', async () => {
     const proc = Bun.spawn(
       ['bun', resolve(ROOT, 'bin/pluxx.js'), 'agent', 'run', 'review', '--runner', 'claude', '--json', '--dry-run'],

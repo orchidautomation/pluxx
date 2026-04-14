@@ -475,6 +475,7 @@ function buildAgentContext(
   lines.push('- Prefer branded product language in user-facing content; avoid exposing raw MCP server identifiers unless they are operationally required.')
   lines.push('- Avoid tiny singleton skills unless the surface is genuinely standalone.')
   lines.push('- Examples should be concrete and specific, not generic placeholders.')
+  lines.push('- Weak MCP metadata (missing/generic tool descriptions) should be called out explicitly before publishing.')
   lines.push('- The wording should match the MCP product narrative, not just raw tool names.')
   lines.push('')
 
@@ -516,6 +517,7 @@ function buildAgentModePlanJson(
       'Each skill represents a real user workflow or product surface.',
       'Setup/admin/account tools are grouped intentionally.',
       'Examples are concrete and realistic.',
+      'Weak MCP metadata is surfaced before publishing.',
       'Only Pluxx-managed sections are modified.',
     ],
     caveats: lint.issues.map((issue) => `[${issue.level}] ${issue.code}: ${issue.message}`),
@@ -696,7 +698,7 @@ function buildAgentPrompt(
     return `${sharedIntro.join('\n')}Your job:\n1. Rewrite only the generated block in \`INSTRUCTIONS.md\`.\n2. Explain what the plugin is for, how the skills should be used, and which setup/admin/account/runtime boundaries matter.\n3. Keep wording aligned to the MCP's product narrative and branded language; avoid raw MCP server/tool identifiers except when technically required.\n4. Prefer the branded product name in user-facing copy; do not lead with internal MCP server identifiers.\n${buildPromptOverrideBlock(kind, input.overrides)}\nSuccess criteria:\n- instructions are concise, actionable, and product-shaped\n- wording is branded and product-facing, not raw MCP-internal naming\n- auth/setup/admin caveats are explicit when relevant\n- raw MCP server identifiers are omitted unless operationally necessary\n- the file remains safe for future \`pluxx sync --from-mcp\`\n`
   }
 
-  return `${sharedIntro.join('\n')}Your job:\n1. Review the current scaffold critically.\n2. Call out weak skill groupings, missing setup guidance, vague examples, or product/category mismatches.\n3. Propose only the highest-value changes needed to make the scaffold useful.\n${buildPromptOverrideBlock(kind, input.overrides)}\nSuccess criteria:\n- findings are concrete and tied to files\n- suggested changes improve user-facing plugin quality\n- recommendations stay inside Pluxx-managed boundaries\n`
+  return `${sharedIntro.join('\n')}Your job:\n1. Review the current scaffold critically.\n2. Call out weak skill groupings, missing setup guidance, vague examples, product/category mismatches, or weak MCP metadata signals.\n3. Separate scaffold quality findings from runtime-correctness findings.\n4. Propose only the highest-value changes needed to make the scaffold useful.\n${buildPromptOverrideBlock(kind, input.overrides)}\nSuccess criteria:\n- findings are concrete and tied to files\n- scaffold quality gaps are distinguished from runtime correctness\n- suggested changes improve user-facing plugin quality\n- recommendations stay inside Pluxx-managed boundaries\n`
 }
 
 function buildAgentRunnerPrompt(kind: AgentPromptKind, promptPath: string): string {

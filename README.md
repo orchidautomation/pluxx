@@ -157,6 +157,8 @@ Generated MCP skill files include deterministic example requests derived from to
 
 Agent Mode stays file-first: Pluxx writes `.pluxx/agent/context.md`, `.pluxx/agent/plan.json`, and the prompt packs, then optional runner adapters can hand those files to `claude`, `opencode`, or `codex` in headless mode. Durable project-level prompt and context customization now lives in `pluxx.agent.md`, so users do not need to edit generated `.pluxx/agent/*.md` files directly.
 
+The dogfood coverage matrix across messy metadata, local stdio, OAuth-first servers, and production auth patterns is documented in [docs/mcp-dogfood-matrix.md](./docs/mcp-dogfood-matrix.md).
+
 For dogfooding inside Codex, this repo also ships a local plugin/skill pack at [plugins/pluxx](/Users/brandonguerrero/Documents/Orchid Automation/Orchid Labs/pluxx/plugins/pluxx) with focused skills for import, taxonomy refinement, instructions, review, and sync.
 
 ```bash
