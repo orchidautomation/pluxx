@@ -12,6 +12,7 @@ This walkthrough covers:
 
 Related docs:
 
+- [Practical handbook](./practical-handbook.md)
 - [How it works](./how-it-works.md)
 - [Architecture](./architecture.md)
 - [Customer journey](./customer-journey.md)

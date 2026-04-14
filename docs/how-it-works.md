@@ -26,6 +26,7 @@ Pluxx is intentionally the plugin authoring/distribution layer, not the MCP host
 
 See [Agent Mode](./agent-mode.md) for the semantic-authoring layer.
 See [Architecture](./architecture.md) for the system view and [Customer Journey](./customer-journey.md) for the end-to-end user path.
+See [Practical handbook](./practical-handbook.md) for the operational command-by-command workflow.
 
 Runtime today: Bun. Use `bunx pluxx ...` or install the npm package on machines that already have Bun available.
 

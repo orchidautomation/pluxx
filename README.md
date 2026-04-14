@@ -38,6 +38,8 @@ dist/
 
 The mechanically generated source of truth for support and verification is [docs/compatibility.md](./docs/compatibility.md).
 
+If you want the operational version of the docs, start with the [Practical handbook](./docs/practical-handbook.md).
+
 ## Why?
 
 Tools like `npx skills` install SKILL.md files across agents. That covers **skills**.
