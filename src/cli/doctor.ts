@@ -42,7 +42,6 @@ const LOW_INFO_DESCRIPTION_PATTERNS = [
   /^description$/i,
   /^no description provided\.?$/i,
 ]
-const MIN_TOOL_DESCRIPTION_LENGTH = 18
 
 function addCheck(checks: DoctorCheck[], check: DoctorCheck): void {
   checks.push(check)
@@ -274,6 +273,18 @@ function formatSampleNames(values: string[]): string {
     : sample.join(', ')
 }
 
+function normalizeMetadataText(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+}
+
+function isLowInfoDescription(description: string): boolean {
+  const normalizedDescription = normalizeMetadataText(description)
+  return LOW_INFO_DESCRIPTION_PATTERNS.some((pattern) => pattern.test(normalizedDescription))
+}
+
 function checkMcpMetadataQuality(checks: DoctorCheck[], metadata: McpScaffoldMetadata): void {
   const tools = metadata.tools ?? []
   if (tools.length === 0) {
@@ -287,8 +298,7 @@ function checkMcpMetadataQuality(checks: DoctorCheck[], metadata: McpScaffoldMet
     .filter((tool) => {
       const description = tool.description?.trim()
       if (!description) return false
-      return description.length < MIN_TOOL_DESCRIPTION_LENGTH
-        || LOW_INFO_DESCRIPTION_PATTERNS.some((pattern) => pattern.test(description))
+      return isLowInfoDescription(description)
     })
     .map((tool) => tool.name)
   const genericNames = tools
