@@ -1252,13 +1252,13 @@ async function runAgent() {
   if (subcommand === 'run') {
     const kind = args[2] as AgentPromptKind | undefined
     if (!kind || !AGENT_PROMPT_KINDS.includes(kind)) {
-      console.error(`Usage: pluxx agent run <${AGENT_PROMPT_KINDS.join('|')}> --runner <${AGENT_RUNNERS.join('|')}> [--model NAME] [--attach URL] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
+      console.error(`Usage: pluxx agent run <${AGENT_PROMPT_KINDS.join('|')}> --runner <${AGENT_RUNNERS.join('|')}> [--model NAME] [--attach URL (opencode only)] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
       process.exit(1)
     }
 
     const runnerRaw = readOption(args, '--runner')
     if (!runnerRaw || !AGENT_RUNNERS.includes(runnerRaw as AgentRunner)) {
-      console.error(`Usage: pluxx agent run <${AGENT_PROMPT_KINDS.join('|')}> --runner <${AGENT_RUNNERS.join('|')}> [--model NAME] [--attach URL] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
+      console.error(`Usage: pluxx agent run <${AGENT_PROMPT_KINDS.join('|')}> --runner <${AGENT_RUNNERS.join('|')}> [--model NAME] [--attach URL (opencode only)] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
       process.exit(1)
     }
     const verboseRunner = args.includes('--verbose-runner')
@@ -1922,6 +1922,7 @@ Examples:
   pluxx agent run taxonomy --runner codex
   pluxx agent run taxonomy --runner codex --verbose-runner
   pluxx agent run review --runner opencode --attach http://localhost:4096 --no-verify
+  --attach is only supported for the opencode runner
   pluxx autopilot --from-mcp https://example.com/mcp --runner codex --yes --name acme --display-name "Acme"
   pluxx autopilot --from-mcp https://example.com/mcp --runner codex --yes --verbose-runner
   pluxx autopilot --from-mcp "npx -y @acme/mcp" --runner claude --targets claude-code,codex --website https://example.com --docs https://docs.example.com

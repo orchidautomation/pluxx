@@ -118,6 +118,8 @@ pluxx agent run taxonomy --runner codex
 pluxx agent run review --runner opencode --attach http://localhost:4096 --no-verify
 ```
 
+`--attach` is only supported for the `opencode` runner.
+
 Optional flags:
 
 ```bash

@@ -117,6 +117,8 @@ bunx pluxx build
 bunx pluxx test
 ```
 
+`--attach` is only supported for the `opencode` runner.
+
 ## Product Boundary And Lifecycle
 
 Pluxx is for MCP developers and teams shipping MCP-backed plugins.
