@@ -6,11 +6,13 @@ import { introspectMcpServer, type IntrospectedMcpTool } from '../mcp/introspect
 import type { McpServer } from '../schema'
 import {
   MCP_SCAFFOLD_METADATA_PATH,
+  MCP_TAXONOMY_PATH,
   PLUXX_CUSTOM_START,
   PLUXX_CUSTOM_END,
   extractMixedMarkdownContent,
   hasMeaningfulCustomContent,
   type McpScaffoldMetadata,
+  type PersistedSkill,
   writeMcpScaffold,
 } from './init-from-mcp'
 
@@ -49,6 +51,7 @@ export async function syncFromMcp(options: SyncFromMcpOptions): Promise<SyncFrom
 
   // Step 1: Detect renames between old and new tool lists
   const toolRenames = detectToolRenames(metadata.tools, introspection.tools)
+  const persistedSkills = readPersistedSkills(options.rootDir, metadata)
 
   // Step 3: Generate new scaffold
   const result = await writeMcpScaffold({
@@ -62,6 +65,8 @@ export async function syncFromMcp(options: SyncFromMcpOptions): Promise<SyncFrom
       skillGrouping: metadata.settings.skillGrouping,
       hookMode: metadata.settings.requestedHookMode,
       runtimeAuthMode: metadata.settings.runtimeAuthMode ?? 'inline',
+      persistedSkills,
+      toolRenames,
     })
 
   const newMetadataPath = resolveWithinRoot(options.rootDir, MCP_SCAFFOLD_METADATA_PATH)
@@ -149,6 +154,70 @@ export async function syncFromMcp(options: SyncFromMcpOptions): Promise<SyncFrom
   }
 }
 
+export async function applyPersistedTaxonomy(rootDir: string): Promise<void> {
+  const metadata = await readMcpScaffoldMetadata(rootDir)
+  const config = await loadConfig(rootDir)
+  const beforeContents = snapshotManagedFiles(rootDir, metadata.managedFiles)
+  const persistedSkills = readPersistedSkills(rootDir, metadata)
+
+  const result = await writeMcpScaffold({
+    rootDir,
+    pluginName: config.name,
+    authorName: config.author.name,
+    targets: config.targets,
+    source: metadata.source,
+    introspection: {
+      protocolVersion: '2025-03-26',
+      serverInfo: metadata.serverInfo,
+      tools: metadata.tools,
+    },
+    displayName: config.brand?.displayName ?? metadata.settings.displayName,
+    skillGrouping: metadata.settings.skillGrouping,
+    hookMode: metadata.settings.requestedHookMode,
+    runtimeAuthMode: metadata.settings.runtimeAuthMode ?? 'inline',
+    persistedSkills,
+  })
+
+  const instructionsPath = './INSTRUCTIONS.md'
+  const previousInstructions = beforeContents.get(instructionsPath)
+  if (previousInstructions !== undefined) {
+    writeFileSync(resolveWithinRoot(rootDir, instructionsPath), previousInstructions, 'utf-8')
+  }
+
+  const newMetadataPath = resolveWithinRoot(rootDir, MCP_SCAFFOLD_METADATA_PATH)
+  const newMetadata: McpScaffoldMetadata = JSON.parse(readFileSync(newMetadataPath, 'utf-8'))
+  const skillRenames = detectSkillRenames(metadata.skills, newMetadata.skills, new Map())
+
+  preserveCustomContentForRenames(rootDir, skillRenames, (dirName) => `skills/${dirName}/SKILL.md`)
+  preserveCustomContentForRenames(rootDir, skillRenames, (dirName) => `commands/${dirName}.md`)
+
+  const afterManaged = new Set(result.generatedFiles)
+  const beforeManaged = new Set(metadata.managedFiles)
+  const renamedOldDirs = new Set([...skillRenames.keys()].map((dirName) => `skills/${dirName}/`))
+  const renamedNewDirs = new Set([...skillRenames.values()].map((dirName) => `skills/${dirName}/`))
+  const renamedOldCommands = new Set([...skillRenames.keys()].map((dirName) => `commands/${dirName}.md`))
+
+  for (const file of beforeManaged) {
+    if (afterManaged.has(file) || file === instructionsPath) continue
+
+    const isRenamedSkill = [...renamedOldDirs].some((dir) => file.startsWith(dir))
+    const isRenamedCommand = renamedOldCommands.has(file)
+    if (isRenamedSkill || isRenamedCommand) {
+      removeManagedFile(rootDir, file)
+      continue
+    }
+
+    if (shouldPreserveManagedFile(rootDir, file)) continue
+    removeManagedFile(rootDir, file)
+  }
+
+  for (const file of afterManaged) {
+    if (file === instructionsPath && previousInstructions !== undefined) {
+      writeFileSync(resolveWithinRoot(rootDir, file), previousInstructions, 'utf-8')
+    }
+  }
+}
+
 export async function planSyncFromMcp(options: SyncFromMcpOptions): Promise<SyncFromMcpResult> {
   const tempRoot = mkdtempSync(resolve(tmpdir(), 'pluxx-sync-dry-run-'))
   const projectDir = resolve(tempRoot, 'project')
@@ -161,6 +230,42 @@ export async function planSyncFromMcp(options: SyncFromMcpOptions): Promise<Sync
     })
   } finally {
     rmSync(tempRoot, { recursive: true, force: true })
+  }
+}
+
+function readPersistedSkills(rootDir: string, metadata: McpScaffoldMetadata): PersistedSkill[] {
+  const taxonomyPath = resolveWithinRoot(rootDir, MCP_TAXONOMY_PATH)
+  if (existsSync(taxonomyPath)) {
+    return JSON.parse(readFileSync(taxonomyPath, 'utf-8')) as PersistedSkill[]
+  }
+
+  return metadata.skills.map((skill) => ({
+    dirName: skill.dirName,
+    title: skill.title,
+    description: skill.description,
+    toolNames: skill.toolNames,
+  }))
+}
+
+function preserveCustomContentForRenames(
+  rootDir: string,
+  renames: Map<string, string>,
+  pathForName: (dirName: string) => string,
+): void {
+  for (const [oldName, newName] of renames) {
+    const oldPath = resolveWithinRoot(rootDir, pathForName(oldName))
+    if (!existsSync(oldPath)) continue
+
+    const oldContent = readFileSync(oldPath, 'utf-8')
+    const extracted = extractMixedMarkdownContent(oldContent, '')
+    if (!hasMeaningfulCustomContent(oldContent)) continue
+
+    const newPath = resolveWithinRoot(rootDir, pathForName(newName))
+    if (!existsSync(newPath)) continue
+
+    const currentContent = readFileSync(newPath, 'utf-8')
+    const updatedContent = injectCustomContent(currentContent, extracted.customContent)
+    writeFileSync(newPath, updatedContent, 'utf-8')
   }
 }
 

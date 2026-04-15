@@ -212,12 +212,18 @@ describe('init-from-mcp scaffold', () => {
       'skills/find-people',
       'skills/get-organization',
     ])
+    expect(result.commandFiles).toEqual([
+      'commands/find-organizations.md',
+      'commands/find-people.md',
+      'commands/get-organization.md',
+    ])
     expect(result.generatedFiles).toContain('scripts/check-env.sh')
     expect(result.generatedFiles).toContain('.pluxx/mcp.json')
 
     const config = readFileSync(resolve(TEST_DIR, 'pluxx.config.ts'), 'utf-8')
     const instructionsFile = readFileSync(resolve(TEST_DIR, 'INSTRUCTIONS.md'), 'utf-8')
     const organizationSkill = readFileSync(resolve(TEST_DIR, 'skills/find-organizations/SKILL.md'), 'utf-8')
+    const organizationCommand = readFileSync(resolve(TEST_DIR, 'commands/find-organizations.md'), 'utf-8')
     const envScript = readFileSync(resolve(TEST_DIR, 'scripts/check-env.sh'), 'utf-8')
     const metadata = JSON.parse(readFileSync(resolve(TEST_DIR, '.pluxx/mcp.json'), 'utf-8')) as {
       version: number
@@ -232,6 +238,7 @@ describe('init-from-mcp scaffold', () => {
     expect(config).toContain(`name: "sumble"`)
     expect(config).toContain(`envVar: "SUMBLE_API_KEY"`)
     expect(config).toContain(`instructions: './INSTRUCTIONS.md'`)
+    expect(config).toContain(`commands: "./commands/"`)
     expect(config).toContain(`scripts: "./scripts/"`)
     expect(config).toContain(`sessionStart`)
     expect(config).toContain('check-env.sh')
@@ -254,12 +261,17 @@ describe('init-from-mcp scaffold', () => {
     expect(organizationSkill).toContain('"Find organizations matching <query>."')
     expect(organizationSkill.startsWith('---\n')).toBe(true)
     expect(organizationSkill).toContain('\n<!-- pluxx:generated:start -->\n# Find Organizations')
+    expect(organizationCommand).toContain('argument-hint: "[query]"')
+    expect(organizationCommand).toContain('Use the find organizations workflow for this plugin.')
+    expect(organizationCommand).toContain('Primary tools:')
+    expect(organizationCommand).toContain('<!-- pluxx:generated:start -->')
     expect(envScript).toContain('SUMBLE_API_KEY')
     expect(envScript).toContain('pluxx: SUMBLE_API_KEY is not set')
     expect(metadata.version).toBe(1)
     expect(metadata.settings.skillGrouping).toBe('tool')
     expect(metadata.settings.generatedHookMode).toBe('safe')
     expect(metadata.managedFiles).toContain('.pluxx/mcp.json')
+    expect(metadata.managedFiles).toContain('commands/find-organizations.md')
     expect(metadata.skills.map((skill) => skill.dirName)).toEqual([
       'find-organizations',
       'find-people',

@@ -7,12 +7,14 @@ import { lintProject, type LintResult } from './lint'
 import { runTestSuite, type TestRunResult } from './test'
 import {
   MCP_SCAFFOLD_METADATA_PATH,
+  MCP_TAXONOMY_PATH,
   PLUXX_CUSTOM_END,
   PLUXX_CUSTOM_START,
   PLUXX_GENERATED_END,
   PLUXX_GENERATED_START,
   type McpScaffoldMetadata,
 } from './init-from-mcp'
+import { applyPersistedTaxonomy } from './sync-from-mcp'
 
 export const AGENT_CONTEXT_PATH = '.pluxx/agent/context.md'
 export const AGENT_PLAN_PATH = '.pluxx/agent/plan.json'
@@ -167,6 +169,10 @@ interface AgentOverrides {
   reviewCriteria?: string
 }
 
+function hasManagedCommands(metadata: McpScaffoldMetadata): boolean {
+  return metadata.managedFiles.some((file) => file.startsWith('commands/'))
+}
+
 export async function planAgentPrepare(
   rootDir: string = process.cwd(),
   options: AgentPrepareOptions = {},
@@ -236,6 +242,9 @@ export async function planAgentPrompt(
     pluginName: config.name,
     displayName: config.brand?.displayName ?? metadata.settings.displayName ?? config.name,
     skillPaths: metadata.skills.map((skill) => `skills/${skill.dirName}/SKILL.md`),
+    commandPaths: hasManagedCommands(metadata)
+      ? metadata.skills.map((skill) => `commands/${skill.dirName}.md`)
+      : [],
     overrides,
   })
   const file = await planFile(rootDir, outputPath, content)
@@ -322,6 +331,9 @@ export async function runAgentPlan(
   const runnerExitCode = await executeCommand(plan.command, rootDir, {
     streamOutput: options.streamOutput === true,
   })
+  if (runnerExitCode === 0 && plan.kind === 'taxonomy') {
+    await applyPersistedTaxonomy(rootDir)
+  }
   const verification = runnerExitCode === 0 && plan.verify
     ? await runTestSuite({ rootDir })
     : undefined
@@ -336,6 +348,8 @@ export async function runAgentPlan(
 
 function buildEditableFiles(metadata: McpScaffoldMetadata): AgentPlanFile[] {
   const files: AgentPlanFile[] = [{
+    path: MCP_TAXONOMY_PATH,
+  }, {
     path: 'INSTRUCTIONS.md',
     managedSections: [{ start: PLUXX_GENERATED_START, end: PLUXX_GENERATED_END }],
   }]
@@ -345,6 +359,15 @@ function buildEditableFiles(metadata: McpScaffoldMetadata): AgentPlanFile[] {
       path: `skills/${skill.dirName}/SKILL.md`,
       managedSections: [{ start: PLUXX_GENERATED_START, end: PLUXX_GENERATED_END }],
     })
+  }
+
+  if (hasManagedCommands(metadata)) {
+    for (const skill of metadata.skills) {
+      files.push({
+        path: `commands/${skill.dirName}.md`,
+        managedSections: [{ start: PLUXX_GENERATED_START, end: PLUXX_GENERATED_END }],
+      })
+    }
   }
 
   return files
@@ -407,6 +430,7 @@ function buildAgentContext(
     '## MCP',
     '',
     `- Metadata source: \`${MCP_SCAFFOLD_METADATA_PATH}\``,
+    `- Semantic taxonomy: \`${MCP_TAXONOMY_PATH}\``,
     `- Server name: \`${serverName}\``,
     `- Transport: ${server?.transport ?? metadata.source.transport}`,
     `- Auth: ${describeAuth(server ?? metadata.source)}`,
@@ -671,6 +695,7 @@ function buildAgentPrompt(
     pluginName: string
     displayName: string
     skillPaths: string[]
+    commandPaths: string[]
     overrides: AgentOverrides | null
   },
 ): string {
@@ -682,8 +707,10 @@ function buildAgentPrompt(
     'Inputs:',
     '- `.pluxx/agent/context.md`',
     '- `.pluxx/agent/plan.json`',
+    `- \`${MCP_TAXONOMY_PATH}\``,
     '- `INSTRUCTIONS.md`',
     ...input.skillPaths.map((path) => `- \`${path}\``),
+    ...input.commandPaths.map((path) => `- \`${path}\``),
     '',
     'Rules:',
     '- Only edit Pluxx-managed generated sections.',
@@ -694,7 +721,7 @@ function buildAgentPrompt(
   ]
 
   if (kind === 'taxonomy') {
-    return `${sharedIntro.join('\n')}Your job:\n1. Infer the MCP's real product surfaces and workflows.\n2. Merge, split, or rename generated skills so labels are product-facing, not lexical buckets.\n3. Remove misleading skill labels and avoid tiny singleton/admin-only skills unless clearly justified.\n4. Rewrite the generated blocks in the skill files so each skill maps to a real user workflow or product surface.\n5. Keep setup/onboarding, account-admin, and runtime workflows intentionally separated when appropriate.\n6. Eliminate misleading labels such as contact or people discovery when the tools do not actually perform direct lookup.\n${buildPromptOverrideBlock(kind, input.overrides)}\nSuccess criteria:\n- each skill represents a real user workflow or product surface\n- skill names are product-shaped and avoid raw MCP tool/server identifiers when possible\n- setup/onboarding, account-admin, and runtime workflows are grouped intentionally\n- singleton skills are avoided unless they represent a real standalone user workflow\n- examples are concrete and realistic\n`
+    return `${sharedIntro.join('\n')}Your job:\n1. Treat \`${MCP_TAXONOMY_PATH}\` as the semantic source of truth for skill grouping and naming.\n2. Infer the MCP's real product surfaces and workflows.\n3. Merge, split, or rename generated skills so labels are product-facing, not lexical buckets.\n4. Update the taxonomy file first; Pluxx will re-render generated skills and commands from that taxonomy after the pass.\n5. Keep setup/onboarding, account-admin, and runtime workflows intentionally separated when appropriate.\n6. Eliminate misleading labels such as contact or people discovery when the tools do not actually perform direct lookup.\n${buildPromptOverrideBlock(kind, input.overrides)}\nSuccess criteria:\n- each skill represents a real user workflow or product surface\n- skill names are product-shaped and avoid raw MCP tool/server identifiers when possible\n- setup/onboarding, account-admin, and runtime workflows are grouped intentionally\n- singleton skills are avoided unless they represent a real standalone user workflow\n- commands stay aligned with the chosen taxonomy\n`
   }
 
   if (kind === 'instructions') {

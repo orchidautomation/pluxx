@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
 import { introspectMcpServer } from '../src/mcp/introspect'
-import { detectSkillRenames, detectToolRenames, syncFromMcp } from '../src/cli/sync-from-mcp'
+import { applyPersistedTaxonomy, detectSkillRenames, detectToolRenames, syncFromMcp } from '../src/cli/sync-from-mcp'
 import { writeMcpScaffold } from '../src/cli/init-from-mcp'
 
 const TEST_DIR = resolve(import.meta.dir, '.sync-from-mcp')
@@ -259,5 +259,202 @@ describe('sync-from-mcp', () => {
       'find-organizations',
       'search-technologies',
     ])
+  })
+
+  it('re-renders skills and commands from the persisted taxonomy', async () => {
+    writeFileSync(
+      STATE_PATH,
+      JSON.stringify({
+        serverInfo: {
+          name: 'stub-server',
+          title: 'Stub Server',
+          version: '1.0.0',
+          description: 'A fake MCP server for taxonomy tests.',
+        },
+        instructions: 'Use the original fake tools carefully.',
+        tools: [
+          {
+            name: 'FindOrganizations',
+            description: 'Search organizations.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                query: { type: 'string' },
+              },
+              required: ['query'],
+            },
+          },
+          {
+            name: 'FindPeople',
+            description: 'Search people.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                company: { type: 'string' },
+              },
+              required: ['company'],
+            },
+          },
+        ],
+      }, null, 2),
+    )
+
+    const source = {
+      transport: 'stdio' as const,
+      command: 'bun',
+      args: [STUB_SERVER_PATH, STATE_PATH],
+    }
+
+    const introspection = await introspectMcpServer(source)
+    await writeMcpScaffold({
+      rootDir: TEST_DIR,
+      pluginName: 'stub-server',
+      authorName: 'Test Author',
+      displayName: 'Stub Server',
+      targets: ['claude-code', 'codex'],
+      source,
+      introspection,
+      skillGrouping: 'tool',
+      hookMode: 'none',
+    })
+
+    writeFileSync(
+      resolve(TEST_DIR, '.pluxx/taxonomy.json'),
+      JSON.stringify([
+        {
+          dirName: 'research',
+          title: 'Research',
+          description: 'Handle company and people research workflows.',
+          toolNames: ['FindOrganizations', 'FindPeople'],
+        },
+      ], null, 2),
+    )
+
+    await applyPersistedTaxonomy(TEST_DIR)
+
+    expect(existsSync(resolve(TEST_DIR, 'skills/research/SKILL.md'))).toBe(true)
+    expect(existsSync(resolve(TEST_DIR, 'commands/research.md'))).toBe(true)
+    expect(existsSync(resolve(TEST_DIR, 'skills/find-organizations/SKILL.md'))).toBe(false)
+    expect(existsSync(resolve(TEST_DIR, 'commands/find-organizations.md'))).toBe(false)
+
+    const command = readFileSync(resolve(TEST_DIR, 'commands/research.md'), 'utf-8')
+    expect(command).toContain('Use the research workflow for this plugin.')
+    expect(command).toContain('`FindOrganizations`')
+    expect(command).toContain('`FindPeople`')
+  })
+
+  it('preserves a persisted taxonomy across sync instead of recomputing generic buckets', async () => {
+    writeFileSync(
+      STATE_PATH,
+      JSON.stringify({
+        serverInfo: {
+          name: 'stub-server',
+          title: 'Stub Server',
+          version: '1.0.0',
+          description: 'A fake MCP server for sync tests.',
+        },
+        instructions: 'Use the original fake tools carefully.',
+        tools: [
+          {
+            name: 'FindOrganizations',
+            description: 'Search organizations.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                query: { type: 'string' },
+              },
+              required: ['query'],
+            },
+          },
+          {
+            name: 'FindPeople',
+            description: 'Search people.',
+          },
+        ],
+      }, null, 2),
+    )
+
+    const source = {
+      transport: 'stdio' as const,
+      command: 'bun',
+      args: [STUB_SERVER_PATH, STATE_PATH],
+    }
+
+    const introspection = await introspectMcpServer(source)
+    await writeMcpScaffold({
+      rootDir: TEST_DIR,
+      pluginName: 'stub-server',
+      authorName: 'Test Author',
+      displayName: 'Stub Server',
+      targets: ['claude-code', 'codex'],
+      source,
+      introspection,
+      skillGrouping: 'tool',
+      hookMode: 'none',
+    })
+
+    writeFileSync(
+      resolve(TEST_DIR, '.pluxx/taxonomy.json'),
+      JSON.stringify([
+        {
+          dirName: 'research',
+          title: 'Research',
+          description: 'Handle account and people research in one place.',
+          toolNames: ['FindOrganizations', 'FindPeople'],
+        },
+      ], null, 2),
+    )
+
+    writeFileSync(
+      STATE_PATH,
+      JSON.stringify({
+        serverInfo: {
+          name: 'stub-server',
+          title: 'Stub Server',
+          version: '1.1.0',
+          description: 'A fake MCP server for sync tests.',
+        },
+        instructions: 'Use the updated fake tools carefully.',
+        tools: [
+          {
+            name: 'FindOrganizations',
+            description: 'Search organizations with richer filters.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                query: { type: 'string' },
+              },
+              required: ['query'],
+            },
+          },
+          {
+            name: 'FindPeople',
+            description: 'Search people with updated filters.',
+          },
+          {
+            name: 'SearchTechnologies',
+            description: 'Search technologies.',
+          },
+        ],
+      }, null, 2),
+    )
+
+    const result = await syncFromMcp({ rootDir: TEST_DIR })
+
+    expect(existsSync(resolve(TEST_DIR, 'skills/research/SKILL.md'))).toBe(true)
+    expect(readFileSync(resolve(TEST_DIR, 'skills/research/SKILL.md'), 'utf-8')).toContain('# Research')
+    expect(readFileSync(resolve(TEST_DIR, 'skills/research/SKILL.md'), 'utf-8')).toContain('### `FindOrganizations`')
+    expect(readFileSync(resolve(TEST_DIR, 'skills/research/SKILL.md'), 'utf-8')).toContain('### `FindPeople`')
+    expect(result.updatedFiles).toContain('.pluxx/taxonomy.json')
+
+    const metadata = JSON.parse(readFileSync(resolve(TEST_DIR, '.pluxx/mcp.json'), 'utf-8')) as {
+      skills: Array<{ dirName: string }>
+      managedFiles: string[]
+    }
+    expect(metadata.skills.map((skill) => skill.dirName)).toEqual([
+      'research',
+      'search-technologies',
+    ])
+    expect(metadata.managedFiles).toContain('.pluxx/taxonomy.json')
   })
 })

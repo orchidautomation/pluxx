@@ -17,11 +17,14 @@ export interface McpScaffoldOptions {
   skillGrouping?: McpSkillGrouping
   hookMode?: McpHookMode
   runtimeAuthMode?: McpRuntimeAuthMode
+  persistedSkills?: PersistedSkill[]
+  toolRenames?: Map<string, string>
 }
 
 export interface McpScaffoldResult {
   instructionsPath: string
   skillDirectories: string[]
+  commandFiles: string[]
   generatedFiles: string[]
   generatedHookMode: McpHookMode
   generatedHookEvents: string[]
@@ -43,6 +46,13 @@ interface PlannedSkill {
   title: string
   description: string
   tools: IntrospectedMcpTool[]
+}
+
+export interface PersistedSkill {
+  dirName: string
+  title: string
+  description?: string
+  toolNames: string[]
 }
 
 interface SchemaField {
@@ -101,12 +111,14 @@ export interface McpScaffoldMetadata {
   skills: Array<{
     dirName: string
     title: string
+    description?: string
     toolNames: string[]
   }>
   managedFiles: string[]
 }
 
 export const MCP_SCAFFOLD_METADATA_PATH = '.pluxx/mcp.json'
+export const MCP_TAXONOMY_PATH = '.pluxx/taxonomy.json'
 export const PLUXX_GENERATED_START = '<!-- pluxx:generated:start -->'
 export const PLUXX_GENERATED_END = '<!-- pluxx:generated:end -->'
 export const PLUXX_CUSTOM_START = '<!-- pluxx:custom:start -->'
@@ -241,6 +253,7 @@ export async function writeMcpScaffold(options: McpScaffoldOptions): Promise<Mcp
   return {
     instructionsPath: plan.instructionsPath,
     skillDirectories: plan.skillDirectories,
+    commandFiles: plan.commandFiles,
     generatedFiles: plan.generatedFiles,
     generatedHookMode: plan.generatedHookMode,
     generatedHookEvents: plan.generatedHookEvents,
@@ -274,11 +287,19 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
 
   const instructionsPath = resolve(options.rootDir, 'INSTRUCTIONS.md')
   const skillRoot = resolve(options.rootDir, 'skills')
-  const plannedSkills = planSkillScaffolds(options.introspection.tools, options.skillGrouping)
+  const commandsRoot = resolve(options.rootDir, 'commands')
+  const plannedSkills = planSkillScaffoldsFromPersisted(
+    options.introspection.tools,
+    options.skillGrouping,
+    options.persistedSkills,
+    options.toolRenames,
+  )
   const skillDirectories: string[] = []
+  const commandFiles: string[] = []
   const generatedFiles = ['pluxx.config.ts', './INSTRUCTIONS.md']
   const generatedHooks = planGeneratedHooks(options.source, options.introspection.tools, serverName, options.hookMode)
   const metadataPath = MCP_SCAFFOLD_METADATA_PATH
+  const taxonomyPath = MCP_TAXONOMY_PATH
   const files: McpScaffoldPlannedFile[] = []
 
   const addPlannedFile = async (relativePath: string, content: string) => {
@@ -303,6 +324,7 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
       hooks: generatedHooks.hookEntries,
       scriptsPath: generatedHooks.scriptsPath,
       runtimeAuthMode,
+      commandsPath: './commands/',
     }),
   )
 
@@ -329,6 +351,8 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
   for (const skill of plannedSkills) {
     const relativeSkillPath = `skills/${skill.dirName}`
     const skillPath = resolve(skillRoot, skill.dirName, 'SKILL.md')
+    const relativeCommandPath = `commands/${skill.dirName}.md`
+    const commandPath = resolve(commandsRoot, `${skill.dirName}.md`)
     await addPlannedFile(
       `${relativeSkillPath}/SKILL.md`,
       wrapManagedMarkdown(
@@ -342,6 +366,16 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
     )
     skillDirectories.push(relativeSkillPath)
     generatedFiles.push(`${relativeSkillPath}/SKILL.md`)
+
+    await addPlannedFile(
+      relativeCommandPath,
+      buildCommandContent(
+        skill,
+        existsSync(commandPath) ? await Bun.file(commandPath).text() : undefined,
+      ),
+    )
+    commandFiles.push(relativeCommandPath)
+    generatedFiles.push(relativeCommandPath)
   }
 
   for (const file of generatedHooks.files) {
@@ -360,14 +394,17 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
     generatedHookEvents: Object.keys(generatedHooks.hookEntries ?? {}),
     runtimeAuthMode,
     plannedSkills,
-    managedFiles: [...generatedFiles, metadataPath],
+    managedFiles: [...generatedFiles, taxonomyPath, metadataPath],
   })
+  await addPlannedFile(taxonomyPath, `${JSON.stringify(buildPersistedTaxonomy(plannedSkills), null, 2)}\n`)
+  generatedFiles.push(taxonomyPath)
   await addPlannedFile(metadataPath, `${JSON.stringify(metadata, null, 2)}\n`)
   generatedFiles.push(metadataPath)
 
   return {
     instructionsPath: './INSTRUCTIONS.md',
     skillDirectories,
+    commandFiles,
     generatedFiles,
     generatedHookMode: generatedHooks.mode,
     generatedHookEvents: Object.keys(generatedHooks.hookEntries ?? {}),
@@ -538,6 +575,40 @@ export function buildSkillContent(skill: PlannedSkill): string {
   return lines.join('\n')
 }
 
+export function buildCommandContent(skill: PlannedSkill, existingContent?: string): string {
+  const description = truncate(cleanSingleLineText(skill.description), 140)
+  const argumentHint = inferCommandArgumentHint(skill)
+  const generatedContent = [
+    '---',
+    `description: ${JSON.stringify(description)}`,
+    `argument-hint: ${JSON.stringify(argumentHint)}`,
+    '---',
+    '',
+    `Use the ${skill.title.toLowerCase()} workflow for this plugin.`,
+    '',
+    'Arguments: $ARGUMENTS',
+    '',
+    'Primary tools:',
+    ...skill.tools.map((tool) => `- \`${tool.name}\``),
+    '',
+    'Workflow:',
+    '',
+    '1. Interpret `$ARGUMENTS` as the user request for this workflow.',
+    '2. Choose the most specific tool in this surface.',
+    '3. Ask for missing required inputs only if the request does not already provide them.',
+    '4. Return a concise task-focused answer instead of raw JSON unless the user asks for it.',
+  ].join('\n')
+
+  return wrapManagedMarkdown(
+    generatedContent,
+    existingContent,
+    {
+      customHeading: '## Custom Notes',
+      defaultCustomContent: DEFAULT_SKILL_CUSTOM_CONTENT,
+    },
+  )
+}
+
 export function buildInstructionsContent(input: {
   displayName: string
   description: string
@@ -608,6 +679,7 @@ export function buildConfigTemplate(input: {
   hooks?: Record<string, HookEntry[]>
   scriptsPath?: string
   runtimeAuthMode?: McpRuntimeAuthMode
+  commandsPath?: string
 }): string {
   const targets = input.targets.map((target) => JSON.stringify(target)).join(', ')
   const mcpBlock = buildMcpBlock(input.serverName, input.source)
@@ -616,6 +688,7 @@ export function buildConfigTemplate(input: {
     input.websiteUrl ? `websiteURL: ${JSON.stringify(input.websiteUrl)}` : null,
   ].filter(Boolean).join(',\n    ')
   const scriptsBlock = input.scriptsPath ? `  scripts: ${JSON.stringify(input.scriptsPath)},\n` : ''
+  const commandsBlock = input.commandsPath ? `  commands: ${JSON.stringify(input.commandsPath)},\n` : ''
   const hooksBlock = input.hooks ? `\n  hooks: ${serializeHooks(input.hooks)},\n` : ''
   const platformsBlock = input.runtimeAuthMode === 'platform'
     ? `\n  platforms: {\n    'claude-code': {\n      mcpAuth: 'platform',\n    },\n    cursor: {\n      mcpAuth: 'platform',\n    },\n  },\n`
@@ -633,6 +706,7 @@ export default definePlugin({
   license: 'MIT',
 
   skills: './skills/',
+${commandsBlock}
   instructions: './INSTRUCTIONS.md',
 ${scriptsBlock}
 
@@ -861,6 +935,7 @@ function buildMcpScaffoldMetadata(input: {
     skills: input.plannedSkills.map((skill) => ({
       dirName: skill.dirName,
       title: skill.title,
+      description: skill.description,
       toolNames: skill.tools.map((tool) => tool.name),
     })),
     managedFiles: input.managedFiles,
@@ -923,6 +998,58 @@ export function planSkillScaffolds(
   }
 
   return allocateSkillDirectoryNames(plannedSkills)
+}
+
+function planSkillScaffoldsFromPersisted(
+  tools: IntrospectedMcpTool[],
+  grouping: McpSkillGrouping = 'workflow',
+  persistedSkills: PersistedSkill[] = [],
+  toolRenames: Map<string, string> = new Map(),
+): PlannedSkill[] {
+  if (persistedSkills.length === 0) {
+    return planSkillScaffolds(tools, grouping)
+  }
+
+  const toolByName = new Map(tools.map((tool) => [tool.name, tool]))
+  const assigned = new Set<string>()
+  const planned: PlannedSkill[] = []
+
+  for (const skill of persistedSkills) {
+    const matchedTools: IntrospectedMcpTool[] = []
+
+    for (const originalToolName of skill.toolNames) {
+      const resolvedToolName = toolRenames.get(originalToolName) ?? originalToolName
+      const tool = toolByName.get(resolvedToolName)
+      if (!tool || assigned.has(tool.name)) continue
+      matchedTools.push(tool)
+      assigned.add(tool.name)
+    }
+
+    if (matchedTools.length === 0) continue
+
+    planned.push({
+      dirName: skill.dirName,
+      title: skill.title,
+      description: skill.description ?? `Handle ${skill.title.toLowerCase()} workflows.`,
+      tools: matchedTools,
+    })
+  }
+
+  const remainingTools = tools.filter((tool) => !assigned.has(tool.name))
+  if (remainingTools.length > 0) {
+    planned.push(...planSkillScaffolds(remainingTools, grouping))
+  }
+
+  return allocateSkillDirectoryNames(planned)
+}
+
+function buildPersistedTaxonomy(skills: PlannedSkill[]): PersistedSkill[] {
+  return skills.map((skill) => ({
+    dirName: skill.dirName,
+    title: skill.title,
+    description: skill.description,
+    toolNames: skill.tools.map((tool) => tool.name),
+  }))
 }
 
 export function analyzeMcpQuality(
@@ -1077,6 +1204,44 @@ function buildInstructionSkillSummary(skill: PlannedSkill): string {
   const toolNames = skill.tools.map((tool) => `\`${tool.name}\``).join(', ')
   const description = truncate(cleanSingleLineText(skill.description), 180)
   return `\`${skill.dirName}\`: ${description} Primary tools: ${toolNames}.`
+}
+
+function inferCommandArgumentHint(skill: PlannedSkill): string {
+  const fieldHints = new Set<string>()
+
+  for (const tool of skill.tools) {
+    const fields = getTopLevelSchemaFields(tool.inputSchema)
+    const prioritizedFields = fields.filter((field) => field.required)
+    const candidates = (prioritizedFields.length > 0 ? prioritizedFields : fields).slice(0, 2)
+
+    for (const field of candidates) {
+      fieldHints.add(mapSchemaFieldToArgumentHint(field.name))
+      if (fieldHints.size >= 2) break
+    }
+
+    if (fieldHints.size >= 2) break
+  }
+
+  if (fieldHints.size === 0) {
+    return '[request]'
+  }
+
+  return [...fieldHints].slice(0, 2).map((hint) => `[${hint}]`).join(' ')
+}
+
+function mapSchemaFieldToArgumentHint(fieldName: string): string {
+  const value = fieldName.toLowerCase()
+
+  if (value.includes('query') || value.includes('search') || value.includes('keyword')) return 'query'
+  if (value.includes('company') || value.includes('organization') || value.includes('organisation') || value.includes('account')) return 'company'
+  if (value.includes('role') || value.includes('title')) return 'role'
+  if (value.includes('domain')) return 'domain'
+  if (value.includes('url')) return 'url'
+  if (value.includes('email')) return 'email'
+  if (value === 'id' || value.endsWith('id')) return 'id'
+  if (value.includes('name')) return 'name'
+
+  return value.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'request'
 }
 
 function summarizeToolForInstructions(tool: IntrospectedMcpTool): string {

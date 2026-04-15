@@ -859,35 +859,11 @@ function lintVersionFormat(config: PluginConfig, issues: LintIssue[]): void {
   }
 }
 
-// ── Gotcha #13: commands/ is legacy, skills/ is recommended ──
+// ── Commands are a first-class optional surface alongside skills ──
 function lintLegacyCommandsDir(dir: string, config: PluginConfig, issues: LintIssue[]): void {
-  if (!config.targets.includes('claude-code')) return
-
-  const commandsDir = resolve(dir, 'commands')
-  const hasCommandsDir = existsSync(commandsDir)
-  const hasCommandsConfig = !!config.commands
-
-  if (hasCommandsDir || hasCommandsConfig) {
-    const skillsDir = resolve(dir, config.skills)
-    const hasSkillsDir = existsSync(skillsDir)
-    if (!hasSkillsDir) {
-      pushIssue(issues, {
-        level: 'warning',
-        code: 'commands-legacy',
-        message: '"commands/" is legacy. Migrate to "skills/" which is the recommended directory for all platforms.',
-        file: hasCommandsConfig ? 'pluxx.config.ts' : 'commands/',
-        platform: 'Claude Code',
-      })
-    } else {
-      pushIssue(issues, {
-        level: 'warning',
-        code: 'commands-legacy',
-        message: '"commands/" is legacy. Consider migrating commands to "skills/" for consistency.',
-        file: hasCommandsConfig ? 'pluxx.config.ts' : 'commands/',
-        platform: 'Claude Code',
-      })
-    }
-  }
+  void dir
+  void config
+  void issues
 }
 
 // ── Gotcha #15: Codex agents.max_threads minimum is 1 ──

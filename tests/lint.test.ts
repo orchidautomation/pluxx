@@ -618,8 +618,8 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'version-semver')).toBe(true)
   })
 
-  // ── Gotcha #13: commands/ is legacy ──
-  it('warns when commands/ directory exists', async () => {
+  // ── Commands are a first-class optional surface ──
+  it('does not warn when commands/ directory exists alongside skills', async () => {
     const projectDir = createTempProject()
     mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
     mkdirSync(resolve(projectDir, 'commands'), { recursive: true })
@@ -642,7 +642,7 @@ describe('lintProject', () => {
     )
 
     const result = await lintProject(projectDir)
-    expect(result.issues.some(issue => issue.code === 'commands-legacy')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'commands-legacy')).toBe(false)
   })
 
   it('does not warn about commands/ when Claude Code is not a target', async () => {

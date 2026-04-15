@@ -95,8 +95,10 @@ describe('agent mode', () => {
     expect(plan.pluginName).toBe('playkit')
     expect(plan.toolCount).toBe(3)
     expect(plan.generatedFiles).toEqual([AGENT_CONTEXT_PATH, AGENT_PLAN_PATH])
+    expect(plan.editableFiles).toContain('.pluxx/taxonomy.json')
     expect(plan.editableFiles).toContain('INSTRUCTIONS.md')
     expect(plan.editableFiles.some((file) => file.startsWith('skills/'))).toBe(true)
+    expect(plan.editableFiles.some((file) => file.startsWith('commands/'))).toBe(true)
     expect(plan.protectedFiles).toContain('pluxx.config.ts')
     expect(plan.createdFiles).toEqual([AGENT_CONTEXT_PATH, AGENT_PLAN_PATH])
     expect(plan.lint.errors).toBe(0)
@@ -124,9 +126,11 @@ describe('agent mode', () => {
 
     expect(context).toContain('# Pluxx Agent Context')
     expect(context).toContain('- Server name: `playkit`')
+    expect(context).toContain('- Semantic taxonomy: `.pluxx/taxonomy.json`')
     expect(context).toContain('### `ask-clay`')
     expect(context).toContain('Preserve custom sections marked by')
     expect(planFile.version).toBe(1)
+    expect(planFile.files.editable.some((file) => file.path === '.pluxx/taxonomy.json')).toBe(true)
     expect(planFile.files.editable.some((file) => file.path === 'INSTRUCTIONS.md')).toBe(true)
     expect(planFile.files.protected).toContain('dist/')
     expect(planFile.successCriteria.length).toBeGreaterThan(0)
@@ -175,11 +179,13 @@ describe('agent mode', () => {
     const prompt = readFileSync(promptPath, 'utf-8')
     expect(prompt).toContain('# Taxonomy Prompt')
     expect(prompt).toContain('.pluxx/agent/context.md')
+    expect(prompt).toContain('.pluxx/taxonomy.json')
     expect(prompt).toContain('Only edit Pluxx-managed generated sections.')
     expect(prompt).toContain('- each skill represents a real user workflow or product surface')
     expect(prompt).toContain('skill names are product-shaped and avoid raw MCP tool/server identifiers when possible')
     expect(prompt).toContain('singleton skills are avoided unless they represent a real standalone user workflow')
     expect(prompt).toContain('Eliminate misleading labels such as contact or people discovery')
+    expect(prompt).toContain('Pluxx will re-render generated skills and commands from that taxonomy after the pass')
   })
 
   it('supports CLI dry-run for prompt generation without writing files', async () => {
@@ -553,6 +559,65 @@ describe('agent mode', () => {
     expect(runnerArgs.some((arg) => arg.includes('.pluxx/agent/taxonomy-prompt.md'))).toBe(true)
   })
 
+  it('re-renders skills and commands after a taxonomy run updates .pluxx/taxonomy.json', async () => {
+    const binDir = resolve(TEST_DIR, '.bin')
+    const codexPath = resolve(binDir, 'codex')
+    const taxonomyPath = resolve(TEST_DIR, '.pluxx/taxonomy.json')
+
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(
+      codexPath,
+      `#!/bin/sh
+if [ "$1" = "exec" ]; then
+  cat > "$PLUXX_TAXONOMY_PATH" <<'EOF'
+[
+  {
+    "dirName": "research",
+    "title": "Research",
+    "description": "Handle Clay workflow design and usage context.",
+    "toolNames": ["ask_clay", "design_clay", "get_usage"]
+  }
+]
+EOF
+  exit 0
+fi
+exit 1
+`,
+    )
+    chmodSync(codexPath, 0o755)
+
+    const proc = Bun.spawn(
+      ['bun', resolve(ROOT, 'bin/pluxx.js'), 'agent', 'run', 'taxonomy', '--runner', 'codex', '--json', '--no-verify'],
+      {
+        cwd: TEST_DIR,
+        env: {
+          ...process.env,
+          PATH: `${binDir}:${process.env.PATH ?? ''}`,
+          PLUXX_TAXONOMY_PATH: taxonomyPath,
+        },
+        stdout: 'pipe',
+        stderr: 'pipe',
+      },
+    )
+
+    const stdout = await new Response(proc.stdout).text()
+    const stderr = await new Response(proc.stderr).text()
+    const exitCode = await proc.exited
+
+    expect(exitCode).toBe(0)
+    expect(stderr).toBe('')
+
+    const summary = JSON.parse(stdout) as { ok: boolean; runner: string; verify: boolean }
+    expect(summary.ok).toBe(true)
+    expect(summary.runner).toBe('codex')
+    expect(summary.verify).toBe(false)
+
+    expect(existsSync(resolve(TEST_DIR, 'skills/research/SKILL.md'))).toBe(true)
+    expect(existsSync(resolve(TEST_DIR, 'commands/research.md'))).toBe(true)
+    expect(existsSync(resolve(TEST_DIR, 'skills/ask-clay/SKILL.md'))).toBe(false)
+    expect(existsSync(resolve(TEST_DIR, 'commands/ask-clay.md'))).toBe(false)
+  })
+
   it('captures website, docs, and local file context inputs in the generated context pack', async () => {
     writeFileSync(resolve(TEST_DIR, 'notes.md'), '# Notes\n\nPlayKit separates Clay knowledge tools from Clay API tools.')
 
@@ -653,7 +718,7 @@ describe('agent mode', () => {
     expect(taxonomyPrompt).toContain('Project overrides:')
     expect(taxonomyPrompt).toContain('Grouping hints:')
     expect(taxonomyPrompt).toContain('Prefer product-shaped skills over raw tool buckets.')
-    expect(taxonomyPrompt).toContain('Remove misleading skill labels and avoid tiny singleton/admin-only skills unless clearly justified.')
+    expect(taxonomyPrompt).toContain('Treat `.pluxx/taxonomy.json` as the semantic source of truth for skill grouping and naming.')
     expect(instructionsPrompt).toContain('Instructions guidance:')
     expect(instructionsPrompt).toContain('Make the Clay auth boundary explicit in the shared instructions.')
     expect(instructionsPrompt).toContain('Prefer the branded product name in user-facing copy')
