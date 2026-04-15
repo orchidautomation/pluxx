@@ -555,23 +555,22 @@ export function buildInstructionsContent(input: {
     '',
     accessLine,
     '',
-    '## Available Tools',
+    '## Workflow Guidance',
     '',
   ]
 
-  for (const tool of input.tools) {
-    lines.push(`- \`${tool.name}\`: ${tool.description ?? 'No description provided.'}`)
+  for (const skill of input.skills) {
+    lines.push(`- ${buildInstructionSkillSummary(skill)}`)
   }
 
   lines.push(
     '',
-    '## Generated Skills',
+    '## Tool Routing',
     '',
   )
 
-  for (const skill of input.skills) {
-    const toolNames = skill.tools.map((tool) => `\`${tool.name}\``).join(', ')
-    lines.push(`- \`${skill.dirName}\`: ${skill.description} Tools: ${toolNames}.`)
+  for (const tool of input.tools) {
+    lines.push(`- \`${tool.name}\`: ${summarizeToolForInstructions(tool)}`)
   }
 
   lines.push(
@@ -584,7 +583,13 @@ export function buildInstructionsContent(input: {
   )
 
   if (input.instructions) {
-    lines.push('', '## Server Guidance', '', input.instructions.trim())
+    const serverGuidance = summarizeServerGuidance(input.instructions)
+    if (serverGuidance.length > 0) {
+      lines.push('', '## Server Guidance', '')
+      for (const item of serverGuidance) {
+        lines.push(`- ${item}`)
+      }
+    }
   }
 
   lines.push('')
@@ -1066,6 +1071,70 @@ function buildSkillFrontmatterDescription(skill: PlannedSkill): string {
   }
 
   return truncate(cleanSingleLineText(skill.description), 220)
+}
+
+function buildInstructionSkillSummary(skill: PlannedSkill): string {
+  const toolNames = skill.tools.map((tool) => `\`${tool.name}\``).join(', ')
+  const description = truncate(cleanSingleLineText(skill.description), 180)
+  return `\`${skill.dirName}\`: ${description} Primary tools: ${toolNames}.`
+}
+
+function summarizeToolForInstructions(tool: IntrospectedMcpTool): string {
+  const fallback = 'Use this tool when its inputs match the user request.'
+  const description = tool.description ?? ''
+  const base = firstSentenceOf(cleanSingleLineText(description))
+  const bestFor = extractLabeledGuidance(description, 'Best for')
+  const useWhen = extractLabeledGuidance(description, 'Use when')
+
+  const parts = [base].filter(Boolean)
+  const guidance = bestFor || useWhen
+
+  if (guidance) {
+    parts.push(`Best for: ${guidance}.`)
+  }
+
+  if (parts.length === 0) {
+    return fallback
+  }
+
+  return truncate(parts.join(' '), 240)
+}
+
+function summarizeServerGuidance(value: string): string[] {
+  const lines = value
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => !line.startsWith('```'))
+    .map((line) => line.replace(/^#+\s*/, ''))
+    .map((line) => line.replace(/^[-*]\s+/, ''))
+    .filter((line) => !/^example:?$/i.test(line))
+    .map((line) => truncate(cleanSingleLineText(line), 220))
+    .filter(Boolean)
+
+  return [...new Set(lines)].slice(0, 4)
+}
+
+function extractLabeledGuidance(value: string | undefined, label: string): string {
+  if (!value) return ''
+
+  const normalizedLabel = `${label.toLowerCase()}:`
+  for (const rawLine of value.split('\n')) {
+    const line = rawLine
+      .trim()
+      .replace(/^\*+|\*+$/g, '')
+      .replace(/^[-*]\s*/, '')
+      .replace(/^\*+\s*/, '')
+      .replace(/\s+\*+$/, '')
+    if (!line) continue
+
+    const plain = line.replace(/[*`_]/g, '')
+    if (plain.toLowerCase().startsWith(normalizedLabel)) {
+      return truncate(cleanSingleLineText(plain.slice(normalizedLabel.length).trim()), 160)
+    }
+  }
+
+  return ''
 }
 
 function getTopLevelSchemaFields(inputSchema?: Record<string, unknown>): SchemaField[] {

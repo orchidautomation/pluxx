@@ -239,6 +239,8 @@ describe('init-from-mcp scaffold', () => {
     expect(config).toContain(`websiteURL: "https://sumble.com/"`)
 
     expect(instructionsFile).toContain('# Sumble MCP')
+    expect(instructionsFile).toContain('## Workflow Guidance')
+    expect(instructionsFile).toContain('## Tool Routing')
     expect(instructionsFile).toContain('Prefer the most specific Sumble tool for the request.')
     expect(instructionsFile).toContain('`FindOrganizations`')
     expect(instructionsFile).toContain('`find-organizations`')
@@ -372,6 +374,64 @@ describe('init-from-mcp scaffold', () => {
     const skill = readFileSync(resolve(TEST_DIR, 'skills/account-and-usage/SKILL.md'), 'utf-8')
     expect(skill).toContain('description: "Get your current usage, remaining credits, and tier info."')
     expect(skill).not.toContain('description: "Get your current usage, remaining credits, and tier info.\\n\\nReturns:')
+  })
+
+  it('writes compact routing guidance instead of dumping verbose tool docs into instructions', async () => {
+    const verboseIntrospection: IntrospectedMcpServer = {
+      ...introspection,
+      tools: [
+        {
+          name: 'firecrawl_scrape',
+          description: 'Scrape content from a single URL with advanced options.\n\n**Best for:** Single page content extraction when you know which page contains the information.\n**Usage Example:** {"url":"https://example.com"}\n**Returns:** JSON structured data, markdown, branding profile, or other formats as specified.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              url: {
+                type: 'string',
+              },
+            },
+            required: ['url'],
+          },
+        },
+        {
+          name: 'firecrawl_map',
+          description: 'Map a website to discover all indexed URLs on the site.\n\n**Best for:** Discovering the correct page on a large documentation or product site before scraping.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              url: {
+                type: 'string',
+              },
+            },
+            required: ['url'],
+          },
+        },
+      ],
+    }
+
+    await writeMcpScaffold({
+      rootDir: TEST_DIR,
+      pluginName: 'firecrawl',
+      authorName: 'Firecrawl',
+      displayName: 'Firecrawl',
+      skillGrouping: 'workflow',
+      hookMode: 'none',
+      targets: ['codex'],
+      source: {
+        transport: 'stdio',
+        command: 'npx',
+        args: ['-y', 'firecrawl-mcp'],
+      },
+      introspection: verboseIntrospection,
+    })
+
+    const instructionsFile = readFileSync(resolve(TEST_DIR, 'INSTRUCTIONS.md'), 'utf-8')
+    expect(instructionsFile).toContain('## Workflow Guidance')
+    expect(instructionsFile).toContain('## Tool Routing')
+    expect(instructionsFile).toContain('`firecrawl_scrape`: Scrape content from a single URL with advanced options. Best for: Single page content extraction when you know which page contains the information.')
+    expect(instructionsFile).toContain('`firecrawl_map`: Map a website to discover all indexed URLs on the site. Best for: Discovering the correct page on a large documentation or product site before scraping.')
+    expect(instructionsFile).not.toContain('**Usage Example:**')
+    expect(instructionsFile).not.toContain('**Returns:**')
   })
 
   it('generates mutation confirmation hooks when safe mode detects mutating tools', async () => {
