@@ -114,14 +114,16 @@ Still open and delegated research work:
 
 ## Recommended Next Three
 
-If picking the next highest-leverage sequence:
+After tightening the extension-system scope, the next highest-leverage sequence is:
 
-1. [PLUXX-95](https://linear.app/orchid-automation/issue/PLUXX-95/add-first-class-command-generation-with-argument-hints-for-claude-code)
-   - improves host UX immediately
-2. [PLUXX-67](https://linear.app/orchid-automation/issue/PLUXX-67/scaffold-skills-and-instructions-from-mcp-resources-and-resource)
-   - makes imports smarter from real MCPs
-3. [PLUXX-89](https://linear.app/orchid-automation/issue/PLUXX-89/define-a-portable-agent-and-subagent-delegation-model-for-primary)
-   - clarifies the long-term Agent model
+1. `userConfig` / install-time secret handling
+   - this is the clearest missing core primitive for real MCP-backed plugins
+2. canonical permissions + target-cap validation
+   - authors should not rediscover host approval models or size limits one target at a time
+3. [PLUXX-50](https://linear.app/orchid-automation/issue/PLUXX-50/add-pluxx-publish-command-for-plugin-distribution)
+   - publish / marketplace generation becomes much more valuable once secrets, permissions, and validation are solid
+
+See [docs/core-primitives.md](./docs/core-primitives.md) for the tightened primitive model behind this priority order.
 
 ## Practical Read
 

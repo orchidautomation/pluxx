@@ -12,6 +12,7 @@ Use it when you want the practical answer to:
 
 If you want the exact authoring walkthrough, start with [Create a Pluxx plugin](./create-a-pluxx-plugin.md).
 If you want the operator guide for using Pluxx inside Claude/Codex/Cursor/OpenCode, use [Use Pluxx in host agents](./use-pluxx-in-host-agents.md).
+If you want the tighter product scope for what Pluxx should model versus defer, read [Core primitives](./core-primitives.md).
 
 ## What Pluxx Is
 

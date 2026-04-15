@@ -2,6 +2,8 @@
 
 This document is the working architecture view for Pluxx. It is meant to be edited as the product evolves.
 
+If you want the tighter scope boundary for which extension-system primitives Pluxx should treat as core, read [Core primitives](./core-primitives.md).
+
 ## Core Model
 
 Pluxx has two intentional layers:
