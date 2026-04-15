@@ -29,6 +29,7 @@ export default definePlugin({
   },
 
   skills: './skills/',
+  commands: './commands/',
   instructions: './INSTRUCTIONS.md',
 
   platforms: {

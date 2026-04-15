@@ -47,7 +47,6 @@ export class CodexGenerator extends Generator {
     ])
 
     this.copySkills()
-    this.copyCommands()
     this.copyAgents()
     this.copyScripts()
     this.copyAssets()

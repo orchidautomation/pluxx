@@ -235,7 +235,7 @@ export const PLATFORM_VALIDATION_RULES: Record<ResearchTarget, PlatformRules> = 
   },
   'codex': {
     platform: 'codex',
-    summary: 'Codex plugins use .codex-plugin/plugin.json with skills, .mcp.json, optional app mappings, and AGENTS.md; current docs separate plugin packaging from hooks configuration.',
+    summary: 'Codex plugins use .codex-plugin/plugin.json with skills, .mcp.json, optional app mappings, and AGENTS.md; current docs separate plugin packaging from hooks configuration and do not document plugin-provided slash commands.',
     limits: PLATFORM_LIMITS['codex'],
     skillDiscoveryDirs: [
       { path: 'skills/', level: 'supported' },

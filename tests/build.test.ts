@@ -113,6 +113,7 @@ describe('build', () => {
     expect(existsSync(resolve(OUT_DIR, 'codex/.codex-plugin/plugin.json'))).toBe(true)
     expect(existsSync(resolve(OUT_DIR, 'codex/.mcp.json'))).toBe(true)
     expect(existsSync(resolve(OUT_DIR, 'codex/hooks.json'))).toBe(false)
+    expect(existsSync(resolve(OUT_DIR, 'codex/commands/pulse.md'))).toBe(false)
 
     // OpenCode
     expect(existsSync(resolve(OUT_DIR, 'opencode/package.json'))).toBe(true)

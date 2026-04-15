@@ -47,6 +47,16 @@ Those correspond to:
 4. review the scaffold critically
 5. refresh the scaffold when the MCP changes
 
+The self-hosting plugin also exposes matching explicit commands in hosts that support plugin commands:
+
+- `/pluxx:import-mcp`
+- `/pluxx:refine-taxonomy`
+- `/pluxx:rewrite-instructions`
+- `/pluxx:review-scaffold`
+- `/pluxx:sync-mcp`
+
+Use commands when you want a direct host-native entrypoint in Claude Code, Cursor, or OpenCode. In Codex, use `@pluxx` and the skill list instead; `/` is reserved for native Codex commands. Use skills when you want the host agent to choose the right Pluxx workflow automatically.
+
 ## The Easiest Mental Model
 
 Think in terms of what you want the host agent to do:
@@ -194,6 +204,7 @@ Use Pluxx in Codex when you want:
 - CLI-first deterministic generation
 - stricter review behavior
 - strong local coding-agent workflows around the generated scaffold
+- explicit plugin invocation via `@pluxx` rather than plugin slash commands
 
 Good prompt:
 

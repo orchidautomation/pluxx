@@ -31,6 +31,25 @@ The normal workflow is:
 - `pluxx-sync-mcp`
   Use when an existing MCP-derived scaffold needs to be refreshed safely.
 
+### Explicit Commands
+
+- `/pluxx:import-mcp`
+  Explicit entrypoint for turning an MCP URL or stdio command into a first-pass Pluxx scaffold.
+
+- `/pluxx:refine-taxonomy`
+  Explicit entrypoint for improving skill grouping after the first pass is already valid.
+
+- `/pluxx:rewrite-instructions`
+  Explicit entrypoint for tightening `INSTRUCTIONS.md` without rewriting the whole scaffold.
+
+- `/pluxx:review-scaffold`
+  Explicit entrypoint for findings-first review before shipping.
+
+- `/pluxx:sync-mcp`
+  Explicit entrypoint for refreshing an existing scaffold from its MCP source.
+
+These command entrypoints are for hosts that support plugin commands directly. In Codex, use `@pluxx` and pick the matching skill instead; `/` is reserved for native Codex commands.
+
 ### Operating Rules
 
 - Prefer a deterministic first pass before semantic rewrites.
