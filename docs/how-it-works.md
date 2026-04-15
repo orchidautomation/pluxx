@@ -27,6 +27,42 @@ Pluxx is intentionally the plugin authoring/distribution layer, not the MCP host
 See [Agent Mode](./agent-mode.md) for the semantic-authoring layer.
 See [Architecture](./architecture.md) for the system view and [Customer Journey](./customer-journey.md) for the end-to-end user path.
 See [Practical handbook](./practical-handbook.md) for the operational command-by-command workflow.
+See [Core primitives](./core-primitives.md) for the tightened product scope.
+
+## What Pluxx Treats As Core
+
+The canonical authoring model is:
+
+- `skills`
+- `instructions`
+- `mcp`
+- `userConfig`
+- `commands`
+- `agents`
+- `hooks`
+- `permissions`
+- `brand`
+- `assets/scripts`
+- `taxonomy`
+
+That is the layer Pluxx should make excellent across Claude Code, Cursor, Codex, and OpenCode.
+
+## What Pluxx Does Not Model Yet
+
+These are real platform features, but they are not the common path Pluxx needs to perfect first:
+
+- `outputStyles`
+- `lspServers`
+- `bin/`
+- `monitors`
+- `channels`
+- `apps` abstraction
+- plugin data-dir abstraction
+- statuslines
+- themes / keybindings
+- sandbox and other user/admin runtime policy
+
+Those should be documented and revisited later, not treated as the core product contract today.
 
 Runtime today: Bun. Use `bunx pluxx ...` or install the npm package on machines that already have Bun available.
 
@@ -301,6 +337,19 @@ pluxx catches platform-specific gotchas before you ship:
 - Manifest paths must start with `./` and cannot contain `../`
 - Plugin directories must be at root, not inside `.claude-plugin/`
 - And 40 more checks across all 11 platforms
+
+## The Next Product Delta
+
+The most important remaining gaps from the tightened extension-systems review are:
+
+1. `userConfig`
+2. `permissions`
+3. build-time target cap validation
+4. publish / marketplace generation
+5. deeper MCP protocol support beyond `tools/list`
+6. portable agent / subagent delegation
+
+That is the real delta from the current strong engine to the mature cross-host plugin product.
 
 ## Supported Platforms
 

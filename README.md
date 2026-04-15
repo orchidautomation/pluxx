@@ -4,6 +4,11 @@
 
 pluxx generates native plugin packages for Claude Code, Cursor, Codex, and OpenCode from a single config file. One source of truth &mdash; platform-specific outputs with the right manifests, MCP configs, rules, install scripts, and hook handling for the platforms that support plugin-packaged hooks.
 
+The product scope is intentionally tight:
+
+- Pluxx owns the common cross-host plugin-authoring primitives
+- Pluxx does not try to model every host-specific extension feature yet
+
 pluxx is Bun-first today. Use `bunx` or run it from a Bun workspace. The npm package includes a small launcher for global installs, but it still requires Bun at runtime.
 
 ```bash
@@ -61,6 +66,41 @@ But a plugin is more than skills. A plugin bundles:
 Without pluxx you maintain separate copies for each platform. With pluxx you maintain one.
 
 The launch focus is MCP-first authoring: start from an existing MCP server, generate a maintainable plugin scaffold, then keep shipping from one config.
+
+## Core Primitives
+
+Pluxx treats these as the canonical authoring model:
+
+- `skills`
+- `instructions`
+- `mcp`
+- `userConfig`
+- `commands`
+- `agents`
+- `hooks`
+- `permissions`
+- `brand`
+- `assets/scripts`
+- `taxonomy`
+
+These are the primitives that show up repeatedly in real plugins and real host integrations.
+
+## What Pluxx Does Not Model Yet
+
+These features exist in one or more hosts, but they are not the current product center:
+
+- `outputStyles`
+- `lspServers`
+- `bin/` executables
+- `monitors`
+- `channels`
+- `apps` abstraction
+- plugin data-dir abstraction
+- statuslines
+- themes / keybindings
+- sandbox or other user/admin runtime policy
+
+Pluxx should document these and revisit them later, but it should not expand the core mental model around them yet.
 
 When you scaffold from an MCP server, pluxx now drafts workflow-oriented skills from the discovered tools so the first pass is closer to a usable plugin.
 
@@ -510,6 +550,9 @@ pluxx.config.ts          <- You define your plugin once
 - [x] `pluxx doctor` — project and runtime health checks
 - [x] `pluxx test` — verification command for plugin repos
 - [x] CI/CD GitHub Action / reusable workflow
+- [ ] canonical `userConfig` / install-time secret handling
+- [ ] canonical permissions model across primary targets
+- [ ] build-time target cap validation for primary targets
 - [ ] `pluxx publish` — push to platform marketplaces
 - [ ] `pluxx diff` — show what changed per platform
 - [ ] Plugin analytics dashboard
