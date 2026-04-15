@@ -1,0 +1,4 @@
+interface:
+  display_name: "Refine Taxonomy"
+  short_description: "Improve Pluxx skill grouping with the agent pack"
+  default_prompt: "Use the Pluxx taxonomy pack to make this MCP scaffold feel product-shaped without breaking managed sections."

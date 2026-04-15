@@ -8,3 +8,6 @@ site/ultracite-agent-page.png
 site/speakeasy-homepage.png
 .claude/worktrees/
 .internal/
+example/*/dist/
+examples/*/dist/
+tests/.install-fixture/

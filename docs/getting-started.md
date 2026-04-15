@@ -12,6 +12,8 @@ This walkthrough covers:
 
 Related docs:
 
+- [Create a Pluxx plugin](./create-a-pluxx-plugin.md)
+- [Use Pluxx in host agents](./use-pluxx-in-host-agents.md)
 - [Practical handbook](./practical-handbook.md)
 - [How it works](./how-it-works.md)
 - [Architecture](./architecture.md)

@@ -10,6 +10,9 @@ Use it when you want the practical answer to:
 - how Agent Mode fits in
 - how install, build, sync, and publish actually work
 
+If you want the exact authoring walkthrough, start with [Create a Pluxx plugin](./create-a-pluxx-plugin.md).
+If you want the operator guide for using Pluxx inside Claude/Codex/Cursor/OpenCode, use [Use Pluxx in host agents](./use-pluxx-in-host-agents.md).
+
 ## What Pluxx Is
 
 Pluxx is the plugin authoring and maintenance layer for MCP teams.

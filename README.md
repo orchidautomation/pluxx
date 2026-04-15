@@ -39,6 +39,8 @@ dist/
 The mechanically generated source of truth for support and verification is [docs/compatibility.md](./docs/compatibility.md).
 
 If you want the operational version of the docs, start with the [Practical handbook](./docs/practical-handbook.md).
+If you want the explicit authoring walkthrough, use [Create a Pluxx plugin](./docs/create-a-pluxx-plugin.md).
+If you want the meta guide for using Pluxx *inside* Claude/Codex/Cursor/OpenCode, use [Use Pluxx in host agents](./docs/use-pluxx-in-host-agents.md).
 
 ## Why?
 
@@ -177,6 +179,7 @@ Runner output is summarized by default for `pluxx agent run` and `pluxx autopilo
 The dogfood coverage matrix across messy metadata, local stdio, OAuth-first servers, and production auth patterns is documented in [docs/mcp-dogfood-matrix.md](./docs/mcp-dogfood-matrix.md).
 
 For dogfooding inside Codex, this repo also ships a local plugin/skill pack at [plugins/pluxx](/Users/brandonguerrero/Documents/Orchid Automation/Orchid Labs/pluxx/plugins/pluxx) with focused skills for import, taxonomy refinement, instructions, review, and sync.
+There is now also a first-class self-hosting source project at [example/pluxx](/Users/brandonguerrero/Documents/Orchid Automation/Orchid Labs/pluxx/example/pluxx) that uses one Pluxx config to generate Claude Code, Cursor, Codex, and OpenCode outputs for the Pluxx plugin itself.
 
 ```bash
 # Optional: global install still shells out to Bun

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Rewrite Instructions"
+  short_description: "Polish the shared INSTRUCTIONS.md block for a Pluxx scaffold"
+  default_prompt: "Use the Pluxx instructions pack to rewrite the generated instructions so the plugin is clear and product-shaped."

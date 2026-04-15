@@ -1,0 +1,4 @@
+interface:
+  display_name: "Review Scaffold"
+  short_description: "Critically review a Pluxx scaffold before shipping"
+  default_prompt: "Review this Pluxx scaffold and return the highest-value findings before we ship it."
