@@ -109,6 +109,8 @@ This is the canonical access-control layer.
 - ask
 - deny
 
+See [Canonical Permissions Model](./permissions-canonical-model.md) for the recommended schema shape and host fallback rules.
+
 The host-specific mechanisms differ, but plugin authors should not have to rediscover that separately for every target.
 
 ### 9. Brand / interface metadata
