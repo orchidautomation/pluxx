@@ -1,61 +1,91 @@
 # Pluxx TODO
 
-Last updated: 2026-04-15
+Last updated: 2026-04-16
 
 ## Active Now
 
 ### In Progress
 
-- `PLUXX-116` Build a Mintlify docs site for Pluxx
-  - delegate: `Blocks`
-  - deliverable: public docs site that reflects the tightened core-primitives scope
 - `PLUXX-79` Define Agent Mode as the semantic authoring layer on top of Core
   - role: umbrella / coordination issue
   - deliverable: keep the Core + Agent product story coherent while child issues ship
+- `PLUXX-114` Add a canonical permissions schema across Claude Code, Codex, Cursor, and OpenCode
+  - status: `In Progress`
+  - shipped baseline:
+    - `PLUXX-117` is done
+    - the first compiler slice already landed on `main`
+  - remaining active work:
+    - `PLUXX-118` delegated to `Blocks`
+    - `PLUXX-119` active PR `#138`
+- `PLUXX-115` Add build-time target cap validation for primary platforms
+  - status: `In Progress`
+  - shipped baseline:
+    - initial primary-target cap validation already landed on `main`
+  - remaining active work:
+    - `PLUXX-120` active PR `#137`
+    - `PLUXX-121` delegated to `Blocks`
+- `PLUXX-125` Define Pluxx product branding and launch asset system
+  - status: `In Progress`
+  - delegate: `Blocks`
+  - deliverable: a real product-brand track separate from plugin `brand` schema support
 
 ## Execution Queue
 
 ### Milestone 1: Core Product Contract
 
-This is the immediate product-contract gap after the recent `userConfig` work.
+This is the immediate product-contract gap after the recent `userConfig`, publish, and npm-release work.
 
 - `PLUXX-113` Add canonical `userConfig` and install-time secret handling across primary targets
   - status: `Done`
   - shipped in commit `a9a6326`
 
 - `PLUXX-114` Add a canonical permissions schema across Claude Code, Codex, Cursor, and OpenCode
-  - status: `Todo`
+  - status: `In Progress`
   - deliverable: one truthful `permissions` primitive compiled across the core four
+  - shipped baseline:
+    - `PLUXX-117` done
+    - first compiler slice already landed on `main`
   - subtasks:
     - `PLUXX-117` Design the canonical permissions model from primary-host behaviors
-      - delegate: `Blocks`
+      - status: `Done`
     - `PLUXX-118` Compile canonical permissions into primary target generators
+      - status: `In Progress`
+      - delegate: `Blocks`
     - `PLUXX-119` Add lint, test, and docs coverage for permission mappings
+      - status: `In Progress`
+      - active PR: `#138`
       - delegate: `Blocks`
   - dependency chain:
     - `PLUXX-117` -> `PLUXX-118` -> `PLUXX-119`
 
 - `PLUXX-115` Add build-time target cap validation for primary platforms
-  - status: `Todo`
+  - status: `In Progress`
   - deliverable: proactive warnings/errors for the primary-target limits that can silently break plugins
+  - shipped baseline:
+    - initial primary-target cap validation already landed on `main`
   - subtasks:
     - `PLUXX-120` Catalog primary-target hard caps in platform-rules
+      - status: `In Progress`
+      - active PR: `#137`
       - delegate: `Blocks`
     - `PLUXX-121` Enforce primary-target cap validation in lint and build
+      - status: `In Progress`
+      - delegate: `Blocks`
   - dependency chain:
     - `PLUXX-120` -> `PLUXX-121`
 
 - `PLUXX-50` Add `pluxx publish` command for plugin distribution
-  - status: `Todo`
-  - deliverable: publish v1 contract, dry-run, and artifact/release path
-  - subtasks:
-    - `PLUXX-122` Define publish v1 contract and dry-run output
-      - delegate: `Blocks`
-    - implementation inside `PLUXX-50`
-    - `PLUXX-123` Prepare marketplace submission metadata and docs for publish flows
-      - delegate: `Blocks`
-  - dependency chain:
-    - `PLUXX-122` -> `PLUXX-50` -> `PLUXX-123`
+  - status: `Done`
+  - shipped scope:
+    - publish v1 contract and dry-run behavior
+    - `pluxx publish` implementation
+    - marketplace submission-prep docs
+    - npm release as `@orchid-labs/pluxx`
+    - tag-based GitHub Actions release workflow
+  - completed child work:
+    - `PLUXX-122`
+    - `PLUXX-123`
+    - `PLUXX-124`
 
 ### Milestone 2: Protocol Depth
 
@@ -90,11 +120,23 @@ This is the remaining semantic layer after the core product contract and protoco
   - status: `Backlog`
   - deliverable: coherent metadata ownership across semantic surfaces
 
+### Brand / Launch Assets
+
+- `PLUXX-125` Define Pluxx product branding and launch asset system
+  - status: `In Progress`
+  - delegate: `Blocks`
+  - deliverable:
+    - explicit Pluxx product-brand direction
+    - launch asset checklist
+    - follow-on site/docs/assets tasks where needed
+
 ## Closed / Folded Work
 
 These are no longer part of the active execution map.
 
 - `PLUXX-113`
+  - completed and shipped
+- `PLUXX-50`
   - completed and shipped
 - `PLUXX-41`
   - closed as duplicate of `PLUXX-68`
@@ -120,15 +162,16 @@ Treat these as validation / linear-swarm test work, not as the main product exec
 
 If you only want the next concrete sequence, it is:
 
-1. finish `PLUXX-117`
-2. implement `PLUXX-118`
-3. finish `PLUXX-120`
-4. implement `PLUXX-121`
-5. finish `PLUXX-122`
-6. implement `PLUXX-50`
+1. land `PLUXX-119` / PR `#138`
+2. land `PLUXX-120` / PR `#137`
+3. finish `PLUXX-118`
+4. finish `PLUXX-121`
+5. move into `PLUXX-43` / `PLUXX-62`
+6. define the first real Pluxx product-brand system in `PLUXX-125`
 
 That sequence closes the biggest remaining product-contract gaps in order:
 
 - permissions
 - target-cap validation
-- publish
+- richer auth/discovery
+- product-brand coherence
