@@ -346,6 +346,7 @@ Pluxx owns the plugin repo lifecycle. It does not own backend deployment.
 ## Publishing Checklist
 
 See the publish behavior contract in [publish v1 contract](./publish-v1-contract.md).
+If you need submission-specific prep guidance (Claude Code + Cursor), use [Marketplace submission prep](./marketplace-submission-prep.md).
 
 1. Run `pluxx doctor`
 2. Run `pluxx test`

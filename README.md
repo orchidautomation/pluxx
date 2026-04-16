@@ -49,6 +49,7 @@ If you want the meta guide for using Pluxx *inside* Claude/Codex/Cursor/OpenCode
 If you want the tightened product scope for what Pluxx should model first, use [Core primitives](./docs/core-primitives.md).
 If you want the current execution queue with milestones, dependencies, and delegated subtasks, use [Roadmap](./docs/roadmap.md).
 If you want the implementation target for release orchestration, use [publish v1 contract](./docs/publish-v1-contract.md).
+If you are planning marketplace-aware release flows, use [Marketplace submission prep](./docs/marketplace-submission-prep.md).
 
 ## Why?
 
