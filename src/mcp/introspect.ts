@@ -16,6 +16,33 @@ export interface IntrospectedMcpTool {
   inputSchema?: Record<string, unknown>
 }
 
+export interface IntrospectedMcpResource {
+  uri: string
+  name?: string
+  title?: string
+  description?: string
+  mimeType?: string
+}
+
+export interface IntrospectedMcpResourceTemplate {
+  uriTemplate: string
+  name: string
+  title?: string
+  description?: string
+  mimeType?: string
+}
+
+export interface IntrospectedMcpPrompt {
+  name: string
+  title?: string
+  description?: string
+  arguments?: Array<{
+    name: string
+    description?: string
+    required?: boolean
+  }>
+}
+
 export interface IntrospectedMcpServer {
   protocolVersion: string
   instructions?: string
@@ -27,6 +54,9 @@ export interface IntrospectedMcpServer {
     websiteUrl?: string
   }
   tools: IntrospectedMcpTool[]
+  resources?: IntrospectedMcpResource[]
+  resourceTemplates?: IntrospectedMcpResourceTemplate[]
+  prompts?: IntrospectedMcpPrompt[]
 }
 
 export class McpIntrospectionError extends Error {
@@ -38,6 +68,7 @@ export class McpIntrospectionError extends Error {
       responseBodySnippet?: string
       responseUrl?: string
     },
+    readonly rpcCode?: number,
   ) {
     super(message)
     this.name = 'McpIntrospectionError'
@@ -65,6 +96,11 @@ type JsonRpcEnvelope<T> = JsonRpcSuccess<T> | JsonRpcFailure
 interface InitializeResult {
   protocolVersion?: string
   instructions?: string
+  capabilities?: {
+    tools?: Record<string, unknown>
+    resources?: Record<string, unknown>
+    prompts?: Record<string, unknown>
+  }
   serverInfo?: {
     name?: string
     title?: string
@@ -80,6 +116,42 @@ interface ListToolsResult {
     title?: string
     description?: string
     inputSchema?: Record<string, unknown>
+  }>
+  nextCursor?: string
+}
+
+interface ListResourcesResult {
+  resources?: Array<{
+    uri: string
+    name?: string
+    title?: string
+    description?: string
+    mimeType?: string
+  }>
+  nextCursor?: string
+}
+
+interface ListResourceTemplatesResult {
+  resourceTemplates?: Array<{
+    uriTemplate: string
+    name: string
+    title?: string
+    description?: string
+    mimeType?: string
+  }>
+  nextCursor?: string
+}
+
+interface ListPromptsResult {
+  prompts?: Array<{
+    name: string
+    title?: string
+    description?: string
+    arguments?: Array<{
+      name: string
+      description?: string
+      required?: boolean
+    }>
   }>
   nextCursor?: string
 }
@@ -135,6 +207,15 @@ async function introspectWithClient(client: McpClient): Promise<IntrospectedMcpS
         'The MCP server initialized successfully but exposed no tools. pluxx init --from-mcp currently scaffolds from tool metadata only.',
       )
     }
+    const resources = hasInitializeCapability(initialize, 'resources')
+      ? await listAllResources(client)
+      : []
+    const resourceTemplates = hasInitializeCapability(initialize, 'resources')
+      ? await listAllResourceTemplates(client)
+      : []
+    const prompts = hasInitializeCapability(initialize, 'prompts')
+      ? await listAllPrompts(client)
+      : []
 
     return {
       protocolVersion: initialize.protocolVersion ?? MCP_PROTOCOL_VERSION,
@@ -147,10 +228,21 @@ async function introspectWithClient(client: McpClient): Promise<IntrospectedMcpS
         websiteUrl: initialize.serverInfo?.websiteUrl,
       },
       tools,
+      resources,
+      resourceTemplates,
+      prompts,
     }
   } finally {
     await client.close()
   }
+}
+
+function hasInitializeCapability(
+  initialize: InitializeResult,
+  capability: 'resources' | 'prompts',
+): boolean {
+  const value = initialize.capabilities?.[capability]
+  return typeof value === 'object' && value !== null
 }
 
 async function listAllTools(client: McpClient): Promise<IntrospectedMcpTool[]> {
@@ -165,6 +257,61 @@ async function listAllTools(client: McpClient): Promise<IntrospectedMcpTool[]> {
       return tools
     }
   }
+}
+
+async function listAllResources(client: McpClient): Promise<IntrospectedMcpResource[]> {
+  return await listOptionalPaged(client, 'resources/list', (result: ListResourcesResult) => result.resources ?? [])
+}
+
+async function listAllResourceTemplates(client: McpClient): Promise<IntrospectedMcpResourceTemplate[]> {
+  return await listOptionalPaged(
+    client,
+    'resources/templates/list',
+    (result: ListResourceTemplatesResult) => result.resourceTemplates ?? [],
+  )
+}
+
+async function listAllPrompts(client: McpClient): Promise<IntrospectedMcpPrompt[]> {
+  return await listOptionalPaged(client, 'prompts/list', (result: ListPromptsResult) => result.prompts ?? [])
+}
+
+async function listOptionalPaged<TResult extends { nextCursor?: string }, TItem>(
+  client: McpClient,
+  method: string,
+  getItems: (result: TResult) => TItem[],
+): Promise<TItem[]> {
+  const items: TItem[] = []
+  let cursor: string | undefined
+
+  while (true) {
+    let result: TResult
+    try {
+      result = await client.request<TResult>(method, cursor ? { cursor } : undefined)
+    } catch (error) {
+      if (isOptionalDiscoveryUnavailable(error)) {
+        return items
+      }
+      throw error
+    }
+
+    items.push(...getItems(result))
+    cursor = result.nextCursor
+    if (!cursor) {
+      return items
+    }
+  }
+}
+
+function isOptionalDiscoveryUnavailable(error: unknown): boolean {
+  if (!(error instanceof McpIntrospectionError)) {
+    return false
+  }
+
+  const message = error.message.toLowerCase()
+  return error.rpcCode === -32601
+    || message.includes('method not found')
+    || message.includes('not supported')
+    || message.includes('unsupported')
 }
 
 function createHttpClient(server: Exclude<McpServer, { transport: 'stdio' }>): McpClient {
@@ -821,7 +968,12 @@ function parseSsePayload(payload: string): Array<JsonRpcEnvelope<unknown>> {
 
 function unwrapEnvelope<T>(envelope: JsonRpcEnvelope<T>): T {
   if ('error' in envelope) {
-    throw new McpIntrospectionError(`MCP request failed: ${envelope.error.message}`)
+    throw new McpIntrospectionError(
+      `MCP request failed: ${envelope.error.message}`,
+      undefined,
+      undefined,
+      envelope.error.code,
+    )
   }
 
   return envelope.result

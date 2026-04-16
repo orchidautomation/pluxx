@@ -17,6 +17,34 @@ const introspection: IntrospectedMcpServer = {
     description: 'Sales intelligence and account research tools.',
     websiteUrl: 'https://sumble.com/',
   },
+  resources: [
+    {
+      uri: 'sumble://guides/getting-started',
+      name: 'getting-started',
+      description: 'Setup and onboarding guide for Sumble users.',
+      mimeType: 'text/markdown',
+    },
+  ],
+  resourceTemplates: [
+    {
+      uriTemplate: 'sumble://organizations/{organization_id}',
+      name: 'organization-resource',
+      description: 'Fetch organization reference data by identifier.',
+      mimeType: 'application/json',
+    },
+  ],
+  prompts: [
+    {
+      name: 'qualify-account',
+      description: 'Qualify a target account before outreach.',
+      arguments: [
+        {
+          name: 'company_name',
+          required: true,
+        },
+      ],
+    },
+  ],
   tools: [
     {
       name: 'FindOrganizations',
@@ -233,6 +261,9 @@ describe('init-from-mcp scaffold', () => {
       }
       managedFiles: string[]
       userConfig: Array<{ envVar?: string }>
+      resources?: Array<{ uri: string }>
+      resourceTemplates?: Array<{ uriTemplate: string }>
+      prompts?: Array<{ name: string }>
       skills: Array<{ dirName: string }>
     }
 
@@ -252,9 +283,14 @@ describe('init-from-mcp scaffold', () => {
     expect(instructionsFile).toContain('# Sumble MCP')
     expect(instructionsFile).toContain('## Workflow Guidance')
     expect(instructionsFile).toContain('## Tool Routing')
+    expect(instructionsFile).toContain('## Resource Surfaces')
+    expect(instructionsFile).toContain('## Prompt Templates')
     expect(instructionsFile).toContain('## User Config')
     expect(instructionsFile).toContain('Prefer the most specific Sumble tool for the request.')
     expect(instructionsFile).toContain('`FindOrganizations`')
+    expect(instructionsFile).toContain('`getting-started`')
+    expect(instructionsFile).toContain('`organization-resource`')
+    expect(instructionsFile).toContain('`qualify-account`')
     expect(instructionsFile).toContain('`find-organizations`')
     expect(instructionsFile).toContain('Sumble MCP connects to its MCP over HTTP.')
     expect(instructionsFile).not.toContain('connects to the `sumble` MCP server')
@@ -278,6 +314,9 @@ describe('init-from-mcp scaffold', () => {
     expect(metadata.managedFiles).toContain('.pluxx/mcp.json')
     expect(metadata.managedFiles).toContain('commands/find-organizations.md')
     expect(metadata.userConfig.map((entry) => entry.envVar)).toContain('SUMBLE_API_KEY')
+    expect(metadata.resources?.map((resource) => resource.uri)).toContain('sumble://guides/getting-started')
+    expect(metadata.resourceTemplates?.map((resource) => resource.uriTemplate)).toContain('sumble://organizations/{organization_id}')
+    expect(metadata.prompts?.map((prompt) => prompt.name)).toContain('qualify-account')
     expect(metadata.skills.map((skill) => skill.dirName)).toEqual([
       'find-organizations',
       'find-people',

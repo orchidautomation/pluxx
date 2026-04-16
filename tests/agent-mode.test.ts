@@ -26,6 +26,34 @@ const introspection: IntrospectedMcpServer = {
     description: 'Clay expertise in every AI conversation.',
     websiteUrl: 'https://playkit.sh/',
   },
+  resources: [
+    {
+      uri: 'playkit://guides/getting-started',
+      name: 'getting-started',
+      description: 'Setup guide for account connection and onboarding.',
+      mimeType: 'text/markdown',
+    },
+  ],
+  resourceTemplates: [
+    {
+      uriTemplate: 'playkit://workflows/{workflow_id}',
+      name: 'workflow-template',
+      description: 'Parameterized workflow reference.',
+      mimeType: 'application/json',
+    },
+  ],
+  prompts: [
+    {
+      name: 'qualify-table',
+      description: 'Qualify a Clay table before enrichment.',
+      arguments: [
+        {
+          name: 'table_name',
+          required: true,
+        },
+      ],
+    },
+  ],
   tools: [
     {
       name: 'ask_clay',
@@ -127,7 +155,12 @@ describe('agent mode', () => {
     expect(context).toContain('# Pluxx Agent Context')
     expect(context).toContain('- Server name: `playkit`')
     expect(context).toContain('- Semantic taxonomy: `.pluxx/taxonomy.json`')
+    expect(context).toContain('- Resource count: 1')
+    expect(context).toContain('- Prompt template count: 1')
     expect(context).toContain('### `ask-clay`')
+    expect(context).toContain('## MCP Discovery Surfaces')
+    expect(context).toContain('Resource `getting-started`')
+    expect(context).toContain('Prompt `qualify-table`')
     expect(context).toContain('Preserve custom sections marked by')
     expect(planFile.version).toBe(1)
     expect(planFile.files.editable.some((file) => file.path === '.pluxx/taxonomy.json')).toBe(true)
@@ -186,6 +219,7 @@ describe('agent mode', () => {
     expect(prompt).toContain('singleton skills are avoided unless they represent a real standalone user workflow')
     expect(prompt).toContain('Eliminate misleading labels such as contact or people discovery')
     expect(prompt).toContain('Pluxx will re-render generated skills and commands from that taxonomy after the pass')
+    expect(prompt).toContain('tools, resources, resource templates, and prompt templates')
   })
 
   it('supports CLI dry-run for prompt generation without writing files', async () => {
@@ -232,6 +266,7 @@ describe('agent mode', () => {
     expect(prompt).toContain('weak MCP metadata signals')
     expect(prompt).toContain('Separate scaffold quality findings from runtime-correctness findings.')
     expect(prompt).toContain('scaffold quality gaps are distinguished from runtime correctness')
+    expect(prompt).toContain('raw documentation dumps')
   })
 
   it('supports CLI dry-run for review runs and keeps Claude in plan mode', async () => {
@@ -721,8 +756,10 @@ exit 1
     expect(taxonomyPrompt).toContain('Treat `.pluxx/taxonomy.json` as the semantic source of truth for skill grouping and naming.')
     expect(instructionsPrompt).toContain('Instructions guidance:')
     expect(instructionsPrompt).toContain('Make the Clay auth boundary explicit in the shared instructions.')
+    expect(instructionsPrompt).toContain('short routing guidance, not a raw documentation dump')
     expect(instructionsPrompt).toContain('Prefer the branded product name in user-facing copy')
     expect(instructionsPrompt).toContain('wording is branded and product-facing, not raw MCP-internal naming')
+    expect(instructionsPrompt).toContain('reads like routing guidance, not pasted vendor docs')
     expect(reviewPrompt).toContain('Additional review criteria:')
     expect(reviewPrompt).toContain('Flag any skill grouping that mixes setup/admin tools with runtime workflows.')
   })

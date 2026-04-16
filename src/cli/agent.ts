@@ -435,6 +435,8 @@ function buildAgentContext(
     `- Transport: ${server?.transport ?? metadata.source.transport}`,
     `- Auth: ${describeAuth(server ?? metadata.source)}`,
     `- Tool count: ${metadata.tools.length}`,
+    `- Resource count: ${metadata.resources?.length ?? 0}`,
+    `- Prompt template count: ${metadata.prompts?.length ?? 0}`,
     '',
     '## Generated Skills',
     '',
@@ -445,6 +447,28 @@ function buildAgentContext(
     lines.push('')
     lines.push(`- Title: ${skill.title}`)
     lines.push(`- Tools: ${skill.toolNames.join(', ') || 'none'}`)
+    lines.push('')
+  }
+
+  if ((metadata.resources?.length ?? 0) > 0 || (metadata.resourceTemplates?.length ?? 0) > 0 || (metadata.prompts?.length ?? 0) > 0) {
+    lines.push('## MCP Discovery Surfaces')
+    lines.push('')
+
+    for (const resource of metadata.resources ?? []) {
+      const label = resource.name ?? resource.title ?? resource.uri
+      lines.push(`- Resource \`${label}\`: ${summarizeDiscoveryDescription(resource.description, `URI: ${resource.uri}`)}`)
+    }
+
+    for (const template of metadata.resourceTemplates ?? []) {
+      lines.push(`- Resource template \`${template.name}\`: ${summarizeDiscoveryDescription(template.description, `URI template: ${template.uriTemplate}`)}`)
+    }
+
+    for (const prompt of metadata.prompts ?? []) {
+      const args = prompt.arguments?.map((argument) => `\`${argument.name}\`${argument.required ? ' (required)' : ''}`).join(', ')
+      const trailing = args ? `Arguments: ${args}` : undefined
+      lines.push(`- Prompt \`${prompt.name}\`: ${summarizeDiscoveryDescription(prompt.description, trailing)}`)
+    }
+
     lines.push('')
   }
 
@@ -504,6 +528,8 @@ function buildAgentContext(
   lines.push('- Examples should be concrete and specific, not generic placeholders.')
   lines.push('- Weak MCP metadata (missing/generic tool descriptions) should be called out explicitly before publishing.')
   lines.push('- The wording should match the MCP product narrative, not just raw tool names.')
+  lines.push('- Use discovered MCP resources and prompt templates when they clarify the real product surface.')
+  lines.push('- Keep INSTRUCTIONS.md as concise routing guidance; do not dump raw vendor documentation into generated sections.')
   lines.push('')
 
   return `${lines.join('\n')}\n`
@@ -717,18 +743,27 @@ function buildAgentPrompt(
     `- Preserve all custom-note blocks between \`${PLUXX_CUSTOM_START}\` and \`${PLUXX_CUSTOM_END}\`.`,
     '- Do not change auth wiring or target-platform config.',
     '- Do not edit files under `dist/`.',
+    '- Treat discovered MCP resources, resource templates, and prompt templates as part of the product surface when they are present in the context and metadata.',
     '',
   ]
 
   if (kind === 'taxonomy') {
-    return `${sharedIntro.join('\n')}Your job:\n1. Treat \`${MCP_TAXONOMY_PATH}\` as the semantic source of truth for skill grouping and naming.\n2. Infer the MCP's real product surfaces and workflows.\n3. Merge, split, or rename generated skills so labels are product-facing, not lexical buckets.\n4. Update the taxonomy file first; Pluxx will re-render generated skills and commands from that taxonomy after the pass.\n5. Keep setup/onboarding, account-admin, and runtime workflows intentionally separated when appropriate.\n6. Eliminate misleading labels such as contact or people discovery when the tools do not actually perform direct lookup.\n${buildPromptOverrideBlock(kind, input.overrides)}\nSuccess criteria:\n- each skill represents a real user workflow or product surface\n- skill names are product-shaped and avoid raw MCP tool/server identifiers when possible\n- setup/onboarding, account-admin, and runtime workflows are grouped intentionally\n- singleton skills are avoided unless they represent a real standalone user workflow\n- commands stay aligned with the chosen taxonomy\n`
+    return `${sharedIntro.join('\n')}Your job:\n1. Treat \`${MCP_TAXONOMY_PATH}\` as the semantic source of truth for skill grouping and naming.\n2. Infer the MCP's real product surfaces and workflows from tools, resources, resource templates, and prompt templates.\n3. Merge, split, or rename generated skills so labels are product-facing, not lexical buckets.\n4. Update the taxonomy file first; Pluxx will re-render generated skills and commands from that taxonomy after the pass.\n5. Keep setup/onboarding, account-admin, and runtime workflows intentionally separated when appropriate.\n6. Eliminate misleading labels such as contact or people discovery when the tools do not actually perform direct lookup.\n${buildPromptOverrideBlock(kind, input.overrides)}\nSuccess criteria:\n- each skill represents a real user workflow or product surface\n- skill names are product-shaped and avoid raw MCP tool/server identifiers when possible\n- setup/onboarding, account-admin, and runtime workflows are grouped intentionally\n- singleton skills are avoided unless they represent a real standalone user workflow\n- commands stay aligned with the chosen taxonomy\n`
   }
 
   if (kind === 'instructions') {
-    return `${sharedIntro.join('\n')}Your job:\n1. Rewrite only the generated block in \`INSTRUCTIONS.md\`.\n2. Explain what the plugin is for, how the skills should be used, and which setup/admin/account/runtime boundaries matter.\n3. Keep wording aligned to the MCP's product narrative and branded language; avoid raw MCP server/tool identifiers except when technically required.\n4. Prefer the branded product name in user-facing copy; do not lead with internal MCP server identifiers.\n${buildPromptOverrideBlock(kind, input.overrides)}\nSuccess criteria:\n- instructions are concise, actionable, and product-shaped\n- wording is branded and product-facing, not raw MCP-internal naming\n- auth/setup/admin caveats are explicit when relevant\n- raw MCP server identifiers are omitted unless operationally necessary\n- the file remains safe for future \`pluxx sync --from-mcp\`\n`
+    return `${sharedIntro.join('\n')}Your job:\n1. Rewrite only the generated block in \`INSTRUCTIONS.md\`.\n2. Explain what the plugin is for, how the skills should be used, and which setup/admin/account/runtime boundaries matter.\n3. Use discovered tools, resources, resource templates, and prompt templates to produce short routing guidance, not a raw documentation dump.\n4. Keep wording aligned to the MCP's product narrative and branded language; avoid raw MCP server/tool identifiers except when technically required.\n5. Prefer the branded product name in user-facing copy; do not lead with internal MCP server identifiers.\n${buildPromptOverrideBlock(kind, input.overrides)}\nSuccess criteria:\n- instructions are concise, actionable, and product-shaped\n- wording is branded and product-facing, not raw MCP-internal naming\n- auth/setup/admin caveats are explicit when relevant\n- raw MCP server identifiers are omitted unless operationally necessary\n- the generated section reads like routing guidance, not pasted vendor docs\n- the file remains safe for future \`pluxx sync --from-mcp\`\n`
   }
 
-  return `${sharedIntro.join('\n')}Your job:\n1. Review the current scaffold critically.\n2. Call out weak skill groupings, missing setup guidance, vague examples, product/category mismatches, or weak MCP metadata signals.\n3. Separate scaffold quality findings from runtime-correctness findings.\n4. Propose only the highest-value changes needed to make the scaffold useful.\n${buildPromptOverrideBlock(kind, input.overrides)}\nSuccess criteria:\n- findings are concrete and tied to files\n- scaffold quality gaps are distinguished from runtime correctness\n- suggested changes improve user-facing plugin quality\n- recommendations stay inside Pluxx-managed boundaries\n`
+  return `${sharedIntro.join('\n')}Your job:\n1. Review the current scaffold critically.\n2. Call out weak skill groupings, missing setup guidance, vague examples, product/category mismatches, raw documentation dumps, or weak MCP metadata signals.\n3. Separate scaffold quality findings from runtime-correctness findings.\n4. Propose only the highest-value changes needed to make the scaffold useful.\n${buildPromptOverrideBlock(kind, input.overrides)}\nSuccess criteria:\n- findings are concrete and tied to files\n- scaffold quality gaps are distinguished from runtime correctness\n- suggested changes improve user-facing plugin quality\n- recommendations stay inside Pluxx-managed boundaries\n`
+}
+
+function summarizeDiscoveryDescription(description: string | undefined, trailing?: string): string {
+  const base = description
+    ?.replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 180)
+  return [base || 'Discovered during MCP introspection.', trailing].filter(Boolean).join(' ')
 }
 
 function buildAgentRunnerPrompt(kind: AgentPromptKind, promptPath: string): string {

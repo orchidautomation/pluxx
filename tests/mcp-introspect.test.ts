@@ -29,7 +29,11 @@ rl.on('line', (line) => {
       id: message.id,
       result: {
         protocolVersion: '2025-03-26',
-        capabilities: { tools: { listChanged: true } },
+        capabilities: {
+          tools: { listChanged: true },
+          resources: { listChanged: true },
+          prompts: { listChanged: true },
+        },
         serverInfo: {
           name: 'stub-server',
           title: 'Stub Server',
@@ -76,6 +80,56 @@ rl.on('line', (line) => {
       }
     })
   }
+
+  if (message.method === 'resources/list') {
+    send({
+      jsonrpc: '2.0',
+      id: message.id,
+      result: {
+        resources: [{
+          uri: 'playkit://guides/getting-started',
+          name: 'getting-started',
+          description: 'Setup guide for the fake server.',
+          mimeType: 'text/markdown'
+        }]
+      }
+    })
+    return
+  }
+
+  if (message.method === 'resources/templates/list') {
+    send({
+      jsonrpc: '2.0',
+      id: message.id,
+      result: {
+        resourceTemplates: [{
+          uriTemplate: 'playkit://accounts/{account_id}',
+          name: 'account-template',
+          description: 'Parameterized account resource.',
+          mimeType: 'application/json'
+        }]
+      }
+    })
+    return
+  }
+
+  if (message.method === 'prompts/list') {
+    send({
+      jsonrpc: '2.0',
+      id: message.id,
+      result: {
+        prompts: [{
+          name: 'qualify-account',
+          description: 'Qualify an account before outreach.',
+          arguments: [{
+            name: 'account_name',
+            required: true
+          }]
+        }]
+      }
+    })
+    return
+  }
 })`,
   )
 })
@@ -85,7 +139,7 @@ afterEach(() => {
 })
 
 describe('MCP introspection', () => {
-  it('introspects stdio MCP servers and paginates tools/list', async () => {
+  it('introspects stdio MCP servers and discovers tools, resources, and prompts', async () => {
     const result = await introspectMcpServer({
       transport: 'stdio',
       command: 'bun',
@@ -95,6 +149,9 @@ describe('MCP introspection', () => {
     expect(result.serverInfo.name).toBe('stub-server')
     expect(result.instructions).toBe('Use the fake tools carefully.')
     expect(result.tools.map((tool) => tool.name)).toEqual(['get_accounts', 'get_people'])
+    expect(result.resources?.map((resource) => resource.uri)).toEqual(['playkit://guides/getting-started'])
+    expect(result.resourceTemplates?.map((resource) => resource.uriTemplate)).toEqual(['playkit://accounts/{account_id}'])
+    expect(result.prompts?.map((prompt) => prompt.name)).toEqual(['qualify-account'])
   })
 
   it('introspects HTTP MCP servers and preserves the negotiated session header', async () => {

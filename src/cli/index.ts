@@ -43,7 +43,7 @@ import {
 } from './init-from-mcp'
 import { migrate } from './migrate'
 import { lintProject, printLintResult, runLint } from './lint'
-import { introspectMcpServer, McpIntrospectionError } from '../mcp/introspect'
+import { introspectMcpServer, McpIntrospectionError, type IntrospectedMcpServer } from '../mcp/introspect'
 import { promptText, promptYesNo, PromptCancelledError } from './prompt'
 import * as clack from '@clack/prompts'
 import type { McpAuth, McpServer, TargetPlatform } from '../schema'
@@ -786,6 +786,21 @@ function formatMcpQualityLines(report: McpQualityReport): string[] {
   return lines
 }
 
+function formatMcpDiscoverySummary(introspection: IntrospectedMcpServer): string {
+  const parts = [`${introspection.tools.length} tools`]
+  const resourceCount = (introspection.resources?.length ?? 0) + (introspection.resourceTemplates?.length ?? 0)
+  const promptCount = introspection.prompts?.length ?? 0
+
+  if (resourceCount > 0) {
+    parts.push(`${resourceCount} resources`)
+  }
+  if (promptCount > 0) {
+    parts.push(`${promptCount} prompts`)
+  }
+
+  return `${parts.join(', ')} discovered`
+}
+
 export function parseInitFromMcpOptions(rawArgs: string[], initialName?: string, initialSource?: string): InitFromMcpOptions {
   return {
     source: initialSource ?? readOption(rawArgs, '--from-mcp'),
@@ -1071,7 +1086,7 @@ ${formatAuthRequiredMessage('init', retryError)}`)
     }
 
     const serverLabel = introspection.serverInfo.title ?? introspection.serverInfo.name
-    s?.stop(`Connected: ${serverLabel} (${introspection.tools.length} tools discovered)`)
+    s?.stop(`Connected: ${serverLabel} (${formatMcpDiscoverySummary(introspection)})`)
     const quality = analyzeMcpQuality(introspection.tools)
 
     if (!options.jsonOutput && !runtime.quiet && quality.issues.length > 0) {
@@ -1729,7 +1744,7 @@ ${formatAuthRequiredMessage('autopilot', retryError)}`)
         { value: 'platform', label: 'platform', hint: 'Use native platform-managed auth (for example OAuth/custom connector flows)' },
       ], runtimeAuthMode)
     }
-    connectSpinner?.stop(`Connected: ${introspection.serverInfo.title ?? introspection.serverInfo.name} (${introspection.tools.length} tools discovered)`)
+    connectSpinner?.stop(`Connected: ${introspection.serverInfo.title ?? introspection.serverInfo.name} (${formatMcpDiscoverySummary(introspection)})`)
     const quality = analyzeMcpQuality(introspection.tools)
 
     if (!runtime.jsonOutput && !runtime.quiet && quality.issues.length > 0) {

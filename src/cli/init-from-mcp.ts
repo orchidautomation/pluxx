@@ -2,7 +2,13 @@ import { existsSync } from 'fs'
 import { mkdir } from 'fs/promises'
 import { basename, resolve } from 'path'
 import type { HookEntry, McpServer, PluginConfig, TargetPlatform, UserConfigEntry } from '../schema'
-import type { IntrospectedMcpServer, IntrospectedMcpTool } from '../mcp/introspect'
+import type {
+  IntrospectedMcpPrompt,
+  IntrospectedMcpResource,
+  IntrospectedMcpResourceTemplate,
+  IntrospectedMcpServer,
+  IntrospectedMcpTool,
+} from '../mcp/introspect'
 import { collectUserConfigEntries } from '../user-config'
 
 export interface McpScaffoldOptions {
@@ -110,6 +116,9 @@ export interface McpScaffoldMetadata {
   }
   userConfig: UserConfigEntry[]
   tools: IntrospectedMcpTool[]
+  resources?: IntrospectedMcpResource[]
+  resourceTemplates?: IntrospectedMcpResourceTemplate[]
+  prompts?: IntrospectedMcpPrompt[]
   skills: Array<{
     dirName: string
     title: string
@@ -356,6 +365,9 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
           instructions: options.introspection.instructions,
           skills: plannedSkills,
           tools: options.introspection.tools,
+          resources: options.introspection.resources ?? [],
+          resourceTemplates: options.introspection.resourceTemplates ?? [],
+          prompts: options.introspection.prompts ?? [],
           userConfig,
         }),
       existsSync(instructionsPath) ? await Bun.file(instructionsPath).text() : undefined,
@@ -636,6 +648,9 @@ export function buildInstructionsContent(input: {
   instructions?: string
   skills: PlannedSkill[]
   tools: IntrospectedMcpTool[]
+  resources: IntrospectedMcpResource[]
+  resourceTemplates: IntrospectedMcpResourceTemplate[]
+  prompts: IntrospectedMcpPrompt[]
   userConfig?: UserConfigEntry[]
 }): string {
   const accessLine = describePluginAccess(input.displayName, input.source, input.runtimeAuthMode ?? 'inline')
@@ -664,11 +679,33 @@ export function buildInstructionsContent(input: {
     lines.push(`- \`${tool.name}\`: ${summarizeToolForInstructions(tool)}`)
   }
 
+  if (input.resources.length > 0 || input.resourceTemplates.length > 0) {
+    lines.push('', '## Resource Surfaces', '')
+
+    for (const resource of input.resources.slice(0, 8)) {
+      const label = resource.name ?? resource.title ?? resource.uri
+      lines.push(`- \`${label}\`: ${summarizeResourceForInstructions(resource)}`)
+    }
+
+    for (const template of input.resourceTemplates.slice(0, 8)) {
+      lines.push(`- \`${template.name}\`: ${summarizeResourceTemplateForInstructions(template)}`)
+    }
+  }
+
+  if (input.prompts.length > 0) {
+    lines.push('', '## Prompt Templates', '')
+
+    for (const prompt of input.prompts.slice(0, 8)) {
+      lines.push(`- \`${prompt.name}\`: ${summarizePromptForInstructions(prompt)}`)
+    }
+  }
+
   lines.push(
     '',
     '## Operating Notes',
     '',
     '- Prefer the most specific tool that matches the user request.',
+    '- If the MCP exposes resources or prompt templates, use them as canonical context before improvising your own workflow.',
     '- Confirm required inputs before calling a tool.',
     '- Summarize returned data instead of dumping raw JSON unless the user asks for it.',
   )
@@ -992,6 +1029,9 @@ function buildMcpScaffoldMetadata(input: {
     },
     userConfig: input.userConfig,
     tools: input.introspection.tools,
+    resources: input.introspection.resources ?? [],
+    resourceTemplates: input.introspection.resourceTemplates ?? [],
+    prompts: input.introspection.prompts ?? [],
     skills: input.plannedSkills.map((skill) => ({
       dirName: skill.dirName,
       title: skill.title,
@@ -1321,6 +1361,46 @@ function summarizeToolForInstructions(tool: IntrospectedMcpTool): string {
   if (parts.length === 0) {
     return fallback
   }
+
+  return truncate(parts.join(' '), 240)
+}
+
+function summarizeResourceForInstructions(resource: IntrospectedMcpResource): string {
+  const descriptor = firstSentenceOf(cleanSingleLineText(resource.description ?? ''))
+  const location = resource.uri ? `URI: \`${resource.uri}\`.` : ''
+  const mimeType = resource.mimeType ? ` Format: ${resource.mimeType}.` : ''
+  const parts = [
+    descriptor || 'Reference resource exposed by the MCP.',
+    location,
+    mimeType,
+  ].filter(Boolean)
+
+  return truncate(parts.join(' '), 240)
+}
+
+function summarizeResourceTemplateForInstructions(template: IntrospectedMcpResourceTemplate): string {
+  const descriptor = firstSentenceOf(cleanSingleLineText(template.description ?? ''))
+  const uriTemplate = template.uriTemplate ? `URI template: \`${template.uriTemplate}\`.` : ''
+  const mimeType = template.mimeType ? ` Format: ${template.mimeType}.` : ''
+  const parts = [
+    descriptor || 'Parameterized MCP resource template.',
+    uriTemplate,
+    mimeType,
+  ].filter(Boolean)
+
+  return truncate(parts.join(' '), 240)
+}
+
+function summarizePromptForInstructions(prompt: IntrospectedMcpPrompt): string {
+  const descriptor = firstSentenceOf(cleanSingleLineText(prompt.description ?? ''))
+  const args = prompt.arguments?.slice(0, 4).map((argument) => {
+    const required = argument.required ? 'required' : 'optional'
+    return `\`${argument.name}\` (${required})`
+  }) ?? []
+  const parts = [
+    descriptor || 'Prompt template exposed by the MCP.',
+    args.length > 0 ? `Arguments: ${args.join(', ')}.` : '',
+  ].filter(Boolean)
 
   return truncate(parts.join(' '), 240)
 }
