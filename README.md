@@ -115,7 +115,7 @@ The next layer is `Agent` mode: Pluxx prepares the scaffold, context pack, and p
 ## Quick Start
 
 ```bash
-# Preferred: run via bunx
+# Preferred public path: run via npx
 
 # Start a plugin by hand
 npx @orchid-labs/pluxx init my-plugin
@@ -236,7 +236,7 @@ There is now also a first-class self-hosting source project at [example/pluxx](/
 
 ```bash
 # Optional: global install still shells out to Bun
-npm install -g -labs/pluxx
+npm install -g @orchid-labs/pluxx
 pluxx init my-plugin
 
 # Scaffold a new plugin
@@ -562,13 +562,18 @@ pluxx.config.ts          <- You define your plugin once
 - [x] `pluxx doctor` — project and runtime health checks
 - [x] `pluxx test` — verification command for plugin repos
 - [x] CI/CD GitHub Action / reusable workflow
-- [ ] canonical `userConfig` / install-time secret handling
-- [ ] canonical permissions model across primary targets
-- [ ] build-time target cap validation for primary targets
-- [ ] `pluxx publish` — push to platform marketplaces
+- [x] canonical `userConfig` / install-time secret handling
+- [x] `pluxx publish` v1 — npm, GitHub Release, dry-run, and tag-based release workflow
 - [ ] `pluxx diff` — show what changed per platform
 - [ ] Plugin analytics dashboard
 - [ ] Promote beta platforms to fully supported
+
+Current focus:
+
+- canonical permissions model across primary targets
+- build-time target cap validation for primary targets
+- deeper OAuth/auth discovery and MCP protocol depth
+- docs/site polish and product-branding system
 
 ## License
 
