@@ -2,7 +2,7 @@ import { describe, expect, it, beforeEach, afterEach } from 'bun:test'
 import { existsSync, readFileSync, rmSync } from 'fs'
 import { resolve } from 'path'
 import { loadConfig } from '../src/config/load'
-import { analyzeMcpQuality, derivePluginName, detectMutatingTools, parseMcpSourceInput, planSkillScaffolds, writeMcpScaffold } from '../src/cli/init-from-mcp'
+import { analyzeMcpQuality, deriveDisplayName, derivePluginName, detectMutatingTools, parseMcpSourceInput, planSkillScaffolds, writeMcpScaffold } from '../src/cli/init-from-mcp'
 import type { IntrospectedMcpServer } from '../src/mcp/introspect'
 
 const TEST_DIR = resolve(import.meta.dir, '.init-from-mcp')
@@ -165,6 +165,15 @@ describe('init-from-mcp scaffold', () => {
 
   it('derives a stable plugin name from MCP metadata', () => {
     expect(derivePluginName(introspection, { transport: 'http', url: 'https://mcp.sumble.com/' })).toBe('sumble')
+  })
+
+  it('derives a polished display name from weak MCP identifiers', () => {
+    expect(deriveDisplayName({
+      ...introspection,
+      serverInfo: {
+        name: 'agent-mail',
+      },
+    }, 'agent-mail')).toBe('Agent Mail')
   })
 
   it('groups discovered MCP tools into workflow-oriented skills', () => {
@@ -491,6 +500,37 @@ describe('init-from-mcp scaffold', () => {
     expect(instructionsFile).toContain('`firecrawl_map`: Map a website to discover all indexed URLs on the site. Best for: Discovering the correct page on a large documentation or product site before scraping.')
     expect(instructionsFile).not.toContain('**Usage Example:**')
     expect(instructionsFile).not.toContain('**Returns:**')
+  })
+
+  it('derives product-facing fallback metadata when MCP metadata is generic', async () => {
+    await writeMcpScaffold({
+      rootDir: TEST_DIR,
+      pluginName: 'agent-mail',
+      authorName: 'Orchid Automation',
+      targets: ['codex'],
+      source: {
+        transport: 'http',
+        url: 'https://mcp.agentmail.dev/',
+      },
+      introspection: {
+        ...introspection,
+        serverInfo: {
+          name: 'agent-mail',
+          description: 'Generated from the agent-mail MCP server.',
+        },
+      },
+    })
+
+    const config = readFileSync(resolve(TEST_DIR, 'pluxx.config.ts'), 'utf-8')
+    const instructionsFile = readFileSync(resolve(TEST_DIR, 'INSTRUCTIONS.md'), 'utf-8')
+
+    expect(config).toContain('displayName: "Agent Mail"')
+    expect(config).toContain('shortDescription: "Agent Mail plugin scaffold')
+    expect(config).toContain('description: "Agent Mail plugin scaffold')
+    expect(config).not.toContain('Generated from the agent-mail MCP server.')
+    expect(instructionsFile).toContain('# Agent Mail')
+    expect(instructionsFile).toContain('Agent Mail plugin scaffold')
+    expect(instructionsFile).not.toContain('Generated from the agent-mail MCP server.')
   })
 
   it('generates mutation confirmation hooks when safe mode detects mutating tools', async () => {

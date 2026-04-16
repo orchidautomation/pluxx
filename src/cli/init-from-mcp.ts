@@ -108,6 +108,7 @@ export interface McpScaffoldMetadata {
   settings: {
     pluginName: string
     displayName: string
+    description?: string
     skillGrouping: McpSkillGrouping
     requestedHookMode: McpHookMode
     generatedHookMode: McpHookMode
@@ -286,11 +287,19 @@ export async function applyMcpScaffoldPlan(rootDir: string, plan: McpScaffoldPla
 export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpScaffoldPlan> {
   const pluginName = toKebabCase(options.pluginName) || 'mcp-plugin'
   const displayName = options.displayName
-    ?? options.introspection.serverInfo.title
-    ?? humanizeName(pluginName)
+    ?? deriveDisplayName(options.introspection, pluginName)
+  const plannedSkills = planSkillScaffoldsFromPersisted(
+    options.introspection.tools,
+    options.skillGrouping,
+    options.persistedSkills,
+    options.toolRenames,
+  )
   const description = options.description
-    ?? options.introspection.serverInfo.description
-    ?? `Generated from the ${displayName} MCP server.`
+    ?? deriveScaffoldDescription({
+      displayName,
+      introspection: options.introspection,
+      plannedSkills,
+    })
   const serverName = options.serverName
     ?? toKebabCase(options.introspection.serverInfo.name)
     ?? pluginName
@@ -299,12 +308,6 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
   const instructionsPath = resolve(options.rootDir, 'INSTRUCTIONS.md')
   const skillRoot = resolve(options.rootDir, 'skills')
   const commandsRoot = resolve(options.rootDir, 'commands')
-  const plannedSkills = planSkillScaffoldsFromPersisted(
-    options.introspection.tools,
-    options.skillGrouping,
-    options.persistedSkills,
-    options.toolRenames,
-  )
   const userConfigSource = {
     targets: options.targets,
     mcp: {
@@ -752,8 +755,10 @@ export function buildConfigTemplate(input: {
 }): string {
   const targets = input.targets.map((target) => JSON.stringify(target)).join(', ')
   const mcpBlock = buildMcpBlock(input.serverName, input.source)
+  const shortDescription = truncate(firstSentenceOf(cleanSingleLineText(input.description)), 140)
   const brandFields = [
     `displayName: ${JSON.stringify(input.displayName)}`,
+    shortDescription ? `shortDescription: ${JSON.stringify(shortDescription)}` : null,
     input.websiteUrl ? `websiteURL: ${JSON.stringify(input.websiteUrl)}` : null,
   ].filter(Boolean).join(',\n    ')
   const userConfigBlock = input.userConfig && input.userConfig.length > 0
@@ -1021,6 +1026,11 @@ function buildMcpScaffoldMetadata(input: {
     settings: {
       pluginName: input.pluginName,
       displayName: input.displayName,
+      description: deriveScaffoldDescription({
+        displayName: input.displayName,
+        introspection: input.introspection,
+        plannedSkills: input.plannedSkills,
+      }),
       skillGrouping: input.skillGrouping,
       requestedHookMode: input.requestedHookMode,
       generatedHookMode: input.generatedHookMode,
@@ -1688,4 +1698,79 @@ export function derivePluginName(introspection: IntrospectedMcpServer, source: M
   }
 
   return 'mcp-plugin'
+}
+
+export function deriveDisplayName(introspection: IntrospectedMcpServer, pluginName: string): string {
+  const candidates = [
+    introspection.serverInfo.title,
+    introspection.serverInfo.name,
+    pluginName,
+  ].filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+
+  for (const candidate of candidates) {
+    const polished = polishDisplayName(candidate)
+    if (polished) return polished
+  }
+
+  return 'MCP Plugin'
+}
+
+function polishDisplayName(value: string): string {
+  const raw = value.trim()
+  if (!raw) return ''
+
+  const looksMachineIdentifier = /^[a-z0-9._/-]+$/.test(raw) || /[-_/]/.test(raw) || raw === raw.toLowerCase()
+  let candidate = looksMachineIdentifier ? humanizeName(raw) : raw
+
+  candidate = candidate
+    .replace(/\bmcp\b/gi, 'MCP')
+    .replace(/\bMCP\s+Server\b/gi, 'MCP')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+  return candidate
+}
+
+function deriveScaffoldDescription(input: {
+  displayName: string
+  introspection: IntrospectedMcpServer
+  plannedSkills: PlannedSkill[]
+}): string {
+  const serverDescription = truncate(cleanSingleLineText(input.introspection.serverInfo.description), 200)
+  if (serverDescription && !isGenericServerDescription(serverDescription)) {
+    return serverDescription
+  }
+
+  const skillTitles = [...new Set(
+    input.plannedSkills
+      .map((skill) => cleanSingleLineText(skill.title).toLowerCase())
+      .filter(Boolean),
+  )].slice(0, 2)
+
+  if (skillTitles.length === 1) {
+    return `${input.displayName} plugin scaffold for ${skillTitles[0]} workflows.`
+  }
+
+  if (skillTitles.length === 2) {
+    return `${input.displayName} plugin scaffold for ${skillTitles[0]} and ${skillTitles[1]} workflows.`
+  }
+
+  const toolCount = input.introspection.tools.length
+  if (toolCount > 0) {
+    return `${input.displayName} plugin scaffold for ${toolCount} MCP tool${toolCount === 1 ? '' : 's'}.`
+  }
+
+  return `${input.displayName} plugin scaffold for MCP-driven workflows.`
+}
+
+function isGenericServerDescription(value: string): boolean {
+  const normalized = value.toLowerCase().trim()
+  if (!normalized) return true
+
+  if (normalized.startsWith('generated from ')) return true
+  if (normalized === 'mcp server') return true
+  if (normalized === 'an mcp server') return true
+  if (normalized === 'a mcp server') return true
+
+  return false
 }

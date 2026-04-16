@@ -29,6 +29,7 @@ import {
   analyzeMcpQuality,
   applyMcpScaffoldPlan,
   buildToolExampleRequest,
+  deriveDisplayName,
   derivePluginName,
   MCP_HOOK_MODES,
   MCP_RUNTIME_AUTH_MODES,
@@ -1135,7 +1136,7 @@ ${formatAuthRequiredMessage('init', retryError)}`)
         ? await clackText('Plugin name', defaultPluginName)
         : defaultPluginName),
     )
-    const defaultDisplayName = options.displayName ?? introspection.serverInfo.title ?? pluginName
+    const defaultDisplayName = options.displayName ?? deriveDisplayName(introspection, pluginName)
     const displayName = options.displayName ?? (interactive
       ? await clackText('Display name', defaultDisplayName)
       : defaultDisplayName)
@@ -1757,7 +1758,7 @@ ${formatAuthRequiredMessage('autopilot', retryError)}`)
         ? await clackText('Plugin name', defaultPluginName)
         : defaultPluginName),
     )
-    const defaultDisplayName = initOptions.displayName ?? introspection.serverInfo.title ?? pluginName
+    const defaultDisplayName = initOptions.displayName ?? deriveDisplayName(introspection, pluginName)
     const displayName = initOptions.displayName ?? (interactive
       ? await clackText('Display name', defaultDisplayName)
       : defaultDisplayName)
