@@ -36,12 +36,13 @@ Use this checklist before we call publish flow work complete.
 
 ### Claude Code
 
-Current expectation: there is no public Claude marketplace submission flow documented in this repo's source set. For publish v1, Claude should be treated as a package/distribution target with optional local marketplace registration behavior.
+Current expectation: Claude Code has a formal plugin marketplace surface (`.claude-plugin/marketplace.json`) documented in this repo's extension-systems research. For publish v1, Claude should be treated as a marketplace-capable plugin target, with local marketplace registration still useful for testing and internal rollout.
 
 Submission prep for Claude therefore means:
 
 - bundle quality gates pass (`doctor`, `lint`, `test`)
 - manifest and plugin content are complete for distribution
+- marketplace metadata is complete and coherent for the intended Claude marketplace flow
 - local marketplace install path remains valid for testing and internal rollout
 
 ### Cursor
@@ -75,8 +76,8 @@ This table maps submission-relevant metadata to its source and automation status
 | Rules path | N/A | `.cursor-plugin/plugin.json:rules` | `platforms.cursor.rules` | Yes (if configured) | No |
 | Hooks path | optional in Claude manifest; hooks file emitted when hooks exist | `.cursor-plugin/plugin.json:hooks` | `hooks` | Yes (if set) | No |
 | MCP reference | `.claude-plugin/plugin.json:mcpServers` -> `./.mcp.json` | `.cursor-plugin/plugin.json:mcpServers` -> `./mcp.json` | `mcp` (+ per-platform auth overrides) | Yes (if set) | No |
-| Long listing copy | not represented in current manifests | not represented in current manifests | external listing docs | No | Yes |
-| Submission media (screenshots/video) | not represented in current Claude manifest flow | partially represented (`logo`), listing media still external | `assets/` + external listing assets | Partial | Yes |
+| Long listing copy | not represented in current manifests/marketplace JSON | not represented in current manifests | external listing docs | No | Yes |
+| Submission media (screenshots/video) | not represented in current Claude manifest/marketplace JSON flow | partially represented (`logo`), listing media still external | `assets/` + external listing assets | Partial | Yes |
 | Compliance/policy attestations | external | external | external | No | Yes |
 
 ## Manual Inputs
