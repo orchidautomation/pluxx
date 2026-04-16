@@ -1,0 +1,21 @@
+---
+title: Auth / Runtime Auth
+---
+
+Pluxx separates import-time auth from runtime auth.
+
+## Import-time auth
+
+- bearer token
+- custom header
+- OAuth-derived token env vars
+
+## Runtime auth
+
+Pluxx compiles auth shape per host:
+
+- Claude/Cursor: plugin-managed headers or platform-managed runtime auth (including OAuth-first flows)
+- Codex: `bearer_token_env_var`, `env_http_headers`, or `http_headers`
+- OpenCode: runtime validation in wrapper layer
+
+Use `pluxx doctor` to validate auth shape early.

@@ -1,0 +1,31 @@
+---
+title: Self-hosting Pluxx Plugin
+---
+
+This example uses the repository's self-hosting project in [`example/pluxx`](https://github.com/orchidautomation/pluxx/tree/main/example/pluxx).
+
+## Before
+
+Raw MCP endpoint or stdio command with no cross-host plugin packaging.
+
+## After
+
+A maintained plugin source project with generated outputs for Claude Code, Cursor, Codex, and OpenCode.
+
+```text
+before:
+  MCP only
+
+after:
+  pluxx.config.ts
+  INSTRUCTIONS.md
+  skills/
+  .pluxx/mcp.json
+  dist/{claude-code,cursor,codex,opencode}
+```
+
+## Included screenshots
+
+![Speakeasy homepage](/speakeasy-homepage.png)
+![Ultracite homepage](/ultracite-homepage.png)
+![Ultracite agent page](/ultracite-agent-page.png)

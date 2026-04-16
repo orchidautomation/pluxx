@@ -1,0 +1,36 @@
+---
+title: Import From MCP
+---
+
+This workflow creates a deterministic first scaffold from a raw MCP.
+
+## Recommended sequence
+
+```bash
+bunx pluxx init --from-mcp https://example.com/mcp --yes
+bunx pluxx doctor
+bunx pluxx lint
+bunx pluxx test
+```
+
+## Auth examples
+
+Bearer:
+
+```bash
+bunx pluxx init --from-mcp https://example.com/mcp --yes --auth-env API_KEY --auth-type bearer
+```
+
+Custom header:
+
+```bash
+bunx pluxx init \
+  --from-mcp https://mcp.playkit.sh/mcp \
+  --yes \
+  --auth-env PLAYKIT_API_KEY \
+  --auth-type header \
+  --auth-header X-API-Key \
+  --auth-template '${value}'
+```
+
+For a complete end-to-end flow, see [Create a Pluxx plugin](/getting-started/create-a-pluxx-plugin).

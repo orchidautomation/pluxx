@@ -1,0 +1,20 @@
+---
+title: Validation and Size Limits
+---
+
+Pluxx lint checks frontmatter, platform rules, hook compatibility, and size limits.
+
+Common constraints:
+
+- Codex skill description hard cap: 1024 characters
+- Claude Code UI truncates shorter descriptions
+- Cursor/Cline require skill directory and name alignment
+- Codex manifest prompt limits apply
+
+Always run:
+
+```bash
+bunx pluxx doctor
+bunx pluxx lint
+bunx pluxx test
+```
