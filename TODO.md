@@ -1,6 +1,6 @@
 # Pluxx TODO
 
-Last updated: 2026-04-15
+Last updated: 2026-04-16
 
 ## Active Now
 
@@ -12,6 +12,9 @@ Last updated: 2026-04-15
 - `PLUXX-79` Define Agent Mode as the semantic authoring layer on top of Core
   - role: umbrella / coordination issue
   - deliverable: keep the Core + Agent product story coherent while child issues ship
+- `PLUXX-125` Define Pluxx product branding and launch asset system
+  - delegate: `Blocks`
+  - deliverable: canonical brand direction doc + launch asset checklist + follow-on implementation map
 
 ## Execution Queue
 

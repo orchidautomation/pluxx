@@ -50,6 +50,7 @@ If you want the tightened product scope for what Pluxx should model first, use [
 If you want the current execution queue with milestones, dependencies, and delegated subtasks, use [Roadmap](./docs/roadmap.md).
 If you want the implementation target for release orchestration, use [publish v1 contract](./docs/publish-v1-contract.md).
 If you are planning marketplace-aware release flows, use [Marketplace submission prep](./docs/marketplace-submission-prep.md).
+If you want the canonical Pluxx product-brand direction and launch asset checklist, use [Brand launch asset system](./docs/brand-launch-asset-system.md).
 If you maintain Pluxx itself and want the npm/GitHub release flow, use [Releasing Pluxx](./docs/releasing-pluxx.md).
 
 ## Why?
