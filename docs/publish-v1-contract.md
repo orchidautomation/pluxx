@@ -19,7 +19,10 @@ pluxx publish [--npm] [--github-release] [--dry-run] [--json] [--tag <tag>] [--v
 
 Behavior rules:
 
-- default channel behavior: if neither `--npm` nor `--github-release` is passed, run both channels
+- default channel behavior: if neither `--npm` nor `--github-release` is passed, resolve channels from built targets (target-aware)
+  - enable npm only when at least one npm-backed publish target is present
+  - enable GitHub Release only when bundle artifacts exist for release distribution
+  - this can resolve to npm only, GitHub Release only, or both
 - `--npm`: run npm channel only
 - `--github-release`: run GitHub Release channel only
 - `--version`: required when auto-detection from `package.json` or git tag is ambiguous
@@ -61,7 +64,7 @@ Version contract:
 Human output requirements:
 
 - resolved version/tag
-- selected channels
+- selected channels (including whether they were explicitly requested or target-inferred)
 - precondition check results
 - list of release assets that would be uploaded (name + path)
 - npm package name/version/tag that would be published
