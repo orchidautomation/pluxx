@@ -1,146 +1,57 @@
 const primaryPlatforms = [
-  {
-    name: "Claude Code",
-    note: "Manifest, hooks, skills, and MCP config generated as a native bundle.",
-    status: "Primary",
-    tone: "tone-cyan",
-  },
-  {
-    name: "Cursor",
-    note: "Rules, hooks, plugin manifest, and MCP config stay aligned with Cursor's shape.",
-    status: "Primary",
-    tone: "tone-mint",
-  },
-  {
-    name: "Codex",
-    note: "Rich interface metadata, screenshots, prompts, and plugin packaging from one source.",
-    status: "Primary",
-    tone: "tone-amber",
-  },
-  {
-    name: "OpenCode",
-    note: "Code-first plugin wrapper generation without hand-maintaining another project.",
-    status: "Primary",
-    tone: "tone-rose",
-  },
-] as const;
-
-const betaPlatforms = [
-  "GitHub Copilot",
-  "OpenHands",
-  "Warp",
-  "Gemini CLI",
-  "Roo Code",
-  "Cline",
-  "AMP",
-] as const;
-
-const frictionPoints = [
-  {
-    title: "Different manifests",
-    body: "Each host wants a different manifest shape, file layout, and packaging contract.",
-  },
-  {
-    title: "Auth drift",
-    body: "The same MCP auth model becomes headers in one host and environment-mapped transport settings in another.",
-  },
-  {
-    title: "Hooks diverge",
-    body: "Event names, schema shape, and install locations all change by platform.",
-  },
-  {
-    title: "Instructions fragment",
-    body: "Rules, guides, brand metadata, and agent-facing docs split across several incompatible surfaces.",
-  },
+  { index: "01", name: "Claude Code", note: "Plugin, hooks, skills, MCP — generated." },
+  { index: "02", name: "Cursor", note: "Rules, hooks, plugin manifest, MCP." },
+  { index: "03", name: "Codex", note: "Rich brand metadata, prompts, packaging." },
+  { index: "04", name: "OpenCode", note: "Code-first plugin wrapper, no extra repo." },
 ] as const;
 
 const bundleOutputs = [
-  {
-    title: "Source project",
-    body: "One config, shared instructions, workflow skills, and project-owned customization.",
-  },
-  {
-    title: "Platform bundles",
-    body: "Generate installable outputs for Claude Code, Cursor, Codex, OpenCode, and the beta surface.",
-  },
-  {
-    title: "Agent refinement",
-    body: "Prepare prompt packs so Codex or Claude improve the right sections without breaking the deterministic substrate.",
-  },
-  {
-    title: "Ongoing sync",
-    body: "Catch up to MCP changes later without forking your plugin logic across seven repos.",
-  },
+  { index: "01", title: "One config", body: "Shared instructions, skills, and customization in one place." },
+  { index: "02", title: "Native bundles", body: "Installable outputs for every supported host." },
+  { index: "03", title: "Agent-assisted edits", body: "Coding agents refine the right parts, never the substrate." },
+  { index: "04", title: "Sync, don't fork", body: "Pull MCP updates without losing your edits." },
 ] as const;
 
 const workflowSteps = [
-  {
-    command: "init",
-    title: "Import the MCP",
-    body: "Start from raw HTTP, SSE, or stdio. Pluxx introspects the server and drafts the first source project.",
-  },
-  {
-    command: "doctor",
-    title: "Verify the baseline",
-    body: "Check the environment, build constraints, and generated structure before you refine anything.",
-  },
-  {
-    command: "agent",
-    title: "Refine safely",
-    body: "Generate context and prompt packs so coding agents improve taxonomy, instructions, and product shape inside managed boundaries.",
-  },
-  {
-    command: "build",
-    title: "Ship native bundles",
-    body: "Emit host-specific plugin outputs and install them locally for real validation.",
-  },
-  {
-    command: "sync",
-    title: "Stay current",
-    body: "Refresh MCP-derived files later while preserving the human edits that make the plugin feel product-shaped.",
-  },
+  { index: "01", command: "init", title: "Import", body: "Point at any MCP. Pluxx drafts the source project." },
+  { index: "02", command: "doctor", title: "Verify", body: "Check the environment and generated structure." },
+  { index: "03", command: "agent", title: "Refine", body: "Hand context to a coding agent — safely." },
+  { index: "04", command: "build", title: "Ship", body: "Emit native plugin bundles. Install locally." },
+  { index: "05", command: "sync", title: "Sync", body: "Pull MCP updates. Keep your human edits." },
 ] as const;
 
-const heroTerminal = String.raw`$ bunx pluxx init --from-mcp https://mcp.playkit.sh/mcp --yes
+const heroTerminal = String.raw`$ npx @orchid-labs/pluxx init --from-mcp https://mcp.playkit.sh/mcp --yes
 
 Introspecting MCP...
 Discovered 24 tools and drafted 8 workflow skills
 
   pluxx.config.ts      source-of-truth plugin config
-  INSTRUCTIONS.md      generated instructions + custom notes
-  skills/              workflow packs with concrete examples
   dist/claude-code/    native Claude bundle
   dist/cursor/         native Cursor bundle
   dist/codex/          native Codex bundle
   dist/opencode/       native OpenCode wrapper
 
-Ready for doctor, test, and agent refinement.`;
+Ready.`;
 
 const configSnippet = String.raw`import { definePlugin } from "pluxx";
 
 export default definePlugin({
   name: "acme-plugin",
-  description: "Official plugin for Acme's MCP",
   targets: ["claude-code", "cursor", "codex", "opencode"],
   mcp: {
     acme: {
       url: "https://api.acme.com/mcp",
-      auth: {
-        type: "header",
-        envVar: "ACME_API_KEY",
-        headerName: "X-API-Key",
-        headerTemplate: "\${value}",
-      },
+      auth: { type: "header", envVar: "ACME_API_KEY" },
     },
   },
 });`;
 
 const matrixRows = [
   ["Manifest", ".claude-plugin/plugin.json", ".cursor-plugin/plugin.json", ".codex-plugin/plugin.json", "package.json + wrapper"],
-  ["MCP auth", "headers", "headers", "bearer_token_env_var / env_http_headers", "env validation"],
+  ["MCP auth", "headers", "headers", "bearer_token_env_var", "env validation"],
   ["Hooks", "hooks/hooks.json", "hooks/hooks.json", ".codex/hooks.json", "JS event handlers"],
-  ["Rules", "CLAUDE.md", "rules/*.mdc + AGENTS.md", "AGENTS.md", "config-driven"],
-  ["Brand", "Basic", "Basic", "Rich interface metadata", "Minimal"],
+  ["Rules", "CLAUDE.md", "rules/*.mdc", "AGENTS.md", "config-driven"],
+  ["Brand", "Basic", "Basic", "Rich metadata", "Minimal"],
 ] as const;
 
 export default function Home() {
@@ -149,13 +60,20 @@ export default function Home() {
       <nav className="site-nav">
         <div className="shell nav-row">
           <a className="brand" href="#top">
-            pluxx
+            <span className="brand-mark" aria-hidden>◐</span>
+            <span className="brand-word">pluxx</span>
           </a>
           <div className="nav-links">
             <a href="#platforms">Platforms</a>
-            <a href="#how-it-works">How it works</a>
-            <a href="#source-project">Source project</a>
-            <a href="https://github.com/orchidautomation/pluxx" rel="noreferrer" target="_blank">
+            <a href="#problem-space">Drift</a>
+            <a href="#source-project">Source</a>
+            <a href="#how-it-works">Workflow</a>
+            <a
+              className="nav-cta"
+              href="https://github.com/orchidautomation/pluxx"
+              rel="noreferrer"
+              target="_blank"
+            >
               GitHub
             </a>
           </div>
@@ -163,20 +81,23 @@ export default function Home() {
       </nav>
 
       <section className="hero section" id="top">
-        <div className="hero-orb hero-orb-one" />
-        <div className="hero-orb hero-orb-two" />
-        <div className="shell hero-grid">
+        <div className="hero-orb hero-orb-one" aria-hidden />
+        <div className="shell hero-stack">
           <div className="hero-copy">
-            <span className="eyebrow">MCP-native plugin authoring for coding agents</span>
-            <h1 className="hero-title">Build AI agent plugins once. Ship them everywhere.</h1>
+            <span className="eyebrow">
+              <span className="eyebrow-dot" aria-hidden />
+              One MCP → every coding agent
+            </span>
+            <h1 className="hero-title">
+              Author your plugin once.
+              <br />
+              Ship it <em>everywhere</em>.
+            </h1>
             <p className="lede">
-              One config generates native plugin packages for Claude Code, Cursor, Codex, OpenCode, and
-              the beta surface beyond that. Stop maintaining several drifting copies of the same plugin.
+              Pluxx turns one MCP into native plugin bundles for Claude&nbsp;Code, Cursor, Codex,
+              and OpenCode — from a single config.
             </p>
-            <p className="sublede">
-              Import the raw MCP, verify the deterministic scaffold, then let Codex or Claude refine the
-              product shape without breaking the structure underneath it.
-            </p>
+
             <div className="cta-row">
               <a
                 className="button button-primary"
@@ -184,7 +105,8 @@ export default function Home() {
                 rel="noreferrer"
                 target="_blank"
               >
-                View repository
+                <span>View repository</span>
+                <span aria-hidden className="button-arrow">→</span>
               </a>
               <a
                 className="button button-secondary"
@@ -195,33 +117,20 @@ export default function Home() {
                 Read handbook
               </a>
             </div>
+
             <div className="command-chip">
               <span className="command-label">Quick start</span>
-              <code>bunx pluxx init --from-mcp https://example.com/mcp</code>
-            </div>
-            <div className="hero-stats">
-              <div className="stat-card">
-                <strong>4</strong>
-                <span>primary platforms</span>
-              </div>
-              <div className="stat-card">
-                <strong>7</strong>
-                <span>beta targets already generated</span>
-              </div>
-              <div className="stat-card">
-                <strong>1</strong>
-                <span>source project to maintain</span>
-              </div>
+              <code>npx @orchid-labs/pluxx init</code>
             </div>
           </div>
 
-          <div className="hero-panel">
+          <div className="hero-terminal">
             <div className="terminal-card">
               <div className="terminal-bar">
                 <span className="terminal-dot terminal-dot-red" />
                 <span className="terminal-dot terminal-dot-yellow" />
                 <span className="terminal-dot terminal-dot-green" />
-                <span className="terminal-label">pluxx</span>
+                <span className="terminal-label">~/projects/acme · pluxx</span>
               </div>
               <pre className="terminal-copy">
                 <code>{heroTerminal}</code>
@@ -231,72 +140,49 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="section" id="platforms">
+      <section className="section section-divider" id="platforms">
         <div className="shell">
           <div className="section-head">
             <span className="section-kicker">Coverage</span>
-            <h2 className="section-title">Primary support for the surfaces that matter right now.</h2>
-            <p className="section-body">
-              The core-four path is the prime-time surface today. The beta surface is already generated
-              from the same source project so you can expand when the validation bar catches up.
-            </p>
+            <h2 className="section-title">
+              Four agents. <em>One source.</em>
+            </h2>
           </div>
 
           <div className="platform-grid">
             {primaryPlatforms.map((platform) => (
-              <article className={`platform-card ${platform.tone}`} key={platform.name}>
+              <article className="platform-card" key={platform.name}>
                 <div className="platform-top">
-                  <h3>{platform.name}</h3>
-                  <span className="status-pill">{platform.status}</span>
+                  <span className="platform-index">{platform.index}</span>
+                  <span className="status-pill">Ready</span>
                 </div>
+                <h3>{platform.name}</h3>
                 <p>{platform.note}</p>
               </article>
             ))}
           </div>
-
-          <div className="beta-strip">
-            <span className="beta-label">Beta targets</span>
-            <div className="beta-list">
-              {betaPlatforms.map((platform) => (
-                <span className="beta-pill" key={platform}>
-                  {platform}
-                </span>
-              ))}
-            </div>
-          </div>
         </div>
       </section>
 
-      <section className="section" id="problem-space">
-        <div className="shell problem-layout">
-          <div>
-            <div className="section-head compact">
-              <span className="section-kicker">The problem</span>
-              <h2 className="section-title">Your MCP may already be useful. Packaging it everywhere is the drag.</h2>
-              <p className="section-body">
-                Each coding agent has its own plugin contract, auth translation, hook model, rules
-                surface, and brand metadata. Without a source-of-truth layer, one useful MCP turns into
-                several plugin repos that drift apart as soon as you start shipping.
-              </p>
-            </div>
-
-            <div className="problem-grid">
-              {frictionPoints.map((point) => (
-                <article className="problem-card" key={point.title}>
-                  <h3>{point.title}</h3>
-                  <p>{point.body}</p>
-                </article>
-              ))}
-            </div>
+      <section className="section section-divider" id="problem-space">
+        <div className="shell">
+          <div className="section-head">
+            <span className="section-kicker">The drift</span>
+            <h2 className="section-title">
+              Same MCP. <em>Four different shapes.</em>
+            </h2>
           </div>
 
           <div className="matrix-card">
-            <div className="matrix-head">
-              <span className="section-kicker">What actually changes</span>
-              <h3>Cross-host differences do not stay cosmetic.</h3>
-            </div>
             <div className="matrix-wrap">
               <table className="matrix-table">
+                <colgroup>
+                  <col />
+                  <col />
+                  <col />
+                  <col />
+                  <col />
+                </colgroup>
                 <thead>
                   <tr>
                     <th>Surface</th>
@@ -323,22 +209,22 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="section" id="source-project">
+      <section className="section section-divider" id="source-project">
         <div className="shell source-grid">
-          <div>
+          <div className="source-col">
             <div className="section-head compact">
-              <span className="section-kicker">The answer</span>
-              <h2 className="section-title">Keep one source project. Generate the native outputs.</h2>
-              <p className="section-body">
-                Pluxx models the common authoring primitives once, then emits the exact shapes each host
-                expects. The generated source remains editable, testable, and safe to refine over time.
-              </p>
+              <span className="section-kicker">The fix</span>
+              <h2 className="section-title">
+                One config. <em>Four bundles.</em>
+              </h2>
             </div>
 
             <div className="code-card">
               <div className="code-card-head">
-                <span>pluxx.config.ts</span>
-                <span className="code-card-badge">single source of truth</span>
+                <span className="code-card-file">
+                  <span className="code-dot" /> pluxx.config.ts
+                </span>
+                <span className="code-card-badge">single source</span>
               </div>
               <pre>
                 <code>{configSnippet}</code>
@@ -349,6 +235,7 @@ export default function Home() {
           <div className="bundle-grid">
             {bundleOutputs.map((bundle) => (
               <article className="bundle-card" key={bundle.title}>
+                <span className="bundle-index">{bundle.index}</span>
                 <h3>{bundle.title}</h3>
                 <p>{bundle.body}</p>
               </article>
@@ -357,40 +244,37 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="section" id="how-it-works">
+      <section className="section section-divider" id="how-it-works">
         <div className="shell">
           <div className="section-head">
             <span className="section-kicker">Workflow</span>
-            <h2 className="section-title">Deterministic first. Semantic refinement second.</h2>
-            <p className="section-body">
-              Pluxx is not trying to be its own orchestration runtime. It owns the scaffold, validation,
-              build, install, and sync path, then hands the right context to the coding agent when real
-              judgment is useful.
-            </p>
+            <h2 className="section-title">
+              Five commands. <em>Start to ship.</em>
+            </h2>
           </div>
 
-          <div className="workflow-grid">
+          <ol className="workflow-grid">
             {workflowSteps.map((step) => (
-              <article className="workflow-card" key={step.command}>
-                <span className="workflow-command">{step.command}</span>
+              <li className="workflow-card" key={step.command}>
+                <div className="workflow-top">
+                  <span className="workflow-index">{step.index}</span>
+                  <span className="workflow-command">pluxx {step.command}</span>
+                </div>
                 <h3>{step.title}</h3>
                 <p>{step.body}</p>
-              </article>
+              </li>
             ))}
-          </div>
+          </ol>
         </div>
       </section>
 
-      <section className="section">
+      <section className="section colophon">
         <div className="shell cta-panel">
-          <div>
-            <span className="section-kicker">Open source core</span>
-            <h2 className="section-title">Bring your MCP in. Keep the workflow sharp.</h2>
-            <p className="section-body">
-              The CLI stays open source and Bun-first. The current repo already contains the docs and
-              product material; this app gives Pluxx a real marketing shell without replacing that content
-              system yet.
-            </p>
+          <div className="cta-copy">
+            <h2 className="section-title">
+              Bring your MCP. <em>Ship a real plugin.</em>
+            </h2>
+            <p className="lede">Open source. MIT-licensed. Yours to fork.</p>
           </div>
 
           <div className="cta-actions">
@@ -400,18 +284,22 @@ export default function Home() {
               rel="noreferrer"
               target="_blank"
             >
-              Star on GitHub
+              <span>Star on GitHub</span>
+              <span aria-hidden className="button-arrow">→</span>
             </a>
-            <a
-              className="button button-secondary"
-              href="https://github.com/orchidautomation/pluxx/blob/main/README.md"
-              rel="noreferrer"
-              target="_blank"
-            >
-              Browse docs source
-            </a>
-            <code className="footer-command">bunx pluxx init --from-mcp https://example.com/mcp</code>
+            <code className="footer-command">npx @orchid-labs/pluxx init</code>
           </div>
+        </div>
+
+        <div className="shell footer-row">
+          <span>© 2026 Pluxx</span>
+          <a
+            href="https://github.com/orchidautomation/pluxx"
+            rel="noreferrer"
+            target="_blank"
+          >
+            github.com/orchidautomation/pluxx
+          </a>
         </div>
       </section>
     </main>
