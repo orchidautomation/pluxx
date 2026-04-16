@@ -41,6 +41,11 @@ const testConfig: PluginConfig = {
       command: '${PLUGIN_ROOT}/scripts/check-prompt.sh',
     }],
   },
+  permissions: {
+    allow: ['Bash(git status)', 'Edit(src/**/*.ts)'],
+    ask: ['Bash(git commit *)'],
+    deny: ['Bash(rm -rf *)'],
+  },
   commands: './commands/',
   agents: './agents/',
   scripts: './scripts/',
@@ -294,6 +299,16 @@ describe('build', () => {
     expect(codexManifest.skills).toBe('./skills/')
     expect(codexManifest.mcpServers).toBe('./.mcp.json')
     expect(codexManifest.hooks).toBeUndefined()
+  })
+
+  it('maps canonical permissions into Claude manifest allow/deny only', async () => {
+    const claudeManifest = JSON.parse(
+      readFileSync(resolve(OUT_DIR, 'claude-code/.claude-plugin/plugin.json'), 'utf-8')
+    )
+
+    expect(claudeManifest.permissions.allow).toEqual(['Bash(git status)', 'Edit(src/**/*.ts)'])
+    expect(claudeManifest.permissions.deny).toEqual(['Bash(rm -rf *)'])
+    expect(claudeManifest.permissions.ask).toBeUndefined()
   })
 
   it('preserves Linear-style preToolUse matchers in Claude Code and Cursor outputs', async () => {

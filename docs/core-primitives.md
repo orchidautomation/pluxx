@@ -111,6 +111,8 @@ This is the canonical access-control layer.
 
 The host-specific mechanisms differ, but plugin authors should not have to rediscover that separately for every target.
 
+See [Permissions mapping](./permissions.md) for the concrete canonical schema, generated mappings, and current target gaps.
+
 ### 9. Brand / interface metadata
 
 This is the presentation layer.

@@ -72,6 +72,7 @@ const MAX_SKILL_NAME = AGENT_SKILLS_RULES.name.maxLength
 const MAX_CODEX_DEFAULT_PROMPTS = CODEX_RULES.interface.maxDefaultPrompts
 const MAX_CODEX_PROMPT_LENGTH = CODEX_RULES.interface.maxDefaultPromptLength
 const HEX_COLOR_REGEX = CODEX_RULES.interface.brandColorPattern
+const PERMISSION_RULE_FORMAT = /^[A-Za-z][A-Za-z0-9_]*\(.+\)$/
 
 function pushIssue(issues: LintIssue[], issue: LintIssue): void {
   issues.push(issue)
@@ -562,6 +563,122 @@ function lintManifestPromptLimits(config: PluginConfig, issues: LintIssue[]): vo
   }
 }
 
+function lintPermissions(config: PluginConfig, issues: LintIssue[]): void {
+  const permissions = config.permissions
+  if (!permissions) return
+
+  const buckets: Array<{ name: 'allow' | 'ask' | 'deny'; rules: string[] }> = [
+    { name: 'allow', rules: permissions.allow },
+    { name: 'ask', rules: permissions.ask },
+    { name: 'deny', rules: permissions.deny },
+  ]
+
+  const byBucket = new Map<'allow' | 'ask' | 'deny', Set<string>>()
+  for (const bucket of buckets) {
+    const seen = new Set<string>()
+    for (const rule of bucket.rules) {
+      if (!PERMISSION_RULE_FORMAT.test(rule)) {
+        pushIssue(issues, {
+          level: 'warning',
+          code: 'permission-rule-format',
+          message: `Permission rule "${rule}" should follow "Tool(pattern)" format (example: Bash(git status)).`,
+          file: 'pluxx.config.ts',
+          platform: 'permissions',
+        })
+      }
+
+      if (seen.has(rule)) {
+        pushIssue(issues, {
+          level: 'warning',
+          code: 'permission-rule-duplicate',
+          message: `Permission rule "${rule}" is duplicated in "${bucket.name}".`,
+          file: 'pluxx.config.ts',
+          platform: 'permissions',
+        })
+      }
+      seen.add(rule)
+    }
+    byBucket.set(bucket.name, seen)
+  }
+
+  const allow = byBucket.get('allow') ?? new Set<string>()
+  const ask = byBucket.get('ask') ?? new Set<string>()
+  const deny = byBucket.get('deny') ?? new Set<string>()
+
+  for (const rule of allow) {
+    if (deny.has(rule)) {
+      pushIssue(issues, {
+        level: 'error',
+        code: 'permission-rule-conflict',
+        message: `Permission rule "${rule}" appears in both allow and deny.`,
+        file: 'pluxx.config.ts',
+        platform: 'permissions',
+      })
+    }
+    if (ask.has(rule)) {
+      pushIssue(issues, {
+        level: 'warning',
+        code: 'permission-rule-redundant-ask',
+        message: `Permission rule "${rule}" appears in both allow and ask; ask will never be reached.`,
+        file: 'pluxx.config.ts',
+        platform: 'permissions',
+      })
+    }
+  }
+
+  for (const rule of deny) {
+    if (ask.has(rule)) {
+      pushIssue(issues, {
+        level: 'warning',
+        code: 'permission-rule-redundant-ask',
+        message: `Permission rule "${rule}" appears in both deny and ask; ask will never be reached.`,
+        file: 'pluxx.config.ts',
+        platform: 'permissions',
+      })
+    }
+  }
+
+  if (config.targets.includes('claude-code') && permissions.ask.length > 0) {
+    pushIssue(issues, {
+      level: 'warning',
+      code: 'permission-ask-unsupported-claude-code',
+      message: 'Claude Code manifest permissions support allow/deny only; ask rules are not emitted.',
+      file: 'pluxx.config.ts',
+      platform: 'claude-code',
+    })
+  }
+
+  if (config.targets.includes('codex') && (permissions.allow.length > 0 || permissions.ask.length > 0 || permissions.deny.length > 0)) {
+    pushIssue(issues, {
+      level: 'warning',
+      code: 'permission-unmapped-codex',
+      message: 'Codex plugin bundles do not have a documented direct mapping for canonical permissions yet; configure Codex runtime permissions separately.',
+      file: 'pluxx.config.ts',
+      platform: 'codex',
+    })
+  }
+
+  if (config.targets.includes('cursor') && (permissions.allow.length > 0 || permissions.ask.length > 0 || permissions.deny.length > 0)) {
+    pushIssue(issues, {
+      level: 'warning',
+      code: 'permission-unmapped-cursor',
+      message: 'Cursor permission control is hook-driven and not emitted from canonical permissions yet; use hooks/preToolUse for enforcement.',
+      file: 'pluxx.config.ts',
+      platform: 'cursor',
+    })
+  }
+
+  if (config.targets.includes('opencode') && (permissions.allow.length > 0 || permissions.ask.length > 0 || permissions.deny.length > 0)) {
+    pushIssue(issues, {
+      level: 'warning',
+      code: 'permission-unmapped-opencode',
+      message: 'OpenCode permissions are agent-level and not yet generated from canonical permissions; configure agent permission blocks directly.',
+      file: 'pluxx.config.ts',
+      platform: 'opencode',
+    })
+  }
+}
+
 function lintInstructionsFileLimits(config: PluginConfig, dir: string, issues: LintIssue[]): void {
   for (const target of config.targets) {
     const limits = PLATFORM_LIMITS[target]
@@ -1012,6 +1129,7 @@ export async function lintProject(dir: string = process.cwd()): Promise<LintResu
   lintPluginName(config, issues)
   lintVersionFormat(config, issues)
   lintManifestPaths(config, issues)
+  lintPermissions(config, issues)
   lintPluginDirectoryPlacement(dir, issues)
   lintAbsolutePaths(config, issues)
   lintSettingsJson(dir, issues)

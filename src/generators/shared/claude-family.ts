@@ -70,6 +70,18 @@ async function writeManifest(
   if (config.mcp) {
     manifest.mcpServers = './.mcp.json'
   }
+  if (config.permissions) {
+    const permissions: Record<string, string[]> = {}
+    if (config.permissions.allow.length > 0) {
+      permissions.allow = config.permissions.allow
+    }
+    if (config.permissions.deny.length > 0) {
+      permissions.deny = config.permissions.deny
+    }
+    if (Object.keys(permissions).length > 0) {
+      manifest.permissions = permissions
+    }
+  }
 
   await writeJson(options.manifestPath, manifest)
 }

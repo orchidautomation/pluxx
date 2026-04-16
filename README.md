@@ -46,6 +46,7 @@ The mechanically generated source of truth for support and verification is [docs
 If you want the operational version of the docs, start with the [Practical handbook](./docs/practical-handbook.md).
 If you want the explicit authoring walkthrough, use [Create a Pluxx plugin](./docs/create-a-pluxx-plugin.md).
 If you want the meta guide for using Pluxx *inside* Claude/Codex/Cursor/OpenCode, use [Use Pluxx in host agents](./docs/use-pluxx-in-host-agents.md).
+If you want canonical permission shape + target mapping behavior, use [Permissions mapping](./docs/permissions.md).
 If you want the tightened product scope for what Pluxx should model first, use [Core primitives](./docs/core-primitives.md).
 
 ## Why?
@@ -283,6 +284,13 @@ export default definePlugin({
     sessionStart: [{
       command: '${PLUGIN_ROOT}/scripts/setup.sh',
     }],
+  },
+
+  // Canonical permission policy (mapped per target where supported)
+  permissions: {
+    allow: ['Bash(git status)'],
+    ask: ['Bash(git commit *)'],
+    deny: ['Bash(rm -rf *)'],
   },
 
   // Instructions (generates CLAUDE.md, AGENTS.md, or .mdc rules)

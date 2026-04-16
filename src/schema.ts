@@ -198,6 +198,16 @@ export const UserConfigEntrySchema = z.object({
 
 export const UserConfigSchema = z.array(UserConfigEntrySchema)
 
+// ── Permissions ─────────────────────────────────────────────────
+
+const PermissionRuleSchema = z.string().trim().min(1)
+
+export const PermissionsSchema = z.object({
+  allow: z.array(PermissionRuleSchema).default([]),
+  ask: z.array(PermissionRuleSchema).default([]),
+  deny: z.array(PermissionRuleSchema).default([]),
+})
+
 // ── Platform Overrides ───────────────────────────────────────────
 
 export const ClaudeCodeOverridesSchema = z.object({
@@ -249,6 +259,7 @@ export const PluginConfigSchema = z.object({
   // Brand
   brand: BrandSchema.optional(),
   userConfig: UserConfigSchema.optional(),
+  permissions: PermissionsSchema.optional(),
 
   // Plugin components (paths relative to config file)
   skills: z.string().default('./skills/'),
@@ -284,3 +295,4 @@ export type McpAuth = z.infer<typeof McpAuthSchema>
 export type HookEntry = z.infer<typeof HookEntrySchema>
 export type Brand = z.infer<typeof BrandSchema>
 export type UserConfigEntry = z.infer<typeof UserConfigEntrySchema>
+export type Permissions = z.infer<typeof PermissionsSchema>

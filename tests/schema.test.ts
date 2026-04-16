@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { HookEntrySchema, McpAuthSchema, McpServerSchema, UserConfigSchema } from '../src/schema'
+import { HookEntrySchema, McpAuthSchema, McpServerSchema, PermissionsSchema, UserConfigSchema } from '../src/schema'
 
 describe('McpServerSchema transport validation', () => {
   it('requires command and forbids url for stdio transport', () => {
@@ -175,5 +175,24 @@ describe('HookEntrySchema hook type validation', () => {
         type: 'prompt',
       }).success
     ).toBe(false)
+  })
+})
+
+describe('PermissionsSchema', () => {
+  it('accepts canonical allow/ask/deny lists', () => {
+    expect(
+      PermissionsSchema.safeParse({
+        allow: ['Bash(git status)'],
+        ask: ['Bash(git commit *)'],
+        deny: ['Bash(rm -rf *)'],
+      }).success
+    ).toBe(true)
+  })
+
+  it('defaults omitted lists to empty arrays', () => {
+    const parsed = PermissionsSchema.parse({})
+    expect(parsed.allow).toEqual([])
+    expect(parsed.ask).toEqual([])
+    expect(parsed.deny).toEqual([])
   })
 })

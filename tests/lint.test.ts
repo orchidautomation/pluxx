@@ -824,4 +824,48 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'cursor-hook-loop-limit-unsupported-event')).toBe(true)
     expect(result.issues.some(issue => issue.code === 'cursor-skill-frontmatter-unsupported')).toBe(true)
   })
+
+  it('reports conflicting and unmapped canonical permission combinations', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/valid-skill'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'valid-plugin',
+        version: '0.1.0',
+        description: 'Valid plugin config',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['claude-code', 'cursor', 'codex', 'opencode'],
+        permissions: {
+          allow: ['Bash(git status)', 'Bash(git status)', 'Bash(git commit *)'],
+          ask: ['Bash(git commit *)', 'not-a-rule'],
+          deny: ['Bash(git status)'],
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/valid-skill/SKILL.md'),
+      [
+        '---',
+        'name: valid-skill',
+        'description: "A valid skill description"',
+        '---',
+        '',
+        '# Valid Skill',
+      ].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'permission-rule-duplicate')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'permission-rule-conflict')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'permission-rule-redundant-ask')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'permission-rule-format')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'permission-ask-unsupported-claude-code')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'permission-unmapped-cursor')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'permission-unmapped-codex')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'permission-unmapped-opencode')).toBe(true)
+  })
 })
