@@ -454,6 +454,36 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'permissions-opencode-downgrade')).toBe(true)
   })
 
+  it('warns on duplicate permission rules before mapping them', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['claude-code'],
+        permissions: {
+          allow: ['Read(src/**)', 'Read(src/**)'],
+          ask: ['Bash(git commit *)'],
+          deny: [],
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A valid skill"', '---', '', '# My Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'permissions-duplicate')).toBe(true)
+  })
+
   it('warns when Claude Code skill listing budget exceeds 8000 characters', async () => {
     const projectDir = createTempProject()
     mkdirSync(resolve(projectDir, 'skills/skill-one'), { recursive: true })

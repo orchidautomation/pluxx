@@ -10,19 +10,17 @@ Last updated: 2026-04-16
   - role: umbrella / coordination issue
   - deliverable: keep the Core + Agent product story coherent while child issues ship
 - `PLUXX-114` Add a canonical permissions schema across Claude Code, Codex, Cursor, and OpenCode
-  - status: `In Progress`
-  - shipped baseline:
-    - `PLUXX-117` is done
-    - the first compiler slice already landed on `main`
-  - remaining active work:
-    - `PLUXX-118` delegated to `Blocks`
-    - `PLUXX-119` active PR `#138`
+  - status: `Done`
+  - shipped scope:
+    - `PLUXX-117` canonical schema design
+    - `PLUXX-118` truthful generator coverage for Claude Code, Cursor, OpenCode, and Codex companion output
+    - `PLUXX-119` lint, tests, and docs coverage for permission mappings
 - `PLUXX-115` Add build-time target cap validation for primary platforms
   - status: `In Progress`
   - shipped baseline:
     - initial primary-target cap validation already landed on `main`
   - remaining active work:
-    - `PLUXX-120` active PR `#137`
+    - `PLUXX-120` completed locally and ready to land
     - `PLUXX-121` delegated to `Blocks`
 - `PLUXX-125` Define Pluxx product branding and launch asset system
   - status: `In Progress`
@@ -40,23 +38,15 @@ This is the immediate product-contract gap after the recent `userConfig`, publis
   - shipped in commit `a9a6326`
 
 - `PLUXX-114` Add a canonical permissions schema across Claude Code, Codex, Cursor, and OpenCode
-  - status: `In Progress`
+  - status: `Done`
   - deliverable: one truthful `permissions` primitive compiled across the core four
-  - shipped baseline:
-    - `PLUXX-117` done
-    - first compiler slice already landed on `main`
-  - subtasks:
+  - shipped scope:
     - `PLUXX-117` Design the canonical permissions model from primary-host behaviors
       - status: `Done`
     - `PLUXX-118` Compile canonical permissions into primary target generators
-      - status: `In Progress`
-      - delegate: `Blocks`
+      - status: `Done`
     - `PLUXX-119` Add lint, test, and docs coverage for permission mappings
-      - status: `In Progress`
-      - active PR: `#138`
-      - delegate: `Blocks`
-  - dependency chain:
-    - `PLUXX-117` -> `PLUXX-118` -> `PLUXX-119`
+      - status: `Done`
 
 - `PLUXX-115` Add build-time target cap validation for primary platforms
   - status: `In Progress`
@@ -65,9 +55,7 @@ This is the immediate product-contract gap after the recent `userConfig`, publis
     - initial primary-target cap validation already landed on `main`
   - subtasks:
     - `PLUXX-120` Catalog primary-target hard caps in platform-rules
-      - status: `In Progress`
-      - active PR: `#137`
-      - delegate: `Blocks`
+      - status: `Done`
     - `PLUXX-121` Enforce primary-target cap validation in lint and build
       - status: `In Progress`
       - delegate: `Blocks`
@@ -163,15 +151,12 @@ Treat these as validation / linear-swarm test work, not as the main product exec
 If you only want the next concrete sequence, it is:
 
 1. land `PLUXX-119` / PR `#138`
-2. land `PLUXX-120` / PR `#137`
-3. finish `PLUXX-118`
-4. finish `PLUXX-121`
-5. move into `PLUXX-43` / `PLUXX-62`
-6. define the first real Pluxx product-brand system in `PLUXX-125`
+2. finish `PLUXX-121`
+3. move into `PLUXX-43` / `PLUXX-62`
+4. define the first real Pluxx product-brand system in `PLUXX-125`
 
 That sequence closes the biggest remaining product-contract gaps in order:
 
-- permissions
 - target-cap validation
 - richer auth/discovery
 - product-brand coherence

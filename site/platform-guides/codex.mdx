@@ -17,3 +17,8 @@ Install target:
 ```bash
 npx @orchid-labs/pluxx install --target codex
 ```
+
+Permissions note:
+
+- Codex permission enforcement is external to the plugin bundle.
+- Pluxx emits `.codex/permissions.generated.json` as a mirror of canonical `permissions` rules so you can wire them into Codex user/admin policy or external hooks.

@@ -55,10 +55,19 @@ permissions: {
 
 ## Compilation Strategy
 
-- Claude Code: compile rules directly to native permission rules.
-- Codex: compile fine-grained rules to hooks; document optional user/admin policy tuning (`approval_policy`, sandbox, prefix rules).
-- Cursor: compile rules to hook matchers + `permission` decisions.
-- OpenCode: compile tool-level rules to agent `permission`; use hook fallback when rule is argument/path specific.
+- Claude Code: compile canonical rules into a generated `PreToolUse` permission hook.
+- Codex: do not pretend plugin parity exists; warn and document external/runtime config as the real enforcement path.
+- Cursor: compile canonical rules into generated hook decisions across `preToolUse`, `beforeShellExecution`, `beforeReadFile`, and `beforeMCPExecution`.
+- OpenCode: compile coarse tool-level rules into native agent `permission`; warn when fine-grain selectors are downgraded.
+
+## Current Mapping Contract
+
+| Host | Current generated output | Notes |
+|---|---|---|
+| Claude Code | `hooks/pluxx-permissions.mjs` + `hooks/hooks.json` `PreToolUse` | Full canonical `allow/ask/deny` decisions flow through generated hook output. |
+| Cursor | `hooks/pluxx-permissions.mjs` + hook entries for tool/shell/read/MCP interception | This is the main portable enforcement path outside Claude. |
+| Codex | `.codex/permissions.generated.json` mirror artifact | `pluxx lint` warns that enforcement still lives in Codex runtime/admin config or external hooks. |
+| OpenCode | Native `config.permission` map in generated plugin wrapper | Tool-level only; path- and argument-specific selectors are intentionally downgraded, and `Skill(...)` rules stay docs-only there. |
 
 ## Unsupported or Docs-Only Combinations
 
@@ -84,11 +93,23 @@ Belongs in docs-only guidance:
 
 ## Validation Guidance
 
-Add lint warnings for compile downgrades:
+Add validator coverage for compile downgrades:
 
 - Rule downgraded from argument/path-level to tool-level.
 - Rule requiring hooks on a target where hooks are disabled/unavailable.
 - Ambiguous rule ordering conflicts (`deny` should always win).
+- Duplicate rules inside the same permission bucket.
+
+## Current Lint Coverage
+
+Config validation and `pluxx lint` currently surface:
+
+- `config-invalid` if a rule does not use canonical `Tool(pattern)` syntax
+- `permissions-duplicate` for duplicate rules in the same bucket
+- `permissions-conflict` when the same selector lands in multiple actions
+- `codex-permissions-external-config` when Codex is a target
+- `permissions-skill-selector-limited` when `Skill(...)` selectors must degrade on non-Claude hosts
+- `permissions-opencode-downgrade` when OpenCode falls back to coarse tool permissions
 
 ## Decision
 

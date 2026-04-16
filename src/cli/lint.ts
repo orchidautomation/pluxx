@@ -1035,6 +1035,25 @@ function lintCursorRuleContentLimits(config: PluginConfig, issues: LintIssue[]):
 function lintPermissions(config: PluginConfig, issues: LintIssue[]): void {
   if (!config.permissions) return
 
+  for (const action of ['allow', 'ask', 'deny'] as const) {
+    const seen = new Set<string>()
+    for (const raw of config.permissions[action] ?? []) {
+      const trimmed = raw.trim()
+
+      if (seen.has(trimmed)) {
+        pushIssue(issues, {
+          level: 'warning',
+          code: 'permissions-duplicate',
+          message: `Permission rule "${trimmed}" is duplicated in "${action}".`,
+          file: 'pluxx.config.ts',
+          platform: 'Permissions',
+        })
+      }
+
+      seen.add(trimmed)
+    }
+  }
+
   const rules = collectPermissionRules(config.permissions)
   const seen = new Map<string, Set<string>>()
 
@@ -1061,7 +1080,7 @@ function lintPermissions(config: PluginConfig, issues: LintIssue[]): void {
     pushIssue(issues, {
       level: 'warning',
       code: 'codex-permissions-external-config',
-      message: 'Codex does not currently support plugin-packaged permission enforcement. Mirror canonical permissions into Codex user/admin config or external hooks for real enforcement.',
+      message: 'Codex does not currently support plugin-packaged permission enforcement. Mirror canonical permissions into Codex user/admin config or external hooks for real enforcement (Pluxx emits .codex/permissions.generated.json as a starter mirror).',
       file: 'pluxx.config.ts',
       platform: 'Codex',
     })

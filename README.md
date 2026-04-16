@@ -47,6 +47,7 @@ If you want the operational version of the docs, start with the [Practical handb
 If you want the explicit authoring walkthrough, use [Create a Pluxx plugin](./docs/create-a-pluxx-plugin.md).
 If you want the meta guide for using Pluxx *inside* Claude/Codex/Cursor/OpenCode, use [Use Pluxx in host agents](./docs/use-pluxx-in-host-agents.md).
 If you want the tightened product scope for what Pluxx should model first, use [Core primitives](./docs/core-primitives.md).
+If you want the canonical permissions shape and current host mapping behavior, use [Canonical permissions model](./docs/permissions-canonical-model.md).
 If you want the current execution queue with milestones, dependencies, and delegated subtasks, use [Roadmap](./docs/roadmap.md).
 If you want the implementation target for release orchestration, use [publish v1 contract](./docs/publish-v1-contract.md).
 If you are planning marketplace-aware release flows, use [Marketplace submission prep](./docs/marketplace-submission-prep.md).
@@ -570,7 +571,6 @@ pluxx.config.ts          <- You define your plugin once
 
 Current focus:
 
-- canonical permissions model across primary targets
 - build-time target cap validation for primary targets
 - deeper OAuth/auth discovery and MCP protocol depth
 - docs/site polish and product-branding system

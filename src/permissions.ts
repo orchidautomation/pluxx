@@ -84,7 +84,9 @@ export function buildOpenCodePermissionMap(
     Edit: ['edit', 'write'],
     Read: ['read'],
     MCP: ['mcp'],
-    Skill: ['skill'],
+    // OpenCode's native permission surface is tool-level and does not expose
+    // a dedicated skill permission key.
+    Skill: [],
   }
 
   for (const rule of rules) {
