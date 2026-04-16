@@ -319,4 +319,53 @@ describe('Phase 2 CLI flows', () => {
       rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  it('scopes pluxx test linting to the requested target subset', async () => {
+    const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-test-target-scope-'))
+    mkdirSync(resolve(dir, 'skills/hello'), { recursive: true })
+    writeFileSync(
+      resolve(dir, 'skills/hello/SKILL.md'),
+      `---\nname: hello\ndescription: "${'x'.repeat(1100)}"\nversion: 0.1.0\n---\n\n# Hello\n`,
+    )
+    writeFileSync(
+      resolve(dir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-command-fixture',
+        version: '0.1.0',
+        description: 'CLI test fixture',
+        author: { name: 'Test Author' },
+        license: 'MIT',
+        skills: './skills/',
+        targets: ['cursor', 'opencode'],
+        outDir: './dist',
+      }, null, 2),
+    )
+
+    try {
+      const proc = spawnCli(['test', '--json', '--target', 'cursor'], dir)
+      const stdout = await new Response(proc.stdout).text()
+      const stderr = await new Response(proc.stderr).text()
+      const exitCode = await proc.exited
+
+      expect(exitCode).toBe(0)
+      expect(stderr).toBe('')
+
+      const summary = JSON.parse(stdout) as {
+        ok: boolean
+        lint: { errors: number }
+        build: { targets: string[] }
+        smoke: { checks: Array<{ platform: string; ok: boolean }> }
+      }
+      expect(summary.ok).toBe(true)
+      expect(summary.lint.errors).toBe(0)
+      expect(summary.build.targets).toEqual(['cursor'])
+      expect(summary.smoke.checks).toHaveLength(1)
+      expect(summary.smoke.checks[0]?.platform).toBe('cursor')
+      expect(summary.smoke.checks[0]?.ok).toBe(true)
+      expect(existsSync(resolve(dir, 'dist/cursor/.cursor-plugin/plugin.json'))).toBe(true)
+      expect(existsSync(resolve(dir, 'dist/opencode/package.json'))).toBe(false)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })

@@ -415,7 +415,7 @@ async function runBuild() {
     console.log(`Building for: ${platforms.join(', ')}`)
   }
 
-  const lintResult = await lintProject(cwd)
+  const lintResult = await lintProject(cwd, { targets: platforms })
   if (lintResult.errors > 0) {
     if (runtime.jsonOutput) {
       printJson({

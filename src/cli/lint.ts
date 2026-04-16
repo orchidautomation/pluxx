@@ -66,6 +66,10 @@ export interface LintResult {
   issues: LintIssue[]
 }
 
+export interface LintProjectOptions {
+  targets?: TargetPlatform[]
+}
+
 const SKILL_NAME_REGEX = AGENT_SKILLS_RULES.name.pattern
 const MAX_AGENT_SKILLS_DESCRIPTION = AGENT_SKILLS_RULES.description.maxLength
 const MAX_CLAUDE_DESCRIPTION = CLAUDE_CODE_RULES.description.maxDisplayLength
@@ -1100,7 +1104,10 @@ function sortIssues(issues: LintIssue[]): LintIssue[] {
   })
 }
 
-export async function lintProject(dir: string = process.cwd()): Promise<LintResult> {
+export async function lintProject(
+  dir: string = process.cwd(),
+  options: LintProjectOptions = {},
+): Promise<LintResult> {
   const issues: LintIssue[] = []
   const frontmatterCache = new Map<string, ParsedFrontmatterFile>()
 
@@ -1118,17 +1125,21 @@ export async function lintProject(dir: string = process.cwd()): Promise<LintResu
     return { errors: 1, warnings: 0, issues }
   }
 
+  const lintConfig: PluginConfig = options.targets
+    ? { ...config, targets: options.targets }
+    : config
+
   // Plugin structure checks
-  lintPluginName(config, issues)
-  lintVersionFormat(config, issues)
-  lintManifestPaths(config, issues)
+  lintPluginName(lintConfig, issues)
+  lintVersionFormat(lintConfig, issues)
+  lintManifestPaths(lintConfig, issues)
   lintPluginDirectoryPlacement(dir, issues)
-  lintAbsolutePaths(config, issues)
+  lintAbsolutePaths(lintConfig, issues)
   lintSettingsJson(dir, issues)
-  lintLegacyCommandsDir(dir, config, issues)
+  lintLegacyCommandsDir(dir, lintConfig, issues)
 
   // Hook and event validation
-  lintHookEvents(config, issues)
+  lintHookEvents(lintConfig, issues)
 
   // Agent file checks
   const agentsDir = resolve(dir, 'agents')
@@ -1137,25 +1148,25 @@ export async function lintProject(dir: string = process.cwd()): Promise<LintResu
   lintAgentIsolation(agentFiles, issues, frontmatterCache)
 
   // MCP and brand
-  lintMcpUrls(config, issues)
-  lintBrandMetadata(config, issues)
-  lintCodexOverrides(config, issues)
-  lintCodexHookCompatibility(config, issues)
-  lintCodexAgentsConfig(config, issues)
-  lintCodexHooksExternalConfig(config, issues)
-  lintPermissions(config, issues)
+  lintMcpUrls(lintConfig, issues)
+  lintBrandMetadata(lintConfig, issues)
+  lintCodexOverrides(lintConfig, issues)
+  lintCodexHookCompatibility(lintConfig, issues)
+  lintCodexAgentsConfig(lintConfig, issues)
+  lintCodexHooksExternalConfig(lintConfig, issues)
+  lintPermissions(lintConfig, issues)
 
   // Cursor-specific checks
-  lintCursorHooks(config, issues)
-  lintCursorRuleContentLimits(config, issues)
+  lintCursorHooks(lintConfig, issues)
+  lintCursorRuleContentLimits(lintConfig, issues)
 
-  const skillsDir = resolve(dir, config.skills)
+  const skillsDir = resolve(dir, lintConfig.skills)
   let skillFiles: string[] = []
   if (!existsSync(skillsDir)) {
     pushIssue(issues, {
       level: 'error',
       code: 'skills-dir-missing',
-      message: `Skills directory not found: ${config.skills}`,
+      message: `Skills directory not found: ${lintConfig.skills}`,
       file: 'pluxx.config.ts',
       platform: 'Agent Skills',
     })
@@ -1165,29 +1176,29 @@ export async function lintProject(dir: string = process.cwd()): Promise<LintResu
       pushIssue(issues, {
         level: 'warning',
         code: 'skills-none-found',
-        message: `No SKILL.md files found in ${config.skills}`,
+        message: `No SKILL.md files found in ${lintConfig.skills}`,
         file: 'pluxx.config.ts',
         platform: 'Agent Skills',
       })
     }
 
     for (const skillFile of skillFiles) {
-      lintSkillFile(skillFile, config.targets, issues, frontmatterCache)
+      lintSkillFile(skillFile, lintConfig.targets, issues, frontmatterCache)
     }
   }
 
   // Cursor skill frontmatter checks
-  lintCursorSkillFrontmatter(config, skillFiles, issues, frontmatterCache)
-  lintSkillListingBudgets(skillFiles, config.targets, issues, frontmatterCache)
+  lintCursorSkillFrontmatter(lintConfig, skillFiles, issues, frontmatterCache)
+  lintSkillListingBudgets(skillFiles, lintConfig.targets, issues, frontmatterCache)
 
   // Platform limit checks for manifest prompts (Codex)
-  lintManifestPromptLimits(config, issues)
+  lintManifestPromptLimits(lintConfig, issues)
 
   // Platform limit checks for instructions file size
-  lintInstructionsFileLimits(config, dir, issues)
+  lintInstructionsFileLimits(lintConfig, dir, issues)
 
   // Platform limit checks for rules file line count
-  lintRulesFileLimits(config, dir, issues)
+  lintRulesFileLimits(lintConfig, dir, issues)
 
   const sorted = sortIssues(issues)
   const errors = sorted.filter(i => i.level === 'error').length
