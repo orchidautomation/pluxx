@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { PERMISSION_SELECTOR_KINDS, parsePermissionRule } from './permissions'
 
 // ── MCP Server Auth ──────────────────────────────────────────────
 
@@ -198,6 +199,28 @@ export const UserConfigEntrySchema = z.object({
 
 export const UserConfigSchema = z.array(UserConfigEntrySchema)
 
+// ── Permissions ─────────────────────────────────────────────────
+
+export const PermissionRuleSchema = z.string().superRefine((value, ctx) => {
+  if (!parsePermissionRule(value)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Permission rules must use the canonical DSL: ${PERMISSION_SELECTOR_KINDS.map(kind => `${kind}(...)`).join(', ')}`,
+    })
+  }
+})
+
+export const PermissionsSchema = z.object({
+  allow: z.array(PermissionRuleSchema).optional(),
+  ask: z.array(PermissionRuleSchema).optional(),
+  deny: z.array(PermissionRuleSchema).optional(),
+}).refine(
+  permissions => (permissions.allow?.length ?? 0) + (permissions.ask?.length ?? 0) + (permissions.deny?.length ?? 0) > 0,
+  {
+    message: 'Permissions must declare at least one allow/ask/deny rule.',
+  },
+)
+
 // ── Platform Overrides ───────────────────────────────────────────
 
 export const ClaudeCodeOverridesSchema = z.object({
@@ -249,6 +272,7 @@ export const PluginConfigSchema = z.object({
   // Brand
   brand: BrandSchema.optional(),
   userConfig: UserConfigSchema.optional(),
+  permissions: PermissionsSchema.optional(),
 
   // Plugin components (paths relative to config file)
   skills: z.string().default('./skills/'),
@@ -284,3 +308,5 @@ export type McpAuth = z.infer<typeof McpAuthSchema>
 export type HookEntry = z.infer<typeof HookEntrySchema>
 export type Brand = z.infer<typeof BrandSchema>
 export type UserConfigEntry = z.infer<typeof UserConfigEntrySchema>
+export type PermissionRule = z.infer<typeof PermissionRuleSchema>
+export type Permissions = z.infer<typeof PermissionsSchema>

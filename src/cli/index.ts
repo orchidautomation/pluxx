@@ -51,6 +51,7 @@ import { basename } from 'path'
 import { mkdir, mkdtemp, rm } from 'fs/promises'
 import { tmpdir } from 'os'
 import { formatSyncSummary, planSyncFromMcp, syncFromMcp } from './sync-from-mcp'
+import { formatPublishPlan, planPublish, runPublish } from './publish'
 import { createCliRuntime, createSpinner, printJson, readMultiValueOption, readOption } from './runtime'
 import { printTestResult, runTestSuite, type TestRunResult } from './test'
 
@@ -211,6 +212,9 @@ export async function main() {
       break
     case 'install':
       await runInstall()
+      break
+    case 'publish':
+      await runPublishCommand()
       break
     case 'uninstall':
       await runUninstall()
@@ -2253,6 +2257,63 @@ async function runInstall() {
   })
 }
 
+async function runPublishCommand() {
+  const config = await loadConfig()
+  const requestedChannels: Array<'npm' | 'github-release'> = []
+  if (args.includes('--npm')) requestedChannels.push('npm')
+  if (args.includes('--github-release')) requestedChannels.push('github-release')
+
+  const plan = planPublish(config, {
+    rootDir: process.cwd(),
+    requestedChannels,
+    version: readOption(args, '--version'),
+    tag: readOption(args, '--tag'),
+    dryRun: runtime.dryRun,
+  })
+
+  if (runtime.dryRun) {
+    if (runtime.jsonOutput) {
+      printJson(plan)
+    } else if (!runtime.quiet) {
+      for (const line of formatPublishPlan(plan)) {
+        console.log(line)
+      }
+    }
+
+    if (plan.checks.some((check) => !check.ok)) {
+      process.exit(1)
+    }
+    return
+  }
+
+  const result = runPublish(config, {
+    rootDir: process.cwd(),
+    requestedChannels,
+    version: readOption(args, '--version'),
+    tag: readOption(args, '--tag'),
+    dryRun: false,
+  })
+
+  if (runtime.jsonOutput) {
+    printJson(result)
+  } else if (!runtime.quiet) {
+    for (const line of formatPublishPlan(result)) {
+      console.log(line)
+    }
+
+    if (result.execution?.npm) {
+      console.log(`npm: ${result.execution.npm.ok ? 'ok' : 'fail'}${result.execution.npm.detail ? ` — ${result.execution.npm.detail}` : ''}`)
+    }
+    if (result.execution?.githubRelease) {
+      console.log(`github-release: ${result.execution.githubRelease.ok ? 'ok' : 'fail'}${result.execution.githubRelease.detail ? ` — ${result.execution.githubRelease.detail}` : ''}`)
+    }
+  }
+
+  if (!result.ok) {
+    process.exit(1)
+  }
+}
+
 async function runUninstall() {
   const targets = parseTargetFlagValues(args)
 
@@ -2296,6 +2357,7 @@ Usage:
   pluxx migrate <path>                    Import an existing plugin into pluxx
   pluxx test [--target <platforms...>]    Run config, lint, build, and smoke checks
   pluxx install [--target <platforms>] [--trust]  Symlink built plugins for local testing
+  pluxx publish [--npm] [--github-release] [--dry-run] [--json] [--tag latest] [--version x.y.z]
   pluxx uninstall [--target <platforms>]  Remove symlinked plugins
   pluxx help                              Show this help
 

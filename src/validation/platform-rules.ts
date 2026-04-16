@@ -104,6 +104,8 @@ export const PLATFORM_LIMITS: Record<TargetPlatform, PlatformLimits> = {
   },
   'opencode': {
     ...NULL_LIMITS,
+    skillDescriptionMax: 1024,
+    skillNameMustMatchDir: true,
   },
   'github-copilot': {
     ...NULL_LIMITS,

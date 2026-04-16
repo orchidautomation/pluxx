@@ -3,6 +3,7 @@ import { resolve, relative, basename, dirname } from 'path'
 import { loadConfig } from '../config/load'
 import type { PluginConfig, TargetPlatform } from '../schema'
 import { PLATFORM_LIMITS } from '../validation/platform-rules'
+import { collectPermissionRules } from '../permissions'
 import {
   CURSOR_LOOP_LIMIT_HOOK_EVENTS,
   CURSOR_SUPPORTED_HOOK_EVENTS,
@@ -981,6 +982,55 @@ function lintCursorSkillFrontmatter(
   }
 }
 
+function lintPermissions(config: PluginConfig, issues: LintIssue[]): void {
+  if (!config.permissions) return
+
+  const rules = collectPermissionRules(config.permissions)
+  const seen = new Map<string, Set<string>>()
+
+  for (const rule of rules) {
+    const key = `${rule.kind}:${rule.pattern}`
+    const actions = seen.get(key) ?? new Set<string>()
+    actions.add(rule.action)
+    seen.set(key, actions)
+  }
+
+  for (const [key, actions] of seen) {
+    if (actions.size > 1) {
+      pushIssue(issues, {
+        level: 'warning',
+        code: 'permissions-conflict',
+        message: `Permission rule "${key}" is declared in multiple actions (${Array.from(actions).join(', ')}). Deny should win, but this intent should be made explicit.`,
+        file: 'pluxx.config.ts',
+        platform: 'Permissions',
+      })
+    }
+  }
+
+  if (config.targets.includes('codex')) {
+    pushIssue(issues, {
+      level: 'warning',
+      code: 'codex-permissions-external-config',
+      message: 'Codex does not currently support plugin-packaged permission enforcement. Mirror canonical permissions into Codex user/admin config or external hooks for real enforcement.',
+      file: 'pluxx.config.ts',
+      platform: 'Codex',
+    })
+  }
+
+  if (rules.some(rule => rule.kind === 'Skill')) {
+    const nonClaudeTargets = config.targets.filter(target => target !== 'claude-code')
+    if (nonClaudeTargets.length > 0) {
+      pushIssue(issues, {
+        level: 'warning',
+        code: 'permissions-skill-selector-limited',
+        message: `Skill(...) permission rules are Claude-style and will require downgrade or docs-only handling on ${nonClaudeTargets.join(', ')}.`,
+        file: 'pluxx.config.ts',
+        platform: 'Permissions',
+      })
+    }
+  }
+}
+
 function sortIssues(issues: LintIssue[]): LintIssue[] {
   return [...issues].sort((a, b) => {
     if (a.level === b.level) {
@@ -1033,6 +1083,7 @@ export async function lintProject(dir: string = process.cwd()): Promise<LintResu
   lintCodexHookCompatibility(config, issues)
   lintCodexAgentsConfig(config, issues)
   lintCodexHooksExternalConfig(config, issues)
+  lintPermissions(config, issues)
 
   // Cursor-specific checks
   lintCursorHooks(config, issues)

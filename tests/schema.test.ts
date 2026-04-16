@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { HookEntrySchema, McpAuthSchema, McpServerSchema, UserConfigSchema } from '../src/schema'
+import { HookEntrySchema, McpAuthSchema, McpServerSchema, PermissionsSchema, UserConfigSchema } from '../src/schema'
 
 describe('McpServerSchema transport validation', () => {
   it('requires command and forbids url for stdio transport', () => {
@@ -147,6 +147,26 @@ describe('UserConfigSchema user config validation', () => {
           description: 'Bearer token for the MCP.',
         },
       ]).success
+    ).toBe(false)
+  })
+})
+
+describe('PermissionsSchema permissions validation', () => {
+  it('accepts canonical allow/ask/deny rules', () => {
+    expect(
+      PermissionsSchema.safeParse({
+        allow: ['Bash(git status)', 'Read(src/**)'],
+        ask: ['MCP(linear.*)'],
+        deny: ['Edit(.env)'],
+      }).success,
+    ).toBe(true)
+  })
+
+  it('rejects non-canonical permission syntax', () => {
+    expect(
+      PermissionsSchema.safeParse({
+        allow: ['git status'],
+      }).success,
     ).toBe(false)
   })
 })

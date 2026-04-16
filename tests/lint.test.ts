@@ -357,6 +357,69 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'platform-rules-lines' && issue.platform === 'cursor')).toBe(true)
   })
 
+  it('warns when canonical permissions need Codex external configuration or non-portable skill selectors', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['claude-code', 'codex', 'opencode'],
+        permissions: {
+          allow: ['Skill(review-scaffold)'],
+          deny: ['Bash(rm -rf *)'],
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A valid skill"', '---', '', '# My Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'codex-permissions-external-config')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'permissions-skill-selector-limited')).toBe(true)
+  })
+
+  it('enforces OpenCode skill limits through shared platform limits', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/wrong-dir'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['opencode'],
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/wrong-dir/SKILL.md'),
+      [
+        '---',
+        'name: my-skill',
+        `description: "${'x'.repeat(1100)}"`,
+        '---',
+        '',
+        '# My Skill',
+      ].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'skill-name-dir-mismatch' && issue.platform === 'opencode')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'skill-description-length' && issue.platform === 'opencode')).toBe(true)
+  })
+
   // ── Gotcha #1: Plugin dirs nested inside .claude-plugin/ ──
   it('reports error when plugin directories are nested inside .claude-plugin/', async () => {
     const projectDir = createTempProject()
