@@ -220,6 +220,9 @@ describe('agent mode', () => {
     expect(prompt).toContain('Eliminate misleading labels such as contact or people discovery')
     expect(prompt).toContain('Pluxx will re-render generated skills and commands from that taxonomy after the pass')
     expect(prompt).toContain('tools, resources, resource templates, and prompt templates')
+    expect(prompt).toContain('Reject stale scaffold assumptions')
+    expect(prompt).toContain('avoid weak command UX')
+    expect(prompt).toContain('not stale scaffold assumptions')
   })
 
   it('supports CLI dry-run for prompt generation without writing files', async () => {
@@ -267,6 +270,10 @@ describe('agent mode', () => {
     expect(prompt).toContain('Separate scaffold quality findings from runtime-correctness findings.')
     expect(prompt).toContain('scaffold quality gaps are distinguished from runtime correctness')
     expect(prompt).toContain('raw documentation dumps')
+    expect(prompt).toContain('lexical skill names')
+    expect(prompt).toContain('stale scaffold assumptions')
+    expect(prompt).toContain('weak command UX')
+    expect(prompt).toContain('stale assumptions and command-UX weaknesses are identified explicitly when present')
   })
 
   it('supports CLI dry-run for review runs and keeps Claude in plan mode', async () => {
@@ -760,6 +767,9 @@ exit 1
     expect(instructionsPrompt).toContain('Prefer the branded product name in user-facing copy')
     expect(instructionsPrompt).toContain('wording is branded and product-facing, not raw MCP-internal naming')
     expect(instructionsPrompt).toContain('reads like routing guidance, not pasted vendor docs')
+    expect(instructionsPrompt).toContain('Replace stale scaffold claims with current discovery-backed language')
+    expect(instructionsPrompt).toContain('copy-paste runnable')
+    expect(instructionsPrompt).toContain('strong command UX')
     expect(reviewPrompt).toContain('Additional review criteria:')
     expect(reviewPrompt).toContain('Flag any skill grouping that mixes setup/admin tools with runtime workflows.')
   })
