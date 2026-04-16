@@ -1,6 +1,7 @@
 import { existsSync } from 'fs'
 import { Generator } from '../base'
 import type { TargetPlatform } from '../../schema'
+import { buildGeneratedPermissionHookScript } from '../../permissions'
 
 export class CursorGenerator extends Generator {
   readonly platform: TargetPlatform = 'cursor'
@@ -39,18 +40,40 @@ export class CursorGenerator extends Generator {
     if (this.config.commands) manifest.commands = './commands/'
     if (this.config.agents) manifest.agents = './agents/'
     if (this.config.platforms?.cursor?.rules?.length) manifest.rules = './rules/'
-    if (this.config.hooks) manifest.hooks = './hooks/hooks.json'
+    if (this.config.hooks || this.config.permissions) manifest.hooks = './hooks/hooks.json'
     if (this.config.mcp) manifest.mcpServers = './mcp.json'
 
     await this.writeJson('.cursor-plugin/plugin.json', manifest)
   }
 
   private async generateHooks(): Promise<void> {
-    if (!this.config.hooks) return
+    const permissionScript = buildGeneratedPermissionHookScript(this.config.permissions)
+    if (!this.config.hooks && !permissionScript) return
     const usesPlatformManagedAuth = this.config.platforms?.cursor?.mcpAuth === 'platform'
 
     // Cursor hooks format matches the canonical format closely
     const hooks: Record<string, unknown[]> = {}
+
+    if (permissionScript) {
+      await this.writeFile('hooks/pluxx-permissions.mjs', permissionScript)
+      hooks.preToolUse = [{
+        command: 'node ./hooks/pluxx-permissions.mjs cursor-pretool',
+      }]
+      hooks.beforeShellExecution = [{
+        command: 'node ./hooks/pluxx-permissions.mjs cursor-shell',
+      }]
+      hooks.beforeReadFile = [{
+        command: 'node ./hooks/pluxx-permissions.mjs cursor-read',
+      }]
+      hooks.beforeMCPExecution = [{
+        command: 'node ./hooks/pluxx-permissions.mjs cursor-mcp',
+      }]
+    }
+
+    if (!this.config.hooks) {
+      await this.writeJson('hooks/hooks.json', { version: 1, hooks })
+      return
+    }
 
     for (const [event, entries] of Object.entries(this.config.hooks)) {
       if (!entries) continue
@@ -67,7 +90,9 @@ export class CursorGenerator extends Generator {
 
       if (filteredEntries.length === 0) continue
 
-      hooks[event] = filteredEntries.map(entry => {
+      hooks[event] = [
+        ...(hooks[event] ?? []),
+        ...filteredEntries.map(entry => {
         const hookDef: Record<string, unknown> = {}
         if (entry.type === 'prompt') {
           hookDef.type = 'prompt'
@@ -81,7 +106,8 @@ export class CursorGenerator extends Generator {
         if (entry.failClosed) hookDef.failClosed = entry.failClosed
         if (entry.loop_limit !== undefined) hookDef.loop_limit = entry.loop_limit
         return hookDef
-      })
+      }),
+      ]
     }
 
     await this.writeJson('hooks/hooks.json', { version: 1, hooks })

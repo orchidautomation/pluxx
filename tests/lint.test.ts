@@ -181,6 +181,38 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'skill-description-truncation' && issue.platform === 'claude-code')).toBe(true)
   })
 
+  it('reports Claude Code hard description cap when a skill exceeds 1536 characters', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['claude-code'],
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      [
+        '---',
+        'name: my-skill',
+        `description: "${'x'.repeat(1600)}"`,
+        '---',
+        '',
+        '# My Skill',
+      ].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'skill-description-length' && issue.platform === 'claude-code')).toBe(true)
+  })
+
   it('reports skill-name-dir-mismatch error for platforms requiring dir match', async () => {
     const projectDir = createTempProject()
     mkdirSync(resolve(projectDir, 'skills/wrong-dir'), { recursive: true })
@@ -385,6 +417,115 @@ describe('lintProject', () => {
     const result = await lintProject(projectDir)
     expect(result.issues.some(issue => issue.code === 'codex-permissions-external-config')).toBe(true)
     expect(result.issues.some(issue => issue.code === 'permissions-skill-selector-limited')).toBe(true)
+  })
+
+  it('warns when OpenCode permission output downgrades selector precision to tool-level', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['opencode'],
+        permissions: {
+          allow: ['Read(src/**)'],
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      [
+        '---',
+        'name: my-skill',
+        'description: "A valid skill"',
+        '---',
+        '',
+        '# My Skill',
+      ].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'permissions-opencode-downgrade')).toBe(true)
+  })
+
+  it('warns when Claude Code skill listing budget exceeds 8000 characters', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/skill-one'), { recursive: true })
+    mkdirSync(resolve(projectDir, 'skills/skill-two'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['claude-code'],
+      }, null, 2),
+    )
+
+    const description = 'x'.repeat(4100)
+    writeFileSync(
+      resolve(projectDir, 'skills/skill-one/SKILL.md'),
+      `---\nname: skill-one\ndescription: "${description}"\n---\n\n# Skill One\n`,
+    )
+    writeFileSync(
+      resolve(projectDir, 'skills/skill-two/SKILL.md'),
+      `---\nname: skill-two\ndescription: "${description}"\n---\n\n# Skill Two\n`,
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'platform-skill-listing-budget' && issue.platform === 'claude-code')).toBe(true)
+  })
+
+  it('warns when embedded Cursor rule content exceeds the 500-line guideline', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['cursor'],
+        platforms: {
+          cursor: {
+            rules: [
+              {
+                description: 'Very long rule',
+                alwaysApply: true,
+                content: Array.from({ length: 550 }, (_, index) => `Line ${index + 1}`).join('\n'),
+              },
+            ],
+          },
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      [
+        '---',
+        'name: my-skill',
+        'description: "A valid skill"',
+        '---',
+        '',
+        '# My Skill',
+      ].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'platform-rules-lines' && issue.platform === 'cursor')).toBe(true)
   })
 
   it('enforces OpenCode skill limits through shared platform limits', async () => {

@@ -268,6 +268,50 @@ describe('build', () => {
     expect(existsSync(resolve(OUT_DIR, 'codex/hooks.json'))).toBe(false)
   })
 
+  it('generates runtime permission outputs for Claude Code, Cursor, and OpenCode', async () => {
+    const permissionConfig: PluginConfig = {
+      ...testConfig,
+      name: 'permission-plugin',
+      hooks: undefined,
+      permissions: {
+        allow: ['Read(src/**)'],
+        ask: ['Bash(git commit *)'],
+        deny: ['Edit(.env)'],
+      },
+      targets: ['claude-code', 'cursor', 'opencode'],
+      outDir: './permission-dist',
+    }
+
+    await build(permissionConfig, TEST_DIR)
+
+    const claudeManifest = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'permission-dist/claude-code/.claude-plugin/plugin.json'), 'utf-8')
+    )
+    const claudeHooks = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'permission-dist/claude-code/hooks/hooks.json'), 'utf-8')
+    )
+    const cursorManifest = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'permission-dist/cursor/.cursor-plugin/plugin.json'), 'utf-8')
+    )
+    const cursorHooks = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'permission-dist/cursor/hooks/hooks.json'), 'utf-8')
+    )
+    const opencodeIndex = readFileSync(resolve(TEST_DIR, 'permission-dist/opencode/index.ts'), 'utf-8')
+
+    expect(claudeManifest.hooks).toBeUndefined()
+    expect(existsSync(resolve(TEST_DIR, 'permission-dist/claude-code/hooks/pluxx-permissions.mjs'))).toBe(true)
+    expect(claudeHooks.hooks.PreToolUse).toBeDefined()
+
+    expect(cursorManifest.hooks).toBe('./hooks/hooks.json')
+    expect(existsSync(resolve(TEST_DIR, 'permission-dist/cursor/hooks/pluxx-permissions.mjs'))).toBe(true)
+    expect(cursorHooks.hooks.preToolUse).toBeDefined()
+    expect(cursorHooks.hooks.beforeShellExecution).toBeDefined()
+
+    expect(opencodeIndex).toContain('const PERMISSIONS =')
+    expect(opencodeIndex).toContain('"read": "allow"')
+    expect(opencodeIndex).toContain('"edit": "deny"')
+  })
+
   it('writes documented manifest paths for Claude Code, Cursor, and Codex plugin components', async () => {
     const claudeManifest = JSON.parse(
       readFileSync(resolve(OUT_DIR, 'claude-code/.claude-plugin/plugin.json'), 'utf-8')

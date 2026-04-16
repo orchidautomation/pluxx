@@ -10,6 +10,7 @@ export interface PlatformRuleSource {
 export interface PlatformLimits {
   skillDescriptionMax: number | null
   skillDescriptionDisplayMax: number | null
+  skillListingBudgetMax: number | null
   skillNameMax: number
   skillNameMustMatchDir: boolean
   manifestPromptMax: number | null
@@ -72,6 +73,7 @@ const STANDARD_SKILL_FRONTMATTER = [
 const NULL_LIMITS: PlatformLimits = {
   skillDescriptionMax: null,
   skillDescriptionDisplayMax: null,
+  skillListingBudgetMax: null,
   skillNameMax: 64,
   skillNameMustMatchDir: false,
   manifestPromptMax: null,
@@ -85,7 +87,9 @@ const NULL_LIMITS: PlatformLimits = {
 export const PLATFORM_LIMITS: Record<TargetPlatform, PlatformLimits> = {
   'claude-code': {
     ...NULL_LIMITS,
+    skillDescriptionMax: 1536,
     skillDescriptionDisplayMax: 250,
+    skillListingBudgetMax: 8000,
   },
   'codex': {
     ...NULL_LIMITS,

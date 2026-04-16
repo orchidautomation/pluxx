@@ -3,7 +3,7 @@ import { resolve, relative, basename, dirname } from 'path'
 import { loadConfig } from '../config/load'
 import type { PluginConfig, TargetPlatform } from '../schema'
 import { PLATFORM_LIMITS } from '../validation/platform-rules'
-import { collectPermissionRules } from '../permissions'
+import { collectPermissionRules, permissionRulesNeedToolLevelDowngrade } from '../permissions'
 import {
   CURSOR_LOOP_LIMIT_HOOK_EVENTS,
   CURSOR_SUPPORTED_HOOK_EVENTS,
@@ -982,6 +982,56 @@ function lintCursorSkillFrontmatter(
   }
 }
 
+function lintSkillListingBudgets(
+  skillFiles: string[],
+  targets: TargetPlatform[],
+  issues: LintIssue[],
+  frontmatterCache: Map<string, ParsedFrontmatterFile>,
+): void {
+  for (const target of targets) {
+    const budget = PLATFORM_LIMITS[target].skillListingBudgetMax
+    if (budget === null) continue
+
+    let total = 0
+    for (const skillFile of skillFiles) {
+      const { parsed } = getParsedFrontmatterFile(skillFile, frontmatterCache)
+      if (!parsed.valid) continue
+      const description = parsed.fields.get('description')?.value
+      if (description) total += description.length
+    }
+
+    if (total > budget) {
+      pushIssue(issues, {
+        level: 'warning',
+        code: 'platform-skill-listing-budget',
+        message: `Combined skill descriptions total ${total} characters, exceeding ${target} listing budget of ${budget} characters.`,
+        file: 'skills/',
+        platform: target,
+      })
+    }
+  }
+}
+
+function lintCursorRuleContentLimits(config: PluginConfig, issues: LintIssue[]): void {
+  if (!config.targets.includes('cursor')) return
+
+  const maxLines = PLATFORM_LIMITS.cursor.rulesMaxLines
+  if (maxLines === null) return
+
+  for (const rule of config.platforms?.cursor?.rules ?? []) {
+    const lineCount = (rule.content ?? '').split(/\r?\n/).length
+    if (lineCount > maxLines) {
+      pushIssue(issues, {
+        level: 'warning',
+        code: 'platform-rules-lines',
+        message: `Cursor rule "${rule.description}" has ${lineCount} lines, exceeding the recommended max of ${maxLines} lines.`,
+        file: 'pluxx.config.ts',
+        platform: 'cursor',
+      })
+    }
+  }
+}
+
 function lintPermissions(config: PluginConfig, issues: LintIssue[]): void {
   if (!config.permissions) return
 
@@ -1028,6 +1078,16 @@ function lintPermissions(config: PluginConfig, issues: LintIssue[]): void {
         platform: 'Permissions',
       })
     }
+  }
+
+  if (config.targets.includes('opencode') && permissionRulesNeedToolLevelDowngrade(config.permissions)) {
+    pushIssue(issues, {
+      level: 'warning',
+      code: 'permissions-opencode-downgrade',
+      message: 'OpenCode permission output is currently tool-level. Selector patterns like file globs and specific MCP tool names are downgraded to coarse tool permissions there.',
+      file: 'pluxx.config.ts',
+      platform: 'OpenCode',
+    })
   }
 }
 
@@ -1087,6 +1147,7 @@ export async function lintProject(dir: string = process.cwd()): Promise<LintResu
 
   // Cursor-specific checks
   lintCursorHooks(config, issues)
+  lintCursorRuleContentLimits(config, issues)
 
   const skillsDir = resolve(dir, config.skills)
   let skillFiles: string[] = []
@@ -1117,6 +1178,7 @@ export async function lintProject(dir: string = process.cwd()): Promise<LintResu
 
   // Cursor skill frontmatter checks
   lintCursorSkillFrontmatter(config, skillFiles, issues, frontmatterCache)
+  lintSkillListingBudgets(skillFiles, config.targets, issues, frontmatterCache)
 
   // Platform limit checks for manifest prompts (Codex)
   lintManifestPromptLimits(config, issues)

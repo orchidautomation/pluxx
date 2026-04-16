@@ -3,6 +3,7 @@ import { resolve } from 'path'
 import { warnDroppedHookFields } from '../hooks-warning'
 import type { PluginConfig, TargetPlatform } from '../../schema'
 import { mapHookEventToPascalCase } from '../../hook-events'
+import { buildGeneratedPermissionHookScript } from '../../permissions'
 
 export interface ClaudeFamilyOptions {
   manifestPath: string
@@ -33,7 +34,7 @@ export async function generateClaudeFamilyOutputs(args: {
   await Promise.all([
     writeManifest(config, options, writeJson),
     writeMcpConfig(config, platform, writeJson),
-    writeHooks(config, platform, options, writeJson),
+    writeHooks(config, platform, options, writeJson, writeFile),
     writeInstructions(config, rootDir, options, writeFile),
   ])
 }
@@ -64,7 +65,7 @@ async function writeManifest(
     manifest.agents = './agents/'
   }
   manifest.skills = './skills/'
-  if (config.hooks && options.includeStandardHooksManifest !== false) {
+  if ((config.hooks || config.permissions) && options.includeStandardHooksManifest !== false) {
     manifest.hooks = './hooks/hooks.json'
   }
   if (config.mcp) {
@@ -128,13 +129,30 @@ async function writeHooks(
   platform: TargetPlatform,
   options: ClaudeFamilyOptions,
   writeJson: (relativePath: string, data: unknown) => Promise<void>,
+  writeFile: (relativePath: string, content: string) => Promise<void>,
 ): Promise<void> {
-  if (!config.hooks) return
-
   const hooks: Record<string, unknown[]> = {}
   const mapEventName = options.mapEventName ?? defaultMapEventName
   const usesPlatformManagedAuth = platform === 'claude-code'
     && config.platforms?.['claude-code']?.mcpAuth === 'platform'
+  const permissionScript = buildGeneratedPermissionHookScript(config.permissions)
+
+  if (permissionScript) {
+    await writeFile('hooks/pluxx-permissions.mjs', permissionScript)
+    hooks.PreToolUse = [{
+      hooks: [{
+        type: 'command',
+        command: `node \${${options.pluginRootVar}}/hooks/pluxx-permissions.mjs claude-pretool`,
+      }],
+    }]
+  }
+
+  if (!config.hooks) {
+    if (Object.keys(hooks).length > 0) {
+      await writeJson('hooks/hooks.json', { hooks })
+    }
+    return
+  }
 
   for (const [event, entries] of Object.entries(config.hooks)) {
     if (!entries) continue
@@ -153,13 +171,16 @@ async function writeHooks(
     })
     if (commandEntries.length === 0) continue
 
-    hooks[mappedEvent] = commandEntries.map(entry => ({
+    hooks[mappedEvent] = [
+      ...(hooks[mappedEvent] ?? []),
+      ...commandEntries.map(entry => ({
       ...(entry.matcher !== undefined ? { matcher: entry.matcher } : {}),
       hooks: [{
         type: 'command',
         command: entry.command!.replace('${PLUGIN_ROOT}', `\${${options.pluginRootVar}}`),
       }],
-    }))
+      })),
+    ]
   }
 
   await writeJson('hooks/hooks.json', { hooks })

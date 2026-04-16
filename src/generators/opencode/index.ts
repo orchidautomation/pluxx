@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'fs'
 import { extname, relative, resolve } from 'path'
 import { Generator } from '../base'
 import type { HookEntry, TargetPlatform } from '../../schema'
+import { buildOpenCodePermissionMap } from '../../permissions'
 
 type GeneratedHook = {
   command: string
@@ -86,6 +87,7 @@ export class OpenCodeGenerator extends Generator {
     const commandDefinitions = this.getOpenCodeCommandDefinitions()
     const hookPlan = this.getOpenCodeHookPlan()
     const instructions = this.getInstructionsContent()
+    const permissionMap = buildOpenCodePermissionMap(this.config.permissions)
 
     const lines: string[] = [
       `import type { Config, Plugin } from "@opencode-ai/plugin"`,
@@ -116,6 +118,8 @@ export class OpenCodeGenerator extends Generator {
       `const CHAT_MESSAGE_HOOKS = ${JSON.stringify(hookPlan.chatMessage, null, 2)}`,
       '',
       `const INSTRUCTIONS = ${JSON.stringify(instructions)}`,
+      '',
+      `const PERMISSIONS = ${JSON.stringify(permissionMap, null, 2)}`,
       '',
       `const isMcpTool = (tool: string): boolean =>`,
       `  tool === "mcp" || tool.startsWith("mcp.") || tool.startsWith("mcp_")`,
@@ -250,6 +254,13 @@ export class OpenCodeGenerator extends Generator {
       `        config.command = {`,
       `          ...(config.command ?? {}),`,
       `          ...TUI_COMMANDS,`,
+      `        }`,
+      `      }`,
+      '',
+      `      if (Object.keys(PERMISSIONS).length > 0) {`,
+      `        config.permission = {`,
+      `          ...(config.permission ?? {}),`,
+      `          ...PERMISSIONS,`,
       `        }`,
       `      }`,
       `    },`,

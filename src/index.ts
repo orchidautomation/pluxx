@@ -9,5 +9,15 @@ export {
 export { definePlugin } from './config/define'
 export { PLATFORM_LIMITS, PLATFORM_VALIDATION_RULES, getPlatformRules, type PlatformLimits, type PlatformRules, type PlatformRuleSource } from './validation/platform-rules'
 export { getPlatformCompatibilityMatrix, renderCompatibilityMatrixMarkdown, type PlatformCompatibilityRow } from './compatibility/matrix'
-export { collectPermissionRules, parsePermissionRule, type ParsedPermissionRule, type PermissionAction, type PermissionRuleKind } from './permissions'
+export {
+  buildGeneratedPermissionHookScript,
+  buildOpenCodePermissionMap,
+  collectPermissionRules,
+  parsePermissionRule,
+  permissionRulesNeedToolLevelDowngrade,
+  type OpenCodePermissionMap,
+  type ParsedPermissionRule,
+  type PermissionAction,
+  type PermissionRuleKind,
+} from './permissions'
 export { formatPublishPlan, planPublish, runPublish, type PublishAssetPlan, type PublishCheck, type PublishPlan, type PublishPlanOptions, type PublishRunResult } from './cli/publish'
