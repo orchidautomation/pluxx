@@ -56,7 +56,7 @@ export async function runTestSuite(options: TestRunOptions = {}): Promise<TestRu
   try {
     const config = await loadConfig(rootDir)
     const targets = options.targets ?? config.targets
-    const lint = await lintProject(rootDir)
+    const lint = await lintProject(rootDir, { targets })
 
     if (lint.errors > 0) {
       return {

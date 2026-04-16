@@ -393,6 +393,7 @@ async function runBuild() {
   const targets = parseTargetFlagValues(args)
   const config = await loadConfig()
   const platforms = targets ?? config.targets
+  const cwd = process.cwd()
 
   if (runtime.dryRun) {
     const summary = {
@@ -414,7 +415,26 @@ async function runBuild() {
     console.log(`Building for: ${platforms.join(', ')}`)
   }
 
-  await build(config, process.cwd(), { targets })
+  const lintResult = await lintProject(cwd, { targets: platforms })
+  if (lintResult.errors > 0) {
+    if (runtime.jsonOutput) {
+      printJson({
+        ok: false,
+        reason: 'lint-errors',
+        lint: lintResult,
+      })
+    } else {
+      printLintResult(lintResult, cwd)
+      console.error('Build aborted due to lint errors.')
+    }
+    process.exit(1)
+  }
+
+  if (!runtime.jsonOutput && !runtime.quiet && lintResult.warnings > 0) {
+    printLintResult(lintResult, cwd)
+  }
+
+  await build(config, cwd, { targets })
 
   if (runtime.jsonOutput) {
     printJson({
@@ -422,6 +442,7 @@ async function runBuild() {
       targets: platforms,
       outDir: config.outDir,
       outputPaths: platforms.map((platform) => `${config.outDir}/${platform}/`),
+      lint: lintResult,
     })
     return
   }
