@@ -65,7 +65,221 @@ These are real platform features, but they are not the common path Pluxx needs t
 
 Those should be documented and revisited later, not treated as the core product contract today.
 
-Runtime today: Bun. Use `bunx pluxx ...` or install the npm package on machines that already have Bun available.
+## Runtime Today
+
+Pluxx is Bun-first today.
+
+The important practical distinction is:
+
+- the CLI is the real execution engine
+- the Pluxx plugin is a UX layer on top of that engine
+- the npm package name exists in `package.json`, but `pluxx` is **not** currently published on npm
+
+So today, the real invocation paths are:
+
+- from this repo: `bun ./bin/pluxx.js ...`
+- from another workspace with a local dependency/link: `bunx pluxx ...`
+
+What is **not** true yet:
+
+- `npx pluxx ...` is not a public install path today, because `pluxx` is not currently in the npm registry
+
+Once Pluxx is published, the launcher in [`bin/pluxx.js`](../bin/pluxx.js) is already set up so `npx pluxx ...` can work on machines that also have Bun installed. But the honest current docs contract is Bun-first and repo/local-package-first.
+
+## How Pluxx Works Today
+
+Pluxx now has three layers:
+
+1. **Deterministic core**
+2. **Optional semantic runner layer**
+3. **Per-host compilers**
+
+That gives one stable source project and multiple honest host outputs.
+
+### 1. Deterministic core
+
+This is the mechanical layer. It handles:
+
+- MCP import and introspection
+- source scaffold generation
+- taxonomy persistence
+- install/runtime config modeling
+- validation
+- build
+- install
+- sync
+
+This layer should always be able to produce a valid plugin project even if no AI runner is used.
+
+### 2. Optional semantic runner layer
+
+This is the refinement layer. It improves:
+
+- skill naming and grouping
+- shared instructions
+- scaffold review
+- command copy where relevant
+
+Runners today include:
+
+- `claude`
+- `cursor`
+- `codex`
+- `opencode`
+
+Pluxx does **not** run its own model stack. It prepares context and prompt packs, then hands the work to the selected host runner.
+
+### 3. Per-host compilers
+
+Pluxx takes one source project and emits host-specific bundles for:
+
+- Claude Code
+- Cursor
+- Codex
+- OpenCode
+
+The compiler layer is explicitly honest about host differences instead of pretending every host has the same plugin surface.
+
+## The Actual Flow
+
+The current end-to-end flow is:
+
+1. import an MCP
+2. generate the source scaffold
+3. optionally refine semantics with a runner
+4. validate the result
+5. build host bundles
+6. install locally for testing
+7. sync later when the MCP changes
+
+That means Pluxx is both:
+
+- a human-guided CLI workflow
+- and a headless automation surface for agents
+
+## Interactive vs Headless
+
+### Interactive
+
+Use interactive mode when a human is driving the workflow and wants a guided path:
+
+```bash
+bun ./bin/pluxx.js init --from-mcp https://example.com/mcp
+bun ./bin/pluxx.js autopilot
+```
+
+This path is for:
+
+- guided prompts
+- safer first-run authoring
+- a more curated UX
+
+### Headless
+
+Use headless mode when an agent or CI job is driving:
+
+```bash
+bun ./bin/pluxx.js init \
+  --from-mcp https://example.com/mcp \
+  --yes \
+  --name acme \
+  --display-name "Acme" \
+  --author "Acme" \
+  --targets claude-code,cursor,codex,opencode
+```
+
+```bash
+bun ./bin/pluxx.js autopilot \
+  --from-mcp https://example.com/mcp \
+  --runner codex \
+  --mode standard \
+  --yes \
+  --name acme \
+  --display-name "Acme" \
+  --author "Acme"
+```
+
+This is what makes Pluxx usable by other agents even if they have **not** installed the Pluxx plugin in their host.
+
+## CLI vs Plugin
+
+The CLI is the system of record.
+
+The Pluxx plugin exists to make Pluxx easier to use from inside host agents, but it is not required for automation.
+
+So:
+
+- agents can call the CLI directly in a shell
+- humans can use the CLI directly
+- host plugins provide better discoverability and nicer in-agent entrypoints
+
+That means the plugin is an accelerator, not a dependency.
+
+## Import Auth vs Runtime Auth
+
+One of the biggest architectural changes is that Pluxx now treats these separately:
+
+- **import auth**
+- **runtime auth**
+
+This matters because some MCPs can be introspected one way but need a different runtime auth model in the host.
+
+Examples:
+
+- API-key/header-based MCPs can use direct runtime config in the generated bundle
+- OAuth-first MCPs can still be imported headlessly, while Claude/Cursor runtime auth is delegated to the platform
+
+This is why `userConfig` is now a core primitive and why Pluxx no longer assumes that every MCP should be bundled with a static bearer-token runtime model.
+
+## Source Project vs Output Bundles
+
+Pluxx maintains one editable source project:
+
+- `pluxx.config.ts`
+- `INSTRUCTIONS.md`
+- `skills/`
+- `commands/`
+- `agents/`
+- `.pluxx/mcp.json`
+- `.pluxx/taxonomy.json`
+- scripts/assets as needed
+
+Then it compiles that source into host bundles under `dist/`.
+
+This is the key contract:
+
+- edit the source project
+- never hand-edit `dist/`
+- rebuild when you want fresh bundles
+
+## Skills vs Commands
+
+Pluxx now treats these as related but different:
+
+- `skills` are the universal semantic layer
+- `commands` are host-native entrypoints where the host supports them
+
+Current host reality:
+
+- **Claude Code**: skills + plugin commands
+- **Cursor**: skills + commands
+- **OpenCode**: skills + commands
+- **Codex**: `@plugin` + skills, while `/` remains native Codex only
+
+So Pluxx normalizes the shared semantic layer, then compiles commands only where they make sense.
+
+## What The End Result Looks Like
+
+The result of a successful Pluxx run is:
+
+- one maintainable plugin source repo
+- validated host bundles
+- local installable outputs for Claude Code, Cursor, Codex, and OpenCode
+- a project that can be refreshed later with `sync --from-mcp`
+
+This is why the right short description is:
+
+> Pluxx is a deterministic MCP-to-plugin compiler with an optional AI semantic layer.
 
 ```
 pluxx.config.ts          ← You write one config
