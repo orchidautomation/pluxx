@@ -14,7 +14,7 @@ Pluxx separates import-time auth from runtime auth.
 
 Pluxx compiles auth shape per host:
 
-- Claude/Cursor: header-based MCP config
+- Claude/Cursor: plugin-managed headers or platform-managed runtime auth (including OAuth-first flows)
 - Codex: `bearer_token_env_var`, `env_http_headers`, or `http_headers`
 - OpenCode: runtime validation in wrapper layer
 
