@@ -8,7 +8,8 @@ describe('package metadata', () => {
   it('publishes a real launcher and declaration output metadata', () => {
     const pkg = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf-8'))
 
-    expect(pkg.bin.pluxx).toBe('./bin/pluxx.js')
+    expect(pkg.name).toBe('@orchid-labs/pluxx')
+    expect(pkg.bin.pluxx).toBe('bin/pluxx.js')
     expect(pkg.files).toContain('bin/**/*')
     expect(pkg.types).toBe('dist/index.d.ts')
     expect(pkg.exports['.'].import).toBe('./dist/index.js')

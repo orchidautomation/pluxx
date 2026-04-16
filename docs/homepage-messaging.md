@@ -25,7 +25,7 @@ Pluxx turns one plugin source project into native bundles for Claude Code, Codex
 
 ### Primary CTA
 
-`bunx pluxx init --from-mcp https://example.com/mcp`
+`npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp`
 
 ### Secondary CTA
 
@@ -119,7 +119,7 @@ Start your plugin in 30 seconds
 
 ### CTA
 
-`bunx pluxx init my-plugin`
+`npx @orchid-labs/pluxx init my-plugin`
 
 ## Notes
 

@@ -56,14 +56,14 @@ Pluxx does not own:
 
 Pluxx accepts three MCP source shapes today:
 
-- remote HTTP: `bunx pluxx init --from-mcp https://example.com/mcp`
-- legacy SSE: `bunx pluxx init --from-mcp https://example.com/sse --transport sse`
-- local stdio: `bunx pluxx init --from-mcp "npx -y @acme/mcp"`
+- remote HTTP: `npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp`
+- legacy SSE: `npx @orchid-labs/pluxx init --from-mcp https://example.com/sse --transport sse`
+- local stdio: `npx @orchid-labs/pluxx init --from-mcp "npx -y @acme/mcp"`
 
 If the remote server requires auth and responds with `401`, `402`, or `403`, Pluxx can scaffold it with either bearer auth or a custom header. Use the auth flags up front for non-interactive imports:
 
 ```bash
-bunx pluxx init \
+npx @orchid-labs/pluxx init \
   --from-mcp https://mcp.playkit.sh/mcp \
   --yes \
   --auth-env PLAYKIT_API_KEY \
@@ -75,7 +75,7 @@ bunx pluxx init \
 For OAuth-first MCPs, complete the provider OAuth flow first, then export the resulting access token/API key and reuse the same auth flags:
 
 ```bash
-bunx pluxx init \
+npx @orchid-labs/pluxx init \
   --from-mcp https://example.com/mcp \
   --yes \
   --auth-env OAUTH_ACCESS_TOKEN \
@@ -87,7 +87,7 @@ bunx pluxx init \
 If your plugin does not wrap an MCP server, initialize a source project and author the plugin directly:
 
 ```bash
-bunx pluxx init my-plugin
+npx @orchid-labs/pluxx init my-plugin
 cd my-plugin
 ```
 
@@ -103,19 +103,19 @@ Then fill in:
 Interactive:
 
 ```bash
-bunx pluxx init --from-mcp https://example.com/mcp
+npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp
 ```
 
 Without MCP:
 
 ```bash
-bunx pluxx init my-plugin
+npx @orchid-labs/pluxx init my-plugin
 ```
 
 Headless:
 
 ```bash
-bunx pluxx init \
+npx @orchid-labs/pluxx init \
   --from-mcp https://example.com/mcp \
   --yes \
   --name acme \
@@ -129,7 +129,7 @@ bunx pluxx init \
 One-shot autopilot:
 
 ```bash
-bunx pluxx autopilot \
+npx @orchid-labs/pluxx autopilot \
   --from-mcp https://example.com/mcp \
   --runner codex \
   --yes \
@@ -146,7 +146,7 @@ By default, autopilot summarizes runner outcomes without streaming raw runner lo
 Headless import with custom header auth:
 
 ```bash
-bunx pluxx init \
+npx @orchid-labs/pluxx init \
   --from-mcp https://mcp.playkit.sh/mcp \
   --yes \
   --name playkit \
@@ -164,7 +164,7 @@ bunx pluxx init \
 Preview without writing files:
 
 ```bash
-bunx pluxx init --from-mcp https://example.com/mcp --yes --dry-run --json
+npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp --yes --dry-run --json
 ```
 
 ## 3. What Gets Generated
@@ -191,7 +191,7 @@ If you want to steer Agent Mode without editing generated prompt packs, add a pr
 Before building, run:
 
 ```bash
-bunx pluxx doctor
+npx @orchid-labs/pluxx doctor
 ```
 
 `pluxx doctor` is read-only. It checks:
@@ -207,23 +207,23 @@ bunx pluxx doctor
 For CI or automation:
 
 ```bash
-bunx pluxx doctor --json
+npx @orchid-labs/pluxx doctor --json
 ```
 
 ## 5. Lint, Build, Install, Test
 
 ```bash
-bunx pluxx lint
-bunx pluxx build
-bunx pluxx install --target claude-code
-bunx pluxx test
+npx @orchid-labs/pluxx lint
+npx @orchid-labs/pluxx build
+npx @orchid-labs/pluxx install --target claude-code
+npx @orchid-labs/pluxx test
 ```
 
 Useful previews:
 
 ```bash
-bunx pluxx build --dry-run
-bunx pluxx install --dry-run
+npx @orchid-labs/pluxx build --dry-run
+npx @orchid-labs/pluxx install --dry-run
 ```
 
 `pluxx test` runs the default verification contract:
@@ -238,19 +238,19 @@ bunx pluxx install --dry-run
 For MCP-derived projects, when the server changes:
 
 ```bash
-bunx pluxx sync
+npx @orchid-labs/pluxx sync
 ```
 
 If your MCP moved from local stdio development to a deployed endpoint, repoint sync explicitly:
 
 ```bash
-bunx pluxx sync --from-mcp https://mcp.example.com/mcp
+npx @orchid-labs/pluxx sync --from-mcp https://mcp.example.com/mcp
 ```
 
 Preview sync changes first:
 
 ```bash
-bunx pluxx sync --dry-run --json
+npx @orchid-labs/pluxx sync --dry-run --json
 ```
 
 If the project is hand-authored with no MCP, `sync` is not part of the normal loop. The source repo itself is the maintained artifact.
@@ -268,7 +268,7 @@ Pluxx preserves custom mixed-ownership Markdown sections and reports:
 After build/install validation, ship the generated plugin repo and bundles:
 
 1. Commit and version the plugin source repo (`pluxx.config.ts`, `skills/`, `INSTRUCTIONS.md`, `.pluxx/mcp.json`).
-2. Build release bundles with `bunx pluxx build`.
+2. Build release bundles with `npx @orchid-labs/pluxx build`.
 3. Publish/share through your target channels (team repo, release artifacts, or platform-specific publish flows).
 
 This keeps Pluxx as the distribution and maintenance layer while your MCP backend deployment stays separate.
@@ -296,8 +296,8 @@ jobs:
 If you want to run the CLI directly in a script:
 
 ```bash
-bunx pluxx doctor --json
-bunx pluxx test --json
+npx @orchid-labs/pluxx doctor --json
+npx @orchid-labs/pluxx test --json
 ```
 
 ## Prime-Time Path

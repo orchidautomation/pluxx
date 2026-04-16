@@ -76,10 +76,10 @@ It does **not** own model execution.
 ### Flow A: Core only
 
 ```bash
-bunx pluxx init --from-mcp https://example.com/mcp
-bunx pluxx lint
-bunx pluxx build
-bunx pluxx test
+npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp
+npx @orchid-labs/pluxx lint
+npx @orchid-labs/pluxx build
+npx @orchid-labs/pluxx test
 ```
 
 Use this when a deterministic first pass is enough.
@@ -87,8 +87,8 @@ Use this when a deterministic first pass is enough.
 ### Flow B: Core + Agent
 
 ```bash
-bunx pluxx init --from-mcp https://example.com/mcp
-bunx pluxx agent prepare
+npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp
+npx @orchid-labs/pluxx agent prepare
 ```
 
 Then in Claude Code or Codex:

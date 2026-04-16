@@ -67,7 +67,7 @@ Pluxx does not run its own model stack. It uses the coding agent you already wor
 Use this when you want the quickest end-to-end result.
 
 ```bash
-bunx pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode quick --yes
+npx @orchid-labs/pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode quick --yes
 ```
 
 This does:
@@ -89,12 +89,12 @@ Autopilot modes:
 Use this when you want to inspect each stage.
 
 ```bash
-bunx pluxx init --from-mcp https://example.com/mcp --yes
-bunx pluxx doctor
-bunx pluxx agent prepare
-bunx pluxx agent run taxonomy --runner codex
-bunx pluxx agent run instructions --runner codex
-bunx pluxx test --target claude-code cursor codex opencode
+npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp --yes
+npx @orchid-labs/pluxx doctor
+npx @orchid-labs/pluxx agent prepare
+npx @orchid-labs/pluxx agent run taxonomy --runner codex
+npx @orchid-labs/pluxx agent run instructions --runner codex
+npx @orchid-labs/pluxx test --target claude-code cursor codex opencode
 ```
 
 ## Which Command To Run
@@ -234,7 +234,7 @@ That means editing Pluxx itself, mainly:
 ### Remote bearer auth
 
 ```bash
-bunx pluxx init \
+npx @orchid-labs/pluxx init \
   --from-mcp https://example.com/mcp \
   --yes \
   --auth-env API_TOKEN \
@@ -244,7 +244,7 @@ bunx pluxx init \
 ### Remote custom header auth
 
 ```bash
-bunx pluxx init \
+npx @orchid-labs/pluxx init \
   --from-mcp https://example.com/mcp \
   --yes \
   --auth-env API_KEY \
@@ -281,9 +281,9 @@ Those are the install/share artifacts for each host platform.
 Use:
 
 ```bash
-bunx pluxx install --target claude-code
-bunx pluxx install --target cursor
-bunx pluxx install --target codex
+npx @orchid-labs/pluxx install --target claude-code
+npx @orchid-labs/pluxx install --target cursor
+npx @orchid-labs/pluxx install --target codex
 ```
 
 Cursor dogfood flow: `pluxx install --target cursor` links `dist/cursor/` into `~/.cursor/plugins/local/<plugin-name>`, which matches Cursor's documented local plugin test path.
@@ -310,9 +310,9 @@ Example:
 Example commands:
 
 ```bash
-bunx pluxx init --from-mcp "npx -y @acme/mcp" --yes
-bunx pluxx test
-bunx pluxx sync --from-mcp https://mcp.acme.com/mcp
+npx @orchid-labs/pluxx init --from-mcp "npx -y @acme/mcp" --yes
+npx @orchid-labs/pluxx test
+npx @orchid-labs/pluxx sync --from-mcp https://mcp.acme.com/mcp
 ```
 
 Pluxx owns the plugin repo lifecycle. It does not own backend deployment.

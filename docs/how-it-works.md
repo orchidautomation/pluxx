@@ -69,24 +69,25 @@ Those should be documented and revisited later, not treated as the core product 
 
 ## Runtime Today
 
-Pluxx is Bun-first today.
+Pluxx is published on npm as `@orchid-labs/pluxx`, but it is still Bun-backed at runtime.
 
 The important practical distinction is:
 
 - the CLI is the real execution engine
 - the Pluxx plugin is a UX layer on top of that engine
-- the npm package name exists in `package.json`, but `pluxx` is **not** currently published on npm
+- the npm package exists publicly as `@orchid-labs/pluxx`
 
 So today, the real invocation paths are:
 
+- from npm: `npx @orchid-labs/pluxx ...`
 - from this repo: `bun ./bin/pluxx.js ...`
 - from another workspace with a local dependency/link: `bunx pluxx ...`
 
 What is **not** true yet:
 
-- `npx pluxx ...` is not a public install path today, because `pluxx` is not currently in the npm registry
+- `npx pluxx ...` is not the public install path, because the published package name is scoped as `@orchid-labs/pluxx`
 
-Once Pluxx is published, the launcher in [`bin/pluxx.js`](../bin/pluxx.js) is already set up so `npx pluxx ...` can work on machines that also have Bun installed. But the honest current docs contract is Bun-first and repo/local-package-first.
+The launcher in [`bin/pluxx.js`](../bin/pluxx.js) delegates to Bun when it is not already running under Bun, so the honest runtime contract is: npm distribution is real, but Bun must still be installed on the machine.
 
 ## How Pluxx Works Today
 
@@ -314,27 +315,27 @@ pluxx.config.ts          ← You write one config
 You can either author from scratch or scaffold directly from a live MCP server:
 
 ```bash
-$ bunx pluxx init --from-mcp https://example.com/mcp
+$ npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp
 ```
 
 That import flow supports:
 
 - remote HTTP MCP servers
 - legacy SSE MCP servers via `--transport sse`
-- local stdio MCP commands such as `bunx pluxx init --from-mcp "npx -y @acme/mcp"`
+- local stdio MCP commands such as `npx @orchid-labs/pluxx init --from-mcp "npx -y @acme/mcp"`
 
 A common production transition is:
 
 1. Start from local stdio MCP during development.
 2. Build and validate the generated plugin repo.
-3. Repoint sync to the deployed remote MCP endpoint: `bunx pluxx sync --from-mcp https://mcp.example.com/mcp`.
+3. Repoint sync to the deployed remote MCP endpoint: `npx @orchid-labs/pluxx sync --from-mcp https://mcp.example.com/mcp`.
 
 That flow introspects the server, reads its tool metadata, and drafts workflow-oriented skills instead of mirroring raw tool names one-to-one whenever the tool set supports a clearer grouping.
 
 For automation or CI-style setup, the same flow supports headless flags:
 
 ```bash
-$ bunx pluxx init --from-mcp https://example.com/mcp --yes --name acme --display-name "Acme" --author "Acme" --targets claude-code,codex --grouping workflow --hooks safe --json
+$ npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp --yes --name acme --display-name "Acme" --author "Acme" --targets claude-code,codex --grouping workflow --hooks safe --json
 ```
 
 Generated `INSTRUCTIONS.md` and MCP-derived `SKILL.md` files now use a mixed-ownership format: Pluxx owns the generated block, and a separate custom section is preserved across `pluxx sync --from-mcp`.
@@ -343,7 +344,7 @@ Those generated skills also include deterministic example requests based on the 
 
 ```typescript
 // pluxx.config.ts
-import { definePlugin } from 'pluxx'
+import { definePlugin } from '@orchid-labs/pluxx'
 
 export default definePlugin({
   name: 'my-plugin',
@@ -383,7 +384,7 @@ export default definePlugin({
 ### Step 2: Build
 
 ```bash
-$ bunx pluxx build
+$ npx @orchid-labs/pluxx build
 
 Building for: claude-code, cursor, codex, opencode, github-copilot, openhands, warp
 
@@ -399,7 +400,7 @@ Done! 85 files generated across 11 platforms.
 ### Step 3: Lint
 
 ```bash
-$ bunx pluxx lint
+$ npx @orchid-labs/pluxx lint
 
   ✓ Plugin name is valid kebab-case
   ✓ Version follows semver format
@@ -416,7 +417,7 @@ $ bunx pluxx lint
 ### Step 4: Diagnose and test locally
 
 ```bash
-$ bunx pluxx doctor
+$ npx @orchid-labs/pluxx doctor
 
 SUCCESS bun-version Supported Bun runtime detected
 SUCCESS config-valid Config parsed successfully
@@ -428,7 +429,7 @@ Doctor summary: 0 error(s), 1 warning(s), 1 info message(s)
 `pluxx doctor` is read-only. It checks runtime health, config validity, configured paths, MCP auth/transport shape, scaffold metadata, and trust advisories.
 
 ```bash
-$ bunx pluxx test
+$ npx @orchid-labs/pluxx test
 
 Config: my-plugin@0.1.0
 Lint: 0 error(s), 0 warning(s)
@@ -443,7 +444,7 @@ pluxx test passed.
 ### Step 5: Install locally
 
 ```bash
-$ bunx pluxx install --target claude-code
+$ npx @orchid-labs/pluxx install --target claude-code
 
   claude-code -> ~/.claude/plugins/my-plugin
 
@@ -457,7 +458,7 @@ $ claude plugin validate ~/.claude/plugins/my-plugin
 ### Step 6: Sync later
 
 ```bash
-$ bunx pluxx sync --dry-run --json
+$ npx @orchid-labs/pluxx sync --dry-run --json
 ```
 
 The sync flow refreshes MCP-derived scaffold content while preserving the custom sections in generated Markdown files.
@@ -465,17 +466,17 @@ The sync flow refreshes MCP-derived scaffold content while preserving the custom
 ### Step 7: Hand it to the host agent
 
 ```bash
-$ bunx pluxx autopilot --from-mcp https://example.com/mcp --runner codex --yes --name acme --display-name "Acme" --author "Acme"
+$ npx @orchid-labs/pluxx autopilot --from-mcp https://example.com/mcp --runner codex --yes --name acme --display-name "Acme" --author "Acme"
 ```
 
 Or step through Agent Mode manually:
 
 ```bash
-$ bunx pluxx agent prepare
-$ bunx pluxx agent prompt taxonomy
-$ bunx pluxx agent run taxonomy --runner claude
-$ bunx pluxx agent run taxonomy --runner cursor
-$ bunx pluxx agent run taxonomy --runner codex
+$ npx @orchid-labs/pluxx agent prepare
+$ npx @orchid-labs/pluxx agent prompt taxonomy
+$ npx @orchid-labs/pluxx agent run taxonomy --runner claude
+$ npx @orchid-labs/pluxx agent run taxonomy --runner cursor
+$ npx @orchid-labs/pluxx agent run taxonomy --runner codex
 ```
 
 That generates:
@@ -500,7 +501,7 @@ Pluxx prepares the correct plugin bundles and manifests, then your team ships th
 Typical flow:
 
 1. Commit/version the generated plugin source repo.
-2. Build bundles with `bunx pluxx build`.
+2. Build bundles with `npx @orchid-labs/pluxx build`.
 3. Publish/share those bundles through release artifacts or platform-specific distribution paths.
 
 Pluxx does not deploy the MCP backend service; it keeps plugin distribution and maintenance consistent as that backend evolves.

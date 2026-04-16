@@ -2,7 +2,7 @@
 
 This is the step-by-step guide for making a real Pluxx plugin from an MCP server.
 
-If you are not starting from MCP, initialize a source project with `bunx pluxx init my-plugin`, fill in `pluxx.config.ts`, `INSTRUCTIONS.md`, and `skills/`, then continue from the validation/build steps in this guide.
+If you are not starting from MCP, initialize a source project with `npx @orchid-labs/pluxx init my-plugin`, fill in `pluxx.config.ts`, `INSTRUCTIONS.md`, and `skills/`, then continue from the validation/build steps in this guide.
 
 Use this doc when you want the exact sequence for:
 
@@ -63,7 +63,7 @@ export ACME_API_KEY='your_real_key'
 Remote HTTP MCP:
 
 ```bash
-bunx pluxx init \
+npx @orchid-labs/pluxx init \
   --from-mcp https://example.com/mcp \
   --yes \
   --name acme \
@@ -77,7 +77,7 @@ bunx pluxx init \
 Remote bearer auth:
 
 ```bash
-bunx pluxx init \
+npx @orchid-labs/pluxx init \
   --from-mcp https://example.com/mcp \
   --yes \
   --name acme \
@@ -93,7 +93,7 @@ bunx pluxx init \
 Remote custom header auth:
 
 ```bash
-bunx pluxx init \
+npx @orchid-labs/pluxx init \
   --from-mcp https://example.com/mcp \
   --yes \
   --name acme \
@@ -111,7 +111,7 @@ bunx pluxx init \
 Local stdio MCP:
 
 ```bash
-bunx pluxx init \
+npx @orchid-labs/pluxx init \
   --from-mcp "npx -y @acme/mcp" \
   --yes \
   --name acme \
@@ -149,7 +149,7 @@ Key files:
 If you want semantic refinement, give Pluxx the product context first:
 
 ```bash
-bunx pluxx agent prepare \
+npx @orchid-labs/pluxx agent prepare \
   --website https://example.com \
   --docs https://docs.example.com/mcp
 ```
@@ -157,8 +157,8 @@ bunx pluxx agent prepare \
 If you want to inspect the generated prompts:
 
 ```bash
-bunx pluxx agent prompt taxonomy
-bunx pluxx agent prompt instructions
+npx @orchid-labs/pluxx agent prompt taxonomy
+npx @orchid-labs/pluxx agent prompt instructions
 ```
 
 This creates:
@@ -173,8 +173,8 @@ This creates:
 Run only the pass you need:
 
 ```bash
-bunx pluxx agent run taxonomy --runner claude
-bunx pluxx agent run instructions --runner claude
+npx @orchid-labs/pluxx agent run taxonomy --runner claude
+npx @orchid-labs/pluxx agent run instructions --runner claude
 ```
 
 Or use the prompt packs manually inside Claude/Codex/Cursor/OpenCode if you want more control.
@@ -188,9 +188,9 @@ Rule of thumb:
 ### 7. Validate the project
 
 ```bash
-bunx pluxx doctor
-bunx pluxx lint
-bunx pluxx test --target claude-code cursor codex opencode
+npx @orchid-labs/pluxx doctor
+npx @orchid-labs/pluxx lint
+npx @orchid-labs/pluxx test --target claude-code cursor codex opencode
 ```
 
 What each command means:
@@ -202,7 +202,7 @@ What each command means:
 ### 8. Build the platform bundles
 
 ```bash
-bunx pluxx build
+npx @orchid-labs/pluxx build
 ```
 
 This renders the source scaffold into `dist/`:
@@ -226,19 +226,19 @@ Important:
 Claude Code:
 
 ```bash
-bunx pluxx install --trust --target claude-code
+npx @orchid-labs/pluxx install --trust --target claude-code
 ```
 
 Cursor:
 
 ```bash
-bunx pluxx install --trust --target cursor
+npx @orchid-labs/pluxx install --trust --target cursor
 ```
 
 Codex:
 
 ```bash
-bunx pluxx install --trust --target codex
+npx @orchid-labs/pluxx install --trust --target codex
 ```
 
 Then restart the host app and test real requests.
@@ -250,7 +250,7 @@ Use this when you want Pluxx to do the whole flow for you.
 Quick mode:
 
 ```bash
-bunx pluxx autopilot \
+npx @orchid-labs/pluxx autopilot \
   --from-mcp https://example.com/mcp \
   --runner codex \
   --mode quick \
@@ -260,7 +260,7 @@ bunx pluxx autopilot \
 Standard mode:
 
 ```bash
-bunx pluxx autopilot \
+npx @orchid-labs/pluxx autopilot \
   --from-mcp https://example.com/mcp \
   --runner codex \
   --mode standard \
@@ -273,7 +273,7 @@ bunx pluxx autopilot \
 Thorough mode:
 
 ```bash
-bunx pluxx autopilot \
+npx @orchid-labs/pluxx autopilot \
   --from-mcp https://example.com/mcp \
   --runner codex \
   --mode thorough \

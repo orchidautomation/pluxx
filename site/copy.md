@@ -4,13 +4,13 @@
 **Headline**: Build AI agent plugins once. Ship them everywhere.
 **Subhead**: One config generates native plugin packages for Claude Code, Cursor, Codex, OpenCode, GitHub Copilot, and more. Stop maintaining 7 copies of the same plugin.
 
-**CTA**: `bunx pluxx init`
+**CTA**: `npx @orchid-labs/pluxx init`
 **Hero note**: Bun runtime required today.
 **Secondary CTA**: View on GitHub
 
 ## Terminal Demo (show this as animated/static code block)
 ```
-$ bunx pluxx build
+$ npx @orchid-labs/pluxx build
 
 Loading config...
 Building for: claude-code, cursor, codex, opencode, github-copilot, openhands, warp
@@ -77,10 +77,10 @@ mcp: {
 → OpenCode: env var validation in generated wrapper
 
 ## How It Works
-1. `bunx pluxx init` — scaffold your plugin config
+1. `npx @orchid-labs/pluxx init` — scaffold your plugin config
 2. Add your skills, MCP servers, hooks, and brand metadata
-3. `bunx pluxx build` — generate for all platforms
-4. `bunx pluxx install` — symlink for local testing
+3. `npx @orchid-labs/pluxx build` — generate for all platforms
+4. `npx @orchid-labs/pluxx install` — symlink for local testing
 5. Ship it.
 
 ## Open Source
@@ -92,6 +92,6 @@ mcp: {
 ## Footer CTA
 **Headline**: Start building in 30 seconds
 ```
-bunx pluxx init my-plugin
+npx @orchid-labs/pluxx init my-plugin
 ```
 GitHub | Docs | Discord

@@ -1,5 +1,5 @@
 {
-  "name": "pluxx",
+  "name": "@orchid-labs/pluxx",
   "version": "0.1.0",
   "description": "Build AI agent plugins once. Ship them to Claude Code, Cursor, Codex, OpenCode, GitHub Copilot, and more.",
   "type": "module",
@@ -12,7 +12,7 @@
     }
   },
   "bin": {
-    "pluxx": "./bin/pluxx.js"
+    "pluxx": "bin/pluxx.js"
   },
   "scripts": {
     "build": "bun build src/index.ts --outdir dist --target node && tsc --emitDeclarationOnly",
@@ -52,7 +52,7 @@
   "homepage": "https://pluxx.dev",
   "repository": {
     "type": "git",
-    "url": "https://github.com/orchidautomation/pluxx"
+    "url": "git+https://github.com/orchidautomation/pluxx.git"
   },
   "bugs": {
     "url": "https://github.com/orchidautomation/pluxx/issues"

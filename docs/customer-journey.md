@@ -59,7 +59,7 @@ The click is:
 Example:
 
 ```bash
-bunx pluxx init \
+npx @orchid-labs/pluxx init \
   --from-mcp https://example.com/mcp \
   --yes \
   --name acme \
@@ -106,8 +106,8 @@ What they get emotionally at this point:
 The customer validates the project:
 
 ```bash
-bunx pluxx doctor
-bunx pluxx test --target claude-code cursor codex opencode
+npx @orchid-labs/pluxx doctor
+npx @orchid-labs/pluxx test --target claude-code cursor codex opencode
 ```
 
 What they get:
@@ -134,15 +134,15 @@ For richer MCPs, the user wants:
 This is where Agent Mode enters:
 
 ```bash
-bunx pluxx autopilot --from-mcp https://example.com/mcp --runner codex --yes --name acme --display-name "Acme" --author "Acme"
+npx @orchid-labs/pluxx autopilot --from-mcp https://example.com/mcp --runner codex --yes --name acme --display-name "Acme" --author "Acme"
 ```
 
 Or step through the refinement passes manually:
 
 ```bash
-bunx pluxx agent prepare
-bunx pluxx agent run taxonomy --runner codex
-bunx pluxx agent run instructions --runner codex
+npx @orchid-labs/pluxx agent prepare
+npx @orchid-labs/pluxx agent run taxonomy --runner codex
+npx @orchid-labs/pluxx agent run instructions --runner codex
 ```
 
 What happens:
@@ -166,8 +166,8 @@ This prevents the common "AI rewrote everything" failure mode.
 Once satisfied:
 
 ```bash
-bunx pluxx build
-bunx pluxx install --trust
+npx @orchid-labs/pluxx build
+npx @orchid-labs/pluxx install --trust
 ```
 
 What they get:
@@ -208,7 +208,7 @@ The MCP changes later:
 The customer runs:
 
 ```bash
-bunx pluxx sync --from-mcp https://mcp.example.com/mcp
+npx @orchid-labs/pluxx sync --from-mcp https://mcp.example.com/mcp
 ```
 
 What Pluxx does:
@@ -220,8 +220,8 @@ What Pluxx does:
 Then the customer can rerun:
 
 ```bash
-bunx pluxx agent run taxonomy --runner codex
-bunx pluxx test
+npx @orchid-labs/pluxx agent run taxonomy --runner codex
+npx @orchid-labs/pluxx test
 ```
 
 ## What The Customer Ultimately Gets

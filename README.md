@@ -9,10 +9,10 @@ The product scope is intentionally tight:
 - Pluxx owns the common cross-host plugin-authoring primitives
 - Pluxx does not try to model every host-specific extension feature yet
 
-pluxx is Bun-first today. Use `bunx` or run it from a Bun workspace. The npm package includes a small launcher for global installs, but it still requires Bun at runtime.
+pluxx is now published on npm as `@orchid-labs/pluxx`. The public invocation path is `npx @orchid-labs/pluxx ...`, and the package also works with `npm install -g @orchid-labs/pluxx`. The current launcher still requires Bun at runtime, so keep Bun installed even when using the npm package.
 
 ```bash
-bunx pluxx build
+npx @orchid-labs/pluxx build
 ```
 
 ```
@@ -117,57 +117,57 @@ The next layer is `Agent` mode: Pluxx prepares the scaffold, context pack, and p
 # Preferred: run via bunx
 
 # Start a plugin by hand
-bunx pluxx init my-plugin
+npx @orchid-labs/pluxx init my-plugin
 cd my-plugin
 # Edit pluxx.config.ts, add skills in ./skills/, then build
 
 # Or scaffold directly from an MCP server
-bunx pluxx init --from-mcp https://example.com/mcp
+npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp
 
 # Legacy SSE MCP import
-bunx pluxx init --from-mcp https://example.com/sse --transport sse
+npx @orchid-labs/pluxx init --from-mcp https://example.com/sse --transport sse
 
 # Local stdio MCP import
-bunx pluxx init --from-mcp "npx -y @acme/mcp"
+npx @orchid-labs/pluxx init --from-mcp "npx -y @acme/mcp"
 
 # pluxx will introspect the server and draft grouped skills like
 # account-research, contact-discovery, hiring-signals, or technographics
 
 # Headless / CI-friendly import
-bunx pluxx init --from-mcp https://example.com/mcp --yes --name acme --display-name "Acme" --author "Acme" --targets claude-code,codex --grouping workflow --hooks safe --json
+npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp --yes --name acme --display-name "Acme" --author "Acme" --targets claude-code,codex --grouping workflow --hooks safe --json
 
 # Remote MCPs that use custom header auth
-bunx pluxx init --from-mcp https://mcp.playkit.sh/mcp --yes --auth-env PLAYKIT_API_KEY --auth-type header --auth-header X-API-Key --auth-template '${value}'
+npx @orchid-labs/pluxx init --from-mcp https://mcp.playkit.sh/mcp --yes --auth-env PLAYKIT_API_KEY --auth-type header --auth-header X-API-Key --auth-template '${value}'
 
 # OAuth-first MCPs: complete provider OAuth first, then pass the resulting token env var
-bunx pluxx init --from-mcp https://example.com/mcp --yes --auth-env OAUTH_ACCESS_TOKEN --auth-type bearer
+npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp --yes --auth-env OAUTH_ACCESS_TOKEN --auth-type bearer
 
 # Inspect the generated project without mutating files
-bunx pluxx doctor
-bunx pluxx init --from-mcp https://example.com/mcp --yes --dry-run
+npx @orchid-labs/pluxx doctor
+npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp --yes --dry-run
 
 # Refresh MCP-derived files later while preserving the custom sections
-bunx pluxx sync --json
+npx @orchid-labs/pluxx sync --json
 
 # Prepare an agent-facing context pack and prompt pack
-bunx pluxx agent prepare
-bunx pluxx agent prompt taxonomy
+npx @orchid-labs/pluxx agent prepare
+npx @orchid-labs/pluxx agent prompt taxonomy
 
 # Or run the full import -> refine -> verify path in one shot
-bunx pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode quick --yes
-bunx pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode standard --yes --name acme --display-name "Acme" --author "Acme"
-bunx pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode thorough --yes --verbose-runner
+npx @orchid-labs/pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode quick --yes
+npx @orchid-labs/pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode standard --yes --name acme --display-name "Acme" --author "Acme"
+npx @orchid-labs/pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode thorough --yes --verbose-runner
 
 # Or let Claude/Cursor/OpenCode/Codex consume the pack headlessly
-bunx pluxx agent run taxonomy --runner claude
-bunx pluxx agent run taxonomy --runner cursor
-bunx pluxx agent run taxonomy --runner codex
-bunx pluxx agent run review --runner opencode --attach http://localhost:4096 --no-verify
+npx @orchid-labs/pluxx agent run taxonomy --runner claude
+npx @orchid-labs/pluxx agent run taxonomy --runner cursor
+npx @orchid-labs/pluxx agent run taxonomy --runner codex
+npx @orchid-labs/pluxx agent run review --runner opencode --attach http://localhost:4096 --no-verify
 
 # Validate, build, and smoke-test the generated plugin
-bunx pluxx lint
-bunx pluxx build
-bunx pluxx test
+npx @orchid-labs/pluxx lint
+npx @orchid-labs/pluxx build
+npx @orchid-labs/pluxx test
 ```
 
 `--attach` is only supported for the `opencode` runner.
@@ -209,16 +209,16 @@ Example local-to-production transition:
 
 ```bash
 # Local development MCP
-bunx pluxx init --from-mcp "npx -y @acme/mcp"
+npx @orchid-labs/pluxx init --from-mcp "npx -y @acme/mcp"
 
 # Later, after your MCP backend is deployed
-bunx pluxx sync --from-mcp https://mcp.acme.com/mcp
+npx @orchid-labs/pluxx sync --from-mcp https://mcp.acme.com/mcp
 ```
 
 Publish/distribution today is repo-first:
 
 1. Commit the generated plugin source repo (`pluxx.config.ts`, `skills/`, `INSTRUCTIONS.md`, `.pluxx/mcp.json`).
-2. Build platform bundles with `bunx pluxx build`.
+2. Build platform bundles with `npx @orchid-labs/pluxx build`.
 3. Distribute those bundles through your target channels (internal repo, releases, or platform-specific publish paths).
 
 Pluxx is the distribution and maintenance layer for plugin artifacts; MCP service deployment remains your responsibility.
@@ -235,7 +235,7 @@ There is now also a first-class self-hosting source project at [example/pluxx](/
 
 ```bash
 # Optional: global install still shells out to Bun
-npm install -g pluxx
+npm install -g -labs/pluxx
 pluxx init my-plugin
 
 # Scaffold a new plugin
@@ -244,29 +244,29 @@ cd my-plugin
 # Edit pluxx.config.ts, create skills in ./skills/
 
 # Build for all platforms
-bunx pluxx build
+npx @orchid-labs/pluxx build
 
 # Lint against all platform rules (47 checks)
-bunx pluxx lint
+npx @orchid-labs/pluxx lint
 
 # Diagnose local runtime + config health
-bunx pluxx doctor
+npx @orchid-labs/pluxx doctor
 
 # Run config, lint, build, and smoke checks together
-bunx pluxx test
+npx @orchid-labs/pluxx test
 
 # Build for specific platforms
-bunx pluxx build --target claude-code cursor codex opencode
+npx @orchid-labs/pluxx build --target claude-code cursor codex opencode
 
 # Validate your config
-bunx pluxx validate
+npx @orchid-labs/pluxx validate
 ```
 
 ## Config
 
 ```typescript
 // pluxx.config.ts
-import { definePlugin } from 'pluxx'
+import { definePlugin } from '@orchid-labs/pluxx'
 
 export default definePlugin({
   name: 'my-plugin',
@@ -412,7 +412,7 @@ The [example/megamind](./example/megamind) directory contains a full plugin that
 
 ```bash
 cd example/megamind
-bunx pluxx build
+npx @orchid-labs/pluxx build
 ```
 
 ### Prospeo (sales intelligence MCP)
@@ -421,22 +421,22 @@ The [examples/prospeo-mcp](./examples/prospeo-mcp) directory wraps a real MCP se
 
 ```bash
 cd examples/prospeo-mcp
-bunx pluxx build   # 52 files across 7 platforms
-bunx pluxx lint    # Catches real platform gotchas
+npx @orchid-labs/pluxx build   # 52 files across 7 platforms
+npx @orchid-labs/pluxx lint    # Catches real platform gotchas
 ```
 
 ## Testing Locally
 
 ```bash
 # Check project health before generating anything
-bunx pluxx doctor
+npx @orchid-labs/pluxx doctor
 
 # Build and install to Claude Code
-bunx pluxx build
-bunx pluxx install --target claude-code
+npx @orchid-labs/pluxx build
+npx @orchid-labs/pluxx install --target claude-code
 
 # Run the full plugin verification contract
-bunx pluxx test
+npx @orchid-labs/pluxx test
 
 # Validate with Claude Code's own validator
 claude plugin validate ~/.claude/plugins/my-plugin
@@ -466,9 +466,9 @@ jobs:
 For headless local automation, prefer:
 
 ```bash
-bunx pluxx init --from-mcp https://example.com/mcp --yes --json
-bunx pluxx sync --dry-run --json
-bunx pluxx test --json
+npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp --yes --json
+npx @orchid-labs/pluxx sync --dry-run --json
+npx @orchid-labs/pluxx test --json
 ```
 
 See [docs/getting-started.md](./docs/getting-started.md) for the full getting-started walkthrough, including the MCP-first path.
@@ -482,7 +482,7 @@ Hook commands are shell commands that execute on your machine when hook events f
 Use `--trust` to bypass the confirmation prompt (useful in CI/non-interactive environments):
 
 ```bash
-bunx pluxx install --trust
+npx @orchid-labs/pluxx install --trust
 ```
 
 ## CLI Commands

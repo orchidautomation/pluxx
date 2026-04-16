@@ -7,10 +7,10 @@ This workflow creates a deterministic first scaffold from a raw MCP.
 ## Recommended sequence
 
 ```bash
-bunx pluxx init --from-mcp https://example.com/mcp --yes
-bunx pluxx doctor
-bunx pluxx lint
-bunx pluxx test
+npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp --yes
+npx @orchid-labs/pluxx doctor
+npx @orchid-labs/pluxx lint
+npx @orchid-labs/pluxx test
 ```
 
 ## Auth examples
@@ -18,13 +18,13 @@ bunx pluxx test
 Bearer:
 
 ```bash
-bunx pluxx init --from-mcp https://example.com/mcp --yes --auth-env API_KEY --auth-type bearer
+npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp --yes --auth-env API_KEY --auth-type bearer
 ```
 
 Custom header:
 
 ```bash
-bunx pluxx init \
+npx @orchid-labs/pluxx init \
   --from-mcp https://mcp.playkit.sh/mcp \
   --yes \
   --auth-env PLAYKIT_API_KEY \
