@@ -112,6 +112,7 @@ export interface AgentRunSummary {
 
 export interface AgentRunPlan extends AgentRunSummary {
   files: AgentPreparePlannedFile[]
+  prepareOptions?: AgentPrepareOptions
 }
 
 export interface AgentRunResult extends AgentRunSummary {
@@ -307,6 +308,7 @@ export async function planAgentRun(
     updatedFiles: [...preparePlan.updatedFiles, ...promptPlan.updatedFiles],
     contextInputs: preparePlan.contextInputs,
     files: [...preparePlan.files, ...promptPlan.files],
+    prepareOptions,
   }
 }
 
@@ -317,14 +319,12 @@ export async function runAgentPlan(
     streamOutput?: boolean
   } = {},
 ): Promise<AgentRunResult> {
-  for (const file of plan.files) {
-    const filePath = resolve(rootDir, file.relativePath)
-    const parentDir = file.relativePath.split('/').slice(0, -1).join('/')
-    if (parentDir) {
-      await mkdir(resolve(rootDir, parentDir), { recursive: true })
-    }
-    await Bun.write(filePath, file.content)
-  }
+  const preparePlan = await planAgentPrepare(rootDir, plan.prepareOptions ?? {})
+  const promptPlan = await planAgentPrompt(rootDir, plan.kind, { allowMissingContext: true })
+  await writePlannedFiles(rootDir, [...preparePlan.files, ...promptPlan.files])
+  let createdFiles = [...preparePlan.createdFiles, ...promptPlan.createdFiles]
+  let updatedFiles = [...preparePlan.updatedFiles, ...promptPlan.updatedFiles]
+  let contextInputs = preparePlan.contextInputs
 
   await ensureRunnerAvailable(plan.runner)
   await ensureRunnerAuthenticated(plan.runner)
@@ -333,6 +333,10 @@ export async function runAgentPlan(
   })
   if (runnerExitCode === 0 && plan.kind === 'taxonomy') {
     await applyPersistedTaxonomy(rootDir)
+    const refreshedPack = await refreshAgentPack(rootDir, plan.prepareOptions ?? {})
+    createdFiles = mergeUnique(createdFiles, refreshedPack.createdFiles)
+    updatedFiles = mergeUnique(updatedFiles, refreshedPack.updatedFiles)
+    contextInputs = refreshedPack.contextInputs
   }
   const verification = runnerExitCode === 0 && plan.verify
     ? await runTestSuite({ rootDir })
@@ -340,10 +344,59 @@ export async function runAgentPlan(
 
   return {
     ...plan,
+    createdFiles,
+    updatedFiles,
+    contextInputs,
     ok: runnerExitCode === 0 && (verification?.ok ?? true),
     runnerExitCode,
     verification,
   }
+}
+
+async function refreshAgentPack(
+  rootDir: string,
+  prepareOptions: AgentPrepareOptions,
+): Promise<{
+  createdFiles: string[]
+  updatedFiles: string[]
+  contextInputs: string[]
+}> {
+  const preparePlan = await planAgentPrepare(rootDir, prepareOptions)
+  const promptPlans = await Promise.all(
+    AGENT_PROMPT_KINDS.map((kind) => planAgentPrompt(rootDir, kind, { allowMissingContext: true })),
+  )
+  const files = [
+    ...preparePlan.files,
+    ...promptPlans.flatMap((promptPlan) => promptPlan.files),
+  ]
+  await writePlannedFiles(rootDir, files)
+
+  return {
+    createdFiles: mergeUnique(
+      preparePlan.createdFiles,
+      promptPlans.flatMap((promptPlan) => promptPlan.createdFiles),
+    ),
+    updatedFiles: mergeUnique(
+      preparePlan.updatedFiles,
+      promptPlans.flatMap((promptPlan) => promptPlan.updatedFiles),
+    ),
+    contextInputs: preparePlan.contextInputs,
+  }
+}
+
+async function writePlannedFiles(rootDir: string, files: AgentPreparePlannedFile[]): Promise<void> {
+  for (const file of files) {
+    const filePath = resolve(rootDir, file.relativePath)
+    const parentDir = file.relativePath.split('/').slice(0, -1).join('/')
+    if (parentDir) {
+      await mkdir(resolve(rootDir, parentDir), { recursive: true })
+    }
+    await Bun.write(filePath, file.content)
+  }
+}
+
+function mergeUnique(existing: string[], next: string[]): string[] {
+  return [...new Set([...existing, ...next])]
 }
 
 function buildEditableFiles(metadata: McpScaffoldMetadata): AgentPlanFile[] {

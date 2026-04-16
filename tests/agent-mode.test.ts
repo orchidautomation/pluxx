@@ -651,6 +651,18 @@ exit 1
     expect(existsSync(resolve(TEST_DIR, 'commands/research.md'))).toBe(true)
     expect(existsSync(resolve(TEST_DIR, 'skills/ask-clay/SKILL.md'))).toBe(false)
     expect(existsSync(resolve(TEST_DIR, 'commands/ask-clay.md'))).toBe(false)
+    expect(existsSync(resolve(TEST_DIR, '.pluxx/agent/instructions-prompt.md'))).toBe(true)
+    expect(existsSync(resolve(TEST_DIR, '.pluxx/agent/review-prompt.md'))).toBe(true)
+
+    const context = readFileSync(resolve(TEST_DIR, AGENT_CONTEXT_PATH), 'utf-8')
+    const instructionsPrompt = readFileSync(resolve(TEST_DIR, '.pluxx/agent/instructions-prompt.md'), 'utf-8')
+    const reviewPrompt = readFileSync(resolve(TEST_DIR, '.pluxx/agent/review-prompt.md'), 'utf-8')
+    expect(context).toContain('### `research`')
+    expect(context).not.toContain('### `ask-clay`')
+    expect(instructionsPrompt).toContain('`skills/research/SKILL.md`')
+    expect(instructionsPrompt).not.toContain('`skills/ask-clay/SKILL.md`')
+    expect(reviewPrompt).toContain('`skills/research/SKILL.md`')
+    expect(reviewPrompt).not.toContain('`skills/ask-clay/SKILL.md`')
   })
 
   it('captures website, docs, and local file context inputs in the generated context pack', async () => {

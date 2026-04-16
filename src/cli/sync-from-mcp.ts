@@ -142,6 +142,13 @@ export async function syncFromMcp(options: SyncFromMcpOptions): Promise<SyncFrom
     const after = readFileSync(currentPath, 'utf-8')
     return before !== after
   })
+  const scaffoldChanged = addedFiles.length > 0
+    || updatedFiles.length > 0
+    || removedFiles.length > 0
+    || renamedFiles.length > 0
+  if (scaffoldChanged) {
+    invalidateSavedAgentPack(options.rootDir)
+  }
 
   return {
     source,
@@ -216,6 +223,8 @@ export async function applyPersistedTaxonomy(rootDir: string): Promise<void> {
       writeFileSync(resolveWithinRoot(rootDir, file), previousInstructions, 'utf-8')
     }
   }
+
+  invalidateSavedAgentPack(rootDir)
 }
 
 export async function planSyncFromMcp(options: SyncFromMcpOptions): Promise<SyncFromMcpResult> {
@@ -306,6 +315,20 @@ function pruneEmptyDirectories(rootDir: string, startDir: string): void {
 
     rmdirSync(current)
     current = dirname(current)
+  }
+}
+
+const AGENT_PACK_FILES = [
+  '.pluxx/agent/context.md',
+  '.pluxx/agent/plan.json',
+  '.pluxx/agent/taxonomy-prompt.md',
+  '.pluxx/agent/instructions-prompt.md',
+  '.pluxx/agent/review-prompt.md',
+] as const
+
+function invalidateSavedAgentPack(rootDir: string): void {
+  for (const relativePath of AGENT_PACK_FILES) {
+    removeManagedFile(rootDir, relativePath)
   }
 }
 
