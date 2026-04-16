@@ -15,3 +15,8 @@ Install target:
 ```bash
 npx @orchid-labs/pluxx install --target opencode
 ```
+
+Permissions note:
+
+- OpenCode permissions are compiled to native tool-level `config.permission` entries.
+- Selector-specific precision (for example exact path globs or specific MCP tools) is downgraded to coarse tool permissions and should be documented in plugin guidance.

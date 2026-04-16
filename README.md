@@ -563,7 +563,7 @@ pluxx.config.ts          <- You define your plugin once
 - [x] `pluxx test` — verification command for plugin repos
 - [x] CI/CD GitHub Action / reusable workflow
 - [ ] canonical `userConfig` / install-time secret handling
-- [ ] canonical permissions model across primary targets
+- [x] canonical permissions model across primary targets
 - [ ] build-time target cap validation for primary targets
 - [ ] `pluxx publish` — push to platform marketplaces
 - [ ] `pluxx diff` — show what changed per platform

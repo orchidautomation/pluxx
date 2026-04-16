@@ -529,6 +529,17 @@ Pluxx maps canonical hook names for plugin-packaged hook targets and validates C
 | `preToolUse` | `PreToolUse` | `preToolUse` | `PreToolUse` |
 | `beforeSubmitPrompt` | `UserPromptSubmit` | `beforeSubmitPrompt` | `UserPromptSubmit` |
 
+### Permissions Compilation
+
+Pluxx compiles canonical `permissions.{allow,ask,deny}` into each primary target with explicit fallback behavior:
+
+| Platform | Output shape | Notes |
+|----------|--------------|-------|
+| Claude Code | generated `hooks/pluxx-permissions.mjs` + `PreToolUse` hook wiring | Fine-grained rule matching via hook decisions |
+| Cursor | generated `hooks/pluxx-permissions.mjs` + `preToolUse`/`beforeShellExecution`/`beforeReadFile`/`beforeMCPExecution` wiring | Fine-grained rule matching via hook decisions |
+| Codex | `.codex/permissions.generated.json` | External enforcement only; mirror rules into Codex policy/hooks |
+| OpenCode | tool-level `config.permission` map in generated wrapper | Selector-level precision is downgraded to tool-level permissions |
+
 ### Instructions Generation
 
 Your single `INSTRUCTIONS.md` becomes the right file for each platform:
@@ -562,11 +573,10 @@ pluxx catches platform-specific gotchas before you ship:
 The most important remaining gaps from the tightened extension-systems review are:
 
 1. `userConfig`
-2. `permissions`
-3. build-time target cap validation
-4. publish / marketplace generation
-5. deeper MCP protocol support beyond `tools/list`
-6. portable agent / subagent delegation
+2. build-time target cap validation
+3. publish / marketplace generation
+4. deeper MCP protocol support beyond `tools/list`
+5. portable agent / subagent delegation
 
 That is the real delta from the current strong engine to the mature cross-host plugin product.
 

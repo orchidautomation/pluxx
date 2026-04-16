@@ -1,6 +1,7 @@
 import { existsSync } from 'fs'
 import { Generator } from '../base'
 import type { TargetPlatform } from '../../schema'
+import { collectPermissionRules } from '../../permissions'
 
 export class CodexGenerator extends Generator {
   readonly platform: TargetPlatform = 'codex'
@@ -44,12 +45,27 @@ export class CodexGenerator extends Generator {
         },
       }),
       this.generateAgentsMd(),
+      this.generatePermissionsCompanion(),
     ])
 
     this.copySkills()
     this.copyAgents()
     this.copyScripts()
     this.copyAssets()
+  }
+
+  private async generatePermissionsCompanion(): Promise<void> {
+    if (!this.config.permissions) return
+
+    const rules = collectPermissionRules(this.config.permissions)
+    if (rules.length === 0) return
+
+    await this.writeJson('.codex/permissions.generated.json', {
+      model: 'pluxx.permissions.v1',
+      enforcedByPluginBundle: false,
+      note: 'Codex permissions are configured externally. Use this file as a generated mirror of canonical rules for your Codex user/admin policy and hook configuration.',
+      rules,
+    })
   }
 
   private async generateManifest(): Promise<void> {

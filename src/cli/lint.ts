@@ -1061,7 +1061,7 @@ function lintPermissions(config: PluginConfig, issues: LintIssue[]): void {
     pushIssue(issues, {
       level: 'warning',
       code: 'codex-permissions-external-config',
-      message: 'Codex does not currently support plugin-packaged permission enforcement. Mirror canonical permissions into Codex user/admin config or external hooks for real enforcement.',
+      message: 'Codex does not currently support plugin-packaged permission enforcement. Mirror canonical permissions into Codex user/admin config or external hooks for real enforcement (Pluxx emits .codex/permissions.generated.json as a starter mirror).',
       file: 'pluxx.config.ts',
       platform: 'Codex',
     })

@@ -268,7 +268,7 @@ describe('build', () => {
     expect(existsSync(resolve(OUT_DIR, 'codex/hooks.json'))).toBe(false)
   })
 
-  it('generates runtime permission outputs for Claude Code, Cursor, and OpenCode', async () => {
+  it('generates runtime permission outputs for Claude Code, Cursor, OpenCode, and Codex external config', async () => {
     const permissionConfig: PluginConfig = {
       ...testConfig,
       name: 'permission-plugin',
@@ -278,7 +278,7 @@ describe('build', () => {
         ask: ['Bash(git commit *)'],
         deny: ['Edit(.env)'],
       },
-      targets: ['claude-code', 'cursor', 'opencode'],
+      targets: ['claude-code', 'cursor', 'opencode', 'codex'],
       outDir: './permission-dist',
     }
 
@@ -297,6 +297,9 @@ describe('build', () => {
       readFileSync(resolve(TEST_DIR, 'permission-dist/cursor/hooks/hooks.json'), 'utf-8')
     )
     const opencodeIndex = readFileSync(resolve(TEST_DIR, 'permission-dist/opencode/index.ts'), 'utf-8')
+    const codexPermissions = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'permission-dist/codex/.codex/permissions.generated.json'), 'utf-8')
+    )
 
     expect(claudeManifest.hooks).toBeUndefined()
     expect(existsSync(resolve(TEST_DIR, 'permission-dist/claude-code/hooks/pluxx-permissions.mjs'))).toBe(true)
@@ -310,6 +313,11 @@ describe('build', () => {
     expect(opencodeIndex).toContain('const PERMISSIONS =')
     expect(opencodeIndex).toContain('"read": "allow"')
     expect(opencodeIndex).toContain('"edit": "deny"')
+    expect(opencodeIndex).not.toContain('"skill"')
+
+    expect(codexPermissions.model).toBe('pluxx.permissions.v1')
+    expect(codexPermissions.enforcedByPluginBundle).toBe(false)
+    expect(codexPermissions.rules.some((rule: { raw: string }) => rule.raw === 'Read(src/**)')).toBe(true)
   })
 
   it('writes documented manifest paths for Claude Code, Cursor, and Codex plugin components', async () => {
