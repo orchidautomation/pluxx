@@ -28,6 +28,7 @@ See [Agent Mode](./agent-mode.md) for the semantic-authoring layer.
 See [Architecture](./architecture.md) for the system view and [Customer Journey](./customer-journey.md) for the end-to-end user path.
 See [Practical handbook](./practical-handbook.md) for the operational command-by-command workflow.
 See [Core primitives](./core-primitives.md) for the tightened product scope.
+See [Roadmap](./roadmap.md) for the current milestones, dependencies, and execution queue.
 
 ## What Pluxx Treats As Core
 

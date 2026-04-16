@@ -1,139 +1,134 @@
-# Pluxx Status
+# Pluxx TODO
 
-Last updated: 2026-04-14
+Last updated: 2026-04-15
 
-## Where We Are
+## Active Now
 
-Pluxx is now a real `Core + Agent` product:
+### In Progress
 
-- `Core` works: import, scaffold, doctor, lint, build, install, sync, test
-- `Agent` works: prepare prompt/context packs, run Codex/Claude/OpenCode/Cursor headlessly, or refine manually inside the scaffold
-- the one-shot path exists: `pluxx autopilot`
-- the controllable path exists: `pluxx init` -> agent refinement -> `lint/test/build/install`
+- `PLUXX-116` Build a Mintlify docs site for Pluxx
+  - delegate: `Blocks`
+  - deliverable: public docs site that reflects the tightened core-primitives scope
+- `PLUXX-79` Define Agent Mode as the semantic authoring layer on top of Core
+  - role: umbrella / coordination issue
+  - deliverable: keep the Core + Agent product story coherent while child issues ship
 
-Real dogfood is proven:
+## Execution Queue
 
-- PlayKit works as a strong header-auth MCP example
-- Sumble works as an OAuth-first Claude Code example
-- Claude Code install flow is real and native
-- Cursor headless runner support is shipped
+### Milestone 1: Core Product Contract
 
-## Recently Shipped
+This is the immediate product-contract gap after the recent `userConfig` work.
 
-These are effectively done and no longer the main unknowns:
+- `PLUXX-113` Add canonical `userConfig` and install-time secret handling across primary targets
+  - status: `Done`
+  - shipped in commit `a9a6326`
 
-- [PLUXX-83](https://linear.app/orchid-automation/issue/PLUXX-83/create-pluxx-plugin-and-skills-for-claude-code-and-codex-agent-driven)
-  - Pluxx plugin + skill pack for host agents
-- [PLUXX-84](https://linear.app/orchid-automation/issue/PLUXX-84/add-a-codex-agent-mode-runner-adapter-once-the-official-headless)
-  - Codex runner adapter
-- [PLUXX-86](https://linear.app/orchid-automation/issue/PLUXX-86)
-  - one-shot autopilot flow
-- [PLUXX-87](https://linear.app/orchid-automation/issue/PLUXX-87)
-  - project-level agent overrides via `pluxx.agent.md`
-- [PLUXX-90](https://linear.app/orchid-automation/issue/PLUXX-90/clarify-publish-and-local-to-production-mcp-lifecycle-in-pluxx-docs)
-  - publish story, local-to-prod lifecycle docs
-- [PLUXX-91](https://linear.app/orchid-automation/issue/PLUXX-91/improve-agent-prompt-packs-so-codex-and-claude-produce-product-shaped)
-  - stronger prompt packs
-- [PLUXX-92](https://linear.app/orchid-automation/issue/PLUXX-92/harden-auth-required-mcp-onboarding-and-autopilot-runner-ux)
-  - better auth-required onboarding and quieter runner UX
-- [PLUXX-93](https://linear.app/orchid-automation/issue/PLUXX-93/expand-real-mcp-dogfood-coverage-across-messy-metadata-local-stdio-and)
-  - broader dogfood + metadata quality gates
-- [PLUXX-94](https://linear.app/orchid-automation/issue/PLUXX-94/add-a-cursor-agent-mode-runner-adapter-and-align-cursor-pluginsubagent)
-  - Cursor headless runner + Cursor contract alignment
+- `PLUXX-114` Add a canonical permissions schema across Claude Code, Codex, Cursor, and OpenCode
+  - status: `Todo`
+  - deliverable: one truthful `permissions` primitive compiled across the core four
+  - subtasks:
+    - `PLUXX-117` Design the canonical permissions model from primary-host behaviors
+      - delegate: `Blocks`
+    - `PLUXX-118` Compile canonical permissions into primary target generators
+    - `PLUXX-119` Add lint, test, and docs coverage for permission mappings
+      - delegate: `Blocks`
+  - dependency chain:
+    - `PLUXX-117` -> `PLUXX-118` -> `PLUXX-119`
 
-Recent non-ticketed but important shipped behavior:
+- `PLUXX-115` Add build-time target cap validation for primary platforms
+  - status: `Todo`
+  - deliverable: proactive warnings/errors for the primary-target limits that can silently break plugins
+  - subtasks:
+    - `PLUXX-120` Catalog primary-target hard caps in platform-rules
+      - delegate: `Blocks`
+    - `PLUXX-121` Enforce primary-target cap validation in lint and build
+  - dependency chain:
+    - `PLUXX-120` -> `PLUXX-121`
 
-- OAuth-first runtime auth split landed on `main`
-  - import/sync auth can differ from runtime auth
-  - Claude/Cursor can now use platform-managed auth at runtime
-  - this is what made Sumble work correctly in Claude Code
+- `PLUXX-50` Add `pluxx publish` command for plugin distribution
+  - status: `Todo`
+  - deliverable: publish v1 contract, dry-run, and artifact/release path
+  - subtasks:
+    - `PLUXX-122` Define publish v1 contract and dry-run output
+      - delegate: `Blocks`
+    - implementation inside `PLUXX-50`
+    - `PLUXX-123` Prepare marketplace submission metadata and docs for publish flows
+      - delegate: `Blocks`
+  - dependency chain:
+    - `PLUXX-122` -> `PLUXX-50` -> `PLUXX-123`
 
-## Main Open Work
+### Milestone 2: Protocol Depth
 
-### 1. Keep the Core + Agent story coherent
+This is the next expansion layer after the core product contract is solid.
 
-- [PLUXX-79](https://linear.app/orchid-automation/issue/PLUXX-79/define-agent-mode-as-the-semantic-authoring-layer-on-top-of-core)
-  - umbrella issue
-  - still open mostly as the coordination parent for the whole direction
+- `PLUXX-62` Competitive readiness: deepen MCP auth and discovery support
+  - role: umbrella
+  - child issues:
+    - `PLUXX-43` Add OAuth 2.1 auth type to schema and generators
+    - `PLUXX-69` Add richer MCP auth discovery and OAuth-ready scaffold support
 
-### 2. Go deeper on MCP protocol/auth/discovery
+- `PLUXX-61` Competitive readiness: expand MCP import beyond `tools/list`
+  - role: umbrella
+  - child issues:
+    - `PLUXX-67` Scaffold skills and instructions from MCP resources and resource templates
+    - `PLUXX-68` Scaffold prompt-aware plugin content from MCP prompt templates
 
-- [PLUXX-62](https://linear.app/orchid-automation/issue/PLUXX-62/competitive-readiness-deepen-mcp-auth-and-discovery-support)
-  - richer auth discovery
-  - registry/discovery support
-  - better remote/local import paths
-- [PLUXX-67](https://linear.app/orchid-automation/issue/PLUXX-67/scaffold-skills-and-instructions-from-mcp-resources-and-resource)
-  - scaffold from MCP resources/resource templates too, not just tools
-- [PLUXX-42](https://linear.app/orchid-automation/issue/PLUXX-42/capture-mcp-resources-in-introspection-and-emit-context-in)
-  - introspect MCP resources and emit them into generated context/instructions
+### Milestone 3: Semantic / Agent Portability
 
-### 3. Make commands a first-class surface
+This is the remaining semantic layer after the core product contract and protocol depth work.
 
-- [PLUXX-95](https://linear.app/orchid-automation/issue/PLUXX-95/add-first-class-command-generation-with-argument-hints-for-claude-code)
-  - generate slash-command style entrypoints on top of the same taxonomy as skills
-  - support Claude `argument-hint`
-  - find the correct Cursor equivalent
+- `PLUXX-89` Define a portable agent and subagent delegation model for primary platforms
+  - status: `Backlog`
+  - deliverable: one truthful cross-host delegation model instead of copy-through behavior
 
-### 4. Solve the portable subagent/delegation model
+- `PLUXX-95` Add first-class command generation with argument hints for Claude Code and Cursor
+  - status: `Backlog`
+  - priority: `Medium`
+  - deliverable: host-native command UX layered on top of the same taxonomy model
 
-- [PLUXX-89](https://linear.app/orchid-automation/issue/PLUXX-89/define-a-portable-agent-and-subagent-delegation-model-for-primary)
-  - this is the real unfinished Agent portability problem
-  - current support is decent copy-through + runner support, not a full delegation abstraction
+- `PLUXX-88` Unify frontmatter and agent surface handling across skills, agents, and rules
+  - status: `Backlog`
+  - deliverable: coherent metadata ownership across semantic surfaces
 
-### 5. Tighten quality / release confidence
+## Closed / Folded Work
 
-- [PLUXX-66](https://linear.app/orchid-automation/issue/PLUXX-66/competitive-readiness-formalize-quality-and-compatibility-guarantees)
-  - compatibility matrix
-  - stronger release verification
-  - regression prevention around platform claims
-- [PLUXX-59](https://linear.app/orchid-automation/issue/PLUXX-59/validate-pluxxmcpjson-schema-with-zod-before-trusting-metadata)
-  - harden `.pluxx/mcp.json` trust boundary
-- [PLUXX-52](https://linear.app/orchid-automation/issue/PLUXX-52/add-example-github-actions-workflow-for-cicd)
-  - ship the CI story
-- [PLUXX-55](https://linear.app/orchid-automation/issue/PLUXX-55/make-error-messages-actionable-with-fix-suggestions)
-  - continue making CLI failures fixable without reading code
+These are no longer part of the active execution map.
 
-## Lower-Priority Backlog
+- `PLUXX-113`
+  - completed and shipped
+- `PLUXX-41`
+  - closed as duplicate of `PLUXX-68`
+- `PLUXX-42`
+  - closed as duplicate of `PLUXX-67`
+- `PLUXX-22`
+  - canceled as superseded by `PLUXX-115`
 
-- [PLUXX-48](https://linear.app/orchid-automation/issue/PLUXX-48/auto-detect-target-platforms-from-existing-agent-config-directories)
-  - auto-detect local agent targets
-- [PLUXX-53](https://linear.app/orchid-automation/issue/PLUXX-53/add-windsurf-and-devin-target-platform-generators)
-  - more target generators
-- [PLUXX-75](https://linear.app/orchid-automation/issue/PLUXX-75/evaluate-windsurf-and-devin-as-future-pluxx-targets)
-  - target evaluation before expansion
+## Separate Validation / Sandbox Track
 
-## Validation Rules Research Backlog
+These are real issues, but they are not the core Pluxx product roadmap.
 
-Still open and delegated research work:
+- `PLUXX-100`
+- `PLUXX-108`
+- `PLUXX-109`
+- `PLUXX-110`
+- `PLUXX-111`
+- `PLUXX-112`
 
-- [PLUXX-10](https://linear.app/orchid-automation/issue/PLUXX-10/research-and-codify-claude-code-plugin-validation-rules)
-- [PLUXX-11](https://linear.app/orchid-automation/issue/PLUXX-11/research-and-codify-cursor-plugin-validation-rules)
-- [PLUXX-12](https://linear.app/orchid-automation/issue/PLUXX-12/research-and-codify-codex-plugin-validation-rules)
-- [PLUXX-15](https://linear.app/orchid-automation/issue/PLUXX-15/research-and-codify-openhands-warp-gemini-cli-roo-code-cline-amp)
-- [PLUXX-18](https://linear.app/orchid-automation/issue/PLUXX-18/research-and-codify-gemini-cli-extension-validation-rules)
+Treat these as validation / linear-swarm test work, not as the main product execution queue.
 
-## Recommended Next Three
+## What To Do Next
 
-After tightening the extension-system scope, the next highest-leverage sequence is:
+If you only want the next concrete sequence, it is:
 
-1. `userConfig` / install-time secret handling
-   - this is the clearest missing core primitive for real MCP-backed plugins
-2. canonical permissions + target-cap validation
-   - authors should not rediscover host approval models or size limits one target at a time
-3. [PLUXX-50](https://linear.app/orchid-automation/issue/PLUXX-50/add-pluxx-publish-command-for-plugin-distribution)
-   - publish / marketplace generation becomes much more valuable once secrets, permissions, and validation are solid
+1. finish `PLUXX-117`
+2. implement `PLUXX-118`
+3. finish `PLUXX-120`
+4. implement `PLUXX-121`
+5. finish `PLUXX-122`
+6. implement `PLUXX-50`
 
-See [docs/core-primitives.md](./docs/core-primitives.md) for the tightened primitive model behind this priority order.
+That sequence closes the biggest remaining product-contract gaps in order:
 
-## Practical Read
-
-Pluxx is past the “does this concept work?” stage.
-
-The remaining work is mostly:
-
-- better command UX
-- deeper MCP protocol support
-- stronger portability semantics for agents/subagents
-- better release confidence and docs polish
-
-The core authoring loop is already real.
+- permissions
+- target-cap validation
+- publish
