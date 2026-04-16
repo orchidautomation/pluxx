@@ -2,7 +2,7 @@
 
 **Build AI agent plugins once. Ship them everywhere.**
 
-pluxx generates native plugin packages for Claude Code, Cursor, Codex, and OpenCode from a single config file. One source of truth &mdash; platform-specific outputs with the right manifests, MCP configs, rules, install scripts, and hook handling for the platforms that support plugin-packaged hooks.
+pluxx generates native plugin packages for Claude Code, Cursor, Codex, and OpenCode from a single config file. One source of truth &mdash; platform-specific outputs with the right manifests, rules, install scripts, hook handling, and MCP config when your plugin needs it.
 
 The product scope is intentionally tight:
 
@@ -68,7 +68,9 @@ But a plugin is more than skills. A plugin bundles:
 
 Without pluxx you maintain separate copies for each platform. With pluxx you maintain one.
 
-The launch focus is MCP-first authoring: start from an existing MCP server, generate a maintainable plugin scaffold, then keep shipping from one config.
+That value exists even if your plugin has no MCP at all. If you are hand-authoring skills, instructions, hooks, commands, or brand metadata, Pluxx still gives you one maintainable cross-host plugin project.
+
+The sharpest launch wedge is still MCP-first authoring: start from an existing MCP server, generate a maintainable plugin scaffold, then keep shipping from one config.
 
 ## Core Primitives
 
@@ -113,9 +115,13 @@ The next layer is `Agent` mode: Pluxx prepares the scaffold, context pack, and p
 
 ```bash
 # Preferred: run via bunx
-bunx pluxx init my-plugin
 
-# Scaffold directly from an MCP server
+# Start a plugin by hand
+bunx pluxx init my-plugin
+cd my-plugin
+# Edit pluxx.config.ts, add skills in ./skills/, then build
+
+# Or scaffold directly from an MCP server
 bunx pluxx init --from-mcp https://example.com/mcp
 
 # Legacy SSE MCP import
@@ -174,15 +180,17 @@ Autopilot modes:
 
 ## Product Boundary And Lifecycle
 
-Pluxx is for MCP developers and teams shipping MCP-backed plugins.
+Pluxx is for teams that want one maintained plugin source of truth across hosts.
+
+The best fit today is MCP developers and teams shipping MCP-backed plugins, because MCP import, auth translation, and sync create the most cross-host pain. But hand-authored plugins are still a valid use case.
 
 Pluxx owns:
 
-- plugin authoring scaffold from MCP introspection
+- plugin authoring scaffold, whether imported from MCP or authored manually
 - validation (`lint`, `doctor`, `test`)
 - platform bundle generation (`build`)
 - local installation for testing (`install`)
-- ongoing MCP-to-plugin maintenance (`sync`)
+- ongoing MCP-to-plugin maintenance (`sync`) for MCP-derived projects
 
 Pluxx does not own:
 
@@ -191,11 +199,11 @@ Pluxx does not own:
 
 The normal lifecycle is:
 
-1. Import from local stdio MCP during development.
-2. Refine the generated plugin repo.
+1. Start from an MCP import or a hand-authored plugin source repo.
+2. Refine the source project.
 3. Validate/build/install locally.
-4. Repoint sync to deployed HTTP/SSE MCP when production is ready.
-5. Keep the same generated plugin repo as the long-term source of truth.
+4. If the plugin is MCP-backed, repoint sync to the deployed HTTP/SSE MCP when production is ready.
+5. Keep the same plugin repo as the long-term source of truth.
 
 Example local-to-production transition:
 
@@ -463,7 +471,7 @@ bunx pluxx sync --dry-run --json
 bunx pluxx test --json
 ```
 
-See [docs/getting-started.md](./docs/getting-started.md) for the full MCP-first walkthrough.
+See [docs/getting-started.md](./docs/getting-started.md) for the full getting-started walkthrough, including the MCP-first path.
 
 ## Hook Trust Model
 

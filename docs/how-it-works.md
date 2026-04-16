@@ -17,6 +17,8 @@ Each platform also has its own validation rules that only surface at runtime —
 
 pluxx lets you define your plugin once and generates correct, validated output for every platform.
 
+You can start from a hand-authored plugin source project or import an MCP and let Pluxx scaffold the source project for you. MCP-backed plugins are the sharpest wedge, not a hard requirement.
+
 The product now has two intentional layers:
 
 - `Core`: deterministic scaffolding, linting, build, install, and sync
@@ -100,8 +102,8 @@ That gives one stable source project and multiple honest host outputs.
 
 This is the mechanical layer. It handles:
 
-- MCP import and introspection
 - source scaffold generation
+- MCP import and introspection when present
 - taxonomy persistence
 - install/runtime config modeling
 - validation
@@ -144,13 +146,13 @@ The compiler layer is explicitly honest about host differences instead of preten
 
 The current end-to-end flow is:
 
-1. import an MCP
-2. generate the source scaffold
+1. start from an MCP import or a hand-authored source plugin
+2. generate or refine the source scaffold
 3. optionally refine semantics with a runner
 4. validate the result
 5. build host bundles
 6. install locally for testing
-7. sync later when the MCP changes
+7. if MCP-backed, sync later when the MCP changes
 
 That means Pluxx is both:
 
@@ -164,6 +166,7 @@ That means Pluxx is both:
 Use interactive mode when a human is driving the workflow and wants a guided path:
 
 ```bash
+bun ./bin/pluxx.js init my-plugin
 bun ./bin/pluxx.js init --from-mcp https://example.com/mcp
 bun ./bin/pluxx.js autopilot
 ```

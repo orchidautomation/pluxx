@@ -2,6 +2,8 @@
 
 This is the step-by-step guide for making a real Pluxx plugin from an MCP server.
 
+If you are not starting from MCP, initialize a source project with `bunx pluxx init my-plugin`, fill in `pluxx.config.ts`, `INSTRUCTIONS.md`, and `skills/`, then continue from the validation/build steps in this guide.
+
 Use this doc when you want the exact sequence for:
 
 - starting from a raw MCP

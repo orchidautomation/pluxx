@@ -4,23 +4,24 @@ This is the working homepage copy for Pluxx. It is intentionally concise and str
 
 ## Positioning
 
-Pluxx turns a raw MCP into a maintainable plugin project for Claude Code, Codex, Cursor, and OpenCode.
+Pluxx gives you one maintainable plugin source project for Claude Code, Codex, Cursor, and OpenCode.
 
 The important product promise is:
 
 - deterministic structure from Pluxx
 - semantic refinement from the coding agent the user already works in
 - one maintained source of truth over time
+- optional MCP import when the plugin wraps a live server
 
 ## Hero
 
 ### Headline
 
-Bring your MCP. Get plugins everywhere.
+Maintain one plugin. Ship it everywhere.
 
 ### Subheadline
 
-Pluxx turns a raw MCP into a maintainable plugin project for Claude Code, Codex, Cursor, and OpenCode. Then Codex or Claude can refine the scaffold safely without breaking the structure.
+Pluxx turns one plugin source project into native bundles for Claude Code, Codex, Cursor, and OpenCode. Start from a raw MCP when you have one, or author the plugin by hand when you do not. Then Codex or Claude can refine the scaffold safely without breaking the structure.
 
 ### Primary CTA
 
@@ -38,21 +39,21 @@ Bun runtime required today. Core-four path is the prime-time launch surface.
 
 ### Heading
 
-Your MCP is useful. Packaging it everywhere is not.
+Your plugin is useful. Packaging it everywhere is not.
 
 ### Body
 
-Every coding agent has its own plugin format, auth model, hooks surface, and instruction files. Without Pluxx, shipping one MCP across tools means maintaining separate plugin projects that drift over time.
+Every coding agent has its own plugin format, auth model, hooks surface, and instruction files. Without Pluxx, shipping one plugin across tools means maintaining separate plugin projects that drift over time.
 
 ## Section: The Mechanism
 
 ### Heading
 
-One MCP in. One source project out.
+One source project in. Native bundles out.
 
 ### Body
 
-Pluxx imports the MCP, generates the source project, validates it, and produces native plugin bundles for each target platform. The generated project becomes the thing you maintain over time.
+Pluxx generates the source project, validates it, and produces native plugin bundles for each target platform. If you bring an MCP, it can scaffold that project from the server. Either way, the generated source project becomes the thing you maintain over time.
 
 ## Section: The Agent Story
 
@@ -68,9 +69,9 @@ Pluxx owns the deterministic scaffold, boundaries, and validation. Codex or Clau
 
 ### Step 1
 
-Import your MCP
+Start your source project
 
-Pluxx introspects a raw HTTP, SSE, or stdio MCP and scaffolds a valid plugin project.
+Import a raw HTTP, SSE, or stdio MCP if you have one, or initialize an empty plugin and author it directly.
 
 ### Step 2
 
@@ -114,14 +115,14 @@ Pluxx stays deterministic and open source. The host coding agent does the semant
 
 ### Heading
 
-Bring your MCP in 30 seconds
+Start your plugin in 30 seconds
 
 ### CTA
 
-`bunx pluxx init --from-mcp https://example.com/mcp`
+`bunx pluxx init my-plugin`
 
 ## Notes
 
-- Keep the site focused on the MCP-first story, not “11 generators” as the lead.
+- Lead with one maintained plugin source of truth, then use MCP import as the sharpest entry path.
 - Mention Codex and Claude as refinement hosts, not as the whole product.
-- Avoid framing Pluxx as a generic plugin compiler with no opinionated workflow.
+- Avoid collapsing Pluxx into a generic skills installer or an unopinionated plugin compiler.

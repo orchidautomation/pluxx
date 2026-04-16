@@ -16,9 +16,11 @@ If you want the tighter product scope for what Pluxx should model versus defer, 
 
 ## What Pluxx Is
 
-Pluxx is the plugin authoring and maintenance layer for MCP teams.
+Pluxx is the plugin authoring and maintenance layer for cross-host plugins.
 
-Bring a raw MCP server:
+The strongest fit today is an MCP-backed plugin, but MCP is not required.
+
+If your plugin wraps an MCP server, bring a raw server:
 
 - remote HTTP
 - legacy SSE
@@ -32,6 +34,8 @@ Pluxx turns that into a maintainable plugin project that can generate bundles fo
 - OpenCode
 
 Pluxx does **not** build or deploy the MCP backend itself.
+
+If you do not have an MCP, initialize a plugin source project and author the skills, instructions, hooks, and metadata directly.
 
 ## The Two Product Layers
 
@@ -384,9 +388,9 @@ Pluxx is:
 
 The shortest true story is:
 
-- bring an MCP
+- start from an MCP or a hand-authored plugin source repo
 - get a working plugin repo
 - let Codex or Claude refine it safely
 - validate it
 - install/share it
-- sync it later from one source of truth
+- if MCP-backed, sync it later from one source of truth

@@ -1,10 +1,12 @@
 # Getting Started With Pluxx
 
-Pluxx is for one specific job: take an existing MCP server and turn it into maintainable plugin bundles for Claude Code, Cursor, Codex, and OpenCode from one source of truth.
+Pluxx is for one specific job: maintain one plugin source project and generate native bundles for Claude Code, Cursor, Codex, and OpenCode.
+
+The strongest path today is MCP-first: bring an existing MCP server, scaffold the plugin from it, then keep shipping from one source of truth. But MCP is not a hard requirement. You can also start from an empty plugin and author the skills, instructions, hooks, and metadata yourself.
 
 This walkthrough covers:
 
-- bring an MCP server
+- choose an MCP-first or hand-authored starting point
 - scaffold a plugin
 - lint, build, install, and test it
 - sync later when the MCP changes
@@ -24,11 +26,14 @@ Related docs:
 
 ## Product Boundary
 
-Pluxx is the plugin authoring and maintenance layer for MCP teams.
+Pluxx is the plugin authoring and maintenance layer for cross-host plugins.
+
+The best fit today is an MCP-backed plugin, because that is where import, auth translation, and sync save the most work. But Pluxx also works for plugins with no MCP.
 
 Pluxx owns:
 
-- scaffold generation from local or remote MCPs
+- source-plugin scaffolding
+- scaffold generation from local or remote MCPs when you have one
 - plugin validation, build, local install, and sync
 - keeping generated plugin repos maintainable as MCPs evolve
 
@@ -39,13 +44,15 @@ Pluxx does not own:
 
 ## Lifecycle At A Glance
 
-1. Start from a local stdio MCP while developing quickly.
+1. Start from a local stdio/remote MCP or initialize an empty plugin.
 2. Generate and refine one plugin source repo.
 3. Validate/build/install locally.
-4. When your MCP is deployed, repoint sync to the remote endpoint.
-5. Keep the generated plugin repo as your long-term source of truth.
+4. If your plugin is MCP-backed, repoint sync to the remote endpoint when the backend is deployed.
+5. Keep the plugin repo as your long-term source of truth.
 
-## 1. Bring An MCP Server
+## 1. Choose Your Starting Point
+
+### Path A: Bring An MCP Server
 
 Pluxx accepts three MCP source shapes today:
 
@@ -75,12 +82,34 @@ bunx pluxx init \
   --auth-type bearer
 ```
 
+### Path B: Start Without MCP
+
+If your plugin does not wrap an MCP server, initialize a source project and author the plugin directly:
+
+```bash
+bunx pluxx init my-plugin
+cd my-plugin
+```
+
+Then fill in:
+
+- `pluxx.config.ts`
+- `INSTRUCTIONS.md`
+- `skills/<skill-name>/SKILL.md`
+- optional `commands/`, `agents/`, `scripts/`, and `assets/`
+
 ## 2. Scaffold A Plugin
 
 Interactive:
 
 ```bash
 bunx pluxx init --from-mcp https://example.com/mcp
+```
+
+Without MCP:
+
+```bash
+bunx pluxx init my-plugin
 ```
 
 Headless:
@@ -146,7 +175,7 @@ Pluxx writes:
 - `INSTRUCTIONS.md`
 - `skills/<skill-name>/SKILL.md`
 - optional `scripts/` for safe generated hooks
-- `.pluxx/mcp.json` ownership metadata for future syncs
+- `.pluxx/mcp.json` ownership metadata for future syncs when the project was scaffolded from MCP
 
 Generated `INSTRUCTIONS.md` and `SKILL.md` files use mixed ownership:
 
@@ -206,7 +235,7 @@ bunx pluxx install --dry-run
 
 ## 6. Sync Later
 
-When the MCP server changes:
+For MCP-derived projects, when the server changes:
 
 ```bash
 bunx pluxx sync
@@ -223,6 +252,8 @@ Preview sync changes first:
 ```bash
 bunx pluxx sync --dry-run --json
 ```
+
+If the project is hand-authored with no MCP, `sync` is not part of the normal loop. The source repo itself is the maintained artifact.
 
 Pluxx preserves custom mixed-ownership Markdown sections and reports:
 

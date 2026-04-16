@@ -56,7 +56,7 @@ This is the runtime integration layer.
 - remote vs local stdio
 - target-specific MCP config compilation
 
-Pluxx is MCP-first, so this remains core.
+MCP is optional in the config, but common enough across real plugin projects that it remains core. MCP-backed plugins are the flagship wedge because the cross-host differences are sharpest there.
 
 ### 4. userConfig
 
