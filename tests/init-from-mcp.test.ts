@@ -303,7 +303,7 @@ describe('init-from-mcp scaffold', () => {
     expect(organizationSkill.startsWith('---\n')).toBe(true)
     expect(organizationSkill).toContain('\n<!-- pluxx:generated:start -->\n# Find Organizations')
     expect(organizationCommand).toContain('argument-hint: "[query]"')
-    expect(organizationCommand).toContain('Use the find organizations workflow for this plugin.')
+    expect(organizationCommand).toContain('Use this command when the user asks to search organizations by company attributes and signals.')
     expect(organizationCommand).toContain('Primary tools:')
     expect(organizationCommand).toContain('<!-- pluxx:generated:start -->')
     expect(envScript).toContain('SUMBLE_API_KEY')
@@ -491,6 +491,58 @@ describe('init-from-mcp scaffold', () => {
     expect(instructionsFile).toContain('`firecrawl_map`: Map a website to discover all indexed URLs on the site. Best for: Discovering the correct page on a large documentation or product site before scraping.')
     expect(instructionsFile).not.toContain('**Usage Example:**')
     expect(instructionsFile).not.toContain('**Returns:**')
+  })
+
+  it('generates natural example requests for MCP tools with chained action names', async () => {
+    const agentMailIntrospection: IntrospectedMcpServer = {
+      ...introspection,
+      tools: [
+        {
+          name: 'CreateInbox',
+          description: 'Create a new inbox for outgoing campaigns.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              name: { type: 'string' },
+            },
+            required: ['name'],
+          },
+        },
+        {
+          name: 'FindSendMessage',
+          description: 'Find queued messages to send from an inbox.',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              inboxId: { type: 'string' },
+            },
+            required: ['inboxId'],
+          },
+        },
+      ],
+    }
+
+    await writeMcpScaffold({
+      rootDir: TEST_DIR,
+      pluginName: 'agentmail',
+      authorName: 'AgentMail',
+      displayName: 'AgentMail',
+      skillGrouping: 'tool',
+      hookMode: 'none',
+      targets: ['codex'],
+      source: {
+        transport: 'http',
+        url: 'https://mcp.agentmail.dev/mcp',
+      },
+      introspection: agentMailIntrospection,
+    })
+
+    const createInboxSkill = readFileSync(resolve(TEST_DIR, 'skills/create-inbox/SKILL.md'), 'utf-8')
+    const findSendMessageSkill = readFileSync(resolve(TEST_DIR, 'skills/find-send-message/SKILL.md'), 'utf-8')
+
+    expect(createInboxSkill).toContain('"Create a new inbox with <name>."')
+    expect(findSendMessageSkill).toContain('"Find messages using <inboxId>."')
+    expect(findSendMessageSkill).not.toContain('"Find send message using <inboxId>."')
   })
 
   it('generates mutation confirmation hooks when safe mode detects mutating tools', async () => {
