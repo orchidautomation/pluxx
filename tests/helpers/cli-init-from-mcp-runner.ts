@@ -117,8 +117,10 @@ function installMocks(options: {
       issues: [],
     }),
     MCP_HOOK_MODES: ['none', 'safe'],
+    MCP_RUNTIME_AUTH_MODES: ['inline', 'platform'],
     MCP_SCAFFOLD_METADATA_PATH: '.pluxx/mcp.json',
     MCP_SKILL_GROUPINGS: ['workflow', 'tool'],
+    MCP_TAXONOMY_PATH: '.pluxx/taxonomy.json',
     PLUXX_CUSTOM_END: '<!-- pluxx:custom:end -->',
     PLUXX_CUSTOM_START: '<!-- pluxx:custom:start -->',
     PLUXX_GENERATED_END: '<!-- pluxx:generated:end -->',
@@ -179,6 +181,8 @@ function installMocks(options: {
     installPlugin: async () => {},
     listHookCommands: () => [],
     planInstallPlugin: () => [],
+    planInstallUserConfig: () => ({ requirements: [], notes: [] }),
+    resolveInstallUserConfig: async () => ({ values: {}, unresolved: [], provided: [] }),
     uninstallPlugin: async () => {},
   }))
 
@@ -191,6 +195,7 @@ function installMocks(options: {
   }))
 
   mock.module(SYNC_PATH, () => ({
+    applyPersistedTaxonomy: async () => {},
     formatSyncSummary: () => [],
     planSyncFromMcp: async () => ({
       updatedFiles: [],

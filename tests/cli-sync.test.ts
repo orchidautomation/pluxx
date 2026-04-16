@@ -172,6 +172,6 @@ describe('CLI sync command', () => {
     expect(summary.addedFiles).toContain('skills/search-technologies/SKILL.md')
     expect(summary.preservedFiles).toContain('skills/find-people/SKILL.md')
     expect(summary.updatedFiles).toContain('./INSTRUCTIONS.md')
-    expect(summary.removedFiles).toEqual([])
+    expect(summary.removedFiles).toEqual(['commands/find-people.md'])
   })
 })
