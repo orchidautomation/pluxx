@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
-import { mkdirSync, rmSync, existsSync, lstatSync, readlinkSync } from 'fs'
+import { mkdirSync, rmSync, existsSync, lstatSync, readlinkSync, readFileSync } from 'fs'
 import { resolve } from 'path'
-import { ensureHookTrust, installPlugin, listHookCommands, uninstallPlugin } from '../src/cli/install'
+import { ensureHookTrust, installPlugin, listHookCommands, planInstallUserConfig, uninstallPlugin } from '../src/cli/install'
 import type { PluginConfig, TargetPlatform } from '../src/schema'
 
 const TEST_DIR = resolve(import.meta.dir, '.install-fixture')
@@ -171,5 +171,109 @@ describe('install', () => {
       { command: 'claude', args: ['plugin', 'uninstall', 'megamind@pluxx-local-megamind'] },
       { command: 'claude', args: ['plugin', 'install', 'megamind@pluxx-local-megamind', '--scope', 'user'] },
     ])
+  })
+
+  it('derives install-time config requirements from MCP auth', () => {
+    process.env.TEST_API_KEY = 'from-env'
+
+    const planned = planInstallUserConfig({
+      name: 'fixture',
+      version: '0.1.0',
+      description: 'Fixture',
+      author: { name: 'Test Author' },
+      license: 'MIT',
+      skills: './skills/',
+      mcp: {
+        fixture: {
+          transport: 'http',
+          url: 'https://example.com/mcp',
+          auth: {
+            type: 'bearer',
+            envVar: 'TEST_API_KEY',
+            headerName: 'Authorization',
+            headerTemplate: 'Bearer ${value}',
+          },
+        },
+      },
+      targets: ['cursor', 'codex'],
+      outDir: './dist',
+    })
+
+    expect(planned).toHaveLength(1)
+    expect(planned[0].field.key).toBe('test-api-key')
+    expect(planned[0].envVar).toBe('TEST_API_KEY')
+    expect(planned[0].source).toBe('env')
+  })
+
+  it('materializes local install config for cursor, codex, and opencode', async () => {
+    mkdirSync(resolve(DIST_DIR, 'cursor/scripts'), { recursive: true })
+    mkdirSync(resolve(DIST_DIR, 'codex/scripts'), { recursive: true })
+    mkdirSync(resolve(DIST_DIR, 'opencode/scripts'), { recursive: true })
+
+    await Bun.write(resolve(DIST_DIR, 'cursor/mcp.json'), JSON.stringify({ mcpServers: {} }, null, 2))
+    await Bun.write(resolve(DIST_DIR, 'codex/.mcp.json'), JSON.stringify({ mcpServers: {} }, null, 2))
+    await Bun.write(resolve(DIST_DIR, 'opencode/index.ts'), 'export const plugin = {};\n')
+    await Bun.write(resolve(DIST_DIR, 'opencode/package.json'), JSON.stringify({ name: 'opencode-megamind' }, null, 2))
+    await Bun.write(resolve(DIST_DIR, 'cursor/scripts/check-env.sh'), '#!/usr/bin/env bash\nexit 1\n')
+    await Bun.write(resolve(DIST_DIR, 'codex/scripts/check-env.sh'), '#!/usr/bin/env bash\nexit 1\n')
+    await Bun.write(resolve(DIST_DIR, 'opencode/scripts/check-env.sh'), '#!/usr/bin/env bash\nexit 1\n')
+
+    const config: PluginConfig = {
+      name: 'megamind',
+      version: '1.0.0',
+      description: 'Fixture plugin',
+      author: { name: 'Test Author' },
+      license: 'MIT',
+      skills: './skills/',
+      mcp: {
+        fixture: {
+          transport: 'http',
+          url: 'https://example.com/mcp',
+          auth: {
+            type: 'bearer',
+            envVar: 'TEST_API_KEY',
+            headerName: 'Authorization',
+            headerTemplate: 'Bearer ${value}',
+          },
+        },
+      },
+      targets: ['cursor', 'codex', 'opencode'],
+      outDir: './dist',
+    }
+
+    await installPlugin(DIST_DIR, 'megamind', ['cursor', 'codex', 'opencode'], {
+      config,
+      resolvedUserConfig: [{
+        field: {
+          key: 'test-api-key',
+          title: 'Test API Key',
+          description: 'Fixture token',
+          type: 'secret',
+          required: true,
+          envVar: 'TEST_API_KEY',
+        },
+        value: 'shh-secret',
+        envVar: 'TEST_API_KEY',
+      }],
+      useNativeClaudeInstall: false,
+      quiet: true,
+    })
+
+    const cursorInstall = resolve(HOME_DIR, INSTALL_PATHS.cursor)
+    const codexInstall = resolve(HOME_DIR, INSTALL_PATHS.codex)
+    const opencodeInstall = resolve(HOME_DIR, INSTALL_PATHS.opencode)
+
+    expect(lstatSync(cursorInstall).isSymbolicLink()).toBe(false)
+    expect(lstatSync(codexInstall).isSymbolicLink()).toBe(false)
+    expect(lstatSync(opencodeInstall).isSymbolicLink()).toBe(false)
+
+    const cursorMcp = JSON.parse(readFileSync(resolve(cursorInstall, 'mcp.json'), 'utf-8'))
+    const codexMcp = JSON.parse(readFileSync(resolve(codexInstall, '.mcp.json'), 'utf-8'))
+    const opencodeUserConfig = JSON.parse(readFileSync(resolve(opencodeInstall, '.pluxx-user.json'), 'utf-8'))
+
+    expect(cursorMcp.mcpServers.fixture.headers.Authorization).toBe('Bearer shh-secret')
+    expect(codexMcp.mcpServers.fixture.http_headers.Authorization).toBe('Bearer shh-secret')
+    expect(opencodeUserConfig.env.TEST_API_KEY).toBe('shh-secret')
+    expect(readFileSync(resolve(cursorInstall, 'scripts/check-env.sh'), 'utf-8')).toContain('materialized required config')
   })
 })

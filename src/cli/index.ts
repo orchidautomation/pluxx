@@ -15,7 +15,15 @@ import {
   type AgentRunner,
 } from './agent'
 import { doctorProject, printDoctorReport } from './doctor'
-import { ensureHookTrust, installPlugin, listHookCommands, planInstallPlugin, uninstallPlugin } from './install'
+import {
+  ensureHookTrust,
+  installPlugin,
+  listHookCommands,
+  planInstallPlugin,
+  planInstallUserConfig,
+  resolveInstallUserConfig,
+  uninstallPlugin,
+} from './install'
 import { runDev } from './dev'
 import {
   analyzeMcpQuality,
@@ -2180,6 +2188,7 @@ async function runInstall() {
   const config = await loadConfig()
   const distDir = `${process.cwd()}/${config.outDir}`
   const platforms = targets ?? config.targets
+  const plannedUserConfig = planInstallUserConfig(config, platforms)
 
   if (runtime.dryRun) {
     const plan = planInstallPlugin(distDir, config.name, platforms)
@@ -2189,6 +2198,13 @@ async function runInstall() {
       pluginName: config.name,
       platforms,
       trustRequired: hookCommands.length > 0,
+      userConfig: plannedUserConfig.map((entry) => ({
+        key: entry.field.key,
+        title: entry.field.title,
+        envVar: entry.envVar,
+        required: entry.field.required ?? true,
+        source: entry.source,
+      })),
       installTargets: plan.map((target) => ({
         platform: target.platform,
         sourceDir: target.sourceDir,
@@ -2204,6 +2220,13 @@ async function runInstall() {
       plan.forEach((target) => {
         console.log(`  ${target.platform} -> ${target.description}${target.built ? '' : ' (not built)'}`)
       })
+      if (plannedUserConfig.length > 0) {
+        console.log('  userConfig:')
+        plannedUserConfig.forEach((entry) => {
+          const envHint = entry.envVar ? ` [env: ${entry.envVar}]` : ''
+          console.log(`    - ${entry.field.key}${envHint} (${entry.source})`)
+        })
+      }
       if (listHookCommands(config.hooks).length > 0) {
         console.log('  trust reminder: this plugin defines local hook commands; install requires review or --trust')
       }
@@ -2220,7 +2243,14 @@ async function runInstall() {
     trust,
     isTTY: runtime.isInteractive,
   })
-  await installPlugin(distDir, config.name, platforms, { quiet: runtime.quiet })
+  const resolvedUserConfig = await resolveInstallUserConfig(config, platforms, {
+    isTTY: runtime.isInteractive,
+  })
+  await installPlugin(distDir, config.name, platforms, {
+    config,
+    quiet: runtime.quiet,
+    resolvedUserConfig,
+  })
 }
 
 async function runUninstall() {

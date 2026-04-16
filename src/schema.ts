@@ -141,6 +141,63 @@ export const BrandSchema = z.object({
   termsOfServiceURL: z.string().url().optional(),
 })
 
+// ── Targets / User Config ───────────────────────────────────────
+
+export const TargetPlatform = z.enum([
+  'claude-code',
+  'cursor',
+  'codex',
+  'opencode',
+  'github-copilot',
+  'openhands',
+  'warp',
+  'gemini-cli',
+  'roo-code',
+  'cline',
+  'amp',
+])
+export type TargetPlatform = z.infer<typeof TargetPlatform>
+
+const UserConfigValueSchema = z.union([z.string(), z.number(), z.boolean()])
+
+export const UserConfigEntrySchema = z.object({
+  key: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use lowercase kebab-case for user config keys'),
+  title: z.string(),
+  description: z.string(),
+  type: z.enum(['secret', 'string', 'number', 'boolean']).default('string'),
+  required: z.boolean().default(true),
+  envVar: z.string().optional(),
+  defaultValue: UserConfigValueSchema.optional(),
+  placeholder: z.string().optional(),
+  targets: z.array(TargetPlatform).optional(),
+}).superRefine((entry, ctx) => {
+  if (entry.type === 'secret' && entry.defaultValue !== undefined) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['defaultValue'],
+      message: 'Secret userConfig entries should not define a defaultValue.',
+    })
+  }
+
+  if (entry.type === 'number' && entry.defaultValue !== undefined && typeof entry.defaultValue !== 'number') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['defaultValue'],
+      message: 'Number userConfig entries require a numeric defaultValue.',
+    })
+  }
+
+  if (entry.type === 'boolean' && entry.defaultValue !== undefined && typeof entry.defaultValue !== 'boolean') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['defaultValue'],
+      message: 'Boolean userConfig entries require a boolean defaultValue.',
+    })
+  }
+})
+
+export const UserConfigSchema = z.array(UserConfigEntrySchema)
+
 // ── Platform Overrides ───────────────────────────────────────────
 
 export const ClaudeCodeOverridesSchema = z.object({
@@ -175,21 +232,6 @@ export const PlatformOverridesSchema = z.object({
 
 // ── Main Plugin Config ───────────────────────────────────────────
 
-export const TargetPlatform = z.enum([
-  'claude-code',
-  'cursor',
-  'codex',
-  'opencode',
-  'github-copilot',
-  'openhands',
-  'warp',
-  'gemini-cli',
-  'roo-code',
-  'cline',
-  'amp',
-])
-export type TargetPlatform = z.infer<typeof TargetPlatform>
-
 export const PluginConfigSchema = z.object({
   // Identity
   name: z.string().regex(/^[a-z0-9-]+$/, 'Must be lowercase with hyphens only'),
@@ -206,6 +248,7 @@ export const PluginConfigSchema = z.object({
 
   // Brand
   brand: BrandSchema.optional(),
+  userConfig: UserConfigSchema.optional(),
 
   // Plugin components (paths relative to config file)
   skills: z.string().default('./skills/'),
@@ -240,3 +283,4 @@ export type McpServer = z.infer<typeof McpServerSchema>
 export type McpAuth = z.infer<typeof McpAuthSchema>
 export type HookEntry = z.infer<typeof HookEntrySchema>
 export type Brand = z.infer<typeof BrandSchema>
+export type UserConfigEntry = z.infer<typeof UserConfigEntrySchema>

@@ -22,6 +22,16 @@ function createProjectFixture(): string {
       description: 'Doctor fixture',
       author: { name: 'Test Author' },
       license: 'MIT',
+      userConfig: [
+        {
+          key: 'fixture-api-key',
+          title: 'Fixture API Key',
+          description: 'Access token used by the fixture MCP.',
+          type: 'secret',
+          required: true,
+          envVar: 'FIXTURE_API_KEY',
+        },
+      ],
       skills: './skills/',
       instructions: './INSTRUCTIONS.md',
       hooks: {
@@ -60,6 +70,7 @@ describe('doctorProject', () => {
       expect(report.warnings).toBeGreaterThanOrEqual(1)
       expect(report.checks.some((check) => check.code === 'hooks-trust-required' && check.level === 'warning')).toBe(true)
       expect(report.checks.some((check) => check.code === 'mcp-auth-env' && check.level === 'info')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'user-config-declared' && check.level === 'info')).toBe(true)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

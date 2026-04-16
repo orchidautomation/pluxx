@@ -249,6 +249,54 @@ function checkMcpConfig(checks: DoctorCheck[], config: PluginConfig): void {
   }
 }
 
+function checkUserConfig(checks: DoctorCheck[], config: PluginConfig): void {
+  const entries = config.userConfig ?? []
+  if (entries.length === 0) {
+    addCheck(checks, {
+      level: 'info',
+      code: 'user-config-none',
+      title: 'No userConfig entries declared',
+      detail: 'This plugin does not currently declare install-time config entries.',
+      fix: 'No action needed unless this plugin needs install-time config or secret handling.',
+      path: 'pluxx.config.ts',
+    })
+    return
+  }
+
+  const invalidEnvEntries = entries.filter((entry) => entry.envVar && !ENV_VAR_NAME.test(entry.envVar))
+  if (invalidEnvEntries.length > 0) {
+    addCheck(checks, {
+      level: 'warning',
+      code: 'user-config-env-invalid',
+      title: 'Invalid userConfig env var name',
+      detail: `${invalidEnvEntries.length} userConfig entr${invalidEnvEntries.length === 1 ? 'y' : 'ies'} use invalid env var names.`,
+      fix: 'Rename the env var to a shell-safe name and keep userConfig aligned with the install/runtime config contract.',
+      path: 'pluxx.config.ts',
+    })
+  }
+
+  const secretEntriesWithoutEnv = entries.filter((entry) => entry.type === 'secret' && !entry.envVar)
+  if (secretEntriesWithoutEnv.length > 0) {
+    addCheck(checks, {
+      level: 'warning',
+      code: 'user-config-secret-missing-env',
+      title: 'Secret userConfig entries should declare envVar',
+      detail: `${secretEntriesWithoutEnv.length} secret userConfig entr${secretEntriesWithoutEnv.length === 1 ? 'y' : 'ies'} are missing envVar bindings.`,
+      fix: 'Bind secret entries to env vars so Pluxx can persist and validate install-time config safely.',
+      path: 'pluxx.config.ts',
+    })
+  }
+
+  addCheck(checks, {
+    level: 'info',
+    code: 'user-config-declared',
+    title: 'userConfig entries declared',
+    detail: `${entries.length} install-time config entr${entries.length === 1 ? 'y' : 'ies'} are declared.`,
+    fix: 'No action needed.',
+    path: 'pluxx.config.ts',
+  })
+}
+
 function checkHookTrust(checks: DoctorCheck[], config: PluginConfig): void {
   const commands = listHookCommands(config.hooks)
   if (commands.length === 0) {
@@ -503,6 +551,7 @@ export async function doctorProject(rootDir: string = process.cwd()): Promise<Do
   checkReadablePath(checks, rootDir, 'Assets', config.assets, false)
   checkTargetPlatforms(checks, config)
   checkMcpConfig(checks, config)
+  checkUserConfig(checks, config)
   checkScaffoldMetadata(checks, rootDir, config)
   checkHookTrust(checks, config)
 

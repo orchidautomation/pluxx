@@ -1,8 +1,9 @@
 import { existsSync } from 'fs'
 import { mkdir } from 'fs/promises'
 import { basename, resolve } from 'path'
-import type { HookEntry, McpServer, TargetPlatform } from '../schema'
+import type { HookEntry, McpServer, PluginConfig, TargetPlatform, UserConfigEntry } from '../schema'
 import type { IntrospectedMcpServer, IntrospectedMcpTool } from '../mcp/introspect'
+import { collectUserConfigEntries } from '../user-config'
 
 export interface McpScaffoldOptions {
   rootDir: string
@@ -107,6 +108,7 @@ export interface McpScaffoldMetadata {
     generatedHookEvents: string[]
     runtimeAuthMode: McpRuntimeAuthMode
   }
+  userConfig: UserConfigEntry[]
   tools: IntrospectedMcpTool[]
   skills: Array<{
     dirName: string
@@ -294,6 +296,20 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
     options.persistedSkills,
     options.toolRenames,
   )
+  const userConfigSource = {
+    targets: options.targets,
+    mcp: {
+      [serverName]: options.source,
+    },
+    platforms: runtimeAuthMode === 'platform'
+      ? {
+          'claude-code': { mcpAuth: 'platform' as const },
+          cursor: { mcpAuth: 'platform' as const },
+        }
+      : undefined,
+  } as PluginConfig
+  const userConfig = collectUserConfigEntries(userConfigSource)
+    .map(({ source: _source, ...entry }) => entry)
   const skillDirectories: string[] = []
   const commandFiles: string[] = []
   const generatedFiles = ['pluxx.config.ts', './INSTRUCTIONS.md']
@@ -321,6 +337,7 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
       source: options.source,
       websiteUrl: options.introspection.serverInfo.websiteUrl,
       targets: options.targets,
+      userConfig,
       hooks: generatedHooks.hookEntries,
       scriptsPath: generatedHooks.scriptsPath,
       runtimeAuthMode,
@@ -331,15 +348,16 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
   await addPlannedFile(
     './INSTRUCTIONS.md',
     wrapManagedMarkdown(
-      buildInstructionsContent({
-        displayName,
-        description,
-        source: options.source,
-        runtimeAuthMode,
-        instructions: options.introspection.instructions,
-        skills: plannedSkills,
-        tools: options.introspection.tools,
-      }),
+        buildInstructionsContent({
+          displayName,
+          description,
+          source: options.source,
+          runtimeAuthMode,
+          instructions: options.introspection.instructions,
+          skills: plannedSkills,
+          tools: options.introspection.tools,
+          userConfig,
+        }),
       existsSync(instructionsPath) ? await Bun.file(instructionsPath).text() : undefined,
       {
         customHeading: '## Custom Instructions',
@@ -393,6 +411,7 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
     generatedHookMode: generatedHooks.mode,
     generatedHookEvents: Object.keys(generatedHooks.hookEntries ?? {}),
     runtimeAuthMode,
+    userConfig,
     plannedSkills,
     managedFiles: [...generatedFiles, taxonomyPath, metadataPath],
   })
@@ -617,6 +636,7 @@ export function buildInstructionsContent(input: {
   instructions?: string
   skills: PlannedSkill[]
   tools: IntrospectedMcpTool[]
+  userConfig?: UserConfigEntry[]
 }): string {
   const accessLine = describePluginAccess(input.displayName, input.source, input.runtimeAuthMode ?? 'inline')
   const lines = [
@@ -653,6 +673,17 @@ export function buildInstructionsContent(input: {
     '- Summarize returned data instead of dumping raw JSON unless the user asks for it.',
   )
 
+  if (input.userConfig && input.userConfig.length > 0) {
+    lines.push('', '## User Config', '')
+    for (const item of input.userConfig) {
+      const descriptor = [item.type ?? 'string', item.required === false ? 'optional' : 'required']
+        .filter(Boolean)
+        .join(', ')
+      const envVar = item.envVar ? ` — env: \`${item.envVar}\`` : ''
+      lines.push(`- \`${item.key}\` (${item.title}; ${descriptor})${envVar}: ${item.description}`)
+    }
+  }
+
   if (input.instructions) {
     const serverGuidance = summarizeServerGuidance(input.instructions)
     if (serverGuidance.length > 0) {
@@ -676,6 +707,7 @@ export function buildConfigTemplate(input: {
   source: McpServer
   websiteUrl?: string
   targets: TargetPlatform[]
+  userConfig?: UserConfigEntry[]
   hooks?: Record<string, HookEntry[]>
   scriptsPath?: string
   runtimeAuthMode?: McpRuntimeAuthMode
@@ -687,6 +719,9 @@ export function buildConfigTemplate(input: {
     `displayName: ${JSON.stringify(input.displayName)}`,
     input.websiteUrl ? `websiteURL: ${JSON.stringify(input.websiteUrl)}` : null,
   ].filter(Boolean).join(',\n    ')
+  const userConfigBlock = input.userConfig && input.userConfig.length > 0
+    ? `\n  userConfig: ${serializeUserConfig(input.userConfig)},\n`
+    : ''
   const scriptsBlock = input.scriptsPath ? `  scripts: ${JSON.stringify(input.scriptsPath)},\n` : ''
   const commandsBlock = input.commandsPath ? `  commands: ${JSON.stringify(input.commandsPath)},\n` : ''
   const hooksBlock = input.hooks ? `\n  hooks: ${serializeHooks(input.hooks)},\n` : ''
@@ -708,6 +743,7 @@ export default definePlugin({
   skills: './skills/',
 ${commandsBlock}
   instructions: './INSTRUCTIONS.md',
+${userConfigBlock}
 ${scriptsBlock}
 
   mcp: {
@@ -781,6 +817,28 @@ function serializeHooks(hooks: Record<string, HookEntry[]>): string {
     .join(',\n')
 
   return `{\n${entries}\n  }`
+}
+
+function serializeUserConfig(userConfig: UserConfigEntry[]): string {
+  const entries = userConfig
+    .map((item) => {
+      const fields = [
+        `key: ${JSON.stringify(item.key)}`,
+        `title: ${JSON.stringify(item.title)}`,
+        `description: ${JSON.stringify(item.description)}`,
+        `type: ${JSON.stringify(item.type ?? 'string')}`,
+        `required: ${item.required ?? true}`,
+        item.envVar ? `envVar: ${JSON.stringify(item.envVar)}` : null,
+        item.defaultValue !== undefined ? `defaultValue: ${JSON.stringify(item.defaultValue)}` : null,
+        item.placeholder ? `placeholder: ${JSON.stringify(item.placeholder)}` : null,
+        item.targets ? `targets: ${JSON.stringify(item.targets)}` : null,
+      ].filter(Boolean)
+
+      return `    {\n      ${fields.join(',\n      ')}\n    }`
+    })
+    .join(',\n')
+
+  return `[\n${entries}\n  ]`
 }
 
 const MUTATING_PREFIXES = [
@@ -915,6 +973,7 @@ function buildMcpScaffoldMetadata(input: {
   generatedHookMode: McpHookMode
   generatedHookEvents: string[]
   runtimeAuthMode: McpRuntimeAuthMode
+  userConfig: UserConfigEntry[]
   plannedSkills: PlannedSkill[]
   managedFiles: string[]
 }): McpScaffoldMetadata {
@@ -931,6 +990,7 @@ function buildMcpScaffoldMetadata(input: {
       generatedHookEvents: input.generatedHookEvents,
       runtimeAuthMode: input.runtimeAuthMode,
     },
+    userConfig: input.userConfig,
     tools: input.introspection.tools,
     skills: input.plannedSkills.map((skill) => ({
       dirName: skill.dirName,

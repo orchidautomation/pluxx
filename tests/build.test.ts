@@ -255,6 +255,8 @@ describe('build', () => {
     const indexTs = readFileSync(resolve(OUT_DIR, 'opencode/index.ts'), 'utf-8')
     expect(indexTs).toContain('TestPluginPlugin')
     expect(indexTs).toContain('TEST_API_KEY')
+    expect(indexTs).toContain('.pluxx-user.json')
+    expect(indexTs).toContain('loadUserConfig')
   })
 
   it('writes documented hook outputs and omits undocumented Codex hook bundles', async () => {

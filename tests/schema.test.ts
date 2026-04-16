@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { HookEntrySchema, McpAuthSchema, McpServerSchema } from '../src/schema'
+import { HookEntrySchema, McpAuthSchema, McpServerSchema, UserConfigSchema } from '../src/schema'
 
 describe('McpServerSchema transport validation', () => {
   it('requires command and forbids url for stdio transport', () => {
@@ -123,6 +123,31 @@ describe('McpAuthSchema auth validation', () => {
         type: 'platform',
       }).success
     ).toBe(true)
+  })
+})
+
+describe('UserConfigSchema user config validation', () => {
+  it('requires a key, title, and description', () => {
+    expect(
+      UserConfigSchema.safeParse([
+        {
+          key: 'api-key',
+          title: 'API Key',
+          description: 'Bearer token for the MCP.',
+          type: 'secret',
+          required: true,
+          envVar: 'API_KEY',
+        },
+      ]).success
+    ).toBe(true)
+
+    expect(
+      UserConfigSchema.safeParse([
+        {
+          description: 'Bearer token for the MCP.',
+        },
+      ]).success
+    ).toBe(false)
   })
 })
 

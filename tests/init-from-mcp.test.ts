@@ -232,11 +232,15 @@ describe('init-from-mcp scaffold', () => {
         generatedHookMode: string
       }
       managedFiles: string[]
+      userConfig: Array<{ envVar?: string }>
       skills: Array<{ dirName: string }>
     }
 
     expect(config).toContain(`name: "sumble"`)
     expect(config).toContain(`envVar: "SUMBLE_API_KEY"`)
+    expect(config).toContain(`userConfig: [`)
+    expect(config).toContain(`key: "sumble-api-key"`)
+    expect(config).toContain(`title: "Sumble Api Key"`)
     expect(config).toContain(`instructions: './INSTRUCTIONS.md'`)
     expect(config).toContain(`commands: "./commands/"`)
     expect(config).toContain(`scripts: "./scripts/"`)
@@ -248,6 +252,7 @@ describe('init-from-mcp scaffold', () => {
     expect(instructionsFile).toContain('# Sumble MCP')
     expect(instructionsFile).toContain('## Workflow Guidance')
     expect(instructionsFile).toContain('## Tool Routing')
+    expect(instructionsFile).toContain('## User Config')
     expect(instructionsFile).toContain('Prefer the most specific Sumble tool for the request.')
     expect(instructionsFile).toContain('`FindOrganizations`')
     expect(instructionsFile).toContain('`find-organizations`')
@@ -272,6 +277,7 @@ describe('init-from-mcp scaffold', () => {
     expect(metadata.settings.generatedHookMode).toBe('safe')
     expect(metadata.managedFiles).toContain('.pluxx/mcp.json')
     expect(metadata.managedFiles).toContain('commands/find-organizations.md')
+    expect(metadata.userConfig.map((entry) => entry.envVar)).toContain('SUMBLE_API_KEY')
     expect(metadata.skills.map((skill) => skill.dirName)).toEqual([
       'find-organizations',
       'find-people',
@@ -318,6 +324,8 @@ describe('init-from-mcp scaffold', () => {
     expect(config).toContain(`envVar: "PLAYKIT_API_KEY"`)
     expect(config).toContain(`headerName: "X-API-Key"`)
     expect(config).toContain(`headerTemplate: "\${value}"`)
+    expect(config).toContain(`userConfig: [`)
+    expect(config).toContain(`key: "playkit-api-key"`)
   })
 
   it('can emit platform-managed runtime auth hints for Claude Code and Cursor', async () => {
