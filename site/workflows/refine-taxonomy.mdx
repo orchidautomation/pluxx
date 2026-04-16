@@ -1,0 +1,21 @@
+---
+title: Refine Taxonomy
+---
+
+Refine skill grouping after deterministic import so the plugin feels product-shaped instead of tool-shaped.
+
+## Flow
+
+```bash
+bunx pluxx agent prepare --website https://example.com --docs https://docs.example.com/mcp
+bunx pluxx agent run taxonomy --runner codex
+bunx pluxx test
+```
+
+## Quality bar
+
+- group by workflow, not raw endpoint names
+- keep setup/admin/runtime boundaries clear
+- avoid singleton skills unless they are real workflows
+
+Reference: [Use Pluxx in host agents](/getting-started/use-pluxx-in-host-agents).

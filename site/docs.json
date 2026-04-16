@@ -1,0 +1,82 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "name": "Pluxx",
+  "theme": "maple",
+  "colors": {
+    "primary": "#0F766E",
+    "light": "#14B8A6",
+    "dark": "#0B5E57"
+  },
+  "navigation": [
+    {
+      "group": "Overview",
+      "pages": [
+        "overview/what-pluxx-is",
+        "overview/core-primitives",
+        "overview/what-pluxx-does-not-model-yet"
+      ]
+    },
+    {
+      "group": "Getting Started",
+      "pages": [
+        "getting-started/getting-started",
+        "getting-started/create-a-pluxx-plugin",
+        "getting-started/use-pluxx-in-host-agents",
+        "getting-started/practical-handbook"
+      ]
+    },
+    {
+      "group": "How It Works",
+      "pages": [
+        "how-it-works/how-it-works",
+        "how-it-works/architecture",
+        "how-it-works/agent-mode",
+        "how-it-works/compatibility-limits"
+      ]
+    },
+    {
+      "group": "Workflows",
+      "pages": [
+        "workflows/import-from-mcp",
+        "workflows/refine-taxonomy",
+        "workflows/rewrite-instructions",
+        "workflows/review-scaffold",
+        "workflows/sync-mcp",
+        "workflows/autopilot"
+      ]
+    },
+    {
+      "group": "Platform Guides",
+      "pages": [
+        "platform-guides/claude-code",
+        "platform-guides/cursor",
+        "platform-guides/codex",
+        "platform-guides/opencode"
+      ]
+    },
+    {
+      "group": "Reference",
+      "pages": [
+        "reference/cli-reference",
+        "reference/pluxx-config",
+        "reference/auth-runtime-auth",
+        "reference/hooks-commands-agents",
+        "reference/validation-and-size-limits"
+      ]
+    },
+    {
+      "group": "Examples",
+      "pages": [
+        "examples/self-hosting-pluxx",
+        "examples/firecrawl-sumble-playkit"
+      ]
+    },
+    {
+      "group": "Roadmap / Boundaries",
+      "pages": [
+        "roadmap-boundaries/core-vs-deferred-primitives",
+        "roadmap-boundaries/compatibility-caveats"
+      ]
+    }
+  ]
+}

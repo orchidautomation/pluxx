@@ -1,0 +1,25 @@
+---
+title: pluxx.config.ts
+---
+
+`pluxx.config.ts` is the plugin source of truth.
+
+```ts
+import { definePlugin } from 'pluxx'
+
+export default definePlugin({
+  name: 'my-plugin',
+  description: 'What your plugin does',
+  author: { name: 'Your Name' },
+  mcp: {
+    'my-server': {
+      url: 'https://api.example.com/mcp',
+      auth: { type: 'bearer', envVar: 'API_KEY' }
+    }
+  },
+  skills: './skills/',
+  targets: ['claude-code', 'cursor', 'codex', 'opencode']
+})
+```
+
+See [How Pluxx works](/how-it-works/how-it-works) for per-host compilation behavior.

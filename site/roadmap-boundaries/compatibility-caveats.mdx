@@ -1,0 +1,18 @@
+---
+title: Compatibility Caveats
+---
+
+This page summarizes caveats from the extension-system research matrix.
+
+## Cross-host matrix (concise)
+
+| Area | Claude Code | Codex | Cursor | OpenCode |
+|---|---|---|---|---|
+| Primary project instructions | `CLAUDE.md` | `AGENTS.md` | `.cursor/rules/*.mdc` | `AGENTS.md` |
+| Plugin command model | supported | use `@plugin` + skills | supported | supported |
+| Hooks model | plugin + settings | external hooks config | hooks.json | plugin runtime hooks |
+| Skill limits (notable) | short display truncation | 1024-char description cap | strict name/path expectations | plugin-managed skill loading |
+
+## Generated compatibility matrix
+
+For the generated repo-level support matrix, see [Compatibility / limits](/how-it-works/compatibility-limits).

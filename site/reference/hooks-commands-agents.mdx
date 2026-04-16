@@ -1,0 +1,20 @@
+---
+title: Hooks, Commands, and Agents
+---
+
+Pluxx models hooks, commands, and agents as first-class primitives and compiles them per host.
+
+## Commands
+
+- Claude Code: supported
+- Cursor: supported
+- OpenCode: supported
+- Codex: use `@plugin` + skills
+
+## Hooks
+
+Hook event vocabularies differ by host. Pluxx maps canonical events and validates target compatibility.
+
+## Agents
+
+Subagent formats differ per host; Pluxx keeps a shared intent model and emits target-specific output.

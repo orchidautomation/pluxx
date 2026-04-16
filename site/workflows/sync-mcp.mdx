@@ -1,0 +1,19 @@
+---
+title: Sync MCP
+---
+
+Sync updates from the MCP while preserving custom sections.
+
+## Flow
+
+```bash
+bunx pluxx sync
+bunx pluxx lint
+bunx pluxx test
+```
+
+Repoint from local development MCP to production endpoint:
+
+```bash
+bunx pluxx sync --from-mcp https://mcp.example.com/mcp
+```

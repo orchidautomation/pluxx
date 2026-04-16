@@ -1,0 +1,22 @@
+---
+title: Review Scaffold
+---
+
+Run a findings-first review before shipping.
+
+## Flow
+
+```bash
+bunx pluxx agent run review --runner codex --no-verify
+bunx pluxx doctor
+bunx pluxx lint
+bunx pluxx test
+```
+
+## Review checklist
+
+- taxonomy clarity
+- instruction quality
+- auth/setup/runtime boundaries
+- host-specific correctness (especially Codex)
+- examples and install flow quality

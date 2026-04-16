@@ -1,0 +1,35 @@
+---
+title: Firecrawl, Sumble, and PlayKit-style Examples
+---
+
+## Firecrawl-style
+
+If your MCP has many granular tools, start with deterministic import and then run taxonomy refinement:
+
+```bash
+bunx pluxx init --from-mcp https://example.com/mcp --yes
+bunx pluxx agent prepare --website https://example.com --docs https://docs.example.com/mcp
+bunx pluxx agent run taxonomy --runner codex
+```
+
+Repository example: [`example/firecrawl-plugin`](https://github.com/orchidautomation/pluxx/tree/main/example/firecrawl-plugin)
+
+## Sumble-style
+
+Provide product context up front so generated instructions and skill naming are product-shaped.
+
+## PlayKit-style
+
+Use custom header auth during import:
+
+```bash
+bunx pluxx init \
+  --from-mcp https://mcp.playkit.sh/mcp \
+  --yes \
+  --auth-env PLAYKIT_API_KEY \
+  --auth-type header \
+  --auth-header X-API-Key \
+  --auth-template '${value}'
+```
+
+If a dedicated `example/firecrawl-plugin` is added later, place it next to `example/pluxx` and link it here.

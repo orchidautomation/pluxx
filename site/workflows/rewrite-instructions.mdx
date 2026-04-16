@@ -1,0 +1,30 @@
+---
+title: Rewrite Instructions
+---
+
+Rewrite the generated instructions section without touching user-owned custom sections.
+
+## Flow
+
+```bash
+bunx pluxx agent prepare
+bunx pluxx agent run instructions --runner codex
+bunx pluxx lint
+bunx pluxx test
+```
+
+## Editing boundary
+
+Generated markdown is mixed ownership:
+
+```md
+<!-- pluxx:generated:start -->
+...
+<!-- pluxx:generated:end -->
+
+<!-- pluxx:custom:start -->
+...
+<!-- pluxx:custom:end -->
+```
+
+Only generated blocks should be rewritten by automation.
