@@ -55,6 +55,7 @@ interface PlannedSkill {
   tools: IntrospectedMcpTool[]
   resources: IntrospectedMcpResource[]
   resourceTemplates: IntrospectedMcpResourceTemplate[]
+  prompts: IntrospectedMcpPrompt[]
   workflowKey?: string | null
 }
 
@@ -130,6 +131,7 @@ export interface McpScaffoldMetadata {
     toolNames: string[]
     resourceUris?: string[]
     resourceTemplateUris?: string[]
+    promptNames?: string[]
   }>
   managedFiles: string[]
 }
@@ -298,6 +300,7 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
     options.skillGrouping,
     options.introspection.resources ?? [],
     options.introspection.resourceTemplates ?? [],
+    options.introspection.prompts ?? [],
     options.persistedSkills,
     options.toolRenames,
   )
@@ -614,6 +617,16 @@ export function buildSkillContent(skill: PlannedSkill): string {
     lines.push('')
   }
 
+  if (skill.prompts.length > 0) {
+    lines.push('## Related Prompt Templates', '')
+
+    for (const prompt of skill.prompts) {
+      lines.push(`- \`${prompt.name}\`: ${summarizePromptForInstructions(prompt)}`)
+    }
+
+    lines.push('')
+  }
+
   lines.push(
     '## Example Requests',
     '',
@@ -640,6 +653,24 @@ export function buildCommandContent(skill: PlannedSkill, existingContent?: strin
   const description = truncate(cleanSingleLineText(skill.description), 140)
   const argumentHint = inferCommandArgumentHint(skill)
   const entryBlurb = buildCommandEntryBlurb(skill)
+  const hasRelatedResources = skill.resources.length > 0 || skill.resourceTemplates.length > 0
+  const hasRelatedPrompts = skill.prompts.length > 0
+  const workflowSteps = [
+    '1. Interpret `$ARGUMENTS` as the user request for this workflow.',
+    '2. Choose the most specific tool in this surface.',
+  ]
+
+  if (hasRelatedResources) {
+    workflowSteps.push(`${workflowSteps.length + 1}. Use related MCP resources or resource templates as canonical context when they fit the request.`)
+  }
+
+  if (hasRelatedPrompts) {
+    workflowSteps.push(`${workflowSteps.length + 1}. Use related MCP prompt templates when they provide a canonical starting point for the task.`)
+  }
+
+  workflowSteps.push(`${workflowSteps.length + 1}. Ask for missing required inputs only if the request does not already provide them.`)
+  workflowSteps.push(`${workflowSteps.length + 1}. Return a concise task-focused answer instead of raw JSON unless the user asks for it.`)
+
   const generatedContent = [
     '---',
     `description: ${JSON.stringify(description)}`,
@@ -652,7 +683,7 @@ export function buildCommandContent(skill: PlannedSkill, existingContent?: strin
     '',
     'Primary tools:',
     ...skill.tools.map((tool) => `- \`${tool.name}\``),
-    ...(skill.resources.length > 0 || skill.resourceTemplates.length > 0
+    ...(hasRelatedResources
       ? [
           '',
           'Related resources:',
@@ -663,16 +694,17 @@ export function buildCommandContent(skill: PlannedSkill, existingContent?: strin
           ...skill.resourceTemplates.map((template) => `- \`${template.name}\``),
         ]
       : []),
+    ...(hasRelatedPrompts
+      ? [
+          '',
+          'Related prompt templates:',
+          ...skill.prompts.map((prompt) => `- \`${prompt.name}\``),
+        ]
+      : []),
     '',
     'Workflow:',
     '',
-    '1. Interpret `$ARGUMENTS` as the user request for this workflow.',
-    '2. Choose the most specific tool in this surface.',
-    ...(skill.resources.length > 0 || skill.resourceTemplates.length > 0
-      ? ['3. Use related MCP resources or resource templates as canonical context when they fit the request.']
-      : []),
-    `${skill.resources.length > 0 || skill.resourceTemplates.length > 0 ? '4' : '3'}. Ask for missing required inputs only if the request does not already provide them.`,
-    `${skill.resources.length > 0 || skill.resourceTemplates.length > 0 ? '5' : '4'}. Return a concise task-focused answer instead of raw JSON unless the user asks for it.`,
+    ...workflowSteps,
   ].join('\n')
 
   return wrapManagedMarkdown(
@@ -1091,6 +1123,7 @@ function buildMcpScaffoldMetadata(input: {
       toolNames: skill.tools.map((tool) => tool.name),
       resourceUris: skill.resources.map((resource) => resource.uri),
       resourceTemplateUris: skill.resourceTemplates.map((resource) => resource.uriTemplate),
+      promptNames: skill.prompts.map((prompt) => prompt.name),
     })),
     managedFiles: input.managedFiles,
   }
@@ -1101,10 +1134,11 @@ export function planSkillScaffolds(
   grouping: McpSkillGrouping = 'workflow',
   resources: IntrospectedMcpResource[] = [],
   resourceTemplates: IntrospectedMcpResourceTemplate[] = [],
+  prompts: IntrospectedMcpPrompt[] = [],
 ): PlannedSkill[] {
   if (grouping === 'tool') {
     return allocateSkillDirectoryNames(
-      attachRelatedResourceSurfaces(
+      attachRelatedSurfaceSignals(
         tools
           .sort((a, b) => a.name.localeCompare(b.name))
           .map((tool) => ({
@@ -1114,10 +1148,12 @@ export function planSkillScaffolds(
             tools: [tool],
             resources: [],
             resourceTemplates: [],
+            prompts: [],
             workflowKey: classifyToolWorkflow(tool),
           })),
         resources,
         resourceTemplates,
+        prompts,
       ),
     )
   }
@@ -1150,6 +1186,7 @@ export function planSkillScaffolds(
       tools: bucket.sort((a, b) => a.name.localeCompare(b.name)),
       resources: [],
       resourceTemplates: [],
+      prompts: [],
       workflowKey: definition.key,
     })
   }
@@ -1162,12 +1199,13 @@ export function planSkillScaffolds(
       tools: [tool],
       resources: [],
       resourceTemplates: [],
+      prompts: [],
       workflowKey: classifyToolWorkflow(tool),
     })
   }
 
   return allocateSkillDirectoryNames(
-    attachRelatedResourceSurfaces(plannedSkills, resources, resourceTemplates),
+    attachRelatedSurfaceSignals(plannedSkills, resources, resourceTemplates, prompts),
   )
 }
 
@@ -1176,11 +1214,12 @@ function planSkillScaffoldsFromPersisted(
   grouping: McpSkillGrouping = 'workflow',
   resources: IntrospectedMcpResource[] = [],
   resourceTemplates: IntrospectedMcpResourceTemplate[] = [],
+  prompts: IntrospectedMcpPrompt[] = [],
   persistedSkills: PersistedSkill[] = [],
   toolRenames: Map<string, string> = new Map(),
 ): PlannedSkill[] {
   if (persistedSkills.length === 0) {
-    return planSkillScaffolds(tools, grouping, resources, resourceTemplates)
+    return planSkillScaffolds(tools, grouping, resources, resourceTemplates, prompts)
   }
 
   const toolByName = new Map(tools.map((tool) => [tool.name, tool]))
@@ -1207,17 +1246,18 @@ function planSkillScaffoldsFromPersisted(
       tools: matchedTools,
       resources: [],
       resourceTemplates: [],
+      prompts: [],
       workflowKey: inferWorkflowKeyFromTools(matchedTools),
     })
   }
 
   const remainingTools = tools.filter((tool) => !assigned.has(tool.name))
   if (remainingTools.length > 0) {
-    planned.push(...planSkillScaffolds(remainingTools, grouping, resources, resourceTemplates))
+    planned.push(...planSkillScaffolds(remainingTools, grouping, resources, resourceTemplates, prompts))
   }
 
   return allocateSkillDirectoryNames(
-    attachRelatedResourceSurfaces(planned, resources, resourceTemplates),
+    attachRelatedSurfaceSignals(planned, resources, resourceTemplates, prompts),
   )
 }
 
@@ -1363,6 +1403,15 @@ function classifyResourceTemplateWorkflow(template: IntrospectedMcpResourceTempl
   return classifyWorkflowSurface(primaryText, secondaryText)
 }
 
+function classifyPromptWorkflow(prompt: IntrospectedMcpPrompt): string | null {
+  const primaryText = [
+    normalizeIdentifier(prompt.name).toLowerCase(),
+    ...(prompt.arguments ?? []).map((argument) => normalizeIdentifier(argument.name).toLowerCase()),
+  ].join(' ')
+  const secondaryText = (prompt.description ?? '').toLowerCase()
+  return classifyWorkflowSurface(primaryText, secondaryText)
+}
+
 function classifyWorkflowSurface(primaryText: string, secondaryText: string): string | null {
   let bestMatch: string | null = null
   let bestScore = 0
@@ -1396,15 +1445,17 @@ function inferWorkflowKeyFromTools(tools: IntrospectedMcpTool[]): string | null 
   return null
 }
 
-function attachRelatedResourceSurfaces(
+function attachRelatedSurfaceSignals(
   skills: PlannedSkill[],
   resources: IntrospectedMcpResource[],
   resourceTemplates: IntrospectedMcpResourceTemplate[],
+  prompts: IntrospectedMcpPrompt[],
 ): PlannedSkill[] {
   const nextSkills = skills.map((skill) => ({
     ...skill,
     resources: [...skill.resources],
     resourceTemplates: [...skill.resourceTemplates],
+    prompts: [...skill.prompts],
   }))
 
   const attachResource = (workflowKey: string | null, apply: (skill: PlannedSkill) => void) => {
@@ -1426,6 +1477,14 @@ function attachRelatedResourceSurfaces(
     attachResource(classifyResourceTemplateWorkflow(template), (skill) => {
       if (!skill.resourceTemplates.some((entry) => entry.uriTemplate === template.uriTemplate)) {
         skill.resourceTemplates.push(template)
+      }
+    })
+  }
+
+  for (const prompt of prompts) {
+    attachResource(classifyPromptWorkflow(prompt), (skill) => {
+      if (!skill.prompts.some((entry) => entry.name === prompt.name)) {
+        skill.prompts.push(prompt)
       }
     })
   }
@@ -1454,10 +1513,14 @@ function buildInstructionSkillSummary(skill: PlannedSkill): string {
     ...skill.resources.map((resource) => `\`${resource.name ?? resource.title ?? resource.uri}\``),
     ...skill.resourceTemplates.map((template) => `\`${template.name}\``),
   ]
+  const promptLabels = skill.prompts.map((prompt) => `\`${prompt.name}\``)
   const resourceNote = resourceLabels.length > 0
     ? ` Related resources: ${resourceLabels.join(', ')}.`
     : ''
-  return `\`${skill.dirName}\`: ${description} Primary tools: ${toolNames}.${resourceNote}`
+  const promptNote = promptLabels.length > 0
+    ? ` Related prompt templates: ${promptLabels.join(', ')}.`
+    : ''
+  return `\`${skill.dirName}\`: ${description} Primary tools: ${toolNames}.${resourceNote}${promptNote}`
 }
 
 function inferCommandArgumentHint(skill: PlannedSkill): string {
@@ -1489,10 +1552,14 @@ function buildCommandEntryBlurb(skill: PlannedSkill): string {
     ...skill.resources.map((resource) => resource.name ?? resource.title ?? resource.uri),
     ...skill.resourceTemplates.map((template) => template.name),
   ]
+  const promptLabels = skill.prompts.map((prompt) => prompt.name)
   const resourceNote = resourceLabels.length > 0
     ? ` Check related MCP resources such as ${resourceLabels.slice(0, 2).map((label) => `\`${label}\``).join(' and ')} when they fit the request.`
     : ''
-  return `Use this command when the user asks to ${intent}.${resourceNote}`
+  const promptNote = promptLabels.length > 0
+    ? ` Prompt templates such as ${promptLabels.slice(0, 2).map((label) => `\`${label}\``).join(' and ')} can provide a canonical starting point.`
+    : ''
+  return `Use this command when the user asks to ${intent}.${resourceNote}${promptNote}`
 }
 
 function inferSkillIntentPhrase(skill: PlannedSkill): string {

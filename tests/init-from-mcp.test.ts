@@ -182,6 +182,7 @@ describe('init-from-mcp scaffold', () => {
       'workflow',
       introspection.resources ?? [],
       introspection.resourceTemplates ?? [],
+      introspection.prompts ?? [],
     )
 
     expect(skills.map((skill) => skill.dirName)).toEqual([
@@ -194,6 +195,9 @@ describe('init-from-mcp scaffold', () => {
     ])
     expect(skills[0].resourceTemplates.map((resource) => resource.name)).toEqual([
       'organization-resource',
+    ])
+    expect(skills[0].prompts.map((prompt) => prompt.name)).toEqual([
+      'qualify-account',
     ])
   })
 
@@ -281,7 +285,7 @@ describe('init-from-mcp scaffold', () => {
       resources?: Array<{ uri: string }>
       resourceTemplates?: Array<{ uriTemplate: string }>
       prompts?: Array<{ name: string }>
-      skills: Array<{ dirName: string }>
+      skills: Array<{ dirName: string, resourceTemplateUris?: string[], promptNames?: string[] }>
     }
 
     expect(config).toContain(`name: "sumble"`)
@@ -317,6 +321,8 @@ describe('init-from-mcp scaffold', () => {
     expect(organizationSkill).toContain('`query` (string, required)')
     expect(organizationSkill).toContain('## Related Resources')
     expect(organizationSkill).toContain('`organization-resource`')
+    expect(organizationSkill).toContain('## Related Prompt Templates')
+    expect(organizationSkill).toContain('`qualify-account`')
     expect(organizationSkill).toContain('## Example Requests')
     expect(organizationSkill).toContain('"Find organizations matching <query>."')
     expect(organizationSkill.startsWith('---\n')).toBe(true)
@@ -326,6 +332,8 @@ describe('init-from-mcp scaffold', () => {
     expect(organizationCommand).toContain('Primary tools:')
     expect(organizationCommand).toContain('Related resources:')
     expect(organizationCommand).toContain('`organization-resource`')
+    expect(organizationCommand).toContain('Related prompt templates:')
+    expect(organizationCommand).toContain('`qualify-account`')
     expect(organizationCommand).toContain('<!-- pluxx:generated:start -->')
     expect(envScript).toContain('SUMBLE_API_KEY')
     expect(envScript).toContain('pluxx: SUMBLE_API_KEY is not set')
@@ -345,6 +353,9 @@ describe('init-from-mcp scaffold', () => {
     ])
     expect(metadata.skills.find((skill) => skill.dirName === 'find-organizations')?.resourceTemplateUris).toEqual([
       'sumble://organizations/{organization_id}',
+    ])
+    expect(metadata.skills.find((skill) => skill.dirName === 'find-organizations')?.promptNames).toEqual([
+      'qualify-account',
     ])
     expect(existsSync(resolve(TEST_DIR, 'skills/find-people/SKILL.md'))).toBe(true)
 
