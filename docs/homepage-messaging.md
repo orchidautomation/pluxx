@@ -4,7 +4,7 @@ This is the working homepage copy for Pluxx. It is intentionally concise and str
 
 ## Positioning
 
-Pluxx gives you one maintainable plugin source project for Claude Code, Codex, Cursor, and OpenCode.
+Pluxx gives you one maintained plugin source project for Claude Code, Codex, Cursor, and OpenCode.
 
 The important product promise is:
 
@@ -17,11 +17,11 @@ The important product promise is:
 
 ### Headline
 
-Maintain one plugin. Ship it everywhere.
+Stop maintaining four plugin repos for one MCP.
 
 ### Subheadline
 
-Pluxx turns one MCP or source project into native bundles for Claude Code, Codex, Cursor, and OpenCode. Keep one maintained source of truth while Codex or Claude refines the semantics.
+Pluxx keeps one source project for Claude Code, Codex, Cursor, and OpenCode, then compiles the native bundle each host expects. Your host coding agent can refine the semantics without breaking the structure.
 
 ### Primary CTA
 

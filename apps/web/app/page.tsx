@@ -122,17 +122,17 @@ export default function Home() {
           <div className="hero-copy">
             <span className="eyebrow">
               <span className="eyebrow-dot" aria-hidden />
-              One MCP → every coding agent
+              One MCP. Four native plugin surfaces.
             </span>
             <h1 className="hero-title">
-              Author your plugin once.
+              Stop maintaining four
               <br />
-              Ship it <em>everywhere</em>.
+              plugin repos for one MCP.
             </h1>
             <p className="lede">
-              Pluxx turns one MCP or source project into native plugin bundles for Claude&nbsp;Code,
-              Cursor, Codex, and OpenCode. Keep one maintained source of truth while Codex or
-              Claude refines the semantics.
+              Pluxx keeps one source project for Claude&nbsp;Code, Cursor, Codex, and OpenCode,
+              then compiles the native bundle each host expects. Your host coding agent can refine
+              the semantics without breaking the structure.
             </p>
 
             <div className="cta-row">
