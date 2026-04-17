@@ -338,7 +338,7 @@ describe('sync-from-mcp', () => {
     expect(existsSync(resolve(TEST_DIR, 'commands/find-organizations.md'))).toBe(false)
 
     const command = readFileSync(resolve(TEST_DIR, 'commands/research.md'), 'utf-8')
-    expect(command).toContain('Use the research workflow for this plugin.')
+    expect(command).toContain('Use this command when the user asks to work on company and people research workflows.')
     expect(command).toContain('`FindOrganizations`')
     expect(command).toContain('`FindPeople`')
   })

@@ -612,13 +612,14 @@ export function buildSkillContent(skill: PlannedSkill): string {
 export function buildCommandContent(skill: PlannedSkill, existingContent?: string): string {
   const description = truncate(cleanSingleLineText(skill.description), 140)
   const argumentHint = inferCommandArgumentHint(skill)
+  const entryBlurb = buildCommandEntryBlurb(skill)
   const generatedContent = [
     '---',
     `description: ${JSON.stringify(description)}`,
     `argument-hint: ${JSON.stringify(argumentHint)}`,
     '---',
     '',
-    `Use the ${skill.title.toLowerCase()} workflow for this plugin.`,
+    entryBlurb,
     '',
     'Arguments: $ARGUMENTS',
     '',
@@ -1339,6 +1340,47 @@ function inferCommandArgumentHint(skill: PlannedSkill): string {
   return [...fieldHints].slice(0, 2).map((hint) => `[${hint}]`).join(' ')
 }
 
+function buildCommandEntryBlurb(skill: PlannedSkill): string {
+  const intent = inferSkillIntentPhrase(skill)
+  return `Use this command when the user asks to ${intent}.`
+}
+
+function inferSkillIntentPhrase(skill: PlannedSkill): string {
+  const toolDescription = skill.tools.length === 1
+    ? firstSentenceOf(cleanSingleLineText(skill.tools[0].description))
+    : ''
+  const fallback = firstSentenceOf(cleanSingleLineText(skill.description))
+  const cleaned = normalizeSkillIntentPhrase(toolDescription || fallback)
+
+  if (!cleaned) {
+    return `work with ${skill.title.toLowerCase()} in this plugin`
+  }
+
+  return startsWithActionVerb(cleaned) ? cleaned : `work on ${cleaned}`
+}
+
+function normalizeSkillIntentPhrase(value: string): string {
+  if (!value) return ''
+
+  const withoutGenericPrefixes = value
+    .replace(/^use (?:the |this )?(?:workflow|command|tool)\s+(?:for|to)\s+/i, '')
+    .replace(/^use the `[^`]+` mcp tool for this workflow\.?/i, '')
+    .replace(/^handle\s+/i, '')
+    .replace(/^this (?:workflow|command|tool)\s+/i, '')
+    .replace(/\s+for this plugin\.?$/i, '')
+    .replace(/\s+for this workflow\.?$/i, '')
+    .trim()
+
+  if (!withoutGenericPrefixes) return ''
+
+  const normalized = withoutGenericPrefixes.charAt(0).toLowerCase() + withoutGenericPrefixes.slice(1)
+  return normalized.replace(/[.?!]+$/, '').trim()
+}
+
+function startsWithActionVerb(value: string): boolean {
+  return /^(search|find|look up|get|fetch|create|update|delete|list|query|send|check|compare|build|run|research)\b/i.test(value)
+}
+
 function mapSchemaFieldToArgumentHint(fieldName: string): string {
   const value = fieldName.toLowerCase()
 
@@ -1481,10 +1523,7 @@ export function buildToolExampleRequest(tool: IntrospectedMcpTool): string {
   const action = inferToolAction(tool)
   const objectLabel = inferToolObject(tool)
   const context = buildToolRequestContext(tool)
-
-  const sentence = context
-    ? `${action} ${objectLabel} ${context}.`
-    : `${action} ${objectLabel}.`
+  const sentence = buildExampleSentence(action, objectLabel, context)
 
   return sentence.charAt(0).toUpperCase() + sentence.slice(1)
 }
@@ -1499,14 +1538,25 @@ function inferToolAction(tool: IntrospectedMcpTool): string {
   if (/^(list)\b/.test(identifier)) return 'list'
   if (/^(query)\b/.test(identifier)) return 'query'
   if (/^(search)\b/.test(identifier)) return 'search'
+  if (/^(send|post|publish)\b/.test(identifier)) return 'send'
   return 'find'
 }
 
 function inferToolObject(tool: IntrospectedMcpTool): string {
   const raw = normalizeIdentifier(tool.title ?? tool.name).trim()
   const stripped = raw.replace(/^(find|get|fetch|lookup|look up|search|list|create|add|update|edit|delete|remove|query)\s+/i, '')
-  const candidate = stripped || raw
-  return candidate ? candidate.toLowerCase() : 'results'
+  const tokens = (stripped || raw).toLowerCase().split(/\s+/).filter(Boolean)
+
+  while (tokens.length > 1 && SECONDARY_ACTION_TOKENS.has(tokens[0])) {
+    tokens.shift()
+  }
+
+  while (tokens.length > 1 && NOISE_OBJECT_TOKENS.has(tokens[tokens.length - 1])) {
+    tokens.pop()
+  }
+
+  const candidate = tokens.join(' ').trim()
+  return candidate || 'results'
 }
 
 function buildToolRequestContext(tool: IntrospectedMcpTool): string {
@@ -1539,6 +1589,75 @@ function buildToolRequestContext(tool: IntrospectedMcpTool): string {
   }
 
   return `with ${placeholder}`
+}
+
+const SECONDARY_ACTION_TOKENS = new Set([
+  'find',
+  'get',
+  'fetch',
+  'lookup',
+  'search',
+  'list',
+  'create',
+  'add',
+  'update',
+  'edit',
+  'delete',
+  'remove',
+  'query',
+  'send',
+  'post',
+  'publish',
+])
+
+const NOISE_OBJECT_TOKENS = new Set(['tool', 'workflow', 'mcp'])
+
+function buildExampleSentence(action: string, objectLabel: string, context: string): string {
+  const objectPhrase = buildObjectPhrase(action, objectLabel)
+  const withContext = context ? `${objectPhrase} ${context}` : objectPhrase
+  return `${withContext}.`
+}
+
+function buildObjectPhrase(action: string, objectLabel: string): string {
+  const trimmed = objectLabel.trim() || 'results'
+  const pluralized = maybePluralizePhrase(trimmed)
+
+  if (action === 'create') return `create a new ${trimmed}`
+  if (action === 'update') return `update ${withArticle(trimmed)}`
+  if (action === 'delete') return `delete the ${trimmed}`
+  if (action === 'look up') return `look up ${withArticle(trimmed)}`
+  if (action === 'list') return `list ${pluralized}`
+  if (action === 'find' || action === 'search' || action === 'query') return `${action} ${pluralized}`
+  if (action === 'send') return `send ${withArticle(trimmed)}`
+  return `${action} ${trimmed}`
+}
+
+function withArticle(value: string): string {
+  if (!value) return 'results'
+  if (/^(a|an|the)\b/i.test(value)) return value
+  if (/\b(and|or)\b/i.test(value) || value.endsWith('s')) return value
+  const firstWord = value.split(/\s+/)[0].toLowerCase()
+  const article = /^[aeiou]/.test(firstWord) ? 'an' : 'a'
+  return `${article} ${value}`
+}
+
+function maybePluralizePhrase(value: string): string {
+  const words = value.trim().split(/\s+/).filter(Boolean)
+  if (words.length === 0) return 'results'
+
+  const last = words[words.length - 1]
+  if (/s$/i.test(last) || /people$/i.test(last)) return value
+  if (/y$/i.test(last) && !/[aeiou]y$/i.test(last)) {
+    words[words.length - 1] = `${last.slice(0, -1)}ies`
+    return words.join(' ')
+  }
+  if (/(ch|sh|x|z)$/i.test(last)) {
+    words[words.length - 1] = `${last}es`
+    return words.join(' ')
+  }
+
+  words[words.length - 1] = `${last}s`
+  return words.join(' ')
 }
 
 function formatSchemaType(value: unknown): string {
