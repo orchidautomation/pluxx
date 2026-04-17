@@ -18,6 +18,6 @@ npx @orchid-labs/pluxx install --target claude-code
 
 ### Slash Surface Contract
 
-When a Claude plugin has both `commands/<name>.md` and `skills/<name>/SKILL.md`, Pluxx now keeps the command and omits the colliding skill from the Claude bundle.
+When a Claude plugin has both `commands/<name>.md` and `skills/<name>/SKILL.md`, Pluxx keeps both surfaces in the Claude bundle.
 
-This keeps Claude's slash UX command-first for generated workflows (for example `read-and-triage-mail`) while preserving full skills + commands output for other targets.
+To avoid duplicate slash labels, colliding Claude command files are remapped to `commands/<name>-command.md` (for example `read-and-triage-mail-command.md`) while the canonical skill remains `skills/<name>/SKILL.md`.

@@ -424,7 +424,7 @@ describe('build', () => {
     expect(existsSync(resolve(OUT_DIR, 'cline/.cline/skills/hello/SKILL.md'))).toBe(true)
   })
 
-  it('prefers Claude commands over colliding skill names', async () => {
+  it('remaps Claude commands when names collide with skills', async () => {
     mkdirSync(resolve(TEST_DIR, 'skills/read-and-triage-mail'), { recursive: true })
     await Bun.write(
       resolve(TEST_DIR, 'skills/read-and-triage-mail/SKILL.md'),
@@ -442,9 +442,12 @@ describe('build', () => {
 
     expect(
       existsSync(resolve(TEST_DIR, 'collision-dist/claude-code/skills/read-and-triage-mail/SKILL.md'))
-    ).toBe(false)
+    ).toBe(true)
     expect(
       existsSync(resolve(TEST_DIR, 'collision-dist/claude-code/commands/read-and-triage-mail.md'))
+    ).toBe(false)
+    expect(
+      existsSync(resolve(TEST_DIR, 'collision-dist/claude-code/commands/read-and-triage-mail-command.md'))
     ).toBe(true)
 
     expect(

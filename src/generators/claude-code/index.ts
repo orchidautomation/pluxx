@@ -2,7 +2,7 @@ import { Generator } from '../base'
 import { generateClaudeFamilyOutputs } from '../shared/claude-family'
 import type { TargetPlatform } from '../../schema'
 import { cpSync, existsSync, mkdirSync, readdirSync } from 'fs'
-import { basename, extname, join, relative } from 'path'
+import { basename, dirname, extname, join, relative } from 'path'
 
 export class ClaudeCodeGenerator extends Generator {
   readonly platform: TargetPlatform = 'claude-code'
@@ -29,43 +29,56 @@ export class ClaudeCodeGenerator extends Generator {
     this.copyAssets()
   }
 
-  protected copySkills(): void {
-    if (!this.config.commands) {
-      super.copySkills()
-      return
-    }
-
-    const skillsSrc = this.resolveConfigPath(this.config.skills, 'skills')
-    if (!existsSync(skillsSrc)) return
+  protected copyCommands(): void {
+    if (!this.config.commands) return
 
     const commandsSrc = this.resolveConfigPath(this.config.commands, 'commands')
-    if (!existsSync(commandsSrc)) {
-      super.copySkills()
-      return
-    }
+    if (!existsSync(commandsSrc)) return
 
-    const collidingSkillNames = collectCommandNames(commandsSrc)
+    const collidingSkillNames = this.collectCollidingSkillNames()
     if (collidingSkillNames.size === 0) {
-      super.copySkills()
+      super.copyCommands()
       return
     }
 
-    const skillsDest = join(this.outDir, 'skills')
-    mkdirSync(skillsDest, { recursive: true })
+    const commandFiles = collectCommandFiles(commandsSrc)
+    const reservedOutputPaths = new Set(commandFiles)
+    const allocatedOutputPaths = new Set<string>()
+    const commandsDest = join(this.outDir, 'commands')
 
-    for (const entry of readdirSync(skillsSrc, { withFileTypes: true })) {
-      const srcPath = join(skillsSrc, entry.name)
-      const destPath = join(skillsDest, entry.name)
-      if (entry.isDirectory() && collidingSkillNames.has(entry.name)) {
-        continue
+    for (const relativePath of commandFiles) {
+      const sourcePath = join(commandsSrc, relativePath)
+      let outputPath = relativePath
+      const commandName = basename(relativePath, '.md')
+
+      if (collidingSkillNames.has(commandName)) {
+        outputPath = buildRemappedCommandPath(relativePath, reservedOutputPaths, allocatedOutputPaths)
       }
-      cpSync(srcPath, destPath, { recursive: true })
+
+      const destinationPath = join(commandsDest, outputPath)
+      mkdirSync(dirname(destinationPath), { recursive: true })
+      cpSync(sourcePath, destinationPath)
+      allocatedOutputPaths.add(outputPath)
     }
+  }
+
+  private collectCollidingSkillNames(): Set<string> {
+    const skillsSrc = this.resolveConfigPath(this.config.skills, 'skills')
+    if (!existsSync(skillsSrc)) return new Set<string>()
+    return collectTopLevelSkillNames(skillsSrc)
   }
 }
 
-function collectCommandNames(commandsRoot: string): Set<string> {
-  const commandNames = new Set<string>()
+function collectTopLevelSkillNames(skillsRoot: string): Set<string> {
+  const skillNames = new Set<string>()
+  for (const entry of readdirSync(skillsRoot, { withFileTypes: true })) {
+    if (entry.isDirectory()) skillNames.add(entry.name)
+  }
+  return skillNames
+}
+
+function collectCommandFiles(commandsRoot: string): string[] {
+  const commandFiles: string[] = []
   const stack = [commandsRoot]
 
   while (stack.length > 0) {
@@ -81,13 +94,33 @@ function collectCommandNames(commandsRoot: string): Set<string> {
 
       if (entry.isFile() && extname(entry.name).toLowerCase() === '.md') {
         const relativePath = relative(commandsRoot, fullPath)
-        const commandName = basename(relativePath, '.md')
-        if (commandName) {
-          commandNames.add(commandName)
-        }
+        if (relativePath) commandFiles.push(relativePath)
       }
     }
   }
 
-  return commandNames
+  commandFiles.sort()
+  return commandFiles
+}
+
+function buildRemappedCommandPath(
+  relativePath: string,
+  reservedOutputPaths: Set<string>,
+  allocatedOutputPaths: Set<string>,
+): string {
+  const dir = dirname(relativePath)
+  const ext = extname(relativePath) || '.md'
+  const stem = basename(relativePath, ext)
+
+  let suffix = ''
+  let counter = 1
+  while (true) {
+    const candidateName = `${stem}-command${suffix}${ext}`
+    const candidatePath = dir === '.' ? candidateName : join(dir, candidateName)
+    if (!reservedOutputPaths.has(candidatePath) && !allocatedOutputPaths.has(candidatePath)) {
+      return candidatePath
+    }
+    counter += 1
+    suffix = `-${counter}`
+  }
 }
