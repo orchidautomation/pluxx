@@ -55,6 +55,7 @@ If you want the current execution queue with milestones, dependencies, and deleg
 If you want the implementation target for release orchestration, use [publish v1 contract](./docs/publish-v1-contract.md).
 If you are planning marketplace-aware release flows, use [Marketplace submission prep](./docs/marketplace-submission-prep.md).
 If you want the canonical Pluxx product-brand direction and launch asset checklist, use [Brand launch asset system](./docs/brand-launch-asset-system.md).
+If you want the first proof/demo capture plan with prioritized assets and claim mapping, use [First proof and demo asset pack](./docs/first-proof-demo-asset-pack.md).
 If you maintain Pluxx itself and want the npm/GitHub release flow, use [Releasing Pluxx](./docs/releasing-pluxx.md).
 
 ## Why?

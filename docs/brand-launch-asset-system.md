@@ -84,6 +84,8 @@ Store canonical source files in:
 
 ## Launch Asset Requirements
 
+For the concrete first-pass proof/demo capture plan (priorities, flows, and claim mapping), use [First proof and demo asset pack](./first-proof-demo-asset-pack.md).
+
 ### Required Screenshots And Media
 
 1. Homepage hero screenshot (value proposition + primary CTA visible)
