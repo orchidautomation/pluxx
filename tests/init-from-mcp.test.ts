@@ -409,6 +409,40 @@ describe('init-from-mcp scaffold', () => {
     expect(metadata.settings.runtimeAuthMode).toBe('platform')
   })
 
+  it('can emit platform auth config for OAuth-ready MCPs without inline secrets', async () => {
+    await writeMcpScaffold({
+      rootDir: TEST_DIR,
+      pluginName: 'oauth-stub',
+      authorName: 'Test Author',
+      displayName: 'OAuth Stub',
+      skillGrouping: 'tool',
+      hookMode: 'safe',
+      targets: ['claude-code', 'cursor', 'codex', 'opencode'],
+      source: {
+        transport: 'http',
+        url: 'https://example.com/mcp',
+        auth: {
+          type: 'platform',
+          mode: 'oauth',
+        },
+      },
+      introspection,
+    })
+
+    const config = readFileSync(resolve(TEST_DIR, 'pluxx.config.ts'), 'utf-8')
+    const instructionsFile = readFileSync(resolve(TEST_DIR, 'INSTRUCTIONS.md'), 'utf-8')
+    const metadata = JSON.parse(readFileSync(resolve(TEST_DIR, '.pluxx/mcp.json'), 'utf-8')) as {
+      settings: { runtimeAuthMode: string }
+    }
+
+    expect(config).toContain(`type: 'platform'`)
+    expect(config).toContain(`mode: "oauth"`)
+    expect(config).toContain("'claude-code': {\n      mcpAuth: 'platform'")
+    expect(config).toContain("cursor: {\n      mcpAuth: 'platform'")
+    expect(instructionsFile).toContain('platform-managed OAuth')
+    expect(metadata.settings.runtimeAuthMode).toBe('platform')
+  })
+
   it('curates single-tool frontmatter descriptions instead of copying raw multiline tool help', async () => {
     const multilineIntrospection: IntrospectedMcpServer = {
       ...introspection,

@@ -303,7 +303,12 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
   const serverName = options.serverName
     ?? toKebabCase(options.introspection.serverInfo.name)
     ?? pluginName
-  const runtimeAuthMode = options.runtimeAuthMode ?? 'inline'
+  const runtimeAuthMode = options.runtimeAuthMode
+    ?? (
+      options.source.transport !== 'stdio' && options.source.auth?.type === 'platform'
+        ? 'platform'
+        : 'inline'
+    )
 
   const instructionsPath = resolve(options.rootDir, 'INSTRUCTIONS.md')
   const skillRoot = resolve(options.rootDir, 'skills')
@@ -1683,7 +1688,10 @@ function describePluginAccess(displayName: string, source: McpServer, runtimeAut
 
 function describeAuthRequirement(source: McpServer, runtimeAuthMode: McpRuntimeAuthMode = 'inline'): string {
   if (runtimeAuthMode === 'platform' && source.transport !== 'stdio') {
-    return 'Claude Code and Cursor use platform-managed auth at runtime (for example native OAuth/custom connector flows). Exported env vars remain useful for scaffold refreshes and other non-platform-managed targets.'
+    if (source.auth?.type === 'platform') {
+      return 'This server relies on platform-managed OAuth at runtime. Pluxx does not complete interactive OAuth in the CLI; use the host-native auth flow before calling authenticated tools.'
+    }
+    return 'Claude Code and Cursor use platform-managed auth at runtime (for example native OAuth/custom connector flows). Exported env vars remain useful for scaffold refreshes and other non-platform-managed targets like Codex and OpenCode.'
   }
 
   if (!source.auth || source.auth.type === 'none') {
@@ -1691,7 +1699,7 @@ function describeAuthRequirement(source: McpServer, runtimeAuthMode: McpRuntimeA
   }
 
   if (source.auth.type === 'platform') {
-    return 'Use the platform-managed auth flow before calling authenticated tools.'
+    return 'This server relies on platform-managed OAuth at runtime. Pluxx does not complete interactive OAuth in the CLI; use the host-native auth flow before calling authenticated tools.'
   }
 
   if (source.auth.type === 'header') {

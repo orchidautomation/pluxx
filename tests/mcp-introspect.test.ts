@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { mkdirSync, rmSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
-import { introspectMcpServer } from '../src/mcp/introspect'
+import { discoverMcpAuthFromError, introspectMcpServer, McpIntrospectionError } from '../src/mcp/introspect'
 
 const TEST_DIR = resolve(import.meta.dir, '.mcp-introspect')
 const STUB_SERVER_PATH = resolve(TEST_DIR, 'stub-server.js')
@@ -139,6 +139,41 @@ afterEach(() => {
 })
 
 describe('MCP introspection', () => {
+  it('discovers OAuth-style auth hints from redirected HTTP handshakes', () => {
+    const discovery = discoverMcpAuthFromError(new McpIntrospectionError(
+      'MCP HTTP request was redirected to an authentication page.',
+      401,
+      {
+        responseHeaders: {
+          'www-authenticate': 'Bearer authorization_uri="https://example.com/oauth/authorize"',
+          location: 'https://example.com/oauth/authorize',
+        },
+        responseUrl: 'https://example.com/oauth/authorize',
+      },
+    ))
+
+    expect(discovery).toEqual({
+      kind: 'platform',
+      mode: 'oauth',
+      authorizationUrl: 'https://example.com/oauth/authorize',
+    })
+  })
+
+  it('discovers custom header auth hints from HTTP error context', () => {
+    const discovery = discoverMcpAuthFromError(new McpIntrospectionError(
+      'MCP HTTP request failed with 401 Unauthorized.',
+      401,
+      {
+        responseBodySnippet: 'Missing X-API-Key header for this MCP server.',
+      },
+    ))
+
+    expect(discovery).toEqual({
+      kind: 'header',
+      headerName: 'X-API-Key',
+    })
+  })
+
   it('introspects stdio MCP servers and discovers tools, resources, and prompts', async () => {
     const result = await introspectMcpServer({
       transport: 'stdio',

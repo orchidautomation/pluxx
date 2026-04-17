@@ -91,6 +91,7 @@ function installMocks(options: {
         this.status = status
       }
     },
+    discoverMcpAuthFromError: () => null,
     introspectMcpServer: async () => ({
       serverInfo: {
         name: 'stub-server',
@@ -127,6 +128,7 @@ function installMocks(options: {
     PLUXX_GENERATED_START: '<!-- pluxx:generated:start -->',
     applyMcpScaffoldPlan: async () => {},
     buildToolExampleRequest: () => 'Find organizations for Acme',
+    deriveDisplayName: () => 'Stub Server',
     derivePluginName: () => 'stub-server',
     extractMixedMarkdownContent: () => ({ hasMarkers: true, customContent: '' }),
     hasMeaningfulCustomContent: () => false,

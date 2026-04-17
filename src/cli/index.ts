@@ -44,7 +44,12 @@ import {
 } from './init-from-mcp'
 import { migrate } from './migrate'
 import { lintProject, printLintResult, runLint } from './lint'
-import { introspectMcpServer, McpIntrospectionError, type IntrospectedMcpServer } from '../mcp/introspect'
+import {
+  discoverMcpAuthFromError,
+  introspectMcpServer,
+  McpIntrospectionError,
+  type IntrospectedMcpServer,
+} from '../mcp/introspect'
 import { promptText, promptYesNo, PromptCancelledError } from './prompt'
 import * as clack from '@clack/prompts'
 import type { McpAuth, McpServer, TargetPlatform } from '../schema'
@@ -583,9 +588,9 @@ function defaultHookMode(source: { auth?: { type: string; envVar?: string }; tra
   return 'none'
 }
 
-export function resolveRemoteAuthType(options: Pick<InitFromMcpOptions, 'authType' | 'authHeader'>): 'bearer' | 'header' {
+export function resolveRemoteAuthType(options: Pick<InitFromMcpOptions, 'authType' | 'authHeader'>): 'bearer' | 'header' | 'platform' {
   if (options.authType) {
-    return parseChoiceOption(options.authType, ['bearer', 'header'] as const, 'Auth type')
+    return parseChoiceOption(options.authType, ['bearer', 'header', 'platform'] as const, 'Auth type')
   }
 
   if (options.authHeader && options.authHeader.trim() && options.authHeader.trim().toLowerCase() !== 'authorization') {
@@ -596,10 +601,24 @@ export function resolveRemoteAuthType(options: Pick<InitFromMcpOptions, 'authTyp
 }
 
 export function buildRemoteAuthConfig(options: Pick<InitFromMcpOptions, 'authEnv' | 'authType' | 'authHeader' | 'authTemplate'>): McpAuth | undefined {
+  if (options.authType?.trim() === 'platform') {
+    return {
+      type: 'platform',
+      mode: 'oauth',
+    }
+  }
+
   const envVar = options.authEnv?.trim()
   if (!envVar) return undefined
 
   const authType = resolveRemoteAuthType(options)
+
+  if (authType === 'platform') {
+    return {
+      type: 'platform',
+      mode: 'oauth',
+    }
+  }
 
   if (authType === 'header') {
     const headerName = options.authHeader?.trim()
@@ -679,33 +698,21 @@ function isAuthRequiredError(error: unknown): error is McpIntrospectionError {
 }
 
 function isLikelyOAuthFirstError(error: McpIntrospectionError): boolean {
-  const message = error.message.toLowerCase()
-  const wwwAuthenticate = error.context?.responseHeaders?.['www-authenticate']?.toLowerCase() ?? ''
-  const location = error.context?.responseHeaders?.location?.toLowerCase() ?? ''
-  const body = error.context?.responseBodySnippet?.toLowerCase() ?? ''
-  const responseUrl = error.context?.responseUrl?.toLowerCase() ?? ''
-
-  return message.includes('oauth')
-    || wwwAuthenticate.includes('oauth')
-    || wwwAuthenticate.includes('authorization_uri=')
-    || location.includes('oauth')
-    || location.includes('authorize')
-    || location.includes('login')
-    || responseUrl.includes('oauth')
-    || responseUrl.includes('authorize')
-    || responseUrl.includes('login')
-    || body.includes('oauth')
-    || body.includes('authorize')
+  return discoverMcpAuthFromError(error)?.kind === 'platform'
 }
 
 function formatAuthRequiredMessage(commandName: 'init' | 'autopilot', error?: McpIntrospectionError): string {
-  const rerun = `Re-run ${commandName} with --auth-env YOUR_ENV_VAR and either:
+  const discoveredAuth = error ? discoverMcpAuthFromError(error) : null
+  const rerun = discoveredAuth?.kind === 'header' && discoveredAuth.headerName
+    ? `Re-run ${commandName} with --auth-env YOUR_ENV_VAR --auth-type header --auth-header ${discoveredAuth.headerName} [--auth-template '\${value}']`
+    : `Re-run ${commandName} with --auth-env YOUR_ENV_VAR and either:
 - Bearer auth: --auth-type bearer
 - Custom header auth: --auth-type header --auth-header HEADER_NAME [--auth-template '\${value}']`
-  const oauthNote = error && isLikelyOAuthFirstError(error)
+  const oauthNote = discoveredAuth?.kind === 'platform'
     ? `
 
-This server appears OAuth-first. Complete the provider's OAuth flow first, export the resulting token/API key to YOUR_ENV_VAR, then rerun.
+This server appears OAuth-first${discoveredAuth.authorizationUrl ? ` (${discoveredAuth.authorizationUrl})` : ''}. Complete the provider's OAuth flow first, export the resulting token/API key to YOUR_ENV_VAR, then rerun.
+If the server supports public discovery and only needs OAuth at runtime, you can scaffold it with --auth-type platform --runtime-auth platform.
 If it requires browser-interactive OAuth during handshake, run a local stdio MCP wrapper/proxy and import that command instead.`
     : ''
 
@@ -1033,6 +1040,7 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
       introspection = await introspectMcpServer(source)
     } catch (error) {
       if (source.transport !== 'stdio' && isAuthRequiredError(error)) {
+        const discoveredAuth = error instanceof McpIntrospectionError ? discoverMcpAuthFromError(error) : null
         s?.stop('Server requires authentication')
         const envVar = options.authEnv ?? (interactive
           ? await clackText('Auth env var for this MCP server')
@@ -1045,16 +1053,20 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
         let authHeader = options.authHeader
         let authTemplate = options.authTemplate
 
+        if (!options.runtimeAuth && discoveredAuth?.kind === 'platform') {
+          runtimeAuthMode = 'platform'
+        }
+
         if (interactive && !authType) {
           authType = await clackSelect<'bearer' | 'header'>('Auth type', [
             { value: 'bearer', label: 'bearer', hint: 'Authorization: Bearer <token>' },
             { value: 'header', label: 'header', hint: 'Custom header such as X-API-Key' },
-          ], 'bearer')
+          ], discoveredAuth?.kind === 'header' ? 'header' : 'bearer')
         }
 
         if (resolveRemoteAuthType({ authType, authHeader }) === 'header') {
           if (interactive && !authHeader) {
-            authHeader = await clackText('Auth header name', 'X-API-Key')
+            authHeader = await clackText('Auth header name', discoveredAuth?.headerName ?? 'X-API-Key')
           }
           if (interactive && !authTemplate) {
             authTemplate = await clackText('Auth header template', '${value}')
@@ -1118,6 +1130,7 @@ ${formatAuthRequiredMessage('init', retryError)}`)
       && source.auth.type !== 'none'
       && !options.runtimeAuth
     ) {
+      runtimeAuthMode = source.auth.type === 'platform' ? 'platform' : runtimeAuthMode
       runtimeAuthMode = await clackSelect<McpRuntimeAuthMode>('Claude/Cursor runtime auth', [
         { value: 'inline', label: 'inline', hint: 'Generate env/header auth directly into plugin output' },
         { value: 'platform', label: 'platform', hint: 'Use native platform-managed auth (for example OAuth/custom connector flows)' },
@@ -1594,12 +1607,12 @@ async function runAutopilot() {
   let runtimeAuthMode = resolveRuntimeAuthMode(initOptions.runtimeAuth)
 
   if (!initOptions.source && !interactive) {
-    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--auth-env ENV] [--auth-type bearer|header] [--auth-header NAME] [--auth-template TEMPLATE] [--runtime-auth inline|platform] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
+    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--auth-env ENV] [--auth-type bearer|header|platform] [--auth-header NAME] [--auth-template TEMPLATE] [--runtime-auth inline|platform] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
     process.exit(1)
   }
 
   if ((!runnerRaw || !AGENT_RUNNERS.includes(runnerRaw as AgentRunner)) && !interactive) {
-    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--auth-env ENV] [--auth-type bearer|header] [--auth-header NAME] [--auth-template TEMPLATE] [--runtime-auth inline|platform] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
+    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--auth-env ENV] [--auth-type bearer|header|platform] [--auth-header NAME] [--auth-template TEMPLATE] [--runtime-auth inline|platform] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
     process.exit(1)
   }
 
@@ -1671,6 +1684,7 @@ async function runAutopilot() {
       introspection = await introspectMcpServer(source)
     } catch (error) {
       if (source.transport !== 'stdio' && isAuthRequiredError(error)) {
+        const discoveredAuth = error instanceof McpIntrospectionError ? discoverMcpAuthFromError(error) : null
         connectSpinner?.stop('Server requires authentication')
         authEnv = authEnv ?? (interactive
           ? await clackText('Auth env var for this MCP server')
@@ -1679,16 +1693,20 @@ async function runAutopilot() {
           throw new Error(formatAuthRequiredMessage('autopilot', error))
         }
 
+        if (!initOptions.runtimeAuth && discoveredAuth?.kind === 'platform') {
+          runtimeAuthMode = 'platform'
+        }
+
         if (interactive && !authType) {
           authType = await clackSelect<'bearer' | 'header'>('Auth type', [
             { value: 'bearer', label: 'bearer', hint: 'Authorization: Bearer <token>' },
             { value: 'header', label: 'header', hint: 'Custom header such as X-API-Key' },
-          ], 'bearer')
+          ], discoveredAuth?.kind === 'header' ? 'header' : 'bearer')
         }
 
         if (resolveRemoteAuthType({ authType, authHeader }) === 'header') {
           if (interactive && !authHeader) {
-            authHeader = await clackText('Auth header name', 'X-API-Key')
+            authHeader = await clackText('Auth header name', discoveredAuth?.headerName ?? 'X-API-Key')
           }
           if (interactive && !authTemplate) {
             authTemplate = await clackText('Auth header template', '${value}')
@@ -1740,6 +1758,7 @@ ${formatAuthRequiredMessage('autopilot', retryError)}`)
       && source.auth.type !== 'none'
       && !initOptions.runtimeAuth
     ) {
+      runtimeAuthMode = source.auth.type === 'platform' ? 'platform' : runtimeAuthMode
       runtimeAuthMode = await clackSelect<McpRuntimeAuthMode>('Claude/Cursor runtime auth', [
         { value: 'inline', label: 'inline', hint: 'Generate env/header auth directly into plugin output' },
         { value: 'platform', label: 'platform', hint: 'Use native platform-managed auth (for example OAuth/custom connector flows)' },
@@ -2417,6 +2436,7 @@ Examples:
   pluxx init --from-mcp "npx -y @acme/mcp"       Scaffold from a local MCP command
   pluxx init --from-mcp https://example.com/mcp --yes --name acme --display-name "Acme" --author "Acme" --targets claude-code,codex --grouping workflow --hooks safe --json
   pluxx init --from-mcp https://example.com/mcp --yes --auth-env API_KEY --auth-type header --auth-header X-API-Key --auth-template "\${value}"
+  pluxx init --from-mcp https://example.com/mcp --yes --auth-type platform --runtime-auth platform
   pluxx init --from-mcp https://example.com/sse --transport sse   Scaffold from an SSE-transport MCP server
   pluxx init --from-mcp https://example.com/mcp --yes --dry-run   Preview scaffold files without writing
   pluxx sync                              Refresh a scaffold using .pluxx/mcp.json metadata

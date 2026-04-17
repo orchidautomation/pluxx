@@ -59,6 +59,14 @@ export interface IntrospectedMcpServer {
   prompts?: IntrospectedMcpPrompt[]
 }
 
+export interface McpAuthDiscovery {
+  kind: 'bearer' | 'header' | 'platform'
+  mode?: 'oauth'
+  headerName?: string
+  authorizationUrl?: string
+  resourceMetadataUrl?: string
+}
+
 export class McpIntrospectionError extends Error {
   constructor(
     message: string,
@@ -73,6 +81,45 @@ export class McpIntrospectionError extends Error {
     super(message)
     this.name = 'McpIntrospectionError'
   }
+}
+
+export function discoverMcpAuthFromError(error: McpIntrospectionError): McpAuthDiscovery | null {
+  const wwwAuthenticate = error.context?.responseHeaders?.['www-authenticate']?.trim() ?? ''
+  const locationHeader = error.context?.responseHeaders?.location?.trim()
+  const responseUrl = error.context?.responseUrl?.trim()
+  const responseBody = error.context?.responseBodySnippet ?? ''
+  const message = error.message
+
+  const authorizationUri = extractAuthParam(wwwAuthenticate, 'authorization_uri')
+  const resourceMetadataUrl = extractAuthParam(wwwAuthenticate, 'resource_metadata')
+  const oauthUrl = authorizationUri
+    ?? pickOAuthUrl(locationHeader, responseUrl)
+
+  if (looksLikeOAuthSignal([wwwAuthenticate, locationHeader, responseUrl, responseBody, message])) {
+    return {
+      kind: 'platform',
+      mode: 'oauth',
+      ...(oauthUrl ? { authorizationUrl: oauthUrl } : {}),
+      ...(resourceMetadataUrl ? { resourceMetadataUrl } : {}),
+    }
+  }
+
+  const headerName = extractHeaderName([wwwAuthenticate, responseBody, message])
+  if (headerName && headerName.toLowerCase() !== 'authorization') {
+    return {
+      kind: 'header',
+      headerName,
+    }
+  }
+
+  if (wwwAuthenticate.toLowerCase().includes('bearer') || headerName === 'Authorization') {
+    return {
+      kind: 'bearer',
+      headerName: 'Authorization',
+    }
+  }
+
+  return null
 }
 
 interface JsonRpcSuccess<T> {
@@ -243,6 +290,62 @@ function hasInitializeCapability(
 ): boolean {
   const value = initialize.capabilities?.[capability]
   return typeof value === 'object' && value !== null
+}
+
+function looksLikeOAuthSignal(values: Array<string | undefined>): boolean {
+  return values.some((value) => {
+    const normalized = value?.toLowerCase() ?? ''
+    return /\boauth\b/.test(normalized)
+      || normalized.includes('authorization_uri=')
+      || /\bauthorize\b/.test(normalized)
+      || /\blogin\b/.test(normalized)
+      || /\bsignin\b/.test(normalized)
+  })
+}
+
+function pickOAuthUrl(...candidates: Array<string | undefined>): string | undefined {
+  for (const value of candidates) {
+    if (!value) continue
+    const normalized = value.toLowerCase()
+    if (
+      /\boauth\b/.test(normalized)
+      || /\bauthorize\b/.test(normalized)
+      || /\blogin\b/.test(normalized)
+      || /\bsignin\b/.test(normalized)
+    ) {
+      return value
+    }
+  }
+  return undefined
+}
+
+function extractAuthParam(header: string, name: string): string | undefined {
+  if (!header) return undefined
+  const pattern = new RegExp(`${name}=\"([^\"]+)\"`, 'i')
+  return header.match(pattern)?.[1]
+}
+
+function extractHeaderName(values: string[]): string | undefined {
+  for (const value of values) {
+    const matches = value.match(/\b(?:x-[a-z0-9-]+|authorization)\b/gi)
+    if (!matches) continue
+    const candidate = matches[0]
+    if (!candidate) continue
+    if (candidate.toLowerCase() === 'authorization') {
+      return 'Authorization'
+    }
+    return candidate
+      .split('-')
+      .map((part) => {
+        const normalized = part.toLowerCase()
+        if (normalized === 'api' || normalized === 'id' || normalized === 'url') {
+          return normalized.toUpperCase()
+        }
+        return normalized.charAt(0).toUpperCase() + normalized.slice(1)
+      })
+      .join('-')
+  }
+  return undefined
 }
 
 async function listAllTools(client: McpClient): Promise<IntrospectedMcpTool[]> {

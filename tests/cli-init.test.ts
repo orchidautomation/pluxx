@@ -133,6 +133,19 @@ describe('CLI init option parsing', () => {
     })
   })
 
+  it('supports platform auth config for OAuth-managed scaffolds', () => {
+    expect(resolveRemoteAuthType({ authType: 'platform', authHeader: undefined })).toBe('platform')
+    expect(buildRemoteAuthConfig({
+      authEnv: undefined,
+      authType: 'platform',
+      authHeader: undefined,
+      authTemplate: undefined,
+    })).toEqual({
+      type: 'platform',
+      mode: 'oauth',
+    })
+  })
+
   it('defaults bearer auth config when only --auth-env is provided', () => {
     expect(buildRemoteAuthConfig({
       authEnv: 'SUMBLE_API_KEY',
