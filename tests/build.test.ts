@@ -424,6 +424,43 @@ describe('build', () => {
     expect(existsSync(resolve(OUT_DIR, 'cline/.cline/skills/hello/SKILL.md'))).toBe(true)
   })
 
+  it('keeps Claude commands visible when names collide with semantic skills', async () => {
+    mkdirSync(resolve(TEST_DIR, 'skills/read-and-triage-mail'), { recursive: true })
+    await Bun.write(
+      resolve(TEST_DIR, 'skills/read-and-triage-mail/SKILL.md'),
+      '---\nname: read-and-triage-mail\ndescription: triage flow\n---\n',
+    )
+    await Bun.write(resolve(TEST_DIR, 'commands/read-and-triage-mail.md'), '# Read and triage mail\n')
+
+    const collisionConfig: PluginConfig = {
+      ...testConfig,
+      outDir: './collision-dist',
+      targets: ['claude-code', 'cursor'],
+    }
+
+    await build(collisionConfig, TEST_DIR)
+
+    const claudeSkill = readFileSync(
+      resolve(TEST_DIR, 'collision-dist/claude-code/skills/read-and-triage-mail/SKILL.md'),
+      'utf-8',
+    )
+    expect(
+      existsSync(resolve(TEST_DIR, 'collision-dist/claude-code/skills/read-and-triage-mail/SKILL.md'))
+    ).toBe(true)
+    expect(
+      existsSync(resolve(TEST_DIR, 'collision-dist/claude-code/commands/read-and-triage-mail.md'))
+    ).toBe(true)
+    expect(claudeSkill).toContain('name: read-and-triage-mail-skill')
+    expect(claudeSkill).toContain('user-invocable: false')
+
+    expect(
+      existsSync(resolve(TEST_DIR, 'collision-dist/cursor/skills/read-and-triage-mail/SKILL.md'))
+    ).toBe(true)
+    expect(
+      existsSync(resolve(TEST_DIR, 'collision-dist/cursor/commands/read-and-triage-mail.md'))
+    ).toBe(true)
+  })
+
   it('copies commands and agents to Cursor plugin roots', async () => {
     expect(existsSync(resolve(OUT_DIR, 'cursor/commands/pulse.md'))).toBe(true)
     expect(existsSync(resolve(OUT_DIR, 'cursor/agents/escalation.md'))).toBe(true)

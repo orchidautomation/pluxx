@@ -15,3 +15,11 @@ Install target:
 ```bash
 npx @orchid-labs/pluxx install --target claude-code
 ```
+
+### Slash Surface Contract
+
+When a Claude plugin has both `commands/<name>.md` and `skills/<name>/SKILL.md`, Pluxx keeps both surfaces in the Claude bundle.
+
+To keep the slash UX command-first without losing the semantic skill surface, Pluxx keeps the Claude command name unchanged and rewrites the colliding Claude skill with `user-invocable: false` plus a hidden internal skill name.
+
+That keeps the command visible at its intended name while preserving the skill for Claude's automatic semantic routing.
