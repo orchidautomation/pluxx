@@ -35,6 +35,11 @@ The first quality-eval baseline is now shipped on `main`:
 
 - `PLUXX-132` first-class scaffold and prompt-pack evals via `pluxx eval`
 
+The adoption / support baseline is now also shipped on `main`:
+
+- `PLUXX-131` `pluxx migrate` for host-native plugin imports
+- `PLUXX-134` consumer-side `pluxx doctor --consumer` for installed bundle health
+
 The near-term question is no longer "does Pluxx have a believable core contract?"
 
 It is now:
@@ -60,7 +65,7 @@ It is now:
 ### Near-Term OSS Wedge Work
 
 - `PLUXX-131` Add `pluxx migrate` to import existing host-native plugins into a Pluxx source project
-  - status: `Backlog`
+  - status: shipped baseline
   - why it matters: adoption unlock
 - `PLUXX-132` Add first-class evals for scaffold and prompt quality regression
   - status: shipped baseline
@@ -69,7 +74,7 @@ It is now:
   - status: `Backlog`
   - why it matters: deterministic MCP development loop and CI
 - `PLUXX-134` Add a consumer-side `pluxx doctor` flow for installed plugin health
-  - status: `Backlog`
+  - status: shipped baseline
   - why it matters: makes installed-plugin support and debugging much better
 
 ### Parallel Docs / Site Work
@@ -114,12 +119,18 @@ It is now:
 - `PLUXX-131` migrate
   - outcome:
     - existing host-native plugins can move into Pluxx instead of rewriting from scratch
+  - status:
+    - shipped baseline via `pluxx migrate`
+    - follow-on refinement can improve host-specific import fidelity over time
 - `PLUXX-133` MCP dev proxy with record/replay
   - outcome:
     - deterministic dev + CI loop for real MCP-backed plugins
 - `PLUXX-134` consumer-side doctor
   - outcome:
     - installed plugin health checks for end users, not just authors
+  - status:
+    - shipped baseline via `pluxx doctor --consumer`
+    - follow-on work can deepen host-specific diagnostics and runtime repair guidance
 
 ### Phase 3: Brand / Launch Follow-Through
 
@@ -187,14 +198,12 @@ Treat them as validation / linear-swarm work, not as the core Pluxx execution ma
 If you only want the next concrete sequence, it is:
 
 1. `PLUXX-79` follow-through on deeper agent/autopilot use of per-skill discovery surfaces
-2. `PLUXX-131`
-3. `PLUXX-133`
-4. `PLUXX-134`
+2. `PLUXX-133`
+3. `PLUXX-116`
 
 That sequence keeps the near-term effort focused on:
 
 - richer MCP truthfulness in both deterministic scaffolds and agent refinement
 - measurable scaffold / prompt quality
-- easier adoption
+- easier adoption and consumer support
 - deterministic development
-- better installed-plugin support

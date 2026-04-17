@@ -111,6 +111,11 @@ Why it matters:
 
 - this is the cleanest adoption unlock left in the product
 
+Current baseline:
+
+- shipped via `pluxx migrate`
+- synthesizes `.pluxx/taxonomy.json` and `.pluxx/mcp.json` for migrated projects so Agent Mode and `pluxx eval` still work
+
 ### `PLUXX-133` MCP Dev Proxy With Record/Replay
 
 Goal:
@@ -131,6 +136,11 @@ Why it matters:
 
 - current `doctor` is author-first
 - real support load eventually lands on installed plugin health
+
+Current baseline:
+
+- shipped via `pluxx doctor --consumer`
+- validates built or installed platform bundles directly instead of requiring a source project
 
 ## Parallel Track: Brand / Launch Follow-Through
 
@@ -187,18 +197,12 @@ Treat them as validation / linear-swarm work, not as the core Pluxx direction.
 
 Do this in order:
 
-1. `PLUXX-69`
-2. `PLUXX-67`
-3. `PLUXX-68`
-4. `PLUXX-132`
-5. `PLUXX-131`
-6. `PLUXX-133`
-7. `PLUXX-134`
+1. `PLUXX-79`
+2. `PLUXX-133`
+3. `PLUXX-116`
 
 That sequence keeps Pluxx focused on:
 
-- richer MCP truthfulness
-- measurable quality
-- adoption unlocks
-- deterministic development
-- installed-plugin support
+- deeper agent/autopilot use of the richer MCP surfaces already shipped
+- the remaining deterministic development gap
+- continued docs/site clarity while the OSS wedge hardens
