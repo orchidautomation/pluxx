@@ -40,6 +40,10 @@ The adoption / support baseline is now also shipped on `main`:
 - `PLUXX-131` `pluxx migrate` for host-native plugin imports
 - `PLUXX-134` consumer-side `pluxx doctor --consumer` for installed bundle health
 
+The deterministic dev-loop baseline is now also shipped on `main`:
+
+- `PLUXX-133` `pluxx mcp proxy` with record/replay tapes for MCP sessions
+
 The near-term question is no longer "does Pluxx have a believable core contract?"
 
 It is now:
@@ -71,7 +75,7 @@ It is now:
   - status: shipped baseline
   - why it matters: turns autopilot quality from vibes into measurable regression checks
 - `PLUXX-133` Add an MCP dev proxy with record/replay fixtures for local development and CI
-  - status: `Backlog`
+  - status: shipped baseline
   - why it matters: deterministic MCP development loop and CI
 - `PLUXX-134` Add a consumer-side `pluxx doctor` flow for installed plugin health
   - status: shipped baseline
@@ -125,6 +129,9 @@ It is now:
 - `PLUXX-133` MCP dev proxy with record/replay
   - outcome:
     - deterministic dev + CI loop for real MCP-backed plugins
+  - status:
+    - shipped baseline via `pluxx mcp proxy --record` / `--replay`
+    - follow-on work can deepen fixture ergonomics, host docs, and richer transport validation
 - `PLUXX-134` consumer-side doctor
   - outcome:
     - installed plugin health checks for end users, not just authors
@@ -198,12 +205,11 @@ Treat them as validation / linear-swarm work, not as the core Pluxx execution ma
 If you only want the next concrete sequence, it is:
 
 1. `PLUXX-79` follow-through on deeper agent/autopilot use of per-skill discovery surfaces
-2. `PLUXX-133`
-3. `PLUXX-116`
+2. `PLUXX-116`
 
 That sequence keeps the near-term effort focused on:
 
 - richer MCP truthfulness in both deterministic scaffolds and agent refinement
 - measurable scaffold / prompt quality
 - easier adoption and consumer support
-- deterministic development
+- deterministic development already being present as a baseline

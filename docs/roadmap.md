@@ -126,6 +126,11 @@ Why it matters:
 
 - real MCP integrations are flaky enough that record/replay is now leverage, not polish
 
+Current baseline:
+
+- shipped via `pluxx mcp proxy --from-mcp <source> --record <tape.json>`
+- replayed via `pluxx mcp proxy --replay <tape.json>` for deterministic stdio MCP sessions
+
 ### `PLUXX-134` Consumer-Side `pluxx doctor`
 
 Goal:
@@ -198,11 +203,10 @@ Treat them as validation / linear-swarm work, not as the core Pluxx direction.
 Do this in order:
 
 1. `PLUXX-79`
-2. `PLUXX-133`
-3. `PLUXX-116`
+2. `PLUXX-116`
 
 That sequence keeps Pluxx focused on:
 
 - deeper agent/autopilot use of the richer MCP surfaces already shipped
-- the remaining deterministic development gap
+- turning the shipped deterministic development baseline into a more polished author workflow
 - continued docs/site clarity while the OSS wedge hardens

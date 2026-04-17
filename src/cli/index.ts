@@ -43,6 +43,7 @@ import {
   writeMcpScaffold,
 } from './init-from-mcp'
 import { migrate } from './migrate'
+import { runMcpProxy } from './mcp-proxy'
 import { lintProject, printLintResult, runLint } from './lint'
 import {
   discoverMcpAuthFromError,
@@ -212,6 +213,9 @@ export async function main() {
       break
     case 'agent':
       await runAgent()
+      break
+    case 'mcp':
+      await runMcp()
       break
     case 'autopilot':
       await runAutopilot()
@@ -2720,6 +2724,24 @@ async function runMigrate() {
   await migrate(inputPath)
 }
 
+async function runMcp() {
+  const subcommand = args[1]
+  if (subcommand !== 'proxy') {
+    console.error('Usage: pluxx mcp proxy --from-mcp <source> [--record <tape.json>]')
+    console.error('       pluxx mcp proxy --replay <tape.json>')
+    process.exit(1)
+  }
+
+  try {
+    await runMcpProxy(args.slice(2))
+  } catch (error) {
+    if (error instanceof Error && error.message === 'Invalid MCP proxy arguments.') {
+      process.exit(1)
+    }
+    throw error
+  }
+}
+
 function printHelp() {
   console.log(`
 pluxx — Cross-platform AI agent plugin SDK
@@ -2733,6 +2755,7 @@ Usage:
   pluxx agent prepare                     Generate agent context + boundary files for host agents
   pluxx agent prompt <kind>               Generate a prompt pack (taxonomy, instructions, review)
   pluxx agent run <kind> --runner <id>    Execute a prompt pack via Claude, Cursor, Codex, or OpenCode headlessly
+  pluxx mcp proxy ...                     Run a local MCP proxy with optional record/replay tapes
   pluxx autopilot --from-mcp ...          Run import + agent refinement + verification in one command
   pluxx init [name] [--from-mcp <source>] Create a new pluxx.config.ts
   pluxx sync [--from-mcp <source>]        Refresh MCP-derived scaffold files
@@ -2777,6 +2800,8 @@ Examples:
   pluxx agent run taxonomy --runner codex
   pluxx agent run taxonomy --runner codex --verbose-runner
   pluxx agent run review --runner opencode --attach http://localhost:4096 --no-verify
+  pluxx mcp proxy --from-mcp "bun ./server.js" --record .pluxx/tapes/dev.json
+  pluxx mcp proxy --replay .pluxx/tapes/dev.json
   --attach is only supported for the opencode runner
   pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode quick --yes
   pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode standard --yes --name acme --display-name "Acme"

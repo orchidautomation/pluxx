@@ -203,39 +203,44 @@ interface ListPromptsResult {
   nextCursor?: string
 }
 
-interface McpClient {
+export interface McpClient {
   request<T>(method: string, params?: Record<string, unknown>): Promise<T>
   notify(method: string, params?: Record<string, unknown>): Promise<void>
   close(): Promise<void>
 }
 
 export async function introspectMcpServer(server: McpServer): Promise<IntrospectedMcpServer> {
+  if (server.transport === 'http') {
+    try {
+      return await introspectWithClient(await createMcpClient(server))
+    } catch (error) {
+      if (
+        error instanceof McpIntrospectionError
+        && (error.status === 400 || error.status === 404 || error.status === 405)
+      ) {
+        return await introspectWithClient(await createSseClient({
+          ...server,
+          transport: 'sse',
+        }))
+      }
+
+      throw error
+    }
+  }
+
+  return await introspectWithClient(await createMcpClient(server))
+}
+
+export async function createMcpClient(server: McpServer): Promise<McpClient> {
   if (server.transport === 'stdio') {
-    const client = await createStdioClient(server)
-    return await introspectWithClient(client)
+    return await createStdioClient(server)
   }
 
   if (server.transport === 'sse') {
-    const client = await createSseClient(server)
-    return await introspectWithClient(client)
+    return await createSseClient(server)
   }
 
-  try {
-    return await introspectWithClient(createHttpClient(server))
-  } catch (error) {
-    if (
-      error instanceof McpIntrospectionError
-      && (error.status === 400 || error.status === 404 || error.status === 405)
-    ) {
-      const sseClient = await createSseClient({
-        ...server,
-        transport: 'sse',
-      })
-      return await introspectWithClient(sseClient)
-    }
-
-    throw error
-  }
+  return createHttpClient(server)
 }
 
 async function introspectWithClient(client: McpClient): Promise<IntrospectedMcpServer> {
@@ -791,6 +796,7 @@ async function createStdioClient(server: Extract<McpServer, { transport: 'stdio'
     },
     stdio: ['pipe', 'pipe', 'pipe'],
   })
+  let isClosing = false
 
   const pending = new Map<number, { resolve: (value: unknown) => void; reject: (error: Error) => void }>()
   const stdout = readline.createInterface({
@@ -828,6 +834,10 @@ async function createStdioClient(server: Extract<McpServer, { transport: 'stdio'
   })
 
   child.once('exit', (code, signal) => {
+    if (isClosing) {
+      pending.clear()
+      return
+    }
     const error = new McpIntrospectionError(
       `MCP stdio process exited before pluxx finished introspecting it (code=${code ?? 'null'}, signal=${signal ?? 'null'}).`,
     )
@@ -887,8 +897,16 @@ async function createStdioClient(server: Extract<McpServer, { transport: 'stdio'
     },
 
     async close(): Promise<void> {
+      isClosing = true
       stdout.close()
-      child.kill()
+      child.stdin.end()
+      child.stdout.destroy()
+      child.stderr?.destroy()
+
+      if (child.exitCode === null && child.signalCode === null) {
+        child.kill('SIGKILL')
+        child.unref()
+      }
     },
   }
 }
