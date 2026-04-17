@@ -95,6 +95,12 @@ Why it matters:
 - prompt quality is now a product surface
 - Agent Mode needs more than "looks good" review loops
 
+Current baseline:
+
+- shipped via `pluxx eval`
+- included in `pluxx test`
+- checks deterministic scaffold surfaces plus taxonomy/instructions/review prompt-pack contracts
+
 ### `PLUXX-131` `pluxx migrate`
 
 Goal:

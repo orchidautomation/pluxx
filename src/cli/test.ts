@@ -3,6 +3,7 @@ import { resolve } from 'path'
 import { loadConfig } from '../config/load'
 import { build } from '../generators'
 import { lintProject, type LintResult } from './lint'
+import { runEvalSuite, type EvalReport } from './eval'
 import type { TargetPlatform } from '../schema'
 
 export interface TestRunOptions {
@@ -25,6 +26,7 @@ export interface TestRunResult {
     error?: string
   }
   lint?: LintResult
+  eval?: EvalReport
   build?: {
     ok: boolean
     outDir: string
@@ -71,6 +73,7 @@ export async function runTestSuite(options: TestRunOptions = {}): Promise<TestRu
     }
 
     await build(config, rootDir, { targets })
+    const evalReport = await runEvalSuite({ rootDir })
 
     const checks = targets.map((platform) => {
       const requiredPath = SMOKE_PATHS[platform]
@@ -79,13 +82,14 @@ export async function runTestSuite(options: TestRunOptions = {}): Promise<TestRu
     })
 
     return {
-      ok: checks.every((check) => check.ok),
+      ok: checks.every((check) => check.ok) && evalReport.errors === 0,
       config: {
         ok: true,
         name: config.name,
         version: config.version,
       },
       lint,
+      eval: evalReport,
       build: {
         ok: true,
         outDir: config.outDir,
@@ -117,6 +121,10 @@ export function printTestResult(result: TestRunResult): void {
 
   if (result.lint) {
     console.log(`Lint: ${result.lint.errors} error(s), ${result.lint.warnings} warning(s)`)
+  }
+
+  if (result.eval) {
+    console.log(`Eval: ${result.eval.errors} error(s), ${result.eval.warnings} warning(s), ${result.eval.infos} info message(s)`)
   }
 
   if (result.build) {

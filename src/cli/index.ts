@@ -61,6 +61,7 @@ import { formatSyncSummary, planSyncFromMcp, syncFromMcp } from './sync-from-mcp
 import { formatPublishPlan, planPublish, runPublish } from './publish'
 import { createCliRuntime, createSpinner, printJson, readMultiValueOption, readOption } from './runtime'
 import { printTestResult, runTestSuite, type TestRunResult } from './test'
+import { printEvalReport, runEvalSuite } from './eval'
 
 const args = process.argv.slice(2)
 const command = args[0]
@@ -235,6 +236,9 @@ export async function main() {
       break
     case 'test':
       await runTestCommand()
+      break
+    case 'eval':
+      await runEvalCommand()
       break
     case undefined:
     case 'help':
@@ -2539,6 +2543,25 @@ async function runTestCommand() {
   }
 }
 
+async function runEvalCommand() {
+  const report = await runEvalSuite({
+    rootDir: process.cwd(),
+  })
+
+  if (runtime.jsonOutput) {
+    printJson(report)
+    return
+  }
+
+  if (!runtime.quiet) {
+    printEvalReport(report)
+  }
+
+  if (!report.ok) {
+    process.exit(1)
+  }
+}
+
 async function runInstall() {
   const trust = args.includes('--trust')
   const targets = parseTargetFlagValues(args)
@@ -2709,7 +2732,8 @@ Usage:
   pluxx init [name] [--from-mcp <source>] Create a new pluxx.config.ts
   pluxx sync [--from-mcp <source>]        Refresh MCP-derived scaffold files
   pluxx migrate <path>                    Import an existing plugin into pluxx
-  pluxx test [--target <platforms...>]    Run config, lint, build, and smoke checks
+  pluxx test [--target <platforms...>]    Run config, lint, eval, build, and smoke checks
+  pluxx eval                              Evaluate scaffold and prompt-pack quality
   pluxx install [--target <platforms>] [--trust]  Symlink built plugins for local testing
   pluxx publish [--npm] [--github-release] [--dry-run] [--json] [--tag latest] [--version x.y.z]
   pluxx uninstall [--target <platforms>]  Remove symlinked plugins
@@ -2755,6 +2779,7 @@ Examples:
   pluxx autopilot --from-mcp https://mcp.linear.app/mcp --runner codex --yes --oauth-wrapper
   pluxx autopilot --from-mcp "npx -y @acme/mcp" --runner claude --targets claude-code,codex --website https://example.com --docs https://docs.example.com
   pluxx doctor --json                     Inspect project health as JSON
+  pluxx eval --json                       Inspect scaffold/prompt-pack quality as JSON
   pluxx test --target claude-code codex  Verify selected target outputs
   pluxx install                           Install to all configured targets
   pluxx install --target claude-code      Install to Claude Code only

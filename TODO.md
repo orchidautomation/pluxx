@@ -31,6 +31,10 @@ The Phase 1 protocol-depth baseline is now also shipped on `main`:
 - `PLUXX-68` prompt templates shape deterministic scaffolds
 - `PLUXX-69` richer MCP auth discovery and OAuth-ready scaffold support
 
+The first quality-eval baseline is now shipped on `main`:
+
+- `PLUXX-132` first-class scaffold and prompt-pack evals via `pluxx eval`
+
 The near-term question is no longer "does Pluxx have a believable core contract?"
 
 It is now:
@@ -59,7 +63,7 @@ It is now:
   - status: `Backlog`
   - why it matters: adoption unlock
 - `PLUXX-132` Add first-class evals for scaffold and prompt quality regression
-  - status: `Backlog`
+  - status: shipped baseline
   - why it matters: turns autopilot quality from vibes into measurable regression checks
 - `PLUXX-133` Add an MCP dev proxy with record/replay fixtures for local development and CI
   - status: `Backlog`
@@ -104,6 +108,9 @@ It is now:
 - `PLUXX-132` first-class evals
   - outcome:
     - prompt/scaffold quality becomes regression-testable
+  - status:
+    - shipped baseline via `pluxx eval` and `pluxx test`
+    - deeper eval fixtures and richer scoring can still expand from here
 - `PLUXX-131` migrate
   - outcome:
     - existing host-native plugins can move into Pluxx instead of rewriting from scratch
@@ -180,10 +187,9 @@ Treat them as validation / linear-swarm work, not as the core Pluxx execution ma
 If you only want the next concrete sequence, it is:
 
 1. `PLUXX-79` follow-through on deeper agent/autopilot use of per-skill discovery surfaces
-2. `PLUXX-132`
-3. `PLUXX-131`
-4. `PLUXX-133`
-5. `PLUXX-134`
+2. `PLUXX-131`
+3. `PLUXX-133`
+4. `PLUXX-134`
 
 That sequence keeps the near-term effort focused on:
 
