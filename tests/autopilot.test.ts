@@ -411,6 +411,112 @@ describe('autopilot command', () => {
     }
   })
 
+  it('keeps instructions and review packs aligned with taxonomy changes during autopilot runs', async () => {
+    const { dir, statePath, stubServerPath } = createStubServerFixture()
+    const binDir = resolve(dir, '.bin')
+    const claudePath = resolve(binDir, 'claude')
+    const taxonomyPath = resolve(dir, '.pluxx/taxonomy.json')
+    const instructionsPromptPath = resolve(dir, '.pluxx/agent/instructions-prompt.md')
+    const reviewPromptPath = resolve(dir, '.pluxx/agent/review-prompt.md')
+
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(
+      claudePath,
+      `#!/bin/sh
+prompt=""
+prev=""
+for arg in "$@"; do
+  if [ "$prev" = "-p" ]; then
+    prompt="$arg"
+    break
+  fi
+  prev="$arg"
+done
+
+case "$prompt" in
+  *taxonomy-prompt.md*)
+    cat > "$PLUXX_TAXONOMY_PATH" <<'EOF'
+[
+  {
+    "dirName": "research",
+    "title": "Research",
+    "description": "Merged research workflow after taxonomy refinement.",
+    "toolNames": ["FindOrganizations", "FindPeople"]
+  }
+]
+EOF
+    exit 0
+    ;;
+  *instructions-prompt.md*)
+    if grep -q '\`skills/research/SKILL.md\`' "$PLUXX_INSTRUCTIONS_PROMPT_PATH"; then
+      exit 0
+    fi
+    echo "stale instructions prompt" >&2
+    exit 42
+    ;;
+  *review-prompt.md*)
+    if grep -q '\`skills/research/SKILL.md\`' "$PLUXX_REVIEW_PROMPT_PATH"; then
+      exit 0
+    fi
+    echo "stale review prompt" >&2
+    exit 43
+    ;;
+esac
+
+exit 0
+`,
+    )
+    chmodSync(claudePath, 0o755)
+
+    try {
+      const proc = spawnCli([
+        'autopilot',
+        '--from-mcp',
+        `bun ${stubServerPath} ${statePath}`,
+        '--runner',
+        'claude',
+        '--mode',
+        'thorough',
+        '--name',
+        'stub-server',
+        '--display-name',
+        'Stub Server',
+        '--author',
+        'Test Author',
+        '--json',
+        '--no-verify',
+      ], dir, {
+        PATH: `${binDir}:${process.env.PATH ?? ''}`,
+        PLUXX_TAXONOMY_PATH: taxonomyPath,
+        PLUXX_INSTRUCTIONS_PROMPT_PATH: instructionsPromptPath,
+        PLUXX_REVIEW_PROMPT_PATH: reviewPromptPath,
+      })
+
+      const stdout = await new Response(proc.stdout).text()
+      const stderr = await new Response(proc.stderr).text()
+      const exitCode = await proc.exited
+
+      expect(exitCode).toBe(0)
+      expect(stderr).toBe('')
+
+      const summary = JSON.parse(stdout) as {
+        ok: boolean
+        agent: {
+          taxonomy: { runnerExitCode?: number }
+          instructions: { runnerExitCode?: number }
+          review: { runnerExitCode?: number }
+        }
+      }
+
+      expect(summary.ok).toBe(true)
+      expect(summary.agent.taxonomy.runnerExitCode).toBe(0)
+      expect(summary.agent.instructions.runnerExitCode).toBe(0)
+      expect(summary.agent.review.runnerExitCode).toBe(0)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('suppresses runner logs by default and streams them with --verbose-runner', async () => {
     const run = async (verboseRunner: boolean) => {
       const { dir, statePath, stubServerPath } = createStubServerFixture()

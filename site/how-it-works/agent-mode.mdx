@@ -145,7 +145,7 @@ Agent Mode is file-first. The runner layer is optional.
 `pluxx agent run` does three things:
 
 1. refreshes `.pluxx/agent/context.md` and `.pluxx/agent/plan.json`
-2. refreshes the selected prompt pack
+2. refreshes the selected prompt pack (and after a successful taxonomy run, refreshes all prompt packs so saved packs stay aligned with renamed/merged skills)
 3. invokes a host agent in headless mode against those files
 
 Current built-in runners:
@@ -162,6 +162,8 @@ If you want the entire deterministic + agent flow in one command, use `pluxx aut
 For edit-oriented runs like `taxonomy` and `instructions`, Pluxx verifies the scaffold after the host agent exits by running the normal Pluxx verification flow.
 
 For read-only runs like `review`, Pluxx disables verification automatically and keeps the host runner in read-only/review mode where supported.
+
+Deterministic scaffold rewrites (`pluxx sync --from-mcp` or taxonomy re-renders) invalidate saved `.pluxx/agent/*` pack files. Regenerate them with `pluxx agent prepare`/`pluxx agent prompt` (or run `pluxx agent run` / `pluxx autopilot`, which refreshes them automatically).
 
 ## Generated Files
 

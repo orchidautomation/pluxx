@@ -4,6 +4,7 @@ import { resolve } from 'path'
 import { introspectMcpServer } from '../src/mcp/introspect'
 import { applyPersistedTaxonomy, detectSkillRenames, detectToolRenames, syncFromMcp } from '../src/cli/sync-from-mcp'
 import { writeMcpScaffold } from '../src/cli/init-from-mcp'
+import { AGENT_CONTEXT_PATH, AGENT_PLAN_PATH } from '../src/cli/agent'
 
 const TEST_DIR = resolve(import.meta.dir, '.sync-from-mcp')
 const STATE_PATH = resolve(TEST_DIR, 'server-state.json')
@@ -330,6 +331,13 @@ describe('sync-from-mcp', () => {
       ], null, 2),
     )
 
+    mkdirSync(resolve(TEST_DIR, '.pluxx/agent'), { recursive: true })
+    writeFileSync(resolve(TEST_DIR, AGENT_CONTEXT_PATH), '# stale context\n')
+    writeFileSync(resolve(TEST_DIR, AGENT_PLAN_PATH), '{}\n')
+    writeFileSync(resolve(TEST_DIR, '.pluxx/agent/taxonomy-prompt.md'), '# stale taxonomy prompt\n')
+    writeFileSync(resolve(TEST_DIR, '.pluxx/agent/instructions-prompt.md'), '# stale instructions prompt\n')
+    writeFileSync(resolve(TEST_DIR, '.pluxx/agent/review-prompt.md'), '# stale review prompt\n')
+
     await applyPersistedTaxonomy(TEST_DIR)
 
     expect(existsSync(resolve(TEST_DIR, 'skills/research/SKILL.md'))).toBe(true)
@@ -341,6 +349,12 @@ describe('sync-from-mcp', () => {
     expect(command).toContain('Use this command when the user asks to work on company and people research workflows.')
     expect(command).toContain('`FindOrganizations`')
     expect(command).toContain('`FindPeople`')
+
+    expect(existsSync(resolve(TEST_DIR, AGENT_CONTEXT_PATH))).toBe(false)
+    expect(existsSync(resolve(TEST_DIR, AGENT_PLAN_PATH))).toBe(false)
+    expect(existsSync(resolve(TEST_DIR, '.pluxx/agent/taxonomy-prompt.md'))).toBe(false)
+    expect(existsSync(resolve(TEST_DIR, '.pluxx/agent/instructions-prompt.md'))).toBe(false)
+    expect(existsSync(resolve(TEST_DIR, '.pluxx/agent/review-prompt.md'))).toBe(false)
   })
 
   it('preserves a persisted taxonomy across sync instead of recomputing generic buckets', async () => {
@@ -456,5 +470,84 @@ describe('sync-from-mcp', () => {
       'search-technologies',
     ])
     expect(metadata.managedFiles).toContain('.pluxx/taxonomy.json')
+  })
+
+  it('invalidates saved agent packs after deterministic sync rewrites', async () => {
+    writeFileSync(
+      STATE_PATH,
+      JSON.stringify({
+        serverInfo: {
+          name: 'stub-server',
+          title: 'Stub Server',
+          version: '1.0.0',
+          description: 'A fake MCP server for sync tests.',
+        },
+        instructions: 'Use the original fake tools carefully.',
+        tools: [
+          {
+            name: 'FindOrganizations',
+            description: 'Search organizations.',
+          },
+        ],
+      }, null, 2),
+    )
+
+    const source = {
+      transport: 'stdio' as const,
+      command: 'bun',
+      args: [STUB_SERVER_PATH, STATE_PATH],
+    }
+
+    const introspection = await introspectMcpServer(source)
+    await writeMcpScaffold({
+      rootDir: TEST_DIR,
+      pluginName: 'stub-server',
+      authorName: 'Test Author',
+      displayName: 'Stub Server',
+      targets: ['claude-code', 'codex'],
+      source,
+      introspection,
+      skillGrouping: 'tool',
+      hookMode: 'none',
+    })
+
+    mkdirSync(resolve(TEST_DIR, '.pluxx/agent'), { recursive: true })
+    writeFileSync(resolve(TEST_DIR, AGENT_CONTEXT_PATH), '# stale context\n')
+    writeFileSync(resolve(TEST_DIR, AGENT_PLAN_PATH), '{}\n')
+    writeFileSync(resolve(TEST_DIR, '.pluxx/agent/taxonomy-prompt.md'), '# stale taxonomy prompt\n')
+    writeFileSync(resolve(TEST_DIR, '.pluxx/agent/instructions-prompt.md'), '# stale instructions prompt\n')
+    writeFileSync(resolve(TEST_DIR, '.pluxx/agent/review-prompt.md'), '# stale review prompt\n')
+
+    writeFileSync(
+      STATE_PATH,
+      JSON.stringify({
+        serverInfo: {
+          name: 'stub-server',
+          title: 'Stub Server',
+          version: '1.1.0',
+          description: 'A fake MCP server for sync tests.',
+        },
+        instructions: 'Use the updated fake tools carefully.',
+        tools: [
+          {
+            name: 'FindOrganizations',
+            description: 'Search organizations with richer filters.',
+          },
+          {
+            name: 'FindPeople',
+            description: 'Search people.',
+          },
+        ],
+      }, null, 2),
+    )
+
+    const result = await syncFromMcp({ rootDir: TEST_DIR })
+    expect(result.updatedFiles.length + result.addedFiles.length + result.removedFiles.length).toBeGreaterThan(0)
+
+    expect(existsSync(resolve(TEST_DIR, AGENT_CONTEXT_PATH))).toBe(false)
+    expect(existsSync(resolve(TEST_DIR, AGENT_PLAN_PATH))).toBe(false)
+    expect(existsSync(resolve(TEST_DIR, '.pluxx/agent/taxonomy-prompt.md'))).toBe(false)
+    expect(existsSync(resolve(TEST_DIR, '.pluxx/agent/instructions-prompt.md'))).toBe(false)
+    expect(existsSync(resolve(TEST_DIR, '.pluxx/agent/review-prompt.md'))).toBe(false)
   })
 })
