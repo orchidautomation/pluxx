@@ -395,7 +395,7 @@ Agent Mode is successful when:
 
 ## Dogfood Plugin
 
-This repo now ships a repo-local Codex plugin at [`plugins/pluxx`](../plugins/pluxx) plus marketplace metadata at [`../.agents/plugins/marketplace.json`](../.agents/plugins/marketplace.json).
+This repo now ships a repo-local Codex plugin plus marketplace metadata for the local plugin catalog.
 
 The dogfood skill pack is intentionally narrow:
 
