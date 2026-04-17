@@ -1,4 +1,4 @@
-import { accessSync, constants, existsSync, readFileSync } from 'fs'
+import { accessSync, constants, existsSync, lstatSync, readFileSync } from 'fs'
 import { resolve } from 'path'
 import { CONFIG_FILES, loadConfig } from '../config/load'
 import { listHookCommands } from './install'
@@ -42,6 +42,22 @@ const LOW_INFO_DESCRIPTION_PATTERNS = [
   /^description$/i,
   /^no description provided\.?$/i,
 ]
+const MATERIALIZED_ENV_MARKER = 'materialized required config'
+
+type ConsumerPlatform = 'claude-code' | 'cursor' | 'codex' | 'opencode'
+
+interface ConsumerBundleLayout {
+  kind: 'installed-platform'
+  platform: ConsumerPlatform
+  manifestPath: string
+  mcpConfigPath?: string
+}
+
+type ConsumerLayoutDetection =
+  | ConsumerBundleLayout
+  | { kind: 'source-project' }
+  | { kind: 'multi-target-dist' }
+  | { kind: 'unknown' }
 
 function addCheck(checks: DoctorCheck[], check: DoctorCheck): void {
   checks.push(check)
@@ -466,6 +482,389 @@ function checkScaffoldMetadata(checks: DoctorCheck[], rootDir: string, config: P
       path: MCP_SCAFFOLD_METADATA_PATH,
     })
   }
+}
+
+function detectConsumerLayout(rootDir: string): ConsumerLayoutDetection {
+  if (existsSync(resolve(rootDir, '.claude-plugin/plugin.json'))) {
+    return {
+      kind: 'installed-platform',
+      platform: 'claude-code',
+      manifestPath: '.claude-plugin/plugin.json',
+      mcpConfigPath: '.mcp.json',
+    }
+  }
+
+  if (existsSync(resolve(rootDir, '.cursor-plugin/plugin.json'))) {
+    return {
+      kind: 'installed-platform',
+      platform: 'cursor',
+      manifestPath: '.cursor-plugin/plugin.json',
+      mcpConfigPath: 'mcp.json',
+    }
+  }
+
+  if (existsSync(resolve(rootDir, '.codex-plugin/plugin.json'))) {
+    return {
+      kind: 'installed-platform',
+      platform: 'codex',
+      manifestPath: '.codex-plugin/plugin.json',
+      mcpConfigPath: '.mcp.json',
+    }
+  }
+
+  const packagePath = resolve(rootDir, 'package.json')
+  const indexPath = resolve(rootDir, 'index.ts')
+  if (existsSync(packagePath) && existsSync(indexPath)) {
+    try {
+      const pkg = JSON.parse(readFileSync(packagePath, 'utf-8')) as {
+        peerDependencies?: Record<string, string>
+        keywords?: string[]
+      }
+      if (pkg.peerDependencies?.['@opencode-ai/plugin'] || pkg.keywords?.includes('opencode-plugin')) {
+        return {
+          kind: 'installed-platform',
+          platform: 'opencode',
+          manifestPath: 'package.json',
+        }
+      }
+    } catch {
+      return {
+        kind: 'installed-platform',
+        platform: 'opencode',
+        manifestPath: 'package.json',
+      }
+    }
+  }
+
+  if (CONFIG_FILES.some((filename) => existsSync(resolve(rootDir, filename)))) {
+    return { kind: 'source-project' }
+  }
+
+  if (['claude-code', 'cursor', 'codex', 'opencode'].some((dir) => existsSync(resolve(rootDir, dir)))) {
+    return { kind: 'multi-target-dist' }
+  }
+
+  return { kind: 'unknown' }
+}
+
+function readJsonFile<T>(rootDir: string, relativePath: string): T {
+  return JSON.parse(readFileSync(resolve(rootDir, relativePath), 'utf-8')) as T
+}
+
+function checkConsumerBundlePath(checks: DoctorCheck[], rootDir: string): void {
+  try {
+    accessSync(rootDir, constants.R_OK)
+    const details = lstatSync(rootDir)
+    addCheck(checks, {
+      level: 'success',
+      code: 'consumer-path-readable',
+      title: 'Consumer bundle path readable',
+      detail: `${rootDir} is present and readable${details.isSymbolicLink() ? ' (symlinked install)' : ''}.`,
+      fix: 'No action needed.',
+      path: rootDir,
+    })
+  } catch {
+    addCheck(checks, {
+      level: 'error',
+      code: 'consumer-path-unreadable',
+      title: 'Consumer bundle path unreadable',
+      detail: `The installed plugin path is not readable: ${rootDir}`,
+      fix: 'Fix the path or permissions and rerun pluxx doctor --consumer.',
+      path: rootDir,
+    })
+  }
+}
+
+function checkConsumerManifest(checks: DoctorCheck[], rootDir: string, layout: ConsumerBundleLayout): void {
+  try {
+    const manifest = readJsonFile<Record<string, unknown>>(rootDir, layout.manifestPath)
+    const name = typeof manifest.name === 'string' && manifest.name.trim() !== ''
+      ? manifest.name
+      : layout.platform
+    const version = typeof manifest.version === 'string' && manifest.version.trim() !== ''
+      ? manifest.version
+      : 'unknown'
+
+    addCheck(checks, {
+      level: 'success',
+      code: 'consumer-manifest-valid',
+      title: 'Installed plugin manifest parsed successfully',
+      detail: `Detected ${name}@${version} for ${layout.platform}.`,
+      fix: 'No action needed.',
+      path: layout.manifestPath,
+    })
+  } catch (error) {
+    addCheck(checks, {
+      level: 'error',
+      code: 'consumer-manifest-invalid',
+      title: 'Installed plugin manifest is not parseable',
+      detail: error instanceof Error ? error.message : String(error),
+      fix: 'Rebuild or reinstall this plugin bundle and rerun pluxx doctor --consumer.',
+      path: layout.manifestPath,
+    })
+  }
+}
+
+function checkInstalledUserConfig(checks: DoctorCheck[], rootDir: string): void {
+  const userConfigPath = '.pluxx-user.json'
+  const resolvedPath = resolve(rootDir, userConfigPath)
+  if (!existsSync(resolvedPath)) {
+    addCheck(checks, {
+      level: 'info',
+      code: 'consumer-user-config-missing',
+      title: 'No local install config materialized',
+      detail: 'This bundle does not include a .pluxx-user.json file.',
+      fix: 'If tools require secrets or install-time config, reinstall the plugin and provide the requested values.',
+      path: userConfigPath,
+    })
+    return
+  }
+
+  try {
+    const payload = JSON.parse(readFileSync(resolvedPath, 'utf-8')) as {
+      values?: Record<string, unknown>
+      env?: Record<string, string>
+    }
+    const valueCount = Object.keys(payload.values ?? {}).length
+    const envCount = Object.keys(payload.env ?? {}).length
+    addCheck(checks, {
+      level: 'success',
+      code: 'consumer-user-config-valid',
+      title: 'Local install config parsed successfully',
+      detail: `.pluxx-user.json contains ${valueCount} saved value entr${valueCount === 1 ? 'y' : 'ies'} and ${envCount} env binding${envCount === 1 ? '' : 's'}.`,
+      fix: 'No action needed.',
+      path: userConfigPath,
+    })
+  } catch (error) {
+    addCheck(checks, {
+      level: 'error',
+      code: 'consumer-user-config-invalid',
+      title: 'Local install config is not parseable',
+      detail: error instanceof Error ? error.message : String(error),
+      fix: 'Delete or repair .pluxx-user.json, then reinstall the plugin if needed.',
+      path: userConfigPath,
+    })
+  }
+}
+
+function checkInstalledEnvValidation(checks: DoctorCheck[], rootDir: string): void {
+  const envScriptPath = 'scripts/check-env.sh'
+  const resolvedPath = resolve(rootDir, envScriptPath)
+  if (!existsSync(resolvedPath)) {
+    addCheck(checks, {
+      level: 'info',
+      code: 'consumer-env-script-missing',
+      title: 'No install-time env validation script found',
+      detail: 'This bundle does not ship a scripts/check-env.sh file.',
+      fix: 'No action needed unless this plugin is expected to validate runtime secrets on install.',
+      path: envScriptPath,
+    })
+    return
+  }
+
+  const content = readFileSync(resolvedPath, 'utf-8')
+  if (content.includes(MATERIALIZED_ENV_MARKER)) {
+    addCheck(checks, {
+      level: 'success',
+      code: 'consumer-env-script-materialized',
+      title: 'Install-time env validation was disabled after materialization',
+      detail: 'This local install already materialized required config, so the env validation hook is bypassed.',
+      fix: 'No action needed.',
+      path: envScriptPath,
+    })
+    return
+  }
+
+  addCheck(checks, {
+    level: 'warning',
+    code: 'consumer-env-script-active',
+    title: 'Install-time env validation is still active',
+    detail: 'This bundle still runs scripts/check-env.sh, which usually means required config was not materialized into the installed plugin.',
+    fix: 'If authenticated tools fail, reinstall the plugin and provide the requested userConfig values or required env vars.',
+    path: envScriptPath,
+  })
+}
+
+function checkInstalledMcpConfig(checks: DoctorCheck[], rootDir: string, layout: ConsumerBundleLayout): void {
+  if (!layout.mcpConfigPath) {
+    addCheck(checks, {
+      level: 'info',
+      code: 'consumer-mcp-config-not-applicable',
+      title: 'No static MCP config file for this platform',
+      detail: `${layout.platform} builds runtime MCP wiring inside the plugin wrapper rather than a standalone JSON file.`,
+      fix: 'No action needed.',
+      path: layout.manifestPath,
+    })
+    return
+  }
+
+  const resolvedPath = resolve(rootDir, layout.mcpConfigPath)
+  if (!existsSync(resolvedPath)) {
+    addCheck(checks, {
+      level: 'info',
+      code: 'consumer-mcp-config-missing',
+      title: 'No MCP config file emitted in this bundle',
+      detail: `This ${layout.platform} bundle does not include ${layout.mcpConfigPath}.`,
+      fix: 'No action needed unless this plugin should expose MCP servers on this platform.',
+      path: layout.mcpConfigPath,
+    })
+    return
+  }
+
+  try {
+    const payload = readJsonFile<{ mcpServers?: Record<string, Record<string, unknown>> }>(rootDir, layout.mcpConfigPath)
+    const servers = Object.values(payload.mcpServers ?? {})
+    addCheck(checks, {
+      level: 'success',
+      code: 'consumer-mcp-config-valid',
+      title: 'Installed MCP config parsed successfully',
+      detail: `${layout.mcpConfigPath} defines ${servers.length} MCP server${servers.length === 1 ? '' : 's'}.`,
+      fix: 'No action needed.',
+      path: layout.mcpConfigPath,
+    })
+
+    if (servers.length === 0) {
+      return
+    }
+
+    const remoteEntries = servers.filter((server) => 'url' in server)
+    const stdioEntries = servers.filter((server) => 'command' in server)
+    const inlineHeaderEntries = servers.filter((server) => {
+      if ('headers' in server && server.headers && typeof server.headers === 'object') return true
+      if ('http_headers' in server && server.http_headers && typeof server.http_headers === 'object') return true
+      return false
+    })
+
+    if (stdioEntries.length > 0) {
+      addCheck(checks, {
+        level: 'info',
+        code: 'consumer-mcp-stdio',
+        title: 'Local MCP servers configured',
+        detail: `${stdioEntries.length} MCP server${stdioEntries.length === 1 ? '' : 's'} run via local stdio commands in this bundle.`,
+        fix: 'If tools fail, verify the bundled command or its runtime dependencies on this machine.',
+        path: layout.mcpConfigPath,
+      })
+    }
+
+    if (remoteEntries.length > 0 && inlineHeaderEntries.length > 0) {
+      addCheck(checks, {
+        level: 'success',
+        code: 'consumer-mcp-inline-auth',
+        title: 'Remote MCP auth was materialized into this install',
+        detail: `${inlineHeaderEntries.length} remote MCP server${inlineHeaderEntries.length === 1 ? '' : 's'} include inline auth headers in the installed bundle.`,
+        fix: 'No action needed.',
+        path: layout.mcpConfigPath,
+      })
+      return
+    }
+
+    if (remoteEntries.length > 0) {
+      const fix = layout.platform === 'claude-code' || layout.platform === 'cursor'
+        ? 'If authenticated tools fail, complete the platform auth flow in the host or reinstall with any required userConfig values.'
+        : 'If authenticated tools fail, reinstall the plugin and provide any required userConfig or runtime env vars.'
+      addCheck(checks, {
+        level: 'info',
+        code: 'consumer-mcp-remote-auth-runtime',
+        title: 'Remote MCP auth is expected at runtime',
+        detail: `${remoteEntries.length} remote MCP server${remoteEntries.length === 1 ? '' : 's'} are configured without inline auth headers in this installed bundle.`,
+        fix,
+        path: layout.mcpConfigPath,
+      })
+    }
+  } catch (error) {
+    addCheck(checks, {
+      level: 'error',
+      code: 'consumer-mcp-config-invalid',
+      title: 'Installed MCP config is not parseable',
+      detail: error instanceof Error ? error.message : String(error),
+      fix: 'Rebuild or reinstall this platform bundle and rerun pluxx doctor --consumer.',
+      path: layout.mcpConfigPath,
+    })
+  }
+}
+
+export async function doctorConsumer(rootDir: string = process.cwd()): Promise<DoctorReport> {
+  const checks: DoctorCheck[] = []
+  const bunVersion = process.versions.bun
+  const bunMajor = parseMajorVersion(bunVersion)
+
+  if (!bunVersion) {
+    addCheck(checks, {
+      level: 'error',
+      code: 'bun-missing',
+      title: 'Bun runtime not detected',
+      detail: 'pluxx currently requires Bun at runtime.',
+      fix: 'Install Bun from https://bun.sh and rerun pluxx doctor --consumer.',
+    })
+  } else if (bunMajor === null || bunMajor < 1) {
+    addCheck(checks, {
+      level: 'error',
+      code: 'bun-version-unsupported',
+      title: 'Unsupported Bun version',
+      detail: `Detected Bun ${bunVersion}. pluxx requires Bun >= 1.0.`,
+      fix: 'Upgrade Bun to a supported version and rerun pluxx doctor --consumer.',
+    })
+  } else {
+    addCheck(checks, {
+      level: 'success',
+      code: 'bun-version',
+      title: 'Supported Bun runtime detected',
+      detail: `Bun ${bunVersion} is available.`,
+      fix: 'No action needed.',
+    })
+  }
+
+  checkConsumerBundlePath(checks, rootDir)
+  const layout = detectConsumerLayout(rootDir)
+
+  if (layout.kind === 'source-project') {
+    addCheck(checks, {
+      level: 'error',
+      code: 'consumer-source-project',
+      title: 'Consumer doctor expects an installed or built platform bundle',
+      detail: `Found a pluxx source project at ${rootDir}, not a built platform directory.`,
+      fix: 'Run `pluxx doctor` in the source project, or run `pluxx doctor --consumer <dist/platform>` against an installed or built bundle.',
+    })
+    return summarizeChecks(checks)
+  }
+
+  if (layout.kind === 'multi-target-dist') {
+    addCheck(checks, {
+      level: 'error',
+      code: 'consumer-dist-root',
+      title: 'Consumer doctor expects one platform directory at a time',
+      detail: `Found a multi-target dist root at ${rootDir}.`,
+      fix: 'Point --consumer at one built platform directory such as dist/cursor or an installed plugin path.',
+    })
+    return summarizeChecks(checks)
+  }
+
+  if (layout.kind === 'unknown') {
+    addCheck(checks, {
+      level: 'error',
+      code: 'consumer-platform-unknown',
+      title: 'Could not detect an installed plugin layout',
+      detail: `No known installed plugin markers were found in ${rootDir}.`,
+      fix: 'Pass the root of a built platform bundle or installed plugin directory to pluxx doctor --consumer.',
+    })
+    return summarizeChecks(checks)
+  }
+
+  addCheck(checks, {
+    level: 'success',
+    code: 'consumer-platform-detected',
+    title: 'Installed platform bundle detected',
+    detail: `Detected a ${layout.platform} plugin bundle.`,
+    fix: 'No action needed.',
+    path: layout.manifestPath,
+  })
+
+  checkConsumerManifest(checks, rootDir, layout)
+  checkInstalledUserConfig(checks, rootDir)
+  checkInstalledEnvValidation(checks, rootDir)
+  checkInstalledMcpConfig(checks, rootDir, layout)
+
+  return summarizeChecks(checks)
 }
 
 export async function doctorProject(rootDir: string = process.cwd()): Promise<DoctorReport> {

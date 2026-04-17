@@ -14,7 +14,7 @@ import {
   type AgentPromptKind,
   type AgentRunner,
 } from './agent'
-import { doctorProject, printDoctorReport } from './doctor'
+import { doctorConsumer, doctorProject, printDoctorReport } from './doctor'
 import {
   ensureHookTrust,
   installPlugin,
@@ -53,13 +53,13 @@ import {
 import { promptText, promptYesNo, PromptCancelledError } from './prompt'
 import * as clack from '@clack/prompts'
 import type { McpAuth, McpServer, TargetPlatform } from '../schema'
-import { basename } from 'path'
+import { basename, resolve } from 'path'
 import { mkdir, mkdtemp, rm } from 'fs/promises'
 import { tmpdir } from 'os'
 import { spawn } from 'child_process'
 import { formatSyncSummary, planSyncFromMcp, syncFromMcp } from './sync-from-mcp'
 import { formatPublishPlan, planPublish, runPublish } from './publish'
-import { createCliRuntime, createSpinner, printJson, readMultiValueOption, readOption } from './runtime'
+import { createCliRuntime, createSpinner, printJson, readFlag, readMultiValueOption, readOption } from './runtime'
 import { printTestResult, runTestSuite, type TestRunResult } from './test'
 import { printEvalReport, runEvalSuite } from './eval'
 
@@ -1640,7 +1640,12 @@ async function runSync() {
 }
 
 async function runDoctor() {
-  const report = await doctorProject(process.cwd())
+  const consumerMode = readFlag(args, '--consumer')
+  const doctorPath = args.slice(1).find((value) => !value.startsWith('-'))
+  const rootDir = doctorPath ? resolve(process.cwd(), doctorPath) : process.cwd()
+  const report = consumerMode
+    ? await doctorConsumer(rootDir)
+    : await doctorProject(rootDir)
 
   if (runtime.jsonOutput) {
     printJson(report)
@@ -2724,7 +2729,7 @@ Usage:
   pluxx dev [--target <platforms...>]     Watch for changes and auto-rebuild
   pluxx validate                          Validate your config
   pluxx lint                              Lint skills and cross-platform metadata
-  pluxx doctor                            Check runtime, config, paths, MCP, and trust advisories
+  pluxx doctor [path] [--consumer]       Check source-project or installed-bundle health
   pluxx agent prepare                     Generate agent context + boundary files for host agents
   pluxx agent prompt <kind>               Generate a prompt pack (taxonomy, instructions, review)
   pluxx agent run <kind> --runner <id>    Execute a prompt pack via Claude, Cursor, Codex, or OpenCode headlessly
@@ -2778,7 +2783,8 @@ Examples:
   pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode thorough --yes --verbose-runner
   pluxx autopilot --from-mcp https://mcp.linear.app/mcp --runner codex --yes --oauth-wrapper
   pluxx autopilot --from-mcp "npx -y @acme/mcp" --runner claude --targets claude-code,codex --website https://example.com --docs https://docs.example.com
-  pluxx doctor --json                     Inspect project health as JSON
+  pluxx doctor --json                     Inspect source-project health as JSON
+  pluxx doctor --consumer ./dist/cursor   Inspect a built or installed platform bundle
   pluxx eval --json                       Inspect scaffold/prompt-pack quality as JSON
   pluxx test --target claude-code codex  Verify selected target outputs
   pluxx install                           Install to all configured targets

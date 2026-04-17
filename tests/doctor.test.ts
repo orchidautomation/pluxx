@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { resolve } from 'path'
-import { doctorProject } from '../src/cli/doctor'
+import { doctorConsumer, doctorProject } from '../src/cli/doctor'
 
 const ROOT = resolve(import.meta.dir, '..')
 
@@ -54,6 +54,50 @@ function createProjectFixture(): string {
       targets: ['claude-code', 'cursor'],
       outDir: './dist',
     }, null, 2),
+  )
+  return dir
+}
+
+function createConsumerFixture(): string {
+  const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-consumer-'))
+  mkdirSync(resolve(dir, '.cursor-plugin'), { recursive: true })
+  mkdirSync(resolve(dir, 'scripts'), { recursive: true })
+  writeFileSync(
+    resolve(dir, '.cursor-plugin/plugin.json'),
+    JSON.stringify({
+      name: 'consumer-fixture',
+      version: '0.1.0',
+      mcpServers: './mcp.json',
+    }, null, 2),
+  )
+  writeFileSync(
+    resolve(dir, 'mcp.json'),
+    JSON.stringify({
+      mcpServers: {
+        fixture: {
+          type: 'http',
+          url: 'https://example.com/mcp',
+          headers: {
+            Authorization: 'Bearer shh-secret',
+          },
+        },
+      },
+    }, null, 2),
+  )
+  writeFileSync(
+    resolve(dir, '.pluxx-user.json'),
+    JSON.stringify({
+      values: {
+        'fixture-api-key': 'shh-secret',
+      },
+      env: {
+        FIXTURE_API_KEY: 'shh-secret',
+      },
+    }, null, 2),
+  )
+  writeFileSync(
+    resolve(dir, 'scripts/check-env.sh'),
+    '#!/usr/bin/env bash\nset -euo pipefail\n# pluxx install materialized required config for this local plugin install.\nexit 0\n',
   )
   return dir
 }
@@ -212,6 +256,65 @@ describe('doctorProject', () => {
       expect(typeof report.infos).toBe('number')
       expect(Array.isArray(report.checks)).toBe(true)
       expect(report.checks.some((check) => check.code === 'config-valid')).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('doctorConsumer', () => {
+  it('reports installed bundle health for a materialized consumer install', async () => {
+    const dir = createConsumerFixture()
+
+    try {
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-platform-detected' && check.level === 'success')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-manifest-valid' && check.level === 'success')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-user-config-valid' && check.level === 'success')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-env-script-materialized' && check.level === 'success')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-mcp-inline-auth' && check.level === 'success')).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('fails cleanly when consumer mode points at a source project', async () => {
+    const dir = createProjectFixture()
+
+    try {
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(false)
+      expect(report.checks.some((check) => check.code === 'consumer-source-project' && check.level === 'error')).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('prints stable JSON from the CLI in consumer mode', async () => {
+    const dir = createConsumerFixture()
+
+    try {
+      const proc = Bun.spawn(['bun', resolve(ROOT, 'bin/pluxx.js'), 'doctor', '--consumer', '--json', dir], {
+        cwd: ROOT,
+        stdout: 'pipe',
+        stderr: 'pipe',
+      })
+      const stdout = await new Response(proc.stdout).text()
+      const stderr = await new Response(proc.stderr).text()
+      const exitCode = await proc.exited
+
+      expect(exitCode).toBe(0)
+      expect(stderr).toBe('')
+
+      const report = JSON.parse(stdout) as {
+        ok: boolean
+        checks: Array<{ code: string }>
+      }
+
+      expect(report.ok).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-platform-detected')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-mcp-inline-auth')).toBe(true)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

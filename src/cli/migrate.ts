@@ -1,5 +1,12 @@
-import { resolve, basename, join, relative } from 'path'
+import { resolve, basename } from 'path'
 import { existsSync, readdirSync, mkdirSync, cpSync, readFileSync } from 'fs'
+import {
+  MCP_SCAFFOLD_METADATA_PATH,
+  MCP_TAXONOMY_PATH,
+  type McpScaffoldMetadata,
+  type PersistedSkill,
+} from './init-from-mcp'
+import type { McpServer } from '../schema'
 
 type DetectedPlatform = 'claude-code' | 'cursor' | 'codex' | 'opencode'
 
@@ -55,6 +62,7 @@ interface MigrateResult {
     scripts: boolean
     assets: boolean
   }
+  persistedSkills: PersistedSkill[]
 }
 
 // ── Platform Detection ──────────────────────────────────────────
@@ -347,6 +355,237 @@ function detectDirectories(pluginDir: string) {
   }
 }
 
+function toKebabCase(value: string): string {
+  return value
+    .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+    .replace(/[^A-Za-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .toLowerCase()
+}
+
+function titleCaseFromDirName(value: string): string {
+  return value
+    .split(/[-_]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ')
+}
+
+function firstHeading(content: string): string | undefined {
+  for (const line of content.split(/\r?\n/)) {
+    const trimmed = line.trim()
+    const match = trimmed.match(/^#\s+(.+)$/)
+    if (match) {
+      return match[1].trim()
+    }
+  }
+  return undefined
+}
+
+function extractFrontmatterField(content: string, key: 'name' | 'description'): string | undefined {
+  const lines = content.split(/\r?\n/)
+  if (lines[0]?.trim() !== '---') return undefined
+
+  let endIndex = -1
+  for (let i = 1; i < lines.length; i += 1) {
+    if (lines[i].trim() === '---') {
+      endIndex = i
+      break
+    }
+  }
+
+  if (endIndex === -1) return undefined
+
+  for (const line of lines.slice(1, endIndex)) {
+    const match = line.match(new RegExp(`^${key}:\\s*(.*)$`))
+    if (!match) continue
+    return match[1].trim().replace(/^['"]|['"]$/g, '')
+  }
+
+  return undefined
+}
+
+function readMigratedSkills(pluginDir: string, dirs: MigrateResult['directories']): PersistedSkill[] {
+  const skills: PersistedSkill[] = []
+
+  if (dirs.skills) {
+    const skillsDir = resolve(pluginDir, 'skills')
+    const entries = readdirSync(skillsDir, { withFileTypes: true })
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue
+      const dirName = entry.name
+      const skillPath = resolve(skillsDir, dirName, 'SKILL.md')
+      let title = titleCaseFromDirName(dirName)
+      let description: string | undefined
+
+      if (existsSync(skillPath)) {
+        const content = readFileSync(skillPath, 'utf-8')
+        title = extractFrontmatterField(content, 'name')
+          ?? firstHeading(content)
+          ?? title
+        description = extractFrontmatterField(content, 'description')
+      }
+
+      skills.push({
+        dirName,
+        title,
+        description,
+        toolNames: [],
+      })
+    }
+  }
+
+  if (skills.length === 0 && dirs.commands) {
+    const commandsDir = resolve(pluginDir, 'commands')
+    const entries = readdirSync(commandsDir, { withFileTypes: true })
+
+    for (const entry of entries) {
+      if (!entry.isFile() || !entry.name.endsWith('.md')) continue
+      const dirName = toKebabCase(entry.name.replace(/\.md$/, '')) || 'command'
+      const content = readFileSync(resolve(commandsDir, entry.name), 'utf-8')
+      skills.push({
+        dirName,
+        title: firstHeading(content) ?? titleCaseFromDirName(dirName),
+        description: extractFrontmatterField(content, 'description'),
+        toolNames: [],
+      })
+    }
+  }
+
+  return skills.sort((a, b) => a.dirName.localeCompare(b.dirName))
+}
+
+function primarySource(result: MigrateResult): McpServer {
+  const [serverName, server] = Object.entries(result.mcp)[0] ?? []
+  const auth = normalizeMigrateAuth(server?.auth)
+  if (server) {
+    if (server.transport === 'stdio') {
+      return {
+        transport: 'stdio',
+        command: server.command ?? 'TODO_MCP_COMMAND',
+        args: server.args ?? [],
+        ...(server.env ? { env: server.env } : {}),
+        ...(auth ? { auth } : {}),
+      }
+    }
+
+    if (server.transport === 'sse') {
+      return {
+        transport: 'sse',
+        url: server.url ?? `https://example.com/${serverName ?? 'mcp'}`,
+        ...(auth ? { auth } : {}),
+      }
+    }
+
+    return {
+      transport: 'http',
+      url: server.url ?? `https://example.com/${serverName ?? 'mcp'}`,
+      ...(auth ? { auth } : {}),
+    }
+  }
+
+  return {
+    transport: 'stdio',
+    command: 'TODO_MCP_COMMAND',
+    args: [],
+  }
+}
+
+function normalizeMigrateAuth(auth: ParsedMcp[string]['auth']) {
+  if (!auth) return undefined
+  if (auth.type === 'none') {
+    return { type: 'none' as const }
+  }
+  if (auth.type === 'bearer' && auth.envVar) {
+    return {
+      type: 'bearer' as const,
+      envVar: auth.envVar,
+      headerName: auth.headerName ?? 'Authorization',
+      headerTemplate: auth.headerTemplate ?? 'Bearer ${value}',
+    }
+  }
+  if (auth.type === 'header' && auth.envVar && auth.headerName) {
+    return {
+      type: 'header' as const,
+      envVar: auth.envVar,
+      headerName: auth.headerName,
+      headerTemplate: auth.headerTemplate ?? '${value}',
+    }
+  }
+  return undefined
+}
+
+function buildMigratedScaffoldMetadata(result: MigrateResult, outputDir: string): McpScaffoldMetadata {
+  const pluginName = result.manifest.name ?? 'my-plugin'
+  const displayName = result.manifest.name ? titleCaseFromDirName(result.manifest.name) : 'Migrated Plugin'
+  const description = result.manifest.description ?? 'Migrated plugin scaffold.'
+  const generatedHookEvents = Object.keys(result.hooks)
+  const managedFiles = [
+    ...(result.instructions ? [result.instructions.replace(/^\.\//, '')] : []),
+    ...(['skills', 'commands', 'agents', 'scripts', 'assets'] as const).flatMap((dir) => {
+      if (!result.directories[dir]) return []
+      const baseDir = dir
+      const dirPath = resolve(outputDir, baseDir)
+      if (!existsSync(dirPath)) return []
+      const entries = readdirSync(dirPath, { withFileTypes: true })
+      const files: string[] = []
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          const nestedDir = resolve(dirPath, entry.name)
+          for (const nested of readdirSync(nestedDir, { withFileTypes: true })) {
+            if (nested.isFile()) {
+              files.push(`${baseDir}/${entry.name}/${nested.name}`)
+            }
+          }
+          continue
+        }
+        if (entry.isFile()) {
+          files.push(`${baseDir}/${entry.name}`)
+        }
+      }
+      return files
+    }),
+    'pluxx.config.ts',
+    MCP_TAXONOMY_PATH,
+    MCP_SCAFFOLD_METADATA_PATH,
+  ]
+
+  return {
+    version: 1,
+    source: primarySource(result),
+    serverInfo: {
+      name: pluginName,
+      title: displayName,
+      version: result.manifest.version ?? '0.1.0',
+      description,
+      ...(result.manifest.repository ? { websiteUrl: result.manifest.repository } : {}),
+    },
+    settings: {
+      pluginName,
+      displayName,
+      description,
+      skillGrouping: 'workflow',
+      requestedHookMode: generatedHookEvents.length > 0 ? 'safe' : 'none',
+      generatedHookMode: generatedHookEvents.length > 0 ? 'safe' : 'none',
+      generatedHookEvents,
+      runtimeAuthMode: 'inline',
+    },
+    userConfig: [],
+    tools: [],
+    resources: [],
+    resourceTemplates: [],
+    prompts: [],
+    skills: result.persistedSkills.map((skill) => ({
+      dirName: skill.dirName,
+      title: skill.title,
+      description: skill.description,
+      toolNames: skill.toolNames,
+    })),
+    managedFiles: [...new Set(managedFiles)].sort(),
+  }
+}
+
 // ── Copy Directories ────────────────────────────────────────────
 
 function copyDirectories(
@@ -559,11 +798,15 @@ export async function migrate(inputPath: string): Promise<void> {
 
   // 6. Detect directories
   const directories = detectDirectories(pluginDir)
+  const persistedSkills = readMigratedSkills(pluginDir, directories)
   const dirNames = Object.entries(directories)
     .filter(([_, exists]) => exists)
     .map(([name]) => name)
   if (dirNames.length > 0) {
     console.log(`  directories: ${dirNames.join(', ')}`)
+  }
+  if (persistedSkills.length > 0) {
+    console.log(`  migrated skills: ${persistedSkills.map((skill) => skill.dirName).join(', ')}`)
   }
 
   // 7. Build result
@@ -574,6 +817,7 @@ export async function migrate(inputPath: string): Promise<void> {
     hooks,
     instructions,
     directories,
+    persistedSkills,
   }
 
   // 8. Generate config
@@ -606,9 +850,18 @@ export async function migrate(inputPath: string): Promise<void> {
     }
   }
 
+  // 11. Create synthetic migration metadata/taxonomy so Agent Mode and evals work.
+  const taxonomyPath = resolve(outputDir, MCP_TAXONOMY_PATH)
+  const metadataPath = resolve(outputDir, MCP_SCAFFOLD_METADATA_PATH)
+  mkdirSync(resolve(outputDir, '.pluxx'), { recursive: true })
+  await Bun.write(taxonomyPath, `${JSON.stringify(result.persistedSkills, null, 2)}\n`)
+  await Bun.write(metadataPath, `${JSON.stringify(buildMigratedScaffoldMetadata(result, outputDir), null, 2)}\n`)
+  console.log(`Generated: ${MCP_TAXONOMY_PATH}, ${MCP_SCAFFOLD_METADATA_PATH}`)
+
   console.log('')
   console.log('Migration complete! Next steps:')
   console.log('  1. Review pluxx.config.ts and fill in any TODOs')
-  console.log('  2. Run: pluxx validate')
-  console.log('  3. Run: pluxx build')
+  console.log('  2. Run: pluxx doctor')
+  console.log('  3. Run: pluxx eval')
+  console.log('  4. Run: pluxx build')
 }

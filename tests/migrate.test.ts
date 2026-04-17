@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
 import { mkdirSync, rmSync, existsSync, readFileSync } from 'fs'
 import { resolve } from 'path'
 import { migrate } from '../src/cli/migrate'
+import { planAgentPrepare } from '../src/cli/agent'
+import { runEvalSuite } from '../src/cli/eval'
 
 const TEST_DIR = resolve(import.meta.dir, '.migrate-fixture')
 
@@ -161,6 +163,24 @@ describe('migrate', () => {
       expect(existsSync(resolve(outputDir, 'agents/megamind.md'))).toBe(true)
       expect(existsSync(resolve(outputDir, 'scripts/validate-env.sh'))).toBe(true)
       expect(existsSync(resolve(outputDir, 'INSTRUCTIONS.md'))).toBe(true)
+      expect(existsSync(resolve(outputDir, '.pluxx/taxonomy.json'))).toBe(true)
+      expect(existsSync(resolve(outputDir, '.pluxx/mcp.json'))).toBe(true)
+
+      const taxonomy = JSON.parse(readFileSync(resolve(outputDir, '.pluxx/taxonomy.json'), 'utf-8')) as Array<{ dirName: string }>
+      const metadata = JSON.parse(readFileSync(resolve(outputDir, '.pluxx/mcp.json'), 'utf-8')) as {
+        skills: Array<{ dirName: string }>
+        source: { transport: string }
+      }
+
+      expect(taxonomy.map((skill) => skill.dirName)).toEqual(['client-intel'])
+      expect(metadata.skills.map((skill) => skill.dirName)).toEqual(['client-intel'])
+      expect(metadata.source.transport).toBe('http')
+
+      const preparePlan = await planAgentPrepare(outputDir)
+      expect(preparePlan.skillCount).toBe(1)
+
+      const evalReport = await runEvalSuite({ rootDir: outputDir })
+      expect(evalReport.ok).toBe(true)
     })
   }
 

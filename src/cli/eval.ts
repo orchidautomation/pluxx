@@ -421,9 +421,22 @@ export async function runEvalSuite(options: EvalRunOptions = {}): Promise<EvalRe
       promptPlans.map((plan) => [plan.kind, plan.files[0]?.content ?? '']),
     )
 
-    evaluateInstructions(rootDir, metadata, checks)
-    evaluateSkills(rootDir, metadata, checks)
-    evaluateCommands(rootDir, metadata, checks)
+    const isMigratedBaseline = metadata.tools.length === 0
+
+    if (isMigratedBaseline) {
+      addCheck(checks, {
+        level: 'info',
+        code: 'eval-generated-scaffold-skipped',
+        title: 'Generated scaffold evals skipped for migrated baseline',
+        detail: 'This project has scaffold metadata but no MCP tool inventory, so file-level generated-section evals were skipped.',
+        fix: 'No action needed unless you want to rebuild the project around a fresh MCP-derived scaffold.',
+      })
+    } else {
+      evaluateInstructions(rootDir, metadata, checks)
+      evaluateSkills(rootDir, metadata, checks)
+      evaluateCommands(rootDir, metadata, checks)
+    }
+
     evaluateAgentContext(contextContent, metadata, checks)
 
     for (const kind of AGENT_PROMPT_KINDS) {
