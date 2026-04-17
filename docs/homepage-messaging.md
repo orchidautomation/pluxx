@@ -21,7 +21,7 @@ Maintain one plugin. Ship it everywhere.
 
 ### Subheadline
 
-Pluxx turns one MCP or hand-authored source project into native bundles for Claude Code, Codex, Cursor, and OpenCode. Keep one maintained source of truth, then let Codex or Claude refine the semantics without breaking the deterministic structure.
+Pluxx turns one MCP or source project into native bundles for Claude Code, Codex, Cursor, and OpenCode. Keep one maintained source of truth while Codex or Claude refines the semantics.
 
 ### Primary CTA
 

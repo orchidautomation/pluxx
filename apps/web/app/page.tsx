@@ -130,9 +130,9 @@ export default function Home() {
               Ship it <em>everywhere</em>.
             </h1>
             <p className="lede">
-              Pluxx turns one MCP or hand-authored source project into native plugin bundles for
-              Claude&nbsp;Code, Cursor, Codex, and OpenCode. Keep one maintained source of truth,
-              then let Codex or Claude refine the semantics without breaking the substrate.
+              Pluxx turns one MCP or source project into native plugin bundles for Claude&nbsp;Code,
+              Cursor, Codex, and OpenCode. Keep one maintained source of truth while Codex or
+              Claude refines the semantics.
             </p>
 
             <div className="cta-row">
