@@ -2,7 +2,9 @@
 title: What Pluxx Is
 ---
 
-Pluxx helps teams build MCP-backed agent plugins once and ship them across Claude Code, Cursor, Codex, and OpenCode.
+Pluxx gives teams one maintained plugin source project for Claude Code, Cursor, Codex, and OpenCode.
+
+Bring a live MCP when you have one, or author the source project directly when you do not. Then let Codex or Claude refine the meaning without breaking the deterministic scaffold.
 
 ## Source of truth
 
@@ -23,15 +25,22 @@ compiled bundles (generated)
   - dist/opencode
 ```
 
+## What is already real
+
+Pluxx is no longer just a thin bundle generator.
+
+- `pluxx eval` checks scaffold and prompt-pack quality, not just whether the project builds
+- `pluxx migrate <path>` imports an existing host-native plugin into a Pluxx source project
+- `pluxx doctor --consumer <bundle>` inspects built or installed plugin bundles from the end-user side
+- `pluxx mcp proxy --record` / `--replay` gives you deterministic MCP tapes for debugging and CI
+
 ## Product flow
 
-1. Create a Pluxx plugin.
-2. Import an MCP.
-3. Refine taxonomy.
-4. Rewrite instructions.
-5. Review scaffold.
-6. Sync later.
-7. Install into host agents.
+1. Start from an MCP or initialize a source project.
+2. Run `doctor`, `lint`, `eval`, and `test` to validate the baseline.
+3. Refine taxonomy and instructions with Agent Mode when you need semantic cleanup.
+4. Build native bundles and install them into your target hosts.
+5. Sync later when the MCP changes.
 
 ## Quick start
 

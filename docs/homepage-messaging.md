@@ -21,15 +21,19 @@ Maintain one plugin. Ship it everywhere.
 
 ### Subheadline
 
-Pluxx turns one plugin source project into native bundles for Claude Code, Codex, Cursor, and OpenCode. Start from a raw MCP when you have one, or author the plugin by hand when you do not. Then Codex or Claude can refine the scaffold safely without breaking the structure.
+Pluxx turns one MCP or hand-authored source project into native bundles for Claude Code, Codex, Cursor, and OpenCode. Keep one maintained source of truth, then let Codex or Claude refine the semantics without breaking the deterministic structure.
 
 ### Primary CTA
 
-`npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp`
+Read docs
 
 ### Secondary CTA
 
-View on GitHub
+View repository
+
+### Command chip
+
+`npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp`
 
 ### Proof line
 
@@ -110,6 +114,16 @@ Open source core. Agent-native workflow.
 ### Body
 
 Pluxx stays deterministic and open source. The host coding agent does the semantic refinement, which means the product gets smarter as Codex and Claude get better.
+
+## Section: Shipped Now
+
+### Heading
+
+Real authoring leverage. Not just bundle generation.
+
+### Body
+
+Pluxx now covers migration, evals, consumer diagnostics, and deterministic MCP replay so the whole authoring loop is easier to trust and support.
 
 ## Footer CTA
 

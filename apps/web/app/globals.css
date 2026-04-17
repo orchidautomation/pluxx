@@ -932,6 +932,68 @@ pre {
 }
 
 /* ────────────────────────────────────────────────────────────────
+   Feature surfaces
+   ──────────────────────────────────────────────────────────────── */
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--bg-soft);
+}
+
+.feature-card {
+  position: relative;
+  padding: 24px 22px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  transition: background 200ms ease;
+}
+
+.feature-card:nth-child(2n) {
+  border-right: none;
+}
+
+.feature-card:nth-last-child(-n + 2) {
+  border-bottom: none;
+}
+
+.feature-card:hover {
+  background: var(--bg-elevated);
+}
+
+.feature-command {
+  display: inline-flex;
+  margin: 0 0 14px;
+  padding: 4px 9px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: rgba(225, 215, 255, 0.04);
+  color: var(--ink-soft);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.74rem;
+}
+
+.feature-card h3 {
+  margin: 0;
+  font-family: var(--font-display), serif;
+  font-weight: 400;
+  font-size: 1.35rem;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.feature-card p {
+  margin: 10px 0 0;
+  color: var(--muted-strong);
+  font-size: 0.94rem;
+  line-height: 1.6;
+}
+
+/* ────────────────────────────────────────────────────────────────
    Colophon / footer
    ──────────────────────────────────────────────────────────────── */
 
@@ -995,6 +1057,12 @@ pre {
 
 .footer-row a:hover {
   color: var(--ink);
+}
+
+.footer-links {
+  display: inline-flex;
+  align-items: center;
+  gap: 18px;
 }
 
 /* ────────────────────────────────────────────────────────────────
@@ -1114,6 +1182,10 @@ pre {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .feature-grid {
+    grid-template-columns: 1fr;
+  }
+
   .workflow-card {
     border-bottom: 1px solid var(--line);
   }
@@ -1123,6 +1195,15 @@ pre {
   }
 
   .workflow-card:nth-last-child(-n + 2) {
+    border-bottom: none;
+  }
+
+  .feature-card {
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .feature-card:last-child {
     border-bottom: none;
   }
 }
@@ -1182,20 +1263,23 @@ pre {
 
   .platform-grid,
   .problem-grid,
-  .workflow-grid {
+  .workflow-grid,
+  .feature-grid {
     grid-template-columns: 1fr;
   }
 
   .platform-card,
   .problem-card,
-  .workflow-card {
+  .workflow-card,
+  .feature-card {
     border-right: none;
     border-bottom: 1px solid var(--line);
   }
 
   .platform-card:last-child,
   .problem-card:last-child,
-  .workflow-card:last-child {
+  .workflow-card:last-child,
+  .feature-card:last-child {
     border-bottom: none;
   }
 
@@ -1205,7 +1289,8 @@ pre {
 
   .footer-row {
     flex-direction: column;
+    align-items: flex-start;
     gap: 8px;
-    text-align: center;
+    text-align: left;
   }
 }

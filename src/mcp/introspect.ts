@@ -5,7 +5,7 @@ import type { McpAuth, McpServer } from '../schema'
 const MCP_PROTOCOL_VERSION = '2025-03-26'
 const CLIENT_INFO = {
   name: 'pluxx',
-  version: '0.1.0',
+  version: '0.1.1',
 }
 const DEFAULT_TIMEOUT_MS = 10_000
 

@@ -11,6 +11,8 @@ The product scope is intentionally tight:
 
 pluxx is now published on npm as `@orchid-labs/pluxx`. The public invocation path is `npx @orchid-labs/pluxx ...`, and the package also works with `npm install -g @orchid-labs/pluxx`. The current launcher still requires Bun at runtime, so keep Bun installed even when using the npm package.
 
+Public docs: [orchidautomation.mintlify.app](https://orchidautomation.mintlify.app/)
+
 ```bash
 npx @orchid-labs/pluxx build
 ```

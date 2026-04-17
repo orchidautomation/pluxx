@@ -20,6 +20,36 @@ const workflowSteps = [
   { index: "05", command: "sync", title: "Sync", body: "Pull MCP updates. Keep your human edits." },
 ] as const;
 
+const featureCards = [
+  {
+    index: "01",
+    command: "pluxx eval",
+    title: "Measure scaffold quality",
+    body: "Catch weak instructions, taxonomy drift, and prompt-pack regressions before you ship.",
+  },
+  {
+    index: "02",
+    command: "pluxx migrate",
+    title: "Pull older plugins forward",
+    body: "Import an existing host-native plugin into one maintained Pluxx source project instead of rewriting it by hand.",
+  },
+  {
+    index: "03",
+    command: "doctor --consumer",
+    title: "Debug the installed bundle",
+    body: "Inspect the built or installed plugin from the end-user side when auth, env wiring, or host pickup looks broken.",
+  },
+  {
+    index: "04",
+    command: "mcp proxy",
+    title: "Record and replay MCP traffic",
+    body: "Capture deterministic MCP tapes for local debugging and CI instead of chasing flaky live sessions.",
+  },
+] as const;
+
+const docsUrl = "https://orchidautomation.mintlify.app";
+const quickStartCommand = "npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp";
+
 const heroTerminal = String.raw`$ npx @orchid-labs/pluxx init --from-mcp https://mcp.playkit.sh/mcp --yes
 
 Introspecting MCP...
@@ -65,16 +95,22 @@ export default function Home() {
           </a>
           <div className="nav-links">
             <a href="#platforms">Platforms</a>
-            <a href="#problem-space">Drift</a>
-            <a href="#source-project">Source</a>
             <a href="#how-it-works">Workflow</a>
+            <a href="#feature-surfaces">Features</a>
             <a
-              className="nav-cta"
               href="https://github.com/orchidautomation/pluxx"
               rel="noreferrer"
               target="_blank"
             >
               GitHub
+            </a>
+            <a
+              className="nav-cta"
+              href={docsUrl}
+              rel="noreferrer"
+              target="_blank"
+            >
+              Docs
             </a>
           </div>
         </div>
@@ -94,33 +130,34 @@ export default function Home() {
               Ship it <em>everywhere</em>.
             </h1>
             <p className="lede">
-              Pluxx turns one MCP into native plugin bundles for Claude&nbsp;Code, Cursor, Codex,
-              and OpenCode — from a single config.
+              Pluxx turns one MCP or hand-authored source project into native plugin bundles for
+              Claude&nbsp;Code, Cursor, Codex, and OpenCode. Keep one maintained source of truth,
+              then let Codex or Claude refine the semantics without breaking the substrate.
             </p>
 
             <div className="cta-row">
               <a
                 className="button button-primary"
-                href="https://github.com/orchidautomation/pluxx"
+                href={docsUrl}
                 rel="noreferrer"
                 target="_blank"
               >
-                <span>View repository</span>
+                <span>Read docs</span>
                 <span aria-hidden className="button-arrow">→</span>
               </a>
               <a
                 className="button button-secondary"
-                href="https://github.com/orchidautomation/pluxx/blob/main/docs/practical-handbook.md"
+                href="https://github.com/orchidautomation/pluxx"
                 rel="noreferrer"
                 target="_blank"
               >
-                Read handbook
+                View repository
               </a>
             </div>
 
             <div className="command-chip">
               <span className="command-label">Quick start</span>
-              <code>npx @orchid-labs/pluxx init</code>
+              <code>{quickStartCommand}</code>
             </div>
           </div>
 
@@ -268,6 +305,32 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="section section-divider" id="feature-surfaces">
+        <div className="shell">
+          <div className="section-head">
+            <span className="section-kicker">Shipped now</span>
+            <h2 className="section-title">
+              Real authoring leverage. <em>Not just bundle generation.</em>
+            </h2>
+            <p className="section-body">
+              Pluxx now covers migration, evals, consumer diagnostics, and deterministic MCP replay
+              so the whole authoring loop is easier to trust and support.
+            </p>
+          </div>
+
+          <div className="feature-grid">
+            {featureCards.map((feature) => (
+              <article className="feature-card" key={feature.command}>
+                <span className="bundle-index">{feature.index}</span>
+                <span className="feature-command">{feature.command}</span>
+                <h3>{feature.title}</h3>
+                <p>{feature.body}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <section className="section colophon">
         <div className="shell cta-panel">
           <div className="cta-copy">
@@ -280,26 +343,35 @@ export default function Home() {
           <div className="cta-actions">
             <a
               className="button button-primary"
-              href="https://github.com/orchidautomation/pluxx"
+              href={docsUrl}
               rel="noreferrer"
               target="_blank"
             >
-              <span>Star on GitHub</span>
+              <span>Read docs</span>
               <span aria-hidden className="button-arrow">→</span>
             </a>
-            <code className="footer-command">npx @orchid-labs/pluxx init</code>
+            <code className="footer-command">{quickStartCommand}</code>
           </div>
         </div>
 
         <div className="shell footer-row">
           <span>© 2026 Pluxx</span>
-          <a
-            href="https://github.com/orchidautomation/pluxx"
-            rel="noreferrer"
-            target="_blank"
-          >
-            github.com/orchidautomation/pluxx
-          </a>
+          <div className="footer-links">
+            <a
+              href={docsUrl}
+              rel="noreferrer"
+              target="_blank"
+            >
+              Docs
+            </a>
+            <a
+              href="https://github.com/orchidautomation/pluxx"
+              rel="noreferrer"
+              target="_blank"
+            >
+              GitHub
+            </a>
+          </div>
         </div>
       </section>
     </main>

@@ -185,6 +185,7 @@ npx @orchid-labs/pluxx doctor --json
 
 ```bash
 npx @orchid-labs/pluxx lint
+npx @orchid-labs/pluxx eval
 npx @orchid-labs/pluxx build
 npx @orchid-labs/pluxx install --target claude-code
 npx @orchid-labs/pluxx test
@@ -201,10 +202,24 @@ npx @orchid-labs/pluxx install --dry-run
 
 - config load / validate
 - lint
+- eval
 - build
 - generated output smoke checks
 
-## 6. Sync Later
+## 6. Extra Commands Worth Knowing
+
+These are now part of the real baseline, not side experiments:
+
+- `npx @orchid-labs/pluxx migrate <existing-plugin-path>`
+  - import an existing host-native plugin into a Pluxx source project
+- `npx @orchid-labs/pluxx doctor --consumer <built-or-installed-bundle>`
+  - inspect the plugin from the consumer side after installation
+- `npx @orchid-labs/pluxx mcp proxy --from-mcp https://example.com/mcp --record tape.json`
+  - capture a deterministic MCP tape for debugging or CI
+- `npx @orchid-labs/pluxx mcp proxy --replay tape.json`
+  - replay the same MCP session without hitting the live server again
+
+## 7. Sync Later
 
 When the MCP server changes:
 
@@ -232,7 +247,7 @@ Pluxx preserves custom mixed-ownership Markdown sections and reports:
 - preserved files
 - renamed skill directories
 
-## 7. Publish And Distribute
+## 8. Publish And Distribute
 
 After build/install validation, ship the generated plugin repo and bundles:
 
