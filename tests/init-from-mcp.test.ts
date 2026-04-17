@@ -177,7 +177,12 @@ describe('init-from-mcp scaffold', () => {
   })
 
   it('groups discovered MCP tools into workflow-oriented skills', () => {
-    const skills = planSkillScaffolds(introspection.tools)
+    const skills = planSkillScaffolds(
+      introspection.tools,
+      'workflow',
+      introspection.resources ?? [],
+      introspection.resourceTemplates ?? [],
+    )
 
     expect(skills.map((skill) => skill.dirName)).toEqual([
       'account-research',
@@ -186,6 +191,9 @@ describe('init-from-mcp scaffold', () => {
     expect(skills[0].tools.map((tool) => tool.name)).toEqual([
       'FindOrganizations',
       'GetOrganization',
+    ])
+    expect(skills[0].resourceTemplates.map((resource) => resource.name)).toEqual([
+      'organization-resource',
     ])
   })
 
@@ -307,6 +315,8 @@ describe('init-from-mcp scaffold', () => {
     expect(organizationSkill).toContain('# Find Organizations')
     expect(organizationSkill).toContain('### `FindOrganizations`')
     expect(organizationSkill).toContain('`query` (string, required)')
+    expect(organizationSkill).toContain('## Related Resources')
+    expect(organizationSkill).toContain('`organization-resource`')
     expect(organizationSkill).toContain('## Example Requests')
     expect(organizationSkill).toContain('"Find organizations matching <query>."')
     expect(organizationSkill.startsWith('---\n')).toBe(true)
@@ -314,6 +324,8 @@ describe('init-from-mcp scaffold', () => {
     expect(organizationCommand).toContain('argument-hint: "[query]"')
     expect(organizationCommand).toContain('Use this command when the user asks to search organizations by company attributes and signals.')
     expect(organizationCommand).toContain('Primary tools:')
+    expect(organizationCommand).toContain('Related resources:')
+    expect(organizationCommand).toContain('`organization-resource`')
     expect(organizationCommand).toContain('<!-- pluxx:generated:start -->')
     expect(envScript).toContain('SUMBLE_API_KEY')
     expect(envScript).toContain('pluxx: SUMBLE_API_KEY is not set')
@@ -330,6 +342,9 @@ describe('init-from-mcp scaffold', () => {
       'find-organizations',
       'find-people',
       'get-organization',
+    ])
+    expect(metadata.skills.find((skill) => skill.dirName === 'find-organizations')?.resourceTemplateUris).toEqual([
+      'sumble://organizations/{organization_id}',
     ])
     expect(existsSync(resolve(TEST_DIR, 'skills/find-people/SKILL.md'))).toBe(true)
 
