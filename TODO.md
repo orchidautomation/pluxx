@@ -25,6 +25,12 @@ The first real MCP dogfood quality batch is also shipped on `main`:
 - `PLUXX-129` better generated examples and command blurbs
 - `PLUXX-130` better autopilot prompt quality and regression coverage
 
+The Phase 1 protocol-depth baseline is now also shipped on `main`:
+
+- `PLUXX-67` resources and resource templates shape deterministic scaffolds
+- `PLUXX-68` prompt templates shape deterministic scaffolds
+- `PLUXX-69` richer MCP auth discovery and OAuth-ready scaffold support
+
 The near-term question is no longer "does Pluxx have a believable core contract?"
 
 It is now:
@@ -39,6 +45,7 @@ It is now:
 - `PLUXX-79` Define Agent Mode as the semantic authoring layer on top of Core
   - status: `In Progress`
   - role: umbrella / product-coherence issue
+  - current focus: make agent/autopilot packs consume per-skill resource and prompt-template associations, not just top-level discovery counts
 - `PLUXX-61` Competitive readiness: expand MCP import beyond `tools/list`
   - status: `Backlog`
   - role: umbrella for richer non-tool MCP surfaces
@@ -77,6 +84,9 @@ It is now:
     - `PLUXX-69` richer MCP auth discovery and OAuth-ready scaffold support
   - outcome:
     - Pluxx imports and explains real auth surfaces more honestly
+  - status:
+    - `PLUXX-69` shipped baseline
+    - deeper provider/runtime follow-through remains open under the umbrella
 
 - `PLUXX-61` Import beyond `tools/list`
   - child work:
@@ -84,6 +94,10 @@ It is now:
     - `PLUXX-68` scaffold prompt-aware content from MCP prompt templates
   - outcome:
     - generated plugins reflect more than tool metadata
+  - status:
+    - `PLUXX-67` shipped baseline
+    - `PLUXX-68` shipped baseline
+    - next follow-through is making Agent Mode consume those per-skill associations more deeply
 
 ### Phase 2: Quality And Adoption Leverage
 
@@ -165,17 +179,15 @@ Treat them as validation / linear-swarm work, not as the core Pluxx execution ma
 
 If you only want the next concrete sequence, it is:
 
-1. `PLUXX-69`
-2. `PLUXX-67`
-3. `PLUXX-68`
-4. `PLUXX-132`
-5. `PLUXX-131`
-6. `PLUXX-133`
-7. `PLUXX-134`
+1. `PLUXX-79` follow-through on deeper agent/autopilot use of per-skill discovery surfaces
+2. `PLUXX-132`
+3. `PLUXX-131`
+4. `PLUXX-133`
+5. `PLUXX-134`
 
 That sequence keeps the near-term effort focused on:
 
-- richer MCP truthfulness
+- richer MCP truthfulness in both deterministic scaffolds and agent refinement
 - measurable scaffold / prompt quality
 - easier adoption
 - deterministic development

@@ -44,11 +44,11 @@ const introspection: IntrospectedMcpServer = {
   ],
   prompts: [
     {
-      name: 'qualify-table',
-      description: 'Qualify a Clay table before enrichment.',
+      name: 'design-workflow',
+      description: 'Design a Clay workflow before enrichment.',
       arguments: [
         {
-          name: 'table_name',
+          name: 'workflow_goal',
           required: true,
         },
       ],
@@ -158,9 +158,13 @@ describe('agent mode', () => {
     expect(context).toContain('- Resource count: 1')
     expect(context).toContain('- Prompt template count: 1')
     expect(context).toContain('### `ask-clay`')
+    expect(context).toContain('### `workflow-design`')
+    expect(context).toContain('- Related resources: `getting-started`, `workflow-template`')
+    expect(context).toContain('- Related prompt templates: `design-workflow`')
     expect(context).toContain('## MCP Discovery Surfaces')
     expect(context).toContain('Resource `getting-started`')
-    expect(context).toContain('Prompt `qualify-table`')
+    expect(context).toContain('Prompt `design-workflow`')
+    expect(context).toContain('Respect the per-skill resource and prompt-template associations in the metadata/context unless stronger discovery evidence shows they are wrong.')
     expect(context).toContain('Preserve custom sections marked by')
     expect(planFile.version).toBe(1)
     expect(planFile.files.editable.some((file) => file.path === '.pluxx/taxonomy.json')).toBe(true)
@@ -220,8 +224,10 @@ describe('agent mode', () => {
     expect(prompt).toContain('Eliminate misleading labels such as contact or people discovery')
     expect(prompt).toContain('Pluxx will re-render generated skills and commands from that taxonomy after the pass')
     expect(prompt).toContain('tools, resources, resource templates, and prompt templates')
+    expect(prompt).toContain('Use per-skill related resources and prompt templates as strong evidence for workflow shape')
     expect(prompt).toContain('Reject stale scaffold assumptions')
     expect(prompt).toContain('avoid weak command UX')
+    expect(prompt).toContain('per-skill resource and prompt-template associations remain coherent with the chosen taxonomy')
     expect(prompt).toContain('not stale scaffold assumptions')
   })
 
@@ -272,8 +278,9 @@ describe('agent mode', () => {
     expect(prompt).toContain('raw documentation dumps')
     expect(prompt).toContain('lexical skill names')
     expect(prompt).toContain('stale scaffold assumptions')
+    expect(prompt).toContain('incoherent per-skill resource/prompt associations')
     expect(prompt).toContain('weak command UX')
-    expect(prompt).toContain('stale assumptions and command-UX weaknesses are identified explicitly when present')
+    expect(prompt).toContain('stale assumptions, incoherent per-skill discovery associations, and command-UX weaknesses are identified explicitly when present')
   })
 
   it('supports CLI dry-run for review runs and keeps Claude in plan mode', async () => {
