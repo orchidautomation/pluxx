@@ -1,130 +1,145 @@
 # Pluxx TODO
 
-Last updated: 2026-04-16
+Last updated: 2026-04-17
+
+This file is the operational status doc.
+
+- [Roadmap](./docs/roadmap.md) is direction
+- [OSS wedge and trust layer](./docs/oss-wedge-and-trust-layer.md) is product strategy
+
+## Current Truth
+
+The core product-contract layer is now shipped on `main`:
+
+- `PLUXX-50` publish / npm / GitHub release flow
+- `PLUXX-113` canonical `userConfig`
+- `PLUXX-114` canonical permissions
+- `PLUXX-115` build-time target cap validation
+
+The first real MCP dogfood quality batch is also shipped on `main`:
+
+- `PLUXX-125` product-brand baseline / launch asset system
+- `PLUXX-126` Claude command-first slash UX without losing semantic skills
+- `PLUXX-127` saved agent-pack freshness after taxonomy rerenders
+- `PLUXX-128` better deterministic scaffold metadata and branding defaults
+- `PLUXX-129` better generated examples and command blurbs
+- `PLUXX-130` better autopilot prompt quality and regression coverage
+
+The near-term question is no longer "does Pluxx have a believable core contract?"
+
+It is now:
+
+- can Pluxx become the best OSS authoring substrate for real MCP vendors
+- can that OSS wedge later grow into a verified distribution / trust layer
 
 ## Active Now
 
-### In Progress
+### Core Umbrellas
 
 - `PLUXX-79` Define Agent Mode as the semantic authoring layer on top of Core
-  - role: umbrella / coordination issue
-  - deliverable: keep the Core + Agent product story coherent while child issues ship
-- `PLUXX-114` Add a canonical permissions schema across Claude Code, Codex, Cursor, and OpenCode
-  - status: `Done`
-  - shipped scope:
-    - `PLUXX-117` canonical schema design
-    - `PLUXX-118` truthful generator coverage for Claude Code, Cursor, OpenCode, and Codex companion output
-    - `PLUXX-119` lint, tests, and docs coverage for permission mappings
-- `PLUXX-115` Add build-time target cap validation for primary platforms
   - status: `In Progress`
-  - shipped baseline:
-    - initial primary-target cap validation already landed on `main`
-  - remaining active work:
-    - `PLUXX-120` completed locally and ready to land
-    - `PLUXX-121` delegated to `Blocks`
-- `PLUXX-125` Define Pluxx product branding and launch asset system
+  - role: umbrella / product-coherence issue
+- `PLUXX-61` Competitive readiness: expand MCP import beyond `tools/list`
+  - status: `Backlog`
+  - role: umbrella for richer non-tool MCP surfaces
+- `PLUXX-62` Competitive readiness: deepen MCP auth and discovery support
+  - status: `Backlog`
+  - role: umbrella for richer auth discovery and OAuth-ready scaffolds
+
+### Near-Term OSS Wedge Work
+
+- `PLUXX-131` Add `pluxx migrate` to import existing host-native plugins into a Pluxx source project
+  - status: `Backlog`
+  - why it matters: adoption unlock
+- `PLUXX-132` Add first-class evals for scaffold and prompt quality regression
+  - status: `Backlog`
+  - why it matters: turns autopilot quality from vibes into measurable regression checks
+- `PLUXX-133` Add an MCP dev proxy with record/replay fixtures for local development and CI
+  - status: `Backlog`
+  - why it matters: deterministic MCP development loop and CI
+- `PLUXX-134` Add a consumer-side `pluxx doctor` flow for installed plugin health
+  - status: `Backlog`
+  - why it matters: makes installed-plugin support and debugging much better
+
+### Parallel Docs / Site Work
+
+- `PLUXX-116` Docs site
   - status: `In Progress`
   - delegate: `Blocks`
-  - deliverable: a real product-brand track separate from plugin `brand` schema support
 
 ## Execution Queue
 
-### Milestone 1: Core Product Contract
+### Phase 1: Richer MCP Surfaces
 
-This is the immediate product-contract gap after the recent `userConfig`, publish, and npm-release work.
+- `PLUXX-62` Auth and discovery
+  - child work:
+    - `PLUXX-43` OAuth 2.1 auth type to schema and generators
+    - `PLUXX-69` richer MCP auth discovery and OAuth-ready scaffold support
+  - outcome:
+    - Pluxx imports and explains real auth surfaces more honestly
 
-- `PLUXX-113` Add canonical `userConfig` and install-time secret handling across primary targets
-  - status: `Done`
-  - shipped in commit `a9a6326`
+- `PLUXX-61` Import beyond `tools/list`
+  - child work:
+    - `PLUXX-67` scaffold from MCP resources and resource templates
+    - `PLUXX-68` scaffold prompt-aware content from MCP prompt templates
+  - outcome:
+    - generated plugins reflect more than tool metadata
 
-- `PLUXX-114` Add a canonical permissions schema across Claude Code, Codex, Cursor, and OpenCode
-  - status: `Done`
-  - deliverable: one truthful `permissions` primitive compiled across the core four
-  - shipped scope:
-    - `PLUXX-117` Design the canonical permissions model from primary-host behaviors
-      - status: `Done`
-    - `PLUXX-118` Compile canonical permissions into primary target generators
-      - status: `Done`
-    - `PLUXX-119` Add lint, test, and docs coverage for permission mappings
-      - status: `Done`
+### Phase 2: Quality And Adoption Leverage
 
-- `PLUXX-115` Add build-time target cap validation for primary platforms
-  - status: `In Progress`
-  - deliverable: proactive warnings/errors for the primary-target limits that can silently break plugins
-  - shipped baseline:
-    - initial primary-target cap validation already landed on `main`
-  - subtasks:
-    - `PLUXX-120` Catalog primary-target hard caps in platform-rules
-      - status: `Done`
-    - `PLUXX-121` Enforce primary-target cap validation in lint and build
-      - status: `In Progress`
-      - delegate: `Blocks`
-  - dependency chain:
-    - `PLUXX-120` -> `PLUXX-121`
+- `PLUXX-132` first-class evals
+  - outcome:
+    - prompt/scaffold quality becomes regression-testable
+- `PLUXX-131` migrate
+  - outcome:
+    - existing host-native plugins can move into Pluxx instead of rewriting from scratch
+- `PLUXX-133` MCP dev proxy with record/replay
+  - outcome:
+    - deterministic dev + CI loop for real MCP-backed plugins
+- `PLUXX-134` consumer-side doctor
+  - outcome:
+    - installed plugin health checks for end users, not just authors
 
-- `PLUXX-50` Add `pluxx publish` command for plugin distribution
-  - status: `Done`
-  - shipped scope:
-    - publish v1 contract and dry-run behavior
-    - `pluxx publish` implementation
-    - marketplace submission-prep docs
-    - npm release as `@orchid-labs/pluxx`
-    - tag-based GitHub Actions release workflow
-  - completed child work:
-    - `PLUXX-122`
-    - `PLUXX-123`
-    - `PLUXX-124`
+### Phase 3: Brand / Launch Follow-Through
 
-### Milestone 2: Protocol Depth
+- `PLUXX-125` product branding and launch asset system
+  - status: shipped baseline
+  - remaining work:
+    - follow-on site/docs/assets implementation as needed
 
-This is the next expansion layer after the core product contract is solid.
+## Strategic Horizon, Not Current Build Queue
 
-- `PLUXX-62` Competitive readiness: deepen MCP auth and discovery support
-  - role: umbrella
-  - child issues:
-    - `PLUXX-43` Add OAuth 2.1 auth type to schema and generators
-    - `PLUXX-69` Add richer MCP auth discovery and OAuth-ready scaffold support
+These are the later trust-layer themes, not the immediate OSS execution list:
 
-- `PLUXX-61` Competitive readiness: expand MCP import beyond `tools/list`
-  - role: umbrella
-  - child issues:
-    - `PLUXX-67` Scaffold skills and instructions from MCP resources and resource templates
-    - `PLUXX-68` Scaffold prompt-aware plugin content from MCP prompt templates
+- verified multi-host distribution
+- canary checks against real MCPs
+- signing / provenance / attestations
+- compatibility verification artifacts
+- runtime health and adoption visibility
 
-### Milestone 3: Semantic / Agent Portability
+This is the future paid/operated layer.
 
-This is the remaining semantic layer after the core product contract and protocol depth work.
+It should inform the roadmap, but it should not crowd out the current OSS wedge work.
 
-- `PLUXX-89` Define a portable agent and subagent delegation model for primary platforms
-  - status: `Backlog`
-  - deliverable: one truthful cross-host delegation model instead of copy-through behavior
+## Explicitly Deferred
 
-- `PLUXX-95` Add first-class command generation with argument hints for Claude Code and Cursor
-  - status: `Backlog`
-  - priority: `Medium`
-  - deliverable: host-native command UX layered on top of the same taxonomy model
+These are interesting, but not worth centering yet:
 
-- `PLUXX-88` Unify frontmatter and agent surface handling across skills, agents, and rules
-  - status: `Backlog`
-  - deliverable: coherent metadata ownership across semantic surfaces
-
-### Brand / Launch Assets
-
-- `PLUXX-125` Define Pluxx product branding and launch asset system
-  - status: `In Progress`
-  - delegate: `Blocks`
-  - deliverable:
-    - explicit Pluxx product-brand direction
-    - launch asset checklist
-    - follow-on site/docs/assets tasks where needed
+- plugin marketplace / commerce
+- cross-plugin dependency management
+- private registry complexity beyond initial design
+- "plugin economy" bets
+- deep enterprise governance before real demand exists
 
 ## Closed / Folded Work
 
-These are no longer part of the active execution map.
-
+- `PLUXX-50`
+  - completed and shipped
 - `PLUXX-113`
   - completed and shipped
-- `PLUXX-50`
+- `PLUXX-114`
+  - completed and shipped
+- `PLUXX-115`
   - completed and shipped
 - `PLUXX-41`
   - closed as duplicate of `PLUXX-68`
@@ -135,7 +150,7 @@ These are no longer part of the active execution map.
 
 ## Separate Validation / Sandbox Track
 
-These are real issues, but they are not the core Pluxx product roadmap.
+These are real issues, but they are not the main product queue:
 
 - `PLUXX-100`
 - `PLUXX-108`
@@ -144,19 +159,24 @@ These are real issues, but they are not the core Pluxx product roadmap.
 - `PLUXX-111`
 - `PLUXX-112`
 
-Treat these as validation / linear-swarm test work, not as the main product execution queue.
+Treat them as validation / linear-swarm work, not as the core Pluxx execution map.
 
 ## What To Do Next
 
 If you only want the next concrete sequence, it is:
 
-1. land `PLUXX-119` / PR `#138`
-2. finish `PLUXX-121`
-3. move into `PLUXX-43` / `PLUXX-62`
-4. define the first real Pluxx product-brand system in `PLUXX-125`
+1. `PLUXX-69`
+2. `PLUXX-67`
+3. `PLUXX-68`
+4. `PLUXX-132`
+5. `PLUXX-131`
+6. `PLUXX-133`
+7. `PLUXX-134`
 
-That sequence closes the biggest remaining product-contract gaps in order:
+That sequence keeps the near-term effort focused on:
 
-- target-cap validation
-- richer auth/discovery
-- product-brand coherence
+- richer MCP truthfulness
+- measurable scaffold / prompt quality
+- easier adoption
+- deterministic development
+- better installed-plugin support

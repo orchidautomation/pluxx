@@ -48,6 +48,7 @@ If you want the explicit authoring walkthrough, use [Create a Pluxx plugin](./do
 If you want the meta guide for using Pluxx *inside* Claude/Codex/Cursor/OpenCode, use [Use Pluxx in host agents](./docs/use-pluxx-in-host-agents.md).
 If you want the tightened product scope for what Pluxx should model first, use [Core primitives](./docs/core-primitives.md).
 If you want the canonical permissions shape and current host mapping behavior, use [Canonical permissions model](./docs/permissions-canonical-model.md).
+If you want the current product framing for OSS authoring now vs. a later trust layer, use [OSS wedge and trust layer](./docs/oss-wedge-and-trust-layer.md).
 If you want the current execution queue with milestones, dependencies, and delegated subtasks, use [Roadmap](./docs/roadmap.md).
 If you want the implementation target for release orchestration, use [publish v1 contract](./docs/publish-v1-contract.md).
 If you are planning marketplace-aware release flows, use [Marketplace submission prep](./docs/marketplace-submission-prep.md).
