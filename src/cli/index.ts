@@ -56,6 +56,7 @@ import type { McpAuth, McpServer, TargetPlatform } from '../schema'
 import { basename } from 'path'
 import { mkdir, mkdtemp, rm } from 'fs/promises'
 import { tmpdir } from 'os'
+import { spawn } from 'child_process'
 import { formatSyncSummary, planSyncFromMcp, syncFromMcp } from './sync-from-mcp'
 import { formatPublishPlan, planPublish, runPublish } from './publish'
 import { createCliRuntime, createSpinner, printJson, readMultiValueOption, readOption } from './runtime'
@@ -92,6 +93,7 @@ export interface InitFromMcpOptions {
   authHeader?: string
   authTemplate?: string
   runtimeAuth?: string
+  oauthWrapper: boolean
   grouping?: string
   hooks?: string
   transport?: string
@@ -588,6 +590,117 @@ function defaultHookMode(source: { auth?: { type: string; envVar?: string }; tra
   return 'none'
 }
 
+interface McpAuthProviderHint {
+  id: 'linear' | 'generic-oauth'
+  label: string
+  envVar: string
+  tokenLabel: string
+  tokenAuthType: 'bearer' | 'header'
+  authHeader?: string
+  authTemplate?: string
+  wrapperCommand?: string
+  guidance?: string
+}
+
+function getSourceUrl(source: McpServer): string | undefined {
+  return source.transport === 'stdio' ? undefined : source.url
+}
+
+function collectAuthCandidateUrls(
+  source: McpServer,
+  discoveredAuth?: ReturnType<typeof discoverMcpAuthFromError> | null,
+): string[] {
+  return [
+    getSourceUrl(source),
+    discoveredAuth?.authorizationUrl,
+    discoveredAuth?.resourceMetadataUrl,
+  ].filter((value): value is string => Boolean(value))
+}
+
+function matchesHost(urlValue: string, suffix: string): boolean {
+  try {
+    return new URL(urlValue).hostname.endsWith(suffix)
+  } catch {
+    return false
+  }
+}
+
+export function buildOauthWrapperCommand(source: McpServer): string | undefined {
+  if (source.transport !== 'http') return undefined
+  return `npx -y mcp-remote ${source.url}`
+}
+
+export function buildOauthWrapperSource(source: McpServer): McpServer | undefined {
+  if (source.transport !== 'http') return undefined
+  return {
+    transport: 'stdio',
+    command: 'npx',
+    args: ['-y', 'mcp-remote', source.url],
+  }
+}
+
+export function inferMcpAuthProvider(
+  source: McpServer,
+  discoveredAuth?: ReturnType<typeof discoverMcpAuthFromError> | null,
+): McpAuthProviderHint | null {
+  const candidates = collectAuthCandidateUrls(source, discoveredAuth)
+  if (candidates.some((value) => matchesHost(value, 'linear.app'))) {
+    return {
+      id: 'linear',
+      label: 'Linear',
+      envVar: 'LINEAR_API_KEY',
+      tokenLabel: 'API key or OAuth token',
+      tokenAuthType: 'bearer',
+      authTemplate: 'Bearer ${value}',
+      wrapperCommand: buildOauthWrapperCommand(source),
+      guidance: 'Linear supports direct Authorization: Bearer tokens/API keys and the official mcp-remote wrapper for clients that do not support remote MCP.',
+    }
+  }
+
+  if (discoveredAuth?.kind === 'platform') {
+    return {
+      id: 'generic-oauth',
+      label: 'OAuth-first MCP',
+      envVar: 'OAUTH_ACCESS_TOKEN',
+      tokenLabel: 'access token or API key',
+      tokenAuthType: 'bearer',
+      authTemplate: 'Bearer ${value}',
+      wrapperCommand: buildOauthWrapperCommand(source),
+    }
+  }
+
+  return null
+}
+
+function defaultAuthEnvVar(
+  provider: McpAuthProviderHint | null,
+  discoveredAuth?: ReturnType<typeof discoverMcpAuthFromError> | null,
+): string {
+  if (provider?.envVar) return provider.envVar
+  if (discoveredAuth?.kind === 'header') return 'API_KEY'
+  if (discoveredAuth?.kind === 'platform') return 'OAUTH_ACCESS_TOKEN'
+  return ''
+}
+
+function tryOpenBrowser(url: string): boolean {
+  const launcher = process.platform === 'darwin'
+    ? { command: 'open', args: [url] }
+    : process.platform === 'win32'
+      ? { command: 'cmd', args: ['/c', 'start', '', url] }
+      : { command: 'xdg-open', args: [url] }
+
+  try {
+    const child = spawn(launcher.command, launcher.args, {
+      detached: true,
+      stdio: 'ignore',
+    })
+    child.unref()
+    return true
+  } catch {
+    return false
+  }
+}
+
 export function resolveRemoteAuthType(options: Pick<InitFromMcpOptions, 'authType' | 'authHeader'>): 'bearer' | 'header' | 'platform' {
   if (options.authType) {
     return parseChoiceOption(options.authType, ['bearer', 'header', 'platform'] as const, 'Auth type')
@@ -701,23 +814,77 @@ function isLikelyOAuthFirstError(error: McpIntrospectionError): boolean {
   return discoverMcpAuthFromError(error)?.kind === 'platform'
 }
 
-function formatAuthRequiredMessage(commandName: 'init' | 'autopilot', error?: McpIntrospectionError): string {
+function formatAuthRequiredMessage(
+  commandName: 'init' | 'autopilot',
+  error?: McpIntrospectionError,
+  source?: McpServer,
+): string {
   const discoveredAuth = error ? discoverMcpAuthFromError(error) : null
+  const provider = source ? inferMcpAuthProvider(source, discoveredAuth) : null
   const rerun = discoveredAuth?.kind === 'header' && discoveredAuth.headerName
     ? `Re-run ${commandName} with --auth-env YOUR_ENV_VAR --auth-type header --auth-header ${discoveredAuth.headerName} [--auth-template '\${value}']`
     : `Re-run ${commandName} with --auth-env YOUR_ENV_VAR and either:
 - Bearer auth: --auth-type bearer
 - Custom header auth: --auth-type header --auth-header HEADER_NAME [--auth-template '\${value}']`
+  const providerNote = provider?.guidance ? `\n\n${provider.guidance}` : ''
+  const wrapperNote = provider?.wrapperCommand
+    ? `\nLocal wrapper/proxy helper: ${provider.wrapperCommand}`
+    : ''
   const oauthNote = discoveredAuth?.kind === 'platform'
     ? `
 
 This server appears OAuth-first${discoveredAuth.authorizationUrl ? ` (${discoveredAuth.authorizationUrl})` : ''}. Complete the provider's OAuth flow first, export the resulting token/API key to YOUR_ENV_VAR, then rerun.
 If the server supports public discovery and only needs OAuth at runtime, you can scaffold it with --auth-type platform --runtime-auth platform.
-If it requires browser-interactive OAuth during handshake, run a local stdio MCP wrapper/proxy and import that command instead.`
+If it requires browser-interactive OAuth during handshake, run a local stdio MCP wrapper/proxy and import that command instead.${wrapperNote}${providerNote}`
     : ''
 
   return `This MCP server requires authentication.
 ${rerun}${oauthNote}`
+}
+
+type OAuthImportStrategy = 'token' | 'wrapper'
+
+async function chooseOAuthImportStrategy(
+  provider: McpAuthProviderHint | null,
+): Promise<OAuthImportStrategy> {
+  const options: Array<{ value: OAuthImportStrategy; label: string; hint?: string }> = [
+    {
+      value: 'token',
+      label: 'token',
+      hint: `Complete auth in the browser, then continue with a ${provider?.tokenLabel ?? 'token or API key'}`,
+    },
+  ]
+
+  if (provider?.wrapperCommand) {
+    options.push({
+      value: 'wrapper',
+      label: 'wrapper',
+      hint: `Import through ${provider.wrapperCommand}`,
+    })
+  }
+
+  return await clackSelect('OAuth import path', options, provider?.wrapperCommand ? 'wrapper' : 'token')
+}
+
+async function maybeCaptureOAuthCredential(
+  provider: McpAuthProviderHint | null,
+  authorizationUrl?: string,
+): Promise<string | undefined> {
+  if (authorizationUrl) {
+    const opened = tryOpenBrowser(authorizationUrl)
+    const message = opened
+      ? `Opened ${authorizationUrl} in your browser. Finish the auth flow, then paste the resulting ${provider?.tokenLabel ?? 'token or API key'} below if you want Pluxx to retry immediately.`
+      : `Open ${authorizationUrl} in your browser. Finish the auth flow, then paste the resulting ${provider?.tokenLabel ?? 'token or API key'} below if you want Pluxx to retry immediately.`
+    clack.note(message, 'OAuth flow')
+  }
+
+  const credential = (await clackPassword(`Paste ${provider?.tokenLabel ?? 'token or API key'} for this session (optional)`)).trim()
+  return credential || undefined
+}
+
+function applySessionCredential(envVar: string | undefined, credential: string | undefined) {
+  if (!envVar || !credential) return
+  process.env[envVar] = credential
 }
 
 function buildInitSummary(input: {
@@ -822,6 +989,7 @@ export function parseInitFromMcpOptions(rawArgs: string[], initialName?: string,
     authHeader: readOption(rawArgs, '--auth-header'),
     authTemplate: readOption(rawArgs, '--auth-template'),
     runtimeAuth: readOption(rawArgs, '--runtime-auth'),
+    oauthWrapper: rawArgs.includes('--oauth-wrapper'),
     grouping: readOption(rawArgs, '--grouping'),
     hooks: readOption(rawArgs, '--hooks'),
     transport: readOption(rawArgs, '--transport'),
@@ -1022,6 +1190,7 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
     }
 
     let source = parseMcpSourceInput(rawSource, options.transport)
+    let introspectionSource = source
     const configuredRemoteAuth = source.transport === 'stdio'
       ? undefined
       : buildRemoteAuthConfig(options)
@@ -1037,65 +1206,123 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
 
     let introspection
     try {
-      introspection = await introspectMcpServer(source)
+      introspection = await introspectMcpServer(introspectionSource)
     } catch (error) {
       if (source.transport !== 'stdio' && isAuthRequiredError(error)) {
         const discoveredAuth = error instanceof McpIntrospectionError ? discoverMcpAuthFromError(error) : null
+        const provider = inferMcpAuthProvider(source, discoveredAuth)
         s?.stop('Server requires authentication')
-        const envVar = options.authEnv ?? (interactive
-          ? await clackText('Auth env var for this MCP server')
-          : '')
-        if (!envVar) {
-          throw new Error(formatAuthRequiredMessage('init', error))
-        }
-
+        let envVar = options.authEnv
         let authType = options.authType
         let authHeader = options.authHeader
         let authTemplate = options.authTemplate
+        let usedOauthWrapper = false
 
-        if (!options.runtimeAuth && discoveredAuth?.kind === 'platform') {
+        if (!usedOauthWrapper && discoveredAuth?.kind === 'platform' && (interactive || options.oauthWrapper)) {
+          const strategy = options.oauthWrapper
+            ? 'wrapper'
+            : interactive
+              ? await chooseOAuthImportStrategy(provider)
+              : 'token'
+
+          if (strategy === 'wrapper') {
+            const wrapperSource = buildOauthWrapperSource(source)
+            if (!wrapperSource) {
+              throw new Error(formatAuthRequiredMessage('init', error, source))
+            }
+            introspectionSource = wrapperSource
+            runtimeAuthMode = 'platform'
+            s?.start('Step 1/4 · Reconnecting via local wrapper...')
+            try {
+              introspection = await introspectMcpServer(introspectionSource)
+              usedOauthWrapper = true
+            } catch (wrapperError) {
+              if (isAuthRequiredError(wrapperError)) {
+                throw new Error(`Wrapper-based OAuth import failed.
+${formatAuthRequiredMessage('init', wrapperError, source)}`)
+              }
+              throw new Error(`MCP introspection failed via local wrapper: ${wrapperError instanceof Error ? wrapperError.message : String(wrapperError)}`)
+            }
+          }
+        }
+
+        if (!options.runtimeAuth && (discoveredAuth?.kind === 'platform' || usedOauthWrapper)) {
           runtimeAuthMode = 'platform'
         }
 
-        if (interactive && !authType) {
-          authType = await clackSelect<'bearer' | 'header'>('Auth type', [
-            { value: 'bearer', label: 'bearer', hint: 'Authorization: Bearer <token>' },
-            { value: 'header', label: 'header', hint: 'Custom header such as X-API-Key' },
-          ], discoveredAuth?.kind === 'header' ? 'header' : 'bearer')
-        }
+        if (usedOauthWrapper) {
+          envVar = envVar ?? (interactive
+            ? await clackText('Auth env var for generated non-platform targets (optional)', defaultAuthEnvVar(provider, discoveredAuth))
+            : undefined)
+          source = {
+            ...source,
+            auth: envVar
+              ? buildRemoteAuthConfig({
+                  authEnv: envVar,
+                  authType: provider?.tokenAuthType ?? 'bearer',
+                  authHeader: provider?.authHeader,
+                  authTemplate: provider?.authTemplate,
+                })
+              : { type: 'platform', mode: 'oauth' },
+          }
+        } else {
+          envVar = envVar ?? (interactive
+            ? await clackText('Auth env var for this MCP server', defaultAuthEnvVar(provider, discoveredAuth))
+            : '')
+          if (!envVar) {
+            throw new Error(formatAuthRequiredMessage('init', error, source))
+          }
 
-        if (resolveRemoteAuthType({ authType, authHeader }) === 'header') {
-          if (interactive && !authHeader) {
-            authHeader = await clackText('Auth header name', discoveredAuth?.headerName ?? 'X-API-Key')
+          if (interactive && discoveredAuth?.kind === 'platform') {
+            const credential = await maybeCaptureOAuthCredential(provider, discoveredAuth.authorizationUrl)
+            applySessionCredential(envVar, credential)
           }
-          if (interactive && !authTemplate) {
-            authTemplate = await clackText('Auth header template', '${value}')
-          }
-        }
 
-        source = {
-          ...source,
-          auth: buildRemoteAuthConfig({
-            authEnv: envVar,
-            authType,
-            authHeader,
-            authTemplate,
-          }),
-        }
-        s?.start('Step 1/4 \u00b7 Reconnecting with auth...')
-        try {
-          introspection = await introspectMcpServer(source)
-        } catch (retryError) {
-          if (isAuthRequiredError(retryError)) {
-            throw new Error(`Authentication failed after retry.
-${formatAuthRequiredMessage('init', retryError)}`)
+          if (interactive && !authType) {
+            authType = await clackSelect<'bearer' | 'header'>('Auth type', [
+              { value: 'bearer', label: 'bearer', hint: 'Authorization: Bearer <token>' },
+              { value: 'header', label: 'header', hint: 'Custom header such as X-API-Key' },
+            ], discoveredAuth?.kind === 'header' ? 'header' : (provider?.tokenAuthType ?? 'bearer'))
           }
-          throw new Error(`MCP introspection failed after auth retry: ${retryError instanceof Error ? retryError.message : String(retryError)}`)
+
+          if (resolveRemoteAuthType({ authType, authHeader }) === 'header') {
+            if (interactive && !authHeader) {
+              authHeader = await clackText('Auth header name', discoveredAuth?.headerName ?? provider?.authHeader ?? 'X-API-Key')
+            }
+            if (interactive && !authTemplate) {
+              authTemplate = await clackText('Auth header template', provider?.authTemplate ?? '${value}')
+            }
+          }
+
+          source = {
+            ...source,
+            auth: buildRemoteAuthConfig({
+              authEnv: envVar,
+              authType,
+              authHeader,
+              authTemplate,
+            }),
+          }
+          introspectionSource = source
+          s?.start('Step 1/4 · Reconnecting with auth...')
+          try {
+            introspection = await introspectMcpServer(introspectionSource)
+          } catch (retryError) {
+            if (isAuthRequiredError(retryError)) {
+              throw new Error(`Authentication failed after retry.
+${formatAuthRequiredMessage('init', retryError, source)}`)
+            }
+            throw new Error(`MCP introspection failed after auth retry: ${retryError instanceof Error ? retryError.message : String(retryError)}`)
+          }
         }
       } else {
         s?.stop('Connection failed')
         throw new Error(`MCP introspection failed: ${error instanceof Error ? error.message : String(error)}`)
       }
+    }
+
+    if (!introspection) {
+      throw new Error('MCP introspection did not return server metadata.')
     }
 
     const serverLabel = introspection.serverInfo.title ?? introspection.serverInfo.name
@@ -1337,6 +1564,18 @@ async function clackText(message: string, defaultValue?: string): Promise<string
     message,
     defaultValue,
     placeholder: defaultValue,
+  })
+  if (clack.isCancel(result)) {
+    throw new PromptCancelledError()
+  }
+  return result
+}
+
+/** Wrapper for clack.password that handles cancellation. */
+async function clackPassword(message: string): Promise<string> {
+  const result = await clack.password({
+    message,
+    mask: '*',
   })
   if (clack.isCancel(result)) {
     throw new PromptCancelledError()
@@ -1607,12 +1846,12 @@ async function runAutopilot() {
   let runtimeAuthMode = resolveRuntimeAuthMode(initOptions.runtimeAuth)
 
   if (!initOptions.source && !interactive) {
-    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--auth-env ENV] [--auth-type bearer|header|platform] [--auth-header NAME] [--auth-template TEMPLATE] [--runtime-auth inline|platform] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
+    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--auth-env ENV] [--auth-type bearer|header|platform] [--auth-header NAME] [--auth-template TEMPLATE] [--runtime-auth inline|platform] [--oauth-wrapper] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
     process.exit(1)
   }
 
   if ((!runnerRaw || !AGENT_RUNNERS.includes(runnerRaw as AgentRunner)) && !interactive) {
-    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--auth-env ENV] [--auth-type bearer|header|platform] [--auth-header NAME] [--auth-template TEMPLATE] [--runtime-auth inline|platform] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
+    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--auth-env ENV] [--auth-type bearer|header|platform] [--auth-header NAME] [--auth-template TEMPLATE] [--runtime-auth inline|platform] [--oauth-wrapper] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
     process.exit(1)
   }
 
@@ -1660,6 +1899,7 @@ async function runAutopilot() {
     }
 
     let source = parseMcpSourceInput(rawSource, initOptions.transport)
+    let introspectionSource = source
     const configuredRemoteAuth = source.transport === 'stdio'
       ? undefined
       : buildRemoteAuthConfig({
@@ -1681,61 +1921,119 @@ async function runAutopilot() {
 
     let introspection
     try {
-      introspection = await introspectMcpServer(source)
+      introspection = await introspectMcpServer(introspectionSource)
     } catch (error) {
       if (source.transport !== 'stdio' && isAuthRequiredError(error)) {
         const discoveredAuth = error instanceof McpIntrospectionError ? discoverMcpAuthFromError(error) : null
+        const provider = inferMcpAuthProvider(source, discoveredAuth)
         connectSpinner?.stop('Server requires authentication')
-        authEnv = authEnv ?? (interactive
-          ? await clackText('Auth env var for this MCP server')
-          : '')
-        if (!authEnv) {
-          throw new Error(formatAuthRequiredMessage('autopilot', error))
+        let usedOauthWrapper = false
+
+        if (!usedOauthWrapper && discoveredAuth?.kind === 'platform' && (interactive || initOptions.oauthWrapper)) {
+          const strategy = initOptions.oauthWrapper
+            ? 'wrapper'
+            : interactive
+              ? await chooseOAuthImportStrategy(provider)
+              : 'token'
+
+          if (strategy === 'wrapper') {
+            const wrapperSource = buildOauthWrapperSource(source)
+            if (!wrapperSource) {
+              throw new Error(formatAuthRequiredMessage('autopilot', error, source))
+            }
+            introspectionSource = wrapperSource
+            runtimeAuthMode = 'platform'
+            connectSpinner?.start('Autopilot · Reconnecting via local wrapper...')
+            try {
+              introspection = await introspectMcpServer(introspectionSource)
+              usedOauthWrapper = true
+            } catch (wrapperError) {
+              if (isAuthRequiredError(wrapperError)) {
+                throw new Error(`Wrapper-based OAuth import failed.
+${formatAuthRequiredMessage('autopilot', wrapperError, source)}`)
+              }
+              throw new Error(`MCP introspection failed via local wrapper: ${wrapperError instanceof Error ? wrapperError.message : String(wrapperError)}`)
+            }
+          }
         }
 
-        if (!initOptions.runtimeAuth && discoveredAuth?.kind === 'platform') {
+        if (!initOptions.runtimeAuth && (discoveredAuth?.kind === 'platform' || usedOauthWrapper)) {
           runtimeAuthMode = 'platform'
         }
 
-        if (interactive && !authType) {
-          authType = await clackSelect<'bearer' | 'header'>('Auth type', [
-            { value: 'bearer', label: 'bearer', hint: 'Authorization: Bearer <token>' },
-            { value: 'header', label: 'header', hint: 'Custom header such as X-API-Key' },
-          ], discoveredAuth?.kind === 'header' ? 'header' : 'bearer')
-        }
+        if (usedOauthWrapper) {
+          authEnv = authEnv ?? (interactive
+            ? await clackText('Auth env var for generated non-platform targets (optional)', defaultAuthEnvVar(provider, discoveredAuth))
+            : undefined)
+          source = {
+            ...source,
+            auth: authEnv
+              ? buildRemoteAuthConfig({
+                  authEnv,
+                  authType: provider?.tokenAuthType ?? 'bearer',
+                  authHeader: provider?.authHeader,
+                  authTemplate: provider?.authTemplate,
+                })
+              : { type: 'platform', mode: 'oauth' },
+          }
+        } else {
+          authEnv = authEnv ?? (interactive
+            ? await clackText('Auth env var for this MCP server', defaultAuthEnvVar(provider, discoveredAuth))
+            : '')
+          if (!authEnv) {
+            throw new Error(formatAuthRequiredMessage('autopilot', error, source))
+          }
 
-        if (resolveRemoteAuthType({ authType, authHeader }) === 'header') {
-          if (interactive && !authHeader) {
-            authHeader = await clackText('Auth header name', discoveredAuth?.headerName ?? 'X-API-Key')
+          if (interactive && discoveredAuth?.kind === 'platform') {
+            const credential = await maybeCaptureOAuthCredential(provider, discoveredAuth.authorizationUrl)
+            applySessionCredential(authEnv, credential)
           }
-          if (interactive && !authTemplate) {
-            authTemplate = await clackText('Auth header template', '${value}')
-          }
-        }
 
-        source = {
-          ...source,
-          auth: buildRemoteAuthConfig({
-            authEnv,
-            authType,
-            authHeader,
-            authTemplate,
-          }),
-        }
-        connectSpinner?.start('Autopilot · Reconnecting with auth...')
-        try {
-          introspection = await introspectMcpServer(source)
-        } catch (retryError) {
-          if (isAuthRequiredError(retryError)) {
-            throw new Error(`Authentication failed after retry.
-${formatAuthRequiredMessage('autopilot', retryError)}`)
+          if (interactive && !authType) {
+            authType = await clackSelect<'bearer' | 'header'>('Auth type', [
+              { value: 'bearer', label: 'bearer', hint: 'Authorization: Bearer <token>' },
+              { value: 'header', label: 'header', hint: 'Custom header such as X-API-Key' },
+            ], discoveredAuth?.kind === 'header' ? 'header' : (provider?.tokenAuthType ?? 'bearer'))
           }
-          throw new Error(`MCP introspection failed after auth retry: ${retryError instanceof Error ? retryError.message : String(retryError)}`)
+
+          if (resolveRemoteAuthType({ authType, authHeader }) === 'header') {
+            if (interactive && !authHeader) {
+              authHeader = await clackText('Auth header name', discoveredAuth?.headerName ?? provider?.authHeader ?? 'X-API-Key')
+            }
+            if (interactive && !authTemplate) {
+              authTemplate = await clackText('Auth header template', provider?.authTemplate ?? '${value}')
+            }
+          }
+
+          source = {
+            ...source,
+            auth: buildRemoteAuthConfig({
+              authEnv,
+              authType,
+              authHeader,
+              authTemplate,
+            }),
+          }
+          introspectionSource = source
+          connectSpinner?.start('Autopilot · Reconnecting with auth...')
+          try {
+            introspection = await introspectMcpServer(introspectionSource)
+          } catch (retryError) {
+            if (isAuthRequiredError(retryError)) {
+              throw new Error(`Authentication failed after retry.
+${formatAuthRequiredMessage('autopilot', retryError, source)}`)
+            }
+            throw new Error(`MCP introspection failed after auth retry: ${retryError instanceof Error ? retryError.message : String(retryError)}`)
+          }
         }
       } else {
         connectSpinner?.stop('Connection failed')
         throw new Error(`MCP introspection failed: ${error instanceof Error ? error.message : String(error)}`)
       }
+    }
+
+    if (!introspection) {
+      throw new Error('MCP introspection did not return server metadata.')
     }
 
     const stdioHasEnv = source.transport === 'stdio'
@@ -2437,6 +2735,7 @@ Examples:
   pluxx init --from-mcp https://example.com/mcp --yes --name acme --display-name "Acme" --author "Acme" --targets claude-code,codex --grouping workflow --hooks safe --json
   pluxx init --from-mcp https://example.com/mcp --yes --auth-env API_KEY --auth-type header --auth-header X-API-Key --auth-template "\${value}"
   pluxx init --from-mcp https://example.com/mcp --yes --auth-type platform --runtime-auth platform
+  pluxx init --from-mcp https://mcp.linear.app/mcp --yes --oauth-wrapper --runtime-auth platform
   pluxx init --from-mcp https://example.com/sse --transport sse   Scaffold from an SSE-transport MCP server
   pluxx init --from-mcp https://example.com/mcp --yes --dry-run   Preview scaffold files without writing
   pluxx sync                              Refresh a scaffold using .pluxx/mcp.json metadata
@@ -2453,6 +2752,7 @@ Examples:
   pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode quick --yes
   pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode standard --yes --name acme --display-name "Acme"
   pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode thorough --yes --verbose-runner
+  pluxx autopilot --from-mcp https://mcp.linear.app/mcp --runner codex --yes --oauth-wrapper
   pluxx autopilot --from-mcp "npx -y @acme/mcp" --runner claude --targets claude-code,codex --website https://example.com --docs https://docs.example.com
   pluxx doctor --json                     Inspect project health as JSON
   pluxx test --target claude-code codex  Verify selected target outputs

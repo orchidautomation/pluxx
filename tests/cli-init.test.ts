@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'bun:test'
-import { buildRemoteAuthConfig, parseInitFromMcpOptions, resolveRemoteAuthType } from '../src/cli/index'
+import {
+  buildOauthWrapperSource,
+  buildRemoteAuthConfig,
+  inferMcpAuthProvider,
+  parseInitFromMcpOptions,
+  resolveRemoteAuthType,
+} from '../src/cli/index'
 
 describe('CLI init option parsing', () => {
   it('parses headless init --from-mcp flags for automation-friendly setup', () => {
@@ -40,8 +46,10 @@ describe('CLI init option parsing', () => {
       authType: undefined,
       authHeader: undefined,
       authTemplate: undefined,
+      runtimeAuth: undefined,
       grouping: 'workflow',
       hooks: 'safe',
+      oauthWrapper: false,
       transport: undefined,
       jsonOutput: true,
     })
@@ -64,6 +72,7 @@ describe('CLI init option parsing', () => {
     expect(options.transport).toBe('sse')
     expect(options.source).toBe('https://example.com/mcp')
     expect(options.assumeDefaults).toBe(true)
+    expect(options.oauthWrapper).toBe(false)
   })
 
   it('leaves transport undefined when --transport is not provided', () => {
@@ -74,6 +83,7 @@ describe('CLI init option parsing', () => {
     )
 
     expect(options.transport).toBeUndefined()
+    expect(options.oauthWrapper).toBe(false)
   })
 
   it('parses explicit header auth flags for remote MCP imports', () => {
@@ -115,7 +125,25 @@ describe('CLI init option parsing', () => {
     expect(options.authHeader).toBeUndefined()
     expect(options.authTemplate).toBeUndefined()
     expect(options.hooks).toBeUndefined()
+    expect(options.oauthWrapper).toBe(false)
     expect(options.jsonOutput).toBe(false)
+  })
+
+  it('parses --oauth-wrapper for OAuth-first remote MCP imports', () => {
+    const options = parseInitFromMcpOptions(
+      [
+        'init',
+        '--from-mcp',
+        'https://mcp.linear.app/mcp',
+        '--oauth-wrapper',
+        '--yes',
+      ],
+      undefined,
+      'https://mcp.linear.app/mcp',
+    )
+
+    expect(options.oauthWrapper).toBe(true)
+    expect(options.source).toBe('https://mcp.linear.app/mcp')
   })
 
   it('builds header auth config for custom-header MCPs', () => {
@@ -157,6 +185,40 @@ describe('CLI init option parsing', () => {
       envVar: 'SUMBLE_API_KEY',
       headerName: 'Authorization',
       headerTemplate: 'Bearer ${value}',
+    })
+  })
+
+  it('infers Linear OAuth heuristics and wrapper command', () => {
+    expect(inferMcpAuthProvider(
+      {
+        transport: 'http',
+        url: 'https://mcp.linear.app/mcp',
+      },
+      {
+        kind: 'platform',
+        mode: 'oauth',
+        authorizationUrl: 'https://linear.app/oauth/authorize',
+      },
+    )).toEqual({
+      id: 'linear',
+      label: 'Linear',
+      envVar: 'LINEAR_API_KEY',
+      tokenLabel: 'API key or OAuth token',
+      tokenAuthType: 'bearer',
+      authTemplate: 'Bearer ${value}',
+      wrapperCommand: 'npx -y mcp-remote https://mcp.linear.app/mcp',
+      guidance: 'Linear supports direct Authorization: Bearer tokens/API keys and the official mcp-remote wrapper for clients that do not support remote MCP.',
+    })
+  })
+
+  it('builds a local mcp-remote wrapper source for HTTP OAuth-first MCPs', () => {
+    expect(buildOauthWrapperSource({
+      transport: 'http',
+      url: 'https://mcp.linear.app/mcp',
+    })).toEqual({
+      transport: 'stdio',
+      command: 'npx',
+      args: ['-y', 'mcp-remote', 'https://mcp.linear.app/mcp'],
     })
   })
 })

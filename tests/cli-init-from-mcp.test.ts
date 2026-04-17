@@ -15,6 +15,6 @@ describe('init --from-mcp cancellation and lint severity handling', () => {
     const exitCode = await proc.exited
 
     expect(exitCode).toBe(0)
-    expect(`${stdout}${stderr}`).toContain('2 pass')
+    expect(`${stdout}${stderr}`).toContain('3 pass')
   })
 })

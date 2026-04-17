@@ -30,6 +30,21 @@ function installMocks(options: {
   cancelToken?: symbol
   textResponses?: Array<string | symbol>
   selectResponses?: Array<string | symbol>
+  passwordResponses?: Array<string | symbol>
+  discoverAuthResult?: { kind: 'bearer' | 'header' | 'platform'; mode?: 'oauth'; headerName?: string; authorizationUrl?: string } | null
+  introspectSequence?: Array<
+    | { type: 'success'; result?: unknown }
+    | {
+      type: 'error'
+      message: string
+      status?: number
+      context?: {
+        responseHeaders?: Record<string, string>
+        responseBodySnippet?: string
+        responseUrl?: string
+      }
+    }
+  >
   lintResult?: {
     errors: number
     warnings: number
@@ -46,6 +61,9 @@ function installMocks(options: {
   }
   const textQueue = [...(options.textResponses ?? [])]
   const selectQueue = [...(options.selectResponses ?? [])]
+  const passwordQueue = [...(options.passwordResponses ?? [])]
+  const introspectSequence = [...(options.introspectSequence ?? [])]
+  const introspectCalls: Array<Record<string, unknown>> = []
 
   mock.module('@clack/prompts', () => ({
     intro() {},
@@ -77,37 +95,64 @@ function installMocks(options: {
     },
     text: async () => textQueue.shift() ?? '',
     select: async () => selectQueue.shift() ?? 'workflow',
+    password: async () => passwordQueue.shift() ?? '',
     isCancel(value: unknown) {
       return value === CANCEL
     },
   }))
 
-  mock.module(INTROSPECT_PATH, () => ({
-    McpIntrospectionError: class McpIntrospectionError extends Error {
-      status?: number
-      constructor(message: string, status?: number) {
-        super(message)
-        this.name = 'McpIntrospectionError'
-        this.status = status
-      }
-    },
-    discoverMcpAuthFromError: () => null,
-    introspectMcpServer: async () => ({
-      serverInfo: {
-        name: 'stub-server',
-        title: 'Stub Server',
-        version: '1.0.0',
-        description: 'A fake MCP server for CLI tests.',
+  class MockMcpIntrospectionError extends Error {
+    status?: number
+    context?: {
+      responseHeaders?: Record<string, string>
+      responseBodySnippet?: string
+      responseUrl?: string
+    }
+
+    constructor(
+      message: string,
+      status?: number,
+      context?: {
+        responseHeaders?: Record<string, string>
+        responseBodySnippet?: string
+        responseUrl?: string
       },
-      instructions: 'Use the fake tools carefully.',
-      tools: [
-        {
-          name: 'FindOrganizations',
-          description: 'Search organizations.',
-          inputSchema: { type: 'object', properties: {}, required: [] },
-        },
-      ],
-    }),
+    ) {
+      super(message)
+      this.name = 'McpIntrospectionError'
+      this.status = status
+      this.context = context
+    }
+  }
+
+  mock.module(INTROSPECT_PATH, () => ({
+    McpIntrospectionError: MockMcpIntrospectionError,
+    discoverMcpAuthFromError: () => options.discoverAuthResult ?? null,
+    introspectMcpServer: async (server: Record<string, unknown>) => {
+      introspectCalls.push(server)
+      const next = introspectSequence.shift()
+      if (next?.type === 'error') {
+        throw new MockMcpIntrospectionError(next.message, next.status, next.context)
+      }
+      return next?.type === 'success' && next.result
+        ? next.result
+        : {
+            serverInfo: {
+              name: 'stub-server',
+              title: 'Stub Server',
+              version: '1.0.0',
+              description: 'A fake MCP server for CLI tests.',
+            },
+            instructions: 'Use the fake tools carefully.',
+            tools: [
+              {
+                name: 'FindOrganizations',
+                description: 'Search organizations.',
+                inputSchema: { type: 'object', properties: {}, required: [] },
+              },
+            ],
+          }
+    },
   }))
 
   mock.module(INIT_FROM_MCP_PATH, () => ({
@@ -213,7 +258,7 @@ function installMocks(options: {
     }),
   }))
 
-  return { calls }
+  return { calls, introspectCalls }
 }
 
 async function loadCli(tag: string) {
@@ -285,6 +330,69 @@ describe('isolated init --from-mcp CLI checks', () => {
       expect(calls.error.some((message) => message.includes('bad-rule'))).toBe(true)
       expect(calls.warn.some((message) => message.includes('warn-rule'))).toBe(true)
       expect(calls.success).toEqual([])
+    } finally {
+      rmSync(cwd, { recursive: true, force: true })
+    }
+  })
+
+  it('retries OAuth-first imports through the local wrapper when --oauth-wrapper is set', async () => {
+    const cwd = mkdtempSync(resolve(tmpdir(), 'pluxx-init-oauth-wrapper-'))
+
+    try {
+      process.chdir(cwd)
+      Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true })
+      Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true })
+      process.argv = [
+        'bun',
+        'pluxx',
+        'init',
+        '--from-mcp',
+        'https://mcp.linear.app/mcp',
+        '--yes',
+        '--oauth-wrapper',
+        '--name',
+        'linear',
+        '--display-name',
+        'Linear',
+        '--author',
+        'Test Author',
+      ]
+
+      const { calls, introspectCalls } = installMocks({
+        discoverAuthResult: {
+          kind: 'platform',
+          mode: 'oauth',
+          authorizationUrl: 'https://linear.app/oauth/authorize',
+        },
+        introspectSequence: [
+          {
+            type: 'error',
+            message: 'MCP HTTP request was redirected to an authentication page.',
+            status: 401,
+            context: {
+              responseHeaders: {
+                location: 'https://linear.app/oauth/authorize',
+              },
+              responseUrl: 'https://linear.app/oauth/authorize',
+            },
+          },
+          { type: 'success' },
+        ],
+      })
+
+      const { main } = await loadCli('oauth-wrapper')
+
+      await expect(main()).resolves.toBeUndefined()
+      expect(calls.error).toEqual([])
+      expect(introspectCalls[0]).toMatchObject({
+        transport: 'http',
+        url: 'https://mcp.linear.app/mcp',
+      })
+      expect(introspectCalls[1]).toMatchObject({
+        transport: 'stdio',
+        command: 'npx',
+        args: ['-y', 'mcp-remote', 'https://mcp.linear.app/mcp'],
+      })
     } finally {
       rmSync(cwd, { recursive: true, force: true })
     }

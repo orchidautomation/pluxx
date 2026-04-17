@@ -298,6 +298,8 @@ That means:
 
 - `init` / `sync` can still use `--auth-env`, `--auth-type`, and related flags
 - the generated Claude/Cursor plugin can be configured to defer runtime auth to the host platform instead of injecting headers directly
+- in interactive mode, Pluxx can open the provider auth URL, let you paste a hidden token/API key for the current session, and retry the import immediately
+- for browser-interactive remote MCPs that work better through a local proxy, use `--oauth-wrapper` to introspect through `npx -y mcp-remote <url>` while keeping the remote URL as the scaffold source
 
 This is the `import auth != runtime auth` split.
 
@@ -314,6 +316,7 @@ When you want a quick real-world check of Pluxx auth import behavior, these MCPs
 - **Linear** — OAuth-first/platform-auth guidance smoke
   - run `pluxx init --from-mcp https://mcp.linear.app/mcp --yes --dry-run`
   - expected result: import stops with explicit OAuth-first guidance and suggests `--auth-type platform --runtime-auth platform` or a local wrapper/proxy when browser-interactive auth is required
+  - wrapper path: `pluxx init --from-mcp https://mcp.linear.app/mcp --yes --oauth-wrapper --runtime-auth platform`
 
 Keep the automated local OAuth stub in tests for deterministic coverage, and use these servers as manual sanity checks against real MCP behavior.
 
