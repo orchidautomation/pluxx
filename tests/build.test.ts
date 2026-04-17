@@ -424,7 +424,7 @@ describe('build', () => {
     expect(existsSync(resolve(OUT_DIR, 'cline/.cline/skills/hello/SKILL.md'))).toBe(true)
   })
 
-  it('remaps Claude commands when names collide with skills', async () => {
+  it('keeps Claude commands visible when names collide with semantic skills', async () => {
     mkdirSync(resolve(TEST_DIR, 'skills/read-and-triage-mail'), { recursive: true })
     await Bun.write(
       resolve(TEST_DIR, 'skills/read-and-triage-mail/SKILL.md'),
@@ -440,15 +440,18 @@ describe('build', () => {
 
     await build(collisionConfig, TEST_DIR)
 
+    const claudeSkill = readFileSync(
+      resolve(TEST_DIR, 'collision-dist/claude-code/skills/read-and-triage-mail/SKILL.md'),
+      'utf-8',
+    )
     expect(
       existsSync(resolve(TEST_DIR, 'collision-dist/claude-code/skills/read-and-triage-mail/SKILL.md'))
     ).toBe(true)
     expect(
       existsSync(resolve(TEST_DIR, 'collision-dist/claude-code/commands/read-and-triage-mail.md'))
-    ).toBe(false)
-    expect(
-      existsSync(resolve(TEST_DIR, 'collision-dist/claude-code/commands/read-and-triage-mail-command.md'))
     ).toBe(true)
+    expect(claudeSkill).toContain('name: read-and-triage-mail-skill')
+    expect(claudeSkill).toContain('user-invocable: false')
 
     expect(
       existsSync(resolve(TEST_DIR, 'collision-dist/cursor/skills/read-and-triage-mail/SKILL.md'))
