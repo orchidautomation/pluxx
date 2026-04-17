@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-04-15
+Last updated: 2026-04-16
 
 This is the execution map for Pluxx after tightening the product scope around the core primitives:
 
@@ -53,6 +53,12 @@ The remaining gap is not “does Pluxx work?” It is “does Pluxx have a compl
 - status: `In Progress`
 - role: umbrella issue
 - outcome: keep the deterministic Core and semantic Agent layers aligned in docs and execution
+
+### `PLUXX-125` Product Branding + Launch Asset System
+
+- status: `In Progress`
+- delegate: `Blocks`
+- outcome: one canonical product-brand direction doc, launch-asset checklist, and follow-on implementation map
 
 ## Milestone 1: Core Product Contract
 
@@ -135,6 +141,26 @@ Dependencies:
 Deliverable:
 
 - `pluxx publish` v1 with dry-run, artifact packaging, and distribution guidance
+
+## Cross-Cutting Track: Product Brand System
+
+### `PLUXX-125` Define Pluxx product branding and launch asset system
+
+Goal:
+
+- make Pluxx branding coherent across docs, npm, GitHub, screenshots, and marketplace-facing assets
+- keep product-brand decisions separate from plugin `brand` schema support
+
+Deliverable:
+
+- [Brand launch asset system](./brand-launch-asset-system.md) as the canonical reference
+
+Follow-on implementation themes:
+
+- site theming and component alignment
+- brand asset pipeline (logo/icon/screenshot source + exports)
+- messaging synchronization across homepage/docs/npm/GitHub
+- marketplace-ready media and listing copy pack
 
 ## Milestone 2: Protocol Depth
 
