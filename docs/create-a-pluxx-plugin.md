@@ -303,6 +303,22 @@ That means:
 
 This is the `import auth != runtime auth` split.
 
+## Recommended Auth Smoke Targets
+
+When you want a quick real-world check of Pluxx auth import behavior, these MCPs cover the three main paths:
+
+- **Sumble** — bearer auth smoke
+  - run `pluxx init --from-mcp https://mcp.sumble.com --yes --auth-env SUMBLE_API_KEY --auth-type bearer --dry-run --json`
+  - expected result: scaffold preview succeeds
+- **PlayKit** — custom-header auth smoke
+  - run `pluxx init --from-mcp https://mcp.playkit.sh/mcp --yes --auth-env PLAYKIT_API_KEY --auth-type header --auth-header X-API-Key --auth-template '${value}' --dry-run --json`
+  - expected result: scaffold preview succeeds
+- **Linear** — OAuth-first/platform-auth guidance smoke
+  - run `pluxx init --from-mcp https://mcp.linear.app/mcp --yes --dry-run`
+  - expected result: import stops with explicit OAuth-first guidance and suggests `--auth-type platform --runtime-auth platform` or a local wrapper/proxy when browser-interactive auth is required
+
+Keep the automated local OAuth stub in tests for deterministic coverage, and use these servers as manual sanity checks against real MCP behavior.
+
 ## What Pluxx Owns
 
 Pluxx owns:
