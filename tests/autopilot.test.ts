@@ -291,6 +291,62 @@ describe('autopilot command', () => {
     }
   })
 
+  it('supports OpenCode as an autopilot runner in thorough dry-run mode', async () => {
+    const { dir, statePath, stubServerPath } = createStubServerFixture()
+
+    try {
+      const proc = spawnCli([
+        'autopilot',
+        '--from-mcp',
+        `bun ${stubServerPath} ${statePath}`,
+        '--runner',
+        'opencode',
+        '--attach',
+        'http://localhost:4096',
+        '--mode',
+        'thorough',
+        '--name',
+        'stub-server',
+        '--display-name',
+        'Stub Server',
+        '--author',
+        'Test Author',
+        '--json',
+        '--dry-run',
+      ], dir)
+
+      const stdout = await new Response(proc.stdout).text()
+      const stderr = await new Response(proc.stderr).text()
+      const exitCode = await proc.exited
+
+      expect(exitCode).toBe(0)
+      expect(stderr).toBe('')
+
+      const summary = JSON.parse(stdout) as {
+        ok: boolean
+        mode: string
+        runner: string
+        agent: {
+          taxonomy: { command: string[] }
+          instructions: { command: string[] }
+          review: { command: string[]; enabled: boolean }
+        }
+      }
+
+      expect(summary.ok).toBe(true)
+      expect(summary.mode).toBe('thorough')
+      expect(summary.runner).toBe('opencode')
+      expect(summary.agent.taxonomy.command.slice(0, 2)).toEqual(['opencode', 'run'])
+      expect(summary.agent.taxonomy.command).toContain('--attach')
+      expect(summary.agent.taxonomy.command).toContain('http://localhost:4096')
+      expect(summary.agent.instructions.command).toContain('--attach')
+      expect(summary.agent.review.enabled).toBe(true)
+      expect(summary.agent.review.command).toContain('--attach')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('rejects --attach for the Cursor autopilot runner', async () => {
     const { dir, statePath, stubServerPath } = createStubServerFixture()
 
@@ -319,6 +375,83 @@ describe('autopilot command', () => {
       expect(exitCode).toBe(1)
       expect(stdout).toBe('')
       expect(stderr).toContain('--attach is only supported for the opencode runner.')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('runs the full autopilot flow with the OpenCode runner and attach mode', async () => {
+    const { dir, statePath, stubServerPath } = createStubServerFixture()
+    const binDir = resolve(dir, '.bin')
+    const runnerArgsPath = resolve(dir, 'opencode-runner-args.txt')
+    const opencodePath = resolve(binDir, 'opencode')
+
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(
+      opencodePath,
+      '#!/bin/sh\nprintf "%s\\0" "$@" >> "$PLUXX_RUNNER_ARGS"\nexit 0\n',
+    )
+    chmodSync(opencodePath, 0o755)
+
+    try {
+      const proc = spawnCli([
+        'autopilot',
+        '--from-mcp',
+        `bun ${stubServerPath} ${statePath}`,
+        '--runner',
+        'opencode',
+        '--attach',
+        'http://localhost:4096',
+        '--mode',
+        'thorough',
+        '--name',
+        'stub-server',
+        '--display-name',
+        'Stub Server',
+        '--author',
+        'Test Author',
+        '--json',
+        '--no-verify',
+      ], dir, {
+        PATH: `${binDir}:${process.env.PATH ?? ''}`,
+        PLUXX_RUNNER_ARGS: runnerArgsPath,
+      })
+
+      const stdout = await new Response(proc.stdout).text()
+      const stderr = await new Response(proc.stderr).text()
+      const exitCode = await proc.exited
+
+      expect(exitCode).toBe(0)
+      expect(stderr).toBe('')
+
+      const summary = JSON.parse(stdout) as {
+        ok: boolean
+        mode: string
+        runner: string
+        verify: boolean
+        agent: {
+          taxonomy: { runnerExitCode?: number }
+          instructions: { runnerExitCode?: number }
+          review: { runnerExitCode?: number }
+        }
+      }
+
+      expect(summary.ok).toBe(true)
+      expect(summary.mode).toBe('thorough')
+      expect(summary.runner).toBe('opencode')
+      expect(summary.verify).toBe(false)
+      expect(summary.agent.taxonomy.runnerExitCode).toBe(0)
+      expect(summary.agent.instructions.runnerExitCode).toBe(0)
+      expect(summary.agent.review.runnerExitCode).toBe(0)
+      expect(existsSync(resolve(dir, '.pluxx/agent/context.md'))).toBe(true)
+      expect(existsSync(resolve(dir, '.pluxx/agent/taxonomy-prompt.md'))).toBe(true)
+      expect(existsSync(resolve(dir, '.pluxx/agent/instructions-prompt.md'))).toBe(true)
+      expect(existsSync(resolve(dir, '.pluxx/agent/review-prompt.md'))).toBe(true)
+
+      const runnerArgs = readFileSync(runnerArgsPath, 'utf-8').split('\0').filter(Boolean)
+      expect(runnerArgs.filter((arg) => arg === 'run').length).toBe(3)
+      expect(runnerArgs.filter((arg) => arg === '--attach').length).toBe(3)
+      expect(runnerArgs.filter((arg) => arg === 'http://localhost:4096').length).toBe(3)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
