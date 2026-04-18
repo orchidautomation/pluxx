@@ -10,6 +10,7 @@ This matrix tracks real-world MCP classes we intentionally test so Pluxx quality
 | Local stdio under active dev | `npx -y @acme/mcp` with changing tools | Can drift quickly as local command or schema changes | Generated taxonomy can go stale after server changes | `pluxx sync --from-mcp` + metadata ownership keeps managed files refreshable |
 | OAuth-first remote | Remote HTTP MCP requiring OAuth/session flow | May fail for non-interactive import unless explicit auth strategy is supplied | Scaffold can be delayed by auth handshake complexity | Treated as a runtime gate; requires explicit auth modeling and follow-up docs |
 | Production remote with bearer/header auth | HTTP MCP with bearer token or custom header | Stable when env vars and header templates are configured correctly | Metadata quality still determines first-pass UX quality | Auth translation is deterministic; metadata warnings + review prompt gate quality |
+| Host authoring runners (Cursor + OpenCode) | `pluxx agent run` and `pluxx autopilot` using real runner adapters | Runner invocation path must handle auth/attach semantics correctly and return non-flaky results | A platform can look "supported" from bundle tests while runner-level authoring flows are under-tested | End-to-end runner tests now cover Cursor and OpenCode for both `agent run` and `autopilot`, including OpenCode `--attach` behavior |
 
 ## Scaffold Quality vs Runtime Correctness
 
@@ -27,3 +28,6 @@ Added this matrix so dogfood coverage and failure modes are explicit and repeata
 
 3. Product fix:
 `pluxx doctor` now analyzes `.pluxx/mcp.json` tool metadata and warns on missing descriptions, low-information descriptions, and generic tool names before publishing.
+
+4. Test coverage fix:
+`tests/agent-mode.test.ts` and `tests/autopilot.test.ts` now validate both Cursor and OpenCode runner flows in dry-run and execution paths so authoring-host claims are backed by explicit regression coverage.

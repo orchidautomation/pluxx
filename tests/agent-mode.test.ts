@@ -411,6 +411,53 @@ describe('agent mode', () => {
     expect(summary.verify).toBe(true)
   })
 
+  it('supports CLI dry-run for OpenCode runs and includes attach/model options', async () => {
+    const proc = Bun.spawn(
+      [
+        'bun',
+        resolve(ROOT, 'bin/pluxx.js'),
+        'agent',
+        'run',
+        'taxonomy',
+        '--runner',
+        'opencode',
+        '--attach',
+        'http://localhost:4096',
+        '--model',
+        'gpt-5-mini',
+        '--json',
+        '--dry-run',
+      ],
+      {
+        cwd: TEST_DIR,
+        stdout: 'pipe',
+        stderr: 'pipe',
+      },
+    )
+
+    const stdout = await new Response(proc.stdout).text()
+    const stderr = await new Response(proc.stderr).text()
+    const exitCode = await proc.exited
+
+    expect(exitCode).toBe(0)
+    expect(stderr).toBe('')
+
+    const summary = JSON.parse(stdout) as {
+      runner: string
+      command: string[]
+      verify: boolean
+    }
+
+    expect(summary.runner).toBe('opencode')
+    expect(summary.command[0]).toBe('opencode')
+    expect(summary.command[1]).toBe('run')
+    expect(summary.command).toContain('--attach')
+    expect(summary.command).toContain('http://localhost:4096')
+    expect(summary.command).toContain('--model')
+    expect(summary.command).toContain('gpt-5-mini')
+    expect(summary.verify).toBe(true)
+  })
+
   it('rejects --attach for the Cursor runner', async () => {
     const proc = Bun.spawn(
       ['bun', resolve(ROOT, 'bin/pluxx.js'), 'agent', 'run', 'taxonomy', '--runner', 'cursor', '--attach', 'http://localhost:4096', '--dry-run'],
@@ -511,6 +558,68 @@ describe('agent mode', () => {
     expect(runnerArgs).toContain('-p')
     expect(runnerArgs).toContain('--workspace')
     expect(runnerArgs).toContain('--force')
+  })
+
+  it('executes the OpenCode runner with attach support', async () => {
+    const binDir = resolve(TEST_DIR, '.bin')
+    const runnerArgsPath = resolve(TEST_DIR, 'opencode-runner-args.txt')
+    const opencodePath = resolve(binDir, 'opencode')
+
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(
+      opencodePath,
+      '#!/bin/sh\nprintf "%s\\0" "$@" >> "$PLUXX_RUNNER_ARGS"\nexit 0\n',
+    )
+    chmodSync(opencodePath, 0o755)
+
+    const proc = Bun.spawn(
+      [
+        'bun',
+        resolve(ROOT, 'bin/pluxx.js'),
+        'agent',
+        'run',
+        'taxonomy',
+        '--runner',
+        'opencode',
+        '--attach',
+        'http://localhost:4096',
+        '--json',
+        '--no-verify',
+      ],
+      {
+        cwd: TEST_DIR,
+        env: {
+          ...process.env,
+          PATH: `${binDir}:${process.env.PATH ?? ''}`,
+          PLUXX_RUNNER_ARGS: runnerArgsPath,
+        },
+        stdout: 'pipe',
+        stderr: 'pipe',
+      },
+    )
+
+    const stdout = await new Response(proc.stdout).text()
+    const stderr = await new Response(proc.stderr).text()
+    const exitCode = await proc.exited
+
+    expect(exitCode).toBe(0)
+    expect(stderr).toBe('')
+
+    const summary = JSON.parse(stdout) as {
+      ok: boolean
+      runner: string
+      runnerExitCode: number
+      verify: boolean
+    }
+    expect(summary.ok).toBe(true)
+    expect(summary.runner).toBe('opencode')
+    expect(summary.runnerExitCode).toBe(0)
+    expect(summary.verify).toBe(false)
+
+    const runnerArgs = readFileSync(runnerArgsPath, 'utf-8').split('\0').filter(Boolean)
+    expect(runnerArgs).toContain('run')
+    expect(runnerArgs).toContain('--attach')
+    expect(runnerArgs).toContain('http://localhost:4096')
   })
 
   it('prints actionable guidance when Cursor auth is missing', async () => {
