@@ -44,6 +44,13 @@ The deterministic dev-loop baseline is now also shipped on `main`:
 
 - `PLUXX-133` `pluxx mcp proxy` with record/replay tapes for MCP sessions
 
+The public surface baseline is now also shipped on `main`:
+
+- npm package published as `@orchid-labs/pluxx@0.1.1`
+- `pluxx.dev` live with the current cross-host plugin-authoring positioning
+- Mintlify docs live at `orchidautomation.mintlify.app`
+- GitHub tag-based npm release flow is configured
+
 The near-term question is no longer "does Pluxx have a believable core contract?"
 
 It is now:
@@ -53,18 +60,23 @@ It is now:
 
 ## Active Now
 
+### Product / Launch Work
+
+- `PLUXX-135` Define the OSS wedge GTM and launch checklist for Pluxx
+  - status: `Todo`
+  - role: launch / GTM track
+  - current focus: sharpen the narrative, demo flows, launch checklist, and first outreach motion
+- `PLUXX-136` Validate real Cursor and OpenCode authoring flows end to end
+  - status: `Todo`
+  - role: host-validation track
+  - current focus: prove Cursor/OpenCode authoring and autopilot flows on real plugins, not just via code-path coverage
+
 ### Core Umbrellas
 
 - `PLUXX-79` Define Agent Mode as the semantic authoring layer on top of Core
   - status: `In Progress`
   - role: umbrella / product-coherence issue
-  - current focus: make agent/autopilot packs consume per-skill resource and prompt-template associations, not just top-level discovery counts
-- `PLUXX-61` Competitive readiness: expand MCP import beyond `tools/list`
-  - status: `Backlog`
-  - role: umbrella for richer non-tool MCP surfaces
-- `PLUXX-62` Competitive readiness: deepen MCP auth and discovery support
-  - status: `Backlog`
-  - role: umbrella for richer auth discovery and OAuth-ready scaffolds
+  - current focus: keep strengthening the semantic authoring layer on top of the now-shipped eval/import/auth baselines
 
 ### Near-Term OSS Wedge Work
 
@@ -85,7 +97,17 @@ It is now:
 
 - `PLUXX-116` Docs site
   - status: `In Progress`
-  - delegate: `Blocks`
+  - role: public docs / polish follow-through
+  - current focus: polish and tighten the now-live Mintlify docs rather than standing up the baseline
+
+### Open Umbrellas Still Relevant
+
+- `PLUXX-61` Competitive readiness: expand MCP import beyond `tools/list`
+  - status: `Backlog`
+  - role: umbrella for richer non-tool MCP surfaces
+- `PLUXX-62` Competitive readiness: deepen MCP auth and discovery support
+  - status: `Backlog`
+  - role: umbrella for deeper auth/runtime/import follow-through beyond the shipped baseline
 
 ## Execution Queue
 
@@ -138,6 +160,21 @@ It is now:
   - status:
     - shipped baseline via `pluxx doctor --consumer`
     - follow-on work can deepen host-specific diagnostics and runtime repair guidance
+
+### Phase 3: Launch And Real-World Confidence
+
+- `PLUXX-135` OSS wedge GTM / launch checklist
+  - outcome:
+    - the shipped product gets a coherent launch story and execution plan
+  - status:
+    - open
+    - this is the most obvious non-product gap right now
+- `PLUXX-136` Cursor / OpenCode real-host validation
+  - outcome:
+    - public claims about multi-runner authoring are backed by repeated real-host dogfooding
+  - status:
+    - open
+    - this is the highest-signal remaining host-validation gap
 
 ### Phase 3: Brand / Launch Follow-Through
 
@@ -204,12 +241,14 @@ Treat them as validation / linear-swarm work, not as the core Pluxx execution ma
 
 If you only want the next concrete sequence, it is:
 
-1. `PLUXX-79` follow-through on deeper agent/autopilot use of per-skill discovery surfaces
-2. `PLUXX-116`
+1. `PLUXX-135` GTM / launch checklist
+2. `PLUXX-136` real Cursor/OpenCode validation
+3. `PLUXX-79` follow-through on deeper agent/autopilot coherence
+4. `PLUXX-116` docs/site polish
 
 That sequence keeps the near-term effort focused on:
 
-- richer MCP truthfulness in both deterministic scaffolds and agent refinement
-- measurable scaffold / prompt quality
-- easier adoption and consumer support
-- deterministic development already being present as a baseline
+- turning the shipped baseline into a launchable OSS wedge
+- proving the authoring story in real host environments, not just tests
+- keeping Agent Mode/product coherence strong as the wedge sharpens
+- polishing the public docs/site around what is already real
