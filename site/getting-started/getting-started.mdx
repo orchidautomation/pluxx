@@ -19,6 +19,7 @@ Related docs:
 - [Architecture](/how-it-works/architecture)
 - [Customer journey](/workflows/import-from-mcp)
 - [One-shot autopilot spec](/workflows/autopilot)
+- [Sumble proof run](/examples/sumble-proof-run)
 - [Homepage messaging and narrative](https://github.com/orchidautomation/pluxx/blob/main/docs/homepage-messaging.md)
 - [PlayKit case study](/examples/firecrawl-sumble-playkit)
 
@@ -218,6 +219,16 @@ These are now part of the real baseline, not side experiments:
   - capture a deterministic MCP tape for debugging or CI
 - `npx @orchid-labs/pluxx mcp proxy --replay tape.json`
   - replay the same MCP session without hitting the live server again
+
+## 7. See A Real MCP Proof
+
+If you want to see the full loop against a live commercial MCP, read the [Sumble proof run](/examples/sumble-proof-run).
+
+It covers:
+
+- workflow-grouped import from a real remote MCP
+- core-four build and test output
+- the Codex headless runner fix discovered during the run
 
 ## 7. Sync Later
 
