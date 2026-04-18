@@ -1,6 +1,6 @@
 ---
 title: Sumble Proof Run
-description: Fresh Sumble import, workflow grouping, core-four build/test pass, and the Codex headless runner fix discovered during the run.
+description: Fresh Sumble import, real generated file tree, observed core-four outputs, exact warnings, and the Codex headless runner fix discovered during the run.
 ---
 
 ## Why Sumble
@@ -14,6 +14,10 @@ This is not a toy import. It is a practical MCP surface around:
 - hiring signals
 - technographics
 - table inspection and read-only SQL analysis
+
+Repository example:
+
+- [`example/sumble-plugin`](https://github.com/orchidautomation/pluxx/tree/main/example/sumble-plugin)
 
 ## What We Ran
 
@@ -43,6 +47,43 @@ bun bin/pluxx.js build
 bun bin/pluxx.js test --target claude-code cursor codex opencode
 ```
 
+## Source Project Tree
+
+This is the maintained source project that was committed after the run:
+
+```text
+example/sumble-plugin/
+  pluxx.config.ts
+  INSTRUCTIONS.md
+  skills/
+    account-research/SKILL.md
+    contact-discovery/SKILL.md
+    general-research/SKILL.md
+    hiring-signals/SKILL.md
+    log-out/SKILL.md
+    table-operations/SKILL.md
+    technographics/SKILL.md
+  commands/
+    account-research.md
+    contact-discovery.md
+    general-research.md
+    hiring-signals.md
+    log-out.md
+    table-operations.md
+    technographics.md
+  scripts/
+    check-env.sh
+    confirm-mutation.sh
+  .pluxx/
+    mcp.json
+    taxonomy.json
+    agent/
+      context.md
+      plan.json
+      instructions-prompt.md
+      review-prompt.md
+```
+
 ## What Pluxx Generated
 
 The fresh scaffold produced a maintained source project with:
@@ -64,18 +105,138 @@ Workflow grouping from the raw MCP landed at:
 - `general-research`
 - `log-out`
 
+## Real File Excerpts
+
+### `pluxx.config.ts`
+
+```ts
+export default definePlugin({
+  name: "sumble-plugin",
+  instructions: './INSTRUCTIONS.md',
+  skills: './skills/',
+  commands: "./commands/",
+  scripts: "./scripts/",
+  mcp: {
+    "sumble": {
+      url: "https://mcp.sumble.com/",
+      auth: {
+        type: "bearer",
+        envVar: "SUMBLE_API_KEY"
+      }
+    },
+  },
+  targets: ["claude-code", "cursor", "codex", "opencode"],
+})
+```
+
+### Generated `INSTRUCTIONS.md` Shape
+
+```md
+# Sumble
+
+Use Sumble for account intelligence, buyer discovery, technographic research, and hiring-based timing signals.
+
+## Setup And Boundaries
+
+- Claude Code and Cursor use platform-managed auth. Codex and OpenCode require `SUMBLE_API_KEY`.
+- If access, credits, territory context, or your company positioning is unclear, start with `/account-research`.
+
+## Route By Workflow
+
+- `account-research`
+- `technographics`
+- `general-research`
+- `contact-discovery`
+- `hiring-signals`
+- `table-operations`
+- `log-out`
+```
+
+### Generated Skill Surface
+
+```md
+---
+name: "account-research"
+description: "Research companies, organizations, and account context before taking action."
+---
+
+# Account Research
+
+Research companies, organizations, and account context before taking action.
+```
+
+## Observed Built Outputs
+
+These were observed from the real `pluxx build` run. They are not committed in the repo, but they were generated successfully:
+
+```text
+dist/claude-code/.claude-plugin/plugin.json
+dist/claude-code/.mcp.json
+dist/claude-code/CLAUDE.md
+dist/claude-code/commands/*
+dist/claude-code/hooks/hooks.json
+
+dist/cursor/.cursor-plugin/plugin.json
+dist/cursor/AGENTS.md
+dist/cursor/commands/*
+dist/cursor/hooks/hooks.json
+dist/cursor/mcp.json
+
+dist/codex/.codex-plugin/plugin.json
+dist/codex/.mcp.json
+dist/codex/AGENTS.md
+
+dist/opencode/index.ts
+dist/opencode/package.json
+dist/opencode/commands/*
+```
+
 ## Verification Result
 
 Observed result from the real run:
 
-- `doctor`: passed with one honest hook-trust warning
+- `doctor`: `0 error(s), 1 warning(s), 2 info message(s)`
 - `lint`: `0 error(s), 1 warning(s)`
 - `build`: generated all four core bundles
 - `test`: passed on Claude Code, Cursor, Codex, and OpenCode
 
-The warning is real and useful:
+## What The Warnings Actually Were
 
-- Codex still treats hooks as external config, so Pluxx does not pretend plugin-packaged hook parity exists there.
+### 1. Install trust warning from `doctor`
+
+This warning is about local shell hooks, not about Sumble or the import failing:
+
+```text
+WARNING hooks-trust-required [pluxx.config.ts] Hook commands require install trust
+Fix: Review the commands carefully. Users will need to opt in with pluxx install --trust.
+```
+
+Plain English:
+
+- Pluxx generated local shell hooks under `scripts/`
+- that is useful, but users should explicitly trust them at install time
+- Pluxx warns here on purpose instead of silently normalizing shell execution
+
+### 2. Codex hook parity warning from `build`
+
+This is the warning that matters most for platform honesty:
+
+```text
+WARN codex-hooks-external-config [Codex] pluxx.config.ts:
+Codex plugin docs currently separate hook configuration from plugin packaging,
+so Pluxx does not bundle Codex hooks into generated plugin output.
+If you want Codex to run these hooks, configure them in ~/.codex/hooks.json
+or <repo>/.codex/hooks.json and enable codex_hooks = true in Codex itself.
+```
+
+Plain English:
+
+- Claude Code and Cursor got packaged hook output
+- Codex did not get the same packaged hook parity
+- the plugin still built and tested for Codex
+- the caveat is specifically about hooks, not the whole plugin
+
+That warning should stay visible because pretending the platforms are identical would create more distrust later.
 
 ## Headless Codex Result
 
@@ -114,9 +275,11 @@ This is the kind of run that matters for Pluxx:
 
 - live commercial MCP
 - real auth
+- real source tree
 - workflow grouping from raw tools
 - four native plugin outputs
 - real verification
+- real caveats called out explicitly
 - a dogfood bug discovered and fixed on the way
 
 That is a much stronger launch proof than a toy scaffold because it shows the actual maintenance loop on a real MCP team’s surface.

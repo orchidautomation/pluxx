@@ -91,9 +91,10 @@ Observed result from the real run:
 - `build`: generated all core-four bundles
 - `test`: passed for Claude Code, Cursor, Codex, and OpenCode
 
-Current warning:
+Current warnings:
 
-- Codex still documents hooks as external config rather than plugin-packaged output, so Pluxx warns honestly instead of pretending Codex hook parity exists.
+- `doctor`: local generated hook commands require install trust via `pluxx install --trust`
+- `build`: Codex still documents hooks as external config rather than plugin-packaged output, so Pluxx warns honestly instead of pretending Codex hook parity exists
 
 ## Headless Codex Result
 
