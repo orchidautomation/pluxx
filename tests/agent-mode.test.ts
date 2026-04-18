@@ -342,7 +342,12 @@ describe('agent mode', () => {
     }
 
     expect(summary.runner).toBe('codex')
-    expect(summary.command.slice(0, 3)).toEqual(['codex', 'exec', '--full-auto'])
+    expect(summary.command.slice(0, 4)).toEqual([
+      'codex',
+      'exec',
+      '--ephemeral',
+      '--full-auto',
+    ])
     expect(summary.verify).toBe(true)
   })
 
@@ -372,6 +377,7 @@ describe('agent mode', () => {
     expect(summary.runner).toBe('codex')
     expect(summary.command[0]).toBe('codex')
     expect(summary.command[1]).toBe('exec')
+    expect(summary.command).toContain('--ephemeral')
     expect(summary.command).not.toContain('--full-auto')
     expect(summary.verify).toBe(false)
   })

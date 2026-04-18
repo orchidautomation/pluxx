@@ -1,0 +1,74 @@
+[
+  {
+    "dirName": "account-research",
+    "title": "Account Research",
+    "description": "Research companies, organizations, and account context before taking action.",
+    "toolNames": [
+      "AddOrganizationsToList",
+      "CreateOrganizationList",
+      "EnrichOrganization",
+      "GetAccountInformation",
+      "GetMyCompanyProfile",
+      "GetOrganizationList",
+      "ListOrganizationLists",
+      "MatchOrganizations"
+    ]
+  },
+  {
+    "dirName": "contact-discovery",
+    "title": "Contact Discovery",
+    "description": "Find people, contacts, and buyer-side context at the right accounts.",
+    "toolNames": [
+      "AddContactsToList",
+      "CreateContactList",
+      "EnrichPerson",
+      "FindRelatedPeopleToJob",
+      "FindRelatedPeopleToPerson",
+      "GetContactList",
+      "ListContactLists"
+    ]
+  },
+  {
+    "dirName": "hiring-signals",
+    "title": "Hiring Signals",
+    "description": "Use hiring activity and open roles as timing signals for outreach and research.",
+    "toolNames": [
+      "FindJobs",
+      "GetJobDescription"
+    ]
+  },
+  {
+    "dirName": "technographics",
+    "title": "Technographics",
+    "description": "Research technologies, tools, and stack adoption across target accounts.",
+    "toolNames": [
+      "SearchTechnologies"
+    ]
+  },
+  {
+    "dirName": "table-operations",
+    "title": "Table Operations",
+    "description": "Build, inspect, run, document, and export tables, rows, and enrichment workflows.",
+    "toolNames": [
+      "ListTables"
+    ]
+  },
+  {
+    "dirName": "general-research",
+    "title": "General Research",
+    "description": "Handle broad search and query workflows when there is not a more specific product surface match.",
+    "toolNames": [
+      "FindOrganizations",
+      "FindPeople",
+      "Query"
+    ]
+  },
+  {
+    "dirName": "log-out",
+    "title": "Log Out",
+    "description": "Log out the current user.\n\n    Args:\n        reason: Why you are calling this tool.\n    ",
+    "toolNames": [
+      "LogOut"
+    ]
+  }
+]

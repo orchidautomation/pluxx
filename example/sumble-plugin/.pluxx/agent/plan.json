@@ -1,0 +1,185 @@
+{
+  "version": 1,
+  "plugin": {
+    "name": "sumble-plugin",
+    "displayName": "Sumble",
+    "targets": [
+      "claude-code",
+      "cursor",
+      "codex",
+      "opencode"
+    ]
+  },
+  "mcp": {
+    "metadataPath": ".pluxx/mcp.json",
+    "toolCount": 23,
+    "serverName": "sumble",
+    "transport": "http",
+    "auth": "bearer via SUMBLE_API_KEY"
+  },
+  "contextInputs": [],
+  "files": {
+    "editable": [
+      {
+        "path": ".pluxx/taxonomy.json"
+      },
+      {
+        "path": "INSTRUCTIONS.md",
+        "managedSections": [
+          {
+            "start": "<!-- pluxx:generated:start -->",
+            "end": "<!-- pluxx:generated:end -->"
+          }
+        ]
+      },
+      {
+        "path": "skills/account-research/SKILL.md",
+        "managedSections": [
+          {
+            "start": "<!-- pluxx:generated:start -->",
+            "end": "<!-- pluxx:generated:end -->"
+          }
+        ]
+      },
+      {
+        "path": "skills/contact-discovery/SKILL.md",
+        "managedSections": [
+          {
+            "start": "<!-- pluxx:generated:start -->",
+            "end": "<!-- pluxx:generated:end -->"
+          }
+        ]
+      },
+      {
+        "path": "skills/hiring-signals/SKILL.md",
+        "managedSections": [
+          {
+            "start": "<!-- pluxx:generated:start -->",
+            "end": "<!-- pluxx:generated:end -->"
+          }
+        ]
+      },
+      {
+        "path": "skills/technographics/SKILL.md",
+        "managedSections": [
+          {
+            "start": "<!-- pluxx:generated:start -->",
+            "end": "<!-- pluxx:generated:end -->"
+          }
+        ]
+      },
+      {
+        "path": "skills/table-operations/SKILL.md",
+        "managedSections": [
+          {
+            "start": "<!-- pluxx:generated:start -->",
+            "end": "<!-- pluxx:generated:end -->"
+          }
+        ]
+      },
+      {
+        "path": "skills/general-research/SKILL.md",
+        "managedSections": [
+          {
+            "start": "<!-- pluxx:generated:start -->",
+            "end": "<!-- pluxx:generated:end -->"
+          }
+        ]
+      },
+      {
+        "path": "skills/log-out/SKILL.md",
+        "managedSections": [
+          {
+            "start": "<!-- pluxx:generated:start -->",
+            "end": "<!-- pluxx:generated:end -->"
+          }
+        ]
+      },
+      {
+        "path": "commands/account-research.md",
+        "managedSections": [
+          {
+            "start": "<!-- pluxx:generated:start -->",
+            "end": "<!-- pluxx:generated:end -->"
+          }
+        ]
+      },
+      {
+        "path": "commands/contact-discovery.md",
+        "managedSections": [
+          {
+            "start": "<!-- pluxx:generated:start -->",
+            "end": "<!-- pluxx:generated:end -->"
+          }
+        ]
+      },
+      {
+        "path": "commands/hiring-signals.md",
+        "managedSections": [
+          {
+            "start": "<!-- pluxx:generated:start -->",
+            "end": "<!-- pluxx:generated:end -->"
+          }
+        ]
+      },
+      {
+        "path": "commands/technographics.md",
+        "managedSections": [
+          {
+            "start": "<!-- pluxx:generated:start -->",
+            "end": "<!-- pluxx:generated:end -->"
+          }
+        ]
+      },
+      {
+        "path": "commands/table-operations.md",
+        "managedSections": [
+          {
+            "start": "<!-- pluxx:generated:start -->",
+            "end": "<!-- pluxx:generated:end -->"
+          }
+        ]
+      },
+      {
+        "path": "commands/general-research.md",
+        "managedSections": [
+          {
+            "start": "<!-- pluxx:generated:start -->",
+            "end": "<!-- pluxx:generated:end -->"
+          }
+        ]
+      },
+      {
+        "path": "commands/log-out.md",
+        "managedSections": [
+          {
+            "start": "<!-- pluxx:generated:start -->",
+            "end": "<!-- pluxx:generated:end -->"
+          }
+        ]
+      }
+    ],
+    "protected": [
+      "pluxx.config.ts",
+      "pluxx.config.js",
+      "pluxx.config.json",
+      "pluxx.agent.md",
+      ".pluxx/mcp.json",
+      "dist/"
+    ],
+    "generated": [
+      ".pluxx/agent/context.md",
+      ".pluxx/agent/plan.json"
+    ]
+  },
+  "successCriteria": [
+    "Each skill represents a real user workflow or product surface.",
+    "Setup/admin/account tools are grouped intentionally.",
+    "Examples are concrete and realistic.",
+    "Weak MCP metadata is surfaced before publishing.",
+    "Only Pluxx-managed sections are modified."
+  ],
+  "caveats": [
+    "[warning] codex-hooks-external-config: Codex plugin docs currently separate hook configuration from plugin packaging, so Pluxx does not bundle Codex hooks into generated plugin output. If you want Codex to run these hooks, configure them in `~/.codex/hooks.json` or `<repo>/.codex/hooks.json` and enable `codex_hooks = true` in Codex itself."
+  ]
+}

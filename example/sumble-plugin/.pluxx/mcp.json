@@ -1,0 +1,1158 @@
+{
+  "version": 1,
+  "source": {
+    "transport": "http",
+    "url": "https://mcp.sumble.com/",
+    "auth": {
+      "type": "bearer",
+      "envVar": "SUMBLE_API_KEY",
+      "headerName": "Authorization",
+      "headerTemplate": "Bearer ${value}"
+    }
+  },
+  "serverInfo": {
+    "name": "Sumble",
+    "version": "1.27.0"
+  },
+  "settings": {
+    "pluginName": "sumble-plugin",
+    "displayName": "Sumble",
+    "description": "Sumble plugin scaffold for account research and contact discovery workflows.",
+    "skillGrouping": "workflow",
+    "requestedHookMode": "safe",
+    "generatedHookMode": "safe",
+    "generatedHookEvents": [
+      "sessionStart",
+      "preToolUse"
+    ],
+    "runtimeAuthMode": "platform"
+  },
+  "userConfig": [
+    {
+      "key": "sumble-api-key",
+      "title": "Sumble Api Key",
+      "description": "Authentication credential for the sumble MCP server.",
+      "type": "secret",
+      "required": true,
+      "envVar": "SUMBLE_API_KEY",
+      "targets": [
+        "codex",
+        "opencode"
+      ]
+    }
+  ],
+  "tools": [
+    {
+      "name": "GetAccountInformation",
+      "description": "Check your API key and account status.\n\n    Returns validation status, credits remaining, and\n    plan info if available. Free (no credits used).\n\n    Args:\n        reason: Why you are calling this tool.\n    ",
+      "inputSchema": {
+        "properties": {
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "get_account_infoArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "get_account_infoDictOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "title": "Get Account Information",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "GetMyCompanyProfile",
+      "description": "Get your company's profile and target account intelligence profile.\n\n    Returns the intelligence profile for your company, designed to\n    help you understand how to position and break into accounts.\n    Use this data to craft targeted outreach and prioritize efforts.\n\n    The response includes:\n\n    - company_summary: Who your company is, what you sell, what\n      problems you solve, your sales plays, and reference customers\n      you can cite.\n\n    - technologies: Your competitive landscape. Includes your own\n      technology, modern and legacy competitors, and complementary\n      tools in your ecosystem. Each technology has a tier (key or\n      other) indicating its importance.\n\n    - tech_concepts: Abstract technology themes relevant to your\n      company (e.g., SIEM, ETL, CI/CD).\n\n    - job_functions: The personas and roles your company targets,\n      split by importance (key vs other).\n\n    - projects: The types of initiatives and projects happening at\n      target accounts that are relevant to your offering, split by\n      importance (key vs other).\n\n    This is a free call. Once you get it, keep this information handy\n    and refer it often to guide your outreach and account strategy.\n\n    Args:\n        reason: Why you are calling this tool.\n    ",
+      "inputSchema": {
+        "properties": {
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "get_my_company_profileArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "get_my_company_profileDictOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "title": "Get My Company Profile",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "LogOut",
+      "description": "Log out the current user.\n\n    Args:\n        reason: Why you are calling this tool.\n    ",
+      "inputSchema": {
+        "properties": {
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "log_outArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "log_outDictOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "title": "Log Out",
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "ListContactLists",
+      "description": "List the user's contact lists (people lists).\n\n    Returns metadata for each list: id, name, people_count,\n    and url. Always surface the url to the user so they can\n    view the list in Sumble.\n    Use get_contact_list after this to retrieve the people in a\n    specific list.\n\n    Costs 1 credit per returned list. If you get a 402 error,\n    the user needs more credits. Direct them to\n    https://sumble.com/account/purchase\n\n    Args:\n        reason: Why you are calling this tool.\n    ",
+      "inputSchema": {
+        "properties": {
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "list_contact_listsArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "list_contact_listsDictOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "title": "List Contact Lists",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "GetContactList",
+      "description": "Get one contact list and its people.\n\n    Fetch a list by id after calling list_contact_lists.\n    Returns list metadata (including url) and simplified\n    person data: id, name, job_title, job_function,\n    linkedin_url, organization info, and contact_info\n    (emails/phone) if the contact was enriched. Each\n    person entry includes a `url` linking to their\n    Sumble profile for more details. Always show these\n    URLs and the list url to the user.\n\n    Costs 1 credit per returned person. If you get a 402\n    error, the user needs more credits. Direct them to\n    https://sumble.com/account/purchase\n\n    Args:\n        list_id: The contact list ID (from list_contact_lists).\n        reason: Why you are calling this tool.\n    ",
+      "inputSchema": {
+        "properties": {
+          "list_id": {
+            "title": "List Id",
+            "type": "integer"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "list_id",
+          "reason"
+        ],
+        "title": "get_contact_listArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "get_contact_listDictOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "title": "Get Contact List",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "CreateContactList",
+      "description": "Create a new contact list (people list).\n\n    Returns the new list's id, name, and url. Always\n    surface the url to the user so they can view the\n    list in Sumble. Use add_contacts_to_list to populate\n    it afterward.\n\n    WORKFLOW — when a user wants to build a people list:\n    1. Call find_people or find_related_people_to_person\n       to get Sumble person IDs.\n    2. Call create_contact_list to make the list.\n    3. Call add_contacts_to_list with the person IDs.\n\n    If you already have Sumble person IDs (from a prior\n    API call), skip step 1 and use those IDs directly.\n\n    Always ask the user for the list name. If you have a\n    good guess, you can suggest it in the prompt.\n\n    Args:\n        reason: Why you are calling this tool.\n        name: Name for the new list.\n    ",
+      "inputSchema": {
+        "properties": {
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason",
+          "name"
+        ],
+        "title": "create_contact_listArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "create_contact_listDictOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "title": "Create Contact List",
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "AddContactsToList",
+      "description": "Add people to an existing contact list.\n\n    Accepts Sumble person IDs. Returns how many were added,\n    how many were already on the list, and the list url.\n    Duplicates are silently skipped. Always surface the url\n    to the user so they can view the list in Sumble.\n\n    WORKFLOW — when a user provides names or LinkedIn URLs:\n    1. Call find_people to resolve them to Sumble person\n       IDs.\n    2. Call add_contacts_to_list with the matched IDs\n       (use the \"id\" field from each result).\n\n    If you already have Sumble person IDs (from a prior\n    API call), pass them directly as people_ids.\n\n    Args:\n        reason: Why you are calling this tool.\n        list_id: The contact list ID (from\n            list_contact_lists or create_contact_list).\n        people_ids: Sumble person IDs to add.\n    ",
+      "inputSchema": {
+        "properties": {
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "list_id": {
+            "title": "List Id",
+            "type": "integer"
+          },
+          "people_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "People Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "reason",
+          "list_id",
+          "people_ids"
+        ],
+        "title": "add_contacts_to_listArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "add_contacts_to_listDictOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "title": "Add Contacts to List",
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "ListOrganizationLists",
+      "description": "List the user's organization lists.\n\n    Returns concise metadata for each list: id, name, type,\n    and organizations_count. Use get_organization_list after this to\n    retrieve one list's organizations. Share the list urls with the user so they can view\n    them in the dashboard.\n\n    Each list has a type: \"group\" or \"user\". A \"group\" list is\n    the user's territory — synced from their employer's CRM or\n    territory management system. When a user asks about \"my\n    territory\" or \"my accounts\", prefer the group list.\n\n    Costs 1 credit per returned list. If you get a 402 error,\n    the user needs more credits. Direct them to\n    https://sumble.com/account/purchase\n\n    Args:\n        reason: Why you are calling this tool.\n    ",
+      "inputSchema": {
+        "properties": {
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "list_organization_listsArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "list_organization_listsDictOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "title": "List Organization Lists",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "GetOrganizationList",
+      "description": "Get one organization list and its organizations.\n\n    Fetch a list by id after calling list_organization_lists. Share the url with the user.\n\n    Costs 1 credit per returned item. If you get a 402 error,\n    the user needs more credits. Direct them to\n    https://sumble.com/account/purchase\n\n    Args:\n        reason: Why you are calling this tool.\n    ",
+      "inputSchema": {
+        "properties": {
+          "list_id": {
+            "title": "List Id",
+            "type": "integer"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "list_id",
+          "reason"
+        ],
+        "title": "get_organization_listArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "get_organization_listDictOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "title": "Get Organization List",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "CreateOrganizationList",
+      "description": "Create a new organization list.\n\n    Returns the new list's id and name. Use\n    add_organizations_to_list to populate it afterward.\n    Share the list url with the user so they can view it in the dashboard.\n\n    WORKFLOW — when a user provides company names/URLs:\n    1. Call match_organizations to resolve them to Sumble\n       IDs.\n    2. Call create_organization_list to make the list.\n    3. Call add_organizations_to_list with the matched IDs.\n\n    If you already have Sumble org IDs (from a SQL query,\n    find_organizations, or another API call), skip step 1\n    and use those IDs directly.\n\n    Always ask the user for the list name to use. If you\n    have a good guess for the name, you can suggest it in the prompt,\n\n    Args:\n        reason: Why you are calling this tool.\n        name: Name for the new list.\n    ",
+      "inputSchema": {
+        "properties": {
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason",
+          "name"
+        ],
+        "title": "create_organization_listArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "create_organization_listDictOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "title": "Create Organization List",
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "AddOrganizationsToList",
+      "description": "Add organizations to an existing list.\n\n    Accepts Sumble organization IDs and/or slugs. Returns\n    which were added and which failed.\n\n    WORKFLOW — when a user provides company names/URLs:\n    1. Call match_organizations to resolve them to Sumble\n       IDs.\n    2. Call add_organizations_to_list with the matched IDs\n       (use the \"id\" field from each match result).\n\n    If you already have Sumble org IDs (from a SQL query,\n    find_organizations, or another API call), skip step 1\n    and pass them directly as organization_ids.\n\n    Args:\n        reason: Why you are calling this tool.\n        list_id: The organization list ID (from\n            list_organization_lists or\n            create_organization_list).\n        organization_ids: Sumble organization IDs to add.\n        organization_slugs: Sumble organization slugs to\n            add (resolved server-side).\n    ",
+      "inputSchema": {
+        "properties": {
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "list_id": {
+            "title": "List Id",
+            "type": "integer"
+          },
+          "organization_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Organization Ids"
+          },
+          "organization_slugs": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Organization Slugs"
+          }
+        },
+        "required": [
+          "reason",
+          "list_id"
+        ],
+        "title": "add_organizations_to_listArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "add_organizations_to_listDictOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "title": "Add Organizations to List",
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "FindJobs",
+      "description": "Find job listings matching a query.\n\n    The `query` param supports a full filter language\n    and lets you compose complex searches in ONE call\n    (e.g. jobs in a user's org list matching specific\n    technologies and job functions).\n\n    Returns job posts with titles, organizations,\n    locations, technologies, job functions, teams,\n    projects, and URLs. Does not include job\n    descriptions by default. Use GetJobDescription\n    to get the full description for a specific job.\n\n    If results include URLs or links, always share them\n    with the user.\n\n    Costs 2 credits per job returned. If you get a 402\n    error, the user needs more credits. Direct them to\n    https://sumble.com/account/purchase\n\n    QUERY SYNTAX (use `query` param):\n    Operators: EQ, NEQ, IN, NOT IN.\n    Combine with AND, OR. Group with parentheses.\n    Values are single-quoted. IN/NOT IN use\n    comma-separated values in parens.\n\n    Available fields:\n\n    ORGANIZATION / SCOPE FIELDS — filter which orgs\n    to search jobs within:\n    - organizations_list — EQ/IN. Restrict to a\n      user's saved org list by numeric list ID.\n      Use ListOrganizationLists to get IDs first.\n      Use 'default' for the user's default list.\n      Example: organizations_list EQ '42'\n    - organization — EQ only. Fuzzy org name/URL.\n    - industry — EQ/IN/NOT IN.\n    - employee_count — EQ/IN. Range format:\n      '100-1000', '1000-' (1000+), '-500'.\n    - hq_location — EQ/IN/NEQ. Format:\n      'US', 'US:Texas', 'US:Texas:Austin'.\n      Region codes: EMEA, APAC, NAMER, LATAM.\n    - tag — EQ/IN (e.g. 'digital_native').\n\n    JOB FIELDS — filter which jobs to return:\n    - technology — EQ/IN/NOT IN. Use slugs from\n      SearchTechnologies.\n    - technology_category — EQ/IN/NOT IN (e.g.\n      'gen-ai', 'mlops', 'cybersecurity').\n    - project — EQ/IN. Filter by project slug.\n      Example: project IN ('cloud-migration',\n      'gen-ai-initiative')\n    - job_function — EQ/IN/NOT IN (e.g.\n      'Machine Learning', 'Data Scientist',\n      'Engineer', 'Product Manager').\n    - job_level — EQ/IN/NOT IN (e.g.\n      'Senior', 'Manager', 'VP', 'Director').\n    - country — EQ/IN/NOT IN. Format:\n      'US', 'US:California',\n      'US:California:San Francisco'.\n      Use full state names, not abbreviations.\n      'UK' is auto-converted to 'GB'.\n    - hiring_period — EQ ONLY (not IN/NOT IN).\n      Values: '2wk', '1mo', '3mo', '6mo',\n      '1yr', '18mo', '2yr'.\n    - NOTE: job_title and job_description are NOT\n      available as filters. Use job_function and\n      job_level.\n\n    COMBINING FILTERS:\n    Use AND to combine org fields with job fields.\n    Do NOT use OR across org and job fields.\n\n    Examples:\n    - Jobs in a user's org list with specific tech:\n      organizations_list EQ '42'\n      AND technology IN ('snowflake', 'databricks')\n    - Jobs in default list, ML roles, recent:\n      organizations_list EQ 'default'\n      AND job_function EQ 'Machine Learning'\n      AND hiring_period EQ '3mo'\n    - Jobs at large US companies using PyTorch:\n      technology EQ 'pytorch'\n      AND hq_location EQ 'US'\n      AND employee_count EQ '1000-'\n    - Jobs matching a project and function:\n      project EQ 'cloud-migration'\n      AND job_function IN ('Cloud Engineer',\n      'DevOps Engineer')\n    - Basic tech + location:\n      technology IN ('pytorch', 'tensorflow')\n      AND country EQ 'US'\n    - Function + level:\n      job_function IN ('Machine Learning',\n      'AI Engineer') AND job_level EQ 'Senior'\n\n    Args:\n        reason: Why you are calling this tool.\n        query: Advanced query string.\n            See QUERY SYNTAX.\n        organization: Domain, numeric ID, or slug\n            (e.g. \"google.com\", \"1726684\", \"google\").\n            Alternatively use `organization` field in\n            query.\n        limit: Max results (1-100, default 10)\n        offset: Skip N results (default 0)\n    ",
+      "inputSchema": {
+        "properties": {
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "query": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Query"
+          },
+          "organization": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Organization"
+          },
+          "limit": {
+            "default": 10,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "default": 0,
+            "title": "Offset",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "find_jobsArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "find_jobsDictOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "title": "Find Jobs",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "GetJobDescription",
+      "description": "Get the full description for a job listing.\n\n    Returns the job title and full description text.\n    Use this after find_jobs when you need the complete,\n    untruncated description for a specific job.\n\n    Costs 1 credit. If you get a 402 error, the user\n    needs more credits. Direct them to\n    https://sumble.com/account/purchase\n\n    Args:\n        reason: Why you are calling this tool.\n        job_id: The job post ID.\n    ",
+      "inputSchema": {
+        "properties": {
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "reason",
+          "job_id"
+        ],
+        "title": "get_job_descriptionArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "get_job_descriptionDictOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "title": "Get Job Description",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "FindRelatedPeopleToJob",
+      "description": "Find people related to a job listing.\n\n    Given a job ID, returns relevant people such as hiring\n    managers and team members at the organization.\n\n    Always include the url If results include URLs or links, always share them\n    with the user.\n\n    Costs 1 credit per person returned. If you get a 402\n    error, the user needs more credits. Direct them to\n    https://sumble.com/account/purchase\n\n    Args:\n        reason: Why you are calling this tool.\n        job_id: The job post ID to find related people for.\n        limit: Max results (1-100, default 10)\n        offset: Skip N results (default 0)\n    ",
+      "inputSchema": {
+        "properties": {
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "integer"
+          },
+          "limit": {
+            "default": 10,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "default": 0,
+            "title": "Offset",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "reason",
+          "job_id"
+        ],
+        "title": "find_related_people_to_jobArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "find_related_people_to_jobDictOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "title": "Find Related People to Job",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "FindOrganizations",
+      "description": "Find organizations using specific technologies.\n\n    Search by technology names and/or categories, or use\n    an advanced query string. At least one of technologies,\n    technology_categories, or query is required.\n\n    If results include URLs or links, always share them\n    with the user.\n\n    Costs 5 credits per result returned. If you need\n    entity details (job_post_count, people_count,\n    team_count, job_post_used_count, team_count_used),\n    set include_entity_details=True — this costs 5\n    credits per technology term instead. IMPORTANT:\n    Always ask the user for confirmation before using\n    include_entity_details=True, as it is significantly\n    more expensive.\n\n    If you get a 402 error, the user needs more credits.\n    Direct them to https://sumble.com/account/purchase\n\n    TECHNOLOGY CATEGORY SLUGS (commonly used):\n    crm, business-intelligence, cloud-data-warehouse,\n    data-catalog, gen-ai, mlops, ml-training,\n    cybersecurity, cloud-security, ci-cd, ipaas,\n    event-streaming, data-pipeline-orchestration, etl,\n    logging-observability-monitoring,\n    data-quality-and-observability,\n    customer-data-platform,\n    feature-flagging-and-a-b-testing,\n    vector-database, oss-data-science,\n    commercial-data-science,\n    infrastructure-as-code-tools, design,\n    javascript, siem, edr, headless-cms,\n    ccaas, endpoint-management, ecommerce-platform,\n    vibe-coding,\n    marketing-automation-platforms, frontier-ai-models,\n    processing-units-and-chips,\n    cloud-and-container-orchestration-platforms,\n    identity-and-access-management\n\n    ADVANCED QUERY SYNTAX (use `query` param):\n    Operators: EQ, NEQ, IN, NOT IN.\n    Combine with AND, OR. Group with parentheses.\n    Values are single-quoted. IN/NOT IN use\n    comma-separated values in parens.\n\n    Available fields:\n    - technology — EQ/IN/NOT IN. Use slugs from\n      search_technologies.\n    - technology_category — EQ/IN/NOT IN. Slugs\n      from the list above.\n    - organization — EQ only. Fuzzy name/URL match.\n    - industry — EQ/IN/NOT IN.\n    - employee_count — EQ/IN. Range format:\n      '100-1000', '1000-' (1000+), '-500' (up to 500).\n    - hq_location — EQ/IN/NEQ. Format:\n      'US', 'US:Texas', 'US:Texas:Austin'.\n      Use full state names, not abbreviations.\n      'UK' is auto-converted to 'GB'.\n      Region codes: EMEA, APAC, NAMER, LATAM,\n      Americas, Europe, MiddleEast, Africa.\n    - tag — EQ/IN (e.g. 'digital_native').\n    - sic_code — EQ (e.g. '7371').\n    - naics_code — EQ (e.g. '541511').\n\n    IMPORTANT: Do NOT combine org filters with job\n    filters (job_function, job_level, country) using OR.\n\n    Examples:\n    - technology IN ('snowflake', 'databricks')\n      AND employee_count EQ '1000-'\n    - hq_location IN ('US:California', 'US:New York')\n    - hq_location EQ 'EMEA'\n    - technology EQ 'kubernetes'\n      AND hq_location EQ 'US' AND\n      employee_count EQ '1000-5000'\n    - technology NOT IN ('java', 'dotnet')\n\n    Args:\n        reason: Why you are calling this tool.\n        query: Advanced query string\n        since: Only data since this date (YYYY-MM-DD)\n        limit: Max results (1-200, default 10)\n        offset: Skip N results (default 0)\n        include_entity_details: Include job_post_count,\n            people_count, team_count, etc. per tech.\n            Much more expensive — ask user before using.\n    ",
+      "inputSchema": {
+        "properties": {
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "technologies": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Technologies"
+          },
+          "technology_categories": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Technology Categories"
+          },
+          "query": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Query"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Since"
+          },
+          "limit": {
+            "default": 10,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "default": 0,
+            "title": "Offset",
+            "type": "integer"
+          },
+          "include_entity_details": {
+            "default": false,
+            "title": "Include Entity Details",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "find_organizationsArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "find_organizationsDictOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "title": "Find Organizations",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "EnrichOrganization",
+      "description": "Enrich an organization with technology adoption data.\n\n    Shows which technologies an org uses, with job and\n    people counts per technology. At least one of\n    technologies, technology_categories, or query is\n    required.\n\n    If results include URLs or links, always share them\n    with the user.\n\n    Costs 5 credits per technology found. If you get a 402\n    error, the user needs more credits. Direct them to\n    https://sumble.com/account/purchase\n\n    TECHNOLOGY CATEGORY SLUGS (commonly used):\n    crm, business-intelligence, cloud-data-warehouse,\n    data-catalog, gen-ai, mlops, ml-training,\n    cybersecurity, cloud-security, ci-cd, ipaas,\n    event-streaming, data-pipeline-orchestration, etl,\n    logging-observability-monitoring,\n    data-quality-and-observability,\n    customer-data-platform,\n    feature-flagging-and-a-b-testing,\n    vector-database, oss-data-science,\n    commercial-data-science,\n    infrastructure-as-code-tools, design,\n    javascript, siem, edr, headless-cms,\n    ccaas, endpoint-management, ecommerce-platform,\n    vibe-coding,\n    marketing-automation-platforms, frontier-ai-models,\n    processing-units-and-chips,\n    cloud-and-container-orchestration-platforms,\n    identity-and-access-management\n\n    ADVANCED QUERY SYNTAX (use `query` param):\n    Operators: EQ, NEQ, IN, NOT IN.\n    Combine with AND, OR. Group with parentheses.\n    Values are single-quoted. IN/NOT IN use\n    comma-separated values in parens.\n\n    Available fields:\n    - technology — EQ/IN/NOT IN. Use slugs from\n      search_technologies.\n    - technology_category — EQ/IN/NOT IN. Slugs\n      from the list above.\n    - industry — EQ/IN/NOT IN.\n    - employee_count — EQ/IN. Range format:\n      '100-1000', '1000-' (1000+), '-500' (up to 500).\n    - hq_location — EQ/IN/NEQ. Format:\n      'US', 'US:Texas', 'US:Texas:Austin'.\n      Use full state names, not abbreviations.\n      'UK' is auto-converted to 'GB'.\n      Region codes: EMEA, APAC, NAMER, LATAM,\n      Americas, Europe, MiddleEast, Africa.\n    - tag — EQ/IN (e.g. 'digital_native').\n    - sic_code — EQ (e.g. '7371').\n    - naics_code — EQ (e.g. '541511').\n\n    Example: technology_category EQ 'gen-ai'\n    AND employee_count EQ '1000-'\n\n    Args:\n        organization: Domain, numeric ID, or slug\n            (e.g. \"sumble.com\", \"1726684\", \"sumble\")\n        reason: Why you are calling this tool.\n        technologies: Technology slugs to search for\n            (use search_technologies to find valid slugs)\n        technology_categories: Category slugs to filter\n            (e.g. [\"gen-ai\", \"mlops\"]; see list above)\n        query: Advanced query string (alternative to\n            the filter params above)\n        since: Only data since this date (YYYY-MM-DD)\n    ",
+      "inputSchema": {
+        "properties": {
+          "organization": {
+            "title": "Organization",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "technologies": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Technologies"
+          },
+          "technology_categories": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Technology Categories"
+          },
+          "query": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Query"
+          },
+          "since": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Since"
+          }
+        },
+        "required": [
+          "organization",
+          "reason"
+        ],
+        "title": "enrich_organizationArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "enrich_organizationDictOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "title": "Enrich Organization",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "MatchOrganizations",
+      "description": "Match a list of organizations to Sumble's database.\n\n    Given organization names and/or URLs, finds the\n    matching Sumble organization for each. Useful for\n    resolving external company lists to Sumble IDs before\n    adding them to an organization list.\n\n    Costs 1 credit per matched organization. If you get\n    a 402 error, the user needs more credits. Direct them\n    to https://sumble.com/account/purchase\n\n    Each organization dict must have at least one of\n    `name` or `url`. The `location` field is optional\n    but improves matching accuracy.\n\n    Args:\n        reason: Why you are calling this tool.\n        organizations: List of dicts, each with keys:\n            - name: Organization name (optional)\n            - url: Website URL or domain (optional)\n            - location: Country name or code (optional)\n            At least `name` or `url` is required per org.\n            Max 1000 organizations per call.\n    ",
+      "inputSchema": {
+        "properties": {
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "organizations": {
+            "items": {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            "title": "Organizations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "reason",
+          "organizations"
+        ],
+        "title": "match_organizationsArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "match_organizationsDictOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "title": "Match Organizations",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "FindPeople",
+      "description": "Find people at an organization.\n\n    Requires an `organization` param (domain, ID, or\n    slug). Unlike FindJobs, this tool always searches\n    within a single organization.\n\n    The `query` param supports a full filter language\n    and lets you compose complex searches in ONE call\n    (e.g. people matching specific technologies, job\n    functions, and levels).\n\n    Returns people with job titles, functions, levels,\n    locations, and LinkedIn URLs.\n\n    If results include URLs or links, always share them\n    with the user.\n\n    Costs 1 credit per person returned. If you get a 402\n    error, the user needs more credits. Direct them to\n    https://sumble.com/account/purchase\n\n    JOB FUNCTIONS (top-level categories with children):\n    - Executive, Board of Directors\n    - Engineering & R&D: Data Analyst, Statistician,\n      Data Scientist, Machine Learning (incl. MLOps\n      Engineer), AI Engineer, Researcher, Engineer\n      (Software Engineer, Security Engineer, DevOps\n      Engineer, Data Engineer, Site Reliability Engineer,\n      Cloud Engineer, etc.), Applied Scientist, Scientist\n    - Product & Design: Product Manager, Designer (UX,\n      Visual, Brand, etc.)\n    - Strategy & Operations: Analyst, Strategy, Operations\n      (Program Manager, Procurement & Supply Chain)\n    - Information Technology: IT Support, IT Security,\n      Business Systems, etc.\n    - Healthcare Services: Physician, Nurse, Pharmacist\n    - Sales: Account Executive, SDR\n    - Marketing: Product Marketing, Growth, Content,\n      Digital Marketing\n    - Customer Support, Customer Success, Solutions\n    - Revenue Operations (GTM Engineer)\n    - Business Development\n    - General & Administrative: Finance (Accountant,\n      Financial Analyst), Legal & Compliance, Human\n      Resources, Administrator\n    - Consultant, Government, Education, Journalist\n\n    JOB LEVELS (highest to lowest rank):\n    Board Member, CXO, EVP, CVP, SVP, RVP, AVP, VP,\n    Executive Director, Senior Director, Director,\n    General Manager, Head, Associate Director,\n    Senior Manager, Manager, Principal, Lead, Senior,\n    Individual Contributor\n\n    QUERY SYNTAX (use `query` param):\n    Operators: EQ, NEQ, IN, NOT IN.\n    Combine with AND, OR. Group with parentheses.\n    Values are single-quoted. IN/NOT IN use\n    comma-separated values in parens.\n\n    Available fields:\n    - job_function — EQ/IN/NOT IN. Use values from\n      the JOB FUNCTIONS list above.\n    - job_level — EQ/IN/NOT IN. Use values from\n      the JOB LEVELS list above.\n    - country — EQ/IN/NOT IN. Format:\n      'US', 'US:California',\n      'US:California:San Francisco'.\n      Use full state names, not abbreviations.\n      'UK' is auto-converted to 'GB'.\n    - technology — EQ/IN/NOT IN. Use slugs from\n      SearchTechnologies.\n    - since — EQ ONLY. ISO date format:\n      '2023-01-01'. Returns people with data\n      since that date.\n    - hiring_period — EQ ONLY. Predefined buckets:\n      '2wk', '1mo', '3mo', '6mo', '1yr', '18mo', '2yr'.\n      Alternative to `since` for relative ranges.\n    - person_name — EQ.\n    - NOTE: job_title and job_description are NOT\n      available as filters. Use job_function and\n      job_level.\n\n    Examples:\n    - ML engineers in the US:\n      job_function IN ('Machine Learning',\n      'AI Engineer') AND job_level IN ('Senior',\n      'Lead') AND country EQ 'US'\n    - Data scientists in California:\n      job_function EQ 'Data Scientist'\n      AND country EQ 'US:California'\n    - Senior PyTorch users:\n      technology EQ 'pytorch'\n      AND job_level EQ 'Senior'\n    - Recent engineering hires:\n      job_function EQ 'Engineer'\n      AND since EQ '2026-01-01'\n    - VPs in the UK:\n      job_level EQ 'VP'\n      AND country EQ 'UK'\n\n    Args:\n        organization: REQUIRED. Domain, numeric ID,\n            or slug (e.g. \"google.com\", \"1726684\",\n            \"google\")\n        reason: Why you are calling this tool.\n        query: Advanced query string.\n            See QUERY SYNTAX.\n        limit: Max results (1-250, default 10)\n        offset: Skip N results (default 0)\n    ",
+      "inputSchema": {
+        "properties": {
+          "organization": {
+            "title": "Organization",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "query": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Query"
+          },
+          "limit": {
+            "default": 10,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "default": 0,
+            "title": "Offset",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "organization",
+          "reason"
+        ],
+        "title": "find_peopleArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "find_peopleDictOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "title": "Find People",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "EnrichPerson",
+      "description": "Enrich a person with contact information (email).\n\n    The response includes a `url` field with a link to the\n    person's full profile on Sumble. Always show this URL\n    to the user so they can view more details.\n\n    Costs 10 credits if contact info is found.\n    Free if the data is already cached or not available\n    from the provider.\n\n    If you get a 402 error, the user needs more credits.\n    Direct them to https://sumble.com/account/purchase\n\n    Args:\n        person_id: The Sumble person ID to enrich.\n        reason: Why you are calling this tool.\n    ",
+      "inputSchema": {
+        "properties": {
+          "person_id": {
+            "title": "Person Id",
+            "type": "integer"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "person_id",
+          "reason"
+        ],
+        "title": "enrich_personArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "enrich_personDictOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "title": "Enrich Person",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "FindRelatedPeopleToPerson",
+      "description": "Find people related to a specific person.\n\n    Returns people at the same organization who share\n    features with the given person (technologies, job\n    functions, teams, locations). Each result includes\n    a `direction` field: \"above\" or \"below\" indicating\n    the person's position relative to the source person\n    in the org hierarchy.\n\n    If results include URLs or links, always share them\n    with the user.\n\n    Costs 1 credit per person returned. If you get a 402\n    error, the user needs more credits. Direct them to\n    https://sumble.com/account/purchase\n\n    Args:\n        person_id: The ID of the person to find\n            related people for.\n        reason: Why you are calling this tool.\n        limit: Max results (1-100, default 10)\n        offset: Skip N results (default 0)\n    ",
+      "inputSchema": {
+        "properties": {
+          "person_id": {
+            "title": "Person Id",
+            "type": "integer"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "limit": {
+            "default": 10,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "default": 0,
+            "title": "Offset",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "person_id",
+          "reason"
+        ],
+        "title": "find_related_people_to_personArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "find_related_people_to_personDictOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "title": "Find Related People",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "SearchTechnologies",
+      "description": "Search for technologies by name.\n\n    Returns technology slug, name, and mention count.\n    Use this first to find valid technology slugs for\n    the `technologies` parameter in find_organizations,\n    enrich_organization, find_jobs, and find_people.\n    The returned slugs can also be used in advanced\n    queries with `technology IN ('slug1', 'slug2')`.\n\n    Costs 1 credit per search. If you get a 402 error,\n    the user needs more credits. Direct them to\n    https://sumble.com/account/purchase\n\n    Args:\n        query: Search term (e.g. \"react\", \"kubernetes\",\n            \"snowflake\", \"pytorch\")\n        reason: Why you are calling this tool.\n    ",
+      "inputSchema": {
+        "properties": {
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query",
+          "reason"
+        ],
+        "title": "search_technologiesArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "search_technologiesDictOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "title": "Search Technologies",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "Query",
+      "description": "Execute a read-only SQL query against the Sumble DuckDB.\n\n    ⚠️ LAST RESORT — Only use this tool when the structured tools\n    cannot answer the question. Prefer these tools first:\n    - find_organizations: search/filter companies by name,\n      industry, technology, location, size, etc.\n    - enrich_organization: get detailed data for a specific org\n      (technologies, job functions, teams, people, etc.)\n    - find_jobs: search job postings by org, title, technology,\n      job function, location, etc.\n    - find_people: search people by org, title, job function,\n      seniority, location, etc.\n    - search_technologies: look up technologies by name/keyword.\n\n    Only fall back to this raw SQL tool when you need queries\n    those tools cannot express (e.g. custom aggregations, joins\n    across tables, or columns not exposed by structured tools).\n\n    When using this endpoint, let the user know that the data is not as reliable as the\n    structured tools, since the underlying query is built by the LLM it may not be correct.\n    The structured tools use curated queries to ensure higher data quality, while this\n    raw SQL endpoint queries the underlying DuckDB directly without those safeguards.\n\n    Args:\n        sql: The read-only SQL query to execute.\n        reason: A short explanation of what you are trying to\n            find and why the structured tools cannot provide it.\n\n    CORE TABLES:\n    - organizations: id, parent_id, slug, name, linkedin_url,\n      industry, headquarters_country, headquarters_state,\n      headquarters_location, employee_count_int, jobs_count,\n      teams_count, people_count, tags (list of slugs),\n      founded, first_activity_time, last_activity_time,\n      is_staffing_org, sic_code, sic_name, sic_division,\n      sic_major_group, sic_industry_group,\n      sic_confidence_score, naics_code, naics_sector,\n      naics_subsector, naics_industry_group, naics_title,\n      naics_confidence_score\n    - denormalized_jobs: id, organization_id, title,\n      datetime_pulled, job_function_id, country_code,\n      location, job_functions (JSON), teams (JSON),\n      projects (JSON)\n    - people_info: organization_id, person_id, job_level_id,\n      job_level, job_level_rank, job_function_id, name,\n      current_title, location, country_id, linkedin_url,\n      job_function_position, connections_count,\n      current_experience_date_from\n\n    REFERENCE TABLES:\n    - technologies: id, slug, name, total_mentions,\n      total_org_mentions, competitors, complements\n    - technologies_by_slug: slug, id\n    - technologies_slug_aliases: alias, slug\n    - technology_categories: name, name_short, slug,\n      tech_slug, tech_name\n    - job_functions: id, name, slug, parent_id, total_mentions,\n      total_org_mentions, total_jobs_count\n    - job_levels: id, name, level_rank\n    - countries: id, code, name\n    - projects: id, name, slug, technologies, fts_keywords,\n      exclude_industries, headcount_min, created_at,\n      updated_at, is_active\n    - teams: id, organization_id, parent_id, name, slug,\n      hierarchy_id\n\n    JUNCTION TABLES (for filtering jobs by attribute):\n    - job_job_functions: id (=job post id), job_function_id\n    - job_technologies: id (=job post id), technology_id\n    - job_teams: id (=job post id), team_id\n    - job_posts_job_levels: job_post_id, job_level_id\n    - job_posts_projects: job_post_id, project_id,\n      organization_id, label, explanation, sumble_url, excerpt\n\n    ANALYTICS TABLES:\n    - hiring_trends_tech: org_slug, tech_slug, tech_name,\n      month, jobs_count, total_jobs_count, tech_rank\n\n    TIPS:\n    - JSON cols use DuckDB syntax: json_keys(), ->> operator\n    - Join people to orgs: people_info.organization_id =\n      organizations.id\n    - Use list_tables to discover all tables and columns.\n    - Read-only, 30s timeout, max 1,000 rows. Use LIMIT.\n    - Costs 1 credit per 100 bytes of response data. If you get\n      a 402 error, the user needs more credits. Direct them to\n      https://sumble.com/account/purchase\n    ",
+      "inputSchema": {
+        "properties": {
+          "sql": {
+            "title": "Sql",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "sql",
+          "reason"
+        ],
+        "title": "queryArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "queryDictOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "title": "Query Database",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "ListTables",
+      "description": "List all available tables and their columns in the DuckDB.\n\n    Returns table names with column names and types for each table.\n    Use this to understand the schema before writing queries.\n\n    Free (no credits used).\n\n    Args:\n        reason: Why you are calling this tool.\n    ",
+      "inputSchema": {
+        "properties": {
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "list_tablesArguments",
+        "type": "object"
+      },
+      "outputSchema": {
+        "additionalProperties": true,
+        "title": "list_tablesDictOutput",
+        "type": "object"
+      },
+      "annotations": {
+        "title": "List Tables",
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    }
+  ],
+  "resources": [],
+  "resourceTemplates": [],
+  "prompts": [],
+  "skills": [
+    {
+      "dirName": "account-research",
+      "title": "Account Research",
+      "description": "Research companies, organizations, and account context before taking action.",
+      "toolNames": [
+        "AddOrganizationsToList",
+        "CreateOrganizationList",
+        "EnrichOrganization",
+        "GetAccountInformation",
+        "GetMyCompanyProfile",
+        "GetOrganizationList",
+        "ListOrganizationLists",
+        "MatchOrganizations"
+      ],
+      "resourceUris": [],
+      "resourceTemplateUris": [],
+      "promptNames": []
+    },
+    {
+      "dirName": "contact-discovery",
+      "title": "Contact Discovery",
+      "description": "Find people, contacts, and buyer-side context at the right accounts.",
+      "toolNames": [
+        "AddContactsToList",
+        "CreateContactList",
+        "EnrichPerson",
+        "FindRelatedPeopleToJob",
+        "FindRelatedPeopleToPerson",
+        "GetContactList",
+        "ListContactLists"
+      ],
+      "resourceUris": [],
+      "resourceTemplateUris": [],
+      "promptNames": []
+    },
+    {
+      "dirName": "hiring-signals",
+      "title": "Hiring Signals",
+      "description": "Use hiring activity and open roles as timing signals for outreach and research.",
+      "toolNames": [
+        "FindJobs",
+        "GetJobDescription"
+      ],
+      "resourceUris": [],
+      "resourceTemplateUris": [],
+      "promptNames": []
+    },
+    {
+      "dirName": "technographics",
+      "title": "Technographics",
+      "description": "Research technologies, tools, and stack adoption across target accounts.",
+      "toolNames": [
+        "SearchTechnologies"
+      ],
+      "resourceUris": [],
+      "resourceTemplateUris": [],
+      "promptNames": []
+    },
+    {
+      "dirName": "table-operations",
+      "title": "Table Operations",
+      "description": "Build, inspect, run, document, and export tables, rows, and enrichment workflows.",
+      "toolNames": [
+        "ListTables"
+      ],
+      "resourceUris": [],
+      "resourceTemplateUris": [],
+      "promptNames": []
+    },
+    {
+      "dirName": "general-research",
+      "title": "General Research",
+      "description": "Handle broad search and query workflows when there is not a more specific product surface match.",
+      "toolNames": [
+        "FindOrganizations",
+        "FindPeople",
+        "Query"
+      ],
+      "resourceUris": [],
+      "resourceTemplateUris": [],
+      "promptNames": []
+    },
+    {
+      "dirName": "log-out",
+      "title": "Log Out",
+      "description": "Log out the current user.\n\n    Args:\n        reason: Why you are calling this tool.\n    ",
+      "toolNames": [
+        "LogOut"
+      ],
+      "resourceUris": [],
+      "resourceTemplateUris": [],
+      "promptNames": []
+    }
+  ],
+  "managedFiles": [
+    "pluxx.config.ts",
+    "./INSTRUCTIONS.md",
+    "skills/account-research/SKILL.md",
+    "commands/account-research.md",
+    "skills/contact-discovery/SKILL.md",
+    "commands/contact-discovery.md",
+    "skills/hiring-signals/SKILL.md",
+    "commands/hiring-signals.md",
+    "skills/technographics/SKILL.md",
+    "commands/technographics.md",
+    "skills/table-operations/SKILL.md",
+    "commands/table-operations.md",
+    "skills/general-research/SKILL.md",
+    "commands/general-research.md",
+    "skills/log-out/SKILL.md",
+    "commands/log-out.md",
+    "scripts/check-env.sh",
+    "scripts/confirm-mutation.sh",
+    ".pluxx/taxonomy.json",
+    ".pluxx/mcp.json"
+  ]
+}

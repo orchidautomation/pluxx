@@ -228,7 +228,12 @@ describe('autopilot command', () => {
       expect(summary.mode).toBe('quick')
       expect(summary.quality.warnings).toBeGreaterThan(0)
       expect(summary.agent.taxonomy.enabled).toBe(true)
-      expect(summary.agent.taxonomy.command?.slice(0, 3)).toEqual(['codex', 'exec', '--full-auto'])
+      expect(summary.agent.taxonomy.command?.slice(0, 4)).toEqual([
+        'codex',
+        'exec',
+        '--ephemeral',
+        '--full-auto',
+      ])
       expect(summary.agent.instructions.enabled).toBe(false)
       expect(summary.agent.review.enabled).toBe(false)
     } finally {

@@ -13,6 +13,7 @@ import {
   runAgentPlan,
   type AgentPromptKind,
   type AgentRunner,
+  type AgentRunnerModelSummary,
 } from './agent'
 import { doctorConsumer, doctorProject, printDoctorReport } from './doctor'
 import {
@@ -132,6 +133,7 @@ interface AutopilotSummary {
   source: string
   mode: AutopilotMode
   runner: AgentRunner
+  model: AgentRunnerModelSummary
   targets: TargetPlatform[]
   toolCount: number
   grouping: McpSkillGrouping
@@ -1785,6 +1787,7 @@ async function runAgent() {
       pluginName: plan.pluginName,
       kind: plan.kind,
       runner: plan.runner,
+      model: plan.model,
       verify: plan.verify,
       command: plan.command,
       commandDisplay: plan.commandDisplay,
@@ -1802,6 +1805,7 @@ async function runAgent() {
       } else if (!runtime.quiet) {
         console.log(`Planned ${plan.kind} run for ${plan.pluginName}`)
         console.log(`  Runner: ${plan.runner}`)
+        console.log(`  Model: ${plan.model.display}`)
         console.log(`  Command: ${plan.commandDisplay}`)
       }
       return
@@ -1821,6 +1825,7 @@ async function runAgent() {
 
     if (!runtime.quiet) {
       console.log(`Completed ${result.kind} run for ${result.pluginName} via ${result.runner}`)
+      console.log(`  Model: ${result.model.display}`)
       if (!verboseRunner) {
         console.log('  Runner logs: suppressed (use --verbose-runner to stream)')
       }
@@ -2226,6 +2231,10 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
         source: rawSource,
         mode,
         runner,
+        model: taxonomyPlan?.model ?? instructionsPlan?.model ?? reviewPlan?.model ?? {
+          source: 'unknown',
+          display: 'local default (CLI-managed)',
+        },
         targets,
         toolCount: introspection.tools.length,
         grouping,
@@ -2278,6 +2287,7 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
         console.log(`  Mode: ${mode}`)
         console.log(`  Import: ${introspection.tools.length} tools -> ${targets.join(', ')}`)
         console.log(`  Runner: ${runner}`)
+        console.log(`  Model: ${summary.model.display}`)
         console.log(`  Workload: ${summarizeAutopilotWorkload({
           taxonomy: passDecisions.taxonomy,
           instructions: passDecisions.instructions,
@@ -2423,6 +2433,10 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
       source: rawSource,
       mode,
       runner,
+      model: taxonomyPlan?.model ?? instructionsPlan?.model ?? reviewPlan?.model ?? {
+        source: 'unknown',
+        display: 'local default (CLI-managed)',
+      },
       targets,
       toolCount: introspection.tools.length,
       grouping,
@@ -2484,6 +2498,7 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
       console.log(`  Mode: ${mode}`)
       console.log(`  Import: ${introspection.tools.length} tools -> ${targets.join(', ')}`)
       console.log(`  Runner: ${runner}`)
+      console.log(`  Model: ${summary.model.display}`)
       console.log(`  Workload: ${summarizeAutopilotWorkload({
         taxonomy: passDecisions.taxonomy,
         instructions: passDecisions.instructions,

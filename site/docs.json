@@ -69,6 +69,7 @@
       {
         "group": "Examples",
         "pages": [
+          "examples/sumble-proof-run",
           "examples/self-hosting-pluxx",
           "examples/firecrawl-sumble-playkit"
         ]

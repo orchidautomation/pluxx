@@ -1,0 +1,122 @@
+---
+title: Sumble Proof Run
+description: Fresh Sumble import, workflow grouping, core-four build/test pass, and the Codex headless runner fix discovered during the run.
+---
+
+## Why Sumble
+
+Sumble is a strong proof target because it is a live commercial MCP with real auth and real workflow depth.
+
+This is not a toy import. It is a practical MCP surface around:
+
+- account research
+- contact discovery
+- hiring signals
+- technographics
+- table inspection and read-only SQL analysis
+
+## What We Ran
+
+Deterministic scaffold:
+
+```bash
+SUMBLE_API_KEY=... \
+bun bin/pluxx.js init \
+  --from-mcp https://mcp.sumble.com \
+  --yes \
+  --name sumble-plugin \
+  --display-name "Sumble" \
+  --author "Orchid Labs" \
+  --targets claude-code,cursor,codex,opencode \
+  --grouping workflow \
+  --hooks safe \
+  --auth-env SUMBLE_API_KEY \
+  --auth-type bearer
+```
+
+Verification:
+
+```bash
+bun bin/pluxx.js doctor
+bun bin/pluxx.js lint
+bun bin/pluxx.js build
+bun bin/pluxx.js test --target claude-code cursor codex opencode
+```
+
+## What Pluxx Generated
+
+The fresh scaffold produced a maintained source project with:
+
+- `pluxx.config.ts`
+- `INSTRUCTIONS.md`
+- workflow skills under `skills/`
+- commands under `commands/`
+- safe hook scripts under `scripts/`
+- built outputs under `dist/`
+
+Workflow grouping from the raw MCP landed at:
+
+- `account-research`
+- `contact-discovery`
+- `hiring-signals`
+- `technographics`
+- `table-operations`
+- `general-research`
+- `log-out`
+
+## Verification Result
+
+Observed result from the real run:
+
+- `doctor`: passed with one honest hook-trust warning
+- `lint`: `0 error(s), 1 warning(s)`
+- `build`: generated all four core bundles
+- `test`: passed on Claude Code, Cursor, Codex, and OpenCode
+
+The warning is real and useful:
+
+- Codex still treats hooks as external config, so Pluxx does not pretend plugin-packaged hook parity exists there.
+
+## Headless Codex Result
+
+For the semantic layer, Codex headless successfully rewrote the generated `INSTRUCTIONS.md` into cleaner Sumble-specific routing guidance:
+
+- setup/auth guidance separated from runtime workflows
+- Sumble product language instead of generic scaffold wording
+- concise workflow routing instead of a raw vendor-doc dump
+
+That is the product split Pluxx is aiming for:
+
+- deterministic scaffold first
+- headless agent refinement second
+
+## Real Product Learning
+
+This run exposed and fixed a real Pluxx bug.
+
+The Codex runner could complete edits and then hang during session finalization when invoked as:
+
+```text
+codex exec
+```
+
+Pluxx now uses:
+
+```text
+codex exec --ephemeral
+```
+
+for the Codex headless worker path, which keeps agent and autopilot runs more stable.
+
+## Why This Proof Matters
+
+This is the kind of run that matters for Pluxx:
+
+- live commercial MCP
+- real auth
+- workflow grouping from raw tools
+- four native plugin outputs
+- real verification
+- a dogfood bug discovered and fixed on the way
+
+That is a much stronger launch proof than a toy scaffold because it shows the actual maintenance loop on a real MCP team’s surface.

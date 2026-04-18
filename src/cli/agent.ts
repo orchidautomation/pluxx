@@ -1,5 +1,6 @@
 import { existsSync } from 'fs'
-import { mkdir } from 'fs/promises'
+import { copyFile, mkdir, mkdtemp, readFile, rm } from 'fs/promises'
+import { homedir, tmpdir } from 'os'
 import { resolve } from 'path'
 import { spawn } from 'child_process'
 import { loadConfig } from '../config/load'
@@ -95,10 +96,17 @@ export interface AgentRunOptions {
   verify?: boolean
 }
 
+export interface AgentRunnerModelSummary {
+  value?: string
+  source: 'explicit' | 'default' | 'unknown'
+  display: string
+}
+
 export interface AgentRunSummary {
   pluginName: string
   kind: AgentPromptKind
   runner: AgentRunner
+  model: AgentRunnerModelSummary
   verify: boolean
   command: string[]
   commandDisplay: string
@@ -281,10 +289,6 @@ export async function planAgentRun(
     throw new Error('--attach is only supported for the opencode runner.')
   }
 
-  if (options.runner === 'codex' && options.model) {
-    throw new Error('--model is not yet supported for the codex runner in Pluxx. Use the default Codex CLI model selection for now.')
-  }
-
   const preparePlan = await planAgentPrepare(rootDir, prepareOptions)
   const promptPlan = await planAgentPrompt(rootDir, kind, { allowMissingContext: true })
   const promptPath = AGENT_PROMPT_PATHS[kind]
@@ -294,11 +298,13 @@ export async function planAgentRun(
     attach: options.attach,
     workspace: rootDir,
   })
+  const model = await resolveAgentRunnerModel(options.runner, options.model)
 
   return {
     pluginName: preparePlan.pluginName,
     kind,
     runner: options.runner,
+    model,
     verify,
     command,
     commandDisplay: command.map(shellQuote).join(' '),
@@ -328,9 +334,16 @@ export async function runAgentPlan(
 
   await ensureRunnerAvailable(plan.runner)
   await ensureRunnerAuthenticated(plan.runner)
-  const runnerExitCode = await executeCommand(plan.command, rootDir, {
-    streamOutput: options.streamOutput === true,
-  })
+  const executionContext = await prepareRunnerExecution(plan.runner)
+  let runnerExitCode: number
+  try {
+    runnerExitCode = await executeCommand(plan.command, rootDir, {
+      streamOutput: options.streamOutput === true,
+      env: executionContext.env,
+    })
+  } finally {
+    await executionContext.cleanup?.()
+  }
   if (runnerExitCode === 0 && plan.kind === 'taxonomy') {
     await applyPersistedTaxonomy(rootDir)
     const refreshedPack = await refreshAgentPack(rootDir, plan.prepareOptions ?? {})
@@ -887,7 +900,13 @@ function buildAgentRunnerCommand(
   }
 
   if (runner === 'codex') {
-    const args = [binary, 'exec']
+    // Codex headless edits can finish successfully and then stall during
+    // session persistence/finalization. Ephemeral mode keeps the non-interactive
+    // worker path stable for Pluxx agent/autopilot runs.
+    const args = [binary, 'exec', '--ephemeral']
+    if (options.model) {
+      args.push('--model', options.model)
+    }
     if (kind !== 'review') {
       args.push('--full-auto')
     }
@@ -920,6 +939,115 @@ function buildAgentRunnerCommand(
   }
   args.push(prompt)
   return args
+}
+
+async function resolveAgentRunnerModel(
+  runner: AgentRunner,
+  explicitModel?: string,
+): Promise<AgentRunnerModelSummary> {
+  if (explicitModel) {
+    return {
+      value: explicitModel,
+      source: 'explicit',
+      display: `${explicitModel} (explicit)`,
+    }
+  }
+
+  const detectedModel = runner === 'codex'
+    ? await readCodexDefaultModel()
+    : runner === 'opencode'
+      ? await readOpenCodeDefaultModel()
+      : runner === 'claude'
+        ? await readClaudeDefaultModel()
+        : undefined
+
+  if (detectedModel) {
+    return {
+      value: detectedModel,
+      source: 'default',
+      display: `${detectedModel} (local default)`,
+    }
+  }
+
+  return {
+    source: 'unknown',
+    display: 'local default (CLI-managed)',
+  }
+}
+
+async function readCodexDefaultModel(): Promise<string | undefined> {
+  const codexHome = process.env.CODEX_HOME?.trim() || resolve(homedir(), '.codex')
+  return await readTomlStringValue(resolve(codexHome, 'config.toml'), 'model')
+}
+
+async function readOpenCodeDefaultModel(): Promise<string | undefined> {
+  const configHome = process.env.XDG_CONFIG_HOME?.trim() || resolve(homedir(), '.config')
+  const configPath = resolve(configHome, 'opencode', 'opencode.json')
+  const parsed = await readJsonFile(configPath)
+  if (!parsed || typeof parsed !== 'object') {
+    return undefined
+  }
+
+  if (typeof parsed.model === 'string' && parsed.model.trim()) {
+    return parsed.model.trim()
+  }
+
+  if (
+    typeof parsed.default_agent === 'string'
+    && parsed.agent
+    && typeof parsed.agent === 'object'
+    && parsed.default_agent in parsed.agent
+  ) {
+    const defaultAgent = parsed.agent[parsed.default_agent]
+    if (
+      defaultAgent
+      && typeof defaultAgent === 'object'
+      && 'model' in defaultAgent
+      && typeof defaultAgent.model === 'string'
+      && defaultAgent.model.trim()
+    ) {
+      return defaultAgent.model.trim()
+    }
+  }
+
+  return undefined
+}
+
+async function readClaudeDefaultModel(): Promise<string | undefined> {
+  for (const candidate of [
+    resolve(homedir(), '.claude', 'settings.json'),
+    resolve(homedir(), '.claude', 'settings.local.json'),
+    resolve(homedir(), '.claude.json'),
+  ]) {
+    const parsed = await readJsonFile(candidate)
+    if (!parsed || typeof parsed !== 'object') continue
+    for (const key of ['model', 'defaultModel', 'default_model']) {
+      if (key in parsed && typeof parsed[key] === 'string' && parsed[key].trim()) {
+        return parsed[key].trim()
+      }
+    }
+  }
+
+  return undefined
+}
+
+async function readTomlStringValue(filePath: string, key: string): Promise<string | undefined> {
+  try {
+    const raw = await readFile(filePath, 'utf8')
+    const match = raw.match(new RegExp(`^\\s*${key}\\s*=\\s*"([^"]+)"\\s*$`, 'm'))
+    return match?.[1]?.trim() || undefined
+  } catch {
+    return undefined
+  }
+}
+
+async function readJsonFile(filePath: string): Promise<Record<string, any> | undefined> {
+  try {
+    const raw = await readFile(filePath, 'utf8')
+    return JSON.parse(raw) as Record<string, any>
+  } catch {
+    return undefined
+  }
 }
 
 async function ensureRunnerAvailable(runner: AgentRunner): Promise<void> {
@@ -973,23 +1101,132 @@ async function executeCommand(
   cwd: string,
   options: {
     streamOutput?: boolean
+    env?: NodeJS.ProcessEnv
   } = {},
 ): Promise<number> {
+  const runtimeCommand = [...command]
+  let codexOutputDir: string | null = null
+  let codexLastMessagePath: string | null = null
+
+  if (runtimeCommand[0] === 'codex' && runtimeCommand[1] === 'exec') {
+    codexOutputDir = await mkdtemp(resolve(tmpdir(), 'pluxx-codex-output-'))
+    codexLastMessagePath = resolve(codexOutputDir, 'last-message.txt')
+    runtimeCommand.splice(2, 0, '--json', '--output-last-message', codexLastMessagePath)
+  }
+
   return await new Promise<number>((resolvePromise, reject) => {
-    const child = spawn(command[0], command.slice(1), {
+    const child = spawn(runtimeCommand[0], runtimeCommand.slice(1), {
       cwd,
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: process.env,
+      env: options.env ?? process.env,
     })
+    let killedAfterFinalMessage = false
+    let sawFinalMessageAt: number | null = null
+    let codexStdoutBuffer = ''
+    let codexTurnCompleted = false
+    let codexTurnFailed = false
+    const sentinelInterval = codexLastMessagePath
+      ? setInterval(() => {
+        const sawCompletionSignal = codexTurnCompleted || existsSync(codexLastMessagePath!)
+        if (!sawCompletionSignal) return
+        if (sawFinalMessageAt == null) {
+          sawFinalMessageAt = Date.now()
+          return
+        }
+        if (!killedAfterFinalMessage && Date.now() - sawFinalMessageAt >= 1500) {
+          killedAfterFinalMessage = true
+          child.kill('SIGTERM')
+        }
+      }, 250)
+      : null
 
-    if (options.streamOutput) {
-      child.stdout?.on('data', (chunk) => process.stdout.write(chunk))
-      child.stderr?.on('data', (chunk) => process.stderr.write(chunk))
+    const finalize = async (result: number, error?: Error): Promise<void> => {
+      if (sentinelInterval) clearInterval(sentinelInterval)
+      if (codexOutputDir) {
+        await rm(codexOutputDir, { recursive: true, force: true })
+      }
+      if (error) {
+        reject(error)
+        return
+      }
+      resolvePromise(result)
     }
 
-    child.on('error', (error) => reject(error))
-    child.on('close', (code) => resolvePromise(code ?? 1))
+    child.stdout?.on('data', (chunk) => {
+      if (codexLastMessagePath) {
+        codexStdoutBuffer += chunk.toString()
+        const lines = codexStdoutBuffer.split('\n')
+        codexStdoutBuffer = lines.pop() ?? ''
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed) continue
+          try {
+            const event = JSON.parse(trimmed) as { type?: string }
+            if (event.type === 'turn.completed') {
+              codexTurnCompleted = true
+            } else if (event.type === 'turn.failed' || event.type === 'error') {
+              codexTurnFailed = true
+            }
+          } catch {
+            // Ignore non-JSON lines. Codex still writes some human-readable output to stderr.
+          }
+        }
+      }
+      if (options.streamOutput) process.stdout.write(chunk)
+    })
+    child.stderr?.on('data', (chunk) => {
+      if (options.streamOutput) process.stderr.write(chunk)
+    })
+
+    child.on('error', (error) => {
+      void finalize(1, error)
+    })
+    child.on('close', (code) => {
+      const result = codexTurnFailed
+        ? 1
+        : (killedAfterFinalMessage || codexTurnCompleted ? 0 : (code ?? 1))
+      void finalize(result)
+    })
   })
+}
+
+async function prepareRunnerExecution(runner: AgentRunner): Promise<{
+  env: NodeJS.ProcessEnv
+  cleanup?: () => Promise<void>
+}> {
+  if (runner !== 'codex') {
+    return { env: process.env }
+  }
+
+  const currentCodexHome = process.env.CODEX_HOME?.trim() || resolve(homedir(), '.codex')
+  const isolatedCodexHome = await mkdtemp(resolve(tmpdir(), 'pluxx-codex-home-'))
+  await mkdir(resolve(isolatedCodexHome, 'memories'), { recursive: true })
+
+  for (const relativePath of ['auth.json', 'config.toml', 'hooks.json', 'installation_id']) {
+    const sourcePath = resolve(currentCodexHome, relativePath)
+    if (!existsSync(sourcePath)) continue
+    await copyFile(sourcePath, resolve(isolatedCodexHome, relativePath))
+  }
+
+  const rulesSourceDir = resolve(currentCodexHome, 'rules')
+  if (existsSync(rulesSourceDir)) {
+    const rulesTargetDir = resolve(isolatedCodexHome, 'rules')
+    await mkdir(rulesTargetDir, { recursive: true })
+    const defaultRulesPath = resolve(rulesSourceDir, 'default.rules')
+    if (existsSync(defaultRulesPath)) {
+      await copyFile(defaultRulesPath, resolve(rulesTargetDir, 'default.rules'))
+    }
+  }
+
+  return {
+    env: {
+      ...process.env,
+      CODEX_HOME: isolatedCodexHome,
+    },
+    cleanup: async () => {
+      await rm(isolatedCodexHome, { recursive: true, force: true })
+    },
+  }
 }
 
 function shellQuote(value: string): string {
