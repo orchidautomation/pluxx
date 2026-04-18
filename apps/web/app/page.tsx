@@ -125,9 +125,11 @@ export default function Home() {
               One MCP. Four native plugin surfaces.
             </span>
             <h1 className="hero-title">
-              One plugin source.
+              Author once.
               <br />
-              Four native bundles.
+              Ship native plugins for Claude Code,
+              <br />
+              Cursor, Codex, and OpenCode.
             </h1>
             <p className="lede">
               Pluxx turns one MCP or source project into native bundles for Claude&nbsp;Code,

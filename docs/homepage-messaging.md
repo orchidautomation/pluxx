@@ -17,7 +17,7 @@ The important product promise is:
 
 ### Headline
 
-One plugin source. Four native bundles.
+Author once. Ship native plugins for Claude Code, Cursor, Codex, and OpenCode.
 
 ### Subheadline
 
