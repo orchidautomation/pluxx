@@ -127,6 +127,11 @@ function installMocks(options: {
 
   mock.module(INTROSPECT_PATH, () => ({
     McpIntrospectionError: MockMcpIntrospectionError,
+    createMcpClient: async () => ({
+      request: async () => ({}),
+      notify: async () => {},
+      close: async () => {},
+    }),
     discoverMcpAuthFromError: () => options.discoverAuthResult ?? null,
     introspectMcpServer: async (server: Record<string, unknown>) => {
       introspectCalls.push(server)
