@@ -126,6 +126,8 @@ This is the presentation layer.
 
 This stays core because it affects real plugin packaging across primary targets.
 
+Current support is target-graded, not uniform. See [`Core-Four Branding Metadata Audit`](./core-four-branding-metadata-audit.md) for verified field-by-field behavior across Claude Code, Cursor, Codex, and OpenCode.
+
 ### 10. Assets / scripts
 
 This is the support-file layer.
