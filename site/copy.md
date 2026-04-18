@@ -1,8 +1,8 @@
 # pluxx Landing Page Copy
 
 ## Hero
-**Headline**: Build AI agent plugins once. Ship them everywhere.
-**Subhead**: One config generates native plugin packages for Claude Code, Cursor, Codex, OpenCode, GitHub Copilot, and more. Stop maintaining 7 copies of the same plugin.
+**Headline**: Build AI agent plugins once. Ship the core four.
+**Subhead**: One config generates native plugin packages for Claude Code, Cursor, Codex, and OpenCode, with beta generators for additional hosts.
 
 **CTA**: `npx @orchid-labs/pluxx init`
 **Hero note**: Bun runtime required today.
@@ -13,22 +13,18 @@
 $ npx @orchid-labs/pluxx build
 
 Loading config...
-Building for: claude-code, cursor, codex, opencode, github-copilot, openhands, warp
+Building for: claude-code, cursor, codex, opencode
 
   dist/claude-code/    .claude-plugin/plugin.json, .mcp.json, CLAUDE.md, hooks, skills
   dist/cursor/         .cursor-plugin/plugin.json, mcp.json, hooks.json, AGENTS.md
   dist/codex/          .codex-plugin/plugin.json, .mcp.json, interface metadata
   dist/opencode/       package.json, index.ts plugin wrapper
-  dist/github-copilot/ plugin.json, .mcp.json, hooks, skills
-  dist/openhands/      .plugin/plugin.json, .mcp.json, skills
-  dist/warp/           AGENTS.md, mcp.json, skills
-
-Done! 60 files generated across 7 platforms.
+Done! 39 files generated across 4 platforms.
 ```
 
 ## Agent Grid Section
-**Headline**: Works with all your favourite agents
-**Subhead**: pluxx generates native plugin packages for these AI coding tools. More coming every week.
+**Headline**: Prime-time on the core four
+**Subhead**: pluxx generates native plugin packages for Claude Code, Cursor, Codex, and OpenCode, with additional generators available as beta.
 
 Agents (with logos):
 - Claude Code
