@@ -4,6 +4,12 @@ import { resolve } from 'path'
 const ROOT = resolve(import.meta.dir, '..')
 const CLI_PATH = resolve(ROOT, 'bin/pluxx.js')
 const CORE_FOUR = ['claude-code', 'cursor', 'codex', 'opencode']
+const RELEASE_SMOKE_PROJECTS = [
+  'example/megamind',
+  'examples/prospeo-mcp',
+  'example/firecrawl-plugin',
+  'example/pluxx',
+]
 
 interface SmokeResult {
   ok: boolean
@@ -69,51 +75,29 @@ async function runCliJson<T>(cwd: string, ...argv: string[]): Promise<T> {
 }
 
 describe('release smoke', () => {
-  it('validates example/megamind across the core four with the real CLI', async () => {
-    const cwd = resolve(ROOT, 'example/megamind')
+  for (const projectPath of RELEASE_SMOKE_PROJECTS) {
+    it(`validates ${projectPath} across the core four with the real CLI`, async () => {
+      const cwd = resolve(ROOT, projectPath)
 
-    const doctor = await runCliJson<DoctorResult>(cwd, 'doctor', '--json')
-    expect(doctor.ok).toBe(true)
-    expect(doctor.errors).toBe(0)
-    expect(doctor.checks.some((check) => check.code === 'config-valid')).toBe(true)
+      const doctor = await runCliJson<DoctorResult>(cwd, 'doctor', '--json')
+      expect(doctor.ok).toBe(true)
+      expect(doctor.errors).toBe(0)
+      expect(doctor.checks.some((check) => check.code === 'config-valid')).toBe(true)
 
-    const result = await runCliJson<SmokeResult>(
-      cwd,
-      'test',
-      '--json',
-      '--target',
-      ...CORE_FOUR,
-    )
+      const result = await runCliJson<SmokeResult>(
+        cwd,
+        'test',
+        '--json',
+        '--target',
+        ...CORE_FOUR,
+      )
 
-    expect(result.ok).toBe(true)
-    expect(result.config?.ok).toBe(true)
-    expect(result.build?.targets).toEqual(CORE_FOUR)
-    expect(result.smoke?.ok).toBe(true)
-    expect(result.smoke?.checks.every((check) => check.ok)).toBe(true)
-    await expectCoreFourConsumerDoctor(cwd)
-  })
-
-  it('validates examples/prospeo-mcp across the core four with the real CLI', async () => {
-    const cwd = resolve(ROOT, 'examples/prospeo-mcp')
-
-    const doctor = await runCliJson<DoctorResult>(cwd, 'doctor', '--json')
-    expect(doctor.ok).toBe(true)
-    expect(doctor.errors).toBe(0)
-    expect(doctor.checks.some((check) => check.code === 'config-valid')).toBe(true)
-
-    const result = await runCliJson<SmokeResult>(
-      cwd,
-      'test',
-      '--json',
-      '--target',
-      ...CORE_FOUR,
-    )
-
-    expect(result.ok).toBe(true)
-    expect(result.config?.ok).toBe(true)
-    expect(result.build?.targets).toEqual(CORE_FOUR)
-    expect(result.smoke?.ok).toBe(true)
-    expect(result.smoke?.checks.every((check) => check.ok)).toBe(true)
-    await expectCoreFourConsumerDoctor(cwd)
-  })
+      expect(result.ok).toBe(true)
+      expect(result.config?.ok).toBe(true)
+      expect(result.build?.targets).toEqual(CORE_FOUR)
+      expect(result.smoke?.ok).toBe(true)
+      expect(result.smoke?.checks.every((check) => check.ok)).toBe(true)
+      await expectCoreFourConsumerDoctor(cwd)
+    })
+  }
 })
