@@ -1,14 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
-  <title>Megamind icon</title>
+  <title>Megamind</title>
   <defs>
-    <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
-      <stop offset="0%" stop-color="#0F766E" />
-      <stop offset="100%" stop-color="#115E59" />
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f766e" />
+      <stop offset="100%" stop-color="#0b4f4a" />
     </linearGradient>
   </defs>
   <rect width="128" height="128" rx="24" fill="url(#g)" />
-  <path
-    d="M30 94V34h17l17 30 17-30h17v60H81V63L64 92 47 63v31H30Z"
-    fill="#FFFFFF"
-  />
+  <circle cx="64" cy="52" r="24" fill="#d1fae5" />
+  <path d="M36 92c7-11 18-17 28-17s21 6 28 17" fill="none" stroke="#d1fae5" stroke-width="10" stroke-linecap="round" />
 </svg>
