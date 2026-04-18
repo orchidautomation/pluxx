@@ -127,7 +127,7 @@ export default function Home() {
             <h1 className="hero-title">
               Build once.
               <br />
-              Ship native plugins everywhere.
+              <span className="hero-title-secondary">Ship native plugins everywhere.</span>
             </h1>
             <p className="lede">
               Turn one MCP or source project into native plugins for Claude&nbsp;Code, Cursor,

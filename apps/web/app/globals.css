@@ -289,6 +289,13 @@ pre {
   color: var(--ink);
 }
 
+.hero-title-secondary {
+  display: block;
+  font-size: clamp(2.35rem, 4.6vw, 4.1rem);
+  line-height: 1;
+  white-space: nowrap;
+}
+
 .hero-title em {
   font-style: italic;
   color: var(--accent);
@@ -1223,6 +1230,11 @@ pre {
 
   .hero-title {
     font-size: clamp(2.2rem, 11vw, 3.4rem);
+  }
+
+  .hero-title-secondary {
+    font-size: 1em;
+    white-space: normal;
   }
 
   .nav-links {
