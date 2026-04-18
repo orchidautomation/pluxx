@@ -41,6 +41,16 @@ interface DoctorResult {
   }>
 }
 
+async function expectCoreFourConsumerDoctor(cwd: string): Promise<void> {
+  for (const platform of CORE_FOUR) {
+    const report = await runCliJson<DoctorResult>(cwd, 'doctor', '--consumer', '--json', `./dist/${platform}`)
+    expect(report.ok).toBe(true)
+    expect(report.errors).toBe(0)
+    expect(report.checks.some((check) => check.code === 'consumer-platform-detected')).toBe(true)
+    expect(report.checks.some((check) => check.code === 'consumer-manifest-valid')).toBe(true)
+  }
+}
+
 async function runCliJson<T>(cwd: string, ...argv: string[]): Promise<T> {
   const proc = Bun.spawn(['bun', CLI_PATH, ...argv], {
     cwd,
@@ -80,6 +90,7 @@ describe('release smoke', () => {
     expect(result.build?.targets).toEqual(CORE_FOUR)
     expect(result.smoke?.ok).toBe(true)
     expect(result.smoke?.checks.every((check) => check.ok)).toBe(true)
+    await expectCoreFourConsumerDoctor(cwd)
   })
 
   it('validates examples/prospeo-mcp across the core four with the real CLI', async () => {
@@ -103,5 +114,6 @@ describe('release smoke', () => {
     expect(result.build?.targets).toEqual(CORE_FOUR)
     expect(result.smoke?.ok).toBe(true)
     expect(result.smoke?.checks.every((check) => check.ok)).toBe(true)
+    await expectCoreFourConsumerDoctor(cwd)
   })
 })
