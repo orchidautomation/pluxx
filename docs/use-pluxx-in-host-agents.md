@@ -13,7 +13,7 @@ Use this doc when you want the meta workflow:
 
 This is different from [Create a Pluxx plugin](./create-a-pluxx-plugin.md), which is the CLI-first authoring walkthrough.
 
-The self-hosting reference project for this flow now lives at [example/pluxx](/Users/brandonguerrero/Documents/Orchid Automation/Orchid Labs/pluxx/example/pluxx).
+The self-hosting reference project for this flow now lives at [example/pluxx](../example/pluxx).
 
 ## What This Means
 
