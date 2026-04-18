@@ -181,7 +181,11 @@ It is now:
 - `PLUXX-125` product branding and launch asset system
   - status: shipped baseline
   - remaining work:
-    - follow-on site/docs/assets implementation as needed
+    - baseline SVG logo/icon assets are now versioned in-repo
+    - export PNG icon variants and social-ready raster derivatives
+    - capture the P0 proof screenshots from `docs/first-proof-demo-asset-pack.md`
+    - record the 45-second wedge demo clip
+    - align GitHub social preview and repo/org description with the current wedge copy
 
 ## Strategic Horizon, Not Current Build Queue
 

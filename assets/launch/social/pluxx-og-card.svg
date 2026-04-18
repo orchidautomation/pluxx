@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Pluxx social card</title>
+  <desc id="desc">Social card for Pluxx describing the cross-host plugin compiler for coding agents.</desc>
+  <defs>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#9d6dff"/>
+      <stop offset="100%" stop-color="#6e3edc"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.78" cy="0.12" r="0.7">
+      <stop offset="0%" stop-color="#9d6dff" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#9d6dff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="#08050f"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+  <g transform="translate(74 70)">
+    <rect x="0" y="0" width="76" height="76" rx="18" fill="#130d20"/>
+    <circle cx="38" cy="38" r="22" fill="none" stroke="#9d6dff" stroke-width="5"/>
+    <path d="M38 16a22 22 0 0 1 0 44z" fill="#9d6dff"/>
+    <text
+      x="106"
+      y="52"
+      fill="#ece5f8"
+      font-family="'Instrument Serif', 'Iowan Old Style', Georgia, serif"
+      font-size="54"
+      font-style="italic"
+      letter-spacing="-2"
+    >pluxx</text>
+  </g>
+  <g transform="translate(80 192)">
+    <text x="0" y="0" fill="#b4abcd" font-family="'Geist Mono', 'SFMono-Regular', monospace" font-size="22" letter-spacing="4">ONE MCP. FOUR NATIVE PLUGIN SURFACES.</text>
+    <text x="0" y="110" fill="#ece5f8" font-family="'Instrument Serif', 'Iowan Old Style', Georgia, serif" font-size="84" letter-spacing="-3">Stop maintaining four</text>
+    <text x="0" y="198" fill="#ece5f8" font-family="'Instrument Serif', 'Iowan Old Style', Georgia, serif" font-size="84" letter-spacing="-3">plugin repos for one MCP.</text>
+    <text x="0" y="282" fill="#cfc5e1" font-family="'Instrument Sans', Inter, Arial, sans-serif" font-size="30">
+      Pluxx keeps one source project for Claude Code, Cursor, Codex,
+    </text>
+    <text x="0" y="322" fill="#cfc5e1" font-family="'Instrument Sans', Inter, Arial, sans-serif" font-size="30">
+      and OpenCode, then compiles the native bundle each host expects.
+    </text>
+  </g>
+  <g transform="translate(80 514)" font-family="'Geist Mono', 'SFMono-Regular', monospace" font-size="22">
+    <rect x="0" y="-28" width="172" height="40" rx="20" fill="#171126" stroke="rgba(157,109,255,0.24)"/>
+    <text x="24" y="-1" fill="#ece5f8">claude-code</text>
+    <rect x="188" y="-28" width="110" height="40" rx="20" fill="#171126" stroke="rgba(157,109,255,0.24)"/>
+    <text x="220" y="-1" fill="#ece5f8">cursor</text>
+    <rect x="314" y="-28" width="102" height="40" rx="20" fill="#171126" stroke="rgba(157,109,255,0.24)"/>
+    <text x="345" y="-1" fill="#ece5f8">codex</text>
+    <rect x="432" y="-28" width="142" height="40" rx="20" fill="#171126" stroke="rgba(157,109,255,0.24)"/>
+    <text x="462" y="-1" fill="#ece5f8">opencode</text>
+  </g>
+</svg>

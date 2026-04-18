@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">Pluxx icon</title>
+  <desc id="desc">Rounded-square Pluxx icon with a split-disc symbol.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#08050f"/>
+      <stop offset="100%" stop-color="#130d20"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="url(#bg)"/>
+  <circle cx="128" cy="128" r="70" fill="none" stroke="#9d6dff" stroke-width="16"/>
+  <path d="M128 58a70 70 0 0 1 0 140z" fill="#9d6dff"/>
+</svg>

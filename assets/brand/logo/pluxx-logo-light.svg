@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 240" role="img" aria-labelledby="title desc">
+  <title id="title">Pluxx alternate logo</title>
+  <desc id="desc">Pluxx wordmark with a circular split-disc symbol for light backgrounds.</desc>
+  <g transform="translate(24 24)">
+    <rect x="0" y="0" width="192" height="192" rx="44" fill="#f7f4ff"/>
+    <circle cx="96" cy="96" r="54" fill="none" stroke="#6e3edc" stroke-width="12"/>
+    <path d="M96 42a54 54 0 0 1 0 108z" fill="#6e3edc"/>
+  </g>
+  <g transform="translate(252 146)">
+    <text
+      x="0"
+      y="0"
+      fill="#110d1d"
+      font-family="'Instrument Serif', 'Iowan Old Style', Georgia, serif"
+      font-size="132"
+      font-style="italic"
+      letter-spacing="-5"
+    >pluxx</text>
+  </g>
+</svg>
