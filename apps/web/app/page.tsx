@@ -125,14 +125,15 @@ export default function Home() {
               One MCP. Four native plugin surfaces.
             </span>
             <h1 className="hero-title">
-              Stop maintaining four
+              One plugin source.
               <br />
-              plugin repos for one MCP.
+              Four native bundles.
             </h1>
             <p className="lede">
-              Pluxx keeps one source project for Claude&nbsp;Code, Cursor, Codex, and OpenCode,
-              then compiles the native bundle each host expects. Your host coding agent can refine
-              the semantics without breaking the structure.
+              Pluxx turns one MCP or source project into native bundles for Claude&nbsp;Code,
+              Cursor, Codex, and OpenCode. Keep one maintained source of truth while your host
+              coding agent refines taxonomy, instructions, and examples without breaking the
+              structure.
             </p>
 
             <div className="cta-row">

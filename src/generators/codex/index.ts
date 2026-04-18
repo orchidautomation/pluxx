@@ -94,6 +94,12 @@ export class CodexGenerator extends Generator {
       if (this.config.brand.websiteURL) {
         iface.websiteURL = this.config.brand.websiteURL
       }
+      if (this.config.brand.privacyPolicyURL) {
+        iface.privacyPolicyURL = this.config.brand.privacyPolicyURL
+      }
+      if (this.config.brand.termsOfServiceURL) {
+        iface.termsOfServiceURL = this.config.brand.termsOfServiceURL
+      }
       if (this.config.brand.screenshots) {
         iface.screenshots = this.config.brand.screenshots
       }

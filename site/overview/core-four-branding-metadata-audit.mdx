@@ -1,0 +1,75 @@
+---
+title: Core-Four Branding Metadata Audit
+---
+
+This audit verifies what plugin branding and interface metadata actually works across Claude Code, Cursor, Codex, and OpenCode.
+
+The short version:
+
+- Codex is the rich interface target today.
+- Cursor supports a narrower subset: `homepage` and `logo`.
+- Claude Code and OpenCode do not currently expose a manifest-backed shared `brand` layer.
+- Pluxx keeps `brand` as a core primitive, but support is target-graded rather than uniform.
+
+## Scope
+
+Verified against:
+
+- `src/schema.ts`
+- `src/generators/claude-code/index.ts` via the shared Claude-family generator
+- `src/generators/cursor/index.ts`
+- `src/generators/codex/index.ts`
+- `src/generators/opencode/index.ts`
+- real generated outputs from:
+  - `example/firecrawl-plugin`
+  - `example/pluxx`
+  - `example/megamind`
+  - `examples/prospeo-mcp`
+
+## Truth matrix
+
+| Field | Claude | Cursor | Codex | OpenCode | Notes |
+|---|---:|---:|---:|---:|---|
+| `displayName` | N | N | Y | N | Codex emits `interface.displayName` |
+| `shortDescription` | N | N | Y | N | Codex emits `interface.shortDescription` |
+| `longDescription` | N | N | Y | N | Codex emits `interface.longDescription` |
+| `category` | N | N | Y | N | Codex emits `interface.category` |
+| `color` | N | N | Y | N | Codex emits `interface.brandColor` |
+| `icon` | N | Y | Y | N | Cursor emits `logo`; Codex emits `composerIcon` and `logo` |
+| `defaultPrompts` | N | N | Y | N | Codex emits `interface.defaultPrompt` |
+| `websiteURL` | N | Y | Y | N | Cursor emits `homepage`; Codex emits `interface.websiteURL` |
+| `screenshots` | N | N | Y | N | Codex emits when provided |
+| `privacyPolicyURL` | N | N | Y | N | Codex emits `interface.privacyPolicyURL` |
+| `termsOfServiceURL` | N | N | Y | N | Codex emits `interface.termsOfServiceURL` |
+
+## Example checks
+
+### Firecrawl
+
+- No `brand` block in config.
+- Generated outputs expose no brand/interface metadata, which matches current generators.
+
+### Prospeo
+
+- Sets `brand.displayName`, `shortDescription`, and `category`.
+- Codex emits those fields under `.codex-plugin/plugin.json -> interface`.
+
+### Megamind
+
+- Sets rich brand metadata including icon, prompts, and website URL.
+- Codex emits the rich interface block.
+- Cursor emits only `homepage` and `logo`.
+
+### Pluxx
+
+- Sets `privacyPolicyURL` and `termsOfServiceURL` under shared `brand`.
+- Codex now emits both fields without requiring a target-specific override.
+
+## What to tell plugin authors
+
+- Use `brand` as the shared source of truth.
+- Expect rich interface metadata on Codex first.
+- Expect only narrow brand support on Cursor today.
+- Do not assume Claude Code or OpenCode consume shared `brand` metadata as manifest fields.
+
+For the repo-side source document, see [Core-Four Branding Metadata Audit](https://github.com/orchidautomation/pluxx/blob/main/docs/core-four-branding-metadata-audit.md).

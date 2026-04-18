@@ -20,6 +20,8 @@ const testConfig: PluginConfig = {
     category: 'Productivity',
     color: '#FF0000',
     defaultPrompts: ['Hello from test plugin'],
+    privacyPolicyURL: 'https://example.com/privacy',
+    termsOfServiceURL: 'https://example.com/terms',
   },
   mcp: {
     'test-server': {
@@ -249,6 +251,8 @@ describe('build', () => {
     expect(manifest.interface.displayName).toBe('Test Plugin')
     expect(manifest.interface.brandColor).toBe('#FF0000')
     expect(manifest.interface.defaultPrompt).toEqual(['Hello from test plugin'])
+    expect(manifest.interface.privacyPolicyURL).toBe('https://example.com/privacy')
+    expect(manifest.interface.termsOfServiceURL).toBe('https://example.com/terms')
   })
 
   it('generates OpenCode plugin wrapper with env var check', async () => {

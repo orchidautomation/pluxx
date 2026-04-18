@@ -48,7 +48,7 @@ The public surface baseline is now also shipped on `main`:
 
 - npm package published as `@orchid-labs/pluxx@0.1.1`
 - `pluxx.dev` live with the current cross-host plugin-authoring positioning
-- Mintlify docs live at `orchidautomation.mintlify.app`
+- docs live at `docs.pluxx.dev`
 - GitHub tag-based npm release flow is configured
 
 The first broad OSS QA sweep is now also shipped on `main`:
@@ -59,6 +59,7 @@ The first broad OSS QA sweep is now also shipped on `main`:
 - `PLUXX-145` core-four bundle + consumer-doctor runtime QA
 - `PLUXX-146` public-surface consistency pass
 - `PLUXX-147` examples / fixtures / release-smoke parity pass
+- `PLUXX-148` core-four plugin branding metadata truth audit
 
 The first Pluxx-side brand asset baseline is now also shipped on `main`:
 
@@ -93,10 +94,6 @@ It is now:
   - status: `In Progress`
   - role: outbound / design-partner pipeline
   - current focus: shortlist the best early MCP/vendor targets and proposal angles
-- `PLUXX-148` Triple-check core-four plugin branding metadata support across real examples
-  - status: `In Progress`
-  - role: branding truth audit
-  - current focus: verify what plugin brand/interface metadata actually works across Claude Code, Cursor, Codex, and OpenCode
 
 ### Core Umbrellas
 
@@ -218,7 +215,7 @@ It is now:
     - record the 45-second wedge demo clip
     - align GitHub social preview and repo/org description with the current wedge copy
 - `PLUXX-148` core-four plugin branding metadata audit
-  - status: in progress
+  - status: shipped
   - why it matters:
     - avoid implying portable plugin brand support where the generators/hosts do not actually back it
 

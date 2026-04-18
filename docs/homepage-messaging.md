@@ -17,11 +17,11 @@ The important product promise is:
 
 ### Headline
 
-Stop maintaining four plugin repos for one MCP.
+One plugin source. Four native bundles.
 
 ### Subheadline
 
-Pluxx keeps one source project for Claude Code, Codex, Cursor, and OpenCode, then compiles the native bundle each host expects. Your host coding agent can refine the semantics without breaking the structure.
+Pluxx turns one MCP or source project into native bundles for Claude Code, Codex, Cursor, and OpenCode. Keep one maintained source of truth while your host coding agent refines taxonomy, instructions, and examples without breaking the structure.
 
 ### Primary CTA
 
@@ -67,7 +67,7 @@ Let the agent refine the meaning, not the structure.
 
 ### Body
 
-Pluxx owns the deterministic scaffold, boundaries, and validation. Codex or Claude gets a context pack and prompt pack to improve taxonomy, instructions, and examples inside managed sections only.
+Pluxx owns the deterministic scaffold, boundaries, and validation. Your host coding agent gets a context pack and prompt pack to improve taxonomy, instructions, and examples inside managed sections only.
 
 ## Section: How It Works
 
@@ -85,9 +85,9 @@ Run `doctor` and `test` to confirm the deterministic scaffold is healthy before 
 
 ### Step 3
 
-Refine with Codex or Claude
+Refine with your host coding agent
 
-Agent Mode prepares the context and prompt pack; your host coding agent improves only the managed sections.
+Agent Mode prepares the context and prompt pack; Claude Code, Cursor, Codex, or OpenCode improves only the managed sections.
 
 ### Step 4
 
