@@ -9,7 +9,7 @@ If you want the tighter scope boundary for which extension-system primitives Plu
 Pluxx has two intentional layers:
 
 - `Core`: deterministic import, scaffold, lint, build, install, and sync
-- `Agent`: context packs and prompt packs that let Codex, Claude Code, or OpenCode refine the scaffold safely
+- `Agent`: context packs and prompt packs that let Codex, Claude Code, Cursor, or OpenCode refine the scaffold safely
 
 The important product split is:
 
@@ -28,7 +28,7 @@ flowchart LR
     B --> B3["Platform bundles<br/>dist/claude-code<br/>dist/cursor<br/>dist/codex<br/>dist/opencode"]
 
     B1 --> C["Agent Mode<br/>prepare context + prompts"]
-    C --> D["Host runner<br/>Codex / Claude / OpenCode"]
+    C --> D["Host runner<br/>Codex / Claude / Cursor / OpenCode"]
     D --> E["Managed edits only<br/>taxonomy<br/>instructions<br/>examples"]
 
     E --> F["Re-verify with Pluxx"]
@@ -99,6 +99,7 @@ These control what gets written under `dist/`.
 This is the coding agent driving refinement:
 
 - `claude`
+- `cursor`
 - `codex`
 - `opencode`
 
