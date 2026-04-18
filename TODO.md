@@ -1,6 +1,6 @@
 # Pluxx TODO
 
-Last updated: 2026-04-17
+Last updated: 2026-04-18
 
 This file is the operational status doc.
 
@@ -51,6 +51,21 @@ The public surface baseline is now also shipped on `main`:
 - Mintlify docs live at `orchidautomation.mintlify.app`
 - GitHub tag-based npm release flow is configured
 
+The first broad OSS QA sweep is now also shipped on `main`:
+
+- `PLUXX-136` Cursor/OpenCode authoring flow validation
+- `PLUXX-143` repo-wide QA sweep umbrella
+- `PLUXX-144` deterministic CLI + MCP lifecycle QA fixes
+- `PLUXX-145` core-four bundle + consumer-doctor runtime QA
+- `PLUXX-146` public-surface consistency pass
+- `PLUXX-147` examples / fixtures / release-smoke parity pass
+
+The first Pluxx-side brand asset baseline is now also shipped on `main`:
+
+- canonical SVG logo + icon sources under `assets/brand/`
+- launch/social asset skeleton under `assets/launch/`
+- website Open Graph / Twitter image routes
+
 The near-term question is no longer "does Pluxx have a believable core contract?"
 
 It is now:
@@ -63,13 +78,25 @@ It is now:
 ### Product / Launch Work
 
 - `PLUXX-135` Define the OSS wedge GTM and launch checklist for Pluxx
-  - status: `Todo`
+  - status: `In Progress`
   - role: launch / GTM track
-  - current focus: sharpen the narrative, demo flows, launch checklist, and first outreach motion
-- `PLUXX-136` Validate real Cursor and OpenCode authoring flows end to end
+  - current focus: convert the shipped product into launch-ready messaging, outreach, and asset execution
+- `PLUXX-138` Draft X/Twitter launch posts for the OSS wedge
   - status: `Todo`
-  - role: host-validation track
-  - current focus: prove Cursor/OpenCode authoring and autopilot flows on real plugins, not just via code-path coverage
+  - role: launch copy
+  - current focus: thread + follow-up posts tied to real shipped proof
+- `PLUXX-139` Draft LinkedIn launch copy and founder narrative for Pluxx
+  - status: `Todo`
+  - role: launch copy
+  - current focus: founder-ready post and variants
+- `PLUXX-142` Identify MCP repos for Pluxx adoption outreach
+  - status: `In Progress`
+  - role: outbound / design-partner pipeline
+  - current focus: shortlist the best early MCP/vendor targets and proposal angles
+- `PLUXX-148` Triple-check core-four plugin branding metadata support across real examples
+  - status: `In Progress`
+  - role: branding truth audit
+  - current focus: verify what plugin brand/interface metadata actually works across Claude Code, Cursor, Codex, and OpenCode
 
 ### Core Umbrellas
 
@@ -167,25 +194,33 @@ It is now:
   - outcome:
     - the shipped product gets a coherent launch story and execution plan
   - status:
-    - open
-    - this is the most obvious non-product gap right now
-- `PLUXX-136` Cursor / OpenCode real-host validation
+    - in progress
+    - this is now the main non-product track
+- `PLUXX-138` / `PLUXX-139`
   - outcome:
-    - public claims about multi-runner authoring are backed by repeated real-host dogfooding
+    - the launch narrative becomes publishable social/founder copy
   - status:
     - open
-    - this is the highest-signal remaining host-validation gap
+- `PLUXX-142`
+  - outcome:
+    - first real MCP/vendor outreach targets are organized instead of ad hoc
+  - status:
+    - in progress
 
 ### Phase 3: Brand / Launch Follow-Through
 
 - `PLUXX-125` product branding and launch asset system
   - status: shipped baseline
   - remaining work:
-    - baseline SVG logo/icon assets are now versioned in-repo
+    - baseline SVG logo/icon assets are versioned in-repo
     - export PNG icon variants and social-ready raster derivatives
     - capture the P0 proof screenshots from `docs/first-proof-demo-asset-pack.md`
     - record the 45-second wedge demo clip
     - align GitHub social preview and repo/org description with the current wedge copy
+- `PLUXX-148` core-four plugin branding metadata audit
+  - status: in progress
+  - why it matters:
+    - avoid implying portable plugin brand support where the generators/hosts do not actually back it
 
 ## Strategic Horizon, Not Current Build Queue
 
@@ -246,13 +281,32 @@ Treat them as validation / linear-swarm work, not as the core Pluxx execution ma
 If you only want the next concrete sequence, it is:
 
 1. `PLUXX-135` GTM / launch checklist
-2. `PLUXX-136` real Cursor/OpenCode validation
-3. `PLUXX-79` follow-through on deeper agent/autopilot coherence
-4. `PLUXX-116` docs/site polish
+2. `PLUXX-138` and `PLUXX-139` launch copy
+3. `PLUXX-142` outreach target shortlist
+4. `PLUXX-148` plugin-brand support audit
+5. `PLUXX-79` follow-through on deeper agent/autopilot coherence
+6. `PLUXX-116` docs/site polish
+
+## Open PR Queue
+
+These are the only PRs that currently matter:
+
+- `#182` / `PLUXX-148`
+  - branding metadata audit
+  - not ready to merge unchanged; its Firecrawl note is stale after the recent frontmatter fix
+- `#169` / `PLUXX-142`
+  - prospect shortlist + outreach proposals
+  - worth review/merge if the GTM artifact is useful
+
+These are still open in GitHub but are not part of the active execution queue:
+
+- `#34`
+- `#21`
 
 That sequence keeps the near-term effort focused on:
 
 - turning the shipped baseline into a launchable OSS wedge
-- proving the authoring story in real host environments, not just tests
+- packaging the launch story into concrete public/outbound assets
+- keeping plugin-brand claims truthful before we lean on them publicly
 - keeping Agent Mode/product coherence strong as the wedge sharpens
 - polishing the public docs/site around what is already real

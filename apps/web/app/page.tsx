@@ -47,7 +47,7 @@ const featureCards = [
   },
 ] as const;
 
-const docsUrl = "https://orchidautomation.mintlify.app";
+const docsUrl = "https://docs.pluxx.dev";
 const quickStartCommand = "npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp";
 
 const heroTerminal = String.raw`$ npx @orchid-labs/pluxx init --from-mcp https://mcp.playkit.sh/mcp --yes

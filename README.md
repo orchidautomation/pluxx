@@ -6,7 +6,7 @@ Pluxx keeps one maintained plugin source project for **Claude Code, Cursor, Code
 
 It is the cross-host plugin authoring and maintenance layer for MCP teams that want one source of truth instead of separate per-host plugin repos.
 
-- Docs: [orchidautomation.mintlify.app](https://orchidautomation.mintlify.app/)
+- Docs: [docs.pluxx.dev](https://docs.pluxx.dev/)
 - Website: [pluxx.dev](https://pluxx.dev/)
 
 ## Why Pluxx
