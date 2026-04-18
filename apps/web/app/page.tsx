@@ -125,17 +125,14 @@ export default function Home() {
               One MCP. Four native plugin surfaces.
             </span>
             <h1 className="hero-title">
-              Author once.
+              Build once.
               <br />
-              Ship native plugins for Claude Code,
-              <br />
-              Cursor, Codex, and OpenCode.
+              Ship native plugins everywhere.
             </h1>
             <p className="lede">
-              Pluxx turns one MCP or source project into native bundles for Claude&nbsp;Code,
-              Cursor, Codex, and OpenCode. Keep one maintained source of truth while your host
-              coding agent refines taxonomy, instructions, and examples without breaking the
-              structure.
+              Turn one MCP or source project into native plugins for Claude&nbsp;Code, Cursor,
+              Codex, and OpenCode. Pluxx generates the scaffold, host-specific files, and managed
+              guardrails up front so your coding agent can safely refine taxonomy and instructions.
             </p>
 
             <div className="cta-row">
@@ -176,6 +173,41 @@ export default function Home() {
                 <code>{heroTerminal}</code>
               </pre>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="section section-divider" id="source-project">
+        <div className="shell source-grid">
+          <div className="source-col">
+            <div className="section-head compact">
+              <span className="section-kicker">The fix</span>
+              <h2 className="section-title">
+                One config. <em>Four bundles.</em>
+              </h2>
+            </div>
+
+            <div className="code-card">
+              <div className="code-card-head">
+                <span className="code-card-file">
+                  <span className="code-dot" /> pluxx.config.ts
+                </span>
+                <span className="code-card-badge">single source</span>
+              </div>
+              <pre>
+                <code>{configSnippet}</code>
+              </pre>
+            </div>
+          </div>
+
+          <div className="bundle-grid">
+            {bundleOutputs.map((bundle) => (
+              <article className="bundle-card" key={bundle.title}>
+                <span className="bundle-index">{bundle.index}</span>
+                <h3>{bundle.title}</h3>
+                <p>{bundle.body}</p>
+              </article>
+            ))}
           </div>
         </div>
       </section>
@@ -245,41 +277,6 @@ export default function Home() {
                 </tbody>
               </table>
             </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="section section-divider" id="source-project">
-        <div className="shell source-grid">
-          <div className="source-col">
-            <div className="section-head compact">
-              <span className="section-kicker">The fix</span>
-              <h2 className="section-title">
-                One config. <em>Four bundles.</em>
-              </h2>
-            </div>
-
-            <div className="code-card">
-              <div className="code-card-head">
-                <span className="code-card-file">
-                  <span className="code-dot" /> pluxx.config.ts
-                </span>
-                <span className="code-card-badge">single source</span>
-              </div>
-              <pre>
-                <code>{configSnippet}</code>
-              </pre>
-            </div>
-          </div>
-
-          <div className="bundle-grid">
-            {bundleOutputs.map((bundle) => (
-              <article className="bundle-card" key={bundle.title}>
-                <span className="bundle-index">{bundle.index}</span>
-                <h3>{bundle.title}</h3>
-                <p>{bundle.body}</p>
-              </article>
-            ))}
           </div>
         </div>
       </section>

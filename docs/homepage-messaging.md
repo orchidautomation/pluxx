@@ -17,11 +17,11 @@ The important product promise is:
 
 ### Headline
 
-Author once. Ship native plugins for Claude Code, Cursor, Codex, and OpenCode.
+Build once. Ship native plugins everywhere.
 
 ### Subheadline
 
-Pluxx turns one MCP or source project into native bundles for Claude Code, Codex, Cursor, and OpenCode. Keep one maintained source of truth while your host coding agent refines taxonomy, instructions, and examples without breaking the structure.
+Turn one MCP or source project into native plugins for Claude Code, Cursor, Codex, and OpenCode. Pluxx generates the scaffold, host-specific files, and managed guardrails up front so your coding agent can safely refine taxonomy and instructions.
 
 ### Primary CTA
 
