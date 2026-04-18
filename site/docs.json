@@ -3,9 +3,9 @@
   "name": "Pluxx",
   "theme": "maple",
   "colors": {
-    "primary": "#0F766E",
-    "light": "#14B8A6",
-    "dark": "#0B5E57"
+    "primary": "#9D6DFF",
+    "light": "#C5ADFF",
+    "dark": "#6E3EDC"
   },
   "navigation": {
     "groups": [
