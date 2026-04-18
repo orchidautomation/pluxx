@@ -99,6 +99,7 @@ Pluxx owns the deterministic scaffold and validation. Your host coding agent can
 - [Core primitives](./docs/core-primitives.md)
 - [OSS wedge and trust layer](./docs/oss-wedge-and-trust-layer.md)
 - [Compatibility matrix](./docs/compatibility.md)
+- [First proof and demo asset pack](./docs/first-proof-demo-asset-pack.md)
 - [Releasing Pluxx](./docs/releasing-pluxx.md)
 
 ## License

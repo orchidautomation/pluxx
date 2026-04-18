@@ -154,6 +154,8 @@ Current baseline:
 - shipped baseline:
   - canonical brand direction
   - launch-asset checklist
+- proof/demo pack:
+  - [first proof and demo asset pack](./first-proof-demo-asset-pack.md)
 - likely follow-on work:
   - docs/site alignment
   - screenshots and marketplace-facing media
