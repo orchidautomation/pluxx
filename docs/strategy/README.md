@@ -24,6 +24,10 @@ These are the main artifacts currently codified here:
   - the bearish case
   - product and monetization risks
   - strategy guardrails
+- `launch-narrative-and-problem-statement.md`
+  - one-line problem and wedge statements
+  - category framing and spec-first differentiation
+  - reusable messaging pillars for launch surfaces
 
 ## Related Sales Docs
 
