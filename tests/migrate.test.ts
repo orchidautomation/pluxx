@@ -246,6 +246,42 @@ async function setupCodexNativeAgentSource() {
   return sourceDir
 }
 
+async function setupOpenCodeNativeCommandSource() {
+  const sourceDir = resolve(TEST_DIR, 'source-opencode-native-commands')
+  mkdirSync(resolve(sourceDir, '.opencode/commands'), { recursive: true })
+  mkdirSync(resolve(sourceDir, 'skills/pipeline-review'), { recursive: true })
+
+  await writeJson(resolve(sourceDir, 'package.json'), {
+    name: 'opencode-native-commands',
+    version: '0.4.0',
+    description: 'OpenCode-native command fixture.',
+    author: { name: 'Orchid' },
+    type: 'module',
+    dependencies: {
+      '@opencode-ai/plugin': '^0.0.1',
+    },
+  })
+
+  await writeJson(resolve(sourceDir, '.mcp.json'), {
+    mcpServers: {
+      fixture: {
+        url: 'https://example.com/mcp',
+      },
+    },
+  })
+
+  await Bun.write(
+    resolve(sourceDir, 'skills/pipeline-review/SKILL.md'),
+    ['---', 'name: pipeline-review', 'description: "Review pipeline health."', '---', '', '# Pipeline Review'].join('\n'),
+  )
+  await Bun.write(
+    resolve(sourceDir, '.opencode/commands/research.md'),
+    ['---', 'description: "OpenCode-native command."', '---', '', '# Research'].join('\n'),
+  )
+
+  return sourceDir
+}
+
 beforeEach(() => {
   rmSync(TEST_DIR, { recursive: true, force: true })
   mkdirSync(TEST_DIR, { recursive: true })
@@ -342,6 +378,10 @@ describe('migrate', () => {
     const config = readFileSync(resolve(outputDir, 'pluxx.config.ts'), 'utf-8')
     expect(config).toContain("instructions: './README.md'")
     expect(config).toContain("passthrough: ['./mcp-server/']")
+    expect(config).toContain('// Inferred from Claude-style allowed-tools frontmatter.')
+    expect(config).toContain('// Current migrate output flattens skill-scoped tool access into plugin-level canonical permissions.')
+    expect(config).toContain("permissions: {")
+    expect(config).toContain("allow: ['MCP(leadkit.get_lead)', 'Read(*)']")
     expect(existsSync(resolve(outputDir, 'README.md'))).toBe(true)
     expect(existsSync(resolve(outputDir, 'mcp-server/dist/index.js'))).toBe(true)
     expect(readFileSync(resolve(outputDir, 'README.md'), 'utf-8')).toContain('Migrated from README instructions.')
@@ -389,5 +429,24 @@ describe('migrate', () => {
     expect(migratedAgent).toContain('Preferred model: `gpt-5.4`')
     expect(migratedAgent).toContain('Preferred reasoning effort: `high`')
     expect(migratedAgent).toContain('Use the MCP for account intelligence.')
+  })
+
+  it('imports OpenCode native commands into the canonical commands directory', async () => {
+    const sourceDir = await setupOpenCodeNativeCommandSource()
+    const outputDir = resolve(TEST_DIR, 'out-opencode-native-commands')
+    mkdirSync(outputDir, { recursive: true })
+
+    const previousCwd = process.cwd()
+    process.chdir(outputDir)
+    try {
+      await migrate(sourceDir)
+    } finally {
+      process.chdir(previousCwd)
+    }
+
+    const config = readFileSync(resolve(outputDir, 'pluxx.config.ts'), 'utf-8')
+    expect(config).toContain("commands: './commands/'")
+    expect(existsSync(resolve(outputDir, 'commands/research.md'))).toBe(true)
+    expect(readFileSync(resolve(outputDir, 'commands/research.md'), 'utf-8')).toContain('OpenCode-native command.')
   })
 })

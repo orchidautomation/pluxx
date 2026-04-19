@@ -62,6 +62,12 @@ interface MigrateResult {
   manifest: ParsedManifest
   mcp: ParsedMcp
   hooks: ParsedHooks
+  permissions?: {
+    allow?: string[]
+    ask?: string[]
+    deny?: string[]
+  }
+  permissionNotes: string[]
   passthrough: string[]
   instructions?: string
   sourcePaths: CanonicalSourcePaths
@@ -448,6 +454,116 @@ function extractFrontmatterField(content: string, key: 'name' | 'description'): 
   }
 
   return undefined
+}
+
+function extractAllowedTools(content: string): string[] {
+  const lines = content.split(/\r?\n/)
+  if (lines[0]?.trim() !== '---') return []
+
+  let endIndex = -1
+  for (let i = 1; i < lines.length; i += 1) {
+    if (lines[i].trim() === '---') {
+      endIndex = i
+      break
+    }
+  }
+
+  if (endIndex === -1) return []
+
+  for (let i = 1; i < endIndex; i += 1) {
+    const match = lines[i].match(/^allowed-tools:\s*(.*)$/)
+    if (!match) continue
+
+    const inlineValue = match[1].trim()
+    if (inlineValue) {
+      const raw = inlineValue.startsWith('[') && inlineValue.endsWith(']')
+        ? inlineValue.slice(1, -1)
+        : inlineValue
+      return raw
+        .split(',')
+        .map((part) => part.trim().replace(/^['"]|['"]$/g, ''))
+        .filter(Boolean)
+    }
+
+    const tools: string[] = []
+    for (let j = i + 1; j < endIndex; j += 1) {
+      const itemMatch = lines[j].match(/^\s*-\s+(.+)$/)
+      if (!itemMatch) break
+      tools.push(itemMatch[1].trim().replace(/^['"]|['"]$/g, ''))
+    }
+    return tools
+  }
+
+  return []
+}
+
+function normalizeMigratedAllowedTool(rawTool: string): string | undefined {
+  const trimmed = rawTool.trim()
+  if (!trimmed) return undefined
+
+  if (/^(Read|Edit|Bash|Skill|MCP)\(/.test(trimmed)) {
+    return trimmed
+  }
+
+  if (trimmed === 'Read' || trimmed === 'Edit' || trimmed === 'Bash') {
+    return `${trimmed}(*)`
+  }
+
+  if (trimmed.startsWith('mcp__')) {
+    const match = trimmed.match(/^mcp__([^_]+)__(.+)$/)
+    if (!match) return undefined
+    const server = match[1]
+    const tool = match[2].replace(/__/g, '.')
+    return `MCP(${server}.${tool})`
+  }
+
+  return undefined
+}
+
+function inferPermissionsFromMigratedSkills(pluginDir: string, sourcePaths: CanonicalSourcePaths): {
+  permissions?: { allow?: string[] }
+  notes: string[]
+} {
+  if (!sourcePaths.skills) {
+    return { notes: [] }
+  }
+
+  const skillsDir = resolve(pluginDir, stripRelativePrefix(sourcePaths.skills))
+  const entries = readdirSync(skillsDir, { withFileTypes: true })
+  const allow = new Set<string>()
+  const notes: string[] = []
+  let sawAllowedTools = false
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue
+    const skillPath = resolve(skillsDir, entry.name, 'SKILL.md')
+    if (!existsSync(skillPath)) continue
+
+    const content = readFileSync(skillPath, 'utf-8')
+    const inferredRules = extractAllowedTools(content)
+      .map(normalizeMigratedAllowedTool)
+      .filter((rule): rule is string => Boolean(rule))
+
+    if (inferredRules.length === 0) continue
+    sawAllowedTools = true
+    for (const rule of inferredRules) {
+      allow.add(rule)
+    }
+  }
+
+  if (!sawAllowedTools || allow.size === 0) {
+    return { notes: [] }
+  }
+
+  notes.push('Inferred from Claude-style allowed-tools frontmatter.')
+  notes.push('Current migrate output flattens skill-scoped tool access into plugin-level canonical permissions.')
+
+  return {
+    permissions: {
+      allow: [...allow].sort(),
+    },
+    notes,
+  }
 }
 
 function readMigratedSkills(pluginDir: string, sourcePaths: CanonicalSourcePaths): PersistedSkill[] {
@@ -869,6 +985,23 @@ function generateConfigTs(result: MigrateResult): string {
   if (result.passthrough.length > 0) {
     lines.push(`  passthrough: [${result.passthrough.map((entry) => quote(entry)).join(', ')}],`)
   }
+  if (result.permissions) {
+    lines.push('')
+    for (const note of result.permissionNotes) {
+      lines.push(`  // ${note}`)
+    }
+    lines.push('  permissions: {')
+    if (result.permissions.allow?.length) {
+      lines.push(`    allow: [${result.permissions.allow.map((entry) => quote(entry)).join(', ')}],`)
+    }
+    if (result.permissions.ask?.length) {
+      lines.push(`    ask: [${result.permissions.ask.map((entry) => quote(entry)).join(', ')}],`)
+    }
+    if (result.permissions.deny?.length) {
+      lines.push(`    deny: [${result.permissions.deny.map((entry) => quote(entry)).join(', ')}],`)
+    }
+    lines.push('  },')
+  }
 
   // MCP
   const mcpNames = Object.keys(result.mcp)
@@ -999,6 +1132,7 @@ export async function migrate(inputPath: string): Promise<void> {
   const sourcePaths = detectCanonicalSourcePaths(pluginDir)
   const passthrough = detectPassthroughDirs(pluginDir, mcp)
   const persistedSkills = readMigratedSkills(pluginDir, sourcePaths)
+  const inferredPermissions = inferPermissionsFromMigratedSkills(pluginDir, sourcePaths)
   const dirNames = Object.entries(sourcePaths)
     .filter(([, sourcePath]) => Boolean(sourcePath))
     .map(([, sourcePath]) => stripRelativePrefix(sourcePath!))
@@ -1009,6 +1143,9 @@ export async function migrate(inputPath: string): Promise<void> {
   if (persistedSkills.length > 0) {
     console.log(`  migrated skills: ${persistedSkills.map((skill) => skill.dirName).join(', ')}`)
   }
+  if (inferredPermissions.permissions?.allow?.length) {
+    console.log(`  inferred permissions: ${inferredPermissions.permissions.allow.join(', ')}`)
+  }
 
   // 7. Build result
   const result: MigrateResult = {
@@ -1016,6 +1153,8 @@ export async function migrate(inputPath: string): Promise<void> {
     manifest,
     mcp,
     hooks,
+    permissions: inferredPermissions.permissions,
+    permissionNotes: inferredPermissions.notes,
     passthrough,
     instructions,
     sourcePaths,
