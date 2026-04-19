@@ -1,8 +1,8 @@
 import { existsSync, readdirSync, readFileSync } from 'fs'
 import { resolve, relative, basename, dirname } from 'path'
 import { loadConfig } from '../config/load'
-import type { PluginConfig, TargetPlatform } from '../schema'
-import { PLATFORM_LIMITS } from '../validation/platform-rules'
+import { getConfiguredCompilerBuckets, type PluginConfig, type PluxxCompilerBucket, type TargetPlatform } from '../schema'
+import { PLATFORM_LIMITS, getCoreFourPrimitiveCapabilities, type CoreFourPlatform, type PrimitiveTranslationMode } from '../validation/platform-rules'
 import { collectPermissionRules, permissionRulesNeedToolLevelDowngrade } from '../permissions'
 import {
   CURSOR_LOOP_LIMIT_HOOK_EVENTS,
@@ -38,6 +38,8 @@ const AGENT_FORBIDDEN_FRONTMATTER = ['hooks', 'mcpServers', 'permissionMode'] as
 const SEMVER_REGEX = /^\d+\.\d+\.\d+$/
 
 const PLUGIN_NAME_KEBAB = /^[a-z0-9]+(-[a-z0-9]+)*$/
+const CORE_FOUR_TARGETS = new Set<CoreFourPlatform>(['claude-code', 'cursor', 'codex', 'opencode'])
+const LINT_TRANSLATION_WARNING_BUCKETS = new Set<PluxxCompilerBucket>(['commands', 'agents', 'hooks', 'permissions', 'runtime'])
 
 type LintLevel = 'error' | 'warning'
 
@@ -1114,6 +1116,47 @@ function lintPermissions(config: PluginConfig, issues: LintIssue[]): void {
   }
 }
 
+function isCoreFourPlatform(target: TargetPlatform): target is CoreFourPlatform {
+  return CORE_FOUR_TARGETS.has(target as CoreFourPlatform)
+}
+
+function lintPrimitiveTranslations(config: PluginConfig, issues: LintIssue[]): void {
+  const configuredBuckets = getConfiguredCompilerBuckets(config)
+
+  for (const target of config.targets) {
+    if (!isCoreFourPlatform(target)) continue
+
+    const byMode = new Map<PrimitiveTranslationMode, string[]>()
+    for (const bucket of configuredBuckets) {
+      const capability = getCoreFourPrimitiveCapabilities(target).buckets[bucket]
+      if (capability.mode === 'translate' && !LINT_TRANSLATION_WARNING_BUCKETS.has(bucket)) {
+        continue
+      }
+      if (capability.mode === 'preserve') continue
+      const buckets = byMode.get(capability.mode) ?? []
+      buckets.push(bucket)
+      byMode.set(capability.mode, buckets)
+    }
+
+    for (const [mode, buckets] of byMode) {
+      const sortedBuckets = [...buckets].sort()
+      const modeMessage = mode === 'translate'
+        ? 'will be re-expressed through different native surfaces'
+        : mode === 'degrade'
+          ? 'will compile to weaker native equivalents'
+          : 'have no truthful native equivalent and may be omitted'
+
+      pushIssue(issues, {
+        level: 'warning',
+        code: `primitive-${mode}-summary`,
+        message: `On ${target}, these active compiler buckets ${modeMessage}: ${sortedBuckets.join(', ')}.`,
+        file: 'pluxx.config.ts',
+        platform: target,
+      })
+    }
+  }
+}
+
 function sortIssues(issues: LintIssue[]): LintIssue[] {
   return [...issues].sort((a, b) => {
     if (a.level === b.level) {
@@ -1174,6 +1217,7 @@ export async function lintProject(
   lintCodexAgentsConfig(lintConfig, issues)
   lintCodexHooksExternalConfig(lintConfig, issues)
   lintPermissions(lintConfig, issues)
+  lintPrimitiveTranslations(lintConfig, issues)
 
   // Cursor-specific checks
   lintCursorHooks(lintConfig, issues)

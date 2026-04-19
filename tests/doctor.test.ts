@@ -115,6 +115,8 @@ describe('doctorProject', () => {
       expect(report.checks.some((check) => check.code === 'hooks-trust-required' && check.level === 'warning')).toBe(true)
       expect(report.checks.some((check) => check.code === 'mcp-auth-env' && check.level === 'info')).toBe(true)
       expect(report.checks.some((check) => check.code === 'user-config-declared' && check.level === 'info')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'primitive-preserve' && check.level === 'success')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'primitive-translate' && check.level === 'info' && check.title.includes('distribution') && check.title.includes('claude-code'))).toBe(true)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

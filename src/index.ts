@@ -27,6 +27,7 @@ export {
 } from './validation/platform-rules'
 export {
   PLUXX_COMPILER_BUCKETS,
+  getConfiguredCompilerBuckets,
   getPluginCompilerBuckets,
   type Hooks,
   type PluxxCompilerBucket,

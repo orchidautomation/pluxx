@@ -7,6 +7,7 @@ import {
   PluginConfigSchema,
   PLUXX_COMPILER_BUCKETS,
   UserConfigSchema,
+  getConfiguredCompilerBuckets,
   getPluginCompilerBuckets,
 } from '../src/schema'
 
@@ -262,5 +263,35 @@ describe('Plugin compiler bucket mapping', () => {
     expect(buckets.distribution.targets).toEqual(['claude-code', 'cursor', 'codex', 'opencode'])
     expect(buckets.distribution.identity.name).toBe('leadkit')
     expect(buckets.distribution.userConfig).toEqual([])
+  })
+
+  it('derives the active compiler buckets from config', () => {
+    const config = PluginConfigSchema.parse({
+      name: 'leadkit',
+      description: 'Leadkit plugin',
+      author: {
+        name: 'Orchid Labs',
+      },
+      skills: './skills/',
+      commands: './commands/',
+      hooks: {
+        sessionStart: [{ command: 'echo setup' }],
+      },
+      mcp: {
+        leadkit: {
+          transport: 'stdio',
+          command: 'node',
+        },
+      },
+      targets: ['claude-code', 'cursor'],
+    })
+
+    expect(getConfiguredCompilerBuckets(config)).toEqual([
+      'skills',
+      'commands',
+      'hooks',
+      'runtime',
+      'distribution',
+    ])
   })
 })

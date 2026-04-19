@@ -454,6 +454,38 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'permissions-opencode-downgrade')).toBe(true)
   })
 
+  it('summarizes non-preserve primitive translations for active targets', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+    mkdirSync(resolve(projectDir, 'commands'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        commands: './commands/',
+        hooks: {
+          sessionStart: [{ command: 'echo setup' }],
+        },
+        targets: ['codex', 'opencode'],
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A valid skill"', '---', '', '# My Skill'].join('\n'),
+    )
+    writeFileSync(resolve(projectDir, 'commands/review.md'), '# Review\n')
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'primitive-degrade-summary' && issue.platform === 'codex' && issue.message.includes('commands'))).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'primitive-translate-summary' && issue.platform === 'opencode' && issue.message.includes('hooks'))).toBe(true)
+  })
+
   it('warns on duplicate permission rules before mapping them', async () => {
     const projectDir = createTempProject()
     mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })

@@ -2,8 +2,8 @@ import { accessSync, constants, existsSync, lstatSync, readFileSync } from 'fs'
 import { resolve } from 'path'
 import { CONFIG_FILES, loadConfig } from '../config/load'
 import { listHookCommands } from './install'
-import { PLATFORM_LIMITS } from '../validation/platform-rules'
-import type { McpServer, PluginConfig, TargetPlatform } from '../schema'
+import { PLATFORM_LIMITS, getCoreFourPrimitiveCapabilities, type CoreFourPlatform, type PrimitiveTranslationMode } from '../validation/platform-rules'
+import { getConfiguredCompilerBuckets, type McpServer, type PluginConfig, type TargetPlatform } from '../schema'
 import { MCP_SCAFFOLD_METADATA_PATH, type McpScaffoldMetadata } from './init-from-mcp'
 
 export type DoctorLevel = 'error' | 'warning' | 'info' | 'success'
@@ -43,6 +43,13 @@ const LOW_INFO_DESCRIPTION_PATTERNS = [
   /^no description provided\.?$/i,
 ]
 const MATERIALIZED_ENV_MARKER = 'materialized required config'
+
+const PRIMITIVE_MODE_LEVEL: Record<PrimitiveTranslationMode, DoctorLevel> = {
+  preserve: 'success',
+  translate: 'info',
+  degrade: 'warning',
+  drop: 'warning',
+}
 
 type ConsumerPlatform = 'claude-code' | 'cursor' | 'codex' | 'opencode'
 
@@ -162,6 +169,74 @@ function checkTargetPlatforms(checks: DoctorCheck[], config: PluginConfig): void
     fix: 'Prefer claude-code, cursor, codex, and opencode for prime-time support.',
     path: 'pluxx.config.ts',
   })
+}
+
+function isCoreFourPlatform(target: TargetPlatform): target is CoreFourPlatform {
+  return CORE_FOUR.has(target)
+}
+
+function describePrimitiveTranslation(
+  target: CoreFourPlatform,
+  bucket: ReturnType<typeof getConfiguredCompilerBuckets>[number],
+  mode: PrimitiveTranslationMode,
+  nativeSurfaces: string[],
+): { title: string; detail: string; fix: string } {
+  const surfaceList = nativeSurfaces.join(', ')
+
+  switch (mode) {
+    case 'preserve':
+      return {
+        title: `${bucket} preserves on ${target}`,
+        detail: `The active ${bucket} bucket maps directly to native ${target} surfaces: ${surfaceList}.`,
+        fix: 'No action needed.',
+      }
+    case 'translate':
+      return {
+        title: `${bucket} translates on ${target}`,
+        detail: `The active ${bucket} bucket is re-expressed for ${target} through native surfaces such as ${surfaceList}.`,
+        fix: 'Review generated output if you rely on host-specific behavior in this bucket.',
+      }
+    case 'degrade':
+      return {
+        title: `${bucket} degrades on ${target}`,
+        detail: `The active ${bucket} bucket only has a weaker ${target} equivalent. Pluxx falls back to native surfaces such as ${surfaceList}.`,
+        fix: 'Expect reduced fidelity on this target and verify the generated output before shipping.',
+      }
+    case 'drop':
+      return {
+        title: `${bucket} drops on ${target}`,
+        detail: `The active ${bucket} bucket has no truthful ${target} equivalent and may be omitted during compilation.`,
+        fix: 'Redesign this bucket for portability or remove the target if this behavior is required.',
+      }
+  }
+}
+
+function checkPrimitiveTranslations(checks: DoctorCheck[], config: PluginConfig): void {
+  const configuredBuckets = getConfiguredCompilerBuckets(config)
+
+  for (const target of config.targets) {
+    if (!isCoreFourPlatform(target)) continue
+
+    const capabilities = getCoreFourPrimitiveCapabilities(target)
+    for (const bucket of configuredBuckets) {
+      const capability = capabilities.buckets[bucket]
+      const description = describePrimitiveTranslation(
+        target,
+        bucket,
+        capability.mode,
+        capability.nativeSurfaces,
+      )
+
+      addCheck(checks, {
+        level: PRIMITIVE_MODE_LEVEL[capability.mode],
+        code: `primitive-${capability.mode}`,
+        title: description.title,
+        detail: description.detail,
+        fix: description.fix,
+        path: 'pluxx.config.ts',
+      })
+    }
+  }
 }
 
 function checkMcpServer(checks: DoctorCheck[], serverName: string, server: McpServer): void {
@@ -949,6 +1024,7 @@ export async function doctorProject(rootDir: string = process.cwd()): Promise<Do
   checkReadablePath(checks, rootDir, 'Scripts', config.scripts, false)
   checkReadablePath(checks, rootDir, 'Assets', config.assets, false)
   checkTargetPlatforms(checks, config)
+  checkPrimitiveTranslations(checks, config)
   checkMcpConfig(checks, config)
   checkUserConfig(checks, config)
   checkScaffoldMetadata(checks, rootDir, config)

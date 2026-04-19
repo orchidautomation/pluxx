@@ -421,3 +421,34 @@ export function getPluginCompilerBuckets(config: PluginConfig): PluginCompilerBu
     },
   }
 }
+
+export function getConfiguredCompilerBuckets(config: PluginConfig): PluxxCompilerBucket[] {
+  const buckets = getPluginCompilerBuckets(config)
+  const configured: PluxxCompilerBucket[] = []
+
+  if (buckets.instructions.path) configured.push('instructions')
+  if (buckets.skills.path) configured.push('skills')
+  if (buckets.commands.path) configured.push('commands')
+  if (buckets.agents.path) configured.push('agents')
+  if (buckets.hooks.config && Object.keys(buckets.hooks.config).length > 0) configured.push('hooks')
+
+  const hasPermissions = Boolean(
+    buckets.permissions.rules
+    && ((buckets.permissions.rules.allow?.length ?? 0)
+      + (buckets.permissions.rules.ask?.length ?? 0)
+      + (buckets.permissions.rules.deny?.length ?? 0) > 0),
+  )
+  if (hasPermissions) configured.push('permissions')
+
+  const hasRuntime = Boolean(
+    (buckets.runtime.mcp && Object.keys(buckets.runtime.mcp).length > 0)
+    || buckets.runtime.scriptsPath
+    || buckets.runtime.assetsPath
+    || buckets.runtime.passthroughPaths.length > 0,
+  )
+  if (hasRuntime) configured.push('runtime')
+
+  configured.push('distribution')
+
+  return configured
+}
