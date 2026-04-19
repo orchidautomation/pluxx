@@ -2,26 +2,35 @@
 title: Claude Code
 ---
 
-Use Pluxx in Claude Code for interactive scaffold iteration and fast refine/review loops.
+Use this target when Claude Code is the primary interactive host for your plugin.
 
-Recommended prompt:
-
-```text
-Use Pluxx to scaffold this MCP, then refine taxonomy and instructions before building and installing the Claude target.
-```
-
-Install target:
+## Build and Install
 
 ```bash
+npx @orchid-labs/pluxx build --target claude-code
 npx @orchid-labs/pluxx install --target claude-code
 ```
 
-If Claude Code is already open, run `/reload-plugins` in the active session after install so the new local plugin is picked up immediately.
+Pluxx registers a local Claude marketplace entry and installs the plugin through Claude's plugin tooling.
 
-### Slash Surface Contract
+If Claude Code is already running, execute `/reload-plugins` in the active session.
 
-When a Claude plugin has both `commands/<name>.md` and `skills/<name>/SKILL.md`, Pluxx keeps both surfaces in the Claude bundle.
+## Local Install Location
 
-To keep the slash UX command-first without losing the semantic skill surface, Pluxx keeps the Claude command name unchanged and rewrites the colliding Claude skill with `user-invocable: false` plus a hidden internal skill name.
+Installed plugin data is managed under your home directory through Claude marketplace registration.
 
-That keeps the command visible at its intended name while preserving the skill for Claude's automatic semantic routing.
+Relevant generated files inside `dist/claude-code/` include:
+
+- `.claude-plugin/plugin.json`
+- `.mcp.json`
+- `CLAUDE.md`
+- `hooks/hooks.json` (when hooks are configured)
+
+## Runtime Auth Behavior
+
+- For `runtimeAuth: inline`, Pluxx can materialize auth headers/env in installed MCP config.
+- For `runtimeAuth: platform`, auth is delegated to platform-managed flows.
+
+## Command/Skill Name Collisions
+
+When the same name exists in both `commands/<name>.md` and `skills/<name>/SKILL.md`, Pluxx keeps command-first UX and rewrites the colliding skill to a hidden internal shape so semantic routing still works.

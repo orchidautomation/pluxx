@@ -2,16 +2,37 @@
 title: Cursor
 ---
 
-Use Pluxx in Cursor when you want IDE-native iteration and Cursor-specific verification.
+Use this target when the plugin will be iterated and tested primarily in Cursor.
 
-Recommended prompt:
-
-```text
-Use Pluxx to scaffold this MCP, then make the plugin feel natural in Cursor and verify the generated Cursor output.
-```
-
-Install target:
+## Build and Install
 
 ```bash
+npx @orchid-labs/pluxx build --target cursor
 npx @orchid-labs/pluxx install --target cursor
+```
+
+Local install path:
+
+- `~/.cursor/plugins/local/<plugin-name>`
+
+## Runtime Files
+
+Key generated files under `dist/cursor/`:
+
+- `.cursor-plugin/plugin.json`
+- `mcp.json`
+- `AGENTS.md` and `rules/`
+- `hooks/hooks.json` (when hooks are configured)
+
+## Runtime Auth Behavior
+
+- `runtimeAuth: inline` writes auth headers/env into generated/install-time MCP config.
+- `runtimeAuth: platform` keeps runtime auth delegated to Cursor-managed flows.
+
+## Recommended Verification
+
+```bash
+npx @orchid-labs/pluxx doctor
+npx @orchid-labs/pluxx lint
+npx @orchid-labs/pluxx test --target cursor
 ```

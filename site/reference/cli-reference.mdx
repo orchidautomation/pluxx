@@ -2,26 +2,208 @@
 title: CLI Reference
 ---
 
-Core commands:
+Pluxx CLI package: `@orchid-labs/pluxx`
 
-- `pluxx init --from-mcp ...`
-- `pluxx doctor`
-- `pluxx doctor --consumer <installed-or-built-bundle>`
-- `pluxx lint`
-- `pluxx eval`
-- `pluxx build`
-- `pluxx test`
-- `pluxx mcp proxy --from-mcp ... [--record ...]`
-- `pluxx mcp proxy --replay <tape.json>`
-- `pluxx migrate <path>`
-- `pluxx install --target ...`
-- `pluxx sync [--from-mcp ...]`
-- `pluxx autopilot --from-mcp ... --runner ...`
+Preferred usage:
 
-Agent commands:
+```bash
+npx @orchid-labs/pluxx <command>
+```
 
-- `pluxx agent prepare`
-- `pluxx agent prompt taxonomy|instructions|review`
-- `pluxx agent run taxonomy|instructions|review --runner claude|cursor|codex|opencode`
+Global flags:
 
-See [Practical handbook](/getting-started/practical-handbook) for examples.
+- `--json` machine-readable output
+- `--quiet` suppress non-error logs
+- `--dry-run` plan work without writing/installing
+- `--verbose-runner` stream runner logs for `agent run` and `autopilot`
+
+## init
+
+Create a new project or import from MCP.
+
+```bash
+pluxx init [name]
+pluxx init --from-mcp <source> [options]
+```
+
+Key options:
+
+- `--from-mcp <source>` remote URL or local stdio command
+- `--yes` non-interactive mode
+- `--name`, `--display-name`, `--author`
+- `--targets <comma-separated platforms>`
+- `--grouping workflow|tool`
+- `--hooks none|safe`
+- `--transport http|sse|stdio`
+- `--auth-env`, `--auth-type bearer|header|platform`, `--auth-header`, `--auth-template`
+- `--runtime-auth inline|platform`
+- `--oauth-wrapper`
+
+Example:
+
+```bash
+pluxx init --from-mcp https://example.com/mcp --yes --name acme --targets claude-code,codex
+```
+
+## sync
+
+Refresh MCP-derived scaffold content while preserving custom sections.
+
+```bash
+pluxx sync [--from-mcp <source>]
+```
+
+Examples:
+
+```bash
+pluxx sync
+pluxx sync --from-mcp https://mcp.example.com/mcp
+```
+
+## doctor
+
+Run health checks against the project or an installed/built consumer bundle.
+
+```bash
+pluxx doctor [path]
+pluxx doctor [path] --consumer
+```
+
+Examples:
+
+```bash
+pluxx doctor
+pluxx doctor --consumer ./dist/cursor
+pluxx doctor --json
+```
+
+## lint
+
+Validate skills, metadata, platform rules, and compatibility constraints.
+
+```bash
+pluxx lint
+```
+
+## build
+
+Compile configured targets into `dist/`.
+
+```bash
+pluxx build [--target <platforms...>] [--install]
+```
+
+Examples:
+
+```bash
+pluxx build
+pluxx build --target claude-code cursor
+pluxx build --install
+```
+
+## test
+
+Run end-to-end verification contract: config + lint + eval + build + smoke checks.
+
+```bash
+pluxx test [--target <platforms...>] [--install]
+```
+
+Examples:
+
+```bash
+pluxx test
+pluxx test --target claude-code codex
+```
+
+## install
+
+Install built plugin bundles into local host plugin paths.
+
+```bash
+pluxx install [--target <platforms...>] [--trust]
+```
+
+- `--trust` bypasses interactive hook trust confirmation.
+- `--dry-run` shows install paths and trust implications.
+
+Examples:
+
+```bash
+pluxx install
+pluxx install --target claude-code
+pluxx install --dry-run
+```
+
+## agent
+
+Generate and run refinement prompt packs.
+
+```bash
+pluxx agent prepare [--docs URL] [--website URL] [--context <files...>]
+pluxx agent prompt <taxonomy|instructions|review>
+pluxx agent run <taxonomy|instructions|review> --runner <claude|cursor|codex|opencode> [options]
+```
+
+Common run options:
+
+- `--model <name>`
+- `--attach <url>` (OpenCode runner only)
+- `--no-verify`
+
+## autopilot
+
+One-command flow for import + refinement + verification.
+
+```bash
+pluxx autopilot --from-mcp <source> --runner <claude|cursor|codex|opencode> [options]
+```
+
+Key options:
+
+- `--mode quick|standard|thorough`
+- `--review` enable review pass in standard mode
+- `--no-verify` skip final `test`
+- supports the same scaffold/auth flags as `init --from-mcp`
+- supports `--docs`, `--website`, `--context`
+
+## eval
+
+Evaluate scaffold and prompt-pack quality.
+
+```bash
+pluxx eval
+```
+
+## migrate
+
+Import an existing single-platform plugin into a Pluxx project.
+
+```bash
+pluxx migrate <path>
+```
+
+## mcp proxy
+
+Run local stdio MCP proxy and optionally record/replay tapes.
+
+```bash
+pluxx mcp proxy --from-mcp <source> [--record <tape.json>]
+pluxx mcp proxy --replay <tape.json>
+```
+
+Examples:
+
+```bash
+pluxx mcp proxy --from-mcp "bun ./server.js" --record .pluxx/tapes/dev.json
+pluxx mcp proxy --replay .pluxx/tapes/dev.json
+```
+
+## Optional Commands
+
+These commands exist in the CLI but are not required for the standard import/build/install loop:
+
+- `pluxx validate`
+- `pluxx dev`
+- `pluxx publish`
+- `pluxx uninstall`
