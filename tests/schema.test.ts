@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'bun:test'
-import { HookEntrySchema, McpAuthSchema, McpServerSchema, PermissionsSchema, UserConfigSchema } from '../src/schema'
+import {
+  HookEntrySchema,
+  McpAuthSchema,
+  McpServerSchema,
+  PermissionsSchema,
+  PluginConfigSchema,
+  PLUXX_COMPILER_BUCKETS,
+  UserConfigSchema,
+  getPluginCompilerBuckets,
+} from '../src/schema'
 
 describe('McpServerSchema transport validation', () => {
   it('requires command and forbids url for stdio transport', () => {
@@ -195,5 +204,63 @@ describe('HookEntrySchema hook type validation', () => {
         type: 'prompt',
       }).success
     ).toBe(false)
+  })
+})
+
+describe('Plugin compiler bucket mapping', () => {
+  it('exposes the canonical compiler bucket list', () => {
+    expect(PLUXX_COMPILER_BUCKETS).toEqual([
+      'instructions',
+      'skills',
+      'commands',
+      'agents',
+      'hooks',
+      'permissions',
+      'runtime',
+      'distribution',
+    ])
+  })
+
+  it('derives compiler buckets from a parsed plugin config', () => {
+    const config = PluginConfigSchema.parse({
+      name: 'leadkit',
+      description: 'Leadkit plugin',
+      author: {
+        name: 'Orchid Labs',
+      },
+      skills: './skills/',
+      commands: './commands/',
+      agents: './agents/',
+      instructions: './README.md',
+      scripts: './scripts/',
+      assets: './assets/',
+      passthrough: ['./mcp-server/'],
+      mcp: {
+        leadkit: {
+          transport: 'stdio',
+          command: 'node',
+          args: ['server.js'],
+        },
+      },
+      permissions: {
+        allow: ['Read(src/**)'],
+      },
+      targets: ['claude-code', 'cursor', 'codex', 'opencode'],
+    })
+
+    const buckets = getPluginCompilerBuckets(config)
+
+    expect(buckets.instructions.path).toBe('./README.md')
+    expect(buckets.skills.path).toBe('./skills/')
+    expect(buckets.commands.path).toBe('./commands/')
+    expect(buckets.agents.path).toBe('./agents/')
+    expect(buckets.runtime.scriptsPath).toBe('./scripts/')
+    expect(buckets.runtime.assetsPath).toBe('./assets/')
+    expect(buckets.runtime.passthroughPaths).toEqual(['./mcp-server/'])
+    expect(Object.keys(buckets.runtime.mcp ?? {})).toEqual(['leadkit'])
+    expect(buckets.permissions.rules?.allow).toEqual(['Read(src/**)'])
+    expect(buckets.distribution.targets).toEqual(['claude-code', 'cursor', 'codex', 'opencode'])
+    expect(buckets.distribution.identity.name).toBe('leadkit')
+    expect(buckets.distribution.userConfig).toEqual([])
   })
 })

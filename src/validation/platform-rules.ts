@@ -1,4 +1,4 @@
-import type { TargetPlatform } from '../schema'
+import type { PluxxCompilerBucket, TargetPlatform } from '../schema'
 
 type RuleLevel = 'required' | 'supported' | 'fallback' | 'optional' | 'unknown'
 
@@ -80,6 +80,22 @@ export interface PlatformRules {
     format: string
     notes?: string
   }
+  sources: PlatformRuleSource[]
+}
+
+export type PrimitiveTranslationMode = 'preserve' | 'translate' | 'degrade' | 'drop'
+
+export type CoreFourPlatform = Extract<TargetPlatform, 'claude-code' | 'cursor' | 'codex' | 'opencode'>
+
+export interface PlatformPrimitiveCapability {
+  mode: PrimitiveTranslationMode
+  nativeSurfaces: string[]
+  notes?: string
+}
+
+export interface CoreFourPrimitiveCapabilities {
+  platform: CoreFourPlatform
+  buckets: Record<PluxxCompilerBucket, PlatformPrimitiveCapability>
   sources: PlatformRuleSource[]
 }
 
@@ -681,6 +697,180 @@ export const PLATFORM_VALIDATION_RULES: Record<ResearchTarget, PlatformRules> = 
   },
 }
 
+export const CORE_FOUR_PRIMITIVE_CAPABILITIES: Record<CoreFourPlatform, CoreFourPrimitiveCapabilities> = {
+  'claude-code': {
+    platform: 'claude-code',
+    buckets: {
+      instructions: {
+        mode: 'preserve',
+        nativeSurfaces: ['CLAUDE.md'],
+        notes: 'Claude has a native persistent instructions surface and plugin-level guidance model.',
+      },
+      skills: {
+        mode: 'preserve',
+        nativeSurfaces: ['skills/<skill>/SKILL.md'],
+      },
+      commands: {
+        mode: 'preserve',
+        nativeSurfaces: ['commands/*.md'],
+      },
+      agents: {
+        mode: 'preserve',
+        nativeSurfaces: ['agents/*.md'],
+        notes: 'Claude plugin agents are a first-class native surface with rich frontmatter.',
+      },
+      hooks: {
+        mode: 'preserve',
+        nativeSurfaces: ['hooks/hooks.json', '.claude-plugin/plugin.json'],
+      },
+      permissions: {
+        mode: 'translate',
+        nativeSurfaces: ['agent frontmatter', 'hook decisions', 'runtime approvals'],
+        notes: 'Permission intent exists, but not as one single canonical plugin-level object.',
+      },
+      runtime: {
+        mode: 'preserve',
+        nativeSurfaces: ['.mcp.json', '.claude-plugin/plugin.json', 'scripts/', 'assets/'],
+      },
+      distribution: {
+        mode: 'translate',
+        nativeSurfaces: ['.claude-plugin/plugin.json', 'install scopes', 'user configuration'],
+        notes: 'Distribution surfaces are native, but shared brand metadata is narrower than Codex.',
+      },
+    },
+    sources: PLATFORM_VALIDATION_RULES['claude-code'].sources,
+  },
+  'cursor': {
+    platform: 'cursor',
+    buckets: {
+      instructions: {
+        mode: 'preserve',
+        nativeSurfaces: ['rules/', 'AGENTS.md'],
+      },
+      skills: {
+        mode: 'preserve',
+        nativeSurfaces: ['skills/<skill>/SKILL.md'],
+        notes: 'Cursor skills preserve workflow meaning but document a narrower frontmatter set than Claude.',
+      },
+      commands: {
+        mode: 'preserve',
+        nativeSurfaces: ['commands/*'],
+      },
+      agents: {
+        mode: 'translate',
+        nativeSurfaces: ['agents/', '.cursor/agents/', '~/.cursor/agents/'],
+        notes: 'Cursor specialization and tool access often live more naturally in subagents than in skills.',
+      },
+      hooks: {
+        mode: 'preserve',
+        nativeSurfaces: ['hooks/hooks.json', '.cursor/hooks.json', '~/.cursor/hooks.json'],
+      },
+      permissions: {
+        mode: 'translate',
+        nativeSurfaces: ['hooks allow/deny', '.cursor/cli.json', '~/.cursor/cli-config.json', 'subagent tool access'],
+        notes: 'Cursor can express permission intent, but it is spread across hooks, CLI permissions, and subagent configuration.',
+      },
+      runtime: {
+        mode: 'preserve',
+        nativeSurfaces: ['mcp.json', '.cursor-plugin/plugin.json', 'scripts/', 'assets/'],
+      },
+      distribution: {
+        mode: 'preserve',
+        nativeSurfaces: ['.cursor-plugin/plugin.json', '.cursor-plugin/marketplace.json', 'local marketplace install path'],
+      },
+    },
+    sources: PLATFORM_VALIDATION_RULES['cursor'].sources,
+  },
+  'codex': {
+    platform: 'codex',
+    buckets: {
+      instructions: {
+        mode: 'preserve',
+        nativeSurfaces: ['AGENTS.md', 'AGENTS.override.md'],
+      },
+      skills: {
+        mode: 'preserve',
+        nativeSurfaces: ['skills/<skill>/SKILL.md'],
+      },
+      commands: {
+        mode: 'degrade',
+        nativeSurfaces: ['skills/', 'AGENTS.md'],
+        notes: 'Current Codex docs do not document plugin-packaged slash-command parity.',
+      },
+      agents: {
+        mode: 'translate',
+        nativeSurfaces: ['.codex/agents/*.toml', '~/.codex/agents/*.toml', 'subagent workflows'],
+        notes: 'Codex custom agents and subagents are real native surfaces, but they are not packaged the same way as Claude or Cursor plugin agents.',
+      },
+      hooks: {
+        mode: 'translate',
+        nativeSurfaces: ['.codex/hooks.json', '~/.codex/hooks.json'],
+        notes: 'Hooks are native, but they currently live next to config layers rather than inside the documented plugin bundle structure.',
+      },
+      permissions: {
+        mode: 'translate',
+        nativeSurfaces: ['approvals', 'sandbox policy', 'hook matchers', 'custom agent config'],
+        notes: 'Codex expresses permission intent through approvals, sandboxing, hooks, and custom agents rather than skill frontmatter.',
+      },
+      runtime: {
+        mode: 'preserve',
+        nativeSurfaces: ['.mcp.json', '.app.json', '.codex/config.toml', 'scripts/', 'assets/'],
+        notes: 'Bundle-local MCP config exists, but active MCP state also lives in config.toml.',
+      },
+      distribution: {
+        mode: 'preserve',
+        nativeSurfaces: ['.codex-plugin/plugin.json', '~/.agents/plugins/marketplace.json', '$REPO_ROOT/.agents/plugins/marketplace.json'],
+      },
+    },
+    sources: PLATFORM_VALIDATION_RULES['codex'].sources,
+  },
+  'opencode': {
+    platform: 'opencode',
+    buckets: {
+      instructions: {
+        mode: 'translate',
+        nativeSurfaces: ['config instructions', 'plugin code'],
+        notes: 'OpenCode instructions are native, but the surface is config- and code-driven rather than manifest markdown only.',
+      },
+      skills: {
+        mode: 'preserve',
+        nativeSurfaces: ['skills/<skill>/SKILL.md'],
+      },
+      commands: {
+        mode: 'preserve',
+        nativeSurfaces: ['commands/*.md', 'config command definitions'],
+      },
+      agents: {
+        mode: 'preserve',
+        nativeSurfaces: ['agents/*.md', 'config agent definitions'],
+      },
+      hooks: {
+        mode: 'translate',
+        nativeSurfaces: ['plugin JS/TS event handlers'],
+        notes: 'OpenCode hook behavior is native, but code-first rather than hooks.json-driven.',
+      },
+      permissions: {
+        mode: 'preserve',
+        nativeSurfaces: ['config permission', 'per-agent overrides'],
+      },
+      runtime: {
+        mode: 'preserve',
+        nativeSurfaces: ['config mcp', 'plugin JS/TS runtime', 'scripts/', 'assets/'],
+      },
+      distribution: {
+        mode: 'translate',
+        nativeSurfaces: ['local plugin dir', 'npm package', 'plugin JS/TS entrypoint'],
+        notes: 'Distribution is native, but there is no single shared manifest analog to Claude, Cursor, or Codex.',
+      },
+    },
+    sources: PLATFORM_VALIDATION_RULES['opencode'].sources,
+  },
+}
+
 export function getPlatformRules(platform: ResearchTarget): PlatformRules {
   return PLATFORM_VALIDATION_RULES[platform]
+}
+
+export function getCoreFourPrimitiveCapabilities(platform: CoreFourPlatform): CoreFourPrimitiveCapabilities {
+  return CORE_FOUR_PRIMITIVE_CAPABILITIES[platform]
 }

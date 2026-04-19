@@ -313,3 +313,111 @@ export type Brand = z.infer<typeof BrandSchema>
 export type UserConfigEntry = z.infer<typeof UserConfigEntrySchema>
 export type PermissionRule = z.infer<typeof PermissionRuleSchema>
 export type Permissions = z.infer<typeof PermissionsSchema>
+export type Hooks = z.infer<typeof HooksSchema>
+
+export const PLUXX_COMPILER_BUCKETS = [
+  'instructions',
+  'skills',
+  'commands',
+  'agents',
+  'hooks',
+  'permissions',
+  'runtime',
+  'distribution',
+] as const
+
+export type PluxxCompilerBucket = typeof PLUXX_COMPILER_BUCKETS[number]
+
+export interface PluginInstructionsBucket {
+  path?: string
+}
+
+export interface PluginSkillsBucket {
+  path: string
+}
+
+export interface PluginCommandsBucket {
+  path?: string
+}
+
+export interface PluginAgentsBucket {
+  path?: string
+}
+
+export interface PluginHooksBucket {
+  config?: Hooks
+}
+
+export interface PluginPermissionsBucket {
+  rules?: Permissions
+}
+
+export interface PluginRuntimeBucket {
+  mcp?: Record<string, McpServer>
+  scriptsPath?: string
+  assetsPath?: string
+  passthroughPaths: string[]
+}
+
+export interface PluginDistributionBucket {
+  identity: Pick<PluginConfig, 'name' | 'version' | 'description' | 'author' | 'repository' | 'license' | 'keywords'>
+  brand?: Brand
+  userConfig: UserConfigEntry[]
+  targets: TargetPlatform[]
+  outDir: string
+}
+
+export interface PluginCompilerBuckets {
+  instructions: PluginInstructionsBucket
+  skills: PluginSkillsBucket
+  commands: PluginCommandsBucket
+  agents: PluginAgentsBucket
+  hooks: PluginHooksBucket
+  permissions: PluginPermissionsBucket
+  runtime: PluginRuntimeBucket
+  distribution: PluginDistributionBucket
+}
+
+export function getPluginCompilerBuckets(config: PluginConfig): PluginCompilerBuckets {
+  return {
+    instructions: {
+      path: config.instructions,
+    },
+    skills: {
+      path: config.skills,
+    },
+    commands: {
+      path: config.commands,
+    },
+    agents: {
+      path: config.agents,
+    },
+    hooks: {
+      config: config.hooks,
+    },
+    permissions: {
+      rules: config.permissions,
+    },
+    runtime: {
+      mcp: config.mcp,
+      scriptsPath: config.scripts,
+      assetsPath: config.assets,
+      passthroughPaths: config.passthrough ?? [],
+    },
+    distribution: {
+      identity: {
+        name: config.name,
+        version: config.version,
+        description: config.description,
+        author: config.author,
+        repository: config.repository,
+        license: config.license,
+        keywords: config.keywords,
+      },
+      brand: config.brand,
+      userConfig: config.userConfig ?? [],
+      targets: config.targets,
+      outDir: config.outDir,
+    },
+  }
+}

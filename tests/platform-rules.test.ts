@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'bun:test'
 import {
+  CORE_FOUR_PRIMITIVE_CAPABILITIES,
   PLATFORM_VALIDATION_RULES,
   PLATFORM_LIMITS,
   PLATFORM_LIMIT_POLICIES,
+  getCoreFourPrimitiveCapabilities,
   getPlatformRules,
 } from '../src/validation/platform-rules'
 
@@ -27,6 +29,32 @@ describe('PLATFORM_VALIDATION_RULES', () => {
   it('getPlatformRules returns correct platform', () => {
     const rules = getPlatformRules('claude-code')
     expect(rules.platform).toBe('claude-code')
+  })
+})
+
+describe('CORE_FOUR_PRIMITIVE_CAPABILITIES', () => {
+  it('covers the four primary platforms', () => {
+    expect(Object.keys(CORE_FOUR_PRIMITIVE_CAPABILITIES)).toEqual([
+      'claude-code',
+      'cursor',
+      'codex',
+      'opencode',
+    ])
+  })
+
+  it('captures the current codex command degradation truth', () => {
+    expect(CORE_FOUR_PRIMITIVE_CAPABILITIES.codex.buckets.commands.mode).toBe('degrade')
+    expect(CORE_FOUR_PRIMITIVE_CAPABILITIES.codex.buckets.commands.nativeSurfaces).toEqual(['skills/', 'AGENTS.md'])
+  })
+
+  it('captures cursor agent translation through subagents', () => {
+    expect(CORE_FOUR_PRIMITIVE_CAPABILITIES.cursor.buckets.agents.mode).toBe('translate')
+    expect(CORE_FOUR_PRIMITIVE_CAPABILITIES.cursor.buckets.agents.nativeSurfaces).toContain('.cursor/agents/')
+  })
+
+  it('getCoreFourPrimitiveCapabilities returns the requested platform', () => {
+    const capabilities = getCoreFourPrimitiveCapabilities('opencode')
+    expect(capabilities.platform).toBe('opencode')
   })
 })
 
