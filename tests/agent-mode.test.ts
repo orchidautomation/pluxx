@@ -566,6 +566,58 @@ describe('agent mode', () => {
     expect(runnerArgs).toContain('--force')
   })
 
+  it('supports Cursor installs that expose only the cursor-agent binary', async () => {
+    const binDir = resolve(TEST_DIR, '.bin-cursor-agent')
+    const runnerArgsPath = resolve(TEST_DIR, 'cursor-agent-runner-args.txt')
+    const cursorAgentPath = resolve(binDir, 'cursor-agent')
+
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(
+      cursorAgentPath,
+      '#!/bin/sh\nprintf "%s\\0" "$@" >> "$PLUXX_RUNNER_ARGS"\nif [ "$1" = "status" ]; then\n  exit 0\nfi\nexit 0\n',
+    )
+    chmodSync(cursorAgentPath, 0o755)
+
+    const proc = Bun.spawn(
+      ['bun', resolve(ROOT, 'bin/pluxx.js'), 'agent', 'run', 'taxonomy', '--runner', 'cursor', '--json', '--no-verify'],
+      {
+        cwd: TEST_DIR,
+        env: {
+          ...process.env,
+          PATH: `${binDir}:${process.env.PATH ?? ''}`,
+          PLUXX_RUNNER_ARGS: runnerArgsPath,
+        },
+        stdout: 'pipe',
+        stderr: 'pipe',
+      },
+    )
+
+    const stdout = await new Response(proc.stdout).text()
+    const stderr = await new Response(proc.stderr).text()
+    const exitCode = await proc.exited
+
+    expect(exitCode).toBe(0)
+    expect(stderr).toBe('')
+
+    const summary = JSON.parse(stdout) as {
+      ok: boolean
+      runner: string
+      runnerExitCode: number
+      verify: boolean
+    }
+
+    expect(summary.ok).toBe(true)
+    expect(summary.runner).toBe('cursor')
+    expect(summary.runnerExitCode).toBe(0)
+    expect(summary.verify).toBe(false)
+
+    const runnerArgs = readFileSync(runnerArgsPath, 'utf-8').split('\0').filter(Boolean)
+    expect(runnerArgs).toContain('status')
+    expect(runnerArgs).toContain('-p')
+    expect(runnerArgs).toContain('--workspace')
+    expect(runnerArgs).toContain('--force')
+  })
+
   it('executes the OpenCode runner with attach support', async () => {
     const binDir = resolve(TEST_DIR, '.bin')
     const runnerArgsPath = resolve(TEST_DIR, 'opencode-runner-args.txt')

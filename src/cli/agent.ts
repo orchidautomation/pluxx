@@ -1,5 +1,5 @@
 import { existsSync } from 'fs'
-import { copyFile, mkdir, mkdtemp, readFile, rm } from 'fs/promises'
+import { chmod, copyFile, mkdir, mkdtemp, readFile, rm } from 'fs/promises'
 import { homedir, tmpdir } from 'os'
 import { resolve } from 'path'
 import { spawn } from 'child_process'
@@ -37,6 +37,8 @@ const AGENT_RUNNER_BINARIES: Record<AgentRunner, string> = {
   codex: 'codex',
   cursor: 'agent',
 }
+
+const CURSOR_RUNNER_BINARIES = ['agent', 'cursor-agent'] as const
 
 export interface AgentPreparePlannedFile {
   relativePath: string
@@ -1051,11 +1053,13 @@ async function readJsonFile(filePath: string): Promise<Record<string, any> | und
 }
 
 async function ensureRunnerAvailable(runner: AgentRunner): Promise<void> {
-  const binary = AGENT_RUNNER_BINARIES[runner]
-  const available = await commandExists(binary)
+  const binary = runner === 'cursor'
+    ? await resolveCursorBinary()
+    : AGENT_RUNNER_BINARIES[runner]
+  const available = binary ? await commandExists(binary) : false
   if (!available) {
     if (runner === 'cursor') {
-      throw new Error('The cursor runner requires the Cursor CLI `agent` binary on PATH. Install it with `curl https://cursor.com/install -fsS | bash` or choose a different runner.')
+      throw new Error('The cursor runner requires the Cursor CLI `agent` or `cursor-agent` binary on PATH. Install it with `curl https://cursor.com/install -fsS | bash` or choose a different runner.')
     }
     throw new Error(`The ${runner} runner is not available on PATH. Install \`${binary}\` or choose a different runner.`)
   }
@@ -1068,10 +1072,21 @@ async function ensureRunnerAuthenticated(runner: AgentRunner): Promise<void> {
     return
   }
 
-  const isAuthenticated = await commandSucceeds(['agent', 'status'])
+  const binary = await resolveCursorBinary()
+  const isAuthenticated = binary ? await commandSucceeds([binary, 'status']) : false
   if (!isAuthenticated) {
-    throw new Error('Cursor CLI authentication is required. Run `agent login` (browser auth) or export `CURSOR_API_KEY` before running Pluxx with `--runner cursor`.')
+    throw new Error('Cursor CLI authentication is required. Run `agent login` (or `cursor-agent login`) or export `CURSOR_API_KEY` before running Pluxx with `--runner cursor`.')
   }
+}
+
+async function resolveCursorBinary(): Promise<string | undefined> {
+  for (const candidate of CURSOR_RUNNER_BINARIES) {
+    if (await commandExists(candidate)) {
+      return candidate
+    }
+  }
+
+  return undefined
 }
 
 async function commandExists(binary: string): Promise<boolean> {
@@ -1194,6 +1209,31 @@ async function prepareRunnerExecution(runner: AgentRunner): Promise<{
   env: NodeJS.ProcessEnv
   cleanup?: () => Promise<void>
 }> {
+  if (runner === 'cursor') {
+    const cursorBinary = await resolveCursorBinary()
+    if (!cursorBinary || cursorBinary === AGENT_RUNNER_BINARIES.cursor) {
+      return { env: process.env }
+    }
+
+    const shimDir = await mkdtemp(resolve(tmpdir(), 'pluxx-cursor-bin-'))
+    const shimPath = resolve(shimDir, AGENT_RUNNER_BINARIES.cursor)
+    await Bun.write(
+      shimPath,
+      `#!/bin/sh\nexec ${shellQuote(cursorBinary)} "$@"\n`,
+    )
+    await chmod(shimPath, 0o755)
+
+    return {
+      env: {
+        ...process.env,
+        PATH: `${shimDir}:${process.env.PATH ?? ''}`,
+      },
+      cleanup: async () => {
+        await rm(shimDir, { recursive: true, force: true })
+      },
+    }
+  }
+
   if (runner !== 'codex') {
     return { env: process.env }
   }
