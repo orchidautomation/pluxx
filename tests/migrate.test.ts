@@ -170,6 +170,82 @@ async function setupClaudeReadmeSource() {
   return sourceDir
 }
 
+async function setupCursorNativeAgentSource() {
+  const sourceDir = resolve(TEST_DIR, 'source-cursor-native-agents')
+  mkdirSync(resolve(sourceDir, '.cursor-plugin'), { recursive: true })
+  mkdirSync(resolve(sourceDir, '.cursor/agents'), { recursive: true })
+  mkdirSync(resolve(sourceDir, 'skills/inbox-triage'), { recursive: true })
+
+  await writeJson(resolve(sourceDir, '.cursor-plugin/plugin.json'), {
+    name: 'cursor-native-agents',
+    version: '0.2.0',
+    description: 'Cursor-native agent fixture.',
+    author: { name: 'Orchid' },
+  })
+
+  await writeJson(resolve(sourceDir, '.mcp.json'), {
+    mcpServers: {
+      fixture: {
+        url: 'https://example.com/mcp',
+      },
+    },
+  })
+
+  await Bun.write(
+    resolve(sourceDir, 'skills/inbox-triage/SKILL.md'),
+    ['---', 'name: inbox-triage', 'description: "Review inbox work."', '---', '', '# Inbox Triage'].join('\n'),
+  )
+  await Bun.write(
+    resolve(sourceDir, '.cursor/agents/research.md'),
+    ['---', 'name: research', 'description: "Specialist researcher."', '---', '', '# Research'].join('\n'),
+  )
+
+  return sourceDir
+}
+
+async function setupCodexNativeAgentSource() {
+  const sourceDir = resolve(TEST_DIR, 'source-codex-native-agents')
+  mkdirSync(resolve(sourceDir, '.codex-plugin'), { recursive: true })
+  mkdirSync(resolve(sourceDir, '.codex/agents'), { recursive: true })
+  mkdirSync(resolve(sourceDir, 'skills/account-brief'), { recursive: true })
+
+  await writeJson(resolve(sourceDir, '.codex-plugin/plugin.json'), {
+    name: 'codex-native-agents',
+    version: '0.3.0',
+    description: 'Codex-native custom agent fixture.',
+    author: { name: 'Orchid' },
+  })
+
+  await writeJson(resolve(sourceDir, '.mcp.json'), {
+    mcpServers: {
+      fixture: {
+        url: 'https://example.com/mcp',
+      },
+    },
+  })
+
+  await Bun.write(
+    resolve(sourceDir, 'skills/account-brief/SKILL.md'),
+    ['---', 'name: account-brief', 'description: "Summarize an account."', '---', '', '# Account Brief'].join('\n'),
+  )
+  await Bun.write(
+    resolve(sourceDir, '.codex/agents/specialist.toml'),
+    [
+      'name = "Sales Research"',
+      'description = "Handle complex: research tasks."',
+      'model = "gpt-5.4"',
+      'model_reasoning_effort = "high"',
+      'developer_instructions = """',
+      'Use the MCP for account intelligence.',
+      'Return only the synthesized result.',
+      '"""',
+      '',
+    ].join('\n'),
+  )
+
+  return sourceDir
+}
+
 beforeEach(() => {
   rmSync(TEST_DIR, { recursive: true, force: true })
   mkdirSync(TEST_DIR, { recursive: true })
@@ -271,5 +347,47 @@ describe('migrate', () => {
     expect(readFileSync(resolve(outputDir, 'README.md'), 'utf-8')).toContain('Migrated from README instructions.')
     const migratedSkill = readFileSync(resolve(outputDir, 'skills/prospect-research/SKILL.md'), 'utf-8')
     expect(migratedSkill).not.toContain('allowed-tools:')
+  })
+
+  it('imports Cursor native agents into the canonical agents directory', async () => {
+    const sourceDir = await setupCursorNativeAgentSource()
+    const outputDir = resolve(TEST_DIR, 'out-cursor-native-agents')
+    mkdirSync(outputDir, { recursive: true })
+
+    const previousCwd = process.cwd()
+    process.chdir(outputDir)
+    try {
+      await migrate(sourceDir)
+    } finally {
+      process.chdir(previousCwd)
+    }
+
+    const config = readFileSync(resolve(outputDir, 'pluxx.config.ts'), 'utf-8')
+    expect(config).toContain("agents: './agents/'")
+    expect(existsSync(resolve(outputDir, 'agents/research.md'))).toBe(true)
+    expect(readFileSync(resolve(outputDir, 'agents/research.md'), 'utf-8')).toContain('Specialist researcher.')
+  })
+
+  it('converts Codex native TOML agents into canonical markdown agents', async () => {
+    const sourceDir = await setupCodexNativeAgentSource()
+    const outputDir = resolve(TEST_DIR, 'out-codex-native-agents')
+    mkdirSync(outputDir, { recursive: true })
+
+    const previousCwd = process.cwd()
+    process.chdir(outputDir)
+    try {
+      await migrate(sourceDir)
+    } finally {
+      process.chdir(previousCwd)
+    }
+
+    const config = readFileSync(resolve(outputDir, 'pluxx.config.ts'), 'utf-8')
+    expect(config).toContain("agents: './agents/'")
+    const migratedAgent = readFileSync(resolve(outputDir, 'agents/sales-research.md'), 'utf-8')
+    expect(migratedAgent).toContain('name: "sales-research"')
+    expect(migratedAgent).toContain('description: "Handle complex: research tasks."')
+    expect(migratedAgent).toContain('Preferred model: `gpt-5.4`')
+    expect(migratedAgent).toContain('Preferred reasoning effort: `high`')
+    expect(migratedAgent).toContain('Use the MCP for account intelligence.')
   })
 })

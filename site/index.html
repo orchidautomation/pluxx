@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>pluxx — Bring your MCP. Get plugins everywhere.</title>
-<meta name="description" content="Pluxx turns a raw MCP into a maintainable plugin project for Claude Code, Codex, Cursor, and OpenCode.">
+<title>pluxx — One plugin source. Native plugins for the core four.</title>
+<meta name="description" content="Pluxx is the cross-host compiler for MCP-backed plugins. Import an MCP or a host-native plugin, keep one maintained source project, and ship native outputs for Claude Code, Codex, Cursor, and OpenCode.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -164,9 +164,9 @@ footer{border-top:1px solid var(--border);padding:64px 0;text-align:center}
 <section class="hero">
   <div class="hero-glow"></div>
   <div class="container">
-    <div class="badge"><span class="badge-dot"></span> Cross-host plugin authoring for MCP teams</div>
-    <h1>Bring your MCP.<br><em>Get plugins everywhere.</em></h1>
-    <p class="hero-sub">Pluxx turns a raw MCP into a maintained source project and native plugin bundles for Claude Code, Codex, Cursor, and OpenCode. Agent-driven refinement is optional and stays inside Pluxx-managed boundaries.</p>
+    <div class="badge"><span class="badge-dot"></span> Cross-host plugin compiler for MCP teams</div>
+    <h1>One plugin source.<br><em>Native plugins for the core four.</em></h1>
+    <p class="hero-sub">Import a raw MCP or an existing host-native plugin, keep one maintained source project, and compile native outputs for Claude Code, Codex, Cursor, and OpenCode. Deterministic scaffolding comes first. Agent-driven refinement is optional.</p>
     <div class="hero-actions">
       <div class="cmd mono" onclick="navigator.clipboard.writeText('npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp')">
         <span class="prompt">$</span>
@@ -239,8 +239,8 @@ Discovered <span class="w">24 tools</span> and drafted <span class="w">8 workflo
 <section>
   <div class="container">
     <div class="section-header">
-      <h2>Your MCP is useful. Packaging it everywhere is not.</h2>
-      <p class="section-desc center">Every coding agent has its own plugin format, auth model, hooks surface, and instruction files. Without Pluxx, shipping one MCP across tools means maintaining separate plugin projects that drift over time.</p>
+      <h2>Your plugin logic can be portable. The host contracts are not.</h2>
+      <p class="section-desc center">Every coding agent has its own manifest, auth model, hooks surface, agent story, and instruction files. Without Pluxx, shipping across tools means maintaining separate plugin projects that drift over time.</p>
     </div>
     <div class="table-wrap">
       <table>
@@ -261,8 +261,8 @@ Discovered <span class="w">24 tools</span> and drafted <span class="w">8 workflo
 <section>
   <div class="container">
     <div class="section-header">
-      <h2>One MCP in. One source project out.</h2>
-      <p class="section-desc center">Pluxx imports the MCP, generates the source project, validates it, and produces native plugin bundles for each target platform.</p>
+      <h2>Import once. Compile for the core four.</h2>
+      <p class="section-desc center">Pluxx can start from a raw MCP or an existing host-native plugin, normalize the durable source project, validate it, and produce native bundles for each primary target.</p>
     </div>
     <div class="codeblock mono" style="max-width:640px;margin:0 auto">
 <span class="cmt">// pluxx.config.ts</span>
@@ -299,8 +299,8 @@ Discovered <span class="w">24 tools</span> and drafted <span class="w">8 workflo
 <section>
   <div class="container">
     <div class="section-header">
-      <h2>MCP auth translated automatically</h2>
-      <p class="section-desc center">Write auth once in the source project. Pluxx generates the correct transport shape for each platform.</p>
+      <h2>Runtime intent translated automatically</h2>
+      <p class="section-desc center">Write runtime configuration once in the source project. Pluxx generates the correct auth and transport shape for each platform.</p>
     </div>
     <div class="mcp-layout">
       <div>
@@ -331,13 +331,13 @@ Discovered <span class="w">24 tools</span> and drafted <span class="w">8 workflo
   <div class="container">
     <div class="section-header">
       <h2>How it works</h2>
-      <p class="section-desc center">Import, validate, refine, ship.</p>
+      <p class="section-desc center">Import, validate, refine only where models help, then ship native bundles.</p>
     </div>
     <div class="steps">
       <div class="step">
         <div class="step-num mono">init</div>
-        <div class="step-title">Import your MCP</div>
-        <div class="step-desc">Pluxx introspects a raw HTTP, SSE, or stdio MCP and scaffolds a valid plugin project.</div>
+        <div class="step-title">Import your source</div>
+        <div class="step-desc">Start from a raw HTTP, SSE, or stdio MCP, or migrate an existing host-native plugin into a valid Pluxx project.</div>
       </div>
       <div class="step">
         <div class="step-num mono">doctor</div>
@@ -346,13 +346,13 @@ Discovered <span class="w">24 tools</span> and drafted <span class="w">8 workflo
       </div>
       <div class="step">
         <div class="step-num mono">agent</div>
-        <div class="step-title">Refine with Codex or Claude</div>
-        <div class="step-desc">Agent Mode prepares context and prompts so the host coding agent improves only managed sections.</div>
+        <div class="step-title">Refine with a host agent</div>
+        <div class="step-desc">Agent Mode prepares context and prompts so Claude, Cursor, Codex, or OpenCode improve only the managed refinement surfaces.</div>
       </div>
       <div class="step">
         <div class="step-num mono">build</div>
-        <div class="step-title">Ship and sync</div>
-        <div class="step-desc">Build platform bundles, install locally, and keep the source project updated later with <span class="mono">pluxx sync --from-mcp</span>.</div>
+        <div class="step-title">Compile and ship</div>
+        <div class="step-desc">Build native platform bundles, install locally, and keep the source project updated later with <span class="mono">pluxx sync --from-mcp</span>.</div>
       </div>
     </div>
   </div>
@@ -363,20 +363,20 @@ Discovered <span class="w">24 tools</span> and drafted <span class="w">8 workflo
   <div class="oss-glow"></div>
   <div class="container" style="position:relative">
     <div class="badge" style="margin-bottom:24px"><span class="badge-dot" style="background:var(--accent)"></span> MIT Licensed</div>
-    <h2>Open source core. Agent-native workflow.</h2>
-    <p class="section-desc center" style="margin-bottom:32px">Pluxx stays deterministic and open source. The host coding agent does the semantic refinement, which means the workflow gets better as Codex and Claude get better.</p>
+    <h2>Open source core. Honest host outputs.</h2>
+    <p class="section-desc center" style="margin-bottom:32px">Pluxx stays deterministic and open source. It owns the compiler layer, validation, and packaging, then lets the host coding agent refine taxonomy and instructions where model work is actually useful.</p>
     <a href="https://github.com/orchidautomation/pluxx" target="_blank" class="cmd mono" style="margin:0 auto">
       <svg width="15" height="15" viewBox="0 0 16 16" fill="var(--text)"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
       <span>Star on GitHub</span>
     </a>
-    <p class="oss-coming">Shipped now: one-shot autopilot and project-level agent prompt overrides. Coming next: publish flows for shared plugin repos.</p>
+    <p class="oss-coming">Shipped now: import, migrate, eval, consumer doctor, deterministic MCP replay, and core-four install flows. Next: deeper semantic translation across skills, agents, permissions, and hooks.</p>
   </div>
 </section>
 
 <!-- Footer -->
 <footer>
   <div class="container">
-    <h2 style="font-size:clamp(1.4rem,3vw,1.8rem);margin-bottom:20px">Bring your MCP in 30 seconds</h2>
+    <h2 style="font-size:clamp(1.4rem,3vw,1.8rem);margin-bottom:20px">Start from an MCP in 30 seconds</h2>
     <div class="cmd mono" style="margin:0 auto;justify-content:center;max-width:560px" onclick="navigator.clipboard.writeText('npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp')">
       <span class="prompt">$</span>
       <span>npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp</span>

@@ -1,4 +1,4 @@
-import { resolve, basename } from 'path'
+import { resolve } from 'path'
 import { existsSync, readdirSync, mkdirSync, cpSync, readFileSync, writeFileSync } from 'fs'
 import {
   MCP_SCAFFOLD_METADATA_PATH,
@@ -49,6 +49,14 @@ interface ParsedHooks {
   }>
 }
 
+interface CanonicalSourcePaths {
+  skills?: string
+  commands?: string
+  agents?: string
+  scripts?: string
+  assets?: string
+}
+
 interface MigrateResult {
   platform: DetectedPlatform
   manifest: ParsedManifest
@@ -56,13 +64,7 @@ interface MigrateResult {
   hooks: ParsedHooks
   passthrough: string[]
   instructions?: string
-  directories: {
-    skills: boolean
-    commands: boolean
-    agents: boolean
-    scripts: boolean
-    assets: boolean
-  }
+  sourcePaths: CanonicalSourcePaths
   persistedSkills: PersistedSkill[]
 }
 
@@ -346,14 +348,36 @@ function findInstructions(pluginDir: string): string | undefined {
 
 // ── Directory Detection ─────────────────────────────────────────
 
-function detectDirectories(pluginDir: string) {
-  return {
-    skills: existsSync(resolve(pluginDir, 'skills')),
-    commands: existsSync(resolve(pluginDir, 'commands')),
-    agents: existsSync(resolve(pluginDir, 'agents')),
-    scripts: existsSync(resolve(pluginDir, 'scripts')),
-    assets: existsSync(resolve(pluginDir, 'assets')),
+const CANONICAL_SOURCE_CANDIDATES: Record<keyof CanonicalSourcePaths, string[]> = {
+  skills: ['skills', '.claude/skills', '.cursor/skills', '.agents/skills', '.opencode/skills'],
+  commands: ['commands', '.opencode/commands'],
+  agents: ['agents', '.claude/agents', '.cursor/agents', '.opencode/agents', '.codex/agents'],
+  scripts: ['scripts'],
+  assets: ['assets'],
+}
+
+function normalizeRelativeDir(relativePath: string): string {
+  const trimmed = relativePath.replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/$/, '')
+  return `./${trimmed}/`
+}
+
+function stripRelativePrefix(relativePath: string): string {
+  return relativePath.replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/$/, '')
+}
+
+function detectCanonicalSourcePaths(pluginDir: string): CanonicalSourcePaths {
+  const result: CanonicalSourcePaths = {}
+
+  for (const bucket of Object.keys(CANONICAL_SOURCE_CANDIDATES) as Array<keyof CanonicalSourcePaths>) {
+    for (const candidate of CANONICAL_SOURCE_CANDIDATES[bucket]) {
+      const normalized = stripRelativePrefix(candidate)
+      if (!existsSync(resolve(pluginDir, normalized))) continue
+      result[bucket] = normalizeRelativeDir(normalized)
+      break
+    }
   }
+
+  return result
 }
 
 function detectPassthroughDirs(pluginDir: string, mcp: ParsedMcp): string[] {
@@ -426,11 +450,11 @@ function extractFrontmatterField(content: string, key: 'name' | 'description'): 
   return undefined
 }
 
-function readMigratedSkills(pluginDir: string, dirs: MigrateResult['directories']): PersistedSkill[] {
+function readMigratedSkills(pluginDir: string, sourcePaths: CanonicalSourcePaths): PersistedSkill[] {
   const skills: PersistedSkill[] = []
 
-  if (dirs.skills) {
-    const skillsDir = resolve(pluginDir, 'skills')
+  if (sourcePaths.skills) {
+    const skillsDir = resolve(pluginDir, stripRelativePrefix(sourcePaths.skills))
     const entries = readdirSync(skillsDir, { withFileTypes: true })
 
     for (const entry of entries) {
@@ -457,8 +481,8 @@ function readMigratedSkills(pluginDir: string, dirs: MigrateResult['directories'
     }
   }
 
-  if (skills.length === 0 && dirs.commands) {
-    const commandsDir = resolve(pluginDir, 'commands')
+  if (skills.length === 0 && sourcePaths.commands) {
+    const commandsDir = resolve(pluginDir, stripRelativePrefix(sourcePaths.commands))
     const entries = readdirSync(commandsDir, { withFileTypes: true })
 
     for (const entry of entries) {
@@ -481,8 +505,8 @@ const HOST_NATIVE_SKILL_FRONTMATTER_KEYS = new Set([
   'allowed-tools',
 ])
 
-function sanitizeMigratedSkillFrontmatter(outputDir: string, dirs: MigrateResult['directories']): void {
-  if (!dirs.skills) return
+function sanitizeMigratedSkillFrontmatter(outputDir: string): void {
+  if (!existsSync(resolve(outputDir, 'skills'))) return
 
   const skillsDir = resolve(outputDir, 'skills')
   const entries = readdirSync(skillsDir, { withFileTypes: true })
@@ -524,6 +548,88 @@ function sanitizeMigratedSkillFrontmatter(outputDir: string, dirs: MigrateResult
 
     writeFileSync(skillPath, rewritten, 'utf-8')
   }
+}
+
+interface ParsedCodexAgent {
+  name?: string
+  description?: string
+  model?: string
+  effort?: string
+  developerInstructions?: string
+}
+
+function readTomlScalarValue(content: string, key: string): string | undefined {
+  const match = content.match(new RegExp(`(?:^|\\n)${key}\\s*=\\s*"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"`, 'm'))
+  return match?.[1]?.replace(/\\"/g, '"').replace(/\\\\/g, '\\')
+}
+
+function readTomlMultilineValue(content: string, key: string): string | undefined {
+  const match = content.match(new RegExp(`(?:^|\\n)${key}\\s*=\\s*"""\\n?([\\s\\S]*?)\\n?"""`, 'm'))
+  return match?.[1]?.trim()
+}
+
+function parseCodexAgentToml(content: string): ParsedCodexAgent {
+  return {
+    name: readTomlScalarValue(content, 'name'),
+    description: readTomlScalarValue(content, 'description'),
+    model: readTomlScalarValue(content, 'model'),
+    effort: readTomlScalarValue(content, 'model_reasoning_effort'),
+    developerInstructions: readTomlMultilineValue(content, 'developer_instructions'),
+  }
+}
+
+function renderMigratedAgentMarkdown(fileStem: string, parsed: ParsedCodexAgent): string {
+  const agentName = toKebabCase(parsed.name ?? fileStem) || 'agent'
+  const title = parsed.name ?? titleCaseFromDirName(agentName)
+  const bodyLines: string[] = []
+
+  if (parsed.model || parsed.effort) {
+    bodyLines.push('Source metadata:')
+    if (parsed.model) {
+      bodyLines.push(`- Preferred model: \`${parsed.model}\``)
+    }
+    if (parsed.effort) {
+      bodyLines.push(`- Preferred reasoning effort: \`${parsed.effort}\``)
+    }
+    bodyLines.push('')
+  }
+
+  if (parsed.developerInstructions) {
+    bodyLines.push(parsed.developerInstructions.trim())
+  } else {
+    bodyLines.push('Migrated from a native Codex custom agent.')
+  }
+
+  const frontmatter = [
+    '---',
+    `name: ${JSON.stringify(agentName)}`,
+    ...(parsed.description ? [`description: ${JSON.stringify(parsed.description)}`] : []),
+    '---',
+    '',
+    `# ${title}`,
+    '',
+    ...bodyLines,
+    '',
+  ]
+
+  return frontmatter.join('\n')
+}
+
+function copyCodexAgents(sourceDir: string, destDir: string): boolean {
+  const entries = readdirSync(sourceDir, { withFileTypes: true })
+  const tomlEntries = entries.filter((entry) => entry.isFile() && entry.name.endsWith('.toml'))
+  if (tomlEntries.length === 0) return false
+
+  mkdirSync(destDir, { recursive: true })
+  for (const entry of tomlEntries) {
+    const sourcePath = resolve(sourceDir, entry.name)
+    const parsed = parseCodexAgentToml(readFileSync(sourcePath, 'utf-8'))
+    const fallbackName = entry.name.replace(/\.toml$/, '')
+    const fileName = `${toKebabCase(parsed.name ?? fallbackName) || 'agent'}.md`
+    writeFileSync(resolve(destDir, fileName), renderMigratedAgentMarkdown(fallbackName, parsed), 'utf-8')
+  }
+
+  return true
 }
 
 function primarySource(result: MigrateResult): McpServer {
@@ -594,7 +700,7 @@ function buildMigratedScaffoldMetadata(result: MigrateResult, outputDir: string)
   const managedFiles = [
     ...(result.instructions ? [result.instructions.replace(/^\.\//, '')] : []),
     ...(['skills', 'commands', 'agents', 'scripts', 'assets'] as const).flatMap((dir) => {
-      if (!result.directories[dir]) return []
+      if (!result.sourcePaths[dir]) return []
       const baseDir = dir
       const dirPath = resolve(outputDir, baseDir)
       if (!existsSync(dirPath)) return []
@@ -661,21 +767,28 @@ function buildMigratedScaffoldMetadata(result: MigrateResult, outputDir: string)
 function copyDirectories(
   pluginDir: string,
   outputDir: string,
-  dirs: MigrateResult['directories'],
+  sourcePaths: CanonicalSourcePaths,
   passthrough: string[],
 ): string[] {
   const copied: string[] = []
   const toCopy = ['skills', 'commands', 'agents', 'scripts', 'assets'] as const
 
   for (const dir of toCopy) {
-    if (!dirs[dir]) continue
-    const src = resolve(pluginDir, dir)
+    const sourcePath = sourcePaths[dir]
+    if (!sourcePath) continue
+    const normalizedSource = stripRelativePrefix(sourcePath)
+    const src = resolve(pluginDir, normalizedSource)
     const dest = resolve(outputDir, dir)
     if (existsSync(dest)) {
       console.log(`  skip ./${dir}/ (already exists)`)
       continue
     }
-    cpSync(src, dest, { recursive: true })
+    const copiedCodexAgents = dir === 'agents' && normalizedSource === '.codex/agents'
+      ? copyCodexAgents(src, dest)
+      : false
+    if (!copiedCodexAgents) {
+      cpSync(src, dest, { recursive: true })
+    }
     copied.push(dir)
   }
 
@@ -735,19 +848,19 @@ function generateConfigTs(result: MigrateResult): string {
   lines.push('')
 
   // Directories
-  if (result.directories.skills) {
+  if (result.sourcePaths.skills) {
     lines.push(`  skills: './skills/',`)
   }
-  if (result.directories.commands) {
+  if (result.sourcePaths.commands) {
     lines.push(`  commands: './commands/',`)
   }
-  if (result.directories.agents) {
+  if (result.sourcePaths.agents) {
     lines.push(`  agents: './agents/',`)
   }
-  if (result.directories.scripts) {
+  if (result.sourcePaths.scripts) {
     lines.push(`  scripts: './scripts/',`)
   }
-  if (result.directories.assets) {
+  if (result.sourcePaths.assets) {
     lines.push(`  assets: './assets/',`)
   }
   if (result.instructions) {
@@ -883,12 +996,12 @@ export async function migrate(inputPath: string): Promise<void> {
   }
 
   // 6. Detect directories
-  const directories = detectDirectories(pluginDir)
+  const sourcePaths = detectCanonicalSourcePaths(pluginDir)
   const passthrough = detectPassthroughDirs(pluginDir, mcp)
-  const persistedSkills = readMigratedSkills(pluginDir, directories)
-  const dirNames = Object.entries(directories)
-    .filter(([_, exists]) => exists)
-    .map(([name]) => name)
+  const persistedSkills = readMigratedSkills(pluginDir, sourcePaths)
+  const dirNames = Object.entries(sourcePaths)
+    .filter(([, sourcePath]) => Boolean(sourcePath))
+    .map(([, sourcePath]) => stripRelativePrefix(sourcePath!))
     .concat(passthrough.map((entry) => entry.replace(/^\.\//, '').replace(/\/$/, '')))
   if (dirNames.length > 0) {
     console.log(`  directories: ${dirNames.join(', ')}`)
@@ -905,7 +1018,7 @@ export async function migrate(inputPath: string): Promise<void> {
     hooks,
     passthrough,
     instructions,
-    directories,
+    sourcePaths,
     persistedSkills,
   }
 
@@ -923,12 +1036,12 @@ export async function migrate(inputPath: string): Promise<void> {
   console.log(`\nGenerated pluxx.config.ts`)
 
   // 9. Copy directories
-  const copied = copyDirectories(pluginDir, outputDir, directories, passthrough)
+  const copied = copyDirectories(pluginDir, outputDir, sourcePaths, passthrough)
   if (copied.length > 0) {
     console.log(`Copied: ${copied.map(d => `./${d}/`).join(', ')}`)
   }
 
-  sanitizeMigratedSkillFrontmatter(outputDir, directories)
+  sanitizeMigratedSkillFrontmatter(outputDir)
 
   // 10. Copy instructions file if it exists.
   if (instructions) {

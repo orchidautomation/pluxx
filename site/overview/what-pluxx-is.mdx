@@ -2,9 +2,11 @@
 title: What Pluxx Is
 ---
 
-Pluxx is the authoring and maintenance layer for MCP-backed plugins.
+Pluxx is the cross-host compiler for MCP-backed plugins.
 
-It keeps one source project for your plugin and compiles native outputs for Claude Code, Cursor, Codex, and OpenCode.
+It gives you one maintained source project, normalizes the plugin primitives that drift across hosts, and compiles native outputs for Claude Code, Cursor, Codex, and OpenCode.
+
+You can start from a raw MCP with `pluxx init --from-mcp ...` or import an existing host-native plugin with `pluxx migrate <path>`.
 
 ## The source project
 
@@ -33,6 +35,8 @@ dist/
 ```
 
 The source project is the durable layer. The `dist/` directories are generated outputs.
+
+Pluxx is opinionated about what “cross-host” means. It does not pretend every platform is identical. Instead, it keeps a canonical model for instructions, skills, commands, agents, hooks, permissions, runtime, and distribution, then compiles each host’s native equivalent as honestly as possible.
 
 ## Deterministic layer vs agent layer
 
