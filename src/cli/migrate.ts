@@ -1,5 +1,5 @@
 import { resolve, basename } from 'path'
-import { existsSync, readdirSync, mkdirSync, cpSync, readFileSync } from 'fs'
+import { existsSync, readdirSync, mkdirSync, cpSync, readFileSync, writeFileSync } from 'fs'
 import {
   MCP_SCAFFOLD_METADATA_PATH,
   MCP_TAXONOMY_PATH,
@@ -477,6 +477,55 @@ function readMigratedSkills(pluginDir: string, dirs: MigrateResult['directories'
   return skills.sort((a, b) => a.dirName.localeCompare(b.dirName))
 }
 
+const HOST_NATIVE_SKILL_FRONTMATTER_KEYS = new Set([
+  'allowed-tools',
+])
+
+function sanitizeMigratedSkillFrontmatter(outputDir: string, dirs: MigrateResult['directories']): void {
+  if (!dirs.skills) return
+
+  const skillsDir = resolve(outputDir, 'skills')
+  const entries = readdirSync(skillsDir, { withFileTypes: true })
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue
+    const skillPath = resolve(skillsDir, entry.name, 'SKILL.md')
+    if (!existsSync(skillPath)) continue
+
+    const content = readFileSync(skillPath, 'utf-8')
+    const lines = content.split(/\r?\n/)
+    if (lines[0]?.trim() !== '---') continue
+
+    let endIndex = -1
+    for (let i = 1; i < lines.length; i += 1) {
+      if (lines[i].trim() === '---') {
+        endIndex = i
+        break
+      }
+    }
+
+    if (endIndex === -1) continue
+
+    const frontmatter = lines.slice(1, endIndex)
+    const sanitized = frontmatter.filter((line) => {
+      const match = /^([A-Za-z0-9_-]+)\s*:/.exec(line.trim())
+      if (!match) return true
+      return !HOST_NATIVE_SKILL_FRONTMATTER_KEYS.has(match[1])
+    })
+
+    if (sanitized.length === frontmatter.length) continue
+
+    const rewritten = [
+      '---',
+      ...sanitized,
+      '---',
+      ...lines.slice(endIndex + 1),
+    ].join('\n')
+
+    writeFileSync(skillPath, rewritten, 'utf-8')
+  }
+}
+
 function primarySource(result: MigrateResult): McpServer {
   const [serverName, server] = Object.entries(result.mcp)[0] ?? []
   const auth = normalizeMigrateAuth(server?.auth)
@@ -878,6 +927,8 @@ export async function migrate(inputPath: string): Promise<void> {
   if (copied.length > 0) {
     console.log(`Copied: ${copied.map(d => `./${d}/`).join(', ')}`)
   }
+
+  sanitizeMigratedSkillFrontmatter(outputDir, directories)
 
   // 10. Copy instructions file if it exists.
   if (instructions) {

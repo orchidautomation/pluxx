@@ -150,7 +150,19 @@ async function setupClaudeReadmeSource() {
   })
 
   mkdirSync(resolve(sourceDir, 'skills/prospect-research'), { recursive: true })
-  await Bun.write(resolve(sourceDir, 'skills/prospect-research/SKILL.md'), '# Prospect Research\n')
+  await Bun.write(
+    resolve(sourceDir, 'skills/prospect-research/SKILL.md'),
+    [
+      '---',
+      'name: prospect-research',
+      'description: Research a prospect.',
+      'allowed-tools: mcp__leadkit__get_lead, Read',
+      '---',
+      '',
+      '# Prospect Research',
+      '',
+    ].join('\n'),
+  )
   mkdirSync(resolve(sourceDir, 'mcp-server/dist'), { recursive: true })
   await Bun.write(resolve(sourceDir, 'mcp-server/dist/index.js'), 'console.log("leadkit")\n')
   await Bun.write(resolve(sourceDir, 'README.md'), '# LeadKit\n\nMigrated from README instructions.\n')
@@ -257,5 +269,7 @@ describe('migrate', () => {
     expect(existsSync(resolve(outputDir, 'README.md'))).toBe(true)
     expect(existsSync(resolve(outputDir, 'mcp-server/dist/index.js'))).toBe(true)
     expect(readFileSync(resolve(outputDir, 'README.md'), 'utf-8')).toContain('Migrated from README instructions.')
+    const migratedSkill = readFileSync(resolve(outputDir, 'skills/prospect-research/SKILL.md'), 'utf-8')
+    expect(migratedSkill).not.toContain('allowed-tools:')
   })
 })
