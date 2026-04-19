@@ -10,6 +10,8 @@ The point is simple:
 - Pluxx should dominate the common plugin-authoring path
 - Pluxx should not try to model every host-specific feature just because the platform exposes it
 
+If you want the host-by-host mapping for the core four, read [Core-Four Primitive Matrix](/overview/core-four-primitive-matrix).
+
 ## The Product Rule
 
 Pluxx should treat these as the canonical authoring model:
@@ -27,6 +29,54 @@ Pluxx should treat these as the canonical authoring model:
 - `taxonomy`
 
 Everything else is secondary until this layer is strong.
+
+## Compiler Buckets
+
+The list above is the detailed authoring model.
+
+For cross-host compilation, Pluxx should reason about that model through eight larger buckets:
+
+| Compiler bucket | Includes | Why it exists |
+|---|---|---|
+| `instructions` | `instructions` | Global host guidance is a distinct surface on every core host. |
+| `skills` | `skills` plus taxonomy-derived workflow metadata | Skills remain the semantic center of the system. |
+| `commands` | `commands` | Explicit entrypoints exist on some hosts and need their own compilation path. |
+| `agents` | `agents` | Specialist execution surfaces differ too much to collapse into skills. |
+| `hooks` | `hooks` | Event vocabularies differ per host, but deterministic automation is still core. |
+| `permissions` | `permissions` | `allow` / `ask` / `deny` intent needs a portable home even when hosts enforce it differently. |
+| `runtime` | `mcp`, runtime auth, local runtimes, passthrough dirs, helper scripts | This is the execution and integration layer. |
+| `distribution` | `userConfig`, `brand`, packaging metadata, install/publish metadata, supporting assets | This is the install surface users actually touch. |
+
+`taxonomy` stays internal. It is the compiler's semantic source of truth for how workflows should be grouped and routed, but it is not a host-facing primitive on its own.
+
+Conceptually, Pluxx should compile from a shape closer to this:
+
+```ts
+interface PluxxPrimitiveModel {
+  instructions?: InstructionsSpec
+  skills?: SkillSpec[]
+  commands?: CommandSpec[]
+  agents?: AgentSpec[]
+  hooks?: HookSpec[]
+  permissions?: PermissionSpec[]
+  runtime?: {
+    mcp?: McpSpec
+    auth?: RuntimeAuthSpec[]
+    passthrough?: string[]
+    scripts?: string[]
+    assets?: string[]
+  }
+  distribution?: {
+    userConfig?: UserConfigSpec[]
+    brand?: BrandSpec
+    install?: InstallSurfaceSpec
+    publish?: PublishSurfaceSpec
+  }
+  taxonomy: TaxonomySpec
+}
+```
+
+This is a compiler-facing model, not a promise that every one of these buckets maps to one identical file or manifest field on every host.
 
 ## Canonical Primitives
 
