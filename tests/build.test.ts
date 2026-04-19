@@ -47,6 +47,7 @@ const testConfig: PluginConfig = {
   agents: './agents/',
   scripts: './scripts/',
   assets: './assets/',
+  passthrough: ['./mcp-server/'],
   instructions: './INSTRUCTIONS.md',
   platforms: {
     cursor: {
@@ -89,6 +90,8 @@ beforeAll(async () => {
   await Bun.write(resolve(TEST_DIR, 'scripts/confirm-mutation.sh'), '#!/usr/bin/env bash\n')
   mkdirSync(resolve(TEST_DIR, 'assets/'), { recursive: true })
   await Bun.write(resolve(TEST_DIR, 'assets/icon.svg'), '<svg />\n')
+  mkdirSync(resolve(TEST_DIR, 'mcp-server/dist'), { recursive: true })
+  await Bun.write(resolve(TEST_DIR, 'mcp-server/dist/index.js'), 'console.log("mcp")\n')
   await Bun.write(resolve(TEST_DIR, 'INSTRUCTIONS.md'), 'Use test-plugin consistently.\n')
 })
 
@@ -104,22 +107,26 @@ describe('build', () => {
     expect(existsSync(resolve(OUT_DIR, 'claude-code/.claude-plugin/plugin.json'))).toBe(true)
     expect(existsSync(resolve(OUT_DIR, 'claude-code/.mcp.json'))).toBe(true)
     expect(existsSync(resolve(OUT_DIR, 'claude-code/hooks/hooks.json'))).toBe(true)
+    expect(existsSync(resolve(OUT_DIR, 'claude-code/mcp-server/dist/index.js'))).toBe(true)
 
     // Cursor
     expect(existsSync(resolve(OUT_DIR, 'cursor/.cursor-plugin/plugin.json'))).toBe(true)
     expect(existsSync(resolve(OUT_DIR, 'cursor/mcp.json'))).toBe(true)
     expect(existsSync(resolve(OUT_DIR, 'cursor/hooks/hooks.json'))).toBe(true)
     expect(existsSync(resolve(OUT_DIR, 'cursor/rules/megamind-operating-conventions.mdc'))).toBe(true)
+    expect(existsSync(resolve(OUT_DIR, 'cursor/mcp-server/dist/index.js'))).toBe(true)
 
     // Codex
     expect(existsSync(resolve(OUT_DIR, 'codex/.codex-plugin/plugin.json'))).toBe(true)
     expect(existsSync(resolve(OUT_DIR, 'codex/.mcp.json'))).toBe(true)
     expect(existsSync(resolve(OUT_DIR, 'codex/hooks.json'))).toBe(false)
     expect(existsSync(resolve(OUT_DIR, 'codex/commands/pulse.md'))).toBe(false)
+    expect(existsSync(resolve(OUT_DIR, 'codex/mcp-server/dist/index.js'))).toBe(true)
 
     // OpenCode
     expect(existsSync(resolve(OUT_DIR, 'opencode/package.json'))).toBe(true)
     expect(existsSync(resolve(OUT_DIR, 'opencode/index.ts'))).toBe(true)
+    expect(existsSync(resolve(OUT_DIR, 'opencode/mcp-server/dist/index.js'))).toBe(true)
 
     // GitHub Copilot
     expect(existsSync(resolve(OUT_DIR, 'github-copilot/.claude-plugin/plugin.json'))).toBe(true)

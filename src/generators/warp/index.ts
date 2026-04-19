@@ -18,6 +18,7 @@ export class WarpGenerator extends Generator {
 
     this.copySkills()
     this.copyScripts()
+    this.copyPassthrough()
   }
 
   private async generateAgentsMd(): Promise<void> {

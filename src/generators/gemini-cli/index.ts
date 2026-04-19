@@ -19,6 +19,7 @@ export class GeminiCliGenerator extends Generator {
     this.copySkills()
     this.copyScripts()
     this.copyAssets()
+    this.copyPassthrough()
   }
 
   private async generateManifest(): Promise<void> {

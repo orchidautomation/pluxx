@@ -52,6 +52,7 @@ export class CodexGenerator extends Generator {
     this.copyAgents()
     this.copyScripts()
     this.copyAssets()
+    this.copyPassthrough()
   }
 
   private async generateManifest(): Promise<void> {

@@ -28,5 +28,6 @@ export class OpenHandsGenerator extends Generator {
     this.copyAgents()
     this.copyScripts()
     this.copyAssets()
+    this.copyPassthrough()
   }
 }

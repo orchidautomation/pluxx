@@ -17,6 +17,7 @@ export class RooCodeGenerator extends Generator {
 
     this.copyRooSkills()
     this.copyScripts()
+    this.copyPassthrough()
   }
 
   private async generateRules(): Promise<void> {

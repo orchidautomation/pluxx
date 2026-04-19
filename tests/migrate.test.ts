@@ -125,6 +125,39 @@ async function setupCodexHeaderSource() {
   return sourceDir
 }
 
+async function setupClaudeReadmeSource() {
+  const sourceDir = resolve(TEST_DIR, 'source-claude-readme')
+  mkdirSync(resolve(sourceDir, '.claude-plugin'), { recursive: true })
+
+  await writeJson(resolve(sourceDir, '.claude-plugin/plugin.json'), {
+    name: 'leadkit-outbound',
+    version: '1.0.0',
+    description: 'Cold outbound from your terminal.',
+    author: { name: 'LeadKit' },
+    license: 'MIT',
+  })
+
+  await writeJson(resolve(sourceDir, '.mcp.json'), {
+    mcpServers: {
+      leadkit: {
+        command: 'node',
+        args: ['${CLAUDE_PLUGIN_ROOT}/mcp-server/dist/index.js'],
+        env: {
+          LEADKIT_API_KEY: '${LEADKIT_API_KEY}',
+        },
+      },
+    },
+  })
+
+  mkdirSync(resolve(sourceDir, 'skills/prospect-research'), { recursive: true })
+  await Bun.write(resolve(sourceDir, 'skills/prospect-research/SKILL.md'), '# Prospect Research\n')
+  mkdirSync(resolve(sourceDir, 'mcp-server/dist'), { recursive: true })
+  await Bun.write(resolve(sourceDir, 'mcp-server/dist/index.js'), 'console.log("leadkit")\n')
+  await Bun.write(resolve(sourceDir, 'README.md'), '# LeadKit\n\nMigrated from README instructions.\n')
+
+  return sourceDir
+}
+
 beforeEach(() => {
   rmSync(TEST_DIR, { recursive: true, force: true })
   mkdirSync(TEST_DIR, { recursive: true })
@@ -203,5 +236,26 @@ describe('migrate', () => {
     expect(config).toContain("envVar: 'PLAYKIT_API_KEY'")
     expect(config).toContain("headerName: 'X-API-Key'")
     expect(config).toContain("headerTemplate: '${value}'")
+  })
+
+  it('copies README instructions when README.md is the detected instructions file', async () => {
+    const sourceDir = await setupClaudeReadmeSource()
+    const outputDir = resolve(TEST_DIR, 'out-claude-readme')
+    mkdirSync(outputDir, { recursive: true })
+
+    const previousCwd = process.cwd()
+    process.chdir(outputDir)
+    try {
+      await migrate(sourceDir)
+    } finally {
+      process.chdir(previousCwd)
+    }
+
+    const config = readFileSync(resolve(outputDir, 'pluxx.config.ts'), 'utf-8')
+    expect(config).toContain("instructions: './README.md'")
+    expect(config).toContain("passthrough: ['./mcp-server/']")
+    expect(existsSync(resolve(outputDir, 'README.md'))).toBe(true)
+    expect(existsSync(resolve(outputDir, 'mcp-server/dist/index.js'))).toBe(true)
+    expect(readFileSync(resolve(outputDir, 'README.md'), 'utf-8')).toContain('Migrated from README instructions.')
   })
 })

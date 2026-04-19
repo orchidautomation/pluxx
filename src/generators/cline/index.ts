@@ -17,6 +17,7 @@ export class ClineGenerator extends Generator {
 
     this.copyClineSkills()
     this.copyScripts()
+    this.copyPassthrough()
   }
 
   private async generateRules(): Promise<void> {

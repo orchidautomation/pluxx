@@ -96,6 +96,17 @@ export abstract class Generator {
     }
   }
 
+  /** Copy additional runtime directories to the target root, preserving their basename. */
+  protected copyPassthrough(): void {
+    for (const configPath of this.config.passthrough ?? []) {
+      const src = this.resolveConfigPath(configPath, 'passthrough')
+      if (!existsSync(src)) continue
+      const basename = src.split('/').filter(Boolean).pop()
+      if (!basename) continue
+      this.copyDir(configPath, `${basename}/`, 'passthrough')
+    }
+  }
+
   /** Build canonical MCP server configs for target-specific output shaping. */
   protected buildMcpServers(options: McpConfigOptions = {}): Record<string, unknown> | undefined {
     if (!this.config.mcp) return undefined

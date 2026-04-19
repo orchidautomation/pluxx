@@ -20,6 +20,7 @@ export class CursorGenerator extends Generator {
     this.copyAgents()
     this.copyScripts()
     this.copyAssets()
+    this.copyPassthrough()
   }
 
   private async generateManifest(): Promise<void> {

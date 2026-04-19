@@ -54,6 +54,7 @@ interface MigrateResult {
   manifest: ParsedManifest
   mcp: ParsedMcp
   hooks: ParsedHooks
+  passthrough: string[]
   instructions?: string
   directories: {
     skills: boolean
@@ -355,6 +356,26 @@ function detectDirectories(pluginDir: string) {
   }
 }
 
+function detectPassthroughDirs(pluginDir: string, mcp: ParsedMcp): string[] {
+  const passthrough = new Set<string>()
+
+  for (const server of Object.values(mcp)) {
+    const parts = [server.command ?? '', ...(server.args ?? [])]
+    for (const part of parts) {
+      const match = part.match(/\$\{[A-Z_]*PLUGIN_ROOT\}\/([^/]+)/)
+      if (!match?.[1]) continue
+
+      const dirName = match[1]
+      const dirPath = resolve(pluginDir, dirName)
+      if (existsSync(dirPath)) {
+        passthrough.add(`./${dirName}/`)
+      }
+    }
+  }
+
+  return [...passthrough].sort()
+}
+
 function toKebabCase(value: string): string {
   return value
     .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
@@ -592,6 +613,7 @@ function copyDirectories(
   pluginDir: string,
   outputDir: string,
   dirs: MigrateResult['directories'],
+  passthrough: string[],
 ): string[] {
   const copied: string[] = []
   const toCopy = ['skills', 'commands', 'agents', 'scripts', 'assets'] as const
@@ -606,6 +628,18 @@ function copyDirectories(
     }
     cpSync(src, dest, { recursive: true })
     copied.push(dir)
+  }
+
+  for (const entry of passthrough) {
+    const normalized = entry.replace(/^\.\//, '').replace(/\/$/, '')
+    const src = resolve(pluginDir, normalized)
+    const dest = resolve(outputDir, normalized)
+    if (existsSync(dest)) {
+      console.log(`  skip ./${normalized}/ (already exists)`)
+      continue
+    }
+    cpSync(src, dest, { recursive: true })
+    copied.push(normalized)
   }
 
   return copied
@@ -669,6 +703,9 @@ function generateConfigTs(result: MigrateResult): string {
   }
   if (result.instructions) {
     lines.push(`  instructions: ${quote(result.instructions)},`)
+  }
+  if (result.passthrough.length > 0) {
+    lines.push(`  passthrough: [${result.passthrough.map((entry) => quote(entry)).join(', ')}],`)
   }
 
   // MCP
@@ -798,10 +835,12 @@ export async function migrate(inputPath: string): Promise<void> {
 
   // 6. Detect directories
   const directories = detectDirectories(pluginDir)
+  const passthrough = detectPassthroughDirs(pluginDir, mcp)
   const persistedSkills = readMigratedSkills(pluginDir, directories)
   const dirNames = Object.entries(directories)
     .filter(([_, exists]) => exists)
     .map(([name]) => name)
+    .concat(passthrough.map((entry) => entry.replace(/^\.\//, '').replace(/\/$/, '')))
   if (dirNames.length > 0) {
     console.log(`  directories: ${dirNames.join(', ')}`)
   }
@@ -815,6 +854,7 @@ export async function migrate(inputPath: string): Promise<void> {
     manifest,
     mcp,
     hooks,
+    passthrough,
     instructions,
     directories,
     persistedSkills,
@@ -834,13 +874,13 @@ export async function migrate(inputPath: string): Promise<void> {
   console.log(`\nGenerated pluxx.config.ts`)
 
   // 9. Copy directories
-  const copied = copyDirectories(pluginDir, outputDir, directories)
+  const copied = copyDirectories(pluginDir, outputDir, directories, passthrough)
   if (copied.length > 0) {
     console.log(`Copied: ${copied.map(d => `./${d}/`).join(', ')}`)
   }
 
-  // 10. Copy instructions file if it exists and is not README.md
-  if (instructions && instructions !== './README.md') {
+  // 10. Copy instructions file if it exists.
+  if (instructions) {
     const srcInstr = resolve(pluginDir, instructions)
     const destInstr = resolve(outputDir, instructions)
     if (!existsSync(destInstr)) {

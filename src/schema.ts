@@ -292,6 +292,9 @@ export const PluginConfigSchema = z.object({
   // Assets (copied to all targets)
   assets: z.string().optional(),
 
+  // Extra runtime directories copied to each target root as-is
+  passthrough: z.array(z.string()).optional(),
+
   // Platform-specific overrides
   platforms: PlatformOverridesSchema.optional(),
 

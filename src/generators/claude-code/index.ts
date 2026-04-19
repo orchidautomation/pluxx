@@ -27,6 +27,7 @@ export class ClaudeCodeGenerator extends Generator {
     this.copyAgents()
     this.copyScripts()
     this.copyAssets()
+    this.copyPassthrough()
   }
 
   protected copySkills(): void {
