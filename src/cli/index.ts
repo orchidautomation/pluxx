@@ -18,6 +18,7 @@ import {
 import { doctorConsumer, doctorProject, printDoctorReport } from './doctor'
 import {
   ensureHookTrust,
+  getInstallFollowupNotes,
   installPlugin,
   listHookCommands,
   planInstallPlugin,
@@ -370,6 +371,7 @@ function formatDuration(durationMs?: number): string | undefined {
 interface InstallActionSummary {
   enabled: boolean
   platforms: TargetPlatform[]
+  notes: string[]
   installTargets: Array<{
     platform: TargetPlatform
     pluginDir: string
@@ -409,6 +411,7 @@ async function maybeInstallBuiltOutputs(
   return {
     enabled: true,
     platforms,
+    notes: getInstallFollowupNotes(platforms),
     installTargets: installPlan.map((target) => ({
       platform: target.platform,
       pluginDir: target.description,
@@ -530,6 +533,9 @@ async function runBuild() {
       console.log('Installed for local testing:')
       for (const target of install.installTargets) {
         console.log(`  ${target.platform} -> ${target.pluginDir}`)
+      }
+      for (const note of install.notes) {
+        console.log(note)
       }
     }
   }
@@ -2635,6 +2641,9 @@ async function runTestCommand() {
       for (const target of install.installTargets) {
         console.log(`  ${target.platform} -> ${target.pluginDir}`)
       }
+      for (const note of install.notes) {
+        console.log(note)
+      }
     }
   }
 
@@ -2678,6 +2687,7 @@ async function runInstall() {
       dryRun: true,
       pluginName: config.name,
       platforms,
+      notes: getInstallFollowupNotes(platforms),
       trustRequired: hookCommands.length > 0,
       userConfig: plannedUserConfig.map((entry) => ({
         key: entry.field.key,
@@ -2710,6 +2720,9 @@ async function runInstall() {
       }
       if (listHookCommands(config.hooks).length > 0) {
         console.log('  trust reminder: this plugin defines local hook commands; install requires review or --trust')
+      }
+      for (const note of getInstallFollowupNotes(platforms)) {
+        console.log(`  note: ${note}`)
       }
     }
     return

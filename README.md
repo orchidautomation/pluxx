@@ -57,14 +57,14 @@ dist/
   opencode/
 ```
 
-## Shipped Now
+## Core Commands
 
-Pluxx is no longer just a thin bundle generator.
+Pluxx includes more than scaffold generation:
 
 - `pluxx eval` checks scaffold and prompt-pack quality
 - `pluxx migrate <path>` imports an existing host-native plugin into a Pluxx project
 - `pluxx doctor --consumer <bundle>` inspects built or installed plugin bundles from the user side
-- `pluxx mcp proxy --record` / `--replay` gives you deterministic MCP tapes for debugging and CI
+- `pluxx mcp proxy --record` and `--replay` give you deterministic MCP tapes for debugging and CI
 
 ## Authoring Model
 

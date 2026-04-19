@@ -296,6 +296,9 @@ export const PLATFORM_VALIDATION_RULES: Record<ResearchTarget, PlatformRules> = 
       format: 'markdown',
     },
     sources: [
+      { label: 'Claude Code headless docs', url: 'https://code.claude.com/docs/en/headless' },
+      { label: 'Claude Code CLI reference', url: 'https://code.claude.com/docs/en/cli-reference' },
+      { label: 'Claude Code discover plugins docs', url: 'https://code.claude.com/docs/en/discover-plugins' },
       { label: 'Claude Code plugins reference', url: 'https://code.claude.com/docs/en/plugins-reference' },
       { label: 'Claude Code hooks docs', url: 'https://code.claude.com/docs/en/hooks' },
       { label: 'Claude Code skills docs', url: 'https://code.claude.com/docs/en/skills' },

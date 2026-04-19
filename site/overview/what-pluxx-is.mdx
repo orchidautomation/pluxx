@@ -25,14 +25,14 @@ compiled bundles (generated)
   - dist/opencode
 ```
 
-## What is already real
+## Core commands
 
-Pluxx is no longer just a thin bundle generator.
+Pluxx includes more than scaffold generation:
 
-- `pluxx eval` checks scaffold and prompt-pack quality, not just whether the project builds
+- `pluxx eval` checks scaffold and prompt-pack quality before publish
 - `pluxx migrate <path>` imports an existing host-native plugin into a Pluxx source project
-- `pluxx doctor --consumer <bundle>` inspects built or installed plugin bundles from the end-user side
-- `pluxx mcp proxy --record` / `--replay` gives you deterministic MCP tapes for debugging and CI
+- `pluxx doctor --consumer <bundle>` inspects a built or installed plugin bundle from the user side
+- `pluxx mcp proxy --record` and `--replay` capture deterministic MCP sessions for debugging and CI
 
 ## Product flow
 

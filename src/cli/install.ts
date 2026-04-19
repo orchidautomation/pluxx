@@ -309,6 +309,16 @@ function getInstallTargets(pluginName: string): InstallTarget[] {
   ]
 }
 
+export function getInstallFollowupNotes(platforms: TargetPlatform[]): string[] {
+  const notes: string[] = []
+
+  if (platforms.includes('claude-code')) {
+    notes.push('Claude Code note: if Claude is already open, run /reload-plugins in the session to pick up the new install.')
+  }
+
+  return notes
+}
+
 function runCommandDefault(command: string, args: string[]): CommandResult {
   const result = spawnSync(command, args, { encoding: 'utf-8' })
   return {
@@ -771,6 +781,9 @@ export async function installPlugin(
     console.log('Nothing to install. Run `pluxx build` first.')
   } else if (!options.quiet) {
     console.log(`\nInstalled ${installed} plugin(s). Reload or restart your tools to pick them up.`)
+    for (const note of getInstallFollowupNotes(filtered.map((target) => target.platform))) {
+      console.log(note)
+    }
   }
 }
 
