@@ -698,6 +698,34 @@ function installClaudePlugin(
   }
 }
 
+function uninstallClaudePlugin(
+  target: InstallTarget,
+  pluginName: string,
+  runCommand: CommandRunner,
+  options: { quiet?: boolean } = {},
+): boolean {
+  const marketplaceName = getClaudeMarketplaceName(pluginName)
+  const uninstall = runCommand('claude', ['plugin', 'uninstall', `${pluginName}@${marketplaceName}`])
+
+  if (uninstall.status !== 0 && !options.quiet) {
+    const detail = uninstall.stderr || uninstall.stdout
+    if (detail.trim().length > 0) {
+      console.warn(`  warning claude-code uninstall: ${detail.trim()}`)
+    }
+  }
+
+  const marketplaceRoot = getClaudeMarketplaceRoot(pluginName)
+  const hadMarketplaceRoot = existsSync(marketplaceRoot)
+  rmSync(marketplaceRoot, { recursive: true, force: true })
+
+  const hadLegacyPluginDir = existsSync(target.pluginDir)
+  if (hadLegacyPluginDir) {
+    rmSync(target.pluginDir, { recursive: true, force: true })
+  }
+
+  return uninstall.status === 0 || hadMarketplaceRoot || hadLegacyPluginDir
+}
+
 export function planInstallPlugin(
   distDir: string,
   pluginName: string,
@@ -790,16 +818,28 @@ export async function installPlugin(
 export async function uninstallPlugin(
   pluginName: string,
   platforms?: TargetPlatform[],
-  options: { quiet?: boolean } = {},
+  options: { quiet?: boolean; runCommand?: CommandRunner } = {},
 ): Promise<void> {
   const targets = getInstallTargets(pluginName)
   const filtered = platforms
     ? targets.filter(t => platforms.includes(t.platform))
     : targets
+  const runCommand = options.runCommand ?? runCommandDefault
 
   let removed = 0
 
   for (const target of filtered) {
+    if (target.platform === 'claude-code') {
+      const removedClaude = uninstallClaudePlugin(target, pluginName, runCommand, { quiet: options.quiet })
+      if (removedClaude) {
+        if (!options.quiet) {
+          console.log(`  removed ${target.description}`)
+        }
+        removed++
+      }
+      continue
+    }
+
     if (existsSync(target.pluginDir)) {
       rmSync(target.pluginDir, { recursive: true, force: true })
       if (!options.quiet) {

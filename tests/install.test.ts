@@ -188,6 +188,47 @@ describe('install', () => {
     ])
   })
 
+  it('uninstalls Claude native installs and removes the generated local marketplace', async () => {
+    mkdirSync(resolve(DIST_DIR, 'claude-code/.claude-plugin'), { recursive: true })
+    await Bun.write(
+      resolve(DIST_DIR, 'claude-code/.claude-plugin/plugin.json'),
+      JSON.stringify({
+        name: 'megamind',
+        version: '1.2.3',
+        description: 'Megamind plugin',
+        author: { name: 'Test Author' },
+        license: 'MIT',
+      }),
+    )
+
+    const installCalls: Array<{ command: string; args: string[] }> = []
+    const installRunner = (command: string, args: string[]) => {
+      installCalls.push({ command, args })
+      if (args.join(' ') === 'plugin marketplace list --json') {
+        return { status: 0, stdout: '[]', stderr: '' }
+      }
+      return { status: 0, stdout: '', stderr: '' }
+    }
+
+    await installPlugin(DIST_DIR, 'megamind', ['claude-code'], { runCommand: installRunner })
+
+    const marketplaceRoot = resolve(HOME_DIR, '.claude/plugins/data/pluxx-local-megamind')
+    expect(existsSync(marketplaceRoot)).toBe(true)
+
+    const uninstallCalls: Array<{ command: string; args: string[] }> = []
+    const uninstallRunner = (command: string, args: string[]) => {
+      uninstallCalls.push({ command, args })
+      return { status: 0, stdout: '', stderr: '' }
+    }
+
+    await uninstallPlugin('megamind', ['claude-code'], { runCommand: uninstallRunner })
+
+    expect(existsSync(marketplaceRoot)).toBe(false)
+    expect(uninstallCalls).toEqual([
+      { command: 'claude', args: ['plugin', 'uninstall', 'megamind@pluxx-local-megamind'] },
+    ])
+  })
+
   it('derives install-time config requirements from MCP auth', () => {
     process.env.TEST_API_KEY = 'from-env'
 
