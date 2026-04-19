@@ -2,54 +2,70 @@
 title: What Pluxx Is
 ---
 
-Pluxx turns one MCP or source project into native plugin bundles for Claude Code, Cursor, Codex, and OpenCode.
+Pluxx is a plugin authoring and maintenance layer for MCP teams.
 
-Keep one maintained source project, then compile the native bundle each host expects.
+You keep one source project (`pluxx.config.ts`, skills, instructions, hooks, MCP wiring), and Pluxx compiles host-native bundles for Claude Code, Cursor, Codex, and OpenCode.
 
-## Source of truth
+## Product Model
 
-Pluxx keeps one editable source project and compiles per-host outputs.
+Pluxx is not an MCP server runtime. It is the authoring system between your MCP and host-specific plugin contracts.
+
+- You own MCP behavior and deployment.
+- Pluxx owns scaffold generation, validation, compilation, install helpers, and sync.
+
+## Source-of-Truth Layout
 
 ```text
-source project (you edit)
-  - pluxx.config.ts
-  - INSTRUCTIONS.md
-  - skills/
-  - scripts/
-  - .pluxx/mcp.json
-
-compiled bundles (generated)
-  - dist/claude-code
-  - dist/cursor
-  - dist/codex
-  - dist/opencode
+my-plugin/
+  pluxx.config.ts
+  INSTRUCTIONS.md
+  skills/
+    search/SKILL.md
+  scripts/
+    check-env.sh
+  .pluxx/
+    mcp.json
+  dist/
+    claude-code/
+    cursor/
+    codex/
+    opencode/
 ```
 
-## Core commands
+- Edit source files in the project root.
+- Treat `dist/*` as generated output.
 
-Pluxx includes more than scaffold generation:
-
-- `pluxx eval` checks scaffold and prompt-pack quality before publish
-- `pluxx migrate <path>` imports an existing host-native plugin into a Pluxx source project
-- `pluxx doctor --consumer <bundle>` inspects a built or installed plugin bundle from the user side
-- `pluxx mcp proxy --record` and `--replay` capture deterministic MCP sessions for debugging and CI
-
-## Product flow
-
-1. Start from an MCP or initialize a source project.
-2. Run `doctor`, `lint`, `eval`, and `test` to validate the baseline.
-3. Refine taxonomy and instructions with Agent Mode or autopilot when you need semantic cleanup.
-4. Build native bundles and install them into your target hosts.
-5. Sync later when the MCP changes.
-
-## Quick start
+## Core Workflow
 
 ```bash
-npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp
+npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp --yes
 npx @orchid-labs/pluxx doctor
 npx @orchid-labs/pluxx lint
+npx @orchid-labs/pluxx eval
 npx @orchid-labs/pluxx build
 npx @orchid-labs/pluxx test
+npx @orchid-labs/pluxx install --target claude-code
 ```
 
-Continue with [Getting started](/getting-started/getting-started).
+Typical `build` output shape:
+
+```text
+Done! Output in dist/
+  dist/claude-code/
+  dist/cursor/
+  dist/codex/
+  dist/opencode/
+```
+
+## Runtime Notes
+
+- Package: `@orchid-labs/pluxx`
+- Preferred invocation: `npx @orchid-labs/pluxx ...`
+- Runtime requirement: Bun available on `PATH`
+- Core target focus: Claude Code, Cursor, Codex, OpenCode
+
+## Where To Go Next
+
+- [Getting Started](/getting-started/getting-started)
+- [CLI Reference](/reference/cli-reference)
+- [Platform Guides](/platform-guides/claude-code)

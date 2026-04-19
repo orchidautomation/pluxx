@@ -2,23 +2,37 @@
 title: Codex
 ---
 
-Use Pluxx in Codex for deterministic CLI-first workflows and strict review passes.
+Use this target for CLI-first workflows and findings-first review loops.
 
-Important: in Codex, use `@pluxx` plus skills; do not rely on plugin slash commands.
-
-Recommended prompt:
-
-```text
-Use Pluxx to import this MCP, validate the first pass, then review what is still weak before installation.
-```
-
-Install target:
+## Build and Install
 
 ```bash
+npx @orchid-labs/pluxx build --target codex
 npx @orchid-labs/pluxx install --target codex
 ```
 
-Permissions note:
+Local install path:
 
-- Codex permission enforcement is external to the plugin bundle.
-- Pluxx emits `.codex/permissions.generated.json` as a mirror of canonical `permissions` rules so you can wire them into Codex user/admin policy or external hooks.
+- `~/.codex/plugins/<plugin-name>`
+
+Pluxx also updates local marketplace metadata at:
+
+- `~/.agents/plugins/marketplace.json`
+
+## Runtime Files
+
+Key generated files under `dist/codex/`:
+
+- `.codex-plugin/plugin.json`
+- `.mcp.json`
+- `AGENTS.md`
+- `.codex/hooks.json` (when hooks are configured)
+- `.codex/permissions.generated.json`
+
+## Permissions Caveat
+
+Codex permission enforcement is external to the plugin bundle. Pluxx emits `.codex/permissions.generated.json` as a canonical mirror so you can wire it into Codex policy and hooks.
+
+## Invocation Model
+
+Codex relies on `@plugin` and skill routing rather than slash-command parity. Keep workflow-critical semantics in skills and instructions.

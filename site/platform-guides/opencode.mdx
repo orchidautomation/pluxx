@@ -2,21 +2,38 @@
 title: OpenCode
 ---
 
-Use Pluxx in OpenCode for wrapper generation plus attachable refinement runs.
+Use this target when you want wrapper-based packaging and optional attached runner execution.
 
-Recommended prompt:
-
-```text
-Use Pluxx to generate this plugin, run refinement passes through OpenCode, and verify final wrapper output.
-```
-
-Install target:
+## Build and Install
 
 ```bash
+npx @orchid-labs/pluxx build --target opencode
 npx @orchid-labs/pluxx install --target opencode
 ```
 
-Permissions note:
+Local install path:
 
-- OpenCode permissions are compiled to native tool-level `config.permission` entries.
-- Selector-specific precision, such as exact path globs or specific MCP tools, is downgraded to coarse tool permissions and should be documented in plugin guidance.
+- `~/.config/opencode/plugins/<plugin-name>`
+
+## Runtime Files
+
+Key generated files under `dist/opencode/`:
+
+- `package.json`
+- `index.ts`
+
+OpenCode packaging compiles commands, hooks, MCP wiring, and instructions into the wrapper output.
+
+## Permissions Caveat
+
+OpenCode permissions are compiled to native `config.permission` entries. Fine-grained selector semantics may degrade to coarse tool-level permissions; document these reductions explicitly in plugin guidance.
+
+## Runner Attach Mode
+
+For agent refinement using OpenCode runner:
+
+```bash
+npx @orchid-labs/pluxx agent run review --runner opencode --attach http://localhost:4096 --no-verify
+```
+
+`--attach` is only supported with `--runner opencode`.
