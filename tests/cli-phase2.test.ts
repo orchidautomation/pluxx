@@ -320,6 +320,104 @@ describe('Phase 2 CLI flows', () => {
     }
   })
 
+  it('can build and install in one command with --install', async () => {
+    const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-build-install-'))
+    const homeDir = resolve(dir, 'home')
+    mkdirSync(resolve(dir, 'skills/hello'), { recursive: true })
+    mkdirSync(homeDir, { recursive: true })
+    writeFileSync(
+      resolve(dir, 'skills/hello/SKILL.md'),
+      '---\nname: hello\ndescription: Say hello\nversion: 0.1.0\n---\n\n# Hello\n',
+    )
+    writeFileSync(
+      resolve(dir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'install-build-fixture',
+        version: '0.1.0',
+        description: 'Build install fixture',
+        author: { name: 'Test Author' },
+        license: 'MIT',
+        skills: './skills/',
+        targets: ['codex'],
+        outDir: './dist',
+      }, null, 2),
+    )
+
+    try {
+      const proc = spawnCli(['build', '--install', '--json'], dir, { HOME: homeDir })
+      const stdout = await new Response(proc.stdout).text()
+      const stderr = await new Response(proc.stderr).text()
+      const exitCode = await proc.exited
+
+      expect(exitCode).toBe(0)
+      expect(stderr).toBe('')
+
+      const summary = JSON.parse(stdout) as {
+        install?: {
+          enabled: boolean
+          installTargets: Array<{ platform: string }>
+        }
+      }
+
+      expect(summary.install?.enabled).toBe(true)
+      expect(summary.install?.installTargets[0]?.platform).toBe('codex')
+      expect(existsSync(resolve(homeDir, '.codex/plugins/install-build-fixture'))).toBe(true)
+      expect(existsSync(resolve(homeDir, '.agents/plugins/marketplace.json'))).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('can test and install in one command with --install', async () => {
+    const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-test-install-'))
+    const homeDir = resolve(dir, 'home')
+    mkdirSync(resolve(dir, 'skills/hello'), { recursive: true })
+    mkdirSync(homeDir, { recursive: true })
+    writeFileSync(
+      resolve(dir, 'skills/hello/SKILL.md'),
+      '---\nname: hello\ndescription: Say hello\nversion: 0.1.0\n---\n\n# Hello\n',
+    )
+    writeFileSync(
+      resolve(dir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'install-test-fixture',
+        version: '0.1.0',
+        description: 'Test install fixture',
+        author: { name: 'Test Author' },
+        license: 'MIT',
+        skills: './skills/',
+        targets: ['codex'],
+        outDir: './dist',
+      }, null, 2),
+    )
+
+    try {
+      const proc = spawnCli(['test', '--install', '--json'], dir, { HOME: homeDir })
+      const stdout = await new Response(proc.stdout).text()
+      const stderr = await new Response(proc.stderr).text()
+      const exitCode = await proc.exited
+
+      expect(exitCode).toBe(0)
+      expect(stderr).toBe('')
+
+      const summary = JSON.parse(stdout) as {
+        ok: boolean
+        install?: {
+          enabled: boolean
+          installTargets: Array<{ platform: string }>
+        }
+      }
+
+      expect(summary.ok).toBe(true)
+      expect(summary.install?.enabled).toBe(true)
+      expect(summary.install?.installTargets[0]?.platform).toBe('codex')
+      expect(existsSync(resolve(homeDir, '.codex/plugins/install-test-fixture'))).toBe(true)
+      expect(existsSync(resolve(homeDir, '.agents/plugins/marketplace.json'))).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('scopes pluxx test linting to the requested target subset', async () => {
     const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-test-target-scope-'))
     mkdirSync(resolve(dir, 'skills/hello'), { recursive: true })

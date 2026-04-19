@@ -311,6 +311,10 @@ describe('agent mode', () => {
     expect(summary.kind).toBe('review')
     expect(summary.runner).toBe('claude')
     expect(summary.verify).toBe(false)
+    expect(summary.command).toContain('--no-session-persistence')
+    expect(summary.command).toContain('--verbose')
+    expect(summary.command).toContain('--output-format')
+    expect(summary.command).toContain('stream-json')
     expect(summary.command).toContain('--permission-mode')
     expect(summary.command).toContain('plan')
     expect(summary.dryRun).toBe(true)
@@ -342,10 +346,11 @@ describe('agent mode', () => {
     }
 
     expect(summary.runner).toBe('codex')
-    expect(summary.command.slice(0, 4)).toEqual([
+    expect(summary.command.slice(0, 5)).toEqual([
       'codex',
       'exec',
       '--ephemeral',
+      '--skip-git-repo-check',
       '--full-auto',
     ])
     expect(summary.verify).toBe(true)
@@ -378,6 +383,7 @@ describe('agent mode', () => {
     expect(summary.command[0]).toBe('codex')
     expect(summary.command[1]).toBe('exec')
     expect(summary.command).toContain('--ephemeral')
+    expect(summary.command).toContain('--skip-git-repo-check')
     expect(summary.command).not.toContain('--full-auto')
     expect(summary.verify).toBe(false)
   })
@@ -768,6 +774,10 @@ describe('agent mode', () => {
     expect(existsSync(resolve(TEST_DIR, '.pluxx/agent/taxonomy-prompt.md'))).toBe(true)
 
     const runnerArgs = readFileSync(runnerArgsPath, 'utf-8').split('\0').filter(Boolean)
+    expect(runnerArgs).toContain('--no-session-persistence')
+    expect(runnerArgs).toContain('--verbose')
+    expect(runnerArgs).toContain('--output-format')
+    expect(runnerArgs).toContain('stream-json')
     expect(runnerArgs).toContain('--permission-mode')
     expect(runnerArgs).toContain('acceptEdits')
     expect(runnerArgs).toContain('-p')

@@ -367,6 +367,57 @@ function formatDuration(durationMs?: number): string | undefined {
   return `${(durationMs / 1000).toFixed(durationMs >= 10_000 ? 0 : 1)}s`
 }
 
+interface InstallActionSummary {
+  enabled: boolean
+  platforms: TargetPlatform[]
+  installTargets: Array<{
+    platform: TargetPlatform
+    pluginDir: string
+    built: boolean
+    existing: boolean
+  }>
+}
+
+async function maybeInstallBuiltOutputs(
+  config: Awaited<ReturnType<typeof loadConfig>>,
+  platforms: TargetPlatform[],
+): Promise<InstallActionSummary | undefined> {
+  if (!args.includes('--install')) {
+    return undefined
+  }
+
+  const distDir = `${process.cwd()}/${config.outDir}`
+  const installPlan = planInstallPlugin(distDir, config.name, platforms)
+
+  if (!runtime.dryRun) {
+    await ensureHookTrust({
+      pluginName: config.name,
+      hooks: config.hooks,
+      trust: args.includes('--trust'),
+      isTTY: runtime.isInteractive,
+    })
+    const resolvedUserConfig = await resolveInstallUserConfig(config, platforms, {
+      isTTY: runtime.isInteractive,
+    })
+    await installPlugin(distDir, config.name, platforms, {
+      config,
+      quiet: true,
+      resolvedUserConfig,
+    })
+  }
+
+  return {
+    enabled: true,
+    platforms,
+    installTargets: installPlan.map((target) => ({
+      platform: target.platform,
+      pluginDir: target.description,
+      built: target.built,
+      existing: target.existing,
+    })),
+  }
+}
+
 function logAutopilotRunnerWait(step: number, totalSteps: number, label: string, runner: AgentRunner): void {
   if (runtime.jsonOutput || runtime.quiet || !runtime.isInteractive) {
     return
@@ -412,13 +463,16 @@ async function runBuild() {
   const config = await loadConfig()
   const platforms = targets ?? config.targets
   const cwd = process.cwd()
+  const shouldInstall = args.includes('--install')
 
   if (runtime.dryRun) {
+    const install = await maybeInstallBuiltOutputs(config, platforms)
     const summary = {
       dryRun: true,
       targets: platforms,
       outDir: config.outDir,
       outputPaths: platforms.map((platform) => `${config.outDir}/${platform}/`),
+      install,
     }
     if (runtime.jsonOutput) {
       printJson(summary)
@@ -453,6 +507,7 @@ async function runBuild() {
   }
 
   await build(config, cwd, { targets })
+  const install = await maybeInstallBuiltOutputs(config, platforms)
 
   if (runtime.jsonOutput) {
     printJson({
@@ -461,6 +516,7 @@ async function runBuild() {
       outDir: config.outDir,
       outputPaths: platforms.map((platform) => `${config.outDir}/${platform}/`),
       lint: lintResult,
+      install,
     })
     return
   }
@@ -469,6 +525,12 @@ async function runBuild() {
     console.log(`Done! Output in ${config.outDir}/`)
     for (const platform of platforms) {
       console.log(`  ${config.outDir}/${platform}/`)
+    }
+    if (shouldInstall && install) {
+      console.log('Installed for local testing:')
+      for (const target of install.installTargets) {
+        console.log(`  ${target.platform} -> ${target.pluginDir}`)
+      }
     }
   }
 }
@@ -2552,14 +2614,28 @@ async function runTestCommand() {
     rootDir: process.cwd(),
     targets,
   })
+  const config = result.config.ok ? await loadConfig() : null
+  const platforms = targets ?? config?.targets ?? []
+  const install = result.ok && config
+    ? await maybeInstallBuiltOutputs(config, platforms)
+    : undefined
 
   if (runtime.jsonOutput) {
-    printJson(result)
+    printJson({
+      ...result,
+      install,
+    })
     return
   }
 
   if (!runtime.quiet) {
     printTestResult(result)
+    if (install) {
+      console.log('Installed for local testing:')
+      for (const target of install.installTargets) {
+        console.log(`  ${target.platform} -> ${target.pluginDir}`)
+      }
+    }
   }
 
   if (!result.ok) {
@@ -2762,7 +2838,7 @@ function printHelp() {
 pluxx — Cross-platform AI agent plugin SDK
 
 Usage:
-  pluxx build [--target <platforms...>]   Generate platform-specific plugin files
+  pluxx build [--target <platforms...>] [--install]   Generate platform-specific plugin files
   pluxx dev [--target <platforms...>]     Watch for changes and auto-rebuild
   pluxx validate                          Validate your config
   pluxx lint                              Lint skills and cross-platform metadata
@@ -2775,9 +2851,9 @@ Usage:
   pluxx init [name] [--from-mcp <source>] Create a new pluxx.config.ts
   pluxx sync [--from-mcp <source>]        Refresh MCP-derived scaffold files
   pluxx migrate <path>                    Import an existing plugin into pluxx
-  pluxx test [--target <platforms...>]    Run config, lint, eval, build, and smoke checks
+  pluxx test [--target <platforms...>] [--install]    Run config, lint, eval, build, and smoke checks
   pluxx eval                              Evaluate scaffold and prompt-pack quality
-  pluxx install [--target <platforms>] [--trust]  Symlink built plugins for local testing
+  pluxx install [--target <platforms>] [--trust]  Install built plugins for local testing
   pluxx publish [--npm] [--github-release] [--dry-run] [--json] [--tag latest] [--version x.y.z]
   pluxx uninstall [--target <platforms>]  Remove symlinked plugins
   pluxx help                              Show this help
@@ -2795,6 +2871,7 @@ Targets:
 
 Examples:
   pluxx build                             Build for all configured targets
+  pluxx build --install                   Build and install all configured targets locally
   pluxx build --target claude-code cursor  Build for specific platforms
   pluxx init my-plugin                    Scaffold a new plugin config
   pluxx init --from-mcp https://example.com/mcp  Scaffold from a remote MCP server
@@ -2827,6 +2904,7 @@ Examples:
   pluxx doctor --consumer ./dist/cursor   Inspect a built or installed platform bundle
   pluxx eval --json                       Inspect scaffold/prompt-pack quality as JSON
   pluxx test --target claude-code codex  Verify selected target outputs
+  pluxx test --install                    Verify and install all configured targets locally
   pluxx install                           Install to all configured targets
   pluxx install --target claude-code      Install to Claude Code only
   pluxx install --dry-run                 Preview local install paths and trust implications

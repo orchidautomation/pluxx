@@ -897,7 +897,16 @@ function buildAgentRunnerCommand(
     if (options.model) {
       args.push('--model', options.model)
     }
-    args.push('--permission-mode', kind === 'review' ? 'plan' : 'acceptEdits', '-p', prompt)
+    args.push(
+      '--no-session-persistence',
+      '--verbose',
+      '--output-format',
+      'stream-json',
+      '--permission-mode',
+      kind === 'review' ? 'plan' : 'acceptEdits',
+      '-p',
+      prompt,
+    )
     return args
   }
 
@@ -905,7 +914,7 @@ function buildAgentRunnerCommand(
     // Codex headless edits can finish successfully and then stall during
     // session persistence/finalization. Ephemeral mode keeps the non-interactive
     // worker path stable for Pluxx agent/autopilot runs.
-    const args = [binary, 'exec', '--ephemeral']
+    const args = [binary, 'exec', '--ephemeral', '--skip-git-repo-check']
     if (options.model) {
       args.push('--model', options.model)
     }
@@ -1122,6 +1131,9 @@ async function executeCommand(
   const runtimeCommand = [...command]
   let codexOutputDir: string | null = null
   let codexLastMessagePath: string | null = null
+  const isClaudeStreamJson = runtimeCommand[0] === 'claude'
+    && runtimeCommand.includes('--output-format')
+    && runtimeCommand.includes('stream-json')
 
   if (runtimeCommand[0] === 'codex' && runtimeCommand[1] === 'exec') {
     codexOutputDir = await mkdtemp(resolve(tmpdir(), 'pluxx-codex-output-'))
@@ -1140,9 +1152,16 @@ async function executeCommand(
     let codexStdoutBuffer = ''
     let codexTurnCompleted = false
     let codexTurnFailed = false
-    const sentinelInterval = codexLastMessagePath
+    let claudeStdoutBuffer = ''
+    let claudeTurnCompleted = false
+    let claudeTurnFailed = false
+    const sentinelInterval = (codexLastMessagePath || isClaudeStreamJson)
       ? setInterval(() => {
-        const sawCompletionSignal = codexTurnCompleted || existsSync(codexLastMessagePath!)
+        const sawCompletionSignal = codexTurnCompleted
+          || codexTurnFailed
+          || claudeTurnCompleted
+          || claudeTurnFailed
+          || (codexLastMessagePath ? existsSync(codexLastMessagePath) : false)
         if (!sawCompletionSignal) return
         if (sawFinalMessageAt == null) {
           sawFinalMessageAt = Date.now()
@@ -1168,19 +1187,35 @@ async function executeCommand(
     }
 
     child.stdout?.on('data', (chunk) => {
-      if (codexLastMessagePath) {
-        codexStdoutBuffer += chunk.toString()
-        const lines = codexStdoutBuffer.split('\n')
-        codexStdoutBuffer = lines.pop() ?? ''
+      const text = chunk.toString()
+      if (codexLastMessagePath || isClaudeStreamJson) {
+        const buffer = codexLastMessagePath ? codexStdoutBuffer + text : claudeStdoutBuffer + text
+        const lines = buffer.split('\n')
+        const remainder = lines.pop() ?? ''
+        if (codexLastMessagePath) {
+          codexStdoutBuffer = remainder
+        } else {
+          claudeStdoutBuffer = remainder
+        }
         for (const line of lines) {
           const trimmed = line.trim()
           if (!trimmed) continue
           try {
-            const event = JSON.parse(trimmed) as { type?: string }
-            if (event.type === 'turn.completed') {
-              codexTurnCompleted = true
-            } else if (event.type === 'turn.failed' || event.type === 'error') {
-              codexTurnFailed = true
+            const event = JSON.parse(trimmed) as { type?: string; subtype?: string; is_error?: boolean }
+            if (codexLastMessagePath) {
+              if (event.type === 'turn.completed') {
+                codexTurnCompleted = true
+              } else if (event.type === 'turn.failed' || event.type === 'error') {
+                codexTurnFailed = true
+              }
+            } else if (isClaudeStreamJson) {
+              if (event.type === 'result') {
+                if (event.is_error || event.subtype === 'error') {
+                  claudeTurnFailed = true
+                } else {
+                  claudeTurnCompleted = true
+                }
+              }
             }
           } catch {
             // Ignore non-JSON lines. Codex still writes some human-readable output to stderr.
@@ -1197,9 +1232,9 @@ async function executeCommand(
       void finalize(1, error)
     })
     child.on('close', (code) => {
-      const result = codexTurnFailed
+      const result = codexTurnFailed || claudeTurnFailed
         ? 1
-        : (killedAfterFinalMessage || codexTurnCompleted ? 0 : (code ?? 1))
+        : (killedAfterFinalMessage || codexTurnCompleted || claudeTurnCompleted ? 0 : (code ?? 1))
       void finalize(result)
     })
   })

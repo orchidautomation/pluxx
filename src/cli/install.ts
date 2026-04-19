@@ -1,4 +1,4 @@
-import { resolve, basename } from 'path'
+import { resolve, basename, dirname } from 'path'
 import { existsSync, symlinkSync, mkdirSync, rmSync, readFileSync, writeFileSync, cpSync } from 'fs'
 import { spawnSync } from 'child_process'
 import * as readline from 'readline'
@@ -28,6 +28,25 @@ interface CommandResult {
   status: number | null
   stdout: string
   stderr: string
+}
+
+interface CodexMarketplaceFile {
+  name?: string
+  interface?: {
+    displayName?: string
+  }
+  plugins?: Array<{
+    name: string
+    source?: {
+      source?: string
+      path?: string
+    }
+    policy?: {
+      installation?: string
+      authentication?: string
+    }
+    category?: string
+  }>
 }
 
 type CommandRunner = (command: string, args: string[]) => CommandResult
@@ -244,8 +263,8 @@ function getInstallTargets(pluginName: string): InstallTarget[] {
     },
     {
       platform: 'codex',
-      pluginDir: resolve(home, 'plugins', pluginName),
-      description: `~/plugins/${pluginName}`,
+      pluginDir: resolve(home, '.codex/plugins', pluginName),
+      description: `~/.codex/plugins/${pluginName} (via ~/.agents/plugins/marketplace.json)`,
     },
     {
       platform: 'opencode',
@@ -308,6 +327,90 @@ function createSymlinkInstall(target: PlannedInstallTarget): void {
   }
 
   symlinkSync(target.sourceDir, target.pluginDir)
+}
+
+function getCodexMarketplacePath(): string {
+  const home = process.env.HOME ?? '~'
+  return resolve(home, '.agents/plugins/marketplace.json')
+}
+
+function getCodexMarketplacePluginPath(pluginName: string): string {
+  return `./.codex/plugins/${pluginName}`
+}
+
+function readCodexMarketplace(filepath: string): CodexMarketplaceFile {
+  if (!existsSync(filepath)) {
+    return {
+      name: 'pluxx-local',
+      interface: {
+        displayName: 'Pluxx Local',
+      },
+      plugins: [],
+    }
+  }
+
+  const raw = readFileSync(filepath, 'utf-8')
+  const parsed = JSON.parse(raw) as CodexMarketplaceFile
+  return {
+    name: parsed.name ?? 'pluxx-local',
+    interface: parsed.interface ?? { displayName: 'Pluxx Local' },
+    plugins: Array.isArray(parsed.plugins) ? parsed.plugins : [],
+  }
+}
+
+function ensureCodexMarketplace(pluginName: string): void {
+  const filepath = getCodexMarketplacePath()
+  mkdirSync(dirname(filepath), { recursive: true })
+
+  const marketplace = readCodexMarketplace(filepath)
+  const nextPlugins = (marketplace.plugins ?? []).filter((plugin) => plugin.name !== pluginName)
+  nextPlugins.push({
+    name: pluginName,
+    source: {
+      source: 'local',
+      path: getCodexMarketplacePluginPath(pluginName),
+    },
+    policy: {
+      installation: 'AVAILABLE',
+      authentication: 'ON_INSTALL',
+    },
+    category: 'Productivity',
+  })
+
+  writeFileSync(
+    filepath,
+    JSON.stringify({
+      name: marketplace.name ?? 'pluxx-local',
+      interface: marketplace.interface ?? { displayName: 'Pluxx Local' },
+      plugins: nextPlugins,
+    }, null, 2) + '\n',
+  )
+}
+
+function removeCodexMarketplacePlugin(pluginName: string): void {
+  const filepath = getCodexMarketplacePath()
+  if (!existsSync(filepath)) return
+
+  const marketplace = readCodexMarketplace(filepath)
+  const nextPlugins = (marketplace.plugins ?? []).filter((plugin) => plugin.name !== pluginName)
+
+  if (nextPlugins.length === (marketplace.plugins ?? []).length) {
+    return
+  }
+
+  if (nextPlugins.length === 0) {
+    rmSync(filepath, { force: true })
+    return
+  }
+
+  writeFileSync(
+    filepath,
+    JSON.stringify({
+      name: marketplace.name ?? 'pluxx-local',
+      interface: marketplace.interface ?? { displayName: 'Pluxx Local' },
+      plugins: nextPlugins,
+    }, null, 2) + '\n',
+  )
 }
 
 function createCopiedInstall(target: PlannedInstallTarget): void {
@@ -655,6 +758,9 @@ export async function installPlugin(
     } else {
       createSymlinkInstall(target)
     }
+    if (target.platform === 'codex') {
+      ensureCodexMarketplace(pluginName)
+    }
     if (!options.quiet) {
       console.log(`  ${target.platform} -> ${target.description}`)
     }
@@ -687,6 +793,9 @@ export async function uninstallPlugin(
         console.log(`  removed ${target.description}`)
       }
       removed++
+    }
+    if (target.platform === 'codex') {
+      removeCodexMarketplacePlugin(pluginName)
     }
   }
 

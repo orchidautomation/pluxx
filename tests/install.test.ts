@@ -25,7 +25,7 @@ const ALL_PLATFORMS: TargetPlatform[] = [
 const INSTALL_PATHS: Record<TargetPlatform, string> = {
   'claude-code': '.claude/plugins/megamind',
   cursor: '.cursor/plugins/local/megamind',
-  codex: 'plugins/megamind',
+  codex: '.codex/plugins/megamind',
   opencode: '.config/opencode/plugins/megamind',
   'github-copilot': '.github-copilot/plugins/megamind',
   openhands: '.openhands/plugins/megamind',
@@ -71,6 +71,11 @@ describe('install', () => {
       expect(lstatSync(installedPath).isSymbolicLink()).toBe(true)
       expect(readlinkSync(installedPath)).toBe(resolve(DIST_DIR, platform))
     }
+
+    const codexMarketplace = JSON.parse(readFileSync(resolve(HOME_DIR, '.agents/plugins/marketplace.json'), 'utf-8')) as {
+      plugins: Array<{ name: string; source: { path: string } }>
+    }
+    expect(codexMarketplace.plugins.some((plugin) => plugin.name === 'megamind' && plugin.source.path === './.codex/plugins/megamind')).toBe(true)
   })
 
   it('installs only requested target subset when --target is used', async () => {
@@ -94,6 +99,16 @@ describe('install', () => {
 
     expect(existsSync(resolve(HOME_DIR, INSTALL_PATHS.cursor))).toBe(false)
     expect(existsSync(resolve(HOME_DIR, INSTALL_PATHS.openhands))).toBe(true)
+  })
+
+  it('removes Codex marketplace entries on uninstall', async () => {
+    mkdirSync(resolve(DIST_DIR, 'codex'), { recursive: true })
+    await installPlugin(DIST_DIR, 'megamind', ['codex'], { useNativeClaudeInstall: false })
+
+    await uninstallPlugin('megamind', ['codex'])
+
+    expect(existsSync(resolve(HOME_DIR, INSTALL_PATHS.codex))).toBe(false)
+    expect(existsSync(resolve(HOME_DIR, '.agents/plugins/marketplace.json'))).toBe(false)
   })
 
   it('lists only command hooks for install trust warning', () => {
