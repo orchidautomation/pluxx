@@ -57,6 +57,51 @@ dist/
   opencode/
 ```
 
+## Command Cheat Sheet
+
+```text
+Need a new project from an MCP?
+  pluxx init --from-mcp <source> --yes
+
+Need the all-in-one path?
+  pluxx autopilot --from-mcp <source> --runner <runner>
+
+Need deterministic checks?
+  pluxx doctor
+  pluxx lint
+  pluxx eval
+  pluxx build
+  pluxx test
+
+Need local installs too?
+  pluxx build --install
+  pluxx test --install
+  pluxx uninstall
+
+Need agent refinement?
+  pluxx agent prepare [--website <url>] [--docs <url>]
+  pluxx agent run taxonomy --runner <runner>
+  pluxx agent run instructions --runner <runner>
+  pluxx agent run review --runner <runner>
+
+Need to import an old host-native plugin?
+  pluxx migrate <path>
+
+Need to inspect a shipped bundle?
+  pluxx doctor --consumer <bundle>
+
+Need deterministic MCP replay?
+  pluxx mcp proxy --from-mcp <source> --record tape.json
+  pluxx mcp proxy --replay tape.json
+
+Need to refresh from the MCP later?
+  pluxx sync
+```
+
+Full docs tree:
+
+- [docs.pluxx.dev/getting-started/command-decision-tree](https://docs.pluxx.dev/getting-started/command-decision-tree)
+
 ## Core Commands
 
 Pluxx includes more than scaffold generation:

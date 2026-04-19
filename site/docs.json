@@ -22,6 +22,7 @@
         "group": "Getting Started",
         "pages": [
           "getting-started/getting-started",
+          "getting-started/command-decision-tree",
           "getting-started/create-a-pluxx-plugin",
           "getting-started/use-pluxx-in-host-agents",
           "getting-started/practical-handbook"
