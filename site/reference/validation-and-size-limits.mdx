@@ -2,19 +2,40 @@
 title: Validation and Size Limits
 ---
 
-Pluxx lint checks frontmatter, platform rules, hook compatibility, and size limits.
+Pluxx validates both source-project structure and host-specific output constraints.
 
-Common constraints:
+The main commands are:
+
+- `pluxx doctor`
+- `pluxx lint`
+- `pluxx eval`
+- `pluxx test`
+
+What they cover:
+
+- `doctor`
+  Runtime and project-health checks.
+- `lint`
+  Source-project rules, frontmatter, platform limits, hook compatibility, and packaging constraints.
+- `eval`
+  Scaffold and prompt-pack quality.
+- `test`
+  End-to-end verification contract across generated outputs.
+
+Common platform constraints:
 
 - Codex skill description hard cap: 1024 characters
 - Claude Code UI truncates shorter descriptions
 - Cursor/Cline require skill directory and name alignment
 - Codex manifest prompt limits apply
 
+These checks exist to stop a valid-looking source project from compiling into a broken or misleading host bundle.
+
 Always run:
 
 ```bash
 npx @orchid-labs/pluxx doctor
 npx @orchid-labs/pluxx lint
+npx @orchid-labs/pluxx eval
 npx @orchid-labs/pluxx test
 ```

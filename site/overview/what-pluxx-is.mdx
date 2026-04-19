@@ -2,96 +2,150 @@
 title: What Pluxx Is
 ---
 
-Pluxx turns one MCP or source project into native plugin bundles for Claude Code, Cursor, Codex, and OpenCode.
+Pluxx is the authoring and maintenance layer for MCP-backed plugins.
 
-Keep one maintained source project, then compile the native bundle each host expects.
+It keeps one source project for your plugin and compiles native outputs for Claude Code, Cursor, Codex, and OpenCode.
 
-## Source of truth
+## The source project
 
-Pluxx keeps one editable source project and compiles per-host outputs.
+You edit one maintained project:
 
 ```text
-source project (you edit)
-  - pluxx.config.ts
-  - INSTRUCTIONS.md
-  - skills/
-  - scripts/
-  - .pluxx/mcp.json
-
-compiled bundles (generated)
-  - dist/claude-code
-  - dist/cursor
-  - dist/codex
-  - dist/opencode
+acme-plugin/
+  pluxx.config.ts
+  INSTRUCTIONS.md
+  skills/
+  commands/
+  scripts/
+  assets/
+  .pluxx/mcp.json
+  .pluxx/taxonomy.json
 ```
 
-## Core commands
+Pluxx generates per-host bundles under `dist/`:
 
-Pluxx includes more than scaffold generation:
+```text
+dist/
+  claude-code/
+  cursor/
+  codex/
+  opencode/
+```
 
-- `pluxx eval` checks scaffold and prompt-pack quality before publish
-- `pluxx migrate <path>` imports an existing host-native plugin into a Pluxx source project
-- `pluxx doctor --consumer <bundle>` inspects a built or installed plugin bundle from the user side
-- `pluxx mcp proxy --record` and `--replay` capture deterministic MCP sessions for debugging and CI
+The source project is the durable layer. The `dist/` directories are generated outputs.
 
-## Where the agent is used
+## Deterministic layer vs agent layer
 
-Pluxx has a deterministic layer and an agent layer.
+Pluxx has two command layers.
 
-Deterministic commands do not call Claude Code, Codex, Cursor, or OpenCode:
+### Deterministic layer
 
-- `init`
-- `sync`
-- `doctor`
-- `doctor --consumer`
-- `lint`
-- `eval`
-- `build`
-- `test`
-- `install`
-- `migrate`
-- `mcp proxy`
+These commands do not invoke Claude Code, Codex, Cursor, or OpenCode:
 
-The agent layer is optional. It is used when you want a host coding agent to improve the generated taxonomy, instructions, or review output:
+- `pluxx init --from-mcp ...`
+- `pluxx sync`
+- `pluxx doctor`
+- `pluxx doctor --consumer <bundle>`
+- `pluxx lint`
+- `pluxx eval`
+- `pluxx build`
+- `pluxx test`
+- `pluxx install`
+- `pluxx migrate <path>`
+- `pluxx mcp proxy --record ...`
+- `pluxx mcp proxy --replay ...`
+
+This layer handles import, file generation, validation, build, install, migration, and deterministic MCP replay.
+
+### Agent layer
+
+These commands invoke a host coding agent:
 
 - `pluxx agent prepare`
 - `pluxx agent prompt ...`
 - `pluxx agent run ...`
 - `pluxx autopilot ...`
 
-That split is intentional. Pluxx owns the scaffold, file structure, validation, and platform packaging. The host agent only steps in for semantic refinement.
+This layer is for semantic refinement:
 
-## What the core commands are for
+- taxonomy cleanup
+- instruction rewriting
+- review passes
 
-- `pluxx eval`
-  As a plugin author, I want to know whether the scaffold is coherent enough to ship, not just whether it builds.
-  Agent involvement: none. `eval` inspects the generated scaffold and prompt packs directly.
-- `pluxx migrate <path>`
-  As a team with an existing host-native plugin, I want to move into Pluxx without rewriting the project from scratch.
-  Agent involvement: none. `migrate` imports the existing plugin and synthesizes the Pluxx metadata it needs.
-- `pluxx doctor --consumer <bundle>`
-  As someone debugging an installed plugin, I want to inspect the built bundle from the user side instead of the source-project side.
-  Agent involvement: none. `doctor --consumer` reads the built or installed bundle directly.
-- `pluxx mcp proxy --record` / `--replay`
-  As a plugin author debugging a live MCP, I want a reproducible session I can replay in CI, local tests, or a demo.
-  Agent involvement: none. The proxy records and replays MCP traffic without invoking a model.
+Pluxx keeps ownership of structure and packaging. The host agent only works inside the refinement boundary Pluxx prepares.
 
-## Product flow
+## What the main commands are for
 
-1. Start from an MCP or initialize a source project.
-2. Run `doctor`, `lint`, `eval`, and `test` to validate the baseline.
-3. Refine taxonomy and instructions with Agent Mode or autopilot when you need semantic cleanup.
-4. Build native bundles and install them into your target hosts.
-5. Sync later when the MCP changes.
+### `pluxx eval`
 
-## Quick start
+Use `eval` when the project already builds but you want a quality gate on the scaffold itself.
+
+Example user story:
+
+> The plugin builds, but I want to know whether the generated taxonomy, instructions, and prompt pack are coherent enough to publish.
+
+`eval` does not call a model. It checks the scaffold and prompt-pack contract directly.
+
+### `pluxx migrate <path>`
+
+Use `migrate` when you already have a host-native plugin and want to move it into a Pluxx source project instead of rewriting it from scratch.
+
+Example user story:
+
+> We already have a plugin for one host. We want to move into Pluxx and keep using the same project through Agent Mode, eval, and cross-host build output.
+
+`migrate` does not call a model.
+
+### `pluxx doctor --consumer <bundle>`
+
+Use consumer doctor when you need to inspect a built or installed bundle from the end-user side.
+
+Example user story:
+
+> The installed plugin looks wrong in my host. I want to inspect the shipped bundle itself, not the source repo.
+
+`doctor --consumer` does not call a model.
+
+### `pluxx mcp proxy --record` / `--replay`
+
+Use the MCP proxy when you need a reproducible MCP session for CI, demos, or debugging.
+
+Example user story:
+
+> The live MCP is flaky or expensive. I want to capture one real session and replay it locally.
+
+The proxy records and replays MCP traffic without invoking a model.
+
+## Typical flow
+
+For a new plugin:
 
 ```bash
 npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp
 npx @orchid-labs/pluxx doctor
 npx @orchid-labs/pluxx lint
+npx @orchid-labs/pluxx eval
 npx @orchid-labs/pluxx build
 npx @orchid-labs/pluxx test
+```
+
+If the scaffold needs better naming or instructions:
+
+```bash
+npx @orchid-labs/pluxx agent prepare --docs https://docs.example.com/overview
+npx @orchid-labs/pluxx agent run taxonomy --runner codex
+npx @orchid-labs/pluxx agent run instructions --runner codex
+```
+
+If you want one coordinated flow:
+
+```bash
+npx @orchid-labs/pluxx autopilot \
+  --from-mcp https://example.com/mcp \
+  --runner codex \
+  --name acme \
+  --display-name "Acme" \
+  --author "Acme"
 ```
 
 Continue with [Getting started](/getting-started/getting-started).

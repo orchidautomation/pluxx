@@ -22,4 +22,84 @@ export default definePlugin({
 })
 ```
 
-See [How Pluxx works](/how-it-works/how-it-works) for per-host compilation behavior.
+## What belongs here
+
+`pluxx.config.ts` defines the source project that Pluxx compiles into host-native bundles.
+
+Common fields:
+
+- `name`
+  Stable plugin id used for generated output and install paths.
+- `description`
+  Shared plugin summary used across generated outputs.
+- `author`
+  Plugin author metadata.
+- `mcp`
+  One or more MCP server definitions, including transport and auth.
+- `skills`
+  Path to the skills directory.
+- `commands`
+  Path to the commands directory when you want explicit command surfaces.
+- `instructions`
+  Path to the shared instruction file.
+- `scripts`
+  Path to generated or hand-authored helper scripts such as hook helpers.
+- `targets`
+  Which host bundles to build.
+
+## MCP auth examples
+
+Bearer token:
+
+```ts
+mcp: {
+  sumble: {
+    url: 'https://mcp.sumble.com',
+    auth: { type: 'bearer', envVar: 'SUMBLE_API_KEY' }
+  }
+}
+```
+
+Custom header:
+
+```ts
+mcp: {
+  playkit: {
+    url: 'https://mcp.playkit.sh/mcp',
+    auth: {
+      type: 'header',
+      envVar: 'PLAYKIT_API_KEY',
+      headerName: 'X-API-Key',
+      headerTemplate: '${value}'
+    }
+  }
+}
+```
+
+Platform-managed runtime auth:
+
+```ts
+platforms: {
+  'claude-code': { mcpAuth: 'platform' },
+  cursor: { mcpAuth: 'platform' }
+}
+```
+
+## Source vs generated output
+
+Keep editing the source project:
+
+- `pluxx.config.ts`
+- `INSTRUCTIONS.md`
+- `skills/`
+- `commands/`
+- `scripts/`
+
+Treat `dist/*` as generated output from `pluxx build`.
+
+## Next references
+
+- [CLI Reference](/reference/cli-reference)
+- [Auth and Runtime Auth](/reference/auth-runtime-auth)
+- [Hooks, Commands, and Agents](/reference/hooks-commands-agents)
+- [How Pluxx works](/how-it-works/how-it-works)

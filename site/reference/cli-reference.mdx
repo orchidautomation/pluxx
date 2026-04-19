@@ -2,77 +2,213 @@
 title: CLI Reference
 ---
 
-Pluxx has two command layers:
+Pluxx has two command families:
 
 - deterministic project commands
-- optional agent-driven refinement commands
+- agent-invoking refinement commands
 
-The deterministic layer never calls a model. The agent layer only runs when you explicitly choose `agent run` or `autopilot`.
+That split is intentional. Pluxx owns import, validation, packaging, installation, migration, and deterministic MCP replay. Host agents are optional and only participate in semantic refinement.
 
-## Deterministic commands
+## Deterministic project commands
 
-- `pluxx init --from-mcp ...`
-  Scaffold a Pluxx source project from a live MCP server.
-  Agent involvement: none.
-- `pluxx sync [--from-mcp ...]`
-  Refresh a Pluxx source project from its MCP source while preserving managed boundaries.
-  Agent involvement: none.
-- `pluxx doctor`
-  Inspect the source project and report configuration, scaffold, and runtime issues.
-  Agent involvement: none.
-- `pluxx doctor --consumer <installed-or-built-bundle>`
-  Inspect a built or installed plugin bundle from the user side.
-  User story: “The installed plugin looks wrong on my machine. I want to inspect the shipped bundle itself, not the source repo.”
-  Agent involvement: none.
-- `pluxx lint`
-  Validate the source project against Pluxx and platform rules.
-  Agent involvement: none.
-- `pluxx eval`
-  Evaluate scaffold and prompt-pack quality before publish.
-  User story: “The project builds, but I want to know whether the generated taxonomy, instructions, and prompt packs are actually coherent enough to ship.”
-  Agent involvement: none.
-- `pluxx build`
-  Generate platform bundles under `dist/`.
-  Agent involvement: none.
-- `pluxx test`
-  Run verification against built outputs.
-  Agent involvement: none.
-- `pluxx install --target ...`
-  Install built bundles into local host tooling for testing.
-  Agent involvement: none.
-- `pluxx migrate <path>`
-  Import an existing host-native plugin into a Pluxx source project.
-  User story: “We already have one plugin. We want to move into Pluxx without rewriting everything by hand.”
-  Agent involvement: none.
-- `pluxx mcp proxy --from-mcp ... [--record ...]`
-  Run a local MCP proxy in front of a live source. With `--record`, save a deterministic tape of the session.
-  Agent involvement: none.
-- `pluxx mcp proxy --replay <tape.json>`
-  Replay a recorded MCP session without hitting the live server again.
-  User story: “I need the same MCP behavior in CI, local debugging, or a demo without depending on the live service.”
-  Agent involvement: none.
+These commands do not invoke Claude Code, Codex, Cursor, or OpenCode.
 
-## Agent commands
+### `pluxx init --from-mcp ...`
 
-- `pluxx agent prepare`
-  Generate the context pack and write boundaries for a host coding agent.
-- `pluxx agent prompt taxonomy|instructions|review`
-  Generate the prompt pack for a specific refinement pass.
-- `pluxx agent run taxonomy|instructions|review --runner claude|cursor|codex|opencode`
-  Run a host coding agent headlessly against the prepared Pluxx context.
-- `pluxx autopilot --from-mcp ... --runner ...`
-  Compose scaffold import, optional semantic refinement, and verification in one flow.
+Scaffold a Pluxx source project from a live MCP server or local stdio command.
+
+```bash
+npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp
+```
+
+### `pluxx sync [--from-mcp ...]`
+
+Refresh an existing Pluxx source project from its MCP source while preserving managed boundaries.
+
+```bash
+npx @orchid-labs/pluxx sync
+```
+
+### `pluxx doctor`
+
+Inspect the source project and report config, scaffold, runtime, and packaging issues.
+
+```bash
+npx @orchid-labs/pluxx doctor
+```
+
+### `pluxx doctor --consumer <bundle>`
+
+Inspect a built or installed bundle from the end-user side.
+
+User story:
+
+> The installed plugin looks wrong on my machine. I want to inspect the shipped bundle itself, not the source repo.
+
+```bash
+npx @orchid-labs/pluxx doctor --consumer dist/claude-code
+```
+
+### `pluxx lint`
+
+Validate the source project against Pluxx and platform rules.
+
+```bash
+npx @orchid-labs/pluxx lint
+```
+
+### `pluxx eval`
+
+Evaluate scaffold and prompt-pack quality before publish.
+
+User story:
+
+> The project builds, but I want to know whether the generated taxonomy, instructions, and prompt packs are coherent enough to ship.
+
+```bash
+npx @orchid-labs/pluxx eval
+```
+
+### `pluxx build`
+
+Generate platform bundles under `dist/`.
+
+```bash
+npx @orchid-labs/pluxx build
+```
+
+Build and install in one step:
+
+```bash
+npx @orchid-labs/pluxx build --install
+```
+
+If local hook commands are present:
+
+```bash
+npx @orchid-labs/pluxx build --install --trust
+```
+
+### `pluxx test`
+
+Run the default verification contract against the source project and built outputs.
+
+```bash
+npx @orchid-labs/pluxx test
+```
+
+Test and install in one step:
+
+```bash
+npx @orchid-labs/pluxx test --install
+```
+
+### `pluxx install --target ...`
+
+Install built bundles into local host tooling for testing.
+
+```bash
+npx @orchid-labs/pluxx install --target claude-code,codex
+```
+
+### `pluxx migrate <path>`
+
+Import an existing host-native plugin into a Pluxx source project.
+
+User story:
+
+> We already have one plugin. We want to move into Pluxx without rewriting everything by hand.
+
+```bash
+npx @orchid-labs/pluxx migrate ./existing-plugin
+```
+
+### `pluxx mcp proxy --from-mcp ... [--record ...]`
+
+Run a local stdio proxy in front of a live MCP. With `--record`, save a deterministic tape.
+
+```bash
+npx @orchid-labs/pluxx mcp proxy \
+  --from-mcp https://example.com/mcp \
+  --record tape.json
+```
+
+### `pluxx mcp proxy --replay <tape.json>`
+
+Replay a recorded MCP session without hitting the live server again.
+
+User story:
+
+> I need the same MCP behavior in CI, local debugging, or a demo without depending on the live service.
+
+```bash
+npx @orchid-labs/pluxx mcp proxy --replay tape.json
+```
+
+## Agent-invoking commands
+
+These commands prepare or invoke a host coding agent.
+
+### `pluxx agent prepare`
+
+Generate the context pack and file boundaries for a host coding agent.
+
+```bash
+npx @orchid-labs/pluxx agent prepare \
+  --docs https://docs.example.com/overview \
+  --website https://example.com
+```
+
+### `pluxx agent prompt taxonomy|instructions|review`
+
+Generate the prompt pack for one refinement pass without running a host agent yet.
+
+```bash
+npx @orchid-labs/pluxx agent prompt taxonomy
+```
+
+### `pluxx agent run taxonomy|instructions|review --runner claude|cursor|codex|opencode`
+
+Run a host coding agent headlessly against the prepared Pluxx context.
+
+```bash
+npx @orchid-labs/pluxx agent run taxonomy --runner codex
+```
+
+Useful flags:
+
+- `--model <name>` to override the host runner's local default model
+- `--no-verify` to skip the post-pass verification step
+- `--verbose-runner` to stream raw runner output
+- `--attach <url>` for OpenCode only
+
+If you do not pass `--model`, Pluxx uses the runner's local default model and prints that model in the command output when it can detect it.
+
+### `pluxx autopilot --from-mcp ... --runner ...`
+
+Compose deterministic import, optional semantic refinement, and final verification in one flow.
+
+```bash
+npx @orchid-labs/pluxx autopilot \
+  --from-mcp https://example.com/mcp \
+  --runner claude \
+  --name acme \
+  --display-name "Acme" \
+  --author "Acme"
+```
+
+Use `--mode quick|standard|thorough` to control how much semantic refinement autopilot performs.
 
 ## Where the agent actually does work
 
-The agent is involved only in:
+The host agent is only used for:
 
 - taxonomy refinement
 - instruction rewriting
 - review passes
 - autopilot runs that include those passes
 
-The agent is not involved in:
+The host agent is not used for:
 
 - MCP introspection
 - scaffold generation
@@ -81,12 +217,12 @@ The agent is not involved in:
 - bundle generation
 - install
 - proxy record/replay
-- migrate
+- migration
 - consumer-side doctor checks
 
-That is the core product contract. Pluxx owns the deterministic structure and platform packaging. The host agent is optional and only improves the semantic layer.
+## Good starting flows
 
-## Good starting flow
+### Deterministic-first flow
 
 ```bash
 npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp
@@ -97,12 +233,19 @@ npx @orchid-labs/pluxx build
 npx @orchid-labs/pluxx test
 ```
 
-Then, if the scaffold needs semantic cleanup:
+### Deterministic scaffold, then semantic refinement
 
 ```bash
-npx @orchid-labs/pluxx agent prepare
+npx @orchid-labs/pluxx agent prepare --docs https://docs.example.com/overview
 npx @orchid-labs/pluxx agent run taxonomy --runner codex
 npx @orchid-labs/pluxx agent run instructions --runner codex
 ```
 
-See [Practical handbook](/getting-started/practical-handbook) for longer examples.
+### One coordinated flow
+
+```bash
+npx @orchid-labs/pluxx autopilot \
+  --from-mcp https://example.com/mcp \
+  --runner codex \
+  --mode standard
+```

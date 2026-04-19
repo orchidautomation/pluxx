@@ -2,26 +2,58 @@
 title: Claude Code
 ---
 
-Use Pluxx in Claude Code for interactive scaffold iteration and fast refine/review loops.
+Use Pluxx in Claude Code when you want a native Claude plugin bundle plus optional Claude-driven refine and review passes.
 
-Recommended prompt:
+## What Claude Code Consumes
 
-```text
-Use Pluxx to scaffold this MCP, then refine taxonomy and instructions before building and installing the Claude target.
+Pluxx builds the Claude target into `dist/claude-code/`. The Claude bundle includes:
+
+- `.claude-plugin/plugin.json`
+- `skills/`
+- `commands/`
+- `agents/`
+- `hooks/hooks.json`
+- `.mcp.json`
+- `CLAUDE.md`
+
+Claude Code reads those files as a local plugin bundle. MCP wiring lives in `.mcp.json`, hook wiring lives in `hooks/hooks.json`, and shared instructions live in `CLAUDE.md`.
+
+## Build And Install
+
+```bash
+npx @orchid-labs/pluxx build --target claude-code --install
 ```
 
-Install target:
+If you already built the bundle, install it directly:
 
 ```bash
 npx @orchid-labs/pluxx install --target claude-code
 ```
 
-If Claude Code is already open, run `/reload-plugins` in the active session after install so the new local plugin is picked up immediately.
+Pluxx installs Claude plugins through a local Claude marketplace:
 
-### Slash Surface Contract
+- local marketplace root: `~/.claude/plugins/data/pluxx-local-<plugin>/`
+- install command Pluxx runs: `claude plugin install <plugin>@pluxx-local-<plugin> --scope user`
 
-When a Claude plugin has both `commands/<name>.md` and `skills/<name>/SKILL.md`, Pluxx keeps both surfaces in the Claude bundle.
+If the plugin defines local hook commands, add `--trust` or confirm the trust prompt during install.
 
-To keep the slash UX command-first without losing the semantic skill surface, Pluxx keeps the Claude command name unchanged and rewrites the colliding Claude skill with `user-invocable: false` plus a hidden internal skill name.
+## Agent-Driven Refinement
 
-That keeps the command visible at its intended name while preserving the skill for Claude's automatic semantic routing.
+Build and install are deterministic. Claude only does model work when you explicitly run an agent pass:
+
+```bash
+npx @orchid-labs/pluxx agent prepare
+npx @orchid-labs/pluxx agent run review --runner claude --no-verify
+```
+
+Use Claude for:
+
+- taxonomy refinement
+- instruction rewrites
+- scaffold review passes
+
+## Claude-Specific Caveats
+
+- If Claude Code is already open, run `/reload-plugins` after install so the session picks up the new plugin immediately.
+- When a skill name collides with a command name, Pluxx keeps the command visible and rewrites the colliding skill as a hidden internal skill with `user-invocable: false`.
+- If you configure Claude platform-managed MCP auth, the generated `.mcp.json` keeps the server definition but does not inject local auth headers at install time.

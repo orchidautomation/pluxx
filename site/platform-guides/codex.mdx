@@ -2,23 +2,57 @@
 title: Codex
 ---
 
-Use Pluxx in Codex for deterministic CLI-first workflows and strict review passes.
+Use Pluxx in Codex when you want deterministic CLI-first packaging, native Codex plugin metadata, and strict review passes.
 
-Important: in Codex, use `@pluxx` plus skills; do not rely on plugin slash commands.
+## What Codex Consumes
 
-Recommended prompt:
+Pluxx builds the Codex target into `dist/codex/`. Codex consumes:
 
-```text
-Use Pluxx to import this MCP, validate the first pass, then review what is still weak before installation.
+- `.codex-plugin/plugin.json`
+- `skills/`
+- `.mcp.json`
+- `AGENTS.md`
+- `.codex/permissions.generated.json` as a companion mirror, not native enforcement
+
+Codex does not currently document plugin-packaged slash commands as a first-class surface, so the main Codex user-facing contract is the plugin manifest, skills, MCP config, and `AGENTS.md`.
+
+## Build And Install
+
+```bash
+npx @orchid-labs/pluxx build --target codex --install
 ```
 
-Install target:
+If you already built the bundle, install it directly:
 
 ```bash
 npx @orchid-labs/pluxx install --target codex
 ```
 
-Permissions note:
+Pluxx installs Codex plugins into:
 
-- Codex permission enforcement is external to the plugin bundle.
-- Pluxx emits `.codex/permissions.generated.json` as a mirror of canonical `permissions` rules so you can wire them into Codex user/admin policy or external hooks.
+- plugin directory: `~/.codex/plugins/<plugin>`
+- local marketplace entry: `~/.agents/plugins/marketplace.json`
+
+If the plugin defines local hook commands, add `--trust` or confirm the trust prompt during install.
+
+## Agent-Driven Refinement
+
+Build and install are deterministic. Codex only does model work when you explicitly run an agent pass:
+
+```bash
+npx @orchid-labs/pluxx agent prepare
+npx @orchid-labs/pluxx agent run review --runner codex --no-verify
+```
+
+Use Codex for:
+
+- review passes
+- taxonomy refinement
+- instruction rewrites
+
+## Codex-Specific Caveats
+
+- In Codex, use the plugin through `@pluxx`, `skills/`, and `AGENTS.md`. Do not rely on plugin slash commands as a documented Codex surface.
+- Codex hook configuration still lives outside the plugin bundle in `~/.codex/hooks.json` or `<repo>/.codex/hooks.json`. Pluxx does not currently bundle native Codex hook config into generated plugin output.
+- `.codex/permissions.generated.json` is a generated mirror of canonical permissions rules. It helps you wire equivalent Codex policy, but Codex does not enforce that file automatically.
+- Codex MCP auth output is limited to the formats the current Codex plugin schema can express: `bearer_token_env_var`, `env_http_headers`, and `http_headers`.

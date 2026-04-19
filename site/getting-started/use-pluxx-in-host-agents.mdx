@@ -15,7 +15,7 @@ This is different from [Create a Pluxx plugin](/getting-started/create-a-pluxx-p
 
 The self-hosting reference project for this flow now lives at [example/pluxx](/examples/self-hosting-pluxx).
 
-## What This Means
+## Product Split
 
 The meta workflow is:
 
@@ -26,8 +26,26 @@ you in Claude/Codex/Cursor/OpenCode
   -> the host agent helps with refinement and review
 ```
 
-So the host agent is the operator.
-Pluxx is the plugin-authoring substrate underneath it.
+Pluxx has two layers:
+
+- deterministic project commands
+- optional agent-driven refinement
+
+So the host agent is the operator. Pluxx is the authoring system underneath it.
+
+What the host agent is good for:
+
+- improving taxonomy
+- rewriting instructions
+- running a review pass before ship
+
+What Pluxx still owns directly:
+
+- MCP import
+- scaffold generation
+- lint, eval, build, and test
+- install and sync
+- platform packaging
 
 ## The Five Main Pluxx Workflows
 
@@ -57,9 +75,9 @@ The self-hosting plugin also exposes matching explicit commands in hosts that su
 
 Use commands when you want a direct host-native entrypoint in Claude Code, Cursor, or OpenCode. In Codex, use `@pluxx` and the skill list instead; `/` is reserved for native Codex commands. Use skills when you want the host agent to choose the right Pluxx workflow automatically.
 
-## The Easiest Mental Model
+## What To Ask The Host Agent To Do
 
-Think in terms of what you want the host agent to do:
+Think in terms of the job you want the host agent to perform:
 
 - “Use Pluxx to scaffold this MCP”
 - “Use Pluxx to improve the taxonomy”
@@ -180,6 +198,22 @@ Under the hood, the host agent should follow something close to this:
 9. optionally run `pluxx install --target ...`
 
 That is the right sequence whether the host is Claude, Codex, Cursor, or OpenCode.
+
+## What Good Operator Behavior Looks Like
+
+The host agent should:
+
+- start with deterministic import and validation
+- only move into taxonomy or instructions passes when the scaffold needs semantic cleanup
+- keep edits inside Pluxx-managed sections
+- rerun validation after semantic changes
+
+The host agent should not:
+
+- treat every import as an excuse for a full rewrite
+- change auth wiring casually
+- edit generated `dist/` output directly
+- skip validation after major taxonomy or instructions changes
 
 ## Host-Specific Guidance
 

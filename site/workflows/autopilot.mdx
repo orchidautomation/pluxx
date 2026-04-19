@@ -1,272 +1,246 @@
-# One-Shot Autopilot Spec
+# Autopilot
 
-This is the working spec for a one-shot Pluxx flow that imports a raw MCP, uses a host coding agent headlessly, and returns a validated plugin project without making the user chain multiple commands by hand.
+`pluxx autopilot` is the coordinated import flow for people who want Pluxx to scaffold the project, run the right semantic passes, and verify the result without manually chaining every command.
 
-## Problem
+It is a real command, not a planning spec.
 
-Today, the pieces exist, but the user has to orchestrate them:
+## What autopilot does
 
-1. `pluxx init --from-mcp`
-2. `pluxx agent prepare`
-3. `pluxx agent run taxonomy --runner ...`
-4. `pluxx agent run instructions --runner ...`
-5. `pluxx agent run review --runner ...`
-6. `pluxx test`
+Autopilot combines:
 
-That is workable for power users, but it is not the clean product surface.
+1. deterministic MCP import
+2. optional semantic refinement through a host coding agent
+3. final verification
 
-What users will want is:
+Autopilot does not replace the underlying commands. It orchestrates them.
 
-- bring a raw MCP
-- choose the host runner they already use
-- let Pluxx do the deterministic work
-- let the host agent do the semantic work
-- get a tested project back
-
-## Proposed Command
+## Command shape
 
 ```bash
-pluxx autopilot --from-mcp <source> --runner <codex|claude|cursor|opencode>
+npx @orchid-labs/pluxx autopilot \
+  --from-mcp https://example.com/mcp \
+  --runner codex \
+  --name acme \
+  --display-name "Acme" \
+  --author "Acme"
 ```
+
+Supported runners:
+
+- `claude`
+- `cursor`
+- `codex`
+- `opencode`
+
+## Deterministic steps vs agent steps
+
+Autopilot always starts with deterministic work:
+
+- MCP introspection
+- scaffold generation
+- quality analysis
+
+Then it decides whether to run agent passes based on:
+
+- the selected mode
+- MCP quality signals
+- whether you supplied docs, website, or local context
+- whether you explicitly requested a review pass
+
+The agent is only used for:
+
+- taxonomy refinement
+- instruction rewriting
+- review
+
+The agent is not used for:
+
+- import
+- lint
+- eval
+- build
+- install
+- test
+
+## Modes
+
+### `quick`
+
+Quick mode is the lightest path.
+
+- taxonomy runs only when MCP metadata warnings are present
+- instructions are skipped
+- review is skipped
+
+Use it when you want a fast first pass and do not need much semantic cleanup.
+
+### `standard`
+
+Standard mode is the default.
+
+- taxonomy runs when MCP metadata signals cleanup work or when you provide docs/website/context
+- instructions run when warnings are present or when richer context is provided
+- review runs only if you add `--review`
+
+Use it when you want a balanced import flow.
+
+### `thorough`
+
+Thorough mode is the heaviest path.
+
+- taxonomy always runs
+- instructions always run
+- review runs by default
+
+Use it when you want the strongest semantic pass before review or publishing.
+
+## Context inputs
+
+Autopilot can enrich the agent context with:
+
+- `--docs <url>`
+- `--website <url>`
+- `--context <files...>`
 
 Example:
 
 ```bash
-pluxx autopilot \
-  --from-mcp https://mcp.playkit.sh/mcp \
+npx @orchid-labs/pluxx autopilot \
+  --from-mcp https://example.com/mcp \
+  --runner claude \
+  --mode standard \
+  --docs https://docs.example.com/overview \
+  --website https://example.com \
+  --context notes.md,positioning.md
+```
+
+These context inputs only affect the agent layer. They do not change the deterministic import contract.
+
+## Auth examples
+
+Bearer auth:
+
+```bash
+npx @orchid-labs/pluxx autopilot \
+  --from-mcp https://mcp.sumble.com \
   --runner codex \
-  --name playkit \
-  --display-name "PlayKit" \
+  --yes \
+  --name sumble-plugin \
+  --display-name "Sumble" \
+  --author "Orchid Labs" \
   --targets claude-code,cursor,codex,opencode \
   --grouping workflow \
   --hooks safe \
+  --auth-env SUMBLE_API_KEY \
+  --auth-type bearer
+```
+
+Custom header auth:
+
+```bash
+npx @orchid-labs/pluxx autopilot \
+  --from-mcp https://mcp.playkit.sh/mcp \
+  --runner codex \
+  --yes \
+  --name playkit \
+  --display-name "PlayKit" \
+  --author "PlayKit" \
   --auth-env PLAYKIT_API_KEY \
   --auth-type header \
   --auth-header X-API-Key \
   --auth-template '${value}'
 ```
 
-## Goal
+OAuth-first remote MCPs are also supported. If the provider needs platform-managed runtime auth, use the platform-auth flags. If it requires browser-interactive OAuth during handshake, add `--oauth-wrapper`.
 
-Turn this:
+## Useful flags
 
-- raw MCP server
+- `--mode quick|standard|thorough`
+- `--review` to force a review pass in standard mode
+- `--no-verify` to skip the final verification step
+- `--verbose-runner` to stream runner logs instead of showing the condensed summary
+- `--json` for machine-readable output
+- `--dry-run` to preview the planned scaffold and runner commands
+- `--model <name>` to override the runner's local default model
+- `--attach <url>` for OpenCode only
 
-Into this:
+If you do not pass `--model`, Pluxx uses the selected runner's local default model and reports that model in the autopilot output when it can detect it.
 
-- valid Pluxx project
-- semantically refined instructions and skills
-- tested platform bundles
-- readable summary of what was generated and what still needs human review
+## What dry run shows
 
-## Product Model
+`--dry-run --json` shows:
 
-Autopilot is not a separate engine.
+- the planned scaffold
+- which agent passes will run or be skipped
+- the exact runner commands
+- which files would be created or updated
 
-It is a coordinated wrapper around:
-
-- deterministic Core steps
-- Agent Mode prompt/context prep
-- a host coding agent in headless mode
-- final verification
-
-## Flow
-
-```mermaid
-flowchart TD
-    A["Raw MCP input"] --> B["Core import<br/>init --from-mcp"]
-    B --> C["Baseline validation<br/>doctor + test"]
-    C --> D["Agent prepare<br/>context + prompts"]
-    D --> E["Headless taxonomy run"]
-    E --> F["Headless instructions run"]
-    F --> G["Optional headless review run"]
-    G --> H["Final test"]
-    H --> I["Summary + next steps"]
-```
-
-## Default Sequence
-
-Autopilot should run:
-
-1. `init --from-mcp`
-2. `doctor`
-3. `test`
-4. `agent prepare`
-5. `agent run taxonomy --runner <runner>`
-6. `agent run instructions --runner <runner>`
-7. optional `agent run review --runner <runner> --no-verify`
-8. `test` again
-9. print summary
-
-## Why Validate Twice
-
-The first validation answers:
-
-- did the deterministic scaffold work?
-
-The second validation answers:
-
-- did the agent refinement stay inside safe boundaries?
-
-This keeps the semantic layer honest.
-
-## CLI Shape
-
-### Required
-
-- `--from-mcp <source>`
-- `--runner <codex|claude|cursor|opencode>`
-
-### Common scaffold flags
-
-- `--name`
-- `--display-name`
-- `--author`
-- `--targets`
-- `--grouping`
-- `--hooks`
-- `--transport`
-- `--auth-env`
-- `--auth-type`
-- `--auth-header`
-- `--auth-template`
-
-### Context flags
-
-- `--website`
-- `--docs`
-- `--context <comma-separated files>`
-
-### Control flags
-
-- `--dry-run`
-- `--json`
-- `--quiet`
-- `--yes`
-- `--skip-review`
-- `--skip-install-checks`
-
-## Output Contract
-
-Autopilot should return:
-
-- project path
-- import result
-- baseline validation result
-- runner used
-- semantic passes executed
-- final validation result
-- key warnings
-- generated top-level file tree
-
-### JSON output
-
-Suggested top-level shape:
-
-```json
-{
-  "ok": true,
-  "project": {
-    "name": "playkit",
-    "path": "./playkit"
-  },
-  "import": {
-    "ok": true,
-    "toolCount": 24,
-    "skillCount": 8
-  },
-  "agent": {
-    "runner": "codex",
-    "steps": ["taxonomy", "instructions", "review"],
-    "ok": true
-  },
-  "verification": {
-    "ok": true,
-    "doctor": {
-      "errors": 0,
-      "warnings": 1,
-      "infos": 1
-    },
-    "test": {
-      "ok": true,
-      "targets": ["claude-code", "cursor", "codex", "opencode"]
-    }
-  }
-}
-```
-
-## Guardrails
-
-Autopilot must preserve the existing write-boundary model:
-
-- agent may edit only managed sections
-- agent may not rewrite user custom sections
-- agent may not edit `dist/`
-- agent may not change auth wiring unless explicitly asked
-
-If the agent fails:
-
-- the deterministic scaffold must still remain valid
-- the command must surface what failed
-- the user should still have a usable project
-
-## Dry Run Behavior
-
-`--dry-run` should show:
-
-- planned import
-- planned agent passes
-- files that would be created
-- files that may be updated
-- target platforms
-- host runner command that would be executed
-
-It must not:
+It does not:
 
 - write files
 - invoke the runner
-- build or install anything
+- run verification
 
-## Human Review Points
+## What a real run leaves behind
 
-Autopilot should still call out:
+A real autopilot run writes the normal source project plus the agent pack under `.pluxx/agent/`:
 
-- hook trust requirements
-- auth env requirements
-- platform-specific limitations
-- weak semantic groupings the review step flags
+```text
+.pluxx/agent/
+  context.md
+  plan.json
+  taxonomy-prompt.md
+  instructions-prompt.md
+  review-prompt.md
+```
 
-This prevents the feature from feeling like opaque magic.
+Those files make the runner behavior inspectable instead of opaque.
 
-## MVP
+## When to use autopilot vs manual commands
 
-Phase 1:
+Use autopilot when:
 
-- run inside the current working directory
-- require explicit `--yes` in non-interactive mode
-- support `codex`, `claude`, `opencode`
-- run taxonomy + instructions by default
-- optional review pass
-- final `pluxx test`
+- you want one coordinated import flow
+- you already know which runner you want to use
+- you want Pluxx to decide which semantic passes are worth running
 
-Phase 2:
+Use the manual flow when:
 
-- support `--output-dir`
-- support `--install`
-- support project-level prompt overrides
-- support resumable autopilot runs
+- you want to inspect the deterministic scaffold first
+- you want tighter control over each agent pass
+- you want to stop after import, validation, or one specific refinement step
 
-## Acceptance Criteria
+Manual equivalent:
 
-- One command can take a raw MCP and produce a tested plugin project
-- The host runner is explicit and reproducible
-- Failure modes are readable
-- Managed/custom boundaries remain intact
-- The resulting project is no worse than running the current manual sequence
+```bash
+npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp
+npx @orchid-labs/pluxx doctor
+npx @orchid-labs/pluxx test
+npx @orchid-labs/pluxx agent prepare
+npx @orchid-labs/pluxx agent run taxonomy --runner codex
+npx @orchid-labs/pluxx agent run instructions --runner codex
+npx @orchid-labs/pluxx agent run review --runner codex --no-verify
+npx @orchid-labs/pluxx test
+```
 
-## Open Questions
+## Example: workflow-grouped import with verification
 
-- Should the command name be `autopilot`, `one-shot`, or `agent run all`?
-- Should review run by default or only when requested?
-- Should install ever be part of autopilot, or stay explicit?
-- Should autopilot create a new directory automatically when `--name` is provided?
+```bash
+npx @orchid-labs/pluxx autopilot \
+  --from-mcp https://example.com/mcp \
+  --runner opencode \
+  --mode thorough \
+  --name acme \
+  --display-name "Acme" \
+  --author "Acme" \
+  --targets claude-code,cursor,codex,opencode \
+  --grouping workflow \
+  --hooks safe
+```
+
+That flow:
+
+- imports the MCP
+- applies the selected semantic passes
+- verifies the resulting scaffold
+- leaves a normal Pluxx source project you can keep editing and syncing later

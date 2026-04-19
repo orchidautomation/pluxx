@@ -2,7 +2,15 @@
 title: Import From MCP
 ---
 
-This workflow creates a deterministic first scaffold from a raw MCP.
+This workflow creates the deterministic first scaffold from a raw MCP source.
+
+Use it when you want to:
+
+- inspect a live MCP surface
+- generate a Pluxx source project
+- validate the baseline before any agent-driven refinement
+
+This flow does not invoke Claude Code, Codex, Cursor, or OpenCode. It is the model-free import layer.
 
 ## Recommended sequence
 
@@ -10,8 +18,55 @@ This workflow creates a deterministic first scaffold from a raw MCP.
 npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp --yes
 npx @orchid-labs/pluxx doctor
 npx @orchid-labs/pluxx lint
+npx @orchid-labs/pluxx eval
 npx @orchid-labs/pluxx test
 ```
+
+What each step does:
+
+- `init`: introspects the MCP and writes the source project
+- `doctor`: checks the scaffold and runtime assumptions
+- `lint`: checks platform rules and structural quality
+- `eval`: checks scaffold and prompt-pack quality
+- `test`: runs the end-to-end verification contract
+
+## Source shapes
+
+Remote HTTP MCP:
+
+```bash
+npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp --yes
+```
+
+Local stdio MCP:
+
+```bash
+npx @orchid-labs/pluxx init --from-mcp "npx -y @acme/mcp" --yes
+```
+
+Legacy SSE MCP:
+
+```bash
+npx @orchid-labs/pluxx init --from-mcp https://example.com/sse --transport sse --yes
+```
+
+## What gets generated
+
+The first pass creates a maintained source project, typically including:
+
+```text
+my-plugin/
+  pluxx.config.ts
+  INSTRUCTIONS.md
+  skills/
+  commands/
+  scripts/
+  .pluxx/
+    mcp.json
+    taxonomy.json
+```
+
+Keep editing the source project. Treat `dist/` as generated output after `pluxx build`.
 
 ## Auth examples
 
@@ -32,5 +87,22 @@ npx @orchid-labs/pluxx init \
   --auth-header X-API-Key \
   --auth-template '${value}'
 ```
+
+OAuth-first MCPs can still be scaffolded, but the import path matters:
+
+- if the provider exposes a usable token or API key, pass it with `--auth-env`
+- if the provider only supports browser-interactive auth during handshake, use `--oauth-wrapper`
+- if runtime auth should be host-managed, use `--runtime-auth platform`
+
+## When to bring in the agent layer
+
+After this deterministic import flow passes, you can optionally move into:
+
+- `pluxx agent prepare`
+- `pluxx agent run taxonomy ...`
+- `pluxx agent run instructions ...`
+- `pluxx autopilot ...`
+
+Use that second stage when the scaffold is valid but still too tool-shaped, too generic, or too weak in its instructions.
 
 For a complete end-to-end flow, see [Create a Pluxx plugin](/getting-started/create-a-pluxx-plugin).

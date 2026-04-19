@@ -2,7 +2,7 @@
 title: Core-Four Branding Metadata Audit
 ---
 
-This audit verifies what plugin branding and interface metadata actually works across Claude Code, Cursor, Codex, and OpenCode.
+This page summarizes which shared plugin-brand fields are currently consumed by the core four hosts.
 
 The short version:
 
@@ -11,20 +11,7 @@ The short version:
 - Claude Code and OpenCode do not currently expose a manifest-backed shared `brand` layer.
 - Pluxx keeps `brand` as a core primitive, but support is target-graded rather than uniform.
 
-## Scope
-
-Verified against:
-
-- `src/schema.ts`
-- `src/generators/claude-code/index.ts` via the shared Claude-family generator
-- `src/generators/cursor/index.ts`
-- `src/generators/codex/index.ts`
-- `src/generators/opencode/index.ts`
-- real generated outputs from:
-  - `example/firecrawl-plugin`
-  - `example/pluxx`
-  - `example/megamind`
-  - `examples/prospeo-mcp`
+Use this as a support matrix for plugin authors, not as a promise that every host consumes the same metadata surface.
 
 ## Truth matrix
 
@@ -42,7 +29,7 @@ Verified against:
 | `privacyPolicyURL` | N | N | Y | N | Codex emits `interface.privacyPolicyURL` |
 | `termsOfServiceURL` | N | N | Y | N | Codex emits `interface.termsOfServiceURL` |
 
-## Example checks
+## Example interpretations
 
 ### Firecrawl
 
@@ -72,4 +59,4 @@ Verified against:
 - Expect only narrow brand support on Cursor today.
 - Do not assume Claude Code or OpenCode consume shared `brand` metadata as manifest fields.
 
-For the repo-side source document, see [Core-Four Branding Metadata Audit](https://github.com/orchidautomation/pluxx/blob/main/docs/core-four-branding-metadata-audit.md).
+If you need the maintainer-oriented source audit, see [Core-Four Branding Metadata Audit](https://github.com/orchidautomation/pluxx/blob/main/docs/core-four-branding-metadata-audit.md).

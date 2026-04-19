@@ -2,21 +2,62 @@
 title: OpenCode
 ---
 
-Use Pluxx in OpenCode for wrapper generation plus attachable refinement runs.
+Use Pluxx in OpenCode when you want a code-first OpenCode wrapper plus optional OpenCode review and refinement runs.
 
-Recommended prompt:
+## What OpenCode Consumes
 
-```text
-Use Pluxx to generate this plugin, run refinement passes through OpenCode, and verify final wrapper output.
+Pluxx builds the OpenCode target into `dist/opencode/`. OpenCode consumes a code plugin, not a manifest-only bundle. Pluxx emits:
+
+- `package.json`
+- `index.ts`
+- `skills/`
+- `commands/`
+- `scripts/`
+- `assets/`
+
+The generated `index.ts` wrapper registers:
+
+- plugin commands
+- MCP servers
+- hook handlers
+- instruction injection
+- permission mappings
+
+## Build And Install
+
+```bash
+npx @orchid-labs/pluxx build --target opencode --install
 ```
 
-Install target:
+If you already built the bundle, install it directly:
 
 ```bash
 npx @orchid-labs/pluxx install --target opencode
 ```
 
-Permissions note:
+Pluxx installs the local OpenCode plugin to:
 
-- OpenCode permissions are compiled to native tool-level `config.permission` entries.
-- Selector-specific precision, such as exact path globs or specific MCP tools, is downgraded to coarse tool permissions and should be documented in plugin guidance.
+- `~/.config/opencode/plugins/<plugin>`
+
+If the plugin defines local hook commands, add `--trust` or confirm the trust prompt during install.
+
+## Agent-Driven Refinement
+
+Build and install are deterministic. OpenCode only does model work when you explicitly run an agent pass:
+
+```bash
+npx @orchid-labs/pluxx agent prepare
+npx @orchid-labs/pluxx agent run review --runner opencode --no-verify
+```
+
+OpenCode is also the only Pluxx runner that supports attach mode:
+
+```bash
+npx @orchid-labs/pluxx agent run review --runner opencode --attach http://localhost:4096 --no-verify
+```
+
+## OpenCode-Specific Caveats
+
+- OpenCode plugins are programmatic wrappers. Hooks, MCP config, and instruction injection live in generated code inside `index.ts`, not in separate JSON manifests.
+- OpenCode runner model selection inherits the local OpenCode default unless you explicitly pass `--model`.
+- OpenCode permissions are compiled to native tool-level `config.permission` entries. Fine-grained selector rules, such as exact file globs or specific MCP tool names, are downgraded to coarse tool permissions.

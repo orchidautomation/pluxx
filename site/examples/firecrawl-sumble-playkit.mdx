@@ -2,25 +2,46 @@
 title: Firecrawl, Sumble, and PlayKit-style Examples
 ---
 
+This page groups three common MCP import patterns:
+
+- large tool surfaces that need taxonomy refinement
+- live commercial MCPs with product-shaped workflow grouping
+- authenticated imports that use custom headers
+
 ## Firecrawl-style
 
 If your MCP has many granular tools, start with deterministic import and then run taxonomy refinement:
 
 ```bash
-npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp --yes
-npx @orchid-labs/pluxx agent prepare --website https://example.com --docs https://docs.example.com/mcp
+npx @orchid-labs/pluxx init --from-mcp "npx -y @mendable/firecrawl-mcp" --yes
+npx @orchid-labs/pluxx doctor
+npx @orchid-labs/pluxx lint
+npx @orchid-labs/pluxx agent prepare --website https://www.firecrawl.dev --docs https://docs.firecrawl.dev/mcp-server/introduction
 npx @orchid-labs/pluxx agent run taxonomy --runner codex
 ```
 
 Repository example: [`example/firecrawl-plugin`](https://github.com/orchidautomation/pluxx/tree/main/example/firecrawl-plugin)
 
+Use this pattern when the first import is valid but too lexical or too fragmented.
+
 ## Sumble-style
 
-Provide product context up front so generated instructions and skill naming are product-shaped.
+Use a live commercial MCP when you want a proof-quality example with real auth and workflow grouping.
 
 Full walkthrough:
 
 - [Sumble proof run](/examples/sumble-proof-run)
+
+Typical commands:
+
+```bash
+SUMBLE_API_KEY=... npx @orchid-labs/pluxx init \
+  --from-mcp https://mcp.sumble.com \
+  --yes \
+  --auth-env SUMBLE_API_KEY \
+  --auth-type bearer \
+  --grouping workflow
+```
 
 ## PlayKit-style
 
@@ -36,4 +57,10 @@ npx @orchid-labs/pluxx init \
   --auth-template '${value}'
 ```
 
-The repository includes `example/firecrawl-plugin` alongside `example/pluxx` as a maintained reference scaffold.
+Use this pattern when the provider expects an API key in a header other than `Authorization`.
+
+## Which example to start from
+
+- choose Firecrawl-style when the tool surface is large and needs semantic cleanup
+- choose Sumble-style when you want a high-signal live MCP example with workflow grouping
+- choose PlayKit-style when the main complication is authenticated import via a custom header

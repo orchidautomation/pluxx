@@ -4,28 +4,61 @@ title: Self-hosting Pluxx Plugin
 
 This example uses the repository's self-hosting project in [`example/pluxx`](https://github.com/orchidautomation/pluxx/tree/main/example/pluxx).
 
-## Before
+## Why this example exists
 
-Raw MCP endpoint or stdio command with no cross-host plugin packaging.
+Pluxx ships its own local plugin so the same workflow can be used from inside a host coding agent.
 
-## After
+That makes this example useful for two reasons:
 
-A maintained plugin source project with generated outputs for Claude Code, Cursor, Codex, and OpenCode.
+- it shows the source-project shape Pluxx expects
+- it shows how Pluxx can be installed and used as a plugin inside another host
+
+## Repository example
+
+Repository path:
+
+- [`example/pluxx`](https://github.com/orchidautomation/pluxx/tree/main/example/pluxx)
+
+Source project shape:
 
 ```text
-before:
-  MCP only
-
-after:
+example/pluxx/
   pluxx.config.ts
   INSTRUCTIONS.md
   skills/
-  .pluxx/mcp.json
-  dist/{claude-code,cursor,codex,opencode}
+  commands/
+  scripts/
+  .pluxx/
+    mcp.json
+    taxonomy.json
 ```
 
-## Included screenshots
+Built outputs:
 
-![Speakeasy homepage](/speakeasy-homepage.png)
-![Ultracite homepage](/ultracite-homepage.png)
-![Ultracite agent page](/ultracite-agent-page.png)
+```text
+dist/claude-code/
+dist/cursor/
+dist/codex/
+dist/opencode/
+```
+
+## Typical local workflow
+
+From the repository root:
+
+```bash
+npx @orchid-labs/pluxx build --target claude-code cursor codex opencode
+npx @orchid-labs/pluxx test --target claude-code cursor codex opencode
+```
+
+Install one host locally:
+
+```bash
+npx @orchid-labs/pluxx install --target claude-code --trust
+```
+
+If Claude Code is already open, run `/reload-plugins` in the active session after install.
+
+## What this proves
+
+This example is not about a third-party MCP import. It shows that Pluxx's own source-project model is stable enough to package and test Pluxx itself across the core four hosts.
