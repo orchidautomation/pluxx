@@ -34,6 +34,48 @@ Pluxx includes more than scaffold generation:
 - `pluxx doctor --consumer <bundle>` inspects a built or installed plugin bundle from the user side
 - `pluxx mcp proxy --record` and `--replay` capture deterministic MCP sessions for debugging and CI
 
+## Where the agent is used
+
+Pluxx has a deterministic layer and an agent layer.
+
+Deterministic commands do not call Claude Code, Codex, Cursor, or OpenCode:
+
+- `init`
+- `sync`
+- `doctor`
+- `doctor --consumer`
+- `lint`
+- `eval`
+- `build`
+- `test`
+- `install`
+- `migrate`
+- `mcp proxy`
+
+The agent layer is optional. It is used when you want a host coding agent to improve the generated taxonomy, instructions, or review output:
+
+- `pluxx agent prepare`
+- `pluxx agent prompt ...`
+- `pluxx agent run ...`
+- `pluxx autopilot ...`
+
+That split is intentional. Pluxx owns the scaffold, file structure, validation, and platform packaging. The host agent only steps in for semantic refinement.
+
+## What the core commands are for
+
+- `pluxx eval`
+  As a plugin author, I want to know whether the scaffold is coherent enough to ship, not just whether it builds.
+  Agent involvement: none. `eval` inspects the generated scaffold and prompt packs directly.
+- `pluxx migrate <path>`
+  As a team with an existing host-native plugin, I want to move into Pluxx without rewriting the project from scratch.
+  Agent involvement: none. `migrate` imports the existing plugin and synthesizes the Pluxx metadata it needs.
+- `pluxx doctor --consumer <bundle>`
+  As someone debugging an installed plugin, I want to inspect the built bundle from the user side instead of the source-project side.
+  Agent involvement: none. `doctor --consumer` reads the built or installed bundle directly.
+- `pluxx mcp proxy --record` / `--replay`
+  As a plugin author debugging a live MCP, I want a reproducible session I can replay in CI, local tests, or a demo.
+  Agent involvement: none. The proxy records and replays MCP traffic without invoking a model.
+
 ## Product flow
 
 1. Start from an MCP or initialize a source project.
