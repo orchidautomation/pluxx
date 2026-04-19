@@ -590,7 +590,7 @@ describe('agent mode', () => {
         cwd: TEST_DIR,
         env: {
           ...process.env,
-          PATH: `${binDir}:${process.env.PATH ?? ''}`,
+          PATH: `${binDir}:${(process.env.PATH ?? '').split(':').filter((segment) => !segment.endsWith('/.local/bin')).join(':')}`,
           PLUXX_RUNNER_ARGS: runnerArgsPath,
         },
         stdout: 'pipe',

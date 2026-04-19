@@ -228,10 +228,11 @@ describe('autopilot command', () => {
       expect(summary.mode).toBe('quick')
       expect(summary.quality.warnings).toBeGreaterThan(0)
       expect(summary.agent.taxonomy.enabled).toBe(true)
-      expect(summary.agent.taxonomy.command?.slice(0, 4)).toEqual([
+      expect(summary.agent.taxonomy.command?.slice(0, 5)).toEqual([
         'codex',
         'exec',
         '--ephemeral',
+        '--skip-git-repo-check',
         '--full-auto',
       ])
       expect(summary.agent.instructions.enabled).toBe(false)

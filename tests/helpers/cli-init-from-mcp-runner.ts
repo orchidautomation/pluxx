@@ -230,6 +230,7 @@ function installMocks(options: {
 
   mock.module(INSTALL_PATH, () => ({
     ensureHookTrust: async () => {},
+    getInstallFollowupNotes: () => [],
     installPlugin: async () => {},
     listHookCommands: () => [],
     planInstallPlugin: () => [],
