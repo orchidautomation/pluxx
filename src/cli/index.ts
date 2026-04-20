@@ -1798,7 +1798,7 @@ async function runAgent() {
     console.log('Next steps:')
     console.log('  1. Review .pluxx/agent/context.md')
     console.log('  2. Hand the context pack to Claude Code or Codex')
-    console.log('  3. Keep edits inside Pluxx-managed sections')
+    console.log('  3. MCP-derived scaffolds: keep edits inside Pluxx-managed sections. Manual projects: use review mode unless the source adds explicit edit boundaries.')
     return
   }
 

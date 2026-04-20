@@ -14,6 +14,7 @@ import { writeMcpScaffold } from '../src/cli/init-from-mcp'
 import type { IntrospectedMcpServer } from '../src/mcp/introspect'
 
 const TEST_DIR = resolve(import.meta.dir, '.agent-mode')
+const MANUAL_DIR = resolve(import.meta.dir, '.agent-mode-manual')
 const ROOT = resolve(import.meta.dir, '..')
 
 const introspection: IntrospectedMcpServer = {
@@ -90,6 +91,7 @@ const introspection: IntrospectedMcpServer = {
 
 beforeEach(async () => {
   rmSync(TEST_DIR, { recursive: true, force: true })
+  rmSync(MANUAL_DIR, { recursive: true, force: true })
   await writeMcpScaffold({
     rootDir: TEST_DIR,
     pluginName: 'playkit',
@@ -110,11 +112,76 @@ beforeEach(async () => {
     },
     introspection,
   })
+
+  writeManualPluginFixture(MANUAL_DIR)
 })
 
 afterEach(() => {
   rmSync(TEST_DIR, { recursive: true, force: true })
+  rmSync(MANUAL_DIR, { recursive: true, force: true })
 })
+
+function writeManualPluginFixture(rootDir: string): void {
+  mkdirSync(resolve(rootDir, 'skills/manual-review'), { recursive: true })
+  mkdirSync(resolve(rootDir, 'commands'), { recursive: true })
+
+  writeFileSync(
+    resolve(rootDir, 'pluxx.config.json'),
+    JSON.stringify({
+      name: 'manual-review',
+      version: '0.1.0',
+      description: 'Review a manually authored Pluxx plugin.',
+      author: {
+        name: 'Orchid Automation',
+      },
+      license: 'MIT',
+      skills: './skills/',
+      commands: './commands/',
+      instructions: './INSTRUCTIONS.md',
+      targets: ['claude-code', 'cursor', 'codex', 'opencode'],
+      brand: {
+        displayName: 'Manual Review',
+      },
+      outDir: './dist',
+    }, null, 2),
+  )
+
+  writeFileSync(
+    resolve(rootDir, 'INSTRUCTIONS.md'),
+    [
+      '# Manual Review',
+      '',
+      'Review this manually authored Pluxx project for listing quality and operator clarity.',
+    ].join('\n'),
+  )
+
+  writeFileSync(
+    resolve(rootDir, 'skills/manual-review/SKILL.md'),
+    [
+      '---',
+      'name: manual-review',
+      'description: Review the manual plugin surface before shipping.',
+      '---',
+      '',
+      '# Manual Review',
+      '',
+      'Use this skill to review the plugin before shipping.',
+    ].join('\n'),
+  )
+
+  writeFileSync(
+    resolve(rootDir, 'commands/review.md'),
+    [
+      '---',
+      'description: Review the plugin listing surface.',
+      '---',
+      '',
+      '# Review',
+      '',
+      'Run a findings-first review of the plugin surface.',
+    ].join('\n'),
+  )
+}
 
 describe('agent mode', () => {
   it('plans deterministic context and boundary files from MCP scaffold metadata', async () => {
@@ -968,5 +1035,69 @@ exit 1
     expect(instructionsPrompt).toContain('strong command UX')
     expect(reviewPrompt).toContain('Additional review criteria:')
     expect(reviewPrompt).toContain('Flag any skill grouping that mixes setup/admin tools with runtime workflows.')
+  })
+
+  it('supports prepare + review prompt generation for manual Pluxx projects without MCP metadata', async () => {
+    const preparePlan = await planAgentPrepare(MANUAL_DIR)
+    await applyAgentPreparePlan(MANUAL_DIR, preparePlan)
+
+    expect(preparePlan.pluginName).toBe('manual-review')
+    expect(preparePlan.toolCount).toBe(0)
+    expect(preparePlan.skillCount).toBe(1)
+    expect(preparePlan.editableFiles).toContain('INSTRUCTIONS.md')
+    expect(preparePlan.editableFiles).toContain('skills/manual-review/SKILL.md')
+    expect(preparePlan.editableFiles).toContain('commands/review.md')
+    expect(preparePlan.editableFiles).not.toContain('.pluxx/taxonomy.json')
+    expect(preparePlan.files.find((file) => file.relativePath === AGENT_PLAN_PATH)?.content).toContain('"path": "commands/review.md"')
+    expect(preparePlan.files.find((file) => file.relativePath === AGENT_PLAN_PATH)?.content).not.toContain('"managedSections"')
+
+    const context = readFileSync(resolve(MANUAL_DIR, AGENT_CONTEXT_PATH), 'utf-8')
+    expect(context).toContain('## Source Project')
+    expect(context).toContain('manual Pluxx project (no .pluxx/mcp.json)')
+    expect(context).toContain('Keep the configured compiler buckets coherent')
+    expect(context).toContain('`commands/review.md`')
+    expect(context).toContain('review mode only in Agent Mode')
+
+    const reviewPlan = await planAgentPrompt(MANUAL_DIR, 'review')
+    await applyAgentPromptPlan(MANUAL_DIR, reviewPlan)
+
+    const reviewPrompt = readFileSync(resolve(MANUAL_DIR, '.pluxx/agent/review-prompt.md'), 'utf-8')
+    expect(reviewPrompt).toContain('weak marketplace/listing copy')
+    expect(reviewPrompt).toContain('`commands/review.md`')
+    expect(reviewPrompt).not.toContain('`.pluxx/taxonomy.json`')
+  })
+
+  it('supports CLI dry-run review runs for manual Pluxx projects', async () => {
+    const proc = Bun.spawn(
+      ['bun', resolve(ROOT, 'bin/pluxx.js'), 'agent', 'run', 'review', '--runner', 'codex', '--json', '--dry-run'],
+      {
+        cwd: MANUAL_DIR,
+        stdout: 'pipe',
+        stderr: 'pipe',
+      },
+    )
+
+    const stdout = await new Response(proc.stdout).text()
+    const stderr = await new Response(proc.stderr).text()
+    const exitCode = await proc.exited
+
+    expect(exitCode).toBe(0)
+    expect(stderr).toBe('')
+
+    const summary = JSON.parse(stdout) as {
+      kind: string
+      runner: string
+      verify: boolean
+      promptPath: string
+      dryRun: boolean
+      command: string[]
+    }
+
+    expect(summary.kind).toBe('review')
+    expect(summary.runner).toBe('codex')
+    expect(summary.verify).toBe(false)
+    expect(summary.promptPath).toBe('.pluxx/agent/review-prompt.md')
+    expect(summary.dryRun).toBe(true)
+    expect(summary.command).toContain('exec')
   })
 })

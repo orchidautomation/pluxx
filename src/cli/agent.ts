@@ -1,9 +1,10 @@
-import { existsSync } from 'fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'fs'
 import { chmod, copyFile, mkdir, mkdtemp, readFile, rm } from 'fs/promises'
 import { homedir, tmpdir } from 'os'
-import { resolve } from 'path'
+import { relative, resolve } from 'path'
 import { spawn } from 'child_process'
 import { loadConfig } from '../config/load'
+import { readCanonicalCommandFiles } from '../commands'
 import { lintProject, type LintResult } from './lint'
 import { runTestSuite, type TestRunResult } from './test'
 import {
@@ -16,6 +17,7 @@ import {
   type McpScaffoldMetadata,
 } from './init-from-mcp'
 import { applyPersistedTaxonomy } from './sync-from-mcp'
+import { type PluginConfig, getConfiguredCompilerBuckets } from '../schema'
 
 export const AGENT_CONTEXT_PATH = '.pluxx/agent/context.md'
 export const AGENT_PLAN_PATH = '.pluxx/agent/plan.json'
@@ -169,6 +171,41 @@ interface AgentContextSource {
   summary: string
 }
 
+interface AgentProjectSkill {
+  dirName: string
+  title: string
+  description?: string
+  toolNames: string[]
+  path: string
+  resourceUris?: string[]
+  resourceTemplateUris?: string[]
+  promptNames?: string[]
+}
+
+interface AgentProjectCommand {
+  path: string
+  title: string
+  description?: string
+}
+
+interface AgentProjectModel {
+  sourceKind: 'mcp-derived' | 'manual'
+  displayName: string
+  metadataPath: string
+  serverName: string
+  transport: string
+  auth: string
+  toolCount: number
+  resourceCount: number
+  promptCount: number
+  skills: AgentProjectSkill[]
+  commands: AgentProjectCommand[]
+  taxonomyPath?: string
+  resources?: McpScaffoldMetadata['resources']
+  resourceTemplates?: McpScaffoldMetadata['resourceTemplates']
+  prompts?: McpScaffoldMetadata['prompts']
+}
+
 interface AgentOverrides {
   path: string
   contextPaths: string[]
@@ -189,15 +226,15 @@ export async function planAgentPrepare(
   options: AgentPrepareOptions = {},
 ): Promise<AgentPreparePlan> {
   const config = await loadConfig(rootDir)
-  const metadata = await loadMcpScaffoldMetadata(rootDir)
+  const project = await loadAgentProjectModel(rootDir, config)
   const lint = await lintProject(rootDir)
   const overrides = await loadAgentOverrides(rootDir)
   const contextSources = await collectAgentContextSources(rootDir, options, overrides)
-  const editableFiles = buildEditableFiles(metadata)
+  const editableFiles = buildEditableFiles(config, project)
   const protectedFiles = buildProtectedFiles()
   const generatedFiles = [AGENT_CONTEXT_PATH, AGENT_PLAN_PATH]
-  const contextContent = buildAgentContext(config, metadata, lint, contextSources, overrides)
-  const planContent = buildAgentModePlanJson(config, metadata, lint, editableFiles, protectedFiles, generatedFiles, contextSources)
+  const contextContent = buildAgentContext(config, project, lint, contextSources, overrides)
+  const planContent = buildAgentModePlanJson(config, project, lint, editableFiles, protectedFiles, generatedFiles, contextSources)
 
   const files = await Promise.all([
     planFile(rootDir, AGENT_CONTEXT_PATH, contextContent),
@@ -207,8 +244,8 @@ export async function planAgentPrepare(
   return {
     pluginName: config.name,
     targetCount: config.targets.length,
-    toolCount: metadata.tools.length,
-    skillCount: metadata.skills.length,
+    toolCount: project.toolCount,
+    skillCount: project.skills.length,
     editableFiles: editableFiles.map((file) => file.path),
     protectedFiles,
     generatedFiles,
@@ -240,7 +277,7 @@ export async function planAgentPrompt(
   options: AgentPromptOptions = {},
 ): Promise<AgentPromptPlan> {
   const config = await loadConfig(rootDir)
-  const metadata = await loadMcpScaffoldMetadata(rootDir)
+  const project = await loadAgentProjectModel(rootDir, config)
   const overrides = await loadAgentOverrides(rootDir)
   const contextPath = resolve(rootDir, AGENT_CONTEXT_PATH)
 
@@ -248,14 +285,18 @@ export async function planAgentPrompt(
     throw new Error(`No agent context found at ${AGENT_CONTEXT_PATH}. Run "pluxx agent prepare" first.`)
   }
 
+  if (project.sourceKind !== 'mcp-derived' && kind !== 'review') {
+    throw new Error('Agent taxonomy and instructions modes require an MCP-derived scaffold. Manual Pluxx projects currently support review mode only.')
+  }
+
   const outputPath = AGENT_PROMPT_PATHS[kind]
   const content = buildAgentPrompt(kind, {
     pluginName: config.name,
-    displayName: config.brand?.displayName ?? metadata.settings.displayName ?? config.name,
-    skillPaths: metadata.skills.map((skill) => `skills/${skill.dirName}/SKILL.md`),
-    commandPaths: hasManagedCommands(metadata)
-      ? metadata.skills.map((skill) => `commands/${skill.dirName}.md`)
-      : [],
+    displayName: project.displayName,
+    skillPaths: project.skills.map((skill) => skill.path),
+    commandPaths: project.commands.map((command) => command.path),
+    sourceKind: project.sourceKind,
+    taxonomyPath: project.taxonomyPath,
     overrides,
   })
   const file = await planFile(rootDir, outputPath, content)
@@ -414,28 +455,40 @@ function mergeUnique(existing: string[], next: string[]): string[] {
   return [...new Set([...existing, ...next])]
 }
 
-function buildEditableFiles(metadata: McpScaffoldMetadata): AgentPlanFile[] {
-  const files: AgentPlanFile[] = [{
-    path: MCP_TAXONOMY_PATH,
-  }, {
-    path: 'INSTRUCTIONS.md',
-    managedSections: [{ start: PLUXX_GENERATED_START, end: PLUXX_GENERATED_END }],
-  }]
+function buildEditableFiles(
+  config: Awaited<ReturnType<typeof loadConfig>>,
+  project: AgentProjectModel,
+): AgentPlanFile[] {
+  const files: AgentPlanFile[] = []
+  const managedSections = project.sourceKind === 'mcp-derived'
+    ? [{ start: PLUXX_GENERATED_START, end: PLUXX_GENERATED_END }]
+    : undefined
 
-  for (const skill of metadata.skills) {
+  if (project.taxonomyPath) {
     files.push({
-      path: `skills/${skill.dirName}/SKILL.md`,
-      managedSections: [{ start: PLUXX_GENERATED_START, end: PLUXX_GENERATED_END }],
+      path: project.taxonomyPath,
     })
   }
 
-  if (hasManagedCommands(metadata)) {
-    for (const skill of metadata.skills) {
-      files.push({
-        path: `commands/${skill.dirName}.md`,
-        managedSections: [{ start: PLUXX_GENERATED_START, end: PLUXX_GENERATED_END }],
-      })
-    }
+  if (config.instructions) {
+    files.push({
+      path: normalizeRelativePath(config.instructions),
+      managedSections,
+    })
+  }
+
+  for (const skill of project.skills) {
+    files.push({
+      path: skill.path,
+      managedSections,
+    })
+  }
+
+  for (const command of project.commands) {
+    files.push({
+      path: command.path,
+      managedSections,
+    })
   }
 
   return files
@@ -468,6 +521,78 @@ async function loadMcpScaffoldMetadata(rootDir: string): Promise<McpScaffoldMeta
   }
 }
 
+async function loadAgentProjectModel(
+  rootDir: string,
+  config: PluginConfig,
+): Promise<AgentProjectModel> {
+  const metadataPath = resolve(rootDir, MCP_SCAFFOLD_METADATA_PATH)
+
+  if (existsSync(metadataPath)) {
+    const metadata = await loadMcpScaffoldMetadata(rootDir)
+    const serverEntry = Object.entries(config.mcp ?? {})[0]
+    const [serverName, server] = serverEntry ?? ['unknown', metadata.source]
+
+    return {
+      sourceKind: 'mcp-derived',
+      displayName: config.brand?.displayName ?? metadata.settings.displayName ?? config.name,
+      metadataPath: MCP_SCAFFOLD_METADATA_PATH,
+      serverName,
+      transport: server.transport,
+      auth: describeAuth(server),
+      toolCount: metadata.tools.length,
+      resourceCount: metadata.resources?.length ?? 0,
+      promptCount: metadata.prompts?.length ?? 0,
+      skills: metadata.skills.map((skill) => ({
+        ...skill,
+        toolNames: [...skill.toolNames],
+        path: `skills/${skill.dirName}/SKILL.md`,
+      })),
+      commands: hasManagedCommands(metadata)
+        ? metadata.skills.map((skill) => ({
+            path: `commands/${skill.dirName}.md`,
+            title: skill.title,
+            description: skill.description,
+          }))
+        : [],
+      taxonomyPath: MCP_TAXONOMY_PATH,
+      resources: metadata.resources,
+      resourceTemplates: metadata.resourceTemplates,
+      prompts: metadata.prompts,
+    }
+  }
+
+  return loadManualAgentProjectModel(rootDir, config)
+}
+
+function loadManualAgentProjectModel(rootDir: string, config: PluginConfig): AgentProjectModel {
+  const displayName = config.brand?.displayName ?? config.name
+  const skillsDir = config.skills ? resolve(rootDir, config.skills) : undefined
+  const commandsDir = config.commands ? resolve(rootDir, config.commands) : undefined
+  const skills = readCanonicalSkillFiles(rootDir, skillsDir)
+  const commands = readCanonicalCommandFiles(commandsDir).map((command) => ({
+    path: normalizeRelativePath(relative(rootDir, command.filePath)),
+    title: command.title,
+    description: command.description,
+  }))
+
+  return {
+    sourceKind: 'manual',
+    displayName,
+    metadataPath: 'manual Pluxx project (no .pluxx/mcp.json)',
+    serverName: 'manual-project',
+    transport: 'n/a',
+    auth: 'not applicable',
+    toolCount: 0,
+    resourceCount: 0,
+    promptCount: 0,
+    skills,
+    commands,
+    resources: [],
+    resourceTemplates: [],
+    prompts: [],
+  }
+}
+
 async function planFile(rootDir: string, relativePath: string, content: string): Promise<AgentPreparePlannedFile> {
   const filePath = resolve(rootDir, relativePath)
   const action = existsSync(filePath)
@@ -478,42 +603,39 @@ async function planFile(rootDir: string, relativePath: string, content: string):
 
 function buildAgentContext(
   config: Awaited<ReturnType<typeof loadConfig>>,
-  metadata: McpScaffoldMetadata,
+  project: AgentProjectModel,
   lint: LintResult,
   contextSources: AgentContextSource[],
   overrides: AgentOverrides | null,
 ): string {
-  const serverEntry = Object.entries(config.mcp ?? {})[0]
-  const [serverName, server] = serverEntry ?? ['unknown', undefined]
-  const displayName = config.brand?.displayName ?? metadata.settings.displayName ?? config.name
-  const resourceByUri = new Map((metadata.resources ?? []).map((resource) => [resource.uri, resource]))
-  const resourceTemplateByUri = new Map((metadata.resourceTemplates ?? []).map((template) => [template.uriTemplate, template]))
-  const promptByName = new Map((metadata.prompts ?? []).map((prompt) => [prompt.name, prompt]))
+  const resourceByUri = new Map((project.resources ?? []).map((resource) => [resource.uri, resource]))
+  const resourceTemplateByUri = new Map((project.resourceTemplates ?? []).map((template) => [template.uriTemplate, template]))
+  const promptByName = new Map((project.prompts ?? []).map((prompt) => [prompt.name, prompt]))
   const lines = [
     '# Pluxx Agent Context',
     '',
     '## Plugin',
     '',
     `- Name: \`${config.name}\``,
-    `- Display name: ${displayName}`,
+    `- Display name: ${project.displayName}`,
     `- Targets: ${config.targets.join(', ')}`,
     '',
-    '## MCP',
+    project.sourceKind === 'mcp-derived' ? '## MCP' : '## Source Project',
     '',
-    `- Metadata source: \`${MCP_SCAFFOLD_METADATA_PATH}\``,
-    `- Semantic taxonomy: \`${MCP_TAXONOMY_PATH}\``,
-    `- Server name: \`${serverName}\``,
-    `- Transport: ${server?.transport ?? metadata.source.transport}`,
-    `- Auth: ${describeAuth(server ?? metadata.source)}`,
-    `- Tool count: ${metadata.tools.length}`,
-    `- Resource count: ${metadata.resources?.length ?? 0}`,
-    `- Prompt template count: ${metadata.prompts?.length ?? 0}`,
+    `- Metadata source: \`${project.metadataPath}\``,
+    ...(project.taxonomyPath ? [`- Semantic taxonomy: \`${project.taxonomyPath}\``] : []),
+    `- Server name: \`${project.serverName}\``,
+    `- Transport: ${project.transport}`,
+    `- Auth: ${project.auth}`,
+    `- Tool count: ${project.toolCount}`,
+    `- Resource count: ${project.resourceCount}`,
+    `- Prompt template count: ${project.promptCount}`,
     '',
     '## Generated Skills',
     '',
   ]
 
-  for (const skill of metadata.skills) {
+  for (const skill of project.skills) {
     const relatedResourceLabels = [
       ...(skill.resourceUris ?? []).map((uri) => {
         const resource = resourceByUri.get(uri)
@@ -532,6 +654,9 @@ function buildAgentContext(
     lines.push('')
     lines.push(`- Title: ${skill.title}`)
     lines.push(`- Tools: ${skill.toolNames.join(', ') || 'none'}`)
+    if (skill.description) {
+      lines.push(`- Description: ${skill.description}`)
+    }
     if (relatedResourceLabels.length > 0) {
       lines.push(`- Related resources: ${relatedResourceLabels.join(', ')}`)
     }
@@ -541,20 +666,29 @@ function buildAgentContext(
     lines.push('')
   }
 
-  if ((metadata.resources?.length ?? 0) > 0 || (metadata.resourceTemplates?.length ?? 0) > 0 || (metadata.prompts?.length ?? 0) > 0) {
+  if (project.commands.length > 0) {
+    lines.push('## Commands')
+    lines.push('')
+    for (const command of project.commands) {
+      lines.push(`- \`${command.path}\`: ${command.description ?? command.title}`)
+    }
+    lines.push('')
+  }
+
+  if ((project.resources?.length ?? 0) > 0 || (project.resourceTemplates?.length ?? 0) > 0 || (project.prompts?.length ?? 0) > 0) {
     lines.push('## MCP Discovery Surfaces')
     lines.push('')
 
-    for (const resource of metadata.resources ?? []) {
+    for (const resource of project.resources ?? []) {
       const label = resource.name ?? resource.title ?? resource.uri
       lines.push(`- Resource \`${label}\`: ${summarizeDiscoveryDescription(resource.description, `URI: ${resource.uri}`)}`)
     }
 
-    for (const template of metadata.resourceTemplates ?? []) {
+    for (const template of project.resourceTemplates ?? []) {
       lines.push(`- Resource template \`${template.name}\`: ${summarizeDiscoveryDescription(template.description, `URI template: ${template.uriTemplate}`)}`)
     }
 
-    for (const prompt of metadata.prompts ?? []) {
+    for (const prompt of project.prompts ?? []) {
       const args = prompt.arguments?.map((argument) => `\`${argument.name}\`${argument.required ? ' (required)' : ''}`).join(', ')
       const trailing = args ? `Arguments: ${args}` : undefined
       lines.push(`- Prompt \`${prompt.name}\`: ${summarizeDiscoveryDescription(prompt.description, trailing)}`)
@@ -605,8 +739,13 @@ function buildAgentContext(
 
   lines.push('## Write Contract')
   lines.push('')
-  lines.push('- Edit only Pluxx-managed generated sections.')
-  lines.push(`- Preserve custom sections marked by \`${PLUXX_CUSTOM_START}\` and \`${PLUXX_CUSTOM_END}\`.`)
+  if (project.sourceKind === 'mcp-derived') {
+    lines.push('- Edit only Pluxx-managed generated sections.')
+    lines.push(`- Preserve custom sections marked by \`${PLUXX_CUSTOM_START}\` and \`${PLUXX_CUSTOM_END}\`.`)
+  } else {
+    lines.push('- This manual Pluxx project currently supports review mode only in Agent Mode.')
+    lines.push('- Do not assume marker-delimited generated sections exist in source files unless the project adds them explicitly later.')
+  }
   lines.push('- Do not change auth wiring or target-platform config unless explicitly requested.')
   lines.push('- Do not edit generated platform bundles in `dist/`.')
   lines.push('')
@@ -617,10 +756,15 @@ function buildAgentContext(
   lines.push('- Prefer branded product language in user-facing content; avoid exposing raw MCP server identifiers unless they are operationally required.')
   lines.push('- Avoid tiny singleton skills unless the surface is genuinely standalone.')
   lines.push('- Examples should be concrete and specific, not generic placeholders.')
-  lines.push('- Weak MCP metadata (missing/generic tool descriptions) should be called out explicitly before publishing.')
-  lines.push('- The wording should match the MCP product narrative, not just raw tool names.')
-  lines.push('- Use discovered MCP resources and prompt templates when they clarify the real product surface.')
-  lines.push('- Respect the per-skill resource and prompt-template associations in the metadata/context unless stronger discovery evidence shows they are wrong.')
+  if (project.sourceKind === 'mcp-derived') {
+    lines.push('- Weak MCP metadata (missing/generic tool descriptions) should be called out explicitly before publishing.')
+    lines.push('- The wording should match the MCP product narrative, not just raw tool names.')
+    lines.push('- Use discovered MCP resources and prompt templates when they clarify the real product surface.')
+    lines.push('- Respect the per-skill resource and prompt-template associations in the metadata/context unless stronger discovery evidence shows they are wrong.')
+  } else {
+    lines.push('- The wording should match the plugin product narrative and install surface, not internal shorthand.')
+    lines.push(`- Keep the configured compiler buckets coherent: ${getConfiguredCompilerBuckets(config).join(', ')}.`)
+  }
   lines.push('- Keep INSTRUCTIONS.md as concise routing guidance; do not dump raw vendor documentation into generated sections.')
   lines.push('')
 
@@ -629,28 +773,26 @@ function buildAgentContext(
 
 function buildAgentModePlanJson(
   config: Awaited<ReturnType<typeof loadConfig>>,
-  metadata: McpScaffoldMetadata,
+  project: AgentProjectModel,
   lint: LintResult,
   editableFiles: AgentPlanFile[],
   protectedFiles: string[],
   generatedFiles: string[],
   contextSources: AgentContextSource[],
 ): string {
-  const serverEntry = Object.entries(config.mcp ?? {})[0]
-  const [serverName, server] = serverEntry ?? ['unknown', metadata.source]
   const plan: AgentModePlanFile = {
     version: 1,
     plugin: {
       name: config.name,
-      displayName: config.brand?.displayName ?? metadata.settings.displayName ?? config.name,
+      displayName: project.displayName,
       targets: [...config.targets],
     },
     mcp: {
-      metadataPath: MCP_SCAFFOLD_METADATA_PATH,
-      toolCount: metadata.tools.length,
-      serverName,
-      transport: server.transport,
-      auth: describeAuth(server),
+      metadataPath: project.metadataPath,
+      toolCount: project.toolCount,
+      serverName: project.serverName,
+      transport: project.transport,
+      auth: project.auth,
     },
     contextInputs: contextSources.map((source) => source.label),
     files: {
@@ -662,8 +804,12 @@ function buildAgentModePlanJson(
       'Each skill represents a real user workflow or product surface.',
       'Setup/admin/account tools are grouped intentionally.',
       'Examples are concrete and realistic.',
-      'Weak MCP metadata is surfaced before publishing.',
-      'Only Pluxx-managed sections are modified.',
+      project.sourceKind === 'mcp-derived'
+        ? 'Weak MCP metadata is surfaced before publishing.'
+        : 'Marketplace and install-facing copy stays concrete and operational.',
+      project.sourceKind === 'mcp-derived'
+        ? 'Only Pluxx-managed sections are modified.'
+        : 'Review output stays read-only and does not assume marker-delimited edit regions.',
     ],
     caveats: lint.issues.map((issue) => `[${issue.level}] ${issue.code}: ${issue.message}`),
   }
@@ -814,6 +960,8 @@ function buildAgentPrompt(
     displayName: string
     skillPaths: string[]
     commandPaths: string[]
+    sourceKind: AgentProjectModel['sourceKind']
+    taxonomyPath?: string
     overrides: AgentOverrides | null
   },
 ): string {
@@ -825,7 +973,7 @@ function buildAgentPrompt(
     'Inputs:',
     '- `.pluxx/agent/context.md`',
     '- `.pluxx/agent/plan.json`',
-    `- \`${MCP_TAXONOMY_PATH}\``,
+    ...(input.taxonomyPath ? [`- \`${input.taxonomyPath}\``] : []),
     '- `INSTRUCTIONS.md`',
     ...input.skillPaths.map((path) => `- \`${path}\``),
     ...input.commandPaths.map((path) => `- \`${path}\``),
@@ -835,8 +983,12 @@ function buildAgentPrompt(
     `- Preserve all custom-note blocks between \`${PLUXX_CUSTOM_START}\` and \`${PLUXX_CUSTOM_END}\`.`,
     '- Do not change auth wiring or target-platform config.',
     '- Do not edit files under `dist/`.',
-    '- Treat discovered MCP resources, resource templates, and prompt templates as part of the product surface when they are present in the context and metadata.',
-    '- Treat per-skill related resources and prompt templates in the context as default evidence for workflow boundaries and examples unless stronger discovery evidence contradicts them.',
+    ...(input.sourceKind === 'mcp-derived'
+      ? [
+          '- Treat discovered MCP resources, resource templates, and prompt templates as part of the product surface when they are present in the context and metadata.',
+          '- Treat per-skill related resources and prompt templates in the context as default evidence for workflow boundaries and examples unless stronger discovery evidence contradicts them.',
+        ]
+      : []),
     '',
   ]
 
@@ -848,7 +1000,115 @@ function buildAgentPrompt(
     return `${sharedIntro.join('\n')}Your job:\n1. Rewrite only the generated block in \`INSTRUCTIONS.md\`.\n2. Explain what the plugin is for, how the skills should be used, and which setup/admin/account/runtime boundaries matter.\n3. Use discovered tools, resources, resource templates, and prompt templates to produce short routing guidance, not a raw documentation dump.\n4. Keep wording aligned to the MCP's product narrative and branded language; avoid raw MCP server/tool identifiers except when technically required.\n5. Prefer the branded product name in user-facing copy; do not lead with internal MCP server identifiers.\n6. Replace stale scaffold claims with current discovery-backed language and keep command examples operational, concrete, and copy-paste runnable.\n7. When a workflow already has related resources or prompt templates in the context, keep the wording and examples aligned to that surfaced workflow evidence.\n${buildPromptOverrideBlock(kind, input.overrides)}\nSuccess criteria:\n- instructions are concise, actionable, and product-shaped\n- wording is branded and product-facing, not raw MCP-internal naming\n- auth/setup/admin caveats are explicit when relevant\n- raw MCP server identifiers are omitted unless operationally necessary\n- the generated section reads like routing guidance, not pasted vendor docs\n- command examples use strong command UX (clear intent, realistic args, and runnable shapes)\n- workflow guidance stays coherent with related resource and prompt-template evidence in the context\n- the file remains safe for future \`pluxx sync --from-mcp\`\n`
   }
 
-  return `${sharedIntro.join('\n')}Your job:\n1. Review the current scaffold critically.\n2. Call out weak skill groupings, missing setup guidance, vague examples, product/category mismatches, raw documentation dumps, lexical skill names, stale scaffold assumptions, weak command UX, incoherent per-skill resource/prompt associations, or weak MCP metadata signals.\n3. Separate scaffold quality findings from runtime-correctness findings.\n4. Propose only the highest-value changes needed to make the scaffold useful.\n${buildPromptOverrideBlock(kind, input.overrides)}\nSuccess criteria:\n- findings are concrete and tied to files\n- scaffold quality gaps are distinguished from runtime correctness\n- stale assumptions, incoherent per-skill discovery associations, and command-UX weaknesses are identified explicitly when present\n- suggested changes improve user-facing plugin quality\n- recommendations stay inside Pluxx-managed boundaries\n`
+  return `${sharedIntro.join('\n')}Your job:\n1. Review the current scaffold critically.\n2. Call out weak skill groupings, missing setup guidance, vague examples, product/category mismatches, raw documentation dumps, lexical skill names, stale scaffold assumptions, weak command UX${input.sourceKind === 'mcp-derived' ? ', incoherent per-skill resource/prompt associations, or weak MCP metadata signals' : ', weak marketplace/listing copy, awkward installation guidance, or unclear operator boundaries'}.\n3. Separate scaffold quality findings from runtime-correctness findings.\n4. Propose only the highest-value changes needed to make the scaffold useful.\n${buildPromptOverrideBlock(kind, input.overrides)}\nSuccess criteria:\n- findings are concrete and tied to files\n- scaffold quality gaps are distinguished from runtime correctness\n- stale assumptions${input.sourceKind === 'mcp-derived' ? ', incoherent per-skill discovery associations,' : ','} and command-UX weaknesses are identified explicitly when present\n- suggested changes improve user-facing plugin quality\n- recommendations stay inside Pluxx-managed boundaries\n`
+}
+
+function normalizeRelativePath(path: string): string {
+  return path.replace(/\\/g, '/').replace(/^\.\//, '')
+}
+
+function readCanonicalSkillFiles(rootDir: string, skillsDir: string | undefined): AgentProjectSkill[] {
+  if (!skillsDir || !existsSync(skillsDir)) return []
+
+  return walkSkillMarkdownFiles(skillsDir)
+    .sort((a, b) => a.localeCompare(b))
+    .map((filePath) => {
+      const content = readFileSync(filePath, 'utf-8')
+      const { frontmatterLines, body } = splitSkillMarkdownFrontmatter(content)
+      const dirName = normalizeRelativePath(relative(skillsDir, filePath).replace(/\/SKILL\.md$/i, ''))
+      const title = firstMarkdownHeading(body) ?? dirName
+
+      return {
+        dirName,
+        title,
+        description: parseYamlDescription(frontmatterLines),
+        toolNames: [],
+        path: normalizeRelativePath(relative(rootDir, filePath)),
+      }
+    })
+}
+
+function walkSkillMarkdownFiles(dir: string): string[] {
+  const entries = readdirSync(dir)
+  const files: string[] = []
+
+  for (const entry of entries) {
+    const fullPath = resolve(dir, entry)
+    const stat = statSync(fullPath)
+    if (stat.isDirectory()) {
+      files.push(...walkSkillMarkdownFiles(fullPath))
+      continue
+    }
+    if (stat.isFile() && entry === 'SKILL.md') {
+      files.push(fullPath)
+    }
+  }
+
+  return files
+}
+
+function splitSkillMarkdownFrontmatter(content: string): {
+  frontmatterLines: string[]
+  body: string
+} {
+  const lines = content.split(/\r?\n/)
+  if (lines[0]?.trim() !== '---') {
+    return {
+      frontmatterLines: [],
+      body: content,
+    }
+  }
+
+  let endIndex = -1
+  for (let i = 1; i < lines.length; i += 1) {
+    if (lines[i].trim() === '---') {
+      endIndex = i
+      break
+    }
+  }
+
+  if (endIndex === -1) {
+    return {
+      frontmatterLines: [],
+      body: content,
+    }
+  }
+
+  return {
+    frontmatterLines: lines.slice(1, endIndex),
+    body: lines.slice(endIndex + 1).join('\n'),
+  }
+}
+
+function parseYamlDescription(frontmatterLines: string[]): string | undefined {
+  for (const line of frontmatterLines) {
+    const match = /^description:\s*(.+)\s*$/i.exec(line.trim())
+    if (match?.[1]) {
+      return stripYamlScalar(match[1])
+    }
+  }
+
+  return undefined
+}
+
+function firstMarkdownHeading(content: string): string | undefined {
+  const lines = content.split(/\r?\n/)
+  for (const line of lines) {
+    const match = line.match(/^#\s+(.*)$/)
+    if (match?.[1]?.trim()) return match[1].trim()
+  }
+  return undefined
+}
+
+function stripYamlScalar(value: string): string {
+  const trimmed = value.trim()
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"'))
+    || (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1).trim()
+  }
+  return trimmed
 }
 
 function summarizeDiscoveryDescription(description: string | undefined, trailing?: string): string {

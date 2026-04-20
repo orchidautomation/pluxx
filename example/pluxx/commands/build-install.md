@@ -1,5 +1,5 @@
 ---
-description: Build native Pluxx outputs and optionally install requested targets locally
+description: Build installable plugins and optionally install requested targets locally
 argument-hint: "[targets optional]"
 ---
 
