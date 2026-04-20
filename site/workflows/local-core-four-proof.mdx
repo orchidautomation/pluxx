@@ -1,0 +1,90 @@
+---
+title: Local Core-Four Proof
+---
+
+This is the practical local proof flow for Pluxx.
+
+Use it when you want to go from:
+
+- live MCP or migrated plugin
+- to built bundles
+- to installed local targets
+- to host-visible verification across Claude Code, Cursor, Codex, and OpenCode
+
+## The current best command
+
+```bash
+npx @orchid-labs/pluxx test --install
+```
+
+That command now does more than build smoke:
+
+- runs the normal deterministic validation path
+- installs the configured targets locally
+- verifies the installed consumer bundle state after install
+
+If local hook commands are present:
+
+```bash
+npx @orchid-labs/pluxx test --install --trust
+```
+
+## What this proves today
+
+`pluxx test --install` proves:
+
+- the source project is valid enough to test
+- the bundles build
+- install paths materialize
+- the installed consumer layout matches what Pluxx expects per host
+
+It does **not** prove that an already-running app has reloaded the plugin yet.
+
+That last step is host state, not bundle state.
+
+## The honest verification surfaces
+
+- **Claude Code app**: valid verification surface
+- **Cursor app**: valid verification surface
+- **Codex app**: valid verification surface
+- **OpenCode app**: valid verification surface
+- **Cursor CLI**: not a reliable plugin-verification surface today; use it for headless runner passes, not plugin presence proof
+
+## Tight follow-up command
+
+If the plugin looks wrong after install, inspect the installed bundle directly:
+
+```bash
+npx @orchid-labs/pluxx doctor --consumer <installed-path>
+```
+
+Examples:
+
+```bash
+npx @orchid-labs/pluxx doctor --consumer ~/.cursor/plugins/local/my-plugin
+npx @orchid-labs/pluxx doctor --consumer ~/.codex/plugins/my-plugin
+```
+
+## Good local release rhythm
+
+```bash
+npx @orchid-labs/pluxx doctor
+npx @orchid-labs/pluxx lint
+npx @orchid-labs/pluxx eval
+npx @orchid-labs/pluxx test --install
+```
+
+Then:
+
+1. reload or reopen any host app that was already running
+2. confirm the plugin is visible in the host UI
+3. run one real workflow in the host when the MCP needs live proof
+
+## Where this is headed
+
+Today the strongest explicit install-proof path is:
+
+- `pluxx test --install`
+- plus `pluxx doctor --consumer` when needed
+
+The likely next CLI surface is a dedicated `pluxx verify-install` command for tighter host-state reporting.

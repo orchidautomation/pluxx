@@ -56,5 +56,6 @@ Use Cursor for:
 
 - Headless Pluxx runs target the official Cursor CLI binary `agent`. Older installs that only expose `cursor-agent` are still supported as a fallback.
 - Real Cursor CLI runs require Cursor auth. Use your normal Cursor CLI login flow or provide `CURSOR_API_KEY` for scripted runs.
+- Use the Cursor **app** to verify plugin presence, installed skills, and commands. Cursor CLI is the runner surface for Pluxx agent passes, not the strongest plugin-discovery proof surface.
 - Cursor plugin hooks live inside `hooks/hooks.json` in the plugin bundle. Project hooks in `.cursor/hooks.json` are a separate surface and are not auto-installed by Pluxx.
 - Cursor subagents under `.cursor/agents` or `~/.cursor/agents` are also separate from the plugin bundle. Pluxx installs plugin `agents/`, not project-level subagents.

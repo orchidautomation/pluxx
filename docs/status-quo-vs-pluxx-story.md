@@ -177,6 +177,33 @@ It is much closer to:
 
 - "build once, ship honestly across the core four"
 
+## What Pluxx Can Now Prove Locally
+
+The important GTM shift is that this is no longer just a theory story.
+
+Pluxx can now prove a real local path that goes:
+
+- MCP or migrated plugin
+- to maintained Pluxx source project
+- to generated Claude Code, Cursor, Codex, and OpenCode bundles
+- to installed local targets
+- to host-visible plugin presence in the actual apps
+
+That matters because "cross-host compiler" is much stronger when it is backed by:
+
+- deterministic source validation
+- installed-bundle verification
+- real host discovery
+- and, in the strongest cases, real live plugin invocation
+
+So the message is no longer only:
+
+- "Pluxx can generate the files"
+
+It is now also:
+
+- "Pluxx can get one source project installed and visible across the core four on a real machine"
+
 ## What Pluxx Enables Operationally
 
 ### `pluxx init --from-mcp`

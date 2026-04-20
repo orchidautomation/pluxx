@@ -60,14 +60,15 @@ export async function syncFromMcp(options: SyncFromMcpOptions): Promise<SyncFrom
     authorName: config.author.name,
     targets: config.targets,
     source,
-      introspection,
-      displayName: config.brand?.displayName ?? metadata.settings.displayName,
-      skillGrouping: metadata.settings.skillGrouping,
-      hookMode: metadata.settings.requestedHookMode,
-      runtimeAuthMode: metadata.settings.runtimeAuthMode ?? 'inline',
-      persistedSkills,
-      toolRenames,
-    })
+    introspection,
+    displayName: config.brand?.displayName ?? metadata.settings.displayName,
+    skillGrouping: metadata.settings.skillGrouping,
+    hookMode: metadata.settings.requestedHookMode,
+    runtimeAuthMode: metadata.settings.runtimeAuthMode ?? 'inline',
+    permissions: config.permissions,
+    persistedSkills,
+    toolRenames,
+  })
 
   const newMetadataPath = resolveWithinRoot(options.rootDir, MCP_SCAFFOLD_METADATA_PATH)
   const newMetadata: McpScaffoldMetadata = JSON.parse(readFileSync(newMetadataPath, 'utf-8'))
@@ -182,6 +183,7 @@ export async function applyPersistedTaxonomy(rootDir: string): Promise<void> {
     skillGrouping: metadata.settings.skillGrouping,
     hookMode: metadata.settings.requestedHookMode,
     runtimeAuthMode: metadata.settings.runtimeAuthMode ?? 'inline',
+    permissions: config.permissions,
     persistedSkills,
   })
 

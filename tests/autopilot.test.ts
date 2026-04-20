@@ -499,6 +499,7 @@ describe('autopilot command', () => {
         'Test Author',
         '--targets',
         'claude-code,codex',
+        '--approve-mcp-tools',
         '--json',
       ], dir, {
         PATH: `${binDir}:${process.env.PATH ?? ''}`,
@@ -544,6 +545,7 @@ describe('autopilot command', () => {
       expect(existsSync(resolve(dir, '.pluxx/agent/review-prompt.md'))).toBe(true)
       expect(existsSync(resolve(dir, 'dist/claude-code/.claude-plugin/plugin.json'))).toBe(true)
       expect(existsSync(resolve(dir, 'dist/codex/.codex-plugin/plugin.json'))).toBe(true)
+      expect(readFileSync(resolve(dir, 'pluxx.config.ts'), 'utf-8')).toContain('allow: ["MCP(stub-server.*)"]')
 
       const runnerArgs = readFileSync(runnerArgsPath, 'utf-8').split('\0').filter(Boolean)
       expect(runnerArgs.filter((arg) => arg === '-p').length).toBe(3)

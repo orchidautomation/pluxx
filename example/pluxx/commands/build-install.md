@@ -10,9 +10,10 @@ Arguments: $ARGUMENTS
 ## What To Do
 
 1. Use the `pluxx-build-install` skill.
-2. Validate first when the scaffold changed materially.
-3. Build the requested targets.
-4. Install only if the user wants local testing.
-5. Surface trust requirements and reload steps clearly.
+2. Prefer `pluxx test --install` when the user wants the strongest local proof in one command.
+3. Otherwise validate first when the scaffold changed materially.
+4. Build the requested targets.
+5. Install only if the user wants local testing.
+6. Surface trust requirements, reload steps, and `pluxx doctor --consumer` when the installed host still looks wrong.
 
 Return what was built, what was installed, and any host-specific follow-up steps.

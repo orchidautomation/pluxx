@@ -21,10 +21,10 @@ START
 |   |   |   +-- YES
 |   |   |   |   |
 |   |   |   |   +-- Want just the scaffold first? [D]
-|   |   |   |   |   `-- pluxx init --from-mcp <source> --yes --targets claude-code,cursor,codex,opencode
+|   |   |   |   |   `-- pluxx init --from-mcp <source> --yes --targets claude-code,cursor,codex,opencode [--approve-mcp-tools]
 |   |   |   |   |
 |   |   |   |   `-- Want scaffold + agent refinement in one shot? [A]
-|   |   |   |       `-- pluxx autopilot --from-mcp <source> --runner <claude|codex|cursor|opencode>
+|   |   |   |       `-- pluxx autopilot --from-mcp <source> --runner <claude|codex|cursor|opencode> [--approve-mcp-tools]
 |   |   |   |
 |   |   |   `-- NO
 |   |   |       |
@@ -98,6 +98,9 @@ START
 |   +-- Install while testing [D]
 |   |   `-- pluxx test --install
 |   |
+|   +-- Need to inspect the installed bundle after install? [D]
+|   |   `-- pluxx doctor --consumer <installed-path>
+|   |
 |   +-- Hooks run local shell commands?
 |   |   |
 |   |   `-- add --trust
@@ -149,6 +152,8 @@ If you want local installs too:
 npx @orchid-labs/pluxx test --install
 ```
 
+That is now the preferred local proof command because it installs and verifies installed consumer bundle state in one pass.
+
 If the generated plugin includes local hook commands:
 
 ```bash
@@ -190,3 +195,5 @@ npx @orchid-labs/pluxx agent run review --runner cursor --model auto
 ```
 
 That is especially useful on Cursor free plans, where headless mode may require `auto` instead of a named default model.
+
+For plugin visibility, treat the Cursor **app** as the verification surface. Cursor CLI is useful for headless agent passes, not as the strongest proof that an installed plugin is visible to users.

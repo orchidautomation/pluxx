@@ -43,6 +43,7 @@
         "group": "Workflows",
         "pages": [
           "workflows/import-from-mcp",
+          "workflows/local-core-four-proof",
           "workflows/refine-taxonomy",
           "workflows/rewrite-instructions",
           "workflows/review-scaffold",

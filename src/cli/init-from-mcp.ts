@@ -24,6 +24,8 @@ export interface McpScaffoldOptions {
   skillGrouping?: McpSkillGrouping
   hookMode?: McpHookMode
   runtimeAuthMode?: McpRuntimeAuthMode
+  permissions?: PluginConfig['permissions']
+  approveMcpTools?: boolean
   persistedSkills?: PersistedSkill[]
   toolRenames?: Map<string, string>
 }
@@ -330,6 +332,9 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
   const serverName = options.serverName
     ?? toKebabCase(options.introspection.serverInfo.name)
     ?? pluginName
+  const permissions = options.permissions ?? (options.approveMcpTools
+    ? { allow: [`MCP(${serverName}.*)`] }
+    : undefined)
   const runtimeAuthMode = options.runtimeAuthMode
     ?? (
       options.source.transport !== 'stdio' && options.source.auth?.type === 'platform'
@@ -385,6 +390,7 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
       hooks: generatedHooks.hookEntries,
       scriptsPath: generatedHooks.scriptsPath,
       runtimeAuthMode,
+      permissions,
       commandsPath: './commands/',
     }),
   )
@@ -842,6 +848,7 @@ export function buildConfigTemplate(input: {
   hooks?: Record<string, HookEntry[]>
   scriptsPath?: string
   runtimeAuthMode?: McpRuntimeAuthMode
+  permissions?: PluginConfig['permissions']
   commandsPath?: string
 }): string {
   const targets = input.targets.map((target) => JSON.stringify(target)).join(', ')
@@ -858,6 +865,7 @@ export function buildConfigTemplate(input: {
   const scriptsBlock = input.scriptsPath ? `  scripts: ${JSON.stringify(input.scriptsPath)},\n` : ''
   const commandsBlock = input.commandsPath ? `  commands: ${JSON.stringify(input.commandsPath)},\n` : ''
   const hooksBlock = input.hooks ? `\n  hooks: ${serializeHooks(input.hooks)},\n` : ''
+  const permissionsBlock = input.permissions ? `\n  permissions: ${serializePermissions(input.permissions)},\n` : ''
   const platformsBlock = input.runtimeAuthMode === 'platform'
     ? `\n  platforms: {\n    'claude-code': {\n      mcpAuth: 'platform',\n    },\n    cursor: {\n      mcpAuth: 'platform',\n    },\n  },\n`
     : ''
@@ -883,6 +891,7 @@ ${scriptsBlock}
 ${mcpBlock}
   },
 ${hooksBlock}
+${permissionsBlock}
 ${platformsBlock}
 
   brand: {
@@ -972,6 +981,16 @@ function serializeUserConfig(userConfig: UserConfigEntry[]): string {
     .join(',\n')
 
   return `[\n${entries}\n  ]`
+}
+
+function serializePermissions(permissions: NonNullable<PluginConfig['permissions']>): string {
+  const actions = ['allow', 'ask', 'deny'] as const
+  const entries = actions
+    .filter((action) => (permissions[action]?.length ?? 0) > 0)
+    .map((action) => `    ${action}: ${JSON.stringify(permissions[action])}`)
+    .join(',\n')
+
+  return `{\n${entries}\n  }`
 }
 
 const MUTATING_PREFIXES = [

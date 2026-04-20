@@ -100,6 +100,7 @@ export interface InitFromMcpOptions {
   authTemplate?: string
   runtimeAuth?: string
   oauthWrapper: boolean
+  approveMcpTools: boolean
   grouping?: string
   hooks?: string
   transport?: string
@@ -1037,6 +1038,7 @@ function buildInitSummary(input: {
   updatedFiles: string[]
   lint: { errors: number; warnings: number }
   quality: McpQualityReport
+  approveMcpTools?: boolean
   dryRun?: boolean
 }): InitFromMcpSummary {
   const installTarget = input.targets[0]
@@ -1057,6 +1059,10 @@ function buildInitSummary(input: {
 
   if (input.quality.warnings > 0) {
     notes.push('Consider using pluxx autopilot with --website/--docs or adding pluxx.agent.md hints before publishing this plugin.')
+  }
+
+  if (input.approveMcpTools) {
+    notes.push('Preapproved all tools from the imported MCP in canonical permissions. Review the generated permission policy before publishing if you want tighter tool access.')
   }
 
   const nextSteps = [
@@ -1125,6 +1131,7 @@ export function parseInitFromMcpOptions(rawArgs: string[], initialName?: string,
     authTemplate: readOption(rawArgs, '--auth-template'),
     runtimeAuth: readOption(rawArgs, '--runtime-auth'),
     oauthWrapper: rawArgs.includes('--oauth-wrapper'),
+    approveMcpTools: rawArgs.includes('--approve-mcp-tools'),
     grouping: readOption(rawArgs, '--grouping'),
     hooks: readOption(rawArgs, '--hooks'),
     transport: readOption(rawArgs, '--transport'),
@@ -1567,6 +1574,7 @@ ${formatAuthRequiredMessage('init', retryError, source)}`)
       displayName,
       skillGrouping: grouping,
       hookMode,
+      approveMcpTools: options.approveMcpTools,
     })
     const createdFiles = plan.files
       .filter((file) => file.action === 'create')
@@ -1600,6 +1608,7 @@ ${formatAuthRequiredMessage('init', retryError, source)}`)
         warnings: lintResult.warnings,
       },
       quality,
+      approveMcpTools: options.approveMcpTools,
       dryRun: runtime.dryRun,
     })
 
@@ -1989,12 +1998,12 @@ async function runAutopilot() {
   let runtimeAuthMode = resolveRuntimeAuthMode(initOptions.runtimeAuth)
 
   if (!initOptions.source && !interactive) {
-    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--auth-env ENV] [--auth-type bearer|header|platform] [--auth-header NAME] [--auth-template TEMPLATE] [--runtime-auth inline|platform] [--oauth-wrapper] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
+    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--approve-mcp-tools] [--auth-env ENV] [--auth-type bearer|header|platform] [--auth-header NAME] [--auth-template TEMPLATE] [--runtime-auth inline|platform] [--oauth-wrapper] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
     process.exit(1)
   }
 
   if ((!runnerRaw || !AGENT_RUNNERS.includes(runnerRaw as AgentRunner)) && !interactive) {
-    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--auth-env ENV] [--auth-type bearer|header|platform] [--auth-header NAME] [--auth-template TEMPLATE] [--runtime-auth inline|platform] [--oauth-wrapper] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
+    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--approve-mcp-tools] [--auth-env ENV] [--auth-type bearer|header|platform] [--auth-header NAME] [--auth-template TEMPLATE] [--runtime-auth inline|platform] [--oauth-wrapper] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
     process.exit(1)
   }
 
@@ -2292,6 +2301,7 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
       displayName,
       skillGrouping: grouping,
       hookMode: requestedHookMode,
+      approveMcpTools: initOptions.approveMcpTools,
     })
     const initCreatedFiles = scaffoldPlan.files.filter((file) => file.action === 'create').map((file) => file.relativePath)
     const initUpdatedFiles = scaffoldPlan.files.filter((file) => file.action === 'update').map((file) => file.relativePath)
@@ -2947,6 +2957,7 @@ Common flags:
   --verbose-runner                        Stream runner stdout/stderr for agent run/autopilot
   --dry-run                               Show planned work without writing files or installing anything
   --mode quick|standard|thorough          Control how much agent refinement autopilot performs
+  --approve-mcp-tools                     Preapprove all tools from the imported MCP in canonical permissions
 
 Targets:
   claude-code, cursor, codex, opencode, github-copilot, openhands,
@@ -2963,6 +2974,7 @@ Examples:
   pluxx init --from-mcp https://example.com/mcp --yes --auth-env API_KEY --auth-type header --auth-header X-API-Key --auth-template "\${value}"
   pluxx init --from-mcp https://example.com/mcp --yes --auth-type platform --runtime-auth platform
   pluxx init --from-mcp https://mcp.linear.app/mcp --yes --oauth-wrapper --runtime-auth platform
+  pluxx init --from-mcp https://example.com/mcp --yes --approve-mcp-tools
   pluxx init --from-mcp https://example.com/sse --transport sse   Scaffold from an SSE-transport MCP server
   pluxx init --from-mcp https://example.com/mcp --yes --dry-run   Preview scaffold files without writing
   pluxx sync                              Refresh a scaffold using .pluxx/mcp.json metadata
@@ -2980,6 +2992,7 @@ Examples:
   --attach is only supported for the opencode runner
   pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode quick --yes
   pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode standard --yes --name acme --display-name "Acme"
+  pluxx autopilot --from-mcp https://example.com/mcp --runner codex --yes --approve-mcp-tools
   pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode thorough --yes --verbose-runner
   pluxx autopilot --from-mcp https://mcp.linear.app/mcp --runner codex --yes --oauth-wrapper
   pluxx autopilot --from-mcp "npx -y @acme/mcp" --runner claude --targets claude-code,codex --website https://example.com --docs https://docs.example.com

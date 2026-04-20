@@ -9,17 +9,20 @@ Use this skill when the user is ready to turn the current Pluxx source project i
 
 ## Workflow
 
-1. If the scaffold has changed materially, validate first:
+1. Prefer `pluxx test --install` when the user wants the strongest deterministic local proof in one command.
+2. Otherwise, if the scaffold has changed materially, validate first:
    - `pluxx doctor`
    - `pluxx lint`
    - `pluxx test`
-2. Build the requested targets:
+3. Build the requested targets:
    - `pluxx build`
    - or `pluxx build --target <platforms...>`
-3. Install only when the user wants local testing:
+4. Install only when the user wants local testing:
    - `pluxx install --target <platforms...>`
    - add `--trust` when the plugin defines hook commands and the user has opted in
-4. Tell the user what was built and what was installed.
+5. If a host still looks wrong after install, use:
+   - `pluxx doctor --consumer <installed-path>`
+6. Tell the user what was built and what was installed.
 
 ## Rules
 

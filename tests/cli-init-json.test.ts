@@ -202,4 +202,53 @@ describe('CLI init JSON summary', () => {
       rmSync(cwd, { recursive: true, force: true })
     }
   })
+
+  it('can preapprove all imported MCP tools in canonical permissions', async () => {
+    const cwd = mkdtempSync(resolve(tmpdir(), 'pluxx-cli-init-'))
+
+    try {
+      const proc = Bun.spawn(
+        [
+          'bun',
+          resolve(ROOT, 'bin/pluxx.js'),
+          'init',
+          '--from-mcp',
+          `bun ${stubServerPath}`,
+          '--yes',
+          '--name',
+          'stub-server',
+          '--display-name',
+          'Stub Server',
+          '--author',
+          'Test Author',
+          '--approve-mcp-tools',
+          '--json',
+        ],
+        {
+          cwd,
+          stdout: 'pipe',
+          stderr: 'pipe',
+        },
+      )
+
+      const stdout = await new Response(proc.stdout).text()
+      const stderr = await new Response(proc.stderr).text()
+      const exitCode = await proc.exited
+
+      expect(exitCode).toBe(0)
+      expect(stderr).toBe('')
+
+      const summary = JSON.parse(stdout) as {
+        notes: string[]
+      }
+
+      expect(summary.notes.some((note) => note.includes('Preapproved all tools from the imported MCP'))).toBe(true)
+
+      const config = readFileSync(resolve(cwd, 'pluxx.config.ts'), 'utf-8')
+      expect(config).toContain('permissions: {')
+      expect(config).toContain('allow: ["MCP(stub-server.*)"]')
+    } finally {
+      rmSync(cwd, { recursive: true, force: true })
+    }
+  })
 })

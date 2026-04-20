@@ -122,6 +122,13 @@ Use Pluxx to scaffold a plugin from https://example.com/mcp.
 Do a deterministic first pass, show me what gets generated, then run doctor, lint, and test.
 ```
 
+If you already trust the MCP and want the scaffold to preapprove all of its tools up front:
+
+```text
+Use Pluxx to scaffold a plugin from https://example.com/mcp.
+Preapprove all tools from that MCP in the generated scaffold, then run the normal validation pass.
+```
+
 If auth is needed:
 
 ```text
@@ -218,6 +225,12 @@ Under the hood, the host agent should follow something close to this:
 5. run `pluxx doctor`
 6. run `pluxx lint`
 7. run `pluxx test`
+
+For local host proof, the stronger deterministic finish is:
+
+1. run `pluxx test --install`
+2. reload any host app that was already open
+3. if the installed plugin still looks wrong, run `pluxx doctor --consumer <installed-path>`
 8. run `pluxx build`
 9. optionally run `pluxx install --target ...`
 

@@ -38,6 +38,12 @@ Remote HTTP MCP:
 npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp --yes
 ```
 
+Remote HTTP MCP with preapproved tool access:
+
+```bash
+npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp --yes --approve-mcp-tools
+```
+
 Local stdio MCP:
 
 ```bash
@@ -93,6 +99,14 @@ OAuth-first MCPs can still be scaffolded, but the import path matters:
 - if the provider exposes a usable token or API key, pass it with `--auth-env`
 - if the provider only supports browser-interactive auth during handshake, use `--oauth-wrapper`
 - if runtime auth should be host-managed, use `--runtime-auth platform`
+
+If the MCP is already trusted and you want the generated scaffold to start with broad MCP tool approval, add:
+
+- `--approve-mcp-tools`
+
+That emits canonical permission intent into `pluxx.config.ts` as:
+
+- `permissions.allow = ["MCP(<server>.*)"]`
 
 ## When to bring in the agent layer
 

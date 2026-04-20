@@ -21,6 +21,16 @@ Scaffold a Pluxx source project from a live MCP server or local stdio command.
 npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp
 ```
 
+If you already know every tool from that MCP should be preapproved in the generated source project:
+
+```bash
+npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp --approve-mcp-tools
+```
+
+That flag writes canonical permission intent into `pluxx.config.ts`:
+
+- `permissions.allow = ["MCP(<server>.*)"]`
+
 ### `pluxx sync [--from-mcp ...]`
 
 Refresh an existing Pluxx source project from its MCP source while preserving managed boundaries.
@@ -101,6 +111,14 @@ Test and install in one step:
 
 ```bash
 npx @orchid-labs/pluxx test --install
+```
+
+`pluxx test --install` now verifies the installed consumer bundle state after install, not just the generated `dist/` output.
+
+If a host still looks wrong after install, follow it with:
+
+```bash
+npx @orchid-labs/pluxx doctor --consumer <installed-path>
 ```
 
 ### `pluxx install --target ...`
@@ -198,6 +216,15 @@ npx @orchid-labs/pluxx autopilot \
 ```
 
 Use `--mode quick|standard|thorough` to control how much semantic refinement autopilot performs.
+
+If you want autopilot to seed a fully preapproved MCP permission policy in the generated source project:
+
+```bash
+npx @orchid-labs/pluxx autopilot \
+  --from-mcp https://example.com/mcp \
+  --runner codex \
+  --approve-mcp-tools
+```
 
 ## Where the agent actually does work
 

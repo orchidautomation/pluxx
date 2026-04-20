@@ -21,6 +21,13 @@ The core-four compiler sprint is done:
 - semantic migration now preserves more host intent
 - native compilation is materially stronger across Claude Code, Cursor, Codex, and OpenCode
 - `doctor`, `lint`, and `build` explain preserve/translate/degrade/drop more clearly
+- `pluxx test --install` now verifies installed consumer bundle state after install, not just `dist/`
+- local core-four proof is real in the host apps:
+  - Claude
+  - Cursor app
+  - Codex
+  - OpenCode
+- `--approve-mcp-tools` can now scaffold canonical MCP-wide tool approval intent directly into generated config
 
 The public baseline is also real:
 
@@ -61,7 +68,28 @@ Open work:
 - rebuild and test the self-hosted plugin across the core four
 - decide whether distribution should stay in the main repo or move to a dedicated plugin/marketplace repo later
 
-### 2. Docs and website ingestion
+### 2. Install verification and release smoke
+
+Goal:
+
+- turn the now-proven local install story into an explicit product surface and repeatable release contract
+
+Open work:
+
+- add a dedicated `pluxx verify-install` command
+  - keep `pluxx test --install` as the broad smoke path
+  - make `verify-install` the explicit host-state truth-serum
+- define the stable release smoke stack:
+  - one hermetic stub MCP
+  - one real-world MCP proof target owned by Pluxx
+- keep host verification truthful:
+  - Claude app
+  - Cursor app, not Cursor CLI
+  - Codex app
+  - OpenCode app
+- tighten docs around `doctor --consumer` and install-path debugging
+
+### 3. Docs and website ingestion
 
 Goal:
 
@@ -82,7 +110,7 @@ Open work:
   - MCP only
   - MCP + docs/website inputs
 
-### 3. Mintlify and product story
+### 4. Mintlify and product story
 
 Goal:
 
@@ -92,13 +120,15 @@ Open work:
 
 - keep tightening the public Mintlify narrative around:
   - status quo vs Pluxx
+  - proven local core-four install + invocation flow
   - one engine, native wrappers
   - core-four portability
   - CI / evaluation / replay
+- make `--approve-mcp-tools` and current install verification paths easy to discover
 - add more plugin-specific docs once the self-hosted plugin surface settles
 - keep public docs aligned with the real product contract, not the aspirational one
 
-### 4. GTM and audience
+### 5. GTM and audience
 
 Goal:
 
@@ -112,10 +142,12 @@ Open work:
   - devtools teams
   - agencies / consultancies
 - tighten the status-quo-vs-Pluxx story into launch assets
+- explicitly use the “build once, ship installable plugins to Claude, Cursor, Codex, and OpenCode” framing
+- turn the local core-four proof into demo and outreach material
 - draft and queue launch posts
 - connect the product proof to outreach targets
 
-### 5. Next release
+### 6. Next release
 
 Goal:
 
@@ -140,7 +172,8 @@ These are real, but not the current queue:
 
 Right now the priority order is:
 
-1. make the Pluxx plugin itself excellent
-2. make docs ingestion measurable and useful
-3. tighten the public story and launch execution
-4. then ship the next release
+1. ship explicit install verification and release-smoke ergonomics
+2. make the Pluxx plugin itself excellent
+3. make docs ingestion measurable and useful
+4. tighten the public story and launch execution
+5. then ship the next release

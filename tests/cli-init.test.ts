@@ -27,6 +27,7 @@ describe('CLI init option parsing', () => {
         'workflow',
         '--hooks',
         'safe',
+        '--approve-mcp-tools',
         '--auth-env',
         'SUMBLE_API_KEY',
         '--json',
@@ -50,6 +51,7 @@ describe('CLI init option parsing', () => {
       grouping: 'workflow',
       hooks: 'safe',
       oauthWrapper: false,
+      approveMcpTools: true,
       transport: undefined,
       jsonOutput: true,
     })
@@ -73,6 +75,7 @@ describe('CLI init option parsing', () => {
     expect(options.source).toBe('https://example.com/mcp')
     expect(options.assumeDefaults).toBe(true)
     expect(options.oauthWrapper).toBe(false)
+    expect(options.approveMcpTools).toBe(false)
   })
 
   it('leaves transport undefined when --transport is not provided', () => {
@@ -84,6 +87,7 @@ describe('CLI init option parsing', () => {
 
     expect(options.transport).toBeUndefined()
     expect(options.oauthWrapper).toBe(false)
+    expect(options.approveMcpTools).toBe(false)
   })
 
   it('parses explicit header auth flags for remote MCP imports', () => {
@@ -126,6 +130,7 @@ describe('CLI init option parsing', () => {
     expect(options.authTemplate).toBeUndefined()
     expect(options.hooks).toBeUndefined()
     expect(options.oauthWrapper).toBe(false)
+    expect(options.approveMcpTools).toBe(false)
     expect(options.jsonOutput).toBe(false)
   })
 
@@ -144,6 +149,7 @@ describe('CLI init option parsing', () => {
 
     expect(options.oauthWrapper).toBe(true)
     expect(options.source).toBe('https://mcp.linear.app/mcp')
+    expect(options.approveMcpTools).toBe(false)
   })
 
   it('builds header auth config for custom-header MCPs', () => {
