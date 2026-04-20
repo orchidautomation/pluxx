@@ -9,15 +9,21 @@ Pluxx is the plugin authoring and maintenance layer for MCP teams.
 The normal workflow is:
 
 1. import an MCP into a deterministic scaffold
-2. inspect the generated project
-3. optionally refine taxonomy and instructions with a host agent
-4. validate with `pluxx doctor`, `pluxx lint`, and `pluxx test`
+2. migrate an existing single-host plugin when needed
+3. inspect and validate the generated project
+4. optionally refine taxonomy and instructions with a host agent
 5. build and install the target plugin bundles
 
 ### Main Workflows
 
 - `pluxx-import-mcp`
   Use when the user wants to scaffold a plugin from a remote MCP URL or a local stdio MCP command.
+
+- `pluxx-migrate-plugin`
+  Use when the user already has a Claude Code, Cursor, Codex, or OpenCode plugin and wants to bring it into Pluxx.
+
+- `pluxx-validate-scaffold`
+  Use when the user wants a deterministic health and quality pass with `doctor`, `lint`, `eval`, and `test`.
 
 - `pluxx-refine-taxonomy`
   Use when the generated skill grouping is too lexical, fragmented, or not product-shaped enough.
@@ -28,6 +34,9 @@ The normal workflow is:
 - `pluxx-review-scaffold`
   Use when the user wants findings before shipping, not blind rewrites.
 
+- `pluxx-build-install`
+  Use when the user wants to build native outputs and optionally install one or more targets locally.
+
 - `pluxx-sync-mcp`
   Use when an existing MCP-derived scaffold needs to be refreshed safely.
 
@@ -35,6 +44,12 @@ The normal workflow is:
 
 - `/pluxx:import-mcp`
   Explicit entrypoint for turning an MCP URL or stdio command into a first-pass Pluxx scaffold.
+
+- `/pluxx:migrate-plugin`
+  Explicit entrypoint for bringing an existing host-native plugin into a maintained Pluxx source project.
+
+- `/pluxx:validate-scaffold`
+  Explicit entrypoint for running deterministic health and quality checks before deeper edits or shipping.
 
 - `/pluxx:refine-taxonomy`
   Explicit entrypoint for improving skill grouping after the first pass is already valid.
@@ -45,10 +60,24 @@ The normal workflow is:
 - `/pluxx:review-scaffold`
   Explicit entrypoint for findings-first review before shipping.
 
+- `/pluxx:build-install`
+  Explicit entrypoint for building the requested target bundles and optionally installing them locally for testing.
+
 - `/pluxx:sync-mcp`
   Explicit entrypoint for refreshing an existing scaffold from its MCP source.
 
 These command entrypoints are for hosts that support plugin commands directly. In Codex, use `@pluxx` and pick the matching skill instead; `/` is reserved for native Codex commands.
+
+### CLI Resolution
+
+When these instructions say `pluxx ...`, treat that as the logical Pluxx command.
+
+Resolve it in this order:
+
+1. local `pluxx` on `PATH`
+2. `npx @orchid-labs/pluxx`
+
+If the npm path fails because Bun is missing, surface that clearly instead of improvising a different runtime contract.
 
 ### Operating Rules
 
@@ -73,4 +102,5 @@ A good Pluxx result should leave the user with:
 
 - `pluxx autopilot` is the one-shot path.
 - `pluxx init` plus manual refinement is usually the easier path to inspect and debug.
+- `pluxx migrate` is the bridge when the user already invested heavily in one host.
 - For OAuth-first MCPs, import auth and runtime auth may differ. Do not assume a bearer import token is the correct long-term runtime auth shape.

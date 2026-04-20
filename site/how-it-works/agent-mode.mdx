@@ -397,12 +397,15 @@ Agent Mode is successful when:
 
 This repo now ships a repo-local Codex plugin plus marketplace metadata for the local plugin catalog.
 
-The dogfood skill pack is intentionally narrow:
+The dogfood/operator skill pack now centers the main Pluxx jobs:
 
 - `pluxx-import-mcp`
+- `pluxx-migrate-plugin`
+- `pluxx-validate-scaffold`
 - `pluxx-refine-taxonomy`
 - `pluxx-rewrite-instructions`
 - `pluxx-review-scaffold`
+- `pluxx-build-install`
 - `pluxx-sync-mcp`
 
 Use it to drive the same Core + Agent workflow from inside Codex instead of remembering raw commands.

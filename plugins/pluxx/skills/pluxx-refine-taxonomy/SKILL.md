@@ -10,20 +10,20 @@ Use this skill when the initial MCP scaffold is valid but the generated skills a
 ## Workflow
 
 1. Refresh the agent pack:
-   - `bunx pluxx agent prepare`
+   - `pluxx agent prepare`
    - add `--website`, `--docs`, or `--context` when useful
 2. Generate the taxonomy prompt pack:
-   - `bunx pluxx agent prompt taxonomy`
+   - `pluxx agent prompt taxonomy`
 3. Prefer runner mode when available:
-   - `bunx pluxx agent run taxonomy --runner codex`
-   - `bunx pluxx agent run taxonomy --runner claude`
-   - `bunx pluxx agent run taxonomy --runner opencode`
+   - `pluxx agent run taxonomy --runner codex`
+   - `pluxx agent run taxonomy --runner claude`
+   - `pluxx agent run taxonomy --runner opencode`
 4. Keep changes inside:
    - the generated block in `INSTRUCTIONS.md`
    - the generated block in each `skills/*/SKILL.md`
 5. Re-run:
-   - `bunx pluxx lint`
-   - `bunx pluxx test`
+   - `pluxx lint`
+   - `pluxx test`
 
 ## Rules
 

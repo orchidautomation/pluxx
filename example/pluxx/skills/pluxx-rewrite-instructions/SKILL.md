@@ -10,15 +10,15 @@ Use this skill when the scaffold structure is fine but the shared instructions n
 ## Workflow
 
 1. Refresh context:
-   - `bunx pluxx agent prepare`
+   - `pluxx agent prepare`
    - include `--website`, `--docs`, and local context files when they clarify the product
 2. Generate or run the instructions prompt:
-   - `bunx pluxx agent prompt instructions`
-   - or `bunx pluxx agent run instructions --runner codex`
+   - `pluxx agent prompt instructions`
+   - or `pluxx agent run instructions --runner codex`
 3. Limit edits to the generated block in `INSTRUCTIONS.md`.
 4. Re-run:
-   - `bunx pluxx lint`
-   - `bunx pluxx test`
+   - `pluxx lint`
+   - `pluxx test`
 
 ## Rules
 

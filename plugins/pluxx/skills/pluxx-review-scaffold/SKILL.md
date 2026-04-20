@@ -10,18 +10,18 @@ Use this skill when the goal is to review a scaffold, not to rewrite it blindly.
 ## Workflow
 
 1. Refresh the agent pack:
-   - `bunx pluxx agent prepare`
+   - `pluxx agent prepare`
 2. Generate or run the review prompt:
-   - `bunx pluxx agent prompt review`
-   - or `bunx pluxx agent run review --runner codex`
+   - `pluxx agent prompt review`
+   - or `pluxx agent run review --runner codex`
 3. Inspect:
    - `INSTRUCTIONS.md`
    - `skills/*/SKILL.md`
    - any relevant docs/site context in `.pluxx/agent/context.md`
 4. If needed, run:
-   - `bunx pluxx doctor`
-   - `bunx pluxx lint`
-   - `bunx pluxx test`
+   - `pluxx doctor`
+   - `pluxx lint`
+   - `pluxx test`
 
 ## Rules
 

@@ -10,10 +10,10 @@ Use this skill when an existing MCP-derived scaffold needs to be refreshed witho
 ## Workflow
 
 1. Preview first when the impact is unclear:
-   - `bunx pluxx sync --dry-run --json`
+   - `pluxx sync --dry-run --json`
 2. Run the real sync when safe:
-   - `bunx pluxx sync`
-   - or `bunx pluxx sync --from-mcp <override>`
+   - `pluxx sync`
+   - or `pluxx sync --from-mcp <override>`
 3. Summarize:
    - updated files
    - preserved files
@@ -21,9 +21,9 @@ Use this skill when an existing MCP-derived scaffold needs to be refreshed witho
    - warnings
 4. If the MCP changed materially, refresh the agent pack and rerun taxonomy or instructions work.
 5. Verify:
-   - `bunx pluxx doctor`
-   - `bunx pluxx lint`
-   - `bunx pluxx test`
+   - `pluxx doctor`
+   - `pluxx lint`
+   - `pluxx test`
 
 ## Rules
 

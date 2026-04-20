@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build & Install"
+  short_description: "Build Pluxx targets and install the ones you want to test"
+  default_prompt: "Use Pluxx to build this scaffold for the core four and install the target I want to test locally."

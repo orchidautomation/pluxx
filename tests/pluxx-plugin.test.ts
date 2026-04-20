@@ -4,6 +4,7 @@ import { resolve } from 'path'
 
 const ROOT = resolve(import.meta.dir, '..')
 const PLUGIN_ROOT = resolve(ROOT, 'plugins/pluxx')
+const EXAMPLE_ROOT = resolve(ROOT, 'example/pluxx')
 
 describe('pluxx dogfood plugin', () => {
   it('ships a repo-local Codex plugin manifest and marketplace entry', () => {
@@ -35,9 +36,12 @@ describe('pluxx dogfood plugin', () => {
   it('defines the expected skill pack with valid frontmatter', () => {
     const skills = [
       'pluxx-import-mcp',
+      'pluxx-migrate-plugin',
+      'pluxx-validate-scaffold',
       'pluxx-refine-taxonomy',
       'pluxx-rewrite-instructions',
       'pluxx-review-scaffold',
+      'pluxx-build-install',
       'pluxx-sync-mcp',
     ]
 
@@ -52,6 +56,51 @@ describe('pluxx dogfood plugin', () => {
       expect(content.startsWith('---\n')).toBe(true)
       expect(content).toContain(`name: ${skill}`)
       expect(content).toContain('description:')
+    }
+  })
+
+  it('keeps the self-hosted example source aligned with the operator model', () => {
+    const configPath = resolve(EXAMPLE_ROOT, 'pluxx.config.ts')
+    const instructionsPath = resolve(EXAMPLE_ROOT, 'INSTRUCTIONS.md')
+    const commands = [
+      'import-mcp',
+      'migrate-plugin',
+      'validate-scaffold',
+      'refine-taxonomy',
+      'rewrite-instructions',
+      'review-scaffold',
+      'build-install',
+      'sync-mcp',
+    ]
+    const skills = [
+      'pluxx-import-mcp',
+      'pluxx-migrate-plugin',
+      'pluxx-validate-scaffold',
+      'pluxx-refine-taxonomy',
+      'pluxx-rewrite-instructions',
+      'pluxx-review-scaffold',
+      'pluxx-build-install',
+      'pluxx-sync-mcp',
+    ]
+
+    expect(existsSync(configPath)).toBe(true)
+    expect(existsSync(instructionsPath)).toBe(true)
+
+    const config = readFileSync(configPath, 'utf-8')
+    const instructions = readFileSync(instructionsPath, 'utf-8')
+
+    expect(config).toContain("skills: './skills/'")
+    expect(config).toContain("commands: './commands/'")
+    expect(instructions).toContain('### CLI Resolution')
+
+    for (const command of commands) {
+      expect(existsSync(resolve(EXAMPLE_ROOT, `commands/${command}.md`))).toBe(true)
+    }
+
+    for (const skill of skills) {
+      const skillPath = resolve(EXAMPLE_ROOT, `skills/${skill}/SKILL.md`)
+      expect(existsSync(skillPath)).toBe(true)
+      expect(readFileSync(skillPath, 'utf-8')).toContain(`name: ${skill}`)
     }
   })
 })

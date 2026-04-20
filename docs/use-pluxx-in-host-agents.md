@@ -29,30 +29,39 @@ you in Claude/Codex/Cursor/OpenCode
 So the host agent is the operator.
 Pluxx is the plugin-authoring substrate underneath it.
 
-## The Five Main Pluxx Workflows
+## The Main Pluxx Workflows
 
-The bundled Pluxx skill pack is organized around five jobs:
+The recommended Pluxx skill pack is organized around eight jobs:
 
 - `pluxx-import-mcp`
+- `pluxx-migrate-plugin`
+- `pluxx-validate-scaffold`
 - `pluxx-refine-taxonomy`
 - `pluxx-rewrite-instructions`
 - `pluxx-review-scaffold`
+- `pluxx-build-install`
 - `pluxx-sync-mcp`
 
 Those correspond to:
 
 1. import an MCP and scaffold a plugin
-2. improve the skill taxonomy
-3. rewrite the shared instructions
-4. review the scaffold critically
-5. refresh the scaffold when the MCP changes
+2. migrate an existing host-native plugin into Pluxx
+3. validate the scaffold deterministically
+4. improve the skill taxonomy
+5. rewrite the shared instructions
+6. review the scaffold critically
+7. build native outputs and optionally install them
+8. refresh the scaffold when the MCP changes
 
 The self-hosting plugin also exposes matching explicit commands in hosts that support plugin commands:
 
 - `/pluxx:import-mcp`
+- `/pluxx:migrate-plugin`
+- `/pluxx:validate-scaffold`
 - `/pluxx:refine-taxonomy`
 - `/pluxx:rewrite-instructions`
 - `/pluxx:review-scaffold`
+- `/pluxx:build-install`
 - `/pluxx:sync-mcp`
 
 Use commands when you want a direct host-native entrypoint in Claude Code, Cursor, or OpenCode. In Codex, use `@pluxx` and the skill list instead; `/` is reserved for native Codex commands. Use skills when you want the host agent to choose the right Pluxx workflow automatically.

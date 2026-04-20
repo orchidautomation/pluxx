@@ -8,3 +8,4 @@ bun.lockb
 example/*/dist/
 examples/*/dist/
 tests/.install-fixture/
+*.swp

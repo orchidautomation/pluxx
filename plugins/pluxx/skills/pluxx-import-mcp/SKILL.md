@@ -14,19 +14,19 @@ Use this skill when the task is: bring an MCP server into Pluxx, generate the in
    - local stdio command
    - auth requirements, especially env vars or custom headers
 2. Prefer a deterministic first pass:
-   - use `bunx pluxx init --from-mcp ... --yes`
+   - use `pluxx init --from-mcp ... --yes`
    - include `--display-name`, `--targets`, `--grouping`, and auth flags when needed
 3. If there is supporting context, prepare the agent pack:
-   - `bunx pluxx agent prepare --website ... --docs ...`
+   - `pluxx agent prepare --website ... --docs ...`
 4. Show the user what was generated:
    - `pluxx.config.ts`
    - `INSTRUCTIONS.md`
    - `skills/*/SKILL.md`
    - `.pluxx/mcp.json`
 5. Validate immediately:
-   - `bunx pluxx doctor`
-   - `bunx pluxx lint`
-   - `bunx pluxx test --target claude-code cursor codex opencode`
+   - `pluxx doctor`
+   - `pluxx lint`
+   - `pluxx test --target claude-code cursor codex opencode`
 
 ## Rules
 
