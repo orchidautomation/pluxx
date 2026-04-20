@@ -433,12 +433,26 @@ describe('migrate', () => {
     expect(config).toContain("instructions: './README.md'")
     expect(config).toContain("passthrough: ['./mcp-server/']")
     expect(config).toContain('// Inferred from Claude-style allowed-tools frontmatter.')
-    expect(config).toContain('// Current migrate output flattens skill-scoped tool access into plugin-level canonical permissions.')
+    expect(config).toContain('// Preserved skill-scoped tool access in .pluxx/compiler-intent.json and flattened it into plugin-level canonical permissions as a fallback.')
     expect(config).toContain("permissions: {")
     expect(config).toContain("allow: ['MCP(leadkit.get_lead)', 'Read(*)']")
     expect(existsSync(resolve(outputDir, 'README.md'))).toBe(true)
     expect(existsSync(resolve(outputDir, 'mcp-server/dist/index.js'))).toBe(true)
+    expect(existsSync(resolve(outputDir, '.pluxx/compiler-intent.json'))).toBe(true)
     expect(readFileSync(resolve(outputDir, 'README.md'), 'utf-8')).toContain('Migrated from README instructions.')
+    const compilerIntent = JSON.parse(
+      readFileSync(resolve(outputDir, '.pluxx/compiler-intent.json'), 'utf-8')
+    ) as {
+      skillPolicies: Array<{
+        skillDir: string
+        title: string
+        permissions: { allow?: string[] }
+      }>
+    }
+    expect(compilerIntent.skillPolicies).toHaveLength(1)
+    expect(compilerIntent.skillPolicies[0]?.skillDir).toBe('prospect-research')
+    expect(compilerIntent.skillPolicies[0]?.title).toBe('prospect-research')
+    expect(compilerIntent.skillPolicies[0]?.permissions.allow).toEqual(['MCP(leadkit.get_lead)', 'Read(*)'])
     const migratedSkill = readFileSync(resolve(outputDir, 'skills/prospect-research/SKILL.md'), 'utf-8')
     expect(migratedSkill).not.toContain('allowed-tools:')
   })

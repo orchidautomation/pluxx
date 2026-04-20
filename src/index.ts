@@ -53,4 +53,10 @@ export {
   type PermissionAction,
   type PermissionRuleKind,
 } from './permissions'
+export {
+  PLUXX_COMPILER_INTENT_PATH,
+  readCompilerIntent,
+  type CompilerIntentFile,
+  type CompilerIntentSkillPolicy,
+} from './compiler-intent'
 export { formatPublishPlan, planPublish, runPublish, type PublishAssetPlan, type PublishCheck, type PublishPlan, type PublishPlanOptions, type PublishRunResult } from './cli/publish'

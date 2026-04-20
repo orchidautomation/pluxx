@@ -331,6 +331,50 @@ describe('build', () => {
     expect(codexPermissions.rules.some((rule: { raw: string }) => rule.raw === 'Read(src/**)')).toBe(true)
   })
 
+  it('carries compiler-intent skill policies into the Codex permissions companion when present', async () => {
+    mkdirSync(resolve(TEST_DIR, '.pluxx'), { recursive: true })
+    await Bun.write(
+      resolve(TEST_DIR, '.pluxx/compiler-intent.json'),
+      JSON.stringify({
+        version: 1,
+        skillPolicies: [{
+          skillDir: 'hello',
+          title: 'hello',
+          description: 'Say hello',
+          source: {
+            kind: 'claude-allowed-tools',
+            platform: 'claude-code',
+          },
+          permissions: {
+            allow: ['Read(*)', 'MCP(test-server.greet)'],
+          },
+        }],
+      }, null, 2) + '\n',
+    )
+
+    const permissionConfig: PluginConfig = {
+      ...testConfig,
+      name: 'intent-plugin',
+      permissions: {
+        allow: ['Read(src/**)'],
+      },
+      targets: ['codex'],
+      outDir: './intent-dist',
+    }
+
+    await build(permissionConfig, TEST_DIR)
+
+    const codexPermissions = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'intent-dist/codex/.codex/permissions.generated.json'), 'utf-8')
+    ) as {
+      skillPolicies?: Array<{ skillDir: string; permissions: { allow?: string[] } }>
+    }
+
+    expect(codexPermissions.skillPolicies).toHaveLength(1)
+    expect(codexPermissions.skillPolicies?.[0]?.skillDir).toBe('hello')
+    expect(codexPermissions.skillPolicies?.[0]?.permissions.allow).toEqual(['Read(*)', 'MCP(test-server.greet)'])
+  })
+
   it('writes documented manifest paths for Claude Code, Cursor, and Codex plugin components', async () => {
     const claudeManifest = JSON.parse(
       readFileSync(resolve(OUT_DIR, 'claude-code/.claude-plugin/plugin.json'), 'utf-8')

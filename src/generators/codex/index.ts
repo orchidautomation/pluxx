@@ -120,16 +120,19 @@ export class CodexGenerator extends Generator {
   }
 
   private async generatePermissionsCompanion(): Promise<void> {
-    if (!this.config.permissions) return
-
+    const compilerIntent = this.getCompilerIntent()
     const rules = collectPermissionRules(this.config.permissions)
-    if (rules.length === 0) return
+    const skillPolicies = compilerIntent?.skillPolicies ?? []
+    if (rules.length === 0 && skillPolicies.length === 0) return
 
     await this.writeJson('.codex/permissions.generated.json', {
       model: 'pluxx.permissions.v1',
       enforcedByPluginBundle: false,
-      note: 'Codex permissions are configured externally. Use this file as a generated mirror of canonical rules for Codex user/admin policy or hook configuration.',
+      note: skillPolicies.length > 0
+        ? 'Codex permissions are configured externally. Use this file as a generated mirror of canonical rules for Codex user/admin policy or hook configuration. skillPolicies preserves migrated skill-scoped intent that cannot yet be enforced directly by the plugin bundle.'
+        : 'Codex permissions are configured externally. Use this file as a generated mirror of canonical rules for Codex user/admin policy or hook configuration.',
       rules,
+      ...(skillPolicies.length > 0 ? { skillPolicies } : {}),
     })
   }
 

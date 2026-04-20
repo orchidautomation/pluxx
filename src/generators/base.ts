@@ -1,6 +1,7 @@
 import { resolve, join, relative } from 'path'
 import { mkdirSync, existsSync, cpSync } from 'fs'
 import type { PluginConfig, TargetPlatform, McpServer } from '../schema'
+import { readCompilerIntent, type CompilerIntentFile } from '../compiler-intent'
 
 type McpRemoteServer = Exclude<McpServer, { transport: 'stdio' }>
 
@@ -61,6 +62,11 @@ export abstract class Generator {
       )
     }
     return resolvedPath
+  }
+
+  /** Read internal compiler intent emitted by migrate/autopilot when present. */
+  protected getCompilerIntent(): CompilerIntentFile | undefined {
+    return readCompilerIntent(this.rootDir)
   }
 
   /** Copy skills directory, applying any platform-specific frontmatter */

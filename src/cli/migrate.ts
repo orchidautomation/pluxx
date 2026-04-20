@@ -7,6 +7,11 @@ import {
   type PersistedSkill,
 } from './init-from-mcp'
 import type { McpServer } from '../schema'
+import {
+  PLUXX_COMPILER_INTENT_PATH,
+  type CompilerIntentFile,
+  type CompilerIntentSkillPolicy,
+} from '../compiler-intent'
 
 type DetectedPlatform = 'claude-code' | 'cursor' | 'codex' | 'opencode'
 
@@ -72,6 +77,7 @@ interface MigrateResult {
   instructions?: string
   sourcePaths: CanonicalSourcePaths
   persistedSkills: PersistedSkill[]
+  compilerIntent?: CompilerIntentFile
 }
 
 // ── Platform Detection ──────────────────────────────────────────
@@ -522,16 +528,18 @@ function normalizeMigratedAllowedTool(rawTool: string): string | undefined {
 
 function inferPermissionsFromMigratedSkills(pluginDir: string, sourcePaths: CanonicalSourcePaths): {
   permissions?: { allow?: string[] }
+  skillPolicies: CompilerIntentSkillPolicy[]
   notes: string[]
 } {
   if (!sourcePaths.skills) {
-    return { notes: [] }
+    return { notes: [], skillPolicies: [] }
   }
 
   const skillsDir = resolve(pluginDir, stripRelativePrefix(sourcePaths.skills))
   const entries = readdirSync(skillsDir, { withFileTypes: true })
   const allow = new Set<string>()
   const notes: string[] = []
+  const skillPolicies: CompilerIntentSkillPolicy[] = []
   let sawAllowedTools = false
 
   for (const entry of entries) {
@@ -549,19 +557,35 @@ function inferPermissionsFromMigratedSkills(pluginDir: string, sourcePaths: Cano
     for (const rule of inferredRules) {
       allow.add(rule)
     }
+
+    skillPolicies.push({
+      skillDir: entry.name,
+      title: extractFrontmatterField(content, 'name')
+        ?? firstHeading(content)
+        ?? titleCaseFromDirName(entry.name),
+      description: extractFrontmatterField(content, 'description'),
+      source: {
+        kind: 'claude-allowed-tools',
+        platform: 'claude-code',
+      },
+      permissions: {
+        allow: [...new Set(inferredRules)].sort(),
+      },
+    })
   }
 
   if (!sawAllowedTools || allow.size === 0) {
-    return { notes: [] }
+    return { notes: [], skillPolicies: [] }
   }
 
   notes.push('Inferred from Claude-style allowed-tools frontmatter.')
-  notes.push('Current migrate output flattens skill-scoped tool access into plugin-level canonical permissions.')
+  notes.push(`Preserved skill-scoped tool access in ${PLUXX_COMPILER_INTENT_PATH} and flattened it into plugin-level canonical permissions as a fallback.`)
 
   return {
     permissions: {
       allow: [...allow].sort(),
     },
+    skillPolicies,
     notes,
   }
 }
@@ -966,6 +990,7 @@ function buildMigratedScaffoldMetadata(result: MigrateResult, outputDir: string)
     'pluxx.config.ts',
     MCP_TAXONOMY_PATH,
     MCP_SCAFFOLD_METADATA_PATH,
+    ...(result.compilerIntent ? [PLUXX_COMPILER_INTENT_PATH] : []),
   ]
 
   return {
@@ -1287,6 +1312,14 @@ export async function migrate(inputPath: string): Promise<void> {
     instructions,
     sourcePaths,
     persistedSkills,
+    ...(inferredPermissions.skillPolicies.length > 0
+      ? {
+          compilerIntent: {
+            version: 1,
+            skillPolicies: inferredPermissions.skillPolicies,
+          },
+        }
+      : {}),
   }
 
   // 8. Generate config
@@ -1326,8 +1359,19 @@ export async function migrate(inputPath: string): Promise<void> {
   const metadataPath = resolve(outputDir, MCP_SCAFFOLD_METADATA_PATH)
   mkdirSync(resolve(outputDir, '.pluxx'), { recursive: true })
   await Bun.write(taxonomyPath, `${JSON.stringify(result.persistedSkills, null, 2)}\n`)
+  if (result.compilerIntent) {
+    await Bun.write(
+      resolve(outputDir, PLUXX_COMPILER_INTENT_PATH),
+      `${JSON.stringify(result.compilerIntent, null, 2)}\n`,
+    )
+  }
   await Bun.write(metadataPath, `${JSON.stringify(buildMigratedScaffoldMetadata(result, outputDir), null, 2)}\n`)
-  console.log(`Generated: ${MCP_TAXONOMY_PATH}, ${MCP_SCAFFOLD_METADATA_PATH}`)
+  const generatedPluxxFiles = [
+    MCP_TAXONOMY_PATH,
+    ...(result.compilerIntent ? [PLUXX_COMPILER_INTENT_PATH] : []),
+    MCP_SCAFFOLD_METADATA_PATH,
+  ]
+  console.log(`Generated: ${generatedPluxxFiles.join(', ')}`)
 
   console.log('')
   console.log('Migration complete! Next steps:')
