@@ -20,6 +20,10 @@ describe('pluxx dogfood plugin', () => {
       interface: {
         displayName: string
         defaultPrompt: string[]
+        composerIcon?: string
+        logo?: string
+        screenshots?: string[]
+        websiteURL?: string
       }
     }
     const marketplace = JSON.parse(readFileSync(marketplacePath, 'utf-8')) as {
@@ -30,6 +34,13 @@ describe('pluxx dogfood plugin', () => {
     expect(manifest.skills).toBe('./skills/')
     expect(manifest.interface.displayName).toBe('Pluxx')
     expect(manifest.interface.defaultPrompt.length).toBeLessThanOrEqual(3)
+    expect(manifest.interface.websiteURL).toBe('https://pluxx.dev')
+    expect(manifest.interface.composerIcon).toBe('./assets/icon/pluxx-icon.svg')
+    expect(manifest.interface.logo).toBe('./assets/icon/pluxx-icon.svg')
+    expect(manifest.interface.screenshots).toEqual([
+      './assets/screenshots/import-workflow.svg',
+      './assets/screenshots/build-install-workflow.svg',
+    ])
     expect(marketplace.plugins.some((plugin) => plugin.name === 'pluxx' && plugin.source.path === './plugins/pluxx')).toBe(true)
   })
 

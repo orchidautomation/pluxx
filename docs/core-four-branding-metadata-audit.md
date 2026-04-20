@@ -70,7 +70,7 @@ Legend:
 | `icon` | Y | N | Y (`plugin.json.logo`) | Y (`interface.composerIcon`, `interface.logo`) | N | Cursor: Y; Codex: Y | Cursor and Codex both consume icon through different fields |
 | `defaultPrompts` | Y | N | N | Y (`interface.defaultPrompt`) | N | Codex: Y; others: N | Verified in Megamind and Pluxx |
 | `websiteURL` | Y | N | Y (`plugin.json.homepage`) | Y (`interface.websiteURL`) | N | Cursor: Y; Codex: Y | Verified in Megamind and Pluxx |
-| `screenshots` | Y | N | N | Y (`interface.screenshots`) | N | Codex: Y when provided | No in-repo example currently sets `brand.screenshots` |
+| `screenshots` | Y | N | N | Y (`interface.screenshots`) | N | Codex: Y when provided | `example/pluxx` now sets `brand.screenshots` |
 | `privacyPolicyURL` | Y | N | N | Y (`interface.privacyPolicyURL`) | N | Codex: Y; others: N | Now mapped from shared `brand` into Codex |
 | `termsOfServiceURL` | Y | N | N | Y (`interface.termsOfServiceURL`) | N | Codex: Y; others: N | Now mapped from shared `brand` into Codex |
 

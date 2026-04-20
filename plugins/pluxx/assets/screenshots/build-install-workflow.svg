@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">Pluxx build and install workflow screenshot</title>
+  <desc id="desc">Illustrated plugin screenshot showing cross-host build and local install flow from one Pluxx project.</desc>
+  <rect width="1200" height="760" fill="#090612"/>
+  <rect x="56" y="48" width="1088" height="664" rx="28" fill="#120d1f" stroke="#2b2045"/>
+  <text x="92" y="110" fill="#ece5f8" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="700">Build once. Install the host you want to test.</text>
+  <text x="92" y="154" fill="#b9b0cb" font-family="Inter, Arial, sans-serif" font-size="22">Pluxx keeps the source project stable while each host gets its native bundle.</text>
+  <rect x="92" y="198" width="1016" height="116" rx="18" fill="#0d0a16" stroke="#2b2045"/>
+  <text x="122" y="246" fill="#9d6dff" font-family="'SFMono-Regular', monospace" font-size="24">$ pluxx build --target claude-code cursor codex opencode</text>
+  <text x="122" y="282" fill="#cfc5e1" font-family="'SFMono-Regular', monospace" font-size="21">$ pluxx install --target claude-code</text>
+  <g transform="translate(92 360)">
+    <rect width="220" height="214" rx="18" fill="#0d0a16" stroke="#2b2045"/>
+    <text x="24" y="44" fill="#ece5f8" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700">Claude</text>
+    <text x="24" y="90" fill="#cfc5e1" font-family="Inter, Arial, sans-serif" font-size="20">Commands</text>
+    <text x="24" y="124" fill="#cfc5e1" font-family="Inter, Arial, sans-serif" font-size="20">Skills</text>
+    <text x="24" y="158" fill="#cfc5e1" font-family="Inter, Arial, sans-serif" font-size="20">CLAUDE.md</text>
+  </g>
+  <g transform="translate(348 360)">
+    <rect width="220" height="214" rx="18" fill="#0d0a16" stroke="#2b2045"/>
+    <text x="24" y="44" fill="#ece5f8" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700">Cursor</text>
+    <text x="24" y="90" fill="#cfc5e1" font-family="Inter, Arial, sans-serif" font-size="20">Commands</text>
+    <text x="24" y="124" fill="#cfc5e1" font-family="Inter, Arial, sans-serif" font-size="20">Skills</text>
+    <text x="24" y="158" fill="#cfc5e1" font-family="Inter, Arial, sans-serif" font-size="20">AGENTS.md</text>
+  </g>
+  <g transform="translate(604 360)">
+    <rect width="220" height="214" rx="18" fill="#0d0a16" stroke="#2b2045"/>
+    <text x="24" y="44" fill="#ece5f8" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700">Codex</text>
+    <text x="24" y="90" fill="#cfc5e1" font-family="Inter, Arial, sans-serif" font-size="20">Skills</text>
+    <text x="24" y="124" fill="#cfc5e1" font-family="Inter, Arial, sans-serif" font-size="20">AGENTS.md</text>
+    <text x="24" y="158" fill="#cfc5e1" font-family="Inter, Arial, sans-serif" font-size="20">Rich interface metadata</text>
+  </g>
+  <g transform="translate(860 360)">
+    <rect width="220" height="214" rx="18" fill="#0d0a16" stroke="#2b2045"/>
+    <text x="24" y="44" fill="#ece5f8" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700">OpenCode</text>
+    <text x="24" y="90" fill="#cfc5e1" font-family="Inter, Arial, sans-serif" font-size="20">Commands</text>
+    <text x="24" y="124" fill="#cfc5e1" font-family="Inter, Arial, sans-serif" font-size="20">Skills</text>
+    <text x="24" y="158" fill="#cfc5e1" font-family="Inter, Arial, sans-serif" font-size="20">Runtime wrapper</text>
+  </g>
+</svg>

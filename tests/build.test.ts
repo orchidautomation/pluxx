@@ -19,7 +19,10 @@ const testConfig: PluginConfig = {
     shortDescription: 'A test plugin for testing',
     category: 'Productivity',
     color: '#FF0000',
+    icon: './assets/icon.svg',
+    screenshots: ['./assets/screenshots/overview.svg'],
     defaultPrompts: ['Hello from test plugin'],
+    websiteURL: 'https://example.com',
     privacyPolicyURL: 'https://example.com/privacy',
     termsOfServiceURL: 'https://example.com/terms',
   },
@@ -109,6 +112,8 @@ beforeAll(async () => {
   await Bun.write(resolve(TEST_DIR, 'scripts/confirm-mutation.sh'), '#!/usr/bin/env bash\n')
   mkdirSync(resolve(TEST_DIR, 'assets/'), { recursive: true })
   await Bun.write(resolve(TEST_DIR, 'assets/icon.svg'), '<svg />\n')
+  mkdirSync(resolve(TEST_DIR, 'assets/screenshots'), { recursive: true })
+  await Bun.write(resolve(TEST_DIR, 'assets/screenshots/overview.svg'), '<svg />\n')
   mkdirSync(resolve(TEST_DIR, 'mcp-server/dist'), { recursive: true })
   await Bun.write(resolve(TEST_DIR, 'mcp-server/dist/index.js'), 'console.log("mcp")\n')
   await Bun.write(resolve(TEST_DIR, 'INSTRUCTIONS.md'), 'Use test-plugin consistently.\n')
@@ -278,9 +283,21 @@ describe('build', () => {
     )
     expect(manifest.interface.displayName).toBe('Test Plugin')
     expect(manifest.interface.brandColor).toBe('#FF0000')
+    expect(manifest.interface.composerIcon).toBe('./assets/icon.svg')
+    expect(manifest.interface.logo).toBe('./assets/icon.svg')
+    expect(manifest.interface.screenshots).toEqual(['./assets/screenshots/overview.svg'])
+    expect(manifest.interface.websiteURL).toBe('https://example.com')
     expect(manifest.interface.defaultPrompt).toEqual(['Hello from test plugin'])
     expect(manifest.interface.privacyPolicyURL).toBe('https://example.com/privacy')
     expect(manifest.interface.termsOfServiceURL).toBe('https://example.com/terms')
+  })
+
+  it('generates Cursor manifest with homepage and logo metadata', async () => {
+    const manifest = JSON.parse(
+      readFileSync(resolve(OUT_DIR, 'cursor/.cursor-plugin/plugin.json'), 'utf-8')
+    )
+    expect(manifest.homepage).toBe('https://example.com')
+    expect(manifest.logo).toBe('./assets/icon.svg')
   })
 
   it('generates OpenCode plugin wrapper with env var check', async () => {

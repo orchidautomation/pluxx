@@ -18,19 +18,25 @@ export default definePlugin({
     longDescription: 'Use Pluxx inside Claude Code, Cursor, Codex, or OpenCode to import MCPs, migrate existing plugins, validate scaffolds, refine taxonomy and instructions, build native outputs, and keep plugin projects synced over time.',
     category: 'Productivity',
     color: '#0F172A',
+    icon: './assets/icon/pluxx-icon.svg',
+    screenshots: [
+      './assets/screenshots/import-workflow.svg',
+      './assets/screenshots/build-install-workflow.svg',
+    ],
     defaultPrompts: [
       'Use Pluxx to import or migrate this plugin into a maintained Pluxx project and validate the first pass.',
       'Use Pluxx to refine the taxonomy and instructions in this scaffold, then rerun validation safely.',
       'Use Pluxx to build this scaffold for the core four and install the target I want to test.',
     ],
-    websiteURL: 'https://github.com/orchidautomation/pluxx',
-    privacyPolicyURL: 'https://github.com/orchidautomation/pluxx',
-    termsOfServiceURL: 'https://github.com/orchidautomation/pluxx',
+    websiteURL: 'https://pluxx.dev',
+    privacyPolicyURL: 'https://docs.pluxx.dev/reference/privacy-policy',
+    termsOfServiceURL: 'https://docs.pluxx.dev/reference/terms-of-service',
   },
 
   skills: './skills/',
   commands: './commands/',
   instructions: './INSTRUCTIONS.md',
+  assets: './assets/',
 
   platforms: {
     codex: {

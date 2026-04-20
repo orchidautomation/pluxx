@@ -29,15 +29,20 @@
       "Read",
       "Write"
     ],
-    "websiteURL": "https://github.com/orchidautomation/pluxx",
-    "privacyPolicyURL": "https://github.com/orchidautomation/pluxx",
-    "termsOfServiceURL": "https://github.com/orchidautomation/pluxx",
+    "websiteURL": "https://pluxx.dev",
+    "privacyPolicyURL": "https://docs.pluxx.dev/reference/privacy-policy",
+    "termsOfServiceURL": "https://docs.pluxx.dev/reference/terms-of-service",
     "defaultPrompt": [
       "Use Pluxx to import or migrate this plugin into a maintained project and validate the result.",
       "Use Pluxx to refine this scaffold safely, then rerun validation.",
       "Use Pluxx to build this scaffold for the core four and install the target I want to test."
     ],
     "brandColor": "#0F172A",
-    "screenshots": []
+    "composerIcon": "./assets/icon/pluxx-icon.svg",
+    "logo": "./assets/icon/pluxx-icon.svg",
+    "screenshots": [
+      "./assets/screenshots/import-workflow.svg",
+      "./assets/screenshots/build-install-workflow.svg"
+    ]
   }
 }
