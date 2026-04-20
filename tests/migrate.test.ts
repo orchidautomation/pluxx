@@ -282,6 +282,60 @@ async function setupOpenCodeNativeCommandSource() {
   return sourceDir
 }
 
+async function setupOpenCodeNativeAgentSource() {
+  const sourceDir = resolve(TEST_DIR, 'source-opencode-native-agents')
+  mkdirSync(resolve(sourceDir, '.opencode/agents'), { recursive: true })
+  mkdirSync(resolve(sourceDir, 'skills/opportunity-review'), { recursive: true })
+
+  await writeJson(resolve(sourceDir, 'package.json'), {
+    name: 'opencode-native-agents',
+    version: '0.5.0',
+    description: 'OpenCode-native agent fixture.',
+    author: { name: 'Orchid' },
+    type: 'module',
+    dependencies: {
+      '@opencode-ai/plugin': '^0.0.1',
+    },
+  })
+
+  await writeJson(resolve(sourceDir, '.mcp.json'), {
+    mcpServers: {
+      fixture: {
+        url: 'https://example.com/mcp',
+      },
+    },
+  })
+
+  await Bun.write(
+    resolve(sourceDir, 'skills/opportunity-review/SKILL.md'),
+    ['---', 'name: opportunity-review', 'description: "Review an opportunity."', '---', '', '# Opportunity Review'].join('\n'),
+  )
+  await Bun.write(
+    resolve(sourceDir, '.opencode/agents/review.md'),
+    [
+      '---',
+      'mode: subagent',
+      'hidden: true',
+      'permission:',
+      '  edit: deny',
+      '  bash:',
+      '    "*": ask',
+      '    "git diff": allow',
+      '  task:',
+      '    "*": deny',
+      '    "review-*": allow',
+      '---',
+      '',
+      '# Review Specialist',
+      '',
+      'Only analyze code and suggest changes.',
+      '',
+    ].join('\n'),
+  )
+
+  return sourceDir
+}
+
 beforeEach(() => {
   rmSync(TEST_DIR, { recursive: true, force: true })
   mkdirSync(TEST_DIR, { recursive: true })
@@ -448,5 +502,32 @@ describe('migrate', () => {
     expect(config).toContain("commands: './commands/'")
     expect(existsSync(resolve(outputDir, 'commands/research.md'))).toBe(true)
     expect(readFileSync(resolve(outputDir, 'commands/research.md'), 'utf-8')).toContain('OpenCode-native command.')
+  })
+
+  it('normalizes OpenCode native agents into canonical markdown while preserving agent permissions', async () => {
+    const sourceDir = await setupOpenCodeNativeAgentSource()
+    const outputDir = resolve(TEST_DIR, 'out-opencode-native-agents')
+    mkdirSync(outputDir, { recursive: true })
+
+    const previousCwd = process.cwd()
+    process.chdir(outputDir)
+    try {
+      await migrate(sourceDir)
+    } finally {
+      process.chdir(previousCwd)
+    }
+
+    const config = readFileSync(resolve(outputDir, 'pluxx.config.ts'), 'utf-8')
+    expect(config).toContain("agents: './agents/'")
+
+    const migratedAgent = readFileSync(resolve(outputDir, 'agents/review.md'), 'utf-8')
+    expect(migratedAgent).toContain('name: "review"')
+    expect(migratedAgent).toContain('description: "Review Specialist"')
+    expect(migratedAgent).toContain('mode: subagent')
+    expect(migratedAgent).toContain('hidden: true')
+    expect(migratedAgent).toContain('permission:')
+    expect(migratedAgent).toContain('edit: deny')
+    expect(migratedAgent).toContain('"git diff": allow')
+    expect(migratedAgent).toContain('"review-*": allow')
   })
 })

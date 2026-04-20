@@ -1,4 +1,4 @@
-import { resolve } from 'path'
+import { basename, relative, resolve } from 'path'
 import { existsSync, readdirSync, mkdirSync, cpSync, readFileSync, writeFileSync } from 'fs'
 import {
   MCP_SCAFFOLD_METADATA_PATH,
@@ -731,6 +731,131 @@ function renderMigratedAgentMarkdown(fileStem: string, parsed: ParsedCodexAgent)
   return frontmatter.join('\n')
 }
 
+function buildFallbackAgentDescription(agentName: string): string {
+  return `Migrated ${titleCaseFromDirName(agentName)} agent.`
+}
+
+function splitMarkdownFrontmatter(content: string): {
+  hasFrontmatter: boolean
+  frontmatterLines: string[]
+  body: string
+} {
+  const lines = content.split(/\r?\n/)
+  if (lines[0]?.trim() !== '---') {
+    return {
+      hasFrontmatter: false,
+      frontmatterLines: [],
+      body: content,
+    }
+  }
+
+  let endIndex = -1
+  for (let i = 1; i < lines.length; i += 1) {
+    if (lines[i].trim() === '---') {
+      endIndex = i
+      break
+    }
+  }
+
+  if (endIndex === -1) {
+    return {
+      hasFrontmatter: false,
+      frontmatterLines: [],
+      body: content,
+    }
+  }
+
+  return {
+    hasFrontmatter: true,
+    frontmatterLines: lines.slice(1, endIndex),
+    body: lines.slice(endIndex + 1).join('\n'),
+  }
+}
+
+function hasTopLevelFrontmatterKey(frontmatterLines: string[], key: string): boolean {
+  return frontmatterLines.some((line) => {
+    if (/^\s/.test(line)) return false
+    const match = line.match(/^([A-Za-z0-9_-]+)\s*:/)
+    return match?.[1] === key
+  })
+}
+
+function normalizeMigratedOpenCodeAgentFile(agentPath: string): boolean {
+  const original = readFileSync(agentPath, 'utf-8')
+  const parsed = splitMarkdownFrontmatter(original)
+  const fileStem = toKebabCase(basename(agentPath, '.md')) || 'agent'
+  const fallbackDescription = buildFallbackAgentDescription(fileStem)
+
+  if (!parsed.hasFrontmatter) {
+    const rewritten = [
+      '---',
+      `name: ${JSON.stringify(fileStem)}`,
+      `description: ${JSON.stringify(fallbackDescription)}`,
+      '---',
+      '',
+      original.trimEnd(),
+      '',
+    ].join('\n')
+    writeFileSync(agentPath, rewritten, 'utf-8')
+    return true
+  }
+
+  const additions: string[] = []
+  if (!hasTopLevelFrontmatterKey(parsed.frontmatterLines, 'name')) {
+    additions.push(`name: ${JSON.stringify(fileStem)}`)
+  }
+  if (!hasTopLevelFrontmatterKey(parsed.frontmatterLines, 'description')) {
+    const inferredDescription = firstHeading(parsed.body) ?? fallbackDescription
+    additions.push(`description: ${JSON.stringify(inferredDescription)}`)
+  }
+
+  if (additions.length === 0) {
+    return false
+  }
+
+  const rewritten = [
+    '---',
+    ...additions,
+    ...parsed.frontmatterLines,
+    '---',
+    parsed.body,
+  ].join('\n')
+
+  writeFileSync(agentPath, rewritten, 'utf-8')
+  return true
+}
+
+function walkMarkdownFiles(dir: string): string[] {
+  const entries = readdirSync(dir, { withFileTypes: true })
+  const files: string[] = []
+
+  for (const entry of entries) {
+    const fullPath = resolve(dir, entry.name)
+    if (entry.isDirectory()) {
+      files.push(...walkMarkdownFiles(fullPath))
+      continue
+    }
+    if (entry.isFile() && entry.name.endsWith('.md')) {
+      files.push(fullPath)
+    }
+  }
+
+  return files
+}
+
+function normalizeMigratedOpenCodeAgents(destDir: string): string[] {
+  if (!existsSync(destDir)) return []
+
+  const normalized: string[] = []
+  for (const filePath of walkMarkdownFiles(destDir)) {
+    if (normalizeMigratedOpenCodeAgentFile(filePath)) {
+      normalized.push(relative(destDir, filePath).replace(/\\/g, '/'))
+    }
+  }
+
+  return normalized.sort()
+}
+
 function copyCodexAgents(sourceDir: string, destDir: string): boolean {
   const entries = readdirSync(sourceDir, { withFileTypes: true })
   const tomlEntries = entries.filter((entry) => entry.isFile() && entry.name.endsWith('.toml'))
@@ -904,6 +1029,9 @@ function copyDirectories(
       : false
     if (!copiedCodexAgents) {
       cpSync(src, dest, { recursive: true })
+    }
+    if (dir === 'agents' && normalizedSource === '.opencode/agents') {
+      normalizeMigratedOpenCodeAgents(dest)
     }
     copied.push(dir)
   }
