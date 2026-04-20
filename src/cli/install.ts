@@ -747,6 +747,14 @@ function getClaudeMarketplaceRoot(pluginName: string): string {
   return resolve(home, '.claude/plugins/data', getClaudeMarketplaceName(pluginName))
 }
 
+export function resolveInstalledConsumerPath(target: PlannedInstallTarget, pluginName: string): string {
+  if (target.platform === 'claude-code') {
+    return resolve(getClaudeMarketplaceRoot(pluginName), 'plugins', pluginName)
+  }
+
+  return target.pluginDir
+}
+
 function ensureClaudeMarketplace(
   pluginName: string,
   sourceDir: string,

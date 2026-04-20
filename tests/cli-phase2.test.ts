@@ -405,12 +405,20 @@ describe('Phase 2 CLI flows', () => {
         install?: {
           enabled: boolean
           installTargets: Array<{ platform: string }>
+          verification?: {
+            ok: boolean
+            checks: Array<{ platform: string; ok: boolean; consumerPath: string }>
+          }
         }
       }
 
       expect(summary.ok).toBe(true)
       expect(summary.install?.enabled).toBe(true)
       expect(summary.install?.installTargets[0]?.platform).toBe('codex')
+      expect(summary.install?.verification?.ok).toBe(true)
+      expect(summary.install?.verification?.checks[0]?.platform).toBe('codex')
+      expect(summary.install?.verification?.checks[0]?.ok).toBe(true)
+      expect(summary.install?.verification?.checks[0]?.consumerPath).toContain('.codex/plugins/install-test-fixture')
       expect(existsSync(resolve(homeDir, '.codex/plugins/install-test-fixture'))).toBe(true)
       expect(existsSync(resolve(homeDir, '.agents/plugins/marketplace.json'))).toBe(true)
     } finally {

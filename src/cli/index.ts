@@ -23,6 +23,7 @@ import {
   listHookCommands,
   planInstallPlugin,
   planInstallUserConfig,
+  resolveInstalledConsumerPath,
   resolveInstallUserConfig,
   uninstallPlugin,
 } from './install'
@@ -376,14 +377,29 @@ interface InstallActionSummary {
   installTargets: Array<{
     platform: TargetPlatform
     pluginDir: string
+    consumerPath: string
     built: boolean
     existing: boolean
   }>
+  verification?: {
+    ok: boolean
+    checks: Array<{
+      platform: TargetPlatform
+      consumerPath: string
+      ok: boolean
+      errors: number
+      warnings: number
+      infos: number
+    }>
+  }
 }
 
 async function maybeInstallBuiltOutputs(
   config: Awaited<ReturnType<typeof loadConfig>>,
   platforms: TargetPlatform[],
+  options: {
+    verifyConsumers?: boolean
+  } = {},
 ): Promise<InstallActionSummary | undefined> {
   if (!args.includes('--install')) {
     return undefined
@@ -409,6 +425,34 @@ async function maybeInstallBuiltOutputs(
     })
   }
 
+  const verification = options.verifyConsumers && !runtime.dryRun
+    ? {
+        ok: true,
+        checks: await Promise.all(
+          installPlan
+            .filter((target) => target.built)
+            .map(async (target) => {
+              const consumerPath = resolveInstalledConsumerPath(target, config.name)
+              const report = await doctorConsumer(consumerPath)
+              const ok = report.errors === 0
+
+              return {
+                platform: target.platform,
+                consumerPath,
+                ok,
+                errors: report.errors,
+                warnings: report.warnings,
+                infos: report.infos,
+              }
+            }),
+        ),
+      }
+    : undefined
+
+  if (verification) {
+    verification.ok = verification.checks.every((check) => check.ok)
+  }
+
   return {
     enabled: true,
     platforms,
@@ -416,9 +460,11 @@ async function maybeInstallBuiltOutputs(
     installTargets: installPlan.map((target) => ({
       platform: target.platform,
       pluginDir: target.description,
+      consumerPath: resolveInstalledConsumerPath(target, config.name),
       built: target.built,
       existing: target.existing,
     })),
+    verification,
   }
 }
 
@@ -2634,23 +2680,36 @@ async function runTestCommand() {
   const config = result.config.ok ? await loadConfig() : null
   const platforms = targets ?? config?.targets ?? []
   const install = result.ok && config
-    ? await maybeInstallBuiltOutputs(config, platforms)
+    ? await maybeInstallBuiltOutputs(config, platforms, { verifyConsumers: true })
     : undefined
+  const finalResult = install?.verification
+    ? {
+        ...result,
+        ok: result.ok && install.verification.ok,
+      }
+    : result
 
   if (runtime.jsonOutput) {
     printJson({
-      ...result,
+      ...finalResult,
       install,
     })
     return
   }
 
   if (!runtime.quiet) {
-    printTestResult(result)
+    printTestResult(finalResult)
     if (install) {
       console.log('Installed for local testing:')
       for (const target of install.installTargets) {
         console.log(`  ${target.platform} -> ${target.pluginDir}`)
+      }
+      if (install.verification) {
+        console.log('Installed bundle verification:')
+        for (const check of install.verification.checks) {
+          const prefix = check.ok ? '  PASS' : '  FAIL'
+          console.log(`${prefix} ${check.platform}: ${check.consumerPath}`)
+        }
       }
       for (const note of install.notes) {
         console.log(note)
@@ -2658,7 +2717,7 @@ async function runTestCommand() {
     }
   }
 
-  if (!result.ok) {
+  if (!finalResult.ok) {
     process.exit(1)
   }
 }
