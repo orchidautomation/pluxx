@@ -552,6 +552,13 @@ describe('build', () => {
   it('copies commands and agents to Cursor plugin roots', async () => {
     expect(existsSync(resolve(OUT_DIR, 'cursor/commands/pulse.md'))).toBe(true)
     expect(existsSync(resolve(OUT_DIR, 'cursor/agents/escalation.md'))).toBe(true)
+    const cursorAgent = readFileSync(resolve(OUT_DIR, 'cursor/agents/escalation.md'), 'utf-8')
+    expect(cursorAgent).toContain('name: "escalation"')
+    expect(cursorAgent).toContain('description: "Escalation specialist."')
+    expect(cursorAgent).not.toContain('permission:')
+    expect(cursorAgent).not.toContain('mode: subagent')
+    expect(cursorAgent).toContain('Cursor translation note: stay read-only with respect to file edits')
+    expect(cursorAgent).toContain('Cursor translation note: only delegate to other subagents when the task clearly benefits from specialization.')
   })
 
   it('writes Cursor rules to rules/', async () => {

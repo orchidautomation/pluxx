@@ -2,6 +2,7 @@ import { existsSync } from 'fs'
 import { Generator } from '../base'
 import type { TargetPlatform } from '../../schema'
 import { buildGeneratedPermissionHookScript } from '../../permissions'
+import { type AgentFrontmatterMap, readCanonicalAgentFiles } from '../../agents'
 
 export class CursorGenerator extends Generator {
   readonly platform: TargetPlatform = 'cursor'
@@ -12,12 +13,12 @@ export class CursorGenerator extends Generator {
       this.generateMcpConfig('mcp.json'),
       this.generateHooks(),
       this.generateRules(),
+      this.generateAgents(),
       this.generateAgentsMd(),
     ])
 
     this.copySkills()
     this.copyCommands()
-    this.copyAgents()
     this.copyScripts()
     this.copyAssets()
     this.copyPassthrough()
@@ -156,4 +157,80 @@ export class CursorGenerator extends Generator {
     const content = await Bun.file(srcPath).text()
     await this.writeFile('AGENTS.md', content)
   }
+
+  private async generateAgents(): Promise<void> {
+    if (!this.config.agents) return
+
+    const agentsDir = this.resolveConfigPath(this.config.agents, 'agents')
+    const agents = readCanonicalAgentFiles(agentsDir)
+    if (agents.length === 0) return
+
+    for (const agent of agents) {
+      const frontmatter = [
+        '---',
+        `name: ${JSON.stringify(agent.name)}`,
+        `description: ${JSON.stringify(agent.description ?? `${agent.name} specialist.`)}`,
+      ]
+
+      if (typeof agent.frontmatter.model === 'string' && agent.frontmatter.model) {
+        frontmatter.push(`model: ${JSON.stringify(agent.frontmatter.model)}`)
+      }
+
+      frontmatter.push('---')
+
+      const translatedNotes = buildCursorAgentTranslationNotes(agent.frontmatter)
+      const bodyParts = [
+        ...translatedNotes,
+        agent.body,
+      ].filter(Boolean)
+
+      await this.writeFile(
+        `agents/${agent.fileStem}.md`,
+        `${frontmatter.join('\n')}\n\n${bodyParts.join('\n\n').trim()}\n`,
+      )
+    }
+  }
+}
+
+function buildCursorAgentTranslationNotes(frontmatter: AgentFrontmatterMap): string[] {
+  const notes: string[] = []
+  const permission = asMap(frontmatter.permission)
+
+  if (permission) {
+    const edit = permission.edit
+    if (edit === 'deny') {
+      notes.push('Cursor translation note: stay read-only with respect to file edits unless the parent task explicitly asks for changes.')
+    }
+
+    const bash = asMap(permission.bash)
+    if (bash) {
+      const bashAll = bash['*']
+      if (bashAll === 'deny') {
+        notes.push('Cursor translation note: avoid shell commands unless the parent task explicitly requires them.')
+      } else if (bashAll === 'ask') {
+        notes.push('Cursor translation note: use shell commands sparingly and only when they are clearly necessary to complete the task.')
+      }
+    }
+
+    const task = asMap(permission.task)
+    if (task) {
+      const taskAll = task['*']
+      if (taskAll === 'deny') {
+        notes.push('Cursor translation note: do not delegate to other subagents unless the parent task explicitly asks for parallel specialist work.')
+      } else if (taskAll === 'ask') {
+        notes.push('Cursor translation note: only delegate to other subagents when the task clearly benefits from specialization.')
+      }
+    }
+  }
+
+  if (frontmatter.hidden === true) {
+    notes.push('Cursor translation note: this specialist is intended primarily for delegated use rather than direct invocation.')
+  }
+
+  return notes
+}
+
+function asMap(value: unknown): AgentFrontmatterMap | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  return value as AgentFrontmatterMap
 }
