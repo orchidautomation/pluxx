@@ -107,7 +107,10 @@ describe('install', () => {
   it('installs OpenCode with a root entry file and globally discoverable skills', async () => {
     mkdirSync(resolve(DIST_DIR, 'opencode/skills/client-intel'), { recursive: true })
     await Bun.write(resolve(DIST_DIR, 'opencode/index.ts'), 'export const MegamindPlugin = async () => ({});\n')
-    await Bun.write(resolve(DIST_DIR, 'opencode/skills/client-intel/SKILL.md'), '# Client Intel\n')
+    await Bun.write(
+      resolve(DIST_DIR, 'opencode/skills/client-intel/SKILL.md'),
+      '---\nname: client-intel\ndescription: Client intel\n---\n\n# Client Intel\n',
+    )
 
     await installPlugin(DIST_DIR, 'megamind', ['opencode'], { useNativeClaudeInstall: false })
 
@@ -120,8 +123,8 @@ describe('install', () => {
     expect(existsSync(opencodeEntry)).toBe(true)
     expect(readFileSync(opencodeEntry, 'utf-8')).toContain('import * as PluginModule from "./megamind/index.ts"')
     expect(readFileSync(opencodeEntry, 'utf-8')).toContain('directory: join(context.directory, "megamind")')
-    expect(lstatSync(opencodeSkill).isSymbolicLink()).toBe(true)
-    expect(readlinkSync(opencodeSkill)).toBe(resolve(opencodeInstall, 'skills/client-intel'))
+    expect(lstatSync(opencodeSkill).isSymbolicLink()).toBe(false)
+    expect(readFileSync(resolve(opencodeSkill, 'SKILL.md'), 'utf-8')).toContain('name: megamind/client-intel')
   })
 
   it('removes Codex marketplace entries on uninstall', async () => {
@@ -137,7 +140,10 @@ describe('install', () => {
   it('uninstalls OpenCode wrapper files and exported skills', async () => {
     mkdirSync(resolve(DIST_DIR, 'opencode/skills/client-intel'), { recursive: true })
     await Bun.write(resolve(DIST_DIR, 'opencode/index.ts'), 'export const MegamindPlugin = async () => ({});\n')
-    await Bun.write(resolve(DIST_DIR, 'opencode/skills/client-intel/SKILL.md'), '# Client Intel\n')
+    await Bun.write(
+      resolve(DIST_DIR, 'opencode/skills/client-intel/SKILL.md'),
+      '---\nname: client-intel\ndescription: Client intel\n---\n\n# Client Intel\n',
+    )
 
     await installPlugin(DIST_DIR, 'megamind', ['opencode'], { useNativeClaudeInstall: false })
     await uninstallPlugin('megamind', ['opencode'])
@@ -307,7 +313,10 @@ describe('install', () => {
     await Bun.write(resolve(DIST_DIR, 'codex/.mcp.json'), JSON.stringify({ mcpServers: {} }, null, 2))
     await Bun.write(resolve(DIST_DIR, 'opencode/index.ts'), 'export const plugin = {};\n')
     await Bun.write(resolve(DIST_DIR, 'opencode/package.json'), JSON.stringify({ name: 'opencode-megamind' }, null, 2))
-    await Bun.write(resolve(DIST_DIR, 'opencode/skills/client-intel/SKILL.md'), '# Client Intel\n')
+    await Bun.write(
+      resolve(DIST_DIR, 'opencode/skills/client-intel/SKILL.md'),
+      '---\nname: client-intel\ndescription: Client intel\n---\n\n# Client Intel\n',
+    )
     await Bun.write(resolve(DIST_DIR, 'cursor/scripts/check-env.sh'), '#!/usr/bin/env bash\nexit 1\n')
     await Bun.write(resolve(DIST_DIR, 'codex/scripts/check-env.sh'), '#!/usr/bin/env bash\nexit 1\n')
     await Bun.write(resolve(DIST_DIR, 'opencode/scripts/check-env.sh'), '#!/usr/bin/env bash\nexit 1\n')
@@ -371,8 +380,8 @@ describe('install', () => {
     expect(codexMcp.mcpServers.fixture.http_headers.Authorization).toBe('Bearer shh-secret')
     expect(opencodeUserConfig.env.TEST_API_KEY).toBe('shh-secret')
     expect(readFileSync(opencodeEntry, 'utf-8')).toContain('directory: join(context.directory, "megamind")')
-    expect(lstatSync(opencodeSkill).isSymbolicLink()).toBe(true)
-    expect(readlinkSync(opencodeSkill)).toBe(resolve(opencodeInstall, 'skills/client-intel'))
+    expect(lstatSync(opencodeSkill).isSymbolicLink()).toBe(false)
+    expect(readFileSync(resolve(opencodeSkill, 'SKILL.md'), 'utf-8')).toContain('name: megamind/client-intel')
     expect(readFileSync(resolve(cursorInstall, 'scripts/check-env.sh'), 'utf-8')).toContain('materialized required config')
   })
 })

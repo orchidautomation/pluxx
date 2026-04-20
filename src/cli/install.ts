@@ -360,6 +360,26 @@ function getOpenCodeInstalledSkillDir(pluginName: string, skillName: string): st
   return resolve(getOpenCodeSkillRoot(), `${pluginName}-${skillName}`)
 }
 
+function namespaceOpenCodeSkill(content: string, pluginName: string, fallbackName: string): string {
+  const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---\n?/)
+  const namespacedName = `${pluginName}/${fallbackName}`
+
+  if (!frontmatterMatch) {
+    return `---\nname: ${namespacedName}\n---\n\n${content}`
+  }
+
+  const frontmatter = frontmatterMatch[1]
+  const existingNameMatch = frontmatter.match(/^name:\s*(.+)$/m)
+  const existingName = existingNameMatch?.[1]?.trim().replace(/^['"]|['"]$/g, '') ?? fallbackName
+  const nextName = existingName.startsWith(`${pluginName}/`) ? existingName : `${pluginName}/${existingName}`
+
+  const nextFrontmatter = existingNameMatch
+    ? frontmatter.replace(/^name:\s*.+$/m, `name: ${nextName}`)
+    : `name: ${nextName}\n${frontmatter}`
+
+  return `${content.slice(0, frontmatterMatch.index)}---\n${nextFrontmatter}\n---\n${content.slice(frontmatterMatch[0].length)}`
+}
+
 function syncOpenCodeSkills(pluginDir: string, pluginName: string): void {
   const sourceSkillsDir = resolve(pluginDir, 'skills')
   if (!existsSync(sourceSkillsDir)) return
@@ -374,7 +394,13 @@ function syncOpenCodeSkills(pluginDir: string, pluginName: string): void {
 
     const installedSkillDir = getOpenCodeInstalledSkillDir(pluginName, entry.name)
     rmSync(installedSkillDir, { recursive: true, force: true })
-    symlinkSync(skillSourceDir, installedSkillDir)
+    cpSync(skillSourceDir, installedSkillDir, { recursive: true })
+
+    const skillPath = resolve(installedSkillDir, 'SKILL.md')
+    writeFileSync(
+      skillPath,
+      namespaceOpenCodeSkill(readFileSync(skillPath, 'utf-8'), pluginName, entry.name),
+    )
   }
 }
 
