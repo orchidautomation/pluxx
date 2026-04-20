@@ -154,6 +154,18 @@ interface MixedMarkdownContent {
 
 const WORKFLOW_SKILL_DEFINITIONS = [
   {
+    key: 'admin-and-config',
+    title: 'Admin and Config',
+    description: 'Manage administrative setup, API keys, onboarding, and configuration changes for this service.',
+    match: ['admin', 'configuration', 'configure', 'onboarding', 'register', 'revoke', 'api key'],
+  },
+  {
+    key: 'activity-intelligence',
+    title: 'Activity Intelligence',
+    description: 'Inspect messages, calls, transcripts, channel activity, and relationship signals across the service.',
+    match: ['transcript', 'slack', 'channel', 'engagement', 'freshness', 'heatmap', 'cadence', 'speaker', 'message', 'call', 'meeting'],
+  },
+  {
     key: 'setup-and-auth',
     title: 'Setup and Auth',
     description: 'Confirm access, auth state, and session readiness before running operational workflows.',
@@ -214,6 +226,8 @@ const WORKFLOW_SKILL_DEFINITIONS = [
     match: ['search', 'query', 'lookup', 'look up', 'discover', 'find'],
   },
 ] as const
+
+const WORKFLOW_MATCH_MIN_SCORE = 2
 
 const GENERIC_TOOL_NAMES = new Set([
   'run',
@@ -1376,43 +1390,45 @@ function allocateSkillDirectoryNames(skills: PlannedSkill[]): PlannedSkill[] {
 function classifyToolWorkflow(tool: IntrospectedMcpTool): string | null {
   return classifyWorkflowSurface(
     [
-      normalizeIdentifier(tool.name).toLowerCase(),
-      normalizeIdentifier(tool.title ?? '').toLowerCase(),
-    ].join(' '),
-    (tool.description ?? '').toLowerCase(),
+      normalizeWorkflowText(tool.name),
+      normalizeWorkflowText(tool.title ?? ''),
+    ].join(' ').trim(),
+    summarizeWorkflowDescription(tool.description),
   )
 }
 
 function classifyResourceWorkflow(resource: IntrospectedMcpResource): string | null {
   const primaryText = [
-    normalizeIdentifier(resource.name ?? '').toLowerCase(),
-    normalizeIdentifier(resource.title ?? '').toLowerCase(),
-    normalizeIdentifier(resource.uri).toLowerCase(),
+    normalizeWorkflowText(resource.name ?? ''),
+    normalizeWorkflowText(resource.title ?? ''),
+    normalizeWorkflowText(resource.uri),
   ].join(' ')
-  const secondaryText = (resource.description ?? '').toLowerCase()
+  const secondaryText = summarizeWorkflowDescription(resource.description)
   return classifyWorkflowSurface(primaryText, secondaryText)
 }
 
 function classifyResourceTemplateWorkflow(template: IntrospectedMcpResourceTemplate): string | null {
   const primaryText = [
-    normalizeIdentifier(template.name).toLowerCase(),
-    normalizeIdentifier(template.title ?? '').toLowerCase(),
-    normalizeIdentifier(template.uriTemplate).toLowerCase(),
+    normalizeWorkflowText(template.name),
+    normalizeWorkflowText(template.title ?? ''),
+    normalizeWorkflowText(template.uriTemplate),
   ].join(' ')
-  const secondaryText = (template.description ?? '').toLowerCase()
+  const secondaryText = summarizeWorkflowDescription(template.description)
   return classifyWorkflowSurface(primaryText, secondaryText)
 }
 
 function classifyPromptWorkflow(prompt: IntrospectedMcpPrompt): string | null {
   const primaryText = [
-    normalizeIdentifier(prompt.name).toLowerCase(),
-    ...(prompt.arguments ?? []).map((argument) => normalizeIdentifier(argument.name).toLowerCase()),
+    normalizeWorkflowText(prompt.name),
+    ...(prompt.arguments ?? []).map((argument) => normalizeWorkflowText(argument.name)),
   ].join(' ')
-  const secondaryText = (prompt.description ?? '').toLowerCase()
+  const secondaryText = summarizeWorkflowDescription(prompt.description)
   return classifyWorkflowSurface(primaryText, secondaryText)
 }
 
 function classifyWorkflowSurface(primaryText: string, secondaryText: string): string | null {
+  const primaryTokens = buildWorkflowTokenSet(primaryText)
+  const secondaryTokens = buildWorkflowTokenSet(secondaryText)
   let bestMatch: string | null = null
   let bestScore = 0
 
@@ -1420,10 +1436,10 @@ function classifyWorkflowSurface(primaryText: string, secondaryText: string): st
     let score = 0
 
     for (const needle of definition.match) {
-      if (primaryText.includes(needle)) {
+      if (workflowTextContains(primaryText, primaryTokens, needle)) {
         score += 3
       }
-      if (secondaryText.includes(needle)) {
+      if (workflowTextContains(secondaryText, secondaryTokens, needle)) {
         score += 1
       }
     }
@@ -1434,7 +1450,52 @@ function classifyWorkflowSurface(primaryText: string, secondaryText: string): st
     }
   }
 
+  if (bestScore < WORKFLOW_MATCH_MIN_SCORE) {
+    return null
+  }
+
   return bestMatch
+}
+
+function normalizeWorkflowText(value: string): string {
+  return cleanSingleLineText(normalizeIdentifier(value).toLowerCase())
+}
+
+function summarizeWorkflowDescription(value: string | undefined): string {
+  if (!value) return ''
+  const withoutArgs = value.split(/\n\s*args?:/i)[0] ?? value
+  return normalizeWorkflowText(withoutArgs)
+}
+
+function normalizeWorkflowTokenStem(value: string): string {
+  const normalized = value.trim().toLowerCase()
+  if (normalized.endsWith('ies') && normalized.length > 4) {
+    return `${normalized.slice(0, -3)}y`
+  }
+  if (normalized.endsWith('s') && !normalized.endsWith('ss') && normalized.length > 3) {
+    return normalized.slice(0, -1)
+  }
+  return normalized
+}
+
+function buildWorkflowTokenSet(text: string): Set<string> {
+  return new Set(
+    text
+      .split(/\s+/)
+      .map((token) => normalizeWorkflowTokenStem(token.replace(/[^a-z0-9]+/g, '')))
+      .filter(Boolean),
+  )
+}
+
+function workflowTextContains(text: string, tokens: Set<string>, needle: string): boolean {
+  const normalizedNeedle = normalizeWorkflowText(needle)
+  if (!normalizedNeedle) return false
+
+  if (normalizedNeedle.includes(' ')) {
+    return text.includes(normalizedNeedle)
+  }
+
+  return tokens.has(normalizeWorkflowTokenStem(normalizedNeedle))
 }
 
 function inferWorkflowKeyFromTools(tools: IntrospectedMcpTool[]): string | null {

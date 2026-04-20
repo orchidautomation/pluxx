@@ -212,6 +212,56 @@ describe('init-from-mcp scaffold', () => {
     expect(skills.every((skill) => skill.tools.length === 1)).toBe(true)
   })
 
+  it('avoids weak lexical workflow buckets for admin and activity-heavy MCP tools', () => {
+    const skills = planSkillScaffolds([
+      {
+        name: 'create_client',
+        description: 'Register a new client. Admin tool — use when onboarding a new client.',
+        inputSchema: { type: 'object', properties: {} },
+      },
+      {
+        name: 'update_client',
+        description: 'Update an existing client configuration. Admin tool.',
+        inputSchema: { type: 'object', properties: {} },
+      },
+      {
+        name: 'create_api_key',
+        description: 'Create a new API key for a team member. Admin tool — plaintext shown once.',
+        inputSchema: { type: 'object', properties: {} },
+      },
+      {
+        name: 'get_client_pulse',
+        description: 'Lightweight index of a client. Returns meeting cadence, call listing, and message counts per channel.\n\nArgs:\n  client_id: Client slug.',
+        inputSchema: { type: 'object', properties: {} },
+      },
+      {
+        name: 'get_call_transcript',
+        description: 'Get the full, clean transcript for a specific call. Use after search_calls to drill in. AI summary is omitted — use get_client_pulse or search_calls for quick overviews.',
+        inputSchema: { type: 'object', properties: {} },
+      },
+      {
+        name: 'get_weekly_heatmap',
+        description: 'Weekly activity heatmap — external/internal messages, calls, and normalized 0-100 score.',
+        inputSchema: { type: 'object', properties: {} },
+      },
+    ], 'workflow')
+
+    expect(skills.map((skill) => skill.dirName)).toEqual([
+      'admin-and-config',
+      'activity-intelligence',
+    ])
+    expect(skills[0].tools.map((tool) => tool.name)).toEqual([
+      'create_api_key',
+      'create_client',
+      'update_client',
+    ])
+    expect(skills[1].tools.map((tool) => tool.name)).toEqual([
+      'get_call_transcript',
+      'get_client_pulse',
+      'get_weekly_heatmap',
+    ])
+  })
+
   it('reports weak MCP metadata that will likely need agent refinement', () => {
     const report = analyzeMcpQuality([
       { name: 'query', description: '', inputSchema: { type: 'object', properties: {} } },
