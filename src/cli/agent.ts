@@ -1174,7 +1174,18 @@ function buildAgentRunnerCommand(
     // Codex headless edits can finish successfully and then stall during
     // session persistence/finalization. Ephemeral mode keeps the non-interactive
     // worker path stable for Pluxx agent/autopilot runs.
-    const args = [binary, 'exec', '--ephemeral', '--skip-git-repo-check']
+    const args = [
+      binary,
+      'exec',
+      '--ephemeral',
+      '--skip-git-repo-check',
+      '--disable',
+      'general_analytics',
+      '--disable',
+      'plugins',
+      '--disable',
+      'shell_snapshot',
+    ]
     if (options.model) {
       args.push('--model', options.model)
     }
@@ -1406,8 +1417,10 @@ async function executeCommand(
       cwd,
       stdio: ['ignore', 'pipe', 'pipe'],
       env: options.env ?? process.env,
+      detached: codexLastMessagePath != null && process.platform !== 'win32',
     })
     let killedAfterFinalMessage = false
+    let forcedKillAfterFinalMessage = false
     let sawFinalMessageAt: number | null = null
     let codexStdoutBuffer = ''
     let codexTurnCompleted = false
@@ -1427,9 +1440,15 @@ async function executeCommand(
           sawFinalMessageAt = Date.now()
           return
         }
-        if (!killedAfterFinalMessage && Date.now() - sawFinalMessageAt >= 1500) {
+        const elapsed = Date.now() - sawFinalMessageAt
+        if (!killedAfterFinalMessage && elapsed >= 1500) {
           killedAfterFinalMessage = true
-          child.kill('SIGTERM')
+          signalSpawnedProcess(child, 'SIGTERM')
+          return
+        }
+        if (!forcedKillAfterFinalMessage && elapsed >= 3000) {
+          forcedKillAfterFinalMessage = true
+          signalSpawnedProcess(child, 'SIGKILL')
         }
       }, 250)
       : null
@@ -1498,6 +1517,30 @@ async function executeCommand(
       void finalize(result)
     })
   })
+}
+
+function signalSpawnedProcess(
+  child: ReturnType<typeof spawn>,
+  signal: NodeJS.Signals,
+): void {
+  if (child.exitCode != null || child.signalCode != null) {
+    return
+  }
+
+  if (process.platform !== 'win32' && typeof child.pid === 'number') {
+    try {
+      process.kill(-child.pid, signal)
+      return
+    } catch {
+      // Fall back to signaling the direct child if the process group is gone.
+    }
+  }
+
+  try {
+    child.kill(signal)
+  } catch {
+    // Ignore signaling failures after the child exits.
+  }
 }
 
 async function prepareRunnerExecution(runner: AgentRunner): Promise<{

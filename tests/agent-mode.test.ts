@@ -413,11 +413,17 @@ describe('agent mode', () => {
     }
 
     expect(summary.runner).toBe('codex')
-    expect(summary.command.slice(0, 5)).toEqual([
+    expect(summary.command.slice(0, 11)).toEqual([
       'codex',
       'exec',
       '--ephemeral',
       '--skip-git-repo-check',
+      '--disable',
+      'general_analytics',
+      '--disable',
+      'plugins',
+      '--disable',
+      'shell_snapshot',
       '--full-auto',
     ])
     expect(summary.verify).toBe(true)
@@ -451,6 +457,10 @@ describe('agent mode', () => {
     expect(summary.command[1]).toBe('exec')
     expect(summary.command).toContain('--ephemeral')
     expect(summary.command).toContain('--skip-git-repo-check')
+    expect(summary.command).toContain('--disable')
+    expect(summary.command).toContain('general_analytics')
+    expect(summary.command).toContain('plugins')
+    expect(summary.command).toContain('shell_snapshot')
     expect(summary.command).not.toContain('--full-auto')
     expect(summary.verify).toBe(false)
   })
@@ -921,6 +931,93 @@ exit 1
     expect(instructionsPrompt).not.toContain('`skills/ask-clay/SKILL.md`')
     expect(reviewPrompt).toContain('`skills/research/SKILL.md`')
     expect(reviewPrompt).not.toContain('`skills/ask-clay/SKILL.md`')
+  })
+
+  it('force-closes sticky Codex process trees once the final message is available', async () => {
+    const binDir = resolve(MANUAL_DIR, '.bin')
+    const codexPath = resolve(binDir, 'codex')
+
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(
+      codexPath,
+      `#!/bin/sh
+if [ "$1" = "exec" ]; then
+  shift
+  output=""
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --output-last-message)
+        output="$2"
+        shift 2
+        ;;
+      --disable|--model)
+        shift 2
+        ;;
+      *)
+        shift
+        ;;
+    esac
+  done
+  mkdir -p "$(dirname "$output")"
+  printf 'OK\\n' > "$output"
+  printf '{"type":"thread.started"}\\n'
+  printf '{"type":"turn.started"}\\n'
+  printf '{"type":"turn.completed"}\\n'
+  sh -c 'trap "" TERM; while true; do sleep 10; done' &
+  worker=$!
+  trap '' TERM
+  wait "$worker"
+  exit 0
+fi
+exit 1
+`,
+    )
+    chmodSync(codexPath, 0o755)
+
+    const start = Date.now()
+    const proc = Bun.spawn(
+      ['bun', resolve(ROOT, 'bin/pluxx.js'), 'agent', 'run', 'review', '--runner', 'codex', '--json'],
+      {
+        cwd: MANUAL_DIR,
+        env: {
+          ...process.env,
+          PATH: `${binDir}:${process.env.PATH ?? ''}`,
+        },
+        stdout: 'pipe',
+        stderr: 'pipe',
+      },
+    )
+
+    const timedExit = await Promise.race([
+      proc.exited.then((value) => ({ kind: 'exit' as const, value })),
+      new Promise<{ kind: 'timeout' }>((resolvePromise) => {
+        setTimeout(() => resolvePromise({ kind: 'timeout' }), 7_000)
+      }),
+    ])
+
+    if (timedExit.kind === 'timeout') {
+      proc.kill()
+      throw new Error('Codex runner remained stuck after the final message was available.')
+    }
+
+    const stdout = await new Response(proc.stdout).text()
+    const stderr = await new Response(proc.stderr).text()
+
+    expect(timedExit.value).toBe(0)
+    expect(stderr).toBe('')
+    expect(Date.now() - start).toBeLessThan(7_000)
+
+    const summary = JSON.parse(stdout) as {
+      ok: boolean
+      runner: string
+      runnerExitCode: number
+      verify: boolean
+    }
+
+    expect(summary.ok).toBe(true)
+    expect(summary.runner).toBe('codex')
+    expect(summary.runnerExitCode).toBe(0)
+    expect(summary.verify).toBe(false)
   })
 
   it('captures website, docs, and local file context inputs in the generated context pack', async () => {
