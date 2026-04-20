@@ -3,6 +3,7 @@ import { extname, relative, resolve } from 'path'
 import { Generator } from '../base'
 import type { HookEntry, TargetPlatform } from '../../schema'
 import { buildOpenCodePermissionMap } from '../../permissions'
+import { type AgentFrontmatterMap, readCanonicalAgentFiles } from '../../agents'
 
 type GeneratedHook = {
   command: string
@@ -86,6 +87,7 @@ export class OpenCodeGenerator extends Generator {
     const envVars = this.getRequiredEnvVars()
     const mcpDefinitions = this.getOpenCodeMcpDefinitions()
     const commandDefinitions = this.getOpenCodeCommandDefinitions()
+    const agentDefinitions = this.getOpenCodeAgentDefinitions()
     const hookPlan = this.getOpenCodeHookPlan()
     const instructions = this.getInstructionsContent()
     const permissionMap = buildOpenCodePermissionMap(this.config.permissions)
@@ -107,6 +109,8 @@ export class OpenCodeGenerator extends Generator {
       `const MCP_DEFINITIONS = ${JSON.stringify(mcpDefinitions, null, 2)}`,
       '',
       `const TUI_COMMANDS = ${JSON.stringify(commandDefinitions, null, 2)}`,
+      '',
+      `const AGENT_DEFINITIONS = ${JSON.stringify(agentDefinitions, null, 2)}`,
       '',
       `const EVENT_HOOKS: Record<string, GeneratedHook[]> = ${JSON.stringify(hookPlan.event, null, 2)}`,
       '',
@@ -258,6 +262,13 @@ export class OpenCodeGenerator extends Generator {
       `        }`,
       `      }`,
       '',
+      `      if (Object.keys(AGENT_DEFINITIONS).length > 0) {`,
+      `        config.agent = {`,
+      `          ...(config.agent ?? {}),`,
+      `          ...AGENT_DEFINITIONS,`,
+      `        }`,
+      `      }`,
+      '',
       `      if (Object.keys(PERMISSIONS).length > 0) {`,
       `        config.permission = {`,
       `          ...(config.permission ?? {}),`,
@@ -390,6 +401,49 @@ export class OpenCodeGenerator extends Generator {
     return output
   }
 
+  private getOpenCodeAgentDefinitions(): Record<string, Record<string, unknown>> {
+    if (!this.config.agents) return {}
+
+    const agentsDir = this.resolveConfigPath(this.config.agents, 'agents')
+    const agents = readCanonicalAgentFiles(agentsDir)
+    const output: Record<string, Record<string, unknown>> = {}
+
+    for (const agent of agents) {
+      const definition: Record<string, unknown> = {
+        description: agent.description ?? `${agent.name} specialist.`,
+      }
+
+      if (agent.body) {
+        definition.prompt = agent.body
+      }
+
+      if (typeof agent.frontmatter.mode === 'string' && agent.frontmatter.mode) {
+        definition.mode = agent.frontmatter.mode
+      }
+      if (typeof agent.frontmatter.model === 'string' && agent.frontmatter.model) {
+        definition.model = agent.frontmatter.model
+      }
+      if (typeof agent.frontmatter.temperature === 'number') {
+        definition.temperature = agent.frontmatter.temperature
+      }
+      if (typeof agent.frontmatter.hidden === 'boolean') {
+        definition.hidden = agent.frontmatter.hidden
+      }
+      const permission = asOpenCodeMap(agent.frontmatter.permission)
+      if (permission) {
+        definition.permission = permission
+      }
+      const tools = asOpenCodeMap(agent.frontmatter.tools)
+      if (tools) {
+        definition.tools = tools
+      }
+
+      output[agent.name] = definition
+    }
+
+    return output
+  }
+
   private getInstructionsContent(): string | null {
     if (!this.config.instructions) return null
     const instructionsPath = this.resolveConfigPath(this.config.instructions, 'instructions')
@@ -476,6 +530,11 @@ export class OpenCodeGenerator extends Generator {
 
     return files
   }
+}
+
+function asOpenCodeMap(value: unknown): AgentFrontmatterMap | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  return value as AgentFrontmatterMap
 }
 
 function parseMarkdownCommand(content: string): { description?: string; body: string } {

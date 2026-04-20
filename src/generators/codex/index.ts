@@ -1,7 +1,9 @@
 import { existsSync } from 'fs'
+import { relative } from 'path'
 import { Generator } from '../base'
 import type { TargetPlatform } from '../../schema'
 import { collectPermissionRules } from '../../permissions'
+import { readCanonicalAgentFiles } from '../../agents'
 
 export class CodexGenerator extends Generator {
   readonly platform: TargetPlatform = 'codex'
@@ -45,6 +47,7 @@ export class CodexGenerator extends Generator {
         },
       }),
       this.generateAgentsMd(),
+      this.generateNativeAgents(),
       this.generatePermissionsCompanion(),
     ])
 
@@ -143,5 +146,39 @@ export class CodexGenerator extends Generator {
 
     const content = await Bun.file(srcPath).text()
     await this.writeFile('AGENTS.md', content)
+  }
+
+  private async generateNativeAgents(): Promise<void> {
+    if (!this.config.agents) return
+
+    const agentsDir = this.resolveConfigPath(this.config.agents, 'agents')
+    const agents = readCanonicalAgentFiles(agentsDir)
+    if (agents.length === 0) return
+
+    for (const agent of agents) {
+      const relativePath = relative(agentsDir, agent.filePath).replace(/\\/g, '/').replace(/\.md$/i, '.toml')
+      const lines = [
+        `name = ${JSON.stringify(agent.name)}`,
+        `description = ${JSON.stringify(agent.description ?? `${agent.name} specialist.`)}`,
+      ]
+
+      if (typeof agent.frontmatter.model === 'string' && agent.frontmatter.model) {
+        lines.push(`model = ${JSON.stringify(agent.frontmatter.model)}`)
+      }
+      if (typeof agent.frontmatter.model_reasoning_effort === 'string' && agent.frontmatter.model_reasoning_effort) {
+        lines.push(`model_reasoning_effort = ${JSON.stringify(agent.frontmatter.model_reasoning_effort)}`)
+      }
+      if (typeof agent.frontmatter.sandbox_mode === 'string' && agent.frontmatter.sandbox_mode) {
+        lines.push(`sandbox_mode = ${JSON.stringify(agent.frontmatter.sandbox_mode)}`)
+      }
+      if (agent.body) {
+        lines.push('developer_instructions = """')
+        lines.push(agent.body.replace(/"""/g, '\\"\\"\\"'))
+        lines.push('"""')
+      }
+      lines.push('')
+
+      await this.writeFile(`.codex/agents/${relativePath}`, lines.join('\n'))
+    }
   }
 }

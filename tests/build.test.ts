@@ -84,7 +84,26 @@ beforeAll(async () => {
   mkdirSync(resolve(TEST_DIR, 'commands/'), { recursive: true })
   await Bun.write(resolve(TEST_DIR, 'commands/pulse.md'), '# Pulse\n')
   mkdirSync(resolve(TEST_DIR, 'agents/'), { recursive: true })
-  await Bun.write(resolve(TEST_DIR, 'agents/escalation.md'), '# Escalation\n')
+  await Bun.write(
+    resolve(TEST_DIR, 'agents/escalation.md'),
+    [
+      '---',
+      'name: escalation',
+      'description: "Escalation specialist."',
+      'mode: subagent',
+      'hidden: true',
+      'permission:',
+      '  edit: deny',
+      '  task:',
+      '    "*": ask',
+      '---',
+      '',
+      '# Escalation',
+      '',
+      'Escalate tricky issues with a constrained tool policy.',
+      '',
+    ].join('\n'),
+  )
   mkdirSync(resolve(TEST_DIR, 'scripts/'), { recursive: true })
   await Bun.write(resolve(TEST_DIR, 'scripts/validate.sh'), '#!/usr/bin/env bash\n')
   await Bun.write(resolve(TEST_DIR, 'scripts/confirm-mutation.sh'), '#!/usr/bin/env bash\n')
@@ -268,6 +287,12 @@ describe('build', () => {
     expect(indexTs).toContain('TEST_API_KEY')
     expect(indexTs).toContain('.pluxx-user.json')
     expect(indexTs).toContain('loadUserConfig')
+    expect(indexTs).toContain('const AGENT_DEFINITIONS =')
+    expect(indexTs).toContain('"escalation"')
+    expect(indexTs).toContain('"mode": "subagent"')
+    expect(indexTs).toContain('"hidden": true')
+    expect(indexTs).toContain('"task": {')
+    expect(indexTs).toContain('config.agent = {')
   })
 
   it('writes documented hook outputs and omits undocumented Codex hook bundles', async () => {
@@ -401,6 +426,14 @@ describe('build', () => {
     expect(codexManifest.skills).toBe('./skills/')
     expect(codexManifest.mcpServers).toBe('./.mcp.json')
     expect(codexManifest.hooks).toBeUndefined()
+  })
+
+  it('compiles canonical agents into native Codex custom-agent TOML files', async () => {
+    const codexAgent = readFileSync(resolve(OUT_DIR, 'codex/.codex/agents/escalation.toml'), 'utf-8')
+    expect(codexAgent).toContain('name = "escalation"')
+    expect(codexAgent).toContain('description = "Escalation specialist."')
+    expect(codexAgent).toContain('developer_instructions = """')
+    expect(codexAgent).toContain('Escalate tricky issues with a constrained tool policy.')
   })
 
   it('preserves Linear-style preToolUse matchers in Claude Code and Cursor outputs', async () => {
