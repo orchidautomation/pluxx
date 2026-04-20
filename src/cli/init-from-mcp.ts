@@ -228,6 +228,9 @@ const WORKFLOW_SKILL_DEFINITIONS = [
 ] as const
 
 const WORKFLOW_MATCH_MIN_SCORE = 2
+const WORKFLOW_SKILL_DEFINITION_BY_KEY = new Map<string, (typeof WORKFLOW_SKILL_DEFINITIONS)[number]>(
+  WORKFLOW_SKILL_DEFINITIONS.map((definition) => [definition.key, definition]),
+)
 
 const GENERIC_TOOL_NAMES = new Set([
   'run',
@@ -1248,10 +1251,14 @@ function planSkillScaffoldsFromPersisted(
       const tool = toolByName.get(resolvedToolName)
       if (!tool || assigned.has(tool.name)) continue
       matchedTools.push(tool)
-      assigned.add(tool.name)
     }
 
     if (matchedTools.length === 0) continue
+    if (shouldReflowPersistedWorkflowSkill(skill, matchedTools)) continue
+
+    for (const tool of matchedTools) {
+      assigned.add(tool.name)
+    }
 
     planned.push({
       dirName: skill.dirName,
@@ -1282,6 +1289,27 @@ function buildPersistedTaxonomy(skills: PlannedSkill[]): PersistedSkill[] {
     description: skill.description,
     toolNames: skill.tools.map((tool) => tool.name),
   }))
+}
+
+function shouldReflowPersistedWorkflowSkill(
+  skill: PersistedSkill,
+  matchedTools: IntrospectedMcpTool[],
+): boolean {
+  const generatedDefinition = WORKFLOW_SKILL_DEFINITION_BY_KEY.get(skill.dirName)
+  if (!generatedDefinition) return false
+  if (skill.title !== generatedDefinition.title) return false
+  if ((skill.description ?? '') !== generatedDefinition.description) return false
+
+  const inferredWorkflowKeys = new Set(
+    matchedTools
+      .map((tool) => classifyToolWorkflow(tool))
+      .filter((value): value is string => Boolean(value)),
+  )
+
+  if (inferredWorkflowKeys.size !== 1) return false
+
+  const [inferredWorkflowKey] = [...inferredWorkflowKeys]
+  return inferredWorkflowKey !== skill.dirName
 }
 
 export function analyzeMcpQuality(

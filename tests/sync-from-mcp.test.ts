@@ -472,6 +472,127 @@ describe('sync-from-mcp', () => {
     expect(metadata.managedFiles).toContain('.pluxx/taxonomy.json')
   })
 
+  it('reflows stale generated taxonomy buckets when current heuristics produce a stronger grouping', async () => {
+    writeFileSync(
+      STATE_PATH,
+      JSON.stringify({
+        serverInfo: {
+          name: 'stub-server',
+          title: 'Stub Server',
+          version: '1.0.0',
+          description: 'A fake MCP server for taxonomy refresh tests.',
+        },
+        instructions: 'Use the admin and activity tools carefully.',
+        tools: [
+          {
+            name: 'create_client',
+            description: 'Register a new client. Admin tool — use when onboarding a new client.',
+          },
+          {
+            name: 'update_client',
+            description: 'Update an existing client configuration. Admin tool.',
+          },
+          {
+            name: 'get_call_transcript',
+            description: 'Get the full, clean transcript for a specific call. Use after search_calls to drill in. AI summary is omitted — use get_client_pulse or search_calls for quick overviews.',
+          },
+        ],
+      }, null, 2),
+    )
+
+    const source = {
+      transport: 'stdio' as const,
+      command: 'bun',
+      args: [STUB_SERVER_PATH, STATE_PATH],
+    }
+
+    const introspection = await introspectMcpServer(source)
+    await writeMcpScaffold({
+      rootDir: TEST_DIR,
+      pluginName: 'stub-server',
+      authorName: 'Test Author',
+      displayName: 'Stub Server',
+      targets: ['claude-code', 'codex'],
+      source,
+      introspection,
+      skillGrouping: 'workflow',
+      hookMode: 'none',
+    })
+
+    const legacySkills = [
+      {
+        dirName: 'setup-and-auth',
+        title: 'Setup and Auth',
+        description: 'Confirm access, auth state, and session readiness before running operational workflows.',
+        toolNames: ['update_client'],
+      },
+      {
+        dirName: 'workflow-design',
+        title: 'Workflow Design',
+        description: 'Define strategy, prompts, targeting, and workflow shape before building tables or running enrichments.',
+        toolNames: ['create_client'],
+      },
+      {
+        dirName: 'table-operations',
+        title: 'Table Operations',
+        description: 'Build, inspect, run, document, and export tables, rows, and enrichment workflows.',
+        toolNames: ['get_call_transcript'],
+      },
+    ]
+
+    writeFileSync(resolve(TEST_DIR, '.pluxx/taxonomy.json'), JSON.stringify(legacySkills, null, 2))
+
+    const metadataPath = resolve(TEST_DIR, '.pluxx/mcp.json')
+    const metadata = JSON.parse(readFileSync(metadataPath, 'utf-8')) as {
+      skills: Array<{ dirName: string; title: string; description: string; toolNames: string[] }>
+      managedFiles: string[]
+    }
+    metadata.skills = legacySkills
+    metadata.managedFiles = metadata.managedFiles
+      .filter((file) => !file.startsWith('skills/') && !file.startsWith('commands/'))
+      .concat([
+        'skills/setup-and-auth/SKILL.md',
+        'skills/workflow-design/SKILL.md',
+        'skills/table-operations/SKILL.md',
+        'commands/setup-and-auth.md',
+        'commands/workflow-design.md',
+        'commands/table-operations.md',
+      ])
+    writeFileSync(metadataPath, JSON.stringify(metadata, null, 2))
+
+    rmSync(resolve(TEST_DIR, 'skills'), { recursive: true, force: true })
+    rmSync(resolve(TEST_DIR, 'commands'), { recursive: true, force: true })
+    mkdirSync(resolve(TEST_DIR, 'commands'), { recursive: true })
+
+    for (const dirName of ['setup-and-auth', 'workflow-design', 'table-operations']) {
+      mkdirSync(resolve(TEST_DIR, `skills/${dirName}`), { recursive: true })
+      writeFileSync(
+        resolve(TEST_DIR, `skills/${dirName}/SKILL.md`),
+        `---\nname: ${dirName}\ndescription: Legacy generated skill\n---\n\n<!-- pluxx:generated:start -->\n# ${dirName}\n<!-- pluxx:generated:end -->\n\n## Custom Notes\n\n<!-- pluxx:custom:start -->\nAdd custom guidance, examples, or caveats here. This section is preserved across \`pluxx sync --from-mcp\`.\n<!-- pluxx:custom:end -->\n`,
+      )
+      writeFileSync(
+        resolve(TEST_DIR, `commands/${dirName}.md`),
+        `<!-- pluxx:generated:start -->\n# ${dirName}\n<!-- pluxx:generated:end -->\n\n## Custom Notes\n\n<!-- pluxx:custom:start -->\nAdd custom guidance, examples, or caveats here. This section is preserved across \`pluxx sync --from-mcp\`.\n<!-- pluxx:custom:end -->\n`,
+      )
+    }
+
+    const result = await syncFromMcp({ rootDir: TEST_DIR })
+
+    expect(existsSync(resolve(TEST_DIR, 'skills/admin-and-config/SKILL.md'))).toBe(true)
+    expect(existsSync(resolve(TEST_DIR, 'skills/activity-intelligence/SKILL.md'))).toBe(true)
+    expect(existsSync(resolve(TEST_DIR, 'skills/setup-and-auth/SKILL.md'))).toBe(false)
+    expect(existsSync(resolve(TEST_DIR, 'skills/workflow-design/SKILL.md'))).toBe(false)
+    expect(existsSync(resolve(TEST_DIR, 'skills/table-operations/SKILL.md'))).toBe(false)
+    expect(result.updatedFiles).toContain('.pluxx/taxonomy.json')
+    expect(result.updatedFiles).toContain('.pluxx/mcp.json')
+
+    const refreshedTaxonomy = JSON.parse(readFileSync(resolve(TEST_DIR, '.pluxx/taxonomy.json'), 'utf-8')) as Array<{ dirName: string }>
+    expect(refreshedTaxonomy.map((skill) => skill.dirName)).toEqual([
+      'admin-and-config',
+      'activity-intelligence',
+    ])
+  })
+
   it('invalidates saved agent packs after deterministic sync rewrites', async () => {
     writeFileSync(
       STATE_PATH,
