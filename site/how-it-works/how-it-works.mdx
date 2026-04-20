@@ -129,6 +129,23 @@ Runners today include:
 
 Pluxx does **not** run its own model stack. It prepares context and prompt packs, then hands the work to the selected host runner.
 
+### Product context inputs
+
+Pluxx also gets materially better when you feed it real product context, not just an MCP endpoint.
+
+Today, the main place to do that is:
+
+- `pluxx agent prepare --website ... --docs ...`
+
+That gives the host runner better raw material for:
+
+- terminology
+- auth/setup guidance
+- workflow naming
+- example requests
+
+The current product direction is to make docs and website ingestion more first-class over time, especially around `init`, `autopilot`, and `agent prepare`.
+
 ### 3. Per-host compilers
 
 Pluxx takes one source project and emits host-specific bundles for:
@@ -214,6 +231,13 @@ So:
 - host plugins provide better discoverability and nicer in-agent entrypoints
 
 That means the plugin is an accelerator, not a dependency.
+
+The practical recommendation today is:
+
+- keep the CLI as the execution engine
+- keep the Pluxx plugin thin and native to each host
+
+That avoids shipping a second runtime contract inside every plugin bundle.
 
 ## Import Auth vs Runtime Auth
 

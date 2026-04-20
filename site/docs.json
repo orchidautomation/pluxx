@@ -12,6 +12,7 @@
       {
         "group": "Overview",
         "pages": [
+          "overview/why-pluxx",
           "overview/what-pluxx-is",
           "overview/core-primitives",
           "overview/core-four-primitive-matrix",

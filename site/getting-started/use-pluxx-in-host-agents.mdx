@@ -47,6 +47,21 @@ What Pluxx still owns directly:
 - install and sync
 - platform packaging
 
+## Should the Pluxx plugin bundle the CLI?
+
+No. The cleaner design is:
+
+- Pluxx CLI as the execution engine
+- thin host-native Pluxx plugins as the UX layer
+
+That keeps one source of execution truth, smaller host bundles, clearer review surfaces, and better parity across Claude Code, Cursor, Codex, and OpenCode.
+
+The plugin should mainly provide:
+
+- skills, commands, and agents that route users into the right Pluxx workflow
+- polished metadata, prompts, and examples
+- a better in-host entrypoint for the deterministic CLI underneath
+
 ## The Five Main Pluxx Workflows
 
 The bundled Pluxx skill pack is organized around five jobs:

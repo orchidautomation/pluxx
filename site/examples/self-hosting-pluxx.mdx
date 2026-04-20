@@ -13,6 +13,13 @@ That makes this example useful for two reasons:
 - it shows the source-project shape Pluxx expects
 - it shows how Pluxx can be installed and used as a plugin inside another host
 
+It also shows the intended product split:
+
+- the CLI is the engine
+- the Pluxx plugin is the native UX layer
+
+That is the recommended architecture for Pluxx itself. Do not treat the plugin as a second bundled runtime.
+
 ## Repository example
 
 Repository path:

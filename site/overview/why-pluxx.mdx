@@ -1,0 +1,206 @@
+---
+title: Why Pluxx
+---
+
+Pluxx exists because supporting Claude Code, Cursor, Codex, and OpenCode is not a simple copy-paste problem.
+
+Each host has its own plugin model, runtime wiring, install surface, and idea of what commands, agents, hooks, and permissions should look like.
+
+Without Pluxx, teams usually end up with one "real" plugin and a growing pile of weaker ports for the other hosts.
+
+## The status quo
+
+Before Pluxx, teams typically had to:
+
+- pick one host as the primary implementation
+- manually rebuild the same workflows for the other hosts
+- rewrite instructions and packaging per platform
+- debug auth and install behavior separately
+- maintain multiple sources of truth that drift over time
+
+That is not just annoying. It slows shipping, creates compatibility debt, and makes plugin quality harder to trust.
+
+## What Pluxx changes
+
+Pluxx gives you one maintained source project and one compiler model.
+
+Instead of this:
+
+```text
+host-native plugin
+  -> manual port
+  -> manual port
+  -> manual port
+```
+
+Pluxx gives you this:
+
+```text
+MCP or host-native plugin
+  -> canonical Pluxx source project
+  -> validation and optional refinement
+  -> native outputs for Claude Code, Cursor, Codex, and OpenCode
+```
+
+That means the thing you maintain is:
+
+- one source project
+- one set of plugin primitives
+- one place to preserve workflow meaning
+
+Not four drifting implementations.
+
+## Why the core four are hard
+
+The official docs show real differences across the primary hosts:
+
+- Claude Code has strong plugin-native surfaces for skills, commands, hooks, agents, and MCP
+- Cursor uses plugins, rules, skills, hooks, and subagents, but not in the same shape
+- Codex has plugins, AGENTS.md, custom agents, hooks, and MCP with different packaging boundaries
+- OpenCode is more code-first for runtime behavior, commands, and hook implementation
+
+Pluxx does not pretend these systems are identical.
+
+Instead, it keeps a canonical model and compiles the strongest native output each host can truthfully support.
+
+## What the main commands enable
+
+### `pluxx init --from-mcp`
+
+Import a raw MCP and generate the first maintained source project.
+
+Use it when you want:
+
+- deterministic scaffolding
+- first-pass workflow grouping
+- initial instructions
+- a clean core-four starting point
+
+### `pluxx migrate`
+
+Import a strong single-host plugin into a Pluxx source project.
+
+Use it when you already invested in one host and want the other three without rewriting from scratch.
+
+### `pluxx doctor`
+
+Check the source project.
+
+Use it when you want to know:
+
+- whether the config and runtime shape are healthy
+- whether the scaffold still carries source-host assumptions
+- whether the project is structurally ready to ship
+
+### `pluxx doctor --consumer`
+
+Check the built or installed bundle from the user side.
+
+Use it when you need confidence in the thing that was actually shipped or mounted into a host.
+
+### `pluxx lint`
+
+Make portability visible.
+
+Use it to catch:
+
+- host-specific incompatibilities
+- degraded buckets
+- unsupported fields
+- portability issues before they become runtime surprises
+
+### `pluxx eval`
+
+Quality gate the scaffold itself.
+
+`eval` is not just validity. It checks whether the generated scaffold is coherent and product-shaped enough to trust.
+
+### `pluxx build`
+
+Compile native outputs for Claude Code, Cursor, Codex, and OpenCode.
+
+The goal is not raw file copying. The goal is truthful native compilation.
+
+### `pluxx test`
+
+Run the end-to-end verification contract across the built outputs.
+
+This is where portability becomes repeatable instead of aspirational.
+
+### `pluxx agent prepare` and `pluxx agent run`
+
+Bring in the host agent only for semantic refinement:
+
+- taxonomy cleanup
+- instruction rewriting
+- review passes
+
+Pluxx owns the deterministic structure. The host runner improves the meaning.
+
+### `pluxx mcp proxy --record` / `--replay`
+
+Record live MCP sessions and replay them deterministically later.
+
+This is especially useful for:
+
+- CI
+- debugging
+- demos
+- expensive or flaky live MCPs
+
+## Why this matters for CI
+
+Pluxx works well in CI because it separates:
+
+- source authoring
+- deterministic compilation
+- validation
+- optional refinement
+
+A strong CI flow looks like:
+
+```bash
+pluxx doctor
+pluxx lint
+pluxx build
+pluxx test
+pluxx eval
+```
+
+And for more fragile MCPs:
+
+```bash
+pluxx mcp proxy --record tape.json
+pluxx mcp proxy --replay tape.json
+```
+
+That gives teams:
+
+- repeatable portability checks
+- deterministic MCP debugging
+- stronger trust in the plugin pipeline
+
+## Who this helps most
+
+Pluxx is strongest for teams that already feel the pain of cross-host plugin maintenance.
+
+Good fits include:
+
+- internal AI platform teams at mature organizations
+- MCP vendors that want broader distribution
+- devtools teams building one workflow surface across multiple hosts
+- agencies or consultancies standardizing plugins across client environments
+
+The strongest simple message is:
+
+- stop maintaining four plugin systems by hand
+
+The stronger technical message is:
+
+- bring your best plugin from one host and get the best native outputs Pluxx can truthfully compile for the other three
+
+## The product truth
+
+Pluxx is not trying to make the hosts identical.
+
+It is trying to preserve author intent once, then compile it into the best native form each host supports.
