@@ -102,6 +102,69 @@ function createConsumerFixture(): string {
   return dir
 }
 
+function createOpenCodeConsumerFixture(options: { includeEntry?: boolean; includeSyncedSkills?: boolean } = {}): string {
+  const includeEntry = options.includeEntry ?? true
+  const includeSyncedSkills = options.includeSyncedSkills ?? true
+
+  const root = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-opencode-'))
+  const pluginDir = resolve(root, '.config/opencode/plugins/megamind')
+  const skillDir = resolve(pluginDir, 'skills/client-intel')
+
+  mkdirSync(skillDir, { recursive: true })
+  writeFileSync(
+    resolve(pluginDir, 'package.json'),
+    JSON.stringify({
+      name: 'opencode-megamind',
+      version: '0.1.0',
+      keywords: ['opencode-plugin'],
+      peerDependencies: {
+        '@opencode-ai/plugin': '*',
+      },
+    }, null, 2),
+  )
+  writeFileSync(resolve(pluginDir, 'index.ts'), 'export const MegamindPlugin = async () => ({});\n')
+  writeFileSync(
+    resolve(pluginDir, 'skills/client-intel/SKILL.md'),
+    '---\nname: client-intel\ndescription: Client intel\n---\n\n# Client Intel\n',
+  )
+
+  if (includeEntry) {
+    writeFileSync(
+      resolve(root, '.config/opencode/plugins/megamind.ts'),
+      [
+        'import type { Plugin } from "@opencode-ai/plugin"',
+        'import { join } from "path"',
+        '',
+        'import * as PluginModule from "./megamind/index.ts"',
+        '',
+        'const pluginFactory = Object.values(PluginModule).find((value): value is Plugin => typeof value === "function")',
+        '',
+        'if (!pluginFactory) {',
+        '  throw new Error("OpenCode plugin bundle for megamind did not export a plugin function.")',
+        '}',
+        '',
+        'export const Megamind: Plugin = async (context) =>',
+        '  pluginFactory({',
+        '    ...context,',
+        '    directory: join(context.directory, "megamind"),',
+        '  })',
+        '',
+      ].join('\n'),
+    )
+  }
+
+  if (includeSyncedSkills) {
+    const syncedSkillDir = resolve(root, '.config/opencode/skills/megamind-client-intel')
+    mkdirSync(syncedSkillDir, { recursive: true })
+    writeFileSync(
+      resolve(syncedSkillDir, 'SKILL.md'),
+      '---\nname: megamind/client-intel\ndescription: Client intel\n---\n\n# Client Intel\n',
+    )
+  }
+
+  return pluginDir
+}
+
 describe('doctorProject', () => {
   it('returns warnings and infos without failing a healthy project', async () => {
     const dir = createProjectFixture()
@@ -319,6 +382,31 @@ describe('doctorConsumer', () => {
       expect(report.checks.some((check) => check.code === 'consumer-mcp-inline-auth')).toBe(true)
     } finally {
       rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('validates OpenCode host-visible wrapper and exported skills for installed bundles', async () => {
+    const dir = createOpenCodeConsumerFixture()
+
+    try {
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-opencode-entry-valid' && check.level === 'success')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-opencode-skill-sync-valid' && check.level === 'success')).toBe(true)
+    } finally {
+      rmSync(resolve(dir, '..', '..', '..', '..'), { recursive: true, force: true })
+    }
+  })
+
+  it('fails OpenCode consumer checks when the host entry file is missing', async () => {
+    const dir = createOpenCodeConsumerFixture({ includeEntry: false })
+
+    try {
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(false)
+      expect(report.checks.some((check) => check.code === 'consumer-opencode-entry-missing' && check.level === 'error')).toBe(true)
+    } finally {
+      rmSync(resolve(dir, '..', '..', '..', '..'), { recursive: true, force: true })
     }
   })
 })

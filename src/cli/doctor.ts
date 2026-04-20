@@ -1,5 +1,5 @@
-import { accessSync, constants, existsSync, lstatSync, readFileSync } from 'fs'
-import { resolve } from 'path'
+import { accessSync, constants, existsSync, lstatSync, readFileSync, readdirSync } from 'fs'
+import { basename, dirname, resolve } from 'path'
 import { CONFIG_FILES, loadConfig } from '../config/load'
 import { listHookCommands } from './install'
 import { PLATFORM_LIMITS, getCoreFourPrimitiveCapabilities, type CoreFourPlatform, type PrimitiveTranslationMode } from '../validation/platform-rules'
@@ -861,6 +861,148 @@ function checkInstalledMcpConfig(checks: DoctorCheck[], rootDir: string, layout:
   }
 }
 
+function isLikelyOpenCodeInstallPath(rootDir: string): boolean {
+  const parent = dirname(rootDir)
+  const grandparent = dirname(parent)
+  return basename(parent) === 'plugins' && basename(grandparent) === 'opencode'
+}
+
+function checkInstalledOpenCodeHostBridge(checks: DoctorCheck[], rootDir: string): void {
+  if (!isLikelyOpenCodeInstallPath(rootDir)) {
+    addCheck(checks, {
+      level: 'info',
+      code: 'consumer-opencode-host-bridge-not-applicable',
+      title: 'No OpenCode host bridge check for this path',
+      detail: 'This OpenCode bundle is not located under ~/.config/opencode/plugins, so host-visible wrapper checks are skipped.',
+      fix: 'Point --consumer at the installed OpenCode plugin directory to validate host-visible wiring.',
+      path: 'package.json',
+    })
+    return
+  }
+
+  const pluginName = basename(rootDir)
+  const entryPath = `${rootDir}.ts`
+  const entryRelativePath = `${pluginName}.ts`
+  if (!existsSync(entryPath)) {
+    addCheck(checks, {
+      level: 'error',
+      code: 'consumer-opencode-entry-missing',
+      title: 'OpenCode host entry file missing',
+      detail: `OpenCode auto-loads top-level plugin files, but ${entryPath} does not exist for this installed bundle.`,
+      fix: 'Reinstall the plugin so Pluxx can recreate the top-level OpenCode entry file.',
+      path: entryRelativePath,
+    })
+    return
+  }
+
+  const entryContent = readFileSync(entryPath, 'utf-8')
+  const expectedImport = `import * as PluginModule from "./${pluginName}/index.ts"`
+  const expectedBridge = `directory: join(context.directory, "${pluginName}")`
+
+  if (!entryContent.includes(expectedImport) || !entryContent.includes(expectedBridge)) {
+    addCheck(checks, {
+      level: 'error',
+      code: 'consumer-opencode-entry-invalid',
+      title: 'OpenCode host entry file does not match the installed bundle',
+      detail: `${entryPath} exists, but it does not proxy into ./${pluginName}/index.ts with the expected plugin-root bridge.`,
+      fix: 'Reinstall the plugin so Pluxx can rewrite the OpenCode entry wrapper.',
+      path: entryRelativePath,
+    })
+  } else {
+    addCheck(checks, {
+      level: 'success',
+      code: 'consumer-opencode-entry-valid',
+      title: 'OpenCode host entry file is present',
+      detail: `${entryRelativePath} proxies into the installed ${pluginName} bundle.`,
+      fix: 'No action needed.',
+      path: entryRelativePath,
+    })
+  }
+}
+
+function checkInstalledOpenCodeSkills(checks: DoctorCheck[], rootDir: string): void {
+  if (!isLikelyOpenCodeInstallPath(rootDir)) {
+    return
+  }
+
+  const pluginName = basename(rootDir)
+  const sourceSkillsDir = resolve(rootDir, 'skills')
+  if (!existsSync(sourceSkillsDir)) {
+    addCheck(checks, {
+      level: 'info',
+      code: 'consumer-opencode-skill-sync-not-applicable',
+      title: 'No OpenCode skills exported from this bundle',
+      detail: 'This installed OpenCode bundle does not include a skills directory, so no global skill sync is required.',
+      fix: 'No action needed.',
+      path: 'skills',
+    })
+    return
+  }
+
+  const skillRoot = resolve(dirname(dirname(rootDir)), 'skills')
+  const missingSkills: string[] = []
+  const malformedSkills: string[] = []
+  let expectedSkillCount = 0
+
+  for (const entry of readdirSync(sourceSkillsDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue
+
+    const sourceSkillPath = resolve(sourceSkillsDir, entry.name, 'SKILL.md')
+    if (!existsSync(sourceSkillPath)) continue
+    expectedSkillCount++
+
+    const installedSkillPath = resolve(skillRoot, `${pluginName}-${entry.name}`, 'SKILL.md')
+    if (!existsSync(installedSkillPath)) {
+      missingSkills.push(`${pluginName}-${entry.name}`)
+      continue
+    }
+
+    const installedContent = readFileSync(installedSkillPath, 'utf-8')
+    if (!installedContent.includes(`${pluginName}/`)) {
+      malformedSkills.push(`${pluginName}-${entry.name}`)
+    }
+  }
+
+  if (expectedSkillCount === 0) {
+    addCheck(checks, {
+      level: 'info',
+      code: 'consumer-opencode-skill-sync-not-applicable',
+      title: 'No OpenCode skills exported from this bundle',
+      detail: 'This installed OpenCode bundle does not define any skill directories with SKILL.md files.',
+      fix: 'No action needed.',
+      path: 'skills',
+    })
+    return
+  }
+
+  if (missingSkills.length > 0 || malformedSkills.length > 0) {
+    const missingDetail = missingSkills.length > 0
+      ? `missing exported skills: ${missingSkills.join(', ')}`
+      : undefined
+    const malformedDetail = malformedSkills.length > 0
+      ? `malformed exported skills: ${malformedSkills.join(', ')}`
+      : undefined
+    addCheck(checks, {
+      level: 'warning',
+      code: 'consumer-opencode-skill-sync-incomplete',
+      title: 'OpenCode exported skills are incomplete',
+      detail: [missingDetail, malformedDetail].filter(Boolean).join('; '),
+      fix: 'Reinstall the plugin so Pluxx can resync OpenCode skills into ~/.config/opencode/skills.',
+      path: 'skills',
+    })
+    return
+  }
+
+  addCheck(checks, {
+    level: 'success',
+    code: 'consumer-opencode-skill-sync-valid',
+    title: 'OpenCode exported skills are synced',
+    detail: `Found ${expectedSkillCount} synced OpenCode skill${expectedSkillCount === 1 ? '' : 's'} under ~/.config/opencode/skills.`,
+    fix: 'No action needed.',
+    path: 'skills',
+  })
+}
+
 export async function doctorConsumer(rootDir: string = process.cwd()): Promise<DoctorReport> {
   const checks: DoctorCheck[] = []
   const bunVersion = process.versions.bun
@@ -941,6 +1083,10 @@ export async function doctorConsumer(rootDir: string = process.cwd()): Promise<D
   checkInstalledUserConfig(checks, rootDir)
   checkInstalledEnvValidation(checks, rootDir)
   checkInstalledMcpConfig(checks, rootDir, layout)
+  if (layout.platform === 'opencode') {
+    checkInstalledOpenCodeHostBridge(checks, rootDir)
+    checkInstalledOpenCodeSkills(checks, rootDir)
+  }
 
   return summarizeChecks(checks)
 }

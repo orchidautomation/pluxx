@@ -404,6 +404,44 @@ function syncOpenCodeSkills(pluginDir: string, pluginName: string): void {
   }
 }
 
+function verifyOpenCodeInstall(pluginDir: string, pluginName: string): void {
+  const entryPath = getOpenCodeEntryPath(pluginDir)
+  if (!existsSync(entryPath)) {
+    throw new Error(`OpenCode install is incomplete: missing host entry file at ${entryPath}`)
+  }
+
+  const entryContent = readFileSync(entryPath, 'utf-8')
+  const expectedImport = `import * as PluginModule from "./${pluginName}/index.ts"`
+  if (!entryContent.includes(expectedImport)) {
+    throw new Error(`OpenCode install is incomplete: ${entryPath} does not import ./${pluginName}/index.ts`)
+  }
+
+  const expectedDirectoryBridge = `directory: join(context.directory, "${pluginName}")`
+  if (!entryContent.includes(expectedDirectoryBridge)) {
+    throw new Error(`OpenCode install is incomplete: ${entryPath} does not preserve the plugin root bridge`)
+  }
+
+  const sourceSkillsDir = resolve(pluginDir, 'skills')
+  if (!existsSync(sourceSkillsDir)) return
+
+  for (const entry of readdirSync(sourceSkillsDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue
+
+    const sourceSkillPath = resolve(sourceSkillsDir, entry.name, 'SKILL.md')
+    if (!existsSync(sourceSkillPath)) continue
+
+    const installedSkillPath = resolve(getOpenCodeInstalledSkillDir(pluginName, entry.name), 'SKILL.md')
+    if (!existsSync(installedSkillPath)) {
+      throw new Error(`OpenCode install is incomplete: missing synced skill at ${installedSkillPath}`)
+    }
+
+    const installedSkillContent = readFileSync(installedSkillPath, 'utf-8')
+    if (!installedSkillContent.includes(`${pluginName}/`)) {
+      throw new Error(`OpenCode install is incomplete: ${installedSkillPath} is missing the expected ${pluginName}/ skill namespace`)
+    }
+  }
+}
+
 function removeOpenCodeSkills(pluginName: string): boolean {
   const root = getOpenCodeSkillRoot()
   if (!existsSync(root)) return false
@@ -914,8 +952,10 @@ export async function installPlugin(
     } else if (target.platform === 'opencode' && shouldMaterialize) {
       createOpenCodeCopiedInstall(target, pluginName)
       materializeInstalledPlugin(target.pluginDir, target.platform, options.config!, targetConfigEntries)
+      verifyOpenCodeInstall(target.pluginDir, pluginName)
     } else if (target.platform === 'opencode') {
       createOpenCodeSymlinkInstall(target, pluginName)
+      verifyOpenCodeInstall(target.pluginDir, pluginName)
     } else if (shouldMaterialize) {
       createCopiedInstall(target)
       materializeInstalledPlugin(target.pluginDir, target.platform, options.config!, targetConfigEntries)
