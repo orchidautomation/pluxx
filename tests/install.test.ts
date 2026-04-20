@@ -36,6 +36,9 @@ const INSTALL_PATHS: Record<TargetPlatform, string> = {
   amp: '.amp/plugins/megamind',
 }
 
+const OPENCODE_ENTRY_PATH = '.config/opencode/plugins/megamind.ts'
+const OPENCODE_SKILL_PATH = '.config/opencode/skills/megamind-client-intel'
+
 const HOOKS_WITH_COMMANDS: NonNullable<PluginConfig['hooks']> = {
   sessionStart: [
     { type: 'command', command: 'echo setup' },
@@ -101,6 +104,26 @@ describe('install', () => {
     expect(existsSync(resolve(HOME_DIR, INSTALL_PATHS.openhands))).toBe(true)
   })
 
+  it('installs OpenCode with a root entry file and globally discoverable skills', async () => {
+    mkdirSync(resolve(DIST_DIR, 'opencode/skills/client-intel'), { recursive: true })
+    await Bun.write(resolve(DIST_DIR, 'opencode/index.ts'), 'export const MegamindPlugin = async () => ({});\n')
+    await Bun.write(resolve(DIST_DIR, 'opencode/skills/client-intel/SKILL.md'), '# Client Intel\n')
+
+    await installPlugin(DIST_DIR, 'megamind', ['opencode'], { useNativeClaudeInstall: false })
+
+    const opencodeInstall = resolve(HOME_DIR, INSTALL_PATHS.opencode)
+    const opencodeEntry = resolve(HOME_DIR, OPENCODE_ENTRY_PATH)
+    const opencodeSkill = resolve(HOME_DIR, OPENCODE_SKILL_PATH)
+
+    expect(lstatSync(opencodeInstall).isSymbolicLink()).toBe(true)
+    expect(readlinkSync(opencodeInstall)).toBe(resolve(DIST_DIR, 'opencode'))
+    expect(existsSync(opencodeEntry)).toBe(true)
+    expect(readFileSync(opencodeEntry, 'utf-8')).toContain('import * as PluginModule from "./megamind/index.ts"')
+    expect(readFileSync(opencodeEntry, 'utf-8')).toContain('directory: join(context.directory, "megamind")')
+    expect(lstatSync(opencodeSkill).isSymbolicLink()).toBe(true)
+    expect(readlinkSync(opencodeSkill)).toBe(resolve(opencodeInstall, 'skills/client-intel'))
+  })
+
   it('removes Codex marketplace entries on uninstall', async () => {
     mkdirSync(resolve(DIST_DIR, 'codex'), { recursive: true })
     await installPlugin(DIST_DIR, 'megamind', ['codex'], { useNativeClaudeInstall: false })
@@ -109,6 +132,19 @@ describe('install', () => {
 
     expect(existsSync(resolve(HOME_DIR, INSTALL_PATHS.codex))).toBe(false)
     expect(existsSync(resolve(HOME_DIR, '.agents/plugins/marketplace.json'))).toBe(false)
+  })
+
+  it('uninstalls OpenCode wrapper files and exported skills', async () => {
+    mkdirSync(resolve(DIST_DIR, 'opencode/skills/client-intel'), { recursive: true })
+    await Bun.write(resolve(DIST_DIR, 'opencode/index.ts'), 'export const MegamindPlugin = async () => ({});\n')
+    await Bun.write(resolve(DIST_DIR, 'opencode/skills/client-intel/SKILL.md'), '# Client Intel\n')
+
+    await installPlugin(DIST_DIR, 'megamind', ['opencode'], { useNativeClaudeInstall: false })
+    await uninstallPlugin('megamind', ['opencode'])
+
+    expect(existsSync(resolve(HOME_DIR, INSTALL_PATHS.opencode))).toBe(false)
+    expect(existsSync(resolve(HOME_DIR, OPENCODE_ENTRY_PATH))).toBe(false)
+    expect(existsSync(resolve(HOME_DIR, OPENCODE_SKILL_PATH))).toBe(false)
   })
 
   it('lists only command hooks for install trust warning', () => {
@@ -265,11 +301,13 @@ describe('install', () => {
     mkdirSync(resolve(DIST_DIR, 'cursor/scripts'), { recursive: true })
     mkdirSync(resolve(DIST_DIR, 'codex/scripts'), { recursive: true })
     mkdirSync(resolve(DIST_DIR, 'opencode/scripts'), { recursive: true })
+    mkdirSync(resolve(DIST_DIR, 'opencode/skills/client-intel'), { recursive: true })
 
     await Bun.write(resolve(DIST_DIR, 'cursor/mcp.json'), JSON.stringify({ mcpServers: {} }, null, 2))
     await Bun.write(resolve(DIST_DIR, 'codex/.mcp.json'), JSON.stringify({ mcpServers: {} }, null, 2))
     await Bun.write(resolve(DIST_DIR, 'opencode/index.ts'), 'export const plugin = {};\n')
     await Bun.write(resolve(DIST_DIR, 'opencode/package.json'), JSON.stringify({ name: 'opencode-megamind' }, null, 2))
+    await Bun.write(resolve(DIST_DIR, 'opencode/skills/client-intel/SKILL.md'), '# Client Intel\n')
     await Bun.write(resolve(DIST_DIR, 'cursor/scripts/check-env.sh'), '#!/usr/bin/env bash\nexit 1\n')
     await Bun.write(resolve(DIST_DIR, 'codex/scripts/check-env.sh'), '#!/usr/bin/env bash\nexit 1\n')
     await Bun.write(resolve(DIST_DIR, 'opencode/scripts/check-env.sh'), '#!/usr/bin/env bash\nexit 1\n')
@@ -318,6 +356,8 @@ describe('install', () => {
     const cursorInstall = resolve(HOME_DIR, INSTALL_PATHS.cursor)
     const codexInstall = resolve(HOME_DIR, INSTALL_PATHS.codex)
     const opencodeInstall = resolve(HOME_DIR, INSTALL_PATHS.opencode)
+    const opencodeEntry = resolve(HOME_DIR, OPENCODE_ENTRY_PATH)
+    const opencodeSkill = resolve(HOME_DIR, OPENCODE_SKILL_PATH)
 
     expect(lstatSync(cursorInstall).isSymbolicLink()).toBe(false)
     expect(lstatSync(codexInstall).isSymbolicLink()).toBe(false)
@@ -330,6 +370,9 @@ describe('install', () => {
     expect(cursorMcp.mcpServers.fixture.headers.Authorization).toBe('Bearer shh-secret')
     expect(codexMcp.mcpServers.fixture.http_headers.Authorization).toBe('Bearer shh-secret')
     expect(opencodeUserConfig.env.TEST_API_KEY).toBe('shh-secret')
+    expect(readFileSync(opencodeEntry, 'utf-8')).toContain('directory: join(context.directory, "megamind")')
+    expect(lstatSync(opencodeSkill).isSymbolicLink()).toBe(true)
+    expect(readlinkSync(opencodeSkill)).toBe(resolve(opencodeInstall, 'skills/client-intel'))
     expect(readFileSync(resolve(cursorInstall, 'scripts/check-env.sh'), 'utf-8')).toContain('materialized required config')
   })
 })

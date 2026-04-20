@@ -1,5 +1,5 @@
-import { resolve, basename, dirname } from 'path'
-import { existsSync, symlinkSync, mkdirSync, rmSync, readFileSync, writeFileSync, cpSync } from 'fs'
+import { resolve, dirname } from 'path'
+import { existsSync, symlinkSync, mkdirSync, rmSync, readFileSync, writeFileSync, cpSync, readdirSync } from 'fs'
 import { spawnSync } from 'child_process'
 import * as readline from 'readline'
 import type { PluginConfig, TargetPlatform, UserConfigEntry } from '../schema'
@@ -269,7 +269,7 @@ function getInstallTargets(pluginName: string): InstallTarget[] {
     {
       platform: 'opencode',
       pluginDir: resolve(home, '.config/opencode/plugins', pluginName),
-      description: `~/.config/opencode/plugins/${pluginName}`,
+      description: `~/.config/opencode/plugins/${pluginName}.ts`,
     },
     {
       platform: 'github-copilot',
@@ -309,6 +309,89 @@ function getInstallTargets(pluginName: string): InstallTarget[] {
   ]
 }
 
+function getOpenCodeEntryPath(pluginDir: string): string {
+  return `${pluginDir}.ts`
+}
+
+function toPascalCase(value: string): string {
+  return value
+    .split(/[^A-Za-z0-9]+/)
+    .filter(Boolean)
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join('')
+}
+
+function writeOpenCodeEntryFile(pluginDir: string, pluginName: string): void {
+  const entryPath = getOpenCodeEntryPath(pluginDir)
+  const exportName = toPascalCase(pluginName)
+
+  writeFileSync(
+    entryPath,
+    [
+      'import type { Plugin } from "@opencode-ai/plugin"',
+      'import { join } from "path"',
+      '',
+      `import * as PluginModule from "./${pluginName}/index.ts"`,
+      '',
+      '// OpenCode auto-loads plugin files placed directly in ~/.config/opencode/plugins.',
+      '// Proxy into the installed Pluxx bundle while preserving its expected root.',
+      `const pluginFactory = Object.values(PluginModule).find((value): value is Plugin => typeof value === "function")`,
+      '',
+      'if (!pluginFactory) {',
+      `  throw new Error("OpenCode plugin bundle for ${pluginName} did not export a plugin function.")`,
+      '}',
+      '',
+      `export const ${exportName}: Plugin = async (context) =>`,
+      `  pluginFactory({`,
+      '    ...context,',
+      `    directory: join(context.directory, "${pluginName}"),`,
+      '  })',
+      '',
+    ].join('\n'),
+  )
+}
+
+function getOpenCodeSkillRoot(): string {
+  const home = process.env.HOME ?? '~'
+  return resolve(home, '.config/opencode/skills')
+}
+
+function getOpenCodeInstalledSkillDir(pluginName: string, skillName: string): string {
+  return resolve(getOpenCodeSkillRoot(), `${pluginName}-${skillName}`)
+}
+
+function syncOpenCodeSkills(pluginDir: string, pluginName: string): void {
+  const sourceSkillsDir = resolve(pluginDir, 'skills')
+  if (!existsSync(sourceSkillsDir)) return
+
+  mkdirSync(getOpenCodeSkillRoot(), { recursive: true })
+
+  for (const entry of readdirSync(sourceSkillsDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue
+
+    const skillSourceDir = resolve(sourceSkillsDir, entry.name)
+    if (!existsSync(resolve(skillSourceDir, 'SKILL.md'))) continue
+
+    const installedSkillDir = getOpenCodeInstalledSkillDir(pluginName, entry.name)
+    rmSync(installedSkillDir, { recursive: true, force: true })
+    symlinkSync(skillSourceDir, installedSkillDir)
+  }
+}
+
+function removeOpenCodeSkills(pluginName: string): boolean {
+  const root = getOpenCodeSkillRoot()
+  if (!existsSync(root)) return false
+
+  let removed = false
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    if (!entry.name.startsWith(`${pluginName}-`)) continue
+    rmSync(resolve(root, entry.name), { recursive: true, force: true })
+    removed = true
+  }
+
+  return removed
+}
+
 export function getInstallFollowupNotes(platforms: TargetPlatform[]): string[] {
   const notes: string[] = []
 
@@ -337,6 +420,12 @@ function createSymlinkInstall(target: PlannedInstallTarget): void {
   }
 
   symlinkSync(target.sourceDir, target.pluginDir)
+}
+
+function createOpenCodeSymlinkInstall(target: PlannedInstallTarget, pluginName: string): void {
+  createSymlinkInstall(target)
+  writeOpenCodeEntryFile(target.pluginDir, pluginName)
+  syncOpenCodeSkills(target.pluginDir, pluginName)
 }
 
 function getCodexMarketplacePath(): string {
@@ -432,6 +521,12 @@ function createCopiedInstall(target: PlannedInstallTarget): void {
   }
 
   cpSync(target.sourceDir, target.pluginDir, { recursive: true })
+}
+
+function createOpenCodeCopiedInstall(target: PlannedInstallTarget, pluginName: string): void {
+  createCopiedInstall(target)
+  writeOpenCodeEntryFile(target.pluginDir, pluginName)
+  syncOpenCodeSkills(target.pluginDir, pluginName)
 }
 
 function materializeTemplateValue(value: string, env: Record<string, string>): string {
@@ -790,6 +885,11 @@ export async function installPlugin(
             }
           : undefined,
       )
+    } else if (target.platform === 'opencode' && shouldMaterialize) {
+      createOpenCodeCopiedInstall(target, pluginName)
+      materializeInstalledPlugin(target.pluginDir, target.platform, options.config!, targetConfigEntries)
+    } else if (target.platform === 'opencode') {
+      createOpenCodeSymlinkInstall(target, pluginName)
     } else if (shouldMaterialize) {
       createCopiedInstall(target)
       materializeInstalledPlugin(target.pluginDir, target.platform, options.config!, targetConfigEntries)
@@ -840,8 +940,22 @@ export async function uninstallPlugin(
       continue
     }
 
+    let removedTarget = false
     if (existsSync(target.pluginDir)) {
       rmSync(target.pluginDir, { recursive: true, force: true })
+      removedTarget = true
+    }
+    if (target.platform === 'opencode') {
+      const entryPath = getOpenCodeEntryPath(target.pluginDir)
+      if (existsSync(entryPath)) {
+        rmSync(entryPath, { force: true })
+        removedTarget = true
+      }
+      if (removeOpenCodeSkills(pluginName)) {
+        removedTarget = true
+      }
+    }
+    if (removedTarget) {
       if (!options.quiet) {
         console.log(`  removed ${target.description}`)
       }
