@@ -257,6 +257,7 @@ Priority:
 Why:
 - Cursor, Codex, and OpenCode all move more specialization here than Claude skills do
 - this is the key to translating "perfect on one host" into "best native optimization on the others"
+- see [Portable Delegation Model](./portable-delegation-model.md) for the canonical delegated-specialist subset
 
 ### Hooks
 

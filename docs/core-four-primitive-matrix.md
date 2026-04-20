@@ -128,3 +128,7 @@ This matrix implies a few hard rules for Pluxx:
 - [Skills](https://opencode.ai/docs/skills/)
 - [Commands](https://opencode.ai/docs/commands/)
 - [Agents](https://opencode.ai/docs/agents/)
+
+## Related Docs
+
+- [Portable Delegation Model](./portable-delegation-model.md)

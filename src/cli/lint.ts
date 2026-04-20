@@ -917,13 +917,13 @@ function lintCodexHooksExternalConfig(config: PluginConfig, issues: LintIssue[])
   const hasPluxxCodexHooksFlag = features && features.codex_hooks === true
 
   const featureNote = hasPluxxCodexHooksFlag
-    ? 'Note: `platforms.codex.features.codex_hooks` in pluxx.config.ts is not emitted into Codex plugin output today.'
-    : 'If you want Codex to run these hooks, configure them in `~/.codex/hooks.json` or `<repo>/.codex/hooks.json` and enable `codex_hooks = true` in Codex itself.'
+    ? 'Pluxx will generate `.codex/hooks.generated.json` as a mirror, but you still need to wire the hooks into Codex itself.'
+    : 'Pluxx will generate `.codex/hooks.generated.json` as a mirror, but you still need to copy or adapt it into `~/.codex/hooks.json` or `<repo>/.codex/hooks.json` and enable `codex_hooks = true` in Codex itself.'
 
   pushIssue(issues, {
     level: 'warning',
     code: 'codex-hooks-external-config',
-    message: `Codex plugin docs currently separate hook configuration from plugin packaging, so Pluxx does not bundle Codex hooks into generated plugin output. ${featureNote}`,
+    message: `Codex plugin docs currently separate hook configuration from plugin packaging, so Pluxx emits hook guidance as external Codex config rather than as a plugin-bundled hook surface. ${featureNote}`,
     file: 'pluxx.config.ts',
     platform: 'Codex',
   })

@@ -4,6 +4,8 @@ import { resolve } from 'path'
 import { migrate } from '../src/cli/migrate'
 import { planAgentPrepare } from '../src/cli/agent'
 import { runEvalSuite } from '../src/cli/eval'
+import { loadConfig } from '../src/config/load'
+import { build } from '../src/generators'
 
 const TEST_DIR = resolve(import.meta.dir, '.migrate-fixture')
 
@@ -392,6 +394,13 @@ describe('migrate', () => {
 
       const evalReport = await runEvalSuite({ rootDir: outputDir })
       expect(evalReport.ok).toBe(true)
+
+      const migratedConfig = await loadConfig(outputDir)
+      await build(migratedConfig, outputDir)
+      expect(existsSync(resolve(outputDir, 'dist/claude-code'))).toBe(true)
+      expect(existsSync(resolve(outputDir, 'dist/cursor'))).toBe(true)
+      expect(existsSync(resolve(outputDir, 'dist/codex'))).toBe(true)
+      expect(existsSync(resolve(outputDir, 'dist/opencode'))).toBe(true)
     })
   }
 

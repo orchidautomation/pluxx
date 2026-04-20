@@ -3,6 +3,7 @@ import { Generator } from '../base'
 import type { TargetPlatform } from '../../schema'
 import { buildGeneratedPermissionHookScript } from '../../permissions'
 import { type AgentFrontmatterMap, readCanonicalAgentFiles } from '../../agents'
+import { buildDelegationBehaviorNotes } from '../../delegation'
 
 export class CursorGenerator extends Generator {
   readonly platform: TargetPlatform = 'cursor'
@@ -193,44 +194,7 @@ export class CursorGenerator extends Generator {
 }
 
 function buildCursorAgentTranslationNotes(frontmatter: AgentFrontmatterMap): string[] {
-  const notes: string[] = []
-  const permission = asMap(frontmatter.permission)
-
-  if (permission) {
-    const edit = permission.edit
-    if (edit === 'deny') {
-      notes.push('Cursor translation note: stay read-only with respect to file edits unless the parent task explicitly asks for changes.')
-    }
-
-    const bash = asMap(permission.bash)
-    if (bash) {
-      const bashAll = bash['*']
-      if (bashAll === 'deny') {
-        notes.push('Cursor translation note: avoid shell commands unless the parent task explicitly requires them.')
-      } else if (bashAll === 'ask') {
-        notes.push('Cursor translation note: use shell commands sparingly and only when they are clearly necessary to complete the task.')
-      }
-    }
-
-    const task = asMap(permission.task)
-    if (task) {
-      const taskAll = task['*']
-      if (taskAll === 'deny') {
-        notes.push('Cursor translation note: do not delegate to other subagents unless the parent task explicitly asks for parallel specialist work.')
-      } else if (taskAll === 'ask') {
-        notes.push('Cursor translation note: only delegate to other subagents when the task clearly benefits from specialization.')
-      }
-    }
-  }
-
-  if (frontmatter.hidden === true) {
-    notes.push('Cursor translation note: this specialist is intended primarily for delegated use rather than direct invocation.')
-  }
-
-  return notes
-}
-
-function asMap(value: unknown): AgentFrontmatterMap | undefined {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
-  return value as AgentFrontmatterMap
+  return buildDelegationBehaviorNotes(frontmatter).map(
+    (note) => `Cursor translation note: ${note.charAt(0).toLowerCase()}${note.slice(1)}`,
+  )
 }

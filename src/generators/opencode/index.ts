@@ -4,6 +4,7 @@ import { Generator } from '../base'
 import type { HookEntry, TargetPlatform } from '../../schema'
 import { buildOpenCodePermissionMap } from '../../permissions'
 import { type AgentFrontmatterMap, readCanonicalAgentFiles } from '../../agents'
+import { readCanonicalCommandFiles } from '../../commands'
 
 type GeneratedHook = {
   command: string
@@ -379,22 +380,13 @@ export class OpenCodeGenerator extends Generator {
     if (!this.config.commands) return {}
 
     const commandsDir = this.resolveConfigPath(this.config.commands, 'commands')
-    if (!existsSync(commandsDir)) return {}
-
-    const files = this.walkFiles(commandsDir).filter(file => extname(file) === '.md')
+    const commands = readCanonicalCommandFiles(commandsDir)
     const output: Record<string, { template: string; description?: string }> = {}
 
-    for (const file of files) {
-      const raw = readFileSync(file, 'utf-8')
-      const { description, body } = parseMarkdownCommand(raw)
-      const relativePath = relative(commandsDir, file)
-        .replace(/\\/g, '/')
-        .replace(/\.md$/i, '')
-      const name = relativePath.replace(/\//g, '-').toLowerCase()
-
-      output[name] = {
-        template: body.trim(),
-        ...(description ? { description } : {}),
+    for (const command of commands) {
+      output[command.commandId] = {
+        template: command.body,
+        ...(command.description ? { description: command.description } : {}),
       }
     }
 
@@ -537,28 +529,6 @@ function asOpenCodeMap(value: unknown): AgentFrontmatterMap | undefined {
   return value as AgentFrontmatterMap
 }
 
-function parseMarkdownCommand(content: string): { description?: string; body: string } {
-  const trimmed = content.trim()
-  if (!trimmed.startsWith('---')) {
-    return { body: content }
-  }
-
-  const endFrontmatter = trimmed.indexOf('\n---', 3)
-  if (endFrontmatter === -1) {
-    return { body: content }
-  }
-
-  const frontmatter = trimmed.slice(3, endFrontmatter).trim()
-  const body = trimmed.slice(endFrontmatter + 4)
-  const descriptionLine = frontmatter
-    .split('\n')
-    .find(line => line.trim().startsWith('description:'))
-  const description = descriptionLine
-    ? descriptionLine.split(':').slice(1).join(':').trim().replace(/^["']|["']$/g, '')
-    : undefined
-
-  return { description, body }
-}
 
 function mapHookEventName(event: string): string {
   const map: Record<string, string> = {

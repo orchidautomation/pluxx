@@ -139,6 +139,8 @@ describe('build', () => {
     expect(existsSync(resolve(OUT_DIR, 'codex/.codex-plugin/plugin.json'))).toBe(true)
     expect(existsSync(resolve(OUT_DIR, 'codex/.mcp.json'))).toBe(true)
     expect(existsSync(resolve(OUT_DIR, 'codex/hooks.json'))).toBe(false)
+    expect(existsSync(resolve(OUT_DIR, 'codex/.codex/hooks.generated.json'))).toBe(true)
+    expect(existsSync(resolve(OUT_DIR, 'codex/.codex/commands.generated.json'))).toBe(true)
     expect(existsSync(resolve(OUT_DIR, 'codex/commands/pulse.md'))).toBe(false)
     expect(existsSync(resolve(OUT_DIR, 'codex/mcp-server/dist/index.js'))).toBe(true)
 
@@ -356,6 +358,19 @@ describe('build', () => {
     expect(codexPermissions.rules.some((rule: { raw: string }) => rule.raw === 'Read(src/**)')).toBe(true)
   })
 
+  it('generates a Codex hook companion with mapped native event names', async () => {
+    const codexHooks = JSON.parse(
+      readFileSync(resolve(OUT_DIR, 'codex/.codex/hooks.generated.json'), 'utf-8')
+    ) as {
+      model: string
+      hooks: Record<string, Array<{ command: string }>>
+    }
+
+    expect(codexHooks.model).toBe('pluxx.codex-hooks.v1')
+    expect(codexHooks.hooks.SessionStart?.[0]?.command).toContain('./scripts/validate.sh')
+    expect(codexHooks.hooks.UserPromptSubmit?.[0]?.command).toContain('./scripts/check-prompt.sh')
+  })
+
   it('carries compiler-intent skill policies into the Codex permissions companion when present', async () => {
     mkdirSync(resolve(TEST_DIR, '.pluxx'), { recursive: true })
     await Bun.write(
@@ -433,7 +448,25 @@ describe('build', () => {
     expect(codexAgent).toContain('name = "escalation"')
     expect(codexAgent).toContain('description = "Escalation specialist."')
     expect(codexAgent).toContain('developer_instructions = """')
+    expect(codexAgent).toContain('Delegation contract:')
+    expect(codexAgent).toContain('This specialist is intended primarily for delegated use')
+    expect(codexAgent).toContain('Only delegate further subtasks when the work clearly benefits from another specialist.')
     expect(codexAgent).toContain('Escalate tricky issues with a constrained tool policy.')
+  })
+
+  it('degrades canonical commands into Codex routing guidance and a generated companion', async () => {
+    const codexAgentsMd = readFileSync(resolve(OUT_DIR, 'codex/AGENTS.md'), 'utf-8')
+    const codexCommands = JSON.parse(
+      readFileSync(resolve(OUT_DIR, 'codex/.codex/commands.generated.json'), 'utf-8')
+    ) as {
+      model: string
+      commands: Array<{ id: string; title: string }>
+    }
+
+    expect(codexAgentsMd).toContain('## Command Routing')
+    expect(codexAgentsMd).toContain('`/pulse`')
+    expect(codexCommands.model).toBe('pluxx.commands.v1')
+    expect(codexCommands.commands[0]?.id).toBe('pulse')
   })
 
   it('preserves Linear-style preToolUse matchers in Claude Code and Cursor outputs', async () => {
@@ -557,8 +590,8 @@ describe('build', () => {
     expect(cursorAgent).toContain('description: "Escalation specialist."')
     expect(cursorAgent).not.toContain('permission:')
     expect(cursorAgent).not.toContain('mode: subagent')
-    expect(cursorAgent).toContain('Cursor translation note: stay read-only with respect to file edits')
-    expect(cursorAgent).toContain('Cursor translation note: only delegate to other subagents when the task clearly benefits from specialization.')
+    expect(cursorAgent).toContain('Cursor translation note: stay read-only unless the parent task explicitly asks for file edits.')
+    expect(cursorAgent).toContain('Cursor translation note: only delegate further subtasks when the work clearly benefits from another specialist.')
   })
 
   it('writes Cursor rules to rules/', async () => {

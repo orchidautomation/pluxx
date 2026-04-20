@@ -4,6 +4,17 @@ import { Generator } from '../base'
 import type { TargetPlatform } from '../../schema'
 import { collectPermissionRules } from '../../permissions'
 import { readCanonicalAgentFiles } from '../../agents'
+import { readCanonicalCommandFiles } from '../../commands'
+import { buildDelegationBehaviorNotes } from '../../delegation'
+import { mapHookEventToPascalCase } from '../../hook-events'
+
+const CODEX_SUPPORTED_HOOK_EVENTS = new Set([
+  'SessionStart',
+  'PreToolUse',
+  'PostToolUse',
+  'UserPromptSubmit',
+  'Stop',
+])
 
 export class CodexGenerator extends Generator {
   readonly platform: TargetPlatform = 'codex'
@@ -48,6 +59,8 @@ export class CodexGenerator extends Generator {
       }),
       this.generateAgentsMd(),
       this.generateNativeAgents(),
+      this.generateHooksCompanion(),
+      this.generateCommandsCompanion(),
       this.generatePermissionsCompanion(),
     ])
 
@@ -140,12 +153,22 @@ export class CodexGenerator extends Generator {
   }
 
   private async generateAgentsMd(): Promise<void> {
-    if (!this.config.instructions) return
-    const srcPath = this.resolveConfigPath(this.config.instructions, 'instructions')
-    if (!existsSync(srcPath)) return
+    const sections: string[] = []
 
-    const content = await Bun.file(srcPath).text()
-    await this.writeFile('AGENTS.md', content)
+    if (this.config.instructions) {
+      const srcPath = this.resolveConfigPath(this.config.instructions, 'instructions')
+      if (existsSync(srcPath)) {
+        sections.push((await Bun.file(srcPath).text()).trim())
+      }
+    }
+
+    const commandsSection = this.buildCodexCommandRoutingSection()
+    if (commandsSection) {
+      sections.push(commandsSection)
+    }
+
+    if (sections.length === 0) return
+    await this.writeFile('AGENTS.md', sections.join('\n\n').trim() + '\n')
   }
 
   private async generateNativeAgents(): Promise<void> {
@@ -171,14 +194,112 @@ export class CodexGenerator extends Generator {
       if (typeof agent.frontmatter.sandbox_mode === 'string' && agent.frontmatter.sandbox_mode) {
         lines.push(`sandbox_mode = ${JSON.stringify(agent.frontmatter.sandbox_mode)}`)
       }
-      if (agent.body) {
+      const delegationNotes = buildDelegationBehaviorNotes(agent.frontmatter)
+      const developerInstructions = [
+        ...(delegationNotes.length > 0
+          ? [
+              'Delegation contract:',
+              ...delegationNotes.map((note) => `- ${note}`),
+              '',
+            ]
+          : []),
+        agent.body,
+      ].filter(Boolean).join('\n')
+
+      if (developerInstructions) {
         lines.push('developer_instructions = """')
-        lines.push(agent.body.replace(/"""/g, '\\"\\"\\"'))
+        lines.push(developerInstructions.replace(/"""/g, '\\"\\"\\"'))
         lines.push('"""')
       }
       lines.push('')
 
       await this.writeFile(`.codex/agents/${relativePath}`, lines.join('\n'))
     }
+  }
+
+  private async generateHooksCompanion(): Promise<void> {
+    if (!this.config.hooks) return
+
+    const hooks: Record<string, Array<Record<string, unknown>>> = {}
+    const unsupported: Array<Record<string, string>> = []
+
+    for (const [event, entries] of Object.entries(this.config.hooks)) {
+      if (!entries || entries.length === 0) continue
+
+      const codexEvent = mapHookEventToPascalCase(event)
+      const mappedEntries = entries
+        .filter((entry) => entry.type !== 'prompt' && entry.command)
+        .map((entry) => ({
+          command: entry.command?.replace('${PLUGIN_ROOT}', '.'),
+          ...(entry.matcher !== undefined ? { matcher: entry.matcher } : {}),
+          ...(entry.timeout ? { timeout: entry.timeout } : {}),
+          ...(entry.failClosed !== undefined ? { failClosed: entry.failClosed } : {}),
+        }))
+
+      if (mappedEntries.length === 0) continue
+
+      if (!CODEX_SUPPORTED_HOOK_EVENTS.has(codexEvent)) {
+        unsupported.push({
+          canonicalEvent: event,
+          codexEvent,
+          reason: 'Codex currently documents only SessionStart, PreToolUse, PostToolUse, UserPromptSubmit, and Stop for hook configuration.',
+        })
+        continue
+      }
+
+      hooks[codexEvent] = [
+        ...(hooks[codexEvent] ?? []),
+        ...mappedEntries,
+      ]
+    }
+
+    if (Object.keys(hooks).length === 0 && unsupported.length === 0) return
+
+    await this.writeJson('.codex/hooks.generated.json', {
+      model: 'pluxx.codex-hooks.v1',
+      enforcedByPluginBundle: false,
+      featureFlag: 'codex_hooks',
+      note: 'Codex hook configuration lives outside the plugin bundle. Use this file as a generated mirror for <repo>/.codex/hooks.json or ~/.codex/hooks.json and enable codex_hooks in Codex.',
+      hooks,
+      ...(unsupported.length > 0 ? { unsupported } : {}),
+    })
+  }
+
+  private async generateCommandsCompanion(): Promise<void> {
+    if (!this.config.commands) return
+
+    const commandsDir = this.resolveConfigPath(this.config.commands, 'commands')
+    const commands = readCanonicalCommandFiles(commandsDir)
+    if (commands.length === 0) return
+
+    await this.writeJson('.codex/commands.generated.json', {
+      model: 'pluxx.commands.v1',
+      nativeSurface: 'degraded-to-guidance',
+      note: 'Codex does not currently document plugin-packaged slash commands. Use these canonical command entries as workflow routing guidance alongside AGENTS.md.',
+      commands: commands.map((command) => ({
+        id: command.commandId,
+        title: command.title,
+        ...(command.description ? { description: command.description } : {}),
+        template: command.body,
+      })),
+    })
+  }
+
+  private buildCodexCommandRoutingSection(): string | null {
+    if (!this.config.commands) return null
+
+    const commandsDir = this.resolveConfigPath(this.config.commands, 'commands')
+    const commands = readCanonicalCommandFiles(commandsDir)
+    if (commands.length === 0) return null
+
+    const lines = [
+      '## Command Routing',
+      '',
+      'This plugin defines canonical command entrypoints. Codex does not package them as native slash commands today, so route those requests through the matching workflow directly.',
+      '',
+      ...commands.map((command) => `- \`/${command.commandId}\` - ${command.description ?? command.title}`),
+    ]
+
+    return lines.join('\n')
   }
 }
