@@ -5,6 +5,7 @@ import { listHookCommands } from './install'
 import { PLATFORM_LIMITS, getCoreFourPrimitiveCapabilities, type CoreFourPlatform, type PrimitiveTranslationMode } from '../validation/platform-rules'
 import { getConfiguredCompilerBuckets, type McpServer, type PluginConfig, type TargetPlatform } from '../schema'
 import { MCP_SCAFFOLD_METADATA_PATH, type McpScaffoldMetadata } from './init-from-mcp'
+import { buildPrimitiveTranslationSummary, renderPrimitiveTranslationSummary, type PrimitiveTranslationSummary } from './primitive-summary'
 
 export type DoctorLevel = 'error' | 'warning' | 'info' | 'success'
 
@@ -23,6 +24,7 @@ export interface DoctorReport {
   warnings: number
   infos: number
   checks: DoctorCheck[]
+  primitiveSummary?: PrimitiveTranslationSummary
 }
 
 const CORE_FOUR = new Set<TargetPlatform>(['claude-code', 'cursor', 'codex', 'opencode'])
@@ -71,9 +73,10 @@ function addCheck(checks: DoctorCheck[], check: DoctorCheck): void {
 }
 
 function summarizeChecks(checks: DoctorCheck[]): DoctorReport {
-  const errors = checks.filter((check) => check.level === 'error').length
-  const warnings = checks.filter((check) => check.level === 'warning').length
-  const infos = checks.filter((check) => check.level === 'info').length
+  const visibleChecks = checks.filter((check) => !check.code.startsWith('primitive-'))
+  const errors = visibleChecks.filter((check) => check.level === 'error').length
+  const warnings = visibleChecks.filter((check) => check.level === 'warning').length
+  const infos = visibleChecks.filter((check) => check.level === 'info').length
 
   return {
     ok: errors === 0,
@@ -1044,16 +1047,31 @@ export async function doctorProject(rootDir: string = process.cwd()): Promise<Do
     }
   }
 
-  return summarizeChecks(checks)
+  return {
+    ...summarizeChecks(checks),
+    primitiveSummary: buildPrimitiveTranslationSummary(config, config.targets),
+  }
 }
 
 export function printDoctorReport(report: DoctorReport): void {
-  for (const check of report.checks) {
+  const visibleChecks = report.checks.filter((check) => !check.code.startsWith('primitive-'))
+
+  for (const check of visibleChecks) {
     const prefix = check.level.toUpperCase().padEnd(7, ' ')
     const pathLabel = check.path ? ` [${check.path}]` : ''
     console.log(`${prefix} ${check.code}${pathLabel} ${check.title}`)
     console.log(`         ${check.detail}`)
     console.log(`         Fix: ${check.fix}`)
+  }
+
+  const primitiveLines = renderPrimitiveTranslationSummary(report.primitiveSummary)
+  if (primitiveLines.length > 0) {
+    if (visibleChecks.length > 0) {
+      console.log('')
+    }
+    for (const line of primitiveLines) {
+      console.log(line)
+    }
   }
 
   console.log('')

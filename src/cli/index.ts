@@ -65,6 +65,7 @@ import { formatPublishPlan, planPublish, runPublish } from './publish'
 import { createCliRuntime, createSpinner, printJson, readFlag, readMultiValueOption, readOption } from './runtime'
 import { printTestResult, runTestSuite, type TestRunResult } from './test'
 import { printEvalReport, runEvalSuite } from './eval'
+import { buildPrimitiveTranslationSummary, renderPrimitiveTranslationSummary } from './primitive-summary'
 
 const args = process.argv.slice(2)
 const command = args[0]
@@ -519,6 +520,7 @@ async function runBuild() {
       outDir: config.outDir,
       outputPaths: platforms.map((platform) => `${config.outDir}/${platform}/`),
       lint: lintResult,
+      primitiveSummary: buildPrimitiveTranslationSummary(config, platforms),
       install,
     })
     return
@@ -528,6 +530,15 @@ async function runBuild() {
     console.log(`Done! Output in ${config.outDir}/`)
     for (const platform of platforms) {
       console.log(`  ${config.outDir}/${platform}/`)
+    }
+    const primitiveLines = renderPrimitiveTranslationSummary(
+      buildPrimitiveTranslationSummary(config, platforms),
+    )
+    if (primitiveLines.length > 0) {
+      console.log('')
+      for (const line of primitiveLines) {
+        console.log(line)
+      }
     }
     if (shouldInstall && install) {
       console.log('Installed for local testing:')

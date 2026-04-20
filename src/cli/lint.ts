@@ -4,6 +4,7 @@ import { loadConfig } from '../config/load'
 import { getConfiguredCompilerBuckets, type PluginConfig, type PluxxCompilerBucket, type TargetPlatform } from '../schema'
 import { PLATFORM_LIMITS, getCoreFourPrimitiveCapabilities, type CoreFourPlatform, type PrimitiveTranslationMode } from '../validation/platform-rules'
 import { collectPermissionRules, permissionRulesNeedToolLevelDowngrade } from '../permissions'
+import { buildPrimitiveTranslationSummary, renderPrimitiveTranslationSummary, type PrimitiveTranslationSummary } from './primitive-summary'
 import {
   CURSOR_LOOP_LIMIT_HOOK_EVENTS,
   CURSOR_SUPPORTED_HOOK_EVENTS,
@@ -66,6 +67,7 @@ export interface LintResult {
   errors: number
   warnings: number
   issues: LintIssue[]
+  primitiveSummary?: PrimitiveTranslationSummary
 }
 
 export interface LintProjectOptions {
@@ -1264,18 +1266,36 @@ export async function lintProject(
   lintRulesFileLimits(lintConfig, dir, issues)
 
   const sorted = sortIssues(issues)
-  const errors = sorted.filter(i => i.level === 'error').length
-  const warnings = sorted.filter(i => i.level === 'warning').length
+  const visibleIssues = sorted.filter((issue) => !issue.code.startsWith('primitive-'))
+  const errors = visibleIssues.filter(i => i.level === 'error').length
+  const warnings = visibleIssues.filter(i => i.level === 'warning').length
 
-  return { errors, warnings, issues: sorted }
+  return {
+    errors,
+    warnings,
+    issues: sorted,
+    primitiveSummary: buildPrimitiveTranslationSummary(lintConfig, lintConfig.targets),
+  }
 }
 
 export function printLintResult(result: LintResult, dir: string = process.cwd()): void {
-  for (const issue of result.issues) {
+  const visibleIssues = result.issues.filter((issue) => !issue.code.startsWith('primitive-'))
+
+  for (const issue of visibleIssues) {
     const levelLabel = issue.level === 'error' ? 'ERROR' : 'WARN '
     const platformLabel = issue.platform ? `[${issue.platform}] ` : ''
     const loc = issue.file ? `${relative(dir, resolve(dir, issue.file))}: ` : ''
     console.log(`${levelLabel} ${issue.code} ${platformLabel}${loc}${issue.message}`)
+  }
+
+  const primitiveLines = renderPrimitiveTranslationSummary(result.primitiveSummary)
+  if (primitiveLines.length > 0) {
+    if (visibleIssues.length > 0) {
+      console.log('')
+    }
+    for (const line of primitiveLines) {
+      console.log(line)
+    }
   }
 
   if (result.errors === 0 && result.warnings === 0) {
