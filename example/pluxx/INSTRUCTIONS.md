@@ -35,7 +35,7 @@ The normal workflow is:
   Use when the user wants findings before shipping, not blind rewrites.
 
 - `pluxx-build-install`
-  Use when the user wants to build native outputs and optionally install one or more targets locally.
+  Use when the user wants to build installable plugins and optionally install one or more targets locally.
 
 - `pluxx-sync-mcp`
   Use when an existing MCP-derived scaffold needs to be refreshed safely.

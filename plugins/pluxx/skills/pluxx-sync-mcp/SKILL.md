@@ -1,6 +1,6 @@
 ---
 name: pluxx-sync-mcp
-description: Use when the user wants to refresh a Pluxx scaffold from its MCP source, preserve custom sections safely, and understand what changed after the sync.
+description: Refresh an MCP-derived Pluxx scaffold and preserve custom sections.
 ---
 
 # Pluxx Sync MCP

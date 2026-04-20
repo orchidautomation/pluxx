@@ -1,6 +1,6 @@
 ---
 name: pluxx-import-mcp
-description: Use when the user wants to scaffold a Pluxx plugin from an MCP server, inspect what was generated, or validate the first-pass plugin across Claude Code, Cursor, Codex, and OpenCode.
+description: Import an MCP into a Pluxx project and validate the first pass.
 ---
 
 # Pluxx Import MCP
@@ -39,4 +39,4 @@ Use this skill when the task is: bring an MCP server into Pluxx, generate the in
 
 - Tell the user whether the MCP imported successfully.
 - Call out the generated plugin structure and the important files.
-- State whether the core four passed or what failed.
+- State whether Claude, Cursor, Codex, and OpenCode passed or what failed.

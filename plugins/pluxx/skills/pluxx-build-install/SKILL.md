@@ -1,6 +1,6 @@
 ---
 name: pluxx-build-install
-description: Use when the user wants to build native target outputs from a Pluxx scaffold and optionally install one or more of them locally for testing.
+description: Build installable plugins from a Pluxx scaffold and optionally install one.
 ---
 
 # Pluxx Build Install

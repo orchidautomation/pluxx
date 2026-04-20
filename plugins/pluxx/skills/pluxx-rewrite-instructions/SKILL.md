@@ -1,6 +1,6 @@
 ---
 name: pluxx-rewrite-instructions
-description: Use when the user wants to improve the generated INSTRUCTIONS.md block for a Pluxx scaffold so the plugin explains itself clearly to Claude Code, Codex, Cursor, and OpenCode agents.
+description: Rewrite INSTRUCTIONS.md so a Pluxx scaffold explains itself clearly.
 ---
 
 # Pluxx Rewrite Instructions

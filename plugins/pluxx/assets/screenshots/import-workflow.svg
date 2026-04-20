@@ -31,6 +31,6 @@
     <text x="24" y="122" fill="#cfc5e1" font-family="Inter, Arial, sans-serif" font-size="20">Cursor</text>
     <text x="24" y="156" fill="#cfc5e1" font-family="Inter, Arial, sans-serif" font-size="20">Codex</text>
     <text x="24" y="190" fill="#cfc5e1" font-family="Inter, Arial, sans-serif" font-size="20">OpenCode</text>
-    <text x="24" y="230" fill="#9d6dff" font-family="Inter, Arial, sans-serif" font-size="18">One source project. Four native outputs.</text>
+    <text x="24" y="230" fill="#9d6dff" font-family="Inter, Arial, sans-serif" font-size="18">One source project. Four installable plugins.</text>
   </g>
 </svg>

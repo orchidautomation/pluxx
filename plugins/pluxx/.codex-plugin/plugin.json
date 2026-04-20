@@ -1,7 +1,7 @@
 {
   "name": "pluxx",
   "version": "0.1.0",
-  "description": "Import, migrate, validate, refine, build, and maintain Pluxx plugins inside Codex.",
+  "description": "Build once, ship installable plugins to Claude, Cursor, Codex, and OpenCode.",
   "author": {
     "name": "Orchid Automation",
     "url": "https://github.com/orchidautomation"
@@ -20,8 +20,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Pluxx",
-    "shortDescription": "Turn MCPs and existing plugins into maintained multi-host projects",
-    "longDescription": "Use Pluxx inside Codex to import MCPs, migrate existing plugins, validate scaffolds, refine taxonomy and instructions, build target outputs, and keep generated projects synced over time.",
+    "shortDescription": "Build once, ship installable plugins to Claude, Cursor, Codex, and OpenCode",
+    "longDescription": "Use Pluxx inside Codex to import MCPs or migrate existing plugins, validate and refine the scaffold, then generate installable plugins for Claude, Cursor, Codex, and OpenCode from one maintained source project.",
     "developerName": "Orchid Automation",
     "category": "Productivity",
     "capabilities": [
@@ -35,7 +35,7 @@
     "defaultPrompt": [
       "Use Pluxx to import or migrate this plugin into a maintained project and validate the result.",
       "Use Pluxx to refine this scaffold safely, then rerun validation.",
-      "Use Pluxx to build this scaffold for the core four and install the target I want to test."
+      "Use Pluxx to build installable plugins for Claude, Cursor, Codex, and OpenCode, then install the target I want to test."
     ],
     "brandColor": "#0F172A",
     "composerIcon": "./assets/icon/pluxx-icon.svg",

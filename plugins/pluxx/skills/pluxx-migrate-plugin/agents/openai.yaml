@@ -1,4 +1,4 @@
 interface:
   display_name: "Migrate Plugin"
-  short_description: "Bring an existing plugin into a maintained Pluxx project"
+  short_description: "Bring an existing Claude, Cursor, Codex, or OpenCode plugin into Pluxx"
   default_prompt: "Use Pluxx to migrate this existing host-native plugin into a Pluxx project and validate the result."

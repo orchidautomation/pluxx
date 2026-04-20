@@ -1,4 +1,4 @@
 interface:
   display_name: "Import MCP"
-  short_description: "Scaffold and validate a Pluxx plugin from an MCP"
-  default_prompt: "Use Pluxx to import this MCP, show the generated scaffold, and verify the core four."
+  short_description: "Import an MCP into Pluxx and validate the first pass"
+  default_prompt: "Use Pluxx to import this MCP, show the generated scaffold, and verify Claude, Cursor, Codex, and OpenCode."

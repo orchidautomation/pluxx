@@ -1,6 +1,6 @@
 ---
 name: pluxx-refine-taxonomy
-description: Use when the user wants to improve the generated skill taxonomy for a Pluxx scaffold, merge or split skills, or make the MCP feel more product-shaped without breaking managed boundaries.
+description: Improve Pluxx skill grouping without breaking managed sections.
 ---
 
 # Pluxx Refine Taxonomy

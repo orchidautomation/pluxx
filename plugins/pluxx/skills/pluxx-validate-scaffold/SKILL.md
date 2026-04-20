@@ -1,6 +1,6 @@
 ---
 name: pluxx-validate-scaffold
-description: Use when the user wants a deterministic health and quality pass on a Pluxx scaffold before refinement, shipping, or installation.
+description: Run doctor, lint, eval, and test on a Pluxx scaffold.
 ---
 
 # Pluxx Validate Scaffold

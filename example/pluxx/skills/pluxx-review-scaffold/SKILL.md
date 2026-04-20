@@ -1,6 +1,6 @@
 ---
 name: pluxx-review-scaffold
-description: Use when the user asks for a critical review of a Pluxx-generated scaffold, wants to know what is still weak, or needs findings before shipping a plugin.
+description: Critically review a Pluxx scaffold before shipping.
 ---
 
 # Pluxx Review Scaffold

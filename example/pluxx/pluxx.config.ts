@@ -3,7 +3,7 @@ import { definePlugin } from '../../src/index'
 export default definePlugin({
   name: 'pluxx',
   version: '0.1.0',
-  description: 'Use Pluxx inside your host agent to import, migrate, validate, refine, build, install, review, and sync plugins.',
+  description: 'Build once, ship installable plugins to Claude, Cursor, Codex, and OpenCode.',
   author: {
     name: 'Orchid Automation',
     url: 'https://github.com/orchidautomation',
@@ -14,8 +14,8 @@ export default definePlugin({
 
   brand: {
     displayName: 'Pluxx',
-    shortDescription: 'Use Pluxx to build, validate, and maintain plugins across the core four',
-    longDescription: 'Use Pluxx inside Claude Code, Cursor, Codex, or OpenCode to import MCPs, migrate existing plugins, validate scaffolds, refine taxonomy and instructions, build native outputs, and keep plugin projects synced over time.',
+    shortDescription: 'Build once, ship installable plugins to Claude, Cursor, Codex, and OpenCode',
+    longDescription: 'Use Pluxx to import MCPs or migrate existing plugins, validate and refine the scaffold, then generate installable plugins for Claude, Cursor, Codex, and OpenCode from one maintained source project.',
     category: 'Productivity',
     color: '#0F172A',
     icon: './assets/icon/pluxx-icon.svg',
@@ -26,7 +26,7 @@ export default definePlugin({
     defaultPrompts: [
       'Use Pluxx to import or migrate this plugin into a maintained Pluxx project and validate the first pass.',
       'Use Pluxx to refine the taxonomy and instructions in this scaffold, then rerun validation safely.',
-      'Use Pluxx to build this scaffold for the core four and install the target I want to test.',
+      'Use Pluxx to build installable plugins for Claude, Cursor, Codex, and OpenCode, then install the target I want to test.',
     ],
     websiteURL: 'https://pluxx.dev',
     privacyPolicyURL: 'https://docs.pluxx.dev/reference/privacy-policy',
