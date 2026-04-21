@@ -13,7 +13,7 @@ Goals:
 - turn those signals into logged leads and candidate human replies
 
 Use these actors explicitly:
-1. Discovery actor: `scraperx/x-twitter-posts-search`
+1. Discovery actor: `apidojo/tweet-scraper`
 2. Author hydration actor: `apidojo/twitter-profile-scraper`
 
 Rules:
@@ -33,7 +33,7 @@ Workflow:
    - `events.jsonl`
    - `reply-drafts.md`
 4. Load `state.json` and skip anything already seen.
-5. For each query in `queries.json`, use `scraperx/x-twitter-posts-search` in fresh/latest mode for a short recent window.
+5. For each query in `queries.json`, use `apidojo/tweet-scraper` in fresh/latest mode for a short recent window.
 6. Filter hard for quality. Ignore reposts, duplicates, generic AI chatter, memes, politics, spam, and low-signal noise.
 7. For each qualified new post:
    - hydrate the author with `apidojo/twitter-profile-scraper`

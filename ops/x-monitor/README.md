@@ -44,7 +44,7 @@ detected_at,post_id,post_url,post_created_at,author_handle,author_name,author_bi
 
 Recommended Apify split:
 
-- Discovery: `scraperx/x-twitter-posts-search`
+- Discovery: `apidojo/tweet-scraper`
 - Author hydration: `apidojo/twitter-profile-scraper`
 
 This split keeps the monitor optimized for fresh search results while using a cheaper profile-oriented actor for author enrichment.

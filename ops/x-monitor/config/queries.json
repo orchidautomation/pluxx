@@ -1,5 +1,5 @@
 {
-  "discoveryActor": "scraperx/x-twitter-posts-search",
+  "discoveryActor": "apidojo/tweet-scraper",
   "authorHydrationActor": "apidojo/twitter-profile-scraper",
   "queries": [
     {
