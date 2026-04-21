@@ -1,7 +1,8 @@
 import { resolve, extname, dirname } from 'path'
 import { existsSync } from 'fs'
-import { rm } from 'fs/promises'
-import { fileURLToPath, pathToFileURL } from 'url'
+import { readFile, rm, writeFile } from 'fs/promises'
+import { fileURLToPath } from 'url'
+import { createJiti } from 'jiti'
 import { PluginConfigSchema, type PluginConfig } from '../schema'
 
 export const CONFIG_FILES = [
@@ -23,25 +24,27 @@ function getRuntimePackageEntry(): string {
 
 async function importConfigModule(filepath: string): Promise<unknown> {
   const ext = extname(filepath)
-  const runtimeEntryUrl = pathToFileURL(getRuntimePackageEntry()).href
-  const source = await Bun.file(filepath).text()
+  const runtimeEntry = getRuntimePackageEntry()
+  const source = await readFile(filepath, 'utf-8')
   const rewritten = source
-    .replace(/from\s+(['"])pluxx\1/g, `from ${JSON.stringify(runtimeEntryUrl)}`)
-    .replace(/import\s+(['"])pluxx\1/g, `import ${JSON.stringify(runtimeEntryUrl)}`)
-
-  const transpiler = new Bun.Transpiler({
-    loader: ext === '.ts' ? 'ts' : 'js',
-  })
+    .replace(/from\s+(['"])pluxx\1/g, `from ${JSON.stringify(runtimeEntry)}`)
+    .replace(/import\s+(['"])pluxx\1/g, `import ${JSON.stringify(runtimeEntry)}`)
+    .replace(/from\s+(['"])@orchid-labs\/pluxx\1/g, `from ${JSON.stringify(runtimeEntry)}`)
+    .replace(/import\s+(['"])@orchid-labs\/pluxx\1/g, `import ${JSON.stringify(runtimeEntry)}`)
 
   const tempFile = resolve(
     dirname(filepath),
-    `.pluxx-load-config-${Date.now()}-${Math.random().toString(36).slice(2)}.mjs`,
+    `.pluxx-load-config-${Date.now()}-${Math.random().toString(36).slice(2)}${ext || '.js'}`,
   )
-  await Bun.write(tempFile, transpiler.transformSync(rewritten))
+  await writeFile(tempFile, rewritten)
 
+  const jiti = createJiti(import.meta.url, {
+    interopDefault: true,
+    moduleCache: false,
+    fsCache: false,
+  })
   try {
-    const mod = await import(`${pathToFileURL(tempFile).href}?t=${Date.now()}`)
-    return mod.default ?? mod
+    return await jiti.import(tempFile, { default: true })
   } finally {
     await rm(tempFile, { force: true })
   }
@@ -63,7 +66,7 @@ export async function loadConfig(dir: string = process.cwd()): Promise<PluginCon
     }
 
     if (ext === '.json') {
-      const text = await Bun.file(filepath).text()
+      const text = await readFile(filepath, 'utf-8')
       return PluginConfigSchema.parse(JSON.parse(text))
     }
   }
