@@ -1,0 +1,32 @@
+{
+  "discoveryActor": "scraperx/x-twitter-posts-search",
+  "authorHydrationActor": "apidojo/twitter-profile-scraper",
+  "queries": [
+    {
+      "name": "mcp_launches",
+      "query": "(\"MCP\" OR \"Model Context Protocol\" OR \"mcp server\") (launch OR launched OR launching OR released OR release OR shipped OR \"now live\" OR beta OR GA OR \"Product Hunt\") -filter:replies"
+    },
+    {
+      "name": "cross_host_pain",
+      "query": "(\"MCP\" OR \"Model Context Protocol\" OR plugin) (Cursor OR Codex OR \"Claude Code\" OR OpenCode) (packaging OR plugin OR manifest OR install OR auth OR hooks OR rules OR agents OR portability OR \"cross-host\" OR distribution)"
+    },
+    {
+      "name": "monetization_asks",
+      "query": "(\"MCP\" OR \"mcp server\") (monetize OR monetization OR pricing OR customers OR users OR distribution OR GTM OR growth OR adoption OR revenue OR sell)"
+    },
+    {
+      "name": "founder_help",
+      "query": "(\"MCP\" OR \"mcp server\") (\"how do I\" OR \"looking for\" OR need OR help OR advice) (grow OR distribute OR launch OR monetize OR package)"
+    },
+    {
+      "name": "platform_team_signals",
+      "query": "(MCP OR plugin OR agent workflow) (platform team OR DevEx OR \"developer experience\" OR \"engineering productivity\" OR standardize OR rollout OR guardrails OR internal)"
+    }
+  ],
+  "defaults": {
+    "language": "en",
+    "maxResultsPerQuery": 25,
+    "lookbackMinutes": 20,
+    "replyDraftsPerLead": 2
+  }
+}
