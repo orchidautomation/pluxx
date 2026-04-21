@@ -1052,6 +1052,7 @@ exit 1
         websiteUrl: 'https://playkit.sh/',
         docsUrl: 'https://docs.playkit.sh/docs',
         contextPaths: ['notes.md'],
+        docsIngestionEnv: {},
       })
       await applyAgentPreparePlan(TEST_DIR, plan)
 
@@ -1066,7 +1067,14 @@ exit 1
 
       const context = readFileSync(resolve(TEST_DIR, AGENT_CONTEXT_PATH), 'utf-8')
       const sources = JSON.parse(readFileSync(resolve(TEST_DIR, AGENT_SOURCES_PATH), 'utf-8')) as {
-        sources: Array<{ label: string; selected: boolean; role: string }>
+        version: number
+        ingestion: {
+          requestedProvider: string
+          resolvedProvider: string
+          fallbackOrder: string[]
+          firecrawl: { available: boolean }
+        }
+        sources: Array<{ label: string; selected: boolean; role: string; ingestion?: { fetcher: string } }>
       }
       const docsContext = JSON.parse(readFileSync(resolve(TEST_DIR, AGENT_DOCS_CONTEXT_PATH), 'utf-8')) as {
         productName?: string
@@ -1084,6 +1092,11 @@ exit 1
       expect(context).toContain('Workflow hints: Knowledge Search | Clay API Workflows')
       expect(context).toContain('Auth hints:')
       expect(sources.sources.some((source) => source.label === 'https://docs.playkit.sh/' && source.selected && source.role === 'inferred-root')).toBe(true)
+      expect(sources.version).toBe(2)
+      expect(sources.ingestion.requestedProvider).toBe('auto')
+      expect(sources.ingestion.resolvedProvider).toBe('local')
+      expect(sources.ingestion.fallbackOrder).toEqual(['firecrawl', 'local'])
+      expect(sources.sources.every((source) => source.ingestion?.fetcher)).toBe(true)
       expect(docsContext.productName).toBe('PlayKit')
       expect(docsContext.workflowHints).toContain('Knowledge Search')
       expect(docsContext.authHints.some((hint) => hint.includes('Clay auth'))).toBe(true)
@@ -1136,6 +1149,39 @@ exit 1
         sources: Array<{ label: string; selected: boolean; role: string }>
       }
       expect(sources.sources.some((source) => source.label === 'https://docs.playkit.sh/' && source.selected && source.role === 'discovered-root')).toBe(true)
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
+  it('rejects explicit firecrawl docs provider when FIRECRAWL_API_KEY is missing', async () => {
+    await expect(planAgentPrepare(TEST_DIR, {
+      websiteUrl: 'https://playkit.sh/',
+      docsIngestionProvider: 'firecrawl',
+      docsIngestionEnv: {},
+    })).rejects.toThrow('Docs ingestion provider "firecrawl" requires FIRECRAWL_API_KEY in the environment.')
+  })
+
+  it('records firecrawl provider selection metadata when explicit firecrawl mode is configured', async () => {
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = (async () => new Response(
+      '<!doctype html><html><head><title>PlayKit</title></head><body><h1>PlayKit Docs</h1></body></html>',
+      { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } },
+    )) as typeof fetch
+
+    try {
+      const plan = await planAgentPrepare(TEST_DIR, {
+        docsUrl: 'https://docs.playkit.sh/docs',
+        docsIngestionProvider: 'firecrawl',
+        docsIngestionEnv: { FIRECRAWL_API_KEY: 'test-key' },
+      })
+      await applyAgentPreparePlan(TEST_DIR, plan)
+
+      const sources = JSON.parse(readFileSync(resolve(TEST_DIR, AGENT_SOURCES_PATH), 'utf-8')) as {
+        ingestion: { requestedProvider: string; resolvedProvider: string }
+      }
+      expect(sources.ingestion.requestedProvider).toBe('firecrawl')
+      expect(sources.ingestion.resolvedProvider).toBe('firecrawl')
     } finally {
       globalThis.fetch = originalFetch
     }

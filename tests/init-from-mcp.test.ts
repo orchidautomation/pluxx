@@ -329,6 +329,7 @@ describe('init-from-mcp scaffold', () => {
       settings: {
         skillGrouping: string
         generatedHookMode: string
+        docsIngestionProvider: string
       }
       managedFiles: string[]
       userConfig: Array<{ envVar?: string }>
@@ -390,6 +391,7 @@ describe('init-from-mcp scaffold', () => {
     expect(metadata.version).toBe(1)
     expect(metadata.settings.skillGrouping).toBe('tool')
     expect(metadata.settings.generatedHookMode).toBe('safe')
+    expect(metadata.settings.docsIngestionProvider).toBe('auto')
     expect(metadata.managedFiles).toContain('.pluxx/mcp.json')
     expect(metadata.managedFiles).toContain('commands/find-organizations.md')
     expect(metadata.userConfig.map((entry) => entry.envVar)).toContain('SUMBLE_API_KEY')

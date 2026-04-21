@@ -67,6 +67,7 @@ import { createCliRuntime, createSpinner, printJson, readFlag, readMultiValueOpt
 import { printTestResult, runTestSuite, type TestRunResult } from './test'
 import { printEvalReport, runEvalSuite } from './eval'
 import { buildPrimitiveTranslationSummary, renderPrimitiveTranslationSummary } from './primitive-summary'
+import { DOCS_INGESTION_PROVIDERS, type DocsIngestionProvider } from './docs-ingestion'
 
 const args = process.argv.slice(2)
 const command = args[0]
@@ -104,6 +105,7 @@ export interface InitFromMcpOptions {
   grouping?: string
   hooks?: string
   transport?: string
+  docsIngestionProvider?: string
   jsonOutput: boolean
 }
 
@@ -688,6 +690,11 @@ function parseChoiceOption<T extends string>(value: string, validValues: readonl
   return match
 }
 
+function parseDocsIngestionProvider(value: string | undefined, label = 'Docs ingestion provider'): DocsIngestionProvider | undefined {
+  if (!value) return undefined
+  return parseChoiceOption(value, DOCS_INGESTION_PROVIDERS, label)
+}
+
 function parseTargetPlatforms(raw: string): TargetPlatform[] {
   const targets = raw
     .split(',')
@@ -1135,6 +1142,7 @@ export function parseInitFromMcpOptions(rawArgs: string[], initialName?: string,
     grouping: readOption(rawArgs, '--grouping'),
     hooks: readOption(rawArgs, '--hooks'),
     transport: readOption(rawArgs, '--transport'),
+    docsIngestionProvider: readOption(rawArgs, '--docs-ingestion-provider'),
     jsonOutput: rawArgs.includes('--json'),
   }
 }
@@ -1313,6 +1321,7 @@ Example prompt or command here
 
 async function runInitFromMcp(initialName?: string, initialSource?: string) {
   const options = parseInitFromMcpOptions(args, initialName, initialSource)
+  const docsIngestionProvider = parseDocsIngestionProvider(options.docsIngestionProvider)
   const defaultTargets = DEFAULT_INIT_TARGETS.join(',')
   const interactive = !options.jsonOutput && !options.assumeDefaults && runtime.isInteractive
   let runtimeAuthMode = resolveRuntimeAuthMode(options.runtimeAuth)
@@ -1574,6 +1583,7 @@ ${formatAuthRequiredMessage('init', retryError, source)}`)
       displayName,
       skillGrouping: grouping,
       hookMode,
+      docsIngestionProvider: docsIngestionProvider ?? 'auto',
       approveMcpTools: options.approveMcpTools,
     })
     const createdFiles = plan.files
@@ -1800,12 +1810,14 @@ async function runDoctor() {
 
 async function runAgent() {
   const subcommand = args[1]
+  const docsIngestionProvider = parseDocsIngestionProvider(readOption(args, '--docs-ingestion-provider'))
 
   if (subcommand === 'prepare') {
     const plan = await planAgentPrepare(process.cwd(), {
       docsUrl: readOption(args, '--docs'),
       websiteUrl: readOption(args, '--website'),
       contextPaths: readMultiValueOption(args, '--context'),
+      docsIngestionProvider,
     })
 
     if (!runtime.dryRun) {
@@ -1895,13 +1907,13 @@ async function runAgent() {
   if (subcommand === 'run') {
     const kind = args[2] as AgentPromptKind | undefined
     if (!kind || !AGENT_PROMPT_KINDS.includes(kind)) {
-      console.error(`Usage: pluxx agent run <${AGENT_PROMPT_KINDS.join('|')}> --runner <${AGENT_RUNNERS.join('|')}> [--model NAME] [--attach URL (opencode only)] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
+      console.error(`Usage: pluxx agent run <${AGENT_PROMPT_KINDS.join('|')}> --runner <${AGENT_RUNNERS.join('|')}> [--model NAME] [--attach URL (opencode only)] [--docs-ingestion-provider <${DOCS_INGESTION_PROVIDERS.join('|')}>] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
       process.exit(1)
     }
 
     const runnerRaw = readOption(args, '--runner')
     if (!runnerRaw || !AGENT_RUNNERS.includes(runnerRaw as AgentRunner)) {
-      console.error(`Usage: pluxx agent run <${AGENT_PROMPT_KINDS.join('|')}> --runner <${AGENT_RUNNERS.join('|')}> [--model NAME] [--attach URL (opencode only)] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
+      console.error(`Usage: pluxx agent run <${AGENT_PROMPT_KINDS.join('|')}> --runner <${AGENT_RUNNERS.join('|')}> [--model NAME] [--attach URL (opencode only)] [--docs-ingestion-provider <${DOCS_INGESTION_PROVIDERS.join('|')}>] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
       process.exit(1)
     }
     const verboseRunner = args.includes('--verbose-runner')
@@ -1915,6 +1927,7 @@ async function runAgent() {
       docsUrl: readOption(args, '--docs'),
       websiteUrl: readOption(args, '--website'),
       contextPaths: readMultiValueOption(args, '--context'),
+      docsIngestionProvider,
     })
 
     const summary = {
@@ -1974,7 +1987,7 @@ async function runAgent() {
     return
   }
 
-  console.error(`Usage: pluxx agent <prepare|prompt|run> [--docs URL] [--website URL] [--context <files...>] [--json] [--dry-run] [--quiet]`)
+  console.error(`Usage: pluxx agent <prepare|prompt|run> [--docs URL] [--website URL] [--context <files...>] [--docs-ingestion-provider <${DOCS_INGESTION_PROVIDERS.join('|')}>] [--json] [--dry-run] [--quiet]`)
   process.exit(1)
 }
 
@@ -1984,6 +1997,9 @@ async function runAutopilot() {
   let modeRaw = readOption(args, '--mode')
   let docsUrl = readOption(args, '--docs')
   let websiteUrl = readOption(args, '--website')
+  const docsIngestionProvider = parseDocsIngestionProvider(
+    readOption(args, '--docs-ingestion-provider') ?? initOptions.docsIngestionProvider,
+  )
   const contextPaths = readMultiValueOption(args, '--context')
   const model = readOption(args, '--model')
   const attach = readOption(args, '--attach')
@@ -1998,12 +2014,12 @@ async function runAutopilot() {
   let runtimeAuthMode = resolveRuntimeAuthMode(initOptions.runtimeAuth)
 
   if (!initOptions.source && !interactive) {
-    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--approve-mcp-tools] [--auth-env ENV] [--auth-type bearer|header|platform] [--auth-header NAME] [--auth-template TEMPLATE] [--runtime-auth inline|platform] [--oauth-wrapper] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
+    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--approve-mcp-tools] [--auth-env ENV] [--auth-type bearer|header|platform] [--auth-header NAME] [--auth-template TEMPLATE] [--runtime-auth inline|platform] [--oauth-wrapper] [--website URL] [--docs URL] [--context <files...>] [--docs-ingestion-provider <${DOCS_INGESTION_PROVIDERS.join('|')}>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
     process.exit(1)
   }
 
   if ((!runnerRaw || !AGENT_RUNNERS.includes(runnerRaw as AgentRunner)) && !interactive) {
-    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--approve-mcp-tools] [--auth-env ENV] [--auth-type bearer|header|platform] [--auth-header NAME] [--auth-template TEMPLATE] [--runtime-auth inline|platform] [--oauth-wrapper] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
+    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--approve-mcp-tools] [--auth-env ENV] [--auth-type bearer|header|platform] [--auth-header NAME] [--auth-template TEMPLATE] [--runtime-auth inline|platform] [--oauth-wrapper] [--website URL] [--docs URL] [--context <files...>] [--docs-ingestion-provider <${DOCS_INGESTION_PROVIDERS.join('|')}>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
     process.exit(1)
   }
 
@@ -2301,6 +2317,7 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
       displayName,
       skillGrouping: grouping,
       hookMode: requestedHookMode,
+      docsIngestionProvider: docsIngestionProvider ?? 'auto',
       approveMcpTools: initOptions.approveMcpTools,
     })
     const initCreatedFiles = scaffoldPlan.files.filter((file) => file.action === 'create').map((file) => file.relativePath)
@@ -2313,6 +2330,7 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
       docsUrl,
       websiteUrl,
       contextPaths,
+      docsIngestionProvider,
     }
 
     const agentSpinner = createSpinner(runtime)
@@ -2957,6 +2975,7 @@ Common flags:
   --verbose-runner                        Stream runner stdout/stderr for agent run/autopilot
   --dry-run                               Show planned work without writing files or installing anything
   --mode quick|standard|thorough          Control how much agent refinement autopilot performs
+  --docs-ingestion-provider auto|firecrawl|local  Select docs/website ingestion provider contract
   --approve-mcp-tools                     Preapprove all tools from the imported MCP in canonical permissions
 
 Targets:
@@ -2971,6 +2990,7 @@ Examples:
   pluxx init --from-mcp https://example.com/mcp  Scaffold from a remote MCP server
   pluxx init --from-mcp "npx -y @acme/mcp"       Scaffold from a local MCP command
   pluxx init --from-mcp https://example.com/mcp --yes --name acme --display-name "Acme" --author "Acme" --targets claude-code,codex --grouping workflow --hooks safe --json
+  pluxx init --from-mcp https://example.com/mcp --yes --docs-ingestion-provider local
   pluxx init --from-mcp https://example.com/mcp --yes --auth-env API_KEY --auth-type header --auth-header X-API-Key --auth-template "\${value}"
   pluxx init --from-mcp https://example.com/mcp --yes --auth-type platform --runtime-auth platform
   pluxx init --from-mcp https://mcp.linear.app/mcp --yes --oauth-wrapper --runtime-auth platform
@@ -2980,7 +3000,7 @@ Examples:
   pluxx sync                              Refresh a scaffold using .pluxx/mcp.json metadata
   pluxx sync --from-mcp https://example.com/mcp  Refresh using an explicit MCP source override
   pluxx agent prepare --dry-run           Preview agent context files without writing
-  pluxx agent prepare --website https://example.com --docs https://docs.example.com
+  pluxx agent prepare --website https://example.com --docs https://docs.example.com --docs-ingestion-provider auto
   pluxx agent prompt taxonomy             Generate the taxonomy prompt pack
   pluxx agent run taxonomy --runner claude
   pluxx agent run taxonomy --runner cursor
@@ -2990,7 +3010,7 @@ Examples:
   pluxx mcp proxy --from-mcp "bun ./server.js" --record .pluxx/tapes/dev.json
   pluxx mcp proxy --replay .pluxx/tapes/dev.json
   --attach is only supported for the opencode runner
-  pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode quick --yes
+  pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode quick --yes --docs-ingestion-provider auto
   pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode standard --yes --name acme --display-name "Acme"
   pluxx autopilot --from-mcp https://example.com/mcp --runner codex --yes --approve-mcp-tools
   pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode thorough --yes --verbose-runner

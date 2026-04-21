@@ -53,8 +53,25 @@ describe('CLI init option parsing', () => {
       oauthWrapper: false,
       approveMcpTools: true,
       transport: undefined,
+      docsIngestionProvider: undefined,
       jsonOutput: true,
     })
+  })
+
+  it('parses docs ingestion provider selection for MCP imports', () => {
+    const options = parseInitFromMcpOptions(
+      [
+        'init',
+        '--from-mcp',
+        'https://example.com/mcp',
+        '--docs-ingestion-provider',
+        'firecrawl',
+      ],
+      undefined,
+      'https://example.com/mcp',
+    )
+
+    expect(options.docsIngestionProvider).toBe('firecrawl')
   })
 
   it('parses --transport flag for SSE transport override', () => {
