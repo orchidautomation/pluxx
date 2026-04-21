@@ -1,0 +1,36 @@
+#!/usr/bin/env node
+
+import { spawnSync } from 'node:child_process'
+
+const args = process.argv.slice(2)
+
+function run(command, commandArgs) {
+  const result = spawnSync(command, commandArgs, {
+    stdio: 'inherit',
+    env: process.env,
+  })
+
+  process.exit(result.status ?? 1)
+}
+
+if (args[0] === 'run') {
+  run('npm', ['run', args[1], '--', ...args.slice(2)])
+}
+
+if (args[0] === 'test') {
+  run('npx', ['vitest', 'run', ...args.slice(1)])
+}
+
+if (args[0] === '--watch') {
+  run('npx', ['tsx', 'watch', ...args.slice(1)])
+}
+
+if (args[0] && (args[0].endsWith('.ts') || args[0].endsWith('.tsx'))) {
+  run('npx', ['tsx', ...args])
+}
+
+if (args[0]) {
+  run('node', args)
+}
+
+process.exit(1)

@@ -44,7 +44,7 @@ async function importConfigModule(filepath: string): Promise<unknown> {
     fsCache: false,
   })
   try {
-    return await jiti.import(tempFile, { default: true })
+    return await jiti(tempFile)
   } finally {
     await rm(tempFile, { force: true })
   }

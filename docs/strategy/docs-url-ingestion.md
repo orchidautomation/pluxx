@@ -229,7 +229,7 @@ Current behavior:
 - Pluxx writes provenance to `.pluxx/sources.json`, including provider resolution.
 - Pluxx writes extracted structured signals to `.pluxx/docs-context.json`.
 - Pluxx now ships a repeatable fixture harness for this work:
-  - `bun run eval:docs-ingestion`
+  - `npm run eval:docs-ingestion`
   - latest snapshot: `docs/strategy/docs-ingestion-fixture-eval.md`
 
 That means the first step is no longer “stuff some fetched HTML into `context.md` and hope.” There is now a deterministic artifact trail for what was fetched, what was inferred, and what structured product signals were extracted.

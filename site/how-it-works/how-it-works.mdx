@@ -66,7 +66,7 @@ Those should be documented and revisited later, not treated as the core product 
 
 ## Runtime Today
 
-Pluxx is published on npm as `@orchid-labs/pluxx` and the published CLI now runs on Node `>=18`.
+Pluxx is published on npm as `@orchid-labs/pluxx`, and both the published CLI and normal maintainer flows now run on Node `>=18`.
 
 The important practical distinction is:
 
@@ -83,7 +83,7 @@ So today, the real invocation paths are:
 What is **not** true yet:
 
 - `npx pluxx ...` is not the public install path, because the published package name is scoped as `@orchid-labs/pluxx`
-- contributor workflows in this repo still use Bun for build and test scripts
+- `node ./bin/pluxx.js ...` from this repo still expects a prior `npm run build`
 
 ## How Pluxx Works Today
 
@@ -439,14 +439,13 @@ $ npx @orchid-labs/pluxx lint
 $ npx @orchid-labs/pluxx doctor
 
 SUCCESS node-version Supported Node runtime detected
-INFO bun-version Bun detected for contributor workflows
 SUCCESS config-valid Config parsed successfully
 WARNING hooks-trust-required Hook commands require install trust
 
-Doctor summary: 0 error(s), 1 warning(s), 1 info message(s)
+Doctor summary: 0 error(s), 1 warning(s), 0 info message(s)
 ```
 
-`pluxx doctor` is read-only. It checks Node runtime health for the published CLI, config validity, configured paths, MCP auth/transport shape, scaffold metadata, and trust advisories. If Bun is present, it also notes contributor-script readiness.
+`pluxx doctor` is read-only. It checks Node runtime health for the published CLI, config validity, configured paths, MCP auth/transport shape, scaffold metadata, and trust advisories.
 
 ```bash
 $ npx @orchid-labs/pluxx test

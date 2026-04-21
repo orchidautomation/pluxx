@@ -128,7 +128,7 @@ The clean operator model is:
 
 - if local `pluxx` exists, use it
 - otherwise use `npx @orchid-labs/pluxx`
-- if Bun is only needed for contributor workflows, keep it out of the end-user install path
+- keep contributor tooling separate from the end-user install path
 
 The plugin should be explicit about the runtime requirement rather than trying to smuggle a hidden execution environment into every host bundle.
 

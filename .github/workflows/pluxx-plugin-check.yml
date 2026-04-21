@@ -8,11 +8,11 @@ on:
         required: false
         type: string
         default: .
-      bun-version:
-        description: Bun version used to run pluxx
+      node-version:
+        description: Node version used to run pluxx
         required: false
         type: string
-        default: 1.2.17
+        default: "20"
       pluxx-version:
         description: Published pluxx package version to run
         required: false
@@ -35,11 +35,11 @@ on:
         required: false
         type: string
         default: .
-      bun-version:
-        description: Bun version used to run pluxx
+      node-version:
+        description: Node version used to run pluxx
         required: false
         type: string
-        default: 1.2.17
+        default: "20"
       pluxx-version:
         description: Published pluxx package version to run
         required: false
@@ -64,10 +64,10 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          bun-version: ${{ inputs.bun-version || github.event.inputs.bun-version || '1.2.17' }}
+          node-version: ${{ inputs.node-version || github.event.inputs.node-version || '20' }}
 
       - name: Run pluxx test
         working-directory: ${{ inputs.working-directory || github.event.inputs.working-directory || '.' }}
@@ -78,7 +78,7 @@ jobs:
           PLUXX_QUIET: ${{ inputs.quiet || github.event.inputs.quiet || 'false' }}
         run: |
           set -euo pipefail
-          cmd=(bunx --bun "pluxx@${PLUXX_VERSION}" test)
+          cmd=(npx --yes "@orchid-labs/pluxx@${PLUXX_VERSION}" test)
 
           if [ -n "${PLUXX_TARGETS}" ]; then
             read -r -a target_args <<< "${PLUXX_TARGETS}"
