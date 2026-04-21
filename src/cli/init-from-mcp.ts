@@ -10,6 +10,7 @@ import type {
   IntrospectedMcpTool,
 } from '../mcp/introspect'
 import { collectUserConfigEntries } from '../user-config'
+import { planTextFileAction, readTextFileIfExists, writeTextFile } from '../text-files'
 
 export interface McpScaffoldOptions {
   rootDir: string
@@ -313,7 +314,7 @@ export async function applyMcpScaffoldPlan(rootDir: string, plan: McpScaffoldPla
     if (parentDir) {
       await mkdir(resolve(rootDir, parentDir), { recursive: true })
     }
-    await Bun.write(filePath, file.content)
+    await writeTextFile(filePath, file.content)
   }
 }
 
@@ -376,9 +377,7 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
 
   const addPlannedFile = async (relativePath: string, content: string) => {
     const filePath = resolve(options.rootDir, relativePath)
-    const action = existsSync(filePath)
-      ? ((await Bun.file(filePath).text()) === content ? 'unchanged' : 'update')
-      : 'create'
+    const action = await planTextFileAction(filePath, content)
     files.push({ relativePath, content, action })
   }
 
@@ -419,7 +418,7 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
           userConfig,
           sourcedContext: options.sourcedContext,
         }),
-      existsSync(instructionsPath) ? await Bun.file(instructionsPath).text() : undefined,
+      await readTextFileIfExists(instructionsPath),
       {
         customHeading: '## Custom Instructions',
         defaultCustomContent: DEFAULT_INSTRUCTIONS_CUSTOM_CONTENT,
@@ -436,7 +435,7 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
       `${relativeSkillPath}/SKILL.md`,
       wrapManagedMarkdown(
         buildSkillContent(skill),
-        existsSync(skillPath) ? await Bun.file(skillPath).text() : undefined,
+        await readTextFileIfExists(skillPath),
         {
           customHeading: '## Custom Notes',
           defaultCustomContent: DEFAULT_SKILL_CUSTOM_CONTENT,
@@ -450,7 +449,7 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
       relativeCommandPath,
       buildCommandContent(
         skill,
-        existsSync(commandPath) ? await Bun.file(commandPath).text() : undefined,
+        await readTextFileIfExists(commandPath),
       ),
     )
     commandFiles.push(relativeCommandPath)

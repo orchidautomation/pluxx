@@ -48,7 +48,6 @@ For the detailed compatibility and verification matrix, see [docs/compatibility.
 ## Quick Start
 
 ```bash
-# Requires Bun on PATH
 npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp --name my-plugin --yes
 
 cd my-plugin
@@ -144,7 +143,8 @@ Pluxx owns the deterministic scaffold, validation, and host compilation layer. Y
 - npm package: `@orchid-labs/pluxx`
 - preferred invocation: `npx @orchid-labs/pluxx ...`
 - global install also works: `npm install -g @orchid-labs/pluxx`
-- the current launcher still requires Bun at runtime
+- published CLI runtime: Node `>=18`
+- source builds and maintainer workflows also run on Node `>=18`
 
 ## Read Next
 

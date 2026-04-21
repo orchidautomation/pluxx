@@ -1,6 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
-import { resolve } from 'path'
+import { dirname, resolve } from 'path'
+import { fileURLToPath } from 'url'
 import {
   AGENT_DOCS_CONTEXT_PATH,
   AGENT_SOURCES_PATH,
@@ -76,7 +77,7 @@ interface FixtureResult {
   results: VariantResult[]
 }
 
-const REPO_ROOT = resolve(import.meta.dir, '..')
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const OUTPUT_JSON_PATH = resolve(REPO_ROOT, 'docs/strategy/docs-ingestion-fixture-eval.json')
 const OUTPUT_MD_PATH = resolve(REPO_ROOT, 'docs/strategy/docs-ingestion-fixture-eval.md')
 const FIRECRAWL_ENABLED = Boolean(process.env.FIRECRAWL_API_KEY || process.env.PLUXX_FIRECRAWL_API_KEY)

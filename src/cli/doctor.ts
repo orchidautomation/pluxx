@@ -45,6 +45,7 @@ const LOW_INFO_DESCRIPTION_PATTERNS = [
   /^no description provided\.?$/i,
 ]
 const MATERIALIZED_ENV_MARKER = 'materialized required config'
+const MIN_NODE_MAJOR = 18
 
 const PRIMITIVE_MODE_LEVEL: Record<PrimitiveTranslationMode, DoctorLevel> = {
   preserve: 'success',
@@ -91,6 +92,32 @@ function parseMajorVersion(version: string | undefined): number | null {
   if (!version) return null
   const match = version.match(/^(\d+)/)
   return match ? Number(match[1]) : null
+}
+
+function addRuntimeChecks(checks: DoctorCheck[], mode: 'project' | 'consumer'): void {
+  const nodeVersion = process.versions.node
+  const nodeMajor = parseMajorVersion(nodeVersion)
+  const doctorCommand = mode === 'consumer' ? 'pluxx doctor --consumer' : 'pluxx doctor'
+
+  if (!nodeVersion || nodeMajor === null || nodeMajor < MIN_NODE_MAJOR) {
+    addCheck(checks, {
+      level: 'error',
+      code: 'node-version-unsupported',
+      title: 'Unsupported Node runtime',
+      detail: nodeVersion
+        ? `Detected Node ${nodeVersion}. The published pluxx CLI requires Node >= ${MIN_NODE_MAJOR}.`
+        : `Could not detect a supported Node runtime. The published pluxx CLI requires Node >= ${MIN_NODE_MAJOR}.`,
+      fix: `Install Node ${MIN_NODE_MAJOR}+ and rerun ${doctorCommand}.`,
+    })
+  } else {
+    addCheck(checks, {
+      level: 'success',
+      code: 'node-version',
+      title: 'Supported Node runtime detected',
+      detail: `Node ${nodeVersion} is available for published pluxx CLI commands.`,
+      fix: 'No action needed.',
+    })
+  }
 }
 
 function checkReadablePath(
@@ -1005,34 +1032,7 @@ function checkInstalledOpenCodeSkills(checks: DoctorCheck[], rootDir: string): v
 
 export async function doctorConsumer(rootDir: string = process.cwd()): Promise<DoctorReport> {
   const checks: DoctorCheck[] = []
-  const bunVersion = process.versions.bun
-  const bunMajor = parseMajorVersion(bunVersion)
-
-  if (!bunVersion) {
-    addCheck(checks, {
-      level: 'error',
-      code: 'bun-missing',
-      title: 'Bun runtime not detected',
-      detail: 'pluxx currently requires Bun at runtime.',
-      fix: 'Install Bun from https://bun.sh and rerun pluxx doctor --consumer.',
-    })
-  } else if (bunMajor === null || bunMajor < 1) {
-    addCheck(checks, {
-      level: 'error',
-      code: 'bun-version-unsupported',
-      title: 'Unsupported Bun version',
-      detail: `Detected Bun ${bunVersion}. pluxx requires Bun >= 1.0.`,
-      fix: 'Upgrade Bun to a supported version and rerun pluxx doctor --consumer.',
-    })
-  } else {
-    addCheck(checks, {
-      level: 'success',
-      code: 'bun-version',
-      title: 'Supported Bun runtime detected',
-      detail: `Bun ${bunVersion} is available.`,
-      fix: 'No action needed.',
-    })
-  }
+  addRuntimeChecks(checks, 'consumer')
 
   checkConsumerBundlePath(checks, rootDir)
   const layout = detectConsumerLayout(rootDir)
@@ -1093,35 +1093,8 @@ export async function doctorConsumer(rootDir: string = process.cwd()): Promise<D
 
 export async function doctorProject(rootDir: string = process.cwd()): Promise<DoctorReport> {
   const checks: DoctorCheck[] = []
-  const bunVersion = process.versions.bun
-  const bunMajor = parseMajorVersion(bunVersion)
   const configPath = CONFIG_FILES.find((filename) => existsSync(resolve(rootDir, filename)))
-
-  if (!bunVersion) {
-    addCheck(checks, {
-      level: 'error',
-      code: 'bun-missing',
-      title: 'Bun runtime not detected',
-      detail: 'pluxx currently requires Bun at runtime.',
-      fix: 'Install Bun from https://bun.sh and rerun pluxx doctor.',
-    })
-  } else if (bunMajor === null || bunMajor < 1) {
-    addCheck(checks, {
-      level: 'error',
-      code: 'bun-version-unsupported',
-      title: 'Unsupported Bun version',
-      detail: `Detected Bun ${bunVersion}. pluxx requires Bun >= 1.0.`,
-      fix: 'Upgrade Bun to a supported version and rerun pluxx doctor.',
-    })
-  } else {
-    addCheck(checks, {
-      level: 'success',
-      code: 'bun-version',
-      title: 'Supported Bun runtime detected',
-      detail: `Bun ${bunVersion} is available.`,
-      fix: 'No action needed.',
-    })
-  }
+  addRuntimeChecks(checks, 'project')
 
   if (!configPath) {
     addCheck(checks, {

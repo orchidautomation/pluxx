@@ -1,5 +1,5 @@
 /**
- * Simple interactive prompt utilities using Bun's built-in readline.
+ * Simple interactive prompt utilities using Node's built-in readline.
  * Zero external dependencies.
  */
 

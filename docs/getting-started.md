@@ -196,7 +196,7 @@ npx @orchid-labs/pluxx doctor
 
 `pluxx doctor` is read-only. It checks:
 
-- Bun runtime availability
+- Node runtime availability for the published CLI
 - config loadability
 - configured paths like `skills/`, `instructions`, `agents`, `commands`, `scripts`, and `assets`
 - MCP transport and auth shape

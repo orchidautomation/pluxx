@@ -7,6 +7,7 @@ import { readCanonicalAgentFiles } from '../../agents'
 import { readCanonicalCommandFiles } from '../../commands'
 import { buildDelegationBehaviorNotes } from '../../delegation'
 import { mapHookEventToPascalCase } from '../../hook-events'
+import { readTextFile } from '../../text-files'
 
 const CODEX_SUPPORTED_HOOK_EVENTS = new Set([
   'SessionStart',
@@ -158,7 +159,7 @@ export class CodexGenerator extends Generator {
     if (this.config.instructions) {
       const srcPath = this.resolveConfigPath(this.config.instructions, 'instructions')
       if (existsSync(srcPath)) {
-        sections.push((await Bun.file(srcPath).text()).trim())
+        sections.push((await readTextFile(srcPath)).trim())
       }
     }
 

@@ -1,6 +1,7 @@
 import { existsSync } from 'fs'
 import { Generator } from '../base'
 import type { TargetPlatform } from '../../schema'
+import { readTextFile } from '../../text-files'
 
 /**
  * Roo Code uses .roo/mcp.json for MCP config, .roorules for instructions,
@@ -25,7 +26,7 @@ export class RooCodeGenerator extends Generator {
     const srcPath = this.resolveConfigPath(this.config.instructions, 'instructions')
     if (!existsSync(srcPath)) return
 
-    const content = await Bun.file(srcPath).text()
+    const content = await readTextFile(srcPath)
     await this.writeFile('.roorules', content)
   }
 

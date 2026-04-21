@@ -2,6 +2,7 @@ import { existsSync } from 'fs'
 import { Generator } from '../base'
 import { warnDroppedHookFields } from '../hooks-warning'
 import type { TargetPlatform } from '../../schema'
+import { readTextFile } from '../../text-files'
 
 /**
  * Gemini CLI uses gemini-extension.json for the plugin manifest,
@@ -69,7 +70,7 @@ export class GeminiCliGenerator extends Generator {
     const srcPath = this.resolveConfigPath(this.config.instructions, 'instructions')
     if (!existsSync(srcPath)) return
 
-    const content = await Bun.file(srcPath).text()
+    const content = await readTextFile(srcPath)
 
     const geminiMd = [
       `# ${this.config.brand?.displayName ?? this.config.name}`,

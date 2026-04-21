@@ -37,7 +37,7 @@ View repository
 
 ### Proof line
 
-Bun runtime required today. Core-four path is the prime-time launch surface.
+Published CLI and maintainer flows run on Node 18+.
 
 ## Section: The Problem
 

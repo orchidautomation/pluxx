@@ -1,6 +1,7 @@
 import { existsSync } from 'fs'
 import { Generator } from '../base'
 import type { TargetPlatform } from '../../schema'
+import { readTextFile } from '../../text-files'
 
 /**
  * Warp reads skills from .agents/skills/ and .warp/skills/.
@@ -26,7 +27,7 @@ export class WarpGenerator extends Generator {
     const srcPath = this.resolveConfigPath(this.config.instructions, 'instructions')
     if (!existsSync(srcPath)) return
 
-    const content = await Bun.file(srcPath).text()
+    const content = await readTextFile(srcPath)
     await this.writeFile('AGENTS.md', content)
   }
 

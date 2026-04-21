@@ -70,7 +70,7 @@ Those should be documented and revisited later, not treated as the core product 
 
 ## Runtime Today
 
-Pluxx is published on npm as `@orchid-labs/pluxx`, but it is still Bun-backed at runtime.
+Pluxx is published on npm as `@orchid-labs/pluxx`, and both the published CLI and normal maintainer flows now run on Node `>=18`.
 
 The important practical distinction is:
 
@@ -81,14 +81,13 @@ The important practical distinction is:
 So today, the real invocation paths are:
 
 - from npm: `npx @orchid-labs/pluxx ...`
-- from this repo: `bun ./bin/pluxx.js ...`
-- from another workspace with a local dependency/link: `bunx pluxx ...`
+- from this repo after a build: `node ./bin/pluxx.js ...`
+- from another workspace with a local dependency/link: `npx pluxx ...`
 
 What is **not** true yet:
 
 - `npx pluxx ...` is not the public install path, because the published package name is scoped as `@orchid-labs/pluxx`
-
-The launcher in [`bin/pluxx.js`](../bin/pluxx.js) delegates to Bun when it is not already running under Bun, so the honest runtime contract is: npm distribution is real, but Bun must still be installed on the machine.
+- `node ./bin/pluxx.js ...` from this repo still expects a prior `npm run build`
 
 ## How Pluxx Works Today
 
@@ -168,9 +167,9 @@ That means Pluxx is both:
 Use interactive mode when a human is driving the workflow and wants a guided path:
 
 ```bash
-bun ./bin/pluxx.js init my-plugin
-bun ./bin/pluxx.js init --from-mcp https://example.com/mcp
-bun ./bin/pluxx.js autopilot
+npx @orchid-labs/pluxx init my-plugin
+npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp
+npx @orchid-labs/pluxx autopilot
 ```
 
 This path is for:
@@ -184,7 +183,7 @@ This path is for:
 Use headless mode when an agent or CI job is driving:
 
 ```bash
-bun ./bin/pluxx.js init \
+npx @orchid-labs/pluxx init \
   --from-mcp https://example.com/mcp \
   --yes \
   --name acme \
@@ -194,7 +193,7 @@ bun ./bin/pluxx.js init \
 ```
 
 ```bash
-bun ./bin/pluxx.js autopilot \
+npx @orchid-labs/pluxx autopilot \
   --from-mcp https://example.com/mcp \
   --runner codex \
   --mode standard \
@@ -420,14 +419,14 @@ $ npx @orchid-labs/pluxx lint
 ```bash
 $ npx @orchid-labs/pluxx doctor
 
-SUCCESS bun-version Supported Bun runtime detected
+SUCCESS node-version Supported Node runtime detected
 SUCCESS config-valid Config parsed successfully
 WARNING hooks-trust-required Hook commands require install trust
 
-Doctor summary: 0 error(s), 1 warning(s), 1 info message(s)
+Doctor summary: 0 error(s), 1 warning(s), 0 info message(s)
 ```
 
-`pluxx doctor` is read-only. It checks runtime health, config validity, configured paths, MCP auth/transport shape, scaffold metadata, and trust advisories.
+`pluxx doctor` is read-only. It checks Node runtime health for the published CLI, config validity, configured paths, MCP auth/transport shape, scaffold metadata, and trust advisories.
 
 ```bash
 $ npx @orchid-labs/pluxx test

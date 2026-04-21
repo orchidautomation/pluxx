@@ -4,6 +4,7 @@ import type { TargetPlatform } from '../../schema'
 import { buildGeneratedPermissionHookScript } from '../../permissions'
 import { type AgentFrontmatterMap, readCanonicalAgentFiles } from '../../agents'
 import { buildDelegationBehaviorNotes } from '../../delegation'
+import { readTextFile } from '../../text-files'
 
 export class CursorGenerator extends Generator {
   readonly platform: TargetPlatform = 'cursor'
@@ -155,7 +156,7 @@ export class CursorGenerator extends Generator {
     const srcPath = this.resolveConfigPath(this.config.instructions, 'instructions')
     if (!existsSync(srcPath)) return
 
-    const content = await Bun.file(srcPath).text()
+    const content = await readTextFile(srcPath)
     await this.writeFile('AGENTS.md', content)
   }
 

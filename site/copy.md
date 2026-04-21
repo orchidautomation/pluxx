@@ -5,7 +5,7 @@
 **Subhead**: One config generates native plugin packages for Claude Code, Cursor, Codex, and OpenCode, with beta generators for additional hosts.
 
 **CTA**: `npx @orchid-labs/pluxx init`
-**Hero note**: Bun runtime required today.
+**Hero note**: Published CLI and maintainer flows run on Node 18+.
 **Secondary CTA**: View on GitHub
 
 ## Terminal Demo (show this as animated/static code block)

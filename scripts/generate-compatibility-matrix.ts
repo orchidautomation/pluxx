@@ -1,7 +1,9 @@
-import { resolve } from 'path'
+import { writeFileSync } from 'fs'
+import { dirname, resolve } from 'path'
+import { fileURLToPath } from 'url'
 import { renderCompatibilityMatrixMarkdown } from '../src/compatibility/matrix'
 
-const outputPath = resolve(import.meta.dir, '..', 'docs', 'compatibility.md')
+const outputPath = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'docs', 'compatibility.md')
 
-await Bun.write(outputPath, renderCompatibilityMatrixMarkdown())
+writeFileSync(outputPath, renderCompatibilityMatrixMarkdown())
 console.log(`Wrote ${outputPath}`)

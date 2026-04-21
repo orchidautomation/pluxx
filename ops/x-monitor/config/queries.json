@@ -1,0 +1,28 @@
+{
+  "discoveryActor": "apidojo/tweet-scraper",
+  "authorHydrationActor": "apidojo/twitter-profile-scraper",
+  "queries": [
+    {
+      "name": "official_mcp_launches",
+      "query": "(\"MCP\" OR \"mcp server\" OR \"Model Context Protocol\") (\"we launched\" OR \"we shipped\" OR \"just launched\" OR \"just shipped\" OR \"now live\" OR \"available now\" OR released OR launch OR launched OR shipped OR beta OR GA OR \"Product Hunt\" OR \"live on npm\") -filter:replies -filter:nativeretweets"
+    },
+    {
+      "name": "claude_code_plugin_launches",
+      "query": "(\"Claude Code plugin\" OR \"plugin for Claude Code\" OR \"Anthropic marketplace\") (launch OR launched OR shipped OR released OR \"now live\" OR \"available now\") -filter:replies -filter:nativeretweets"
+    },
+    {
+      "name": "mcp_multi_host_launches",
+      "query": "(\"MCP\" OR \"mcp server\") (Cursor OR Claude OR ChatGPT OR Codex OR OpenCode) (launch OR launched OR shipped OR released OR \"now live\" OR \"available now\") -filter:replies -filter:nativeretweets"
+    },
+    {
+      "name": "founder_distribution_asks",
+      "query": "(\"MCP\" OR \"mcp server\" OR \"Claude Code plugin\") (\"how do I\" OR \"looking for\" OR need OR help OR advice) (launch OR distribute OR grow OR monetize OR package) -filter:replies -filter:nativeretweets"
+    }
+  ],
+  "defaults": {
+    "language": "en",
+    "maxResultsPerQuery": 30,
+    "lookbackMinutes": 60,
+    "replyDraftsPerLead": 2
+  }
+}

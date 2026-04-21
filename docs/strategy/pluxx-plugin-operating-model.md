@@ -240,15 +240,15 @@ Resolve it in this order:
 1. `pluxx` on `PATH`
 2. `npx @orchid-labs/pluxx`
 
-If the npm path fails because Bun is missing:
+If the npm path fails because Node or package resolution is missing:
 
 - say so directly
-- ask the user to install Bun
+- ask the user to install Node 18+ or fix the package install path
 - do not silently invent a second runtime path inside the plugin
 
 Development-only path:
 
-- `bun ./bin/pluxx.js ...`
+- `node ./bin/pluxx.js ...` after `npm run build`
 
 That path is for repo development, not the end-user plugin contract.
 
