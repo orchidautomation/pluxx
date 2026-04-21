@@ -177,6 +177,15 @@ npx @orchid-labs/pluxx agent prepare \
   --website https://example.com
 ```
 
+If you pass a deep docs page like `https://docs.firecrawl.dev/mcp-server`, Pluxx now treats it as a seed, keeps that page in the context pack, and also infers the broader docs root when it can.
+
+When website or docs URLs are provided, `agent prepare` now writes two additional provenance artifacts:
+
+- `.pluxx/sources.json`
+- `.pluxx/docs-context.json`
+
+Those files capture which URLs Pluxx used, which docs roots it inferred or discovered, and the structured product/setup/auth signals extracted from those pages.
+
 ### `pluxx agent prompt taxonomy|instructions|review`
 
 Generate the prompt pack for one refinement pass without running a host agent yet.

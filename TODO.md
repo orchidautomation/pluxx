@@ -95,6 +95,13 @@ Goal:
 
 - treat product docs and website URLs as first-class context, not just optional extras
 
+Current state:
+
+- `pluxx agent prepare --website/--docs` now writes:
+  - `.pluxx/sources.json`
+  - `.pluxx/docs-context.json`
+- deep docs pages can now act as seed URLs while still inferring a broader docs root when possible
+
 Open work:
 
 - evaluate docs ingestion across real MCP fixtures

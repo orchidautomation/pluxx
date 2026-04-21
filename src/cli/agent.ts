@@ -21,6 +21,8 @@ import { type PluginConfig, getConfiguredCompilerBuckets } from '../schema'
 
 export const AGENT_CONTEXT_PATH = '.pluxx/agent/context.md'
 export const AGENT_PLAN_PATH = '.pluxx/agent/plan.json'
+export const AGENT_SOURCES_PATH = '.pluxx/sources.json'
+export const AGENT_DOCS_CONTEXT_PATH = '.pluxx/docs-context.json'
 export const AGENT_OVERRIDES_PATH = 'pluxx.agent.md'
 export const AGENT_PROMPT_KINDS = ['taxonomy', 'instructions', 'review'] as const
 export const AGENT_RUNNERS = ['claude', 'opencode', 'codex', 'cursor'] as const
@@ -168,7 +170,56 @@ interface AgentModePlanFile {
 interface AgentContextSource {
   label: string
   kind: 'website' | 'docs' | 'file'
+  role: 'seed' | 'inferred-root' | 'discovered-root' | 'local-file'
+  status: 'ok' | 'error'
   summary: string
+  requestedUrl?: string
+  resolvedUrl?: string
+  httpStatus?: number
+  contentType?: string
+  title?: string
+  description?: string
+  headings?: string[]
+  paragraphs?: string[]
+  note?: string
+}
+
+interface AgentContextPack {
+  sources: AgentContextSource[]
+  records: AgentContextSourceRecord[]
+  docsContext?: AgentDocsContextArtifact
+}
+
+interface AgentContextSourceRecord {
+  label: string
+  kind: AgentContextSource['kind']
+  role: AgentContextSource['role']
+  selected: boolean
+  status: AgentContextSource['status']
+  requestedUrl?: string
+  resolvedUrl?: string
+  httpStatus?: number
+  contentType?: string
+  title?: string
+  description?: string
+  note?: string
+}
+
+interface AgentSourcesArtifact {
+  version: 1
+  sources: AgentContextSourceRecord[]
+}
+
+interface AgentDocsContextArtifact {
+  version: 1
+  sourceLabels: string[]
+  productName?: string
+  shortDescription?: string
+  setupHints: string[]
+  authHints: string[]
+  workflowHints: string[]
+  importantTerms: string[]
+  warnings: string[]
 }
 
 interface AgentProjectSkill {
@@ -229,17 +280,31 @@ export async function planAgentPrepare(
   const project = await loadAgentProjectModel(rootDir, config)
   const lint = await lintProject(rootDir)
   const overrides = await loadAgentOverrides(rootDir)
-  const contextSources = await collectAgentContextSources(rootDir, options, overrides)
+  const contextPack = await collectAgentContextPack(rootDir, options, overrides)
+  const contextSources = contextPack.sources
   const editableFiles = buildEditableFiles(config, project)
   const protectedFiles = buildProtectedFiles()
   const generatedFiles = [AGENT_CONTEXT_PATH, AGENT_PLAN_PATH]
-  const contextContent = buildAgentContext(config, project, lint, contextSources, overrides)
+  if (contextPack.records.length > 0) {
+    generatedFiles.push(AGENT_SOURCES_PATH)
+  }
+  if (contextPack.docsContext) {
+    generatedFiles.push(AGENT_DOCS_CONTEXT_PATH)
+  }
+  const contextContent = buildAgentContext(config, project, lint, contextSources, contextPack.docsContext, overrides)
   const planContent = buildAgentModePlanJson(config, project, lint, editableFiles, protectedFiles, generatedFiles, contextSources)
 
-  const files = await Promise.all([
+  const files = [
     planFile(rootDir, AGENT_CONTEXT_PATH, contextContent),
     planFile(rootDir, AGENT_PLAN_PATH, `${planContent}\n`),
-  ])
+    ...(contextPack.records.length > 0
+      ? [planFile(rootDir, AGENT_SOURCES_PATH, `${JSON.stringify(buildSourcesArtifact(contextPack.records), null, 2)}\n`)]
+      : []),
+    ...(contextPack.docsContext
+      ? [planFile(rootDir, AGENT_DOCS_CONTEXT_PATH, `${JSON.stringify(contextPack.docsContext, null, 2)}\n`)]
+      : []),
+  ]
+  const plannedFiles = await Promise.all(files)
 
   return {
     pluginName: config.name,
@@ -249,14 +314,14 @@ export async function planAgentPrepare(
     editableFiles: editableFiles.map((file) => file.path),
     protectedFiles,
     generatedFiles,
-    createdFiles: files.filter((file) => file.action === 'create').map((file) => file.relativePath),
-    updatedFiles: files.filter((file) => file.action === 'update').map((file) => file.relativePath),
+    createdFiles: plannedFiles.filter((file) => file.action === 'create').map((file) => file.relativePath),
+    updatedFiles: plannedFiles.filter((file) => file.action === 'update').map((file) => file.relativePath),
     lint: {
       errors: lint.errors,
       warnings: lint.warnings,
     },
     contextInputs: contextSources.map((source) => source.label),
-    files,
+    files: plannedFiles,
   }
 }
 
@@ -295,6 +360,7 @@ export async function planAgentPrompt(
     displayName: project.displayName,
     skillPaths: project.skills.map((skill) => skill.path),
     commandPaths: project.commands.map((command) => command.path),
+    extraContextPaths: [AGENT_SOURCES_PATH, AGENT_DOCS_CONTEXT_PATH].filter((path) => existsSync(resolve(rootDir, path))),
     sourceKind: project.sourceKind,
     taxonomyPath: project.taxonomyPath,
     overrides,
@@ -606,6 +672,7 @@ function buildAgentContext(
   project: AgentProjectModel,
   lint: LintResult,
   contextSources: AgentContextSource[],
+  docsContext: AgentDocsContextArtifact | undefined,
   overrides: AgentOverrides | null,
 ): string {
   const resourceByUri = new Map((project.resources ?? []).map((resource) => [resource.uri, resource]))
@@ -716,11 +783,56 @@ function buildAgentContext(
     lines.push('## Additional Context')
     lines.push('')
     for (const source of contextSources) {
-      lines.push(`### ${source.kind === 'file' ? '`' + source.label + '`' : source.label}`)
+      const label = source.kind === 'file' ? '`' + source.label + '`' : source.label
+      const statusPrefix = source.status === 'error' ? '[unavailable] ' : ''
+      lines.push(`### ${statusPrefix}${label}`)
       lines.push('')
+      if (source.note) {
+        lines.push(`- Note: ${source.note}`)
+      }
+      if (source.title) {
+        lines.push(`- Title: ${source.title}`)
+      }
+      if (source.description) {
+        lines.push(`- Description: ${source.description}`)
+      }
+      if (source.resolvedUrl && source.resolvedUrl !== source.label) {
+        lines.push(`- Resolved URL: ${source.resolvedUrl}`)
+      }
+      if (source.note || source.title || source.description || (source.resolvedUrl && source.resolvedUrl !== source.label)) {
+        lines.push('')
+      }
       lines.push(source.summary)
       lines.push('')
     }
+  }
+
+  if (docsContext) {
+    lines.push('## Structured Source Signals')
+    lines.push('')
+    lines.push(`- Source labels: ${docsContext.sourceLabels.join(', ')}`)
+    if (docsContext.productName) {
+      lines.push(`- Product name: ${docsContext.productName}`)
+    }
+    if (docsContext.shortDescription) {
+      lines.push(`- Short description: ${docsContext.shortDescription}`)
+    }
+    if (docsContext.workflowHints.length > 0) {
+      lines.push(`- Workflow hints: ${docsContext.workflowHints.join(' | ')}`)
+    }
+    if (docsContext.setupHints.length > 0) {
+      lines.push(`- Setup hints: ${docsContext.setupHints.join(' | ')}`)
+    }
+    if (docsContext.authHints.length > 0) {
+      lines.push(`- Auth hints: ${docsContext.authHints.join(' | ')}`)
+    }
+    if (docsContext.importantTerms.length > 0) {
+      lines.push(`- Important terms: ${docsContext.importantTerms.join(' | ')}`)
+    }
+    if (docsContext.warnings.length > 0) {
+      lines.push(`- Warnings: ${docsContext.warnings.join(' | ')}`)
+    }
+    lines.push('')
   }
 
   if (overrides) {
@@ -817,20 +929,52 @@ function buildAgentModePlanJson(
   return JSON.stringify(plan, null, 2)
 }
 
-async function collectAgentContextSources(
+async function collectAgentContextPack(
   rootDir: string,
   options: AgentPrepareOptions,
   overrides: AgentOverrides | null,
-): Promise<AgentContextSource[]> {
+): Promise<AgentContextPack> {
   const sources: AgentContextSource[] = []
+  const records: AgentContextSourceRecord[] = []
   const seenFilePaths = new Set<string>()
+  const seenUrls = new Set<string>()
 
   if (options.websiteUrl) {
-    sources.push(await fetchContextSource(options.websiteUrl, 'website'))
+    const websiteSource = await fetchContextSource(options.websiteUrl, 'website', 'seed')
+    if (websiteSource) {
+      sources.push(websiteSource)
+      records.push(buildContextSourceRecord(websiteSource, true))
+      seenUrls.add(normalizeUrlIdentity(websiteSource.resolvedUrl ?? websiteSource.requestedUrl ?? websiteSource.label))
+    }
   }
 
   if (options.docsUrl) {
-    sources.push(await fetchContextSource(options.docsUrl, 'docs'))
+    const docsSource = await fetchContextSource(options.docsUrl, 'docs', 'seed')
+    if (docsSource) {
+      sources.push(docsSource)
+      records.push(buildContextSourceRecord(docsSource, true))
+      seenUrls.add(normalizeUrlIdentity(docsSource.resolvedUrl ?? docsSource.requestedUrl ?? docsSource.label))
+    }
+
+    const docsRootUrl = inferDocsRootUrl(options.docsUrl)
+    if (docsRootUrl && !seenUrls.has(normalizeUrlIdentity(docsRootUrl))) {
+      const docsRootSource = await fetchContextSource(docsRootUrl, 'docs', 'inferred-root', `Inferred from ${options.docsUrl}`)
+      if (docsRootSource) {
+        sources.push(docsRootSource)
+        records.push(buildContextSourceRecord(docsRootSource, true))
+        seenUrls.add(normalizeUrlIdentity(docsRootSource.resolvedUrl ?? docsRootSource.requestedUrl ?? docsRootSource.label))
+      }
+    }
+  } else if (options.websiteUrl) {
+    const discoveredDocs = await discoverDocsContextSource(options.websiteUrl, seenUrls)
+    records.push(...discoveredDocs.records)
+    if (discoveredDocs.selected) {
+      const identity = normalizeUrlIdentity(discoveredDocs.selected.resolvedUrl ?? discoveredDocs.selected.requestedUrl ?? discoveredDocs.selected.label)
+      if (!seenUrls.has(identity)) {
+        sources.push(discoveredDocs.selected)
+        seenUrls.add(identity)
+      }
+    }
   }
 
   const contextPaths = [
@@ -843,56 +987,191 @@ async function collectAgentContextSources(
     seenFilePaths.add(relativePath)
     const filePath = resolve(rootDir, relativePath)
     if (!existsSync(filePath)) {
-      sources.push({
+      const source: AgentContextSource = {
         label: relativePath,
         kind: 'file',
+        role: 'local-file',
+        status: 'error',
         summary: `Unavailable: local file not found.`,
-      })
+        note: 'Context file was requested but does not exist.',
+      }
+      sources.push(source)
+      records.push(buildContextSourceRecord(source, true))
       continue
     }
 
     const content = await Bun.file(filePath).text()
-    sources.push({
+    const source: AgentContextSource = {
       label: relativePath,
       kind: 'file',
+      role: 'local-file',
+      status: 'ok',
       summary: summarizePlainText(content),
-    })
+      note: 'User-supplied local context file.',
+    }
+    sources.push(source)
+    records.push(buildContextSourceRecord(source, true))
   }
 
-  return sources
+  return {
+    sources,
+    records,
+    docsContext: buildDocsContextArtifact(sources),
+  }
 }
 
-async function fetchContextSource(url: string, kind: 'website' | 'docs'): Promise<AgentContextSource> {
+async function discoverDocsContextSource(
+  websiteUrl: string,
+  seenUrls: Set<string>,
+): Promise<{
+  selected?: AgentContextSource
+  records: AgentContextSourceRecord[]
+}> {
+  const candidates = buildDocsRootCandidates(websiteUrl)
+  const fetched = await Promise.all(
+    candidates
+      .filter((candidate) => !seenUrls.has(normalizeUrlIdentity(candidate)))
+      .map(async (candidate) => fetchContextSource(candidate, 'docs', 'discovered-root', `Discovered from ${websiteUrl}`)),
+  )
+
+  const successful = fetched.filter((source): source is AgentContextSource => Boolean(source))
+  if (successful.length === 0) {
+    return { records: [] }
+  }
+
+  let bestSource: AgentContextSource | undefined
+  let bestScore = Number.NEGATIVE_INFINITY
+  for (const source of successful) {
+    const score = scoreDocsCandidate(source)
+    if (score > bestScore) {
+      bestScore = score
+      bestSource = source
+    }
+  }
+
+  return {
+    selected: bestSource,
+    records: successful.map((source) => buildContextSourceRecord(source, source.label === bestSource?.label)),
+  }
+}
+
+async function fetchContextSource(
+  url: string,
+  kind: 'website' | 'docs',
+  role: AgentContextSource['role'],
+  note?: string,
+): Promise<AgentContextSource | null> {
   try {
     const response = await fetch(url)
+    const resolvedUrl = response.url || url
     if (!response.ok) {
       return {
         label: url,
         kind,
+        role,
+        status: 'error',
         summary: `Unavailable: fetch failed with ${response.status} ${response.statusText}.`,
+        requestedUrl: url,
+        resolvedUrl,
+        httpStatus: response.status,
+        contentType: response.headers.get('content-type') ?? '',
+        note,
       }
     }
 
     const contentType = response.headers.get('content-type') ?? ''
     const body = await response.text()
+    const parsed = contentType.includes('html')
+      ? summarizeHtml(body)
+      : summarizePlainTextArtifact(body)
 
     return {
       label: url,
       kind,
-      summary: contentType.includes('html')
-        ? summarizeHtml(body)
-        : summarizePlainText(body),
+      role,
+      status: 'ok',
+      summary: parsed.summary,
+      requestedUrl: url,
+      resolvedUrl,
+      httpStatus: response.status,
+      contentType,
+      title: parsed.title,
+      description: parsed.description,
+      headings: parsed.headings,
+      paragraphs: parsed.paragraphs,
+      note,
     }
   } catch (error) {
     return {
       label: url,
       kind,
+      role,
+      status: 'error',
       summary: `Unavailable: ${error instanceof Error ? error.message : String(error)}.`,
+      requestedUrl: url,
+      note,
     }
   }
 }
 
-function summarizeHtml(html: string): string {
+function buildContextSourceRecord(source: AgentContextSource, selected: boolean): AgentContextSourceRecord {
+  return {
+    label: source.label,
+    kind: source.kind,
+    role: source.role,
+    selected,
+    status: source.status,
+    requestedUrl: source.requestedUrl,
+    resolvedUrl: source.resolvedUrl,
+    httpStatus: source.httpStatus,
+    contentType: source.contentType,
+    title: source.title,
+    description: source.description,
+    note: source.note,
+  }
+}
+
+function buildSourcesArtifact(records: AgentContextSourceRecord[]): AgentSourcesArtifact {
+  return {
+    version: 1,
+    sources: records,
+  }
+}
+
+function buildDocsContextArtifact(sources: AgentContextSource[]): AgentDocsContextArtifact | undefined {
+  const remoteSources = sources.filter((source) => source.status === 'ok' && (source.kind === 'website' || source.kind === 'docs'))
+  if (remoteSources.length === 0) return undefined
+
+  const productName = inferProductName(remoteSources)
+  const shortDescription = remoteSources
+    .map((source) => source.description ?? source.paragraphs?.[0])
+    .find((value): value is string => Boolean(value && value.trim()))
+  const setupHints = collectHintSentences(remoteSources, ['setup', 'install', 'get started', 'quickstart', 'configuration', 'configuring', 'running', 'restart'])
+  const authHints = collectHintSentences(remoteSources, ['auth', 'authentication', 'api key', 'bearer', 'header', 'token', 'credential'])
+  const warnings = collectHintSentences(remoteSources, ['warning', 'note', 'requires', 'must', 'if you', 'unavailable', 'couldn'])
+  const workflowHints = collectWorkflowHints(remoteSources)
+  const importantTerms = collectImportantTerms(remoteSources)
+
+  return {
+    version: 1,
+    sourceLabels: remoteSources.map((source) => source.label),
+    productName,
+    shortDescription,
+    setupHints,
+    authHints,
+    workflowHints,
+    importantTerms,
+    warnings,
+  }
+}
+
+function summarizeHtml(html: string): {
+  summary: string
+  title?: string
+  description?: string
+  headings: string[]
+  paragraphs: string[]
+} {
   const title = matchHtmlTag(html, 'title')
   const description = matchMetaDescription(html)
   const headings = matchHtmlTags(html, ['h1', 'h2', 'h3']).slice(0, 5)
@@ -912,7 +1191,13 @@ function summarizeHtml(html: string): string {
     lines.push(`Excerpt: ${paragraphs.join(' ').slice(0, 900)}`)
   }
 
-  return lines.join('\n')
+  return {
+    summary: lines.join('\n'),
+    title: title ?? undefined,
+    description: description ?? undefined,
+    headings,
+    paragraphs,
+  }
 }
 
 function summarizePlainText(content: string): string {
@@ -920,6 +1205,211 @@ function summarizePlainText(content: string): string {
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 1200)
+}
+
+function summarizePlainTextArtifact(content: string): {
+  summary: string
+  title?: string
+  description?: string
+  headings: string[]
+  paragraphs: string[]
+} {
+  const lines = content
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+  return {
+    summary: summarizePlainText(content),
+    title: lines[0],
+    description: lines[1],
+    headings: [],
+    paragraphs: lines.slice(0, 3),
+  }
+}
+
+function buildDocsRootCandidates(websiteUrl: string): string[] {
+  const parsed = safeParseUrl(websiteUrl)
+  if (!parsed) return []
+
+  const hostname = parsed.hostname.replace(/^www\./, '')
+  const origin = `${parsed.protocol}//${parsed.host}`
+  const docsSubdomain = hostname.startsWith('docs.')
+    ? null
+    : `${parsed.protocol}//docs.${hostname}/`
+  const developerSubdomain = hostname.startsWith('developer.')
+    ? null
+    : `${parsed.protocol}//developer.${hostname}/`
+  const developersSubdomain = hostname.startsWith('developers.')
+    ? null
+    : `${parsed.protocol}//developers.${hostname}/`
+
+  return uniqueStrings([
+    docsSubdomain,
+    `${origin}/docs`,
+    developerSubdomain,
+    developersSubdomain,
+    `${origin}/developers`,
+    `${origin}/developer`,
+    `${origin}/api`,
+    `${origin}/reference`,
+  ].filter((candidate): candidate is string => Boolean(candidate)))
+}
+
+function inferDocsRootUrl(url: string): string | null {
+  const parsed = safeParseUrl(url)
+  if (!parsed) return null
+
+  const hostname = parsed.hostname.toLowerCase()
+  const segments = parsed.pathname.split('/').filter(Boolean)
+  if (hostname.startsWith('docs.') || hostname.startsWith('developer.') || hostname.startsWith('developers.')) {
+    return `${parsed.protocol}//${parsed.host}/`
+  }
+
+  const leadingSegment = segments[0]
+  if (leadingSegment && ['docs', 'developers', 'developer', 'api', 'reference'].includes(leadingSegment.toLowerCase())) {
+    return `${parsed.protocol}//${parsed.host}/${leadingSegment}`
+  }
+
+  return `${parsed.protocol}//${parsed.host}/`
+}
+
+function safeParseUrl(value: string): URL | null {
+  try {
+    return new URL(value)
+  } catch {
+    return null
+  }
+}
+
+function normalizeUrlIdentity(url: string): string {
+  const parsed = safeParseUrl(url)
+  if (!parsed) return url
+  parsed.hash = ''
+  parsed.pathname = parsed.pathname === '/' ? '/' : parsed.pathname.replace(/\/+$/, '')
+  return parsed.toString()
+}
+
+function scoreDocsCandidate(source: AgentContextSource): number {
+  if (source.status !== 'ok') return Number.NEGATIVE_INFINITY
+  const url = (source.resolvedUrl ?? source.requestedUrl ?? '').toLowerCase()
+  const text = [
+    source.title,
+    source.description,
+    ...(source.headings ?? []),
+    ...(source.paragraphs ?? []),
+    source.summary,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+  let score = 0
+
+  if (url.includes('://docs.')) score += 35
+  if (url.includes('/docs')) score += 25
+  if (url.includes('/developers') || url.includes('/developer')) score += 15
+  if (url.includes('/api') || url.includes('/reference')) score += 10
+  if (text.includes('docs') || text.includes('documentation')) score += 20
+  if (text.includes('mcp')) score += 15
+  if (text.includes('api')) score += 10
+  if (text.includes('quickstart') || text.includes('get started')) score += 10
+  if (text.includes('blog') || text.includes('pricing') || text.includes('careers') || text.includes('privacy') || text.includes('terms') || text.includes('changelog')) {
+    score -= 40
+  }
+
+  return score
+}
+
+function inferProductName(sources: AgentContextSource[]): string | undefined {
+  const candidates = [
+    ...sources.flatMap((source) => [source.title, ...(source.headings ?? [])]),
+    ...sources.flatMap((source) => (source.description ? [source.description] : [])),
+  ]
+  for (const candidate of candidates) {
+    if (!candidate) continue
+    const normalized = normalizeProductNameCandidate(candidate)
+    if (normalized) return normalized
+  }
+  return undefined
+}
+
+function normalizeProductNameCandidate(value: string): string | undefined {
+  const parts = value
+    .split(/\s+[|–—:-]\s+|[|–—:-]/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+
+  for (const part of parts) {
+    const cleaned = part.replace(/\b(docs|documentation|introduction|get started|mcp server|overview)\b/ig, '').replace(/\s+/g, ' ').trim()
+    if (!cleaned) continue
+    const wordCount = cleaned.split(/\s+/).length
+    if (wordCount <= 5) return cleaned
+  }
+
+  return undefined
+}
+
+function collectHintSentences(sources: AgentContextSource[], keywords: string[]): string[] {
+  const sentences = uniqueStrings(
+    sources.flatMap((source) => {
+      const text = [
+        source.description,
+        ...(source.paragraphs ?? []),
+      ]
+        .filter(Boolean)
+        .join(' ')
+      return splitIntoSentences(text)
+        .filter((sentence) => keywords.some((keyword) => sentence.toLowerCase().includes(keyword)))
+        .slice(0, 4)
+    }),
+  )
+
+  return sentences.slice(0, 6)
+}
+
+function collectWorkflowHints(sources: AgentContextSource[]): string[] {
+  const genericHeadings = new Set([
+    'introduction',
+    'installation',
+    'manual installation',
+    'configuration',
+    'environment variables',
+    'features',
+    'get started',
+    'overview',
+    'developer guides',
+    'quickstarts',
+    'mcp server',
+  ])
+
+  return uniqueStrings(
+    sources.flatMap((source) => source.headings ?? []),
+  )
+    .map((heading) => heading.replace(/\s+/g, ' ').trim())
+    .filter((heading) => heading.length > 0 && heading.split(/\s+/).length <= 4 && !genericHeadings.has(heading.toLowerCase()))
+    .slice(0, 8)
+}
+
+function collectImportantTerms(sources: AgentContextSource[]): string[] {
+  return uniqueStrings(
+    sources.flatMap((source) => [
+      ...(source.headings ?? []),
+      ...(source.title ? [source.title] : []),
+    ]),
+  )
+    .map((term) => term.replace(/\s+/g, ' ').trim())
+    .filter((term) => term.length > 0 && term.split(/\s+/).length <= 4)
+    .slice(0, 8)
+}
+
+function splitIntoSentences(value: string): string[] {
+  return value
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+}
+
+function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))]
 }
 
 function matchHtmlTag(html: string, tag: string): string | null {
@@ -960,6 +1450,7 @@ function buildAgentPrompt(
     displayName: string
     skillPaths: string[]
     commandPaths: string[]
+    extraContextPaths: string[]
     sourceKind: AgentProjectModel['sourceKind']
     taxonomyPath?: string
     overrides: AgentOverrides | null
@@ -973,6 +1464,7 @@ function buildAgentPrompt(
     'Inputs:',
     '- `.pluxx/agent/context.md`',
     '- `.pluxx/agent/plan.json`',
+    ...input.extraContextPaths.map((path) => `- \`${path}\``),
     ...(input.taxonomyPath ? [`- \`${input.taxonomyPath}\``] : []),
     '- `INSTRUCTIONS.md`',
     ...input.skillPaths.map((path) => `- \`${path}\``),

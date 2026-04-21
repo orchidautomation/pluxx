@@ -172,10 +172,14 @@ Deterministic scaffold rewrites (`pluxx sync --from-mcp` or taxonomy re-renders)
 ```text
 .pluxx/
 ├── mcp.json
+├── docs-context.json     # when website/docs inputs are provided
+├── sources.json          # when website/docs/context inputs are provided
 └── agent/
     ├── context.md
     └── plan.json
 ```
+
+If you pass a specific docs page like `https://docs.firecrawl.dev/mcp-server`, Pluxx uses that page directly and also infers the broader docs root when it can. That gives Agent Mode both the MCP-specific setup page and the higher-level product docs context.
 
 Prompt packs are generated separately:
 

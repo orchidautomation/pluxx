@@ -5,8 +5,10 @@ import {
   applyAgentPreparePlan,
   applyAgentPromptPlan,
   AGENT_CONTEXT_PATH,
+  AGENT_DOCS_CONTEXT_PATH,
   AGENT_OVERRIDES_PATH,
   AGENT_PLAN_PATH,
+  AGENT_SOURCES_PATH,
   planAgentPrepare,
   planAgentPrompt,
 } from '../src/cli/agent'
@@ -226,8 +228,9 @@ describe('agent mode', () => {
     expect(context).toContain('- Prompt template count: 1')
     expect(context).toContain('### `ask-clay`')
     expect(context).toContain('### `workflow-design`')
-    expect(context).toContain('- Related resources: `getting-started`, `workflow-template`')
+    expect(context).toContain('- Related resources: `workflow-template`')
     expect(context).toContain('- Related prompt templates: `design-workflow`')
+    expect(context).toContain('Resource `getting-started`')
     expect(context).toContain('## MCP Discovery Surfaces')
     expect(context).toContain('Resource `getting-started`')
     expect(context).toContain('Prompt `design-workflow`')
@@ -1020,14 +1023,23 @@ exit 1
     expect(summary.verify).toBe(false)
   })
 
-  it('captures website, docs, and local file context inputs in the generated context pack', async () => {
+  it('captures website, docs, inferred docs root, and local file context inputs in the generated context pack', async () => {
     writeFileSync(resolve(TEST_DIR, 'notes.md'), '# Notes\n\nPlayKit separates Clay knowledge tools from Clay API tools.')
 
     const originalFetch = globalThis.fetch
     globalThis.fetch = (async (input) => {
       const request = new Request(input)
+      const isDocsRoot = request.url === 'https://docs.playkit.sh/'
+      const title = isDocsRoot
+        ? 'Introduction | PlayKit'
+        : request.url.includes('docs')
+          ? 'PlayKit Docs'
+          : 'PlayKit'
+      const body = isDocsRoot
+        ? '<h1>Introduction</h1><h2>Knowledge Search</h2><h2>Clay API Workflows</h2><p>Get started with PlayKit by connecting Clay before using the API-heavy workflows.</p>'
+        : '<h1>Clay expertise in every AI conversation</h1><p>Knowledge tools work immediately. Clay API tools require Clay auth.</p>'
       return new Response(
-        `<!doctype html><html><head><title>${request.url.includes('docs') ? 'PlayKit Docs' : 'PlayKit'}</title><meta name="description" content="Clay expertise in every AI conversation."></head><body><h1>Clay expertise in every AI conversation</h1><p>Knowledge tools work immediately. Clay API tools require Clay auth.</p></body></html>`,
+        `<!doctype html><html><head><title>${title}</title><meta name="description" content="Clay expertise in every AI conversation."></head><body>${body}</body></html>`,
         {
           status: 200,
           headers: { 'Content-Type': 'text/html; charset=utf-8' },
@@ -1043,19 +1055,87 @@ exit 1
       })
       await applyAgentPreparePlan(TEST_DIR, plan)
 
+      expect(plan.generatedFiles).toContain(AGENT_SOURCES_PATH)
+      expect(plan.generatedFiles).toContain(AGENT_DOCS_CONTEXT_PATH)
       expect(plan.contextInputs).toEqual([
         'https://playkit.sh/',
         'https://docs.playkit.sh/docs',
+        'https://docs.playkit.sh/',
         'notes.md',
       ])
 
       const context = readFileSync(resolve(TEST_DIR, AGENT_CONTEXT_PATH), 'utf-8')
+      const sources = JSON.parse(readFileSync(resolve(TEST_DIR, AGENT_SOURCES_PATH), 'utf-8')) as {
+        sources: Array<{ label: string; selected: boolean; role: string }>
+      }
+      const docsContext = JSON.parse(readFileSync(resolve(TEST_DIR, AGENT_DOCS_CONTEXT_PATH), 'utf-8')) as {
+        productName?: string
+        workflowHints: string[]
+        authHints: string[]
+      }
       expect(context).toContain('## Additional Context')
       expect(context).toContain('https://playkit.sh/')
       expect(context).toContain('https://docs.playkit.sh/docs')
+      expect(context).toContain('https://docs.playkit.sh/')
       expect(context).toContain('`notes.md`')
       expect(context).toContain('Knowledge tools work immediately. Clay API tools require Clay auth.')
       expect(context).toContain('PlayKit separates Clay knowledge tools from Clay API tools.')
+      expect(context).toContain('## Structured Source Signals')
+      expect(context).toContain('Workflow hints: Knowledge Search | Clay API Workflows')
+      expect(context).toContain('Auth hints:')
+      expect(sources.sources.some((source) => source.label === 'https://docs.playkit.sh/' && source.selected && source.role === 'inferred-root')).toBe(true)
+      expect(docsContext.productName).toBe('PlayKit')
+      expect(docsContext.workflowHints).toContain('Knowledge Search')
+      expect(docsContext.authHints.some((hint) => hint.includes('Clay auth'))).toBe(true)
+
+      const promptPlan = await planAgentPrompt(TEST_DIR, 'taxonomy')
+      await applyAgentPromptPlan(TEST_DIR, promptPlan)
+      const prompt = readFileSync(resolve(TEST_DIR, '.pluxx/agent/taxonomy-prompt.md'), 'utf-8')
+      expect(prompt).toContain(AGENT_SOURCES_PATH)
+      expect(prompt).toContain(AGENT_DOCS_CONTEXT_PATH)
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
+  it('discovers a docs root from a website URL when no explicit docs URL is provided', async () => {
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = (async (input) => {
+      const request = new Request(input)
+      if (request.url === 'https://docs.playkit.sh/') {
+        return new Response(
+          '<!doctype html><html><head><title>PlayKit Docs</title><meta name="description" content="Clay expertise in every AI conversation."></head><body><h1>PlayKit Docs</h1><h2>Knowledge Search</h2><p>Connect Clay before using API tools.</p></body></html>',
+          {
+            status: 200,
+            headers: { 'Content-Type': 'text/html; charset=utf-8' },
+          },
+        )
+      }
+
+      return new Response(
+        '<!doctype html><html><head><title>PlayKit</title><meta name="description" content="Clay expertise in every AI conversation."></head><body><h1>PlayKit</h1><p>Clay expertise in every AI conversation.</p></body></html>',
+        {
+          status: 200,
+          headers: { 'Content-Type': 'text/html; charset=utf-8' },
+        },
+      )
+    }) as typeof fetch
+
+    try {
+      const plan = await planAgentPrepare(TEST_DIR, {
+        websiteUrl: 'https://playkit.sh/',
+      })
+      await applyAgentPreparePlan(TEST_DIR, plan)
+
+      expect(plan.contextInputs).toEqual([
+        'https://playkit.sh/',
+        'https://docs.playkit.sh/',
+      ])
+
+      const sources = JSON.parse(readFileSync(resolve(TEST_DIR, AGENT_SOURCES_PATH), 'utf-8')) as {
+        sources: Array<{ label: string; selected: boolean; role: string }>
+      }
+      expect(sources.sources.some((source) => source.label === 'https://docs.playkit.sh/' && source.selected && source.role === 'discovered-root')).toBe(true)
     } finally {
       globalThis.fetch = originalFetch
     }

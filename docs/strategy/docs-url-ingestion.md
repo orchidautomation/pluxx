@@ -212,3 +212,17 @@ The best near-term product stance is:
 - evaluate it on real MCP fixtures before claiming it as a core differentiator
 
 This feels like a meaningful next wedge, not just a nice extra.
+
+## What shipped first
+
+The first implementation slice now lives in `pluxx agent prepare`.
+
+Current behavior:
+
+- Pluxx accepts `--website` and `--docs` as seed URLs for Agent Mode.
+- If `--docs` points at a deep page like `https://docs.firecrawl.dev/mcp-server`, Pluxx keeps that exact page and also infers the broader docs root when it can.
+- If only `--website` is provided, Pluxx probes a small set of likely docs roots such as `docs.<host>`, `/docs`, `/developers`, `/api`, and `/reference`.
+- Pluxx writes provenance to `.pluxx/sources.json`.
+- Pluxx writes extracted structured signals to `.pluxx/docs-context.json`.
+
+That means the first step is no longer “stuff some fetched HTML into `context.md` and hope.” There is now a deterministic artifact trail for what was fetched, what was inferred, and what structured product signals were extracted.
