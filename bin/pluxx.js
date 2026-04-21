@@ -15,7 +15,7 @@ const cliPath = existsSync(distCliPath)
 
 if (!cliPath) {
   console.error('pluxx CLI bundle not found.')
-  console.error('Run `bun run build` in this checkout, or install the published npm package.')
+  console.error('Run `npm run build` in this checkout, or install the published npm package.')
   process.exit(1)
 }
 

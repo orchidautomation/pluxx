@@ -15,19 +15,18 @@
     "pluxx": "bin/pluxx.js"
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir dist --target node && bun build src/cli/entry.ts --outfile dist/cli/index.js --target node --external jiti && tsc --emitDeclarationOnly",
-    "dev": "bun --watch src/cli/index.ts",
-    "eval:docs-ingestion": "bun scripts/evaluate-docs-ingestion.ts",
-    "generate:compatibility": "bun scripts/generate-compatibility-matrix.ts",
+    "build": "node scripts/build.mjs && tsc --emitDeclarationOnly",
+    "dev": "tsx watch src/cli/index.ts",
+    "eval:docs-ingestion": "tsx scripts/evaluate-docs-ingestion.ts",
+    "generate:compatibility": "tsx scripts/generate-compatibility-matrix.ts",
     "pack:check": "npm pack --dry-run",
-    "release:check": "bun run build && bun run typecheck && bun test && node scripts/verify-node-package-runtime.mjs && npm pack --dry-run",
-    "test": "bun test",
+    "release:check": "npm run build && npm run typecheck && npm test && node scripts/verify-node-package-runtime.mjs && npm pack --dry-run",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "bun run build && bun run typecheck && bun test"
+    "prepublishOnly": "npm run build && npm run typecheck && npm test"
   },
   "files": [
     "bin/**/*",
-    "src/**/*",
     "dist/**/*",
     "README.md",
     "LICENSE"
@@ -61,13 +60,15 @@
   "engines": {
     "node": ">=18"
   },
-  "packageManager": "bun@1.2.17",
   "publishConfig": {
     "access": "public"
   },
   "devDependencies": {
-    "@types/bun": "latest",
-    "typescript": "^5.7.0"
+    "@types/node": "^22.15.23",
+    "esbuild": "^0.25.4",
+    "tsx": "^4.20.3",
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.4"
   },
   "dependencies": {
     "@clack/prompts": "^1.2.0",

@@ -144,7 +144,7 @@ Pluxx owns the deterministic scaffold, validation, and host compilation layer. Y
 - preferred invocation: `npx @orchid-labs/pluxx ...`
 - global install also works: `npm install -g @orchid-labs/pluxx`
 - published CLI runtime: Node `>=18`
-- contributor scripts like `bun run build` and `bun test` still use Bun
+- source builds and maintainer workflows also run on Node `>=18`
 
 ## Read Next
 

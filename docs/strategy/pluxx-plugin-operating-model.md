@@ -248,7 +248,7 @@ If the npm path fails because Node or package resolution is missing:
 
 Development-only path:
 
-- `node ./bin/pluxx.js ...` after `bun run build`
+- `node ./bin/pluxx.js ...` after `npm run build`
 
 That path is for repo development, not the end-user plugin contract.
 

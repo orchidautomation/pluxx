@@ -40,9 +40,8 @@ describe('package metadata', () => {
     expect(pkg.exports['.'].import).toBe('./dist/index.js')
     expect(pkg.engines.node).toBe('>=18')
     expect(pkg.engines.bun).toBeUndefined()
-    expect(pkg.scripts.build).toContain('bun build src/cli/entry.ts')
-    expect(pkg.scripts.build).toContain('dist/cli/index.js')
-    expect(pkg.scripts.prepublishOnly).toMatch(/bun run build/)
+    expect(pkg.scripts.build).toContain('scripts/build.mjs')
+    expect(pkg.scripts.prepublishOnly).toMatch(/npm run build/)
   })
 
   it('ships a launcher that prefers the compiled CLI bundle', () => {
@@ -74,7 +73,7 @@ describe('package metadata', () => {
   })
 
   it('loads a TypeScript pluxx.config.ts through the built Node CLI', async () => {
-    const buildProc = Bun.spawn(['bun', 'run', 'build'], {
+    const buildProc = Bun.spawn(['npm', 'run', 'build'], {
       cwd: ROOT,
       stdout: 'pipe',
       stderr: 'pipe',

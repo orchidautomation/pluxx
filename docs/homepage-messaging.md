@@ -37,7 +37,7 @@ View repository
 
 ### Proof line
 
-Published CLI runs on Node 18+. Bun stays in the contributor toolchain.
+Published CLI and maintainer flows run on Node 18+.
 
 ## Section: The Problem
 

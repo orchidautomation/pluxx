@@ -8,8 +8,8 @@ This repo now has a tag-based GitHub Actions workflow at [`.github/workflows/rel
 
 When you push a tag like `v0.1.1`, GitHub Actions will:
 
-1. install Bun + dependencies
-2. run `bun run release:check`
+1. install Node dependencies
+2. run `npm run release:check`
 3. verify the tag matches `package.json` version
 4. run `npm publish --access public`
 5. create a GitHub release and attach the packed npm tarball
@@ -82,7 +82,7 @@ Check:
 The workflow intentionally fails if:
 
 - the tag does not match `package.json` version
-- `bun run release:check` fails
+- `npm run release:check` fails
 - npm auth is not configured correctly
 
 ## Notes
@@ -90,7 +90,7 @@ The workflow intentionally fails if:
 - The published package is scoped: `@orchid-labs/pluxx`
 - The public invocation path is `npx @orchid-labs/pluxx ...`
 - The published CLI runtime is Node `>=18`
-- Bun remains maintainer tooling for build, test, and release scripts
+- Release automation also uses the Node/npm toolchain
 
 ## References
 

@@ -46,7 +46,6 @@ const LOW_INFO_DESCRIPTION_PATTERNS = [
 ]
 const MATERIALIZED_ENV_MARKER = 'materialized required config'
 const MIN_NODE_MAJOR = 18
-const MIN_BUN_MAJOR = 1
 
 const PRIMITIVE_MODE_LEVEL: Record<PrimitiveTranslationMode, DoctorLevel> = {
   preserve: 'success',
@@ -119,31 +118,6 @@ function addRuntimeChecks(checks: DoctorCheck[], mode: 'project' | 'consumer'): 
       fix: 'No action needed.',
     })
   }
-
-  const bunVersion = process.versions.bun
-  const bunMajor = parseMajorVersion(bunVersion)
-  if (!bunVersion) {
-    return
-  }
-
-  if (bunMajor === null || bunMajor < MIN_BUN_MAJOR) {
-    addCheck(checks, {
-      level: 'warning',
-      code: 'bun-version-unsupported',
-      title: 'Unsupported Bun version for contributor scripts',
-      detail: `Detected Bun ${bunVersion}. Contributor scripts like bun run build/test expect Bun >= ${MIN_BUN_MAJOR}.`,
-      fix: 'Upgrade Bun if you plan to use contributor scripts or develop on Pluxx itself.',
-    })
-    return
-  }
-
-  addCheck(checks, {
-    level: 'info',
-    code: 'bun-version',
-    title: 'Bun detected for contributor workflows',
-    detail: `Bun ${bunVersion} is available for contributor scripts like bun run build/test.`,
-    fix: 'No action needed.',
-  })
 }
 
 function checkReadablePath(
