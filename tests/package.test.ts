@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test'
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs'
+import { tmpdir } from 'os'
 import { resolve } from 'path'
 
 const ROOT = resolve(import.meta.dir, '..')
@@ -49,5 +50,50 @@ describe('package metadata', () => {
     expect(exitCode).toBe(0)
     expect(stdout).toContain('stub cli ok')
     expect(stderr).toBe('')
+  })
+
+  it('loads a TypeScript pluxx.config.ts through the built Node CLI', async () => {
+    const buildProc = Bun.spawn(['bun', 'run', 'build'], {
+      cwd: ROOT,
+      stdout: 'pipe',
+      stderr: 'pipe',
+    })
+    const buildExitCode = await buildProc.exited
+    expect(buildExitCode).toBe(0)
+
+    const projectDir = mkdtempSync(resolve(tmpdir(), 'pluxx-node-validate-'))
+    try {
+      writeFileSync(
+        resolve(projectDir, 'pluxx.config.ts'),
+        `import { definePlugin } from 'pluxx'
+
+export default definePlugin({
+  name: 'node-fixture',
+  version: '0.1.0',
+  description: 'Fixture config',
+  author: { name: 'Test Author' },
+  skills: './skills/',
+  targets: ['codex'],
+  outDir: './dist',
+})
+`,
+      )
+
+      const proc = Bun.spawn(['node', resolve(ROOT, 'bin/pluxx.js'), 'validate'], {
+        cwd: projectDir,
+        stdout: 'pipe',
+        stderr: 'pipe',
+      })
+
+      const stdout = await new Response(proc.stdout).text()
+      const stderr = await new Response(proc.stderr).text()
+      const exitCode = await proc.exited
+
+      expect(exitCode).toBe(0)
+      expect(stdout).toContain('Config valid: node-fixture@0.1.0')
+      expect(stderr).toBe('')
+    } finally {
+      rmSync(projectDir, { recursive: true, force: true })
+    }
   })
 })
