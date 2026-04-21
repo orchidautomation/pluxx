@@ -101,27 +101,21 @@ Current state:
   - `.pluxx/sources.json`
   - `.pluxx/docs-context.json`
 - deep docs pages can now act as seed URLs while still inferring a broader docs root when possible
+- `init --from-mcp`, `autopilot`, and `agent prepare` now share the same `--ingest-provider auto|local|firecrawl` contract
+- repeatable fixture evaluation now exists:
+  - `bun run eval:docs-ingestion`
+  - latest snapshot: `docs/strategy/docs-ingestion-fixture-eval.md`
 
 Open work:
 
-- evaluate docs ingestion across real MCP fixtures
-- add an explicit ingestion-provider model:
-  - `auto`
-  - `firecrawl`
-  - `local`
-- make Firecrawl the preferred docs-ingestion provider when configured
-- keep a real OSS/local fallback based on local fetch + content extraction + html-to-markdown
-- decide the input contract for:
-  - `pluxx init --from-mcp`
-  - `pluxx autopilot`
-  - `pluxx agent prepare`
-- define output artifacts and provenance:
-  - `.pluxx/sources.json`
-  - `.pluxx/docs-context.json`
-  - agent context pack updates
-- add a real quality comparison:
-  - MCP only
-  - MCP + docs/website inputs
+- rerun the fixture evaluation with a real Firecrawl key so `firecrawl` can be compared directly against `local`
+- use the fixture snapshots to improve the weak cases the harness now exposes
+  - especially Firecrawl-style JS-heavy surfaces under the local fallback
+- tighten signal extraction further:
+  - product description quality
+  - workflow hint quality
+  - code-snippet/chrome filtering in setup/auth hints
+- decide whether the fixture harness should stay as baseline/local/firecrawl or grow into a fuller scaffold-quality comparison layer
 
 ### 4. Mintlify and product story
 

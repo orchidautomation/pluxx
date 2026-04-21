@@ -1,0 +1,390 @@
+{
+  "version": 1,
+  "generatedAt": "2026-04-21T10:09:35.542Z",
+  "firecrawlEnabled": false,
+  "fixtureResults": [
+    {
+      "fixture": {
+        "name": "firecrawl",
+        "label": "Firecrawl",
+        "fixtureKind": "example-project",
+        "projectPath": "/Users/brandonguerrero/Documents/Orchid Automation/Orchid Labs/pluxx/example/firecrawl-plugin",
+        "websiteUrl": "https://www.firecrawl.dev",
+        "docsUrl": "https://docs.firecrawl.dev/mcp-server"
+      },
+      "results": [
+        {
+          "provider": "baseline",
+          "status": "ok",
+          "contextInputs": [],
+          "matched": {
+            "productName": false,
+            "descriptionTerms": [],
+            "workflowTerms": [],
+            "setupTerms": [],
+            "authTerms": [],
+            "matchedCount": 0,
+            "expectedCount": 7
+          },
+          "sourceSummary": []
+        },
+        {
+          "provider": "local",
+          "status": "ok",
+          "contextInputs": [
+            "https://www.firecrawl.dev",
+            "https://docs.firecrawl.dev/mcp-server",
+            "https://docs.firecrawl.dev/"
+          ],
+          "ingestion": {
+            "requestedProvider": "local",
+            "resolvedProvider": "local",
+            "fallbackToLocalOnError": false
+          },
+          "docsContext": {
+            "version": 2,
+            "sourceLabels": [
+              "https://www.firecrawl.dev",
+              "https://docs.firecrawl.dev/mcp-server",
+              "https://docs.firecrawl.dev/"
+            ],
+            "providers": [
+              "local"
+            ],
+            "productName": "Firecrawl",
+            "shortDescription": "The API to search, scrape, and interact with the web at scale. Power AI agents with clean web data. Firecrawl delivers the entire internet to AI agents and builders.",
+            "setupHints": [
+              "Python Node.js cURL CLI Copy code 1 # pip install firecrawl-py 2 from firecrawl import Firecrawl 3 4 app = Firecrawl ( api_key = \"fc-YOUR_API_KEY\" ) 5 6 # Scrape a website: 7 app .",
+              "Check out our repo [ 03 / 06 ] · Features // Zero configuration // We handle the hard stuff We handle the hard stuff JavaScript rendering, smart wait, media parsing, actions, and more."
+            ],
+            "authHints": [
+              "Fetch this skill to sign up your user, get an API key, and start building with Firecrawl."
+            ],
+            "workflowHints": [
+              "Start scraping today",
+              "Use well-known tools"
+            ],
+            "importantTerms": [
+              "Start scraping today",
+              "Use well-known tools",
+              "Firecrawl MCP Server",
+              "Introduction | Firecrawl"
+            ],
+            "warnings": []
+          },
+          "matched": {
+            "productName": true,
+            "descriptionTerms": [],
+            "workflowTerms": [],
+            "setupTerms": [],
+            "authTerms": [
+              "API key"
+            ],
+            "matchedCount": 2,
+            "expectedCount": 7
+          },
+          "sourceSummary": [
+            {
+              "label": "https://www.firecrawl.dev",
+              "role": "seed",
+              "status": "ok",
+              "provider": "local",
+              "httpStatus": 200
+            },
+            {
+              "label": "https://docs.firecrawl.dev/mcp-server",
+              "role": "seed",
+              "status": "ok",
+              "provider": "local",
+              "httpStatus": 200
+            },
+            {
+              "label": "https://docs.firecrawl.dev/",
+              "role": "inferred-root",
+              "status": "ok",
+              "provider": "local",
+              "note": "Inferred from https://docs.firecrawl.dev/mcp-server",
+              "httpStatus": 200
+            }
+          ]
+        },
+        {
+          "provider": "firecrawl",
+          "status": "skipped",
+          "skipReason": "FIRECRAWL_API_KEY not configured",
+          "contextInputs": [],
+          "matched": {
+            "productName": false,
+            "descriptionTerms": [],
+            "workflowTerms": [],
+            "setupTerms": [],
+            "authTerms": [],
+            "matchedCount": 0,
+            "expectedCount": 7
+          },
+          "sourceSummary": []
+        }
+      ]
+    },
+    {
+      "fixture": {
+        "name": "sumble",
+        "label": "Sumble",
+        "fixtureKind": "example-project",
+        "projectPath": "/Users/brandonguerrero/Documents/Orchid Automation/Orchid Labs/pluxx/example/sumble-plugin",
+        "websiteUrl": "https://sumble.com",
+        "docsUrl": "https://docs.sumble.com/api/mcp"
+      },
+      "results": [
+        {
+          "provider": "baseline",
+          "status": "ok",
+          "contextInputs": [],
+          "matched": {
+            "productName": false,
+            "descriptionTerms": [],
+            "workflowTerms": [],
+            "setupTerms": [],
+            "authTerms": [],
+            "matchedCount": 0,
+            "expectedCount": 3
+          },
+          "sourceSummary": []
+        },
+        {
+          "provider": "local",
+          "status": "ok",
+          "contextInputs": [
+            "https://sumble.com",
+            "https://docs.sumble.com/api/mcp",
+            "https://docs.sumble.com/"
+          ],
+          "ingestion": {
+            "requestedProvider": "local",
+            "resolvedProvider": "local",
+            "fallbackToLocalOnError": false
+          },
+          "docsContext": {
+            "version": 2,
+            "sourceLabels": [
+              "https://sumble.com",
+              "https://docs.sumble.com/api/mcp",
+              "https://docs.sumble.com/"
+            ],
+            "providers": [
+              "local"
+            ],
+            "productName": "Sumble",
+            "shortDescription": "Sumble provides account intelligence data, enabling sales teams to do deep research. Use it to better inform your targeting and outreach.",
+            "setupHints": [],
+            "authHints": [],
+            "workflowHints": [
+              "MCP",
+              "Compatibility",
+              "Claude instructions",
+              "Cursor instructions",
+              "Claude Code instructions",
+              "Sumble",
+              "Web application",
+              "Enterprise services"
+            ],
+            "importantTerms": [
+              "Sumble",
+              "MCP",
+              "Compatibility",
+              "Claude instructions",
+              "Cursor instructions",
+              "Claude Code instructions",
+              "MCP | Sumble Docs",
+              "Web application"
+            ],
+            "warnings": [
+              "Sumble MCP requires a custom MCP connection at the moment.",
+              "It is possible in these LLMs Requires the ability to create a custom connector"
+            ]
+          },
+          "matched": {
+            "productName": true,
+            "descriptionTerms": [
+              "account intelligence",
+              "sales teams"
+            ],
+            "workflowTerms": [],
+            "setupTerms": [],
+            "authTerms": [],
+            "matchedCount": 3,
+            "expectedCount": 3
+          },
+          "sourceSummary": [
+            {
+              "label": "https://sumble.com",
+              "role": "seed",
+              "status": "ok",
+              "provider": "local",
+              "httpStatus": 200
+            },
+            {
+              "label": "https://docs.sumble.com/api/mcp",
+              "role": "seed",
+              "status": "ok",
+              "provider": "local",
+              "httpStatus": 200
+            },
+            {
+              "label": "https://docs.sumble.com/",
+              "role": "inferred-root",
+              "status": "ok",
+              "provider": "local",
+              "note": "Inferred from https://docs.sumble.com/api/mcp",
+              "httpStatus": 200
+            }
+          ]
+        },
+        {
+          "provider": "firecrawl",
+          "status": "skipped",
+          "skipReason": "FIRECRAWL_API_KEY not configured",
+          "contextInputs": [],
+          "matched": {
+            "productName": false,
+            "descriptionTerms": [],
+            "workflowTerms": [],
+            "setupTerms": [],
+            "authTerms": [],
+            "matchedCount": 0,
+            "expectedCount": 3
+          },
+          "sourceSummary": []
+        }
+      ]
+    },
+    {
+      "fixture": {
+        "name": "playkit",
+        "label": "PlayKit",
+        "fixtureKind": "synthetic-project",
+        "websiteUrl": "https://playkit.sh",
+        "docsUrl": "https://docs.playkit.sh"
+      },
+      "results": [
+        {
+          "provider": "baseline",
+          "status": "ok",
+          "contextInputs": [],
+          "matched": {
+            "productName": false,
+            "descriptionTerms": [],
+            "workflowTerms": [],
+            "setupTerms": [],
+            "authTerms": [],
+            "matchedCount": 0,
+            "expectedCount": 2
+          },
+          "sourceSummary": []
+        },
+        {
+          "provider": "local",
+          "status": "ok",
+          "contextInputs": [
+            "https://playkit.sh",
+            "https://docs.playkit.sh",
+            "https://docs.playkit.sh/"
+          ],
+          "ingestion": {
+            "requestedProvider": "local",
+            "resolvedProvider": "local",
+            "fallbackToLocalOnError": false
+          },
+          "docsContext": {
+            "version": 2,
+            "sourceLabels": [
+              "https://playkit.sh",
+              "https://docs.playkit.sh",
+              "https://docs.playkit.sh/"
+            ],
+            "providers": [
+              "local"
+            ],
+            "productName": "PlayKit",
+            "shortDescription": "Production-ready architectures. Credit-optimized workflows. Claygent prompts that work. The MCP that gives your AI agent Clay expertise. Save 60-90% on credits.",
+            "setupHints": [
+              "Full setup guide, 24 tools reference, and troubleshooting.",
+              "Choose your client and install method."
+            ],
+            "authHints": [
+              "claude mcp add --transport http playkit \\ https://mcp.playkit.sh/mcp \\ --header \"X-API-Key: YOUR_API_KEY \" ~/.claude.json Copy { \"mcpServers\" : { \"playkit\" : { \"type\" : \"http\" , \"url\" : \"https://mcp.playkit.sh/mcp\" , \"headers\" : { \"X-API-Key\" : \" YOUR_API_KEY \" } } } } Codex uses TOML config and requires API keys in environment variables."
+            ],
+            "workflowHints": [
+              "Setup Guide",
+              "Quick Setup",
+              "Connect to Clay",
+              "Knowledge Tools",
+              "Clay API Tools"
+            ],
+            "importantTerms": [
+              "Setup Guide",
+              "Quick Setup",
+              "Connect to Clay",
+              "Knowledge Tools",
+              "Clay API Tools"
+            ],
+            "warnings": [
+              "claude mcp add --transport http playkit \\ https://mcp.playkit.sh/mcp \\ --header \"X-API-Key: YOUR_API_KEY \" ~/.claude.json Copy { \"mcpServers\" : { \"playkit\" : { \"type\" : \"http\" , \"url\" : \"https://mcp.playkit.sh/mcp\" , \"headers\" : { \"X-API-Key\" : \" YOUR_API_KEY \" } } } } Codex uses TOML config and requires API keys in environment variables."
+            ]
+          },
+          "matched": {
+            "productName": true,
+            "descriptionTerms": [
+              "Clay"
+            ],
+            "workflowTerms": [],
+            "setupTerms": [],
+            "authTerms": [],
+            "matchedCount": 2,
+            "expectedCount": 2
+          },
+          "sourceSummary": [
+            {
+              "label": "https://playkit.sh",
+              "role": "seed",
+              "status": "ok",
+              "provider": "local",
+              "httpStatus": 200
+            },
+            {
+              "label": "https://docs.playkit.sh",
+              "role": "seed",
+              "status": "ok",
+              "provider": "local",
+              "httpStatus": 200
+            },
+            {
+              "label": "https://docs.playkit.sh/",
+              "role": "inferred-root",
+              "status": "ok",
+              "provider": "local",
+              "note": "Inferred from https://docs.playkit.sh",
+              "httpStatus": 200
+            }
+          ]
+        },
+        {
+          "provider": "firecrawl",
+          "status": "skipped",
+          "skipReason": "FIRECRAWL_API_KEY not configured",
+          "contextInputs": [],
+          "matched": {
+            "productName": false,
+            "descriptionTerms": [],
+            "workflowTerms": [],
+            "setupTerms": [],
+            "authTerms": [],
+            "matchedCount": 0,
+            "expectedCount": 2
+          },
+          "sourceSummary": []
+        }
+      ]
+    }
+  ]
+}

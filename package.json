@@ -17,6 +17,7 @@
   "scripts": {
     "build": "bun build src/index.ts --outdir dist --target node && tsc --emitDeclarationOnly",
     "dev": "bun --watch src/cli/index.ts",
+    "eval:docs-ingestion": "bun scripts/evaluate-docs-ingestion.ts",
     "generate:compatibility": "bun scripts/generate-compatibility-matrix.ts",
     "pack:check": "npm pack --dry-run",
     "release:check": "bun run build && bun run typecheck && bun test && npm pack --dry-run",

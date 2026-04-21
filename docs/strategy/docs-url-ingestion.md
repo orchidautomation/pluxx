@@ -228,5 +228,18 @@ Current behavior:
 - If only `--website` is provided, Pluxx probes a small set of likely docs roots such as `docs.<host>`, `/docs`, `/developers`, `/api`, and `/reference`.
 - Pluxx writes provenance to `.pluxx/sources.json`, including provider resolution.
 - Pluxx writes extracted structured signals to `.pluxx/docs-context.json`.
+- Pluxx now ships a repeatable fixture harness for this work:
+  - `bun run eval:docs-ingestion`
+  - latest snapshot: `docs/strategy/docs-ingestion-fixture-eval.md`
 
 That means the first step is no longer “stuff some fetched HTML into `context.md` and hope.” There is now a deterministic artifact trail for what was fetched, what was inferred, and what structured product signals were extracted.
+
+## Current fixture read
+
+The current snapshot is useful enough to steer product work already:
+
+- local sourced context beats the baseline on the current fixture set
+- the Firecrawl provider path is implemented but still needs a real keyed run in the fixture harness
+- Firecrawl remains the clearest weak case for the local fallback because the JS-heavy surface still leaks noisy setup/workflow signals
+- PlayKit shows the local path can work well when the docs root exposes strong setup and product language in server-rendered HTML
+- Sumble shows that even when docs detail is light, website + docs seeds can still recover useful product truth like product name and positioning
