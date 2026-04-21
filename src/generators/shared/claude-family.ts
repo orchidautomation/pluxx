@@ -4,6 +4,7 @@ import { warnDroppedHookFields } from '../hooks-warning'
 import type { PluginConfig, TargetPlatform } from '../../schema'
 import { mapHookEventToPascalCase } from '../../hook-events'
 import { buildGeneratedPermissionHookScript } from '../../permissions'
+import { readTextFile } from '../../text-files'
 
 export interface ClaudeFamilyOptions {
   manifestPath: string
@@ -197,7 +198,7 @@ async function writeInstructions(
   const srcPath = resolve(rootDir, config.instructions)
   if (!existsSync(srcPath)) return
 
-  const content = await Bun.file(srcPath).text()
+  const content = await readTextFile(srcPath)
   const titleSuffix = options.titleSuffix ?? 'Plugin'
   const instructions = [
     `# ${config.brand?.displayName ?? config.name} ${titleSuffix}`,

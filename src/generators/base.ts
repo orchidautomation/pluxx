@@ -2,6 +2,7 @@ import { resolve, join, relative } from 'path'
 import { mkdirSync, existsSync, cpSync } from 'fs'
 import type { PluginConfig, TargetPlatform, McpServer } from '../schema'
 import { readCompilerIntent, type CompilerIntentFile } from '../compiler-intent'
+import { writeTextFile } from '../text-files'
 
 type McpRemoteServer = Exclude<McpServer, { transport: 'stdio' }>
 
@@ -33,9 +34,7 @@ export abstract class Generator {
   /** Write a file to the output directory */
   protected async writeFile(relativePath: string, content: string): Promise<void> {
     const filepath = join(this.outDir, relativePath)
-    const dir = filepath.substring(0, filepath.lastIndexOf('/'))
-    mkdirSync(dir, { recursive: true })
-    await Bun.write(filepath, content)
+    await writeTextFile(filepath, content)
   }
 
   /** Write JSON to the output directory */

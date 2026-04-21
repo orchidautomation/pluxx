@@ -12,6 +12,7 @@ import {
   type CompilerIntentFile,
   type CompilerIntentSkillPolicy,
 } from '../compiler-intent'
+import { writeTextFile } from '../text-files'
 
 type DetectedPlatform = 'claude-code' | 'cursor' | 'codex' | 'opencode'
 
@@ -1332,7 +1333,7 @@ export async function migrate(inputPath: string): Promise<void> {
     process.exit(1)
   }
 
-  await Bun.write(configPath, configContent)
+  await writeTextFile(configPath, configContent)
   console.log(`\nGenerated pluxx.config.ts`)
 
   // 9. Copy directories
@@ -1349,7 +1350,7 @@ export async function migrate(inputPath: string): Promise<void> {
     const destInstr = resolve(outputDir, instructions)
     if (!existsSync(destInstr)) {
       const content = readFileSync(srcInstr, 'utf-8')
-      await Bun.write(destInstr, content)
+      await writeTextFile(destInstr, content)
       console.log(`Copied: ${instructions}`)
     }
   }
@@ -1358,14 +1359,14 @@ export async function migrate(inputPath: string): Promise<void> {
   const taxonomyPath = resolve(outputDir, MCP_TAXONOMY_PATH)
   const metadataPath = resolve(outputDir, MCP_SCAFFOLD_METADATA_PATH)
   mkdirSync(resolve(outputDir, '.pluxx'), { recursive: true })
-  await Bun.write(taxonomyPath, `${JSON.stringify(result.persistedSkills, null, 2)}\n`)
+  await writeTextFile(taxonomyPath, `${JSON.stringify(result.persistedSkills, null, 2)}\n`)
   if (result.compilerIntent) {
-    await Bun.write(
+    await writeTextFile(
       resolve(outputDir, PLUXX_COMPILER_INTENT_PATH),
       `${JSON.stringify(result.compilerIntent, null, 2)}\n`,
     )
   }
-  await Bun.write(metadataPath, `${JSON.stringify(buildMigratedScaffoldMetadata(result, outputDir), null, 2)}\n`)
+  await writeTextFile(metadataPath, `${JSON.stringify(buildMigratedScaffoldMetadata(result, outputDir), null, 2)}\n`)
   const generatedPluxxFiles = [
     MCP_TAXONOMY_PATH,
     ...(result.compilerIntent ? [PLUXX_COMPILER_INTENT_PATH] : []),

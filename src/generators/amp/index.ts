@@ -2,6 +2,7 @@ import { existsSync } from 'fs'
 import { Generator } from '../base'
 import { warnDroppedHookFields } from '../hooks-warning'
 import type { TargetPlatform } from '../../schema'
+import { readTextFile } from '../../text-files'
 
 /**
  * Amp uses AGENT.md for instructions, .amp/settings.json for hooks,
@@ -27,7 +28,7 @@ export class AmpGenerator extends Generator {
     const srcPath = this.resolveConfigPath(this.config.instructions, 'instructions')
     if (!existsSync(srcPath)) return
 
-    const content = await Bun.file(srcPath).text()
+    const content = await readTextFile(srcPath)
 
     const agentMd = [
       `# ${this.config.brand?.displayName ?? this.config.name}`,
