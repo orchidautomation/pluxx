@@ -1214,6 +1214,103 @@ exit 1
     }
   })
 
+  it('uses local link discovery to expand docs ingestion beyond the seed page', async () => {
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = (async (input) => {
+      const request = new Request(input)
+
+      if (request.url === 'https://playkit.sh/' || request.url === 'https://docs.playkit.sh/' || request.url === 'https://docs.playkit.sh/docs') {
+        return new Response(
+          `<!doctype html>
+          <html>
+            <head>
+              <title>PlayKit Docs</title>
+              <meta name="description" content="Clay expertise in every AI conversation.">
+            </head>
+            <body>
+              <header>
+                <nav>
+                  <a href="/pricing">Pricing</a>
+                  <a href="/blog">Blog</a>
+                </nav>
+              </header>
+              <main>
+                <h1>PlayKit Docs</h1>
+                <a href="/docs/authentication">Authentication</a>
+                <a href="/docs/quickstart">Quickstart</a>
+                <a href="/docs/knowledge-tools">Knowledge Tools</a>
+              </main>
+            </body>
+          </html>`,
+          {
+            status: 200,
+            headers: { 'Content-Type': 'text/html; charset=utf-8' },
+          },
+        )
+      }
+
+      if (request.url === 'https://docs.playkit.sh/docs/authentication') {
+        return new Response(
+          '<!doctype html><html><head><title>Authentication</title><meta name="description" content="Set the X-API-Key header before using hosted PlayKit MCP."></head><body><main><h1>Authentication</h1><h2>API Key Header</h2><p>Set the X-API-Key header before using hosted PlayKit MCP.</p></main></body></html>',
+          {
+            status: 200,
+            headers: { 'Content-Type': 'text/html; charset=utf-8' },
+          },
+        )
+      }
+
+      if (request.url === 'https://docs.playkit.sh/docs/quickstart') {
+        return new Response(
+          '<!doctype html><html><head><title>Quickstart</title><meta name="description" content="Install PlayKit MCP and connect Clay in a few minutes."></head><body><main><h1>Quickstart</h1><h2>Quick Setup</h2><p>Install PlayKit MCP and connect Clay in a few minutes.</p></main></body></html>',
+          {
+            status: 200,
+            headers: { 'Content-Type': 'text/html; charset=utf-8' },
+          },
+        )
+      }
+
+      if (request.url === 'https://docs.playkit.sh/docs/knowledge-tools') {
+        return new Response(
+          '<!doctype html><html><head><title>Knowledge Tools</title><meta name="description" content="Use knowledge tools to answer Clay questions before building tables."></head><body><main><h1>Knowledge Tools</h1><p>Use knowledge tools to answer Clay questions before building tables.</p></main></body></html>',
+          {
+            status: 200,
+            headers: { 'Content-Type': 'text/html; charset=utf-8' },
+          },
+        )
+      }
+
+      throw new Error(`Unexpected fetch to ${request.url}`)
+    }) as typeof fetch
+
+    try {
+      const plan = await planAgentPrepare(TEST_DIR, {
+        websiteUrl: 'https://playkit.sh/',
+        docsUrl: 'https://docs.playkit.sh/docs',
+        ingestProvider: 'local',
+      })
+      await applyAgentPreparePlan(TEST_DIR, plan)
+
+      const context = readFileSync(resolve(TEST_DIR, AGENT_CONTEXT_PATH), 'utf-8')
+      const sources = JSON.parse(readFileSync(resolve(TEST_DIR, AGENT_SOURCES_PATH), 'utf-8')) as {
+        sources: Array<{ label: string; role: string; provider?: string; note?: string }>
+      }
+      const docsContext = JSON.parse(readFileSync(resolve(TEST_DIR, AGENT_DOCS_CONTEXT_PATH), 'utf-8')) as {
+        workflowHints: string[]
+        setupHints: string[]
+        authHints: string[]
+      }
+
+      expect(sources.sources.some((source) => source.role === 'discovered-page' && source.label === 'https://docs.playkit.sh/docs/authentication')).toBe(true)
+      expect(docsContext.workflowHints).toContain('Knowledge Tools')
+      expect(docsContext.setupHints.some((hint) => hint.includes('Install PlayKit MCP'))).toBe(true)
+      expect(docsContext.authHints.some((hint) => hint.includes('X-API-Key'))).toBe(true)
+      expect(context).toContain('https://docs.playkit.sh/docs/authentication')
+      expect(context).toContain('Discovered via local link expansion.')
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
   it('uses Firecrawl-backed ingestion when configured and records provider provenance', async () => {
     const originalFetch = globalThis.fetch
     const originalFirecrawlKey = process.env.FIRECRAWL_API_KEY
@@ -1221,26 +1318,33 @@ exit 1
 
     globalThis.fetch = (async (input, init) => {
       const request = new Request(input, init)
-      if (request.url !== 'https://api.firecrawl.dev/v2/scrape') {
-        throw new Error(`Unexpected fetch to ${request.url}`)
+      if (request.url === 'https://api.firecrawl.dev/v2/map') {
+        return Response.json({
+          success: true,
+          links: [],
+        })
       }
 
-      const body = await request.json() as { url: string; formats: string[]; onlyMainContent: boolean }
-      const title = body.url.includes('docs') ? 'PlayKit Docs' : 'PlayKit'
-      return Response.json({
-        success: true,
-        data: {
-          markdown: `# ${title}\n\n## Knowledge Search\n\n## Clay API Workflows\n\nClay auth required for API workflows.`,
-          metadata: {
-            title,
-            description: 'Clay expertise in every AI conversation.',
-            sourceURL: body.url,
-            url: body.url,
-            statusCode: 200,
-            contentType: 'text/markdown',
+      if (request.url === 'https://api.firecrawl.dev/v2/scrape') {
+        const body = await request.json() as { url: string; formats: string[]; onlyMainContent: boolean }
+        const title = body.url.includes('docs') ? 'PlayKit Docs' : 'PlayKit'
+        return Response.json({
+          success: true,
+          data: {
+            markdown: `# ${title}\n\n## Knowledge Search\n\n## Clay API Workflows\n\nClay auth required for API workflows.`,
+            metadata: {
+              title,
+              description: 'Clay expertise in every AI conversation.',
+              sourceURL: body.url,
+              url: body.url,
+              statusCode: 200,
+              contentType: 'text/markdown',
+            },
           },
-        },
-      })
+        })
+      }
+
+      throw new Error(`Unexpected fetch to ${request.url}`)
     }) as typeof fetch
 
     try {
@@ -1278,6 +1382,149 @@ exit 1
       expect(context).toContain('Ingestion provider: auto -> firecrawl')
       expect(context).toContain('Providers observed: firecrawl')
       expect(context).toContain('- Provider: firecrawl')
+    } finally {
+      globalThis.fetch = originalFetch
+      if (originalFirecrawlKey === undefined) {
+        delete process.env.FIRECRAWL_API_KEY
+      } else {
+        process.env.FIRECRAWL_API_KEY = originalFirecrawlKey
+      }
+    }
+  })
+
+  it('uses Firecrawl map + batch scrape to expand docs ingestion beyond the seed page', async () => {
+    const originalFetch = globalThis.fetch
+    const originalFirecrawlKey = process.env.FIRECRAWL_API_KEY
+    process.env.FIRECRAWL_API_KEY = 'fc-test-key'
+
+    globalThis.fetch = (async (input, init) => {
+      const request = new Request(input, init)
+
+      if (request.url === 'https://api.firecrawl.dev/v2/scrape') {
+        const body = await request.json() as { url: string }
+        return Response.json({
+          success: true,
+          data: {
+            markdown: body.url.includes('/docs')
+              ? '# PlayKit Docs\n\n## Quick Setup\n\nClay expertise in every AI conversation.'
+              : '# PlayKit\n\nClay expertise in every AI conversation.',
+            metadata: {
+              title: body.url.includes('/docs') ? 'PlayKit Docs' : 'PlayKit',
+              description: 'Clay expertise in every AI conversation.',
+              sourceURL: body.url,
+              url: body.url,
+              statusCode: 200,
+              contentType: 'text/markdown',
+            },
+          },
+        })
+      }
+
+      if (request.url === 'https://api.firecrawl.dev/v2/map') {
+        return Response.json({
+          success: true,
+          links: [
+            {
+              url: 'https://docs.playkit.sh/docs/authentication',
+              title: 'Authentication',
+              description: 'Configure the X-API-Key header for PlayKit MCP.',
+            },
+            {
+              url: 'https://docs.playkit.sh/docs/knowledge-tools',
+              title: 'Knowledge Tools',
+              description: 'Ask Clay knowledge questions before touching table workflows.',
+            },
+            {
+              url: 'https://docs.playkit.sh/docs/quickstart',
+              title: 'Quickstart',
+              description: 'Install the MCP and connect Clay quickly.',
+            },
+          ],
+        })
+      }
+
+      if (request.url === 'https://api.firecrawl.dev/v2/batch/scrape') {
+        const body = await request.json() as { urls: string[] }
+        expect(body.urls).toHaveLength(3)
+        expect(body.urls).toEqual(expect.arrayContaining([
+          'https://docs.playkit.sh/docs/authentication',
+          'https://docs.playkit.sh/docs/quickstart',
+          'https://docs.playkit.sh/docs/knowledge-tools',
+        ]))
+        return Response.json({
+          success: true,
+          id: 'batch-123',
+        })
+      }
+
+      if (request.url === 'https://api.firecrawl.dev/v2/batch/scrape/batch-123') {
+        return Response.json({
+          status: 'completed',
+          data: [
+            {
+              markdown: '# Authentication\n\n## API Key Header\n\nSet the X-API-Key header before using hosted PlayKit MCP.',
+              metadata: {
+                title: 'Authentication',
+                description: 'Set the X-API-Key header before using hosted PlayKit MCP.',
+                sourceURL: 'https://docs.playkit.sh/docs/authentication',
+                url: 'https://docs.playkit.sh/docs/authentication',
+                statusCode: 200,
+                contentType: 'text/markdown',
+              },
+            },
+            {
+              markdown: '# Quickstart\n\n## Quick Setup\n\nInstall PlayKit MCP and connect Clay in a few minutes.',
+              metadata: {
+                title: 'Quickstart',
+                description: 'Install PlayKit MCP and connect Clay in a few minutes.',
+                sourceURL: 'https://docs.playkit.sh/docs/quickstart',
+                url: 'https://docs.playkit.sh/docs/quickstart',
+                statusCode: 200,
+                contentType: 'text/markdown',
+              },
+            },
+            {
+              markdown: '# Knowledge Tools\n\n## Knowledge Tools\n\nUse knowledge tools to answer Clay questions before building tables.',
+              metadata: {
+                title: 'Knowledge Tools',
+                description: 'Use knowledge tools to answer Clay questions before building tables.',
+                sourceURL: 'https://docs.playkit.sh/docs/knowledge-tools',
+                url: 'https://docs.playkit.sh/docs/knowledge-tools',
+                statusCode: 200,
+                contentType: 'text/markdown',
+              },
+            },
+          ],
+        })
+      }
+
+      throw new Error(`Unexpected fetch to ${request.url}`)
+    }) as typeof fetch
+
+    try {
+      const plan = await planAgentPrepare(TEST_DIR, {
+        websiteUrl: 'https://playkit.sh/',
+        docsUrl: 'https://docs.playkit.sh/docs',
+        ingestProvider: 'firecrawl',
+      })
+      await applyAgentPreparePlan(TEST_DIR, plan)
+
+      const context = readFileSync(resolve(TEST_DIR, AGENT_CONTEXT_PATH), 'utf-8')
+      const sources = JSON.parse(readFileSync(resolve(TEST_DIR, AGENT_SOURCES_PATH), 'utf-8')) as {
+        sources: Array<{ label: string; role: string; provider?: string; note?: string }>
+      }
+      const docsContext = JSON.parse(readFileSync(resolve(TEST_DIR, AGENT_DOCS_CONTEXT_PATH), 'utf-8')) as {
+        workflowHints: string[]
+        setupHints: string[]
+        authHints: string[]
+      }
+
+      expect(sources.sources.some((source) => source.role === 'discovered-page' && source.label === 'https://docs.playkit.sh/docs/authentication')).toBe(true)
+      expect(docsContext.workflowHints).toContain('Knowledge Tools')
+      expect(docsContext.setupHints.some((hint) => hint.includes('Install PlayKit MCP'))).toBe(true)
+      expect(docsContext.authHints.some((hint) => hint.includes('X-API-Key'))).toBe(true)
+      expect(context).toContain('https://docs.playkit.sh/docs/authentication')
+      expect(context).toContain('Discovered via Firecrawl map + batch scrape.')
     } finally {
       globalThis.fetch = originalFetch
       if (originalFirecrawlKey === undefined) {

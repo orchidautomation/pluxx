@@ -174,7 +174,7 @@ interface AgentModePlanFile {
 interface AgentContextSource {
   label: string
   kind: 'website' | 'docs' | 'file'
-  role: 'seed' | 'inferred-root' | 'discovered-root' | 'local-file'
+  role: 'seed' | 'inferred-root' | 'discovered-root' | 'discovered-page' | 'local-file'
   status: 'ok' | 'error'
   summary: string
   provider?: ResolvedAgentIngestProvider
@@ -1024,6 +1024,24 @@ async function collectAgentContextPackInternal(
     }
   }
 
+  const firecrawlExpandedSources = await expandFirecrawlContextSources(sources, seenUrls, ingestStrategy)
+  for (const source of firecrawlExpandedSources) {
+    const identity = normalizeUrlIdentity(source.resolvedUrl ?? source.requestedUrl ?? source.label)
+    if (seenUrls.has(identity)) continue
+    sources.push(source)
+    records.push(buildContextSourceRecord(source, true))
+    seenUrls.add(identity)
+  }
+
+  const localExpandedSources = await expandLocalContextSources(sources, seenUrls, ingestStrategy)
+  for (const source of localExpandedSources) {
+    const identity = normalizeUrlIdentity(source.resolvedUrl ?? source.requestedUrl ?? source.label)
+    if (seenUrls.has(identity)) continue
+    sources.push(source)
+    records.push(buildContextSourceRecord(source, true))
+    seenUrls.add(identity)
+  }
+
   const contextPaths = [
     ...(overrides?.contextPaths ?? []),
     ...(options.contextPaths ?? []),
@@ -1285,6 +1303,413 @@ async function fetchContextSourceWithFirecrawl(
   }
 }
 
+async function expandFirecrawlContextSources(
+  sources: AgentContextSource[],
+  seenUrls: Set<string>,
+  ingestStrategy: AgentContextFetchStrategy,
+): Promise<AgentContextSource[]> {
+  if (ingestStrategy.resolvedProvider !== 'firecrawl') {
+    return []
+  }
+
+  const roots = prioritizeExpansionRoots(sources, 'firecrawl')
+  if (roots.length === 0) {
+    return []
+  }
+
+  const selectedLinks: FirecrawlMappedLink[] = []
+  const selectedIdentities = new Set<string>()
+  for (const root of roots) {
+    const rootUrl = root.resolvedUrl ?? root.requestedUrl ?? root.label
+    const mappedLinks = await mapFirecrawlLinks(rootUrl, root.kind)
+    const pickedLinks = selectFirecrawlExpansionLinks(mappedLinks, seenUrls, selectedIdentities, root.kind)
+    for (const link of pickedLinks) {
+      selectedLinks.push(link)
+      selectedIdentities.add(normalizeUrlIdentity(link.url))
+      if (selectedLinks.length >= 4) break
+    }
+    if (selectedLinks.length >= 4) break
+  }
+
+  if (selectedLinks.length === 0) {
+    return []
+  }
+
+  return batchScrapeFirecrawlLinks(selectedLinks)
+}
+
+async function expandLocalContextSources(
+  sources: AgentContextSource[],
+  seenUrls: Set<string>,
+  ingestStrategy: AgentContextFetchStrategy,
+): Promise<AgentContextSource[]> {
+  if (ingestStrategy.resolvedProvider !== 'local') {
+    return []
+  }
+
+  const roots = prioritizeExpansionRoots(sources, 'local')
+  if (roots.length === 0) {
+    return []
+  }
+
+  const selectedLinks: FirecrawlMappedLink[] = []
+  const selectedIdentities = new Set<string>()
+  for (const root of roots) {
+    const rootUrl = root.resolvedUrl ?? root.requestedUrl ?? root.label
+    const mappedLinks = await mapLocalLinks(rootUrl, root.kind)
+    const pickedLinks = selectFirecrawlExpansionLinks(mappedLinks, seenUrls, selectedIdentities, root.kind)
+    for (const link of pickedLinks) {
+      selectedLinks.push(link)
+      selectedIdentities.add(normalizeUrlIdentity(link.url))
+      if (selectedLinks.length >= 4) break
+    }
+    if (selectedLinks.length >= 4) break
+  }
+
+  if (selectedLinks.length === 0) {
+    return []
+  }
+
+  return fetchLocalExpansionLinks(selectedLinks)
+}
+
+function prioritizeExpansionRoots(
+  sources: AgentContextSource[],
+  provider: ResolvedAgentIngestProvider,
+): Array<AgentContextSource & { kind: 'website' | 'docs' }> {
+  const prioritized = sources
+    .filter(
+      (source): source is AgentContextSource & { kind: 'website' | 'docs' } =>
+        source.status === 'ok' && source.provider === provider && source.kind !== 'file',
+    )
+    .sort((left, right) => scoreExpansionRoot(right) - scoreExpansionRoot(left))
+
+  const seen = new Set<string>()
+  const unique: Array<AgentContextSource & { kind: 'website' | 'docs' }> = []
+  for (const source of prioritized) {
+    const identity = normalizeUrlIdentity(source.resolvedUrl ?? source.requestedUrl ?? source.label)
+    if (seen.has(identity)) continue
+    seen.add(identity)
+    unique.push(source)
+    if (unique.length >= 2) break
+  }
+  return unique
+}
+
+function scoreExpansionRoot(source: AgentContextSource): number {
+  let score = 0
+  if (source.kind === 'docs') score += 100
+  if (source.role === 'inferred-root' || source.role === 'discovered-root') score += 60
+  if (source.role === 'seed') score += 30
+  const url = (source.resolvedUrl ?? source.requestedUrl ?? source.label).toLowerCase()
+  if (url.includes('/docs') || url.includes('://docs.')) score += 30
+  if (url.endsWith('/')) score += 10
+  return score
+}
+
+async function mapFirecrawlLinks(
+  url: string,
+  kind: 'website' | 'docs',
+): Promise<FirecrawlMappedLink[]> {
+  const apiKey = resolveFirecrawlApiKey()
+  if (!apiKey) return []
+
+  try {
+    const response = await fetch(`${resolveFirecrawlApiBaseUrl()}/v2/map`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        url,
+        search: kind === 'docs'
+          ? 'mcp auth quickstart installation setup api reference'
+          : 'docs mcp quickstart api setup',
+        limit: 10,
+        sitemap: 'include',
+      }),
+    })
+
+    if (!response.ok) {
+      return []
+    }
+
+    const payload = await response.json() as FirecrawlMapResponse
+    return normalizeFirecrawlMappedLinks(payload.links)
+  } catch {
+    return []
+  }
+}
+
+async function mapLocalLinks(
+  url: string,
+  kind: 'website' | 'docs',
+): Promise<FirecrawlMappedLink[]> {
+  try {
+    const response = await fetch(url)
+    if (!response.ok) {
+      return []
+    }
+
+    const contentType = response.headers.get('content-type') ?? ''
+    if (!contentType.includes('html')) {
+      return []
+    }
+
+    const html = await response.text()
+    return extractLocalMappedLinks(url, html, kind)
+  } catch {
+    return []
+  }
+}
+
+function extractLocalMappedLinks(
+  baseUrl: string,
+  html: string,
+  kind: 'website' | 'docs',
+): FirecrawlMappedLink[] {
+  const cleanedHtml = stripNonContentHtml(html)
+  const primaryHtml = selectPrimaryHtmlFragment(cleanedHtml)
+  const matches = primaryHtml.matchAll(/<a\b[^>]*href=(["'])(.*?)\1[^>]*>([\s\S]*?)<\/a>/gi)
+  const base = safeParseUrl(baseUrl)
+  if (!base) return []
+
+  const links: FirecrawlMappedLink[] = []
+  for (const match of matches) {
+    const rawHref = match[2]?.trim()
+    if (!rawHref || rawHref.startsWith('#') || rawHref.startsWith('javascript:') || rawHref.startsWith('mailto:') || rawHref.startsWith('tel:')) {
+      continue
+    }
+
+    const resolved = safeParseUrl(new URL(rawHref, baseUrl).toString())
+    if (!resolved || !['http:', 'https:'].includes(resolved.protocol)) {
+      continue
+    }
+
+    if (kind === 'docs' && resolved.host !== base.host) {
+      continue
+    }
+    if (kind === 'website' && resolved.host !== base.host && !resolved.host.startsWith('docs.')) {
+      continue
+    }
+
+    resolved.hash = ''
+    const title = cleanHtmlText(match[3] ?? '')
+    links.push({
+      url: resolved.toString(),
+      title: title || undefined,
+    })
+  }
+
+  return normalizeFirecrawlMappedLinks(
+    uniqueStrings(links.map((link) => JSON.stringify(link))).map((entry) => JSON.parse(entry) as FirecrawlMappedLink),
+  )
+}
+
+function normalizeFirecrawlMappedLinks(
+  links: Array<string | { url?: string; title?: string; description?: string }> | undefined,
+): FirecrawlMappedLink[] {
+  if (!links) return []
+
+  const normalized: FirecrawlMappedLink[] = []
+  for (const link of links) {
+    if (typeof link === 'string') {
+      normalized.push({ url: link })
+      continue
+    }
+    if (link.url) {
+      normalized.push({
+        url: link.url,
+        title: link.title,
+        description: link.description,
+      })
+    }
+  }
+  return normalized
+}
+
+function selectFirecrawlExpansionLinks(
+  links: FirecrawlMappedLink[],
+  seenUrls: Set<string>,
+  selectedIdentities: Set<string>,
+  kind: 'website' | 'docs',
+): FirecrawlMappedLink[] {
+  return links
+    .map((link) => ({ link, score: scoreFirecrawlMappedLink(link, kind) }))
+    .filter(({ link, score }) => {
+      const identity = normalizeUrlIdentity(link.url)
+      return score > 0 && !seenUrls.has(identity) && !selectedIdentities.has(identity)
+    })
+    .sort((left, right) => right.score - left.score)
+    .slice(0, kind === 'docs' ? 3 : 2)
+    .map(({ link }) => link)
+}
+
+function scoreFirecrawlMappedLink(link: FirecrawlMappedLink, kind: 'website' | 'docs'): number {
+  const url = link.url.toLowerCase()
+  const text = [link.title, link.description, link.url].filter(Boolean).join(' ').toLowerCase()
+  let score = 0
+
+  if (kind === 'docs') {
+    if (url.includes('/mcp')) score += 50
+    if (url.includes('quickstart') || url.includes('get-started')) score += 35
+    if (url.includes('auth') || url.includes('authentication')) score += 35
+    if (url.includes('install')) score += 30
+    if (url.includes('/api') || url.includes('/reference')) score += 25
+    if (url.includes('/docs')) score += 20
+  } else {
+    if (url.includes('/docs') || url.includes('://docs.')) score += 40
+    if (url.includes('/mcp')) score += 30
+    if (url.includes('/api') || url.includes('/reference')) score += 20
+  }
+
+  if (text.includes('mcp')) score += 25
+  if (text.includes('quickstart') || text.includes('get started')) score += 20
+  if (text.includes('auth') || text.includes('api key')) score += 20
+  if (text.includes('install')) score += 15
+
+  if (
+    text.includes('blog')
+    || text.includes('pricing')
+    || text.includes('careers')
+    || text.includes('privacy')
+    || text.includes('terms')
+    || text.includes('changelog')
+  ) {
+    score -= 80
+  }
+
+  return score
+}
+
+async function batchScrapeFirecrawlLinks(
+  links: FirecrawlMappedLink[],
+): Promise<AgentContextSource[]> {
+  const apiKey = resolveFirecrawlApiKey()
+  if (!apiKey || links.length === 0) return []
+
+  try {
+    const startResponse = await fetch(`${resolveFirecrawlApiBaseUrl()}/v2/batch/scrape`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        urls: links.map((link) => link.url),
+        formats: ['markdown'],
+        onlyMainContent: true,
+        removeBase64Images: true,
+        maxConcurrency: Math.min(links.length, 4),
+      }),
+    })
+
+    if (!startResponse.ok) {
+      return []
+    }
+
+    const startPayload = await startResponse.json() as FirecrawlBatchStartResponse
+    const completedPayload = Array.isArray(startPayload.data)
+      ? startPayload
+      : await pollFirecrawlBatchScrape(startPayload.id)
+    if (!completedPayload || !Array.isArray(completedPayload.data)) {
+      return []
+    }
+
+    return completedPayload.data
+      .map((entry) => buildFirecrawlBatchSource(entry, links))
+      .filter((source): source is AgentContextSource => Boolean(source))
+  } catch {
+    return []
+  }
+}
+
+async function fetchLocalExpansionLinks(
+  links: FirecrawlMappedLink[],
+): Promise<AgentContextSource[]> {
+  const expanded = await Promise.all(
+    links.map((link) =>
+      fetchContextSourceLocally(
+        link.url,
+        guessRemoteKindFromUrl(link.url),
+        'discovered-page',
+        'Discovered via local link expansion.',
+      ),
+    ),
+  )
+
+  return expanded.filter((source): source is AgentContextSource => source !== null && source.status === 'ok')
+}
+
+async function pollFirecrawlBatchScrape(id: string | undefined): Promise<FirecrawlBatchStatusResponse | null> {
+  const apiKey = resolveFirecrawlApiKey()
+  if (!apiKey || !id) return null
+
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const response = await fetch(`${resolveFirecrawlApiBaseUrl()}/v2/batch/scrape/${id}`, {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+    })
+    if (!response.ok) {
+      return null
+    }
+
+    const payload = await response.json() as FirecrawlBatchStatusResponse
+    if (payload.status === 'completed' || payload.status === 'success') {
+      return payload
+    }
+    if (payload.status === 'failed' || payload.status === 'cancelled') {
+      return null
+    }
+
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, 250))
+  }
+
+  return null
+}
+
+function buildFirecrawlBatchSource(
+  entry: FirecrawlBatchData,
+  links: FirecrawlMappedLink[],
+): AgentContextSource | null {
+  const metadata = entry.metadata ?? {}
+  const resolvedUrl = metadata.sourceURL ?? metadata.url
+  if (!resolvedUrl) return null
+
+  const markdown = typeof entry.markdown === 'string' ? entry.markdown : ''
+  const parsed = summarizeMarkdownArtifact(markdown, {
+    title: metadata.title,
+    description: metadata.description,
+  })
+  const link = links.find((candidate) => normalizeUrlIdentity(candidate.url) === normalizeUrlIdentity(resolvedUrl))
+  return {
+    label: resolvedUrl,
+    kind: guessRemoteKindFromUrl(resolvedUrl),
+    role: 'discovered-page',
+    status: 'ok',
+    summary: parsed.summary,
+    provider: 'firecrawl',
+    requestedUrl: link?.url ?? resolvedUrl,
+    resolvedUrl,
+    httpStatus: metadata.statusCode,
+    contentType: metadata.contentType ?? 'text/markdown',
+    title: parsed.title,
+    description: parsed.description,
+    headings: parsed.headings,
+    paragraphs: parsed.paragraphs,
+    note: 'Discovered via Firecrawl map + batch scrape.',
+  }
+}
+
+function guessRemoteKindFromUrl(url: string): 'website' | 'docs' {
+  const lower = url.toLowerCase()
+  return lower.includes('://docs.') || lower.includes('/docs') || lower.includes('/reference') || lower.includes('/api')
+    ? 'docs'
+    : 'website'
+}
+
 function buildContextSourceRecord(source: AgentContextSource, selected: boolean): AgentContextSourceRecord {
   return {
     label: source.label,
@@ -1359,6 +1784,44 @@ interface FirecrawlScrapeResponse {
       statusCode?: number
       contentType?: string
     }
+  }
+}
+
+interface FirecrawlMapResponse {
+  success?: boolean
+  links?: Array<string | {
+    url?: string
+    title?: string
+    description?: string
+  }>
+}
+
+interface FirecrawlMappedLink {
+  url: string
+  title?: string
+  description?: string
+}
+
+interface FirecrawlBatchStartResponse {
+  success?: boolean
+  id?: string
+  data?: FirecrawlBatchData[]
+}
+
+interface FirecrawlBatchStatusResponse {
+  status?: string
+  data?: FirecrawlBatchData[]
+}
+
+interface FirecrawlBatchData {
+  markdown?: string
+  metadata?: {
+    title?: string
+    description?: string
+    sourceURL?: string
+    url?: string
+    statusCode?: number
+    contentType?: string
   }
 }
 
