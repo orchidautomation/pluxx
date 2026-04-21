@@ -57,6 +57,9 @@ jobs:
           PACKAGE_FILE="$(npm pack)"
           echo "package_file=${PACKAGE_FILE}" >> "$GITHUB_OUTPUT"
 
+      - name: Verify packaged Node runtime
+        run: node scripts/verify-node-package-runtime.mjs --package-file "${{ steps.pack.outputs.package_file }}"
+
       - name: Publish to npm using trusted publishing
         if: ${{ secrets.NPM_TOKEN == '' }}
         run: npm publish --provenance --access public

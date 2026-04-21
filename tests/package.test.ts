@@ -1,13 +1,32 @@
-import { afterEach, describe, expect, it } from 'bun:test'
+import { afterAll, afterEach, describe, expect, it } from 'bun:test'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { resolve } from 'path'
 
 const ROOT = resolve(import.meta.dir, '..')
 const DIST_CLI_PATH = resolve(ROOT, 'dist/cli/index.js')
+const ORIGINAL_DIST_CLI_CONTENT = existsSync(DIST_CLI_PATH)
+  ? readFileSync(DIST_CLI_PATH, 'utf-8')
+  : null
 
 afterEach(() => {
-  rmSync(DIST_CLI_PATH, { force: true })
+  if (ORIGINAL_DIST_CLI_CONTENT === null) {
+    rmSync(DIST_CLI_PATH, { force: true })
+    return
+  }
+
+  mkdirSync(resolve(ROOT, 'dist/cli'), { recursive: true })
+  writeFileSync(DIST_CLI_PATH, ORIGINAL_DIST_CLI_CONTENT)
+})
+
+afterAll(() => {
+  if (ORIGINAL_DIST_CLI_CONTENT === null) {
+    rmSync(DIST_CLI_PATH, { force: true })
+    return
+  }
+
+  mkdirSync(resolve(ROOT, 'dist/cli'), { recursive: true })
+  writeFileSync(DIST_CLI_PATH, ORIGINAL_DIST_CLI_CONTENT)
 })
 
 describe('package metadata', () => {
