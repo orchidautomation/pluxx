@@ -48,7 +48,6 @@ For the detailed compatibility and verification matrix, see [docs/compatibility.
 ## Quick Start
 
 ```bash
-# Requires Bun on PATH
 npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp --name my-plugin --yes
 
 cd my-plugin
