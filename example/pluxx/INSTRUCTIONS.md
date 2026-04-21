@@ -77,7 +77,7 @@ Resolve it in this order:
 1. local `pluxx` on `PATH`
 2. `npx @orchid-labs/pluxx`
 
-If the npm path fails because Bun is missing, surface that clearly instead of improvising a different runtime contract.
+If the npm path fails because Node or package resolution is missing, surface that clearly instead of improvising a different runtime contract.
 
 ### Runtime Prerequisite
 
@@ -87,7 +87,7 @@ That means the underlying machine still needs the Pluxx runtime available:
 
 - preferred: local `pluxx`
 - fallback: `npx @orchid-labs/pluxx`
-- current runtime prerequisite for the npm path: Bun installed on the machine
+- current runtime prerequisite for the npm path: Node 18+ on the machine
 
 If the runtime is missing, do not pretend the host plugin can execute Pluxx by itself. Tell the user what needs to be installed first.
 

@@ -89,7 +89,8 @@ The workflow intentionally fails if:
 
 - The published package is scoped: `@orchid-labs/pluxx`
 - The public invocation path is `npx @orchid-labs/pluxx ...`
-- The CLI is still Bun-backed at runtime, so users still need Bun installed
+- The published CLI runtime is Node `>=18`
+- Bun remains maintainer tooling for build, test, and release scripts
 
 ## References
 

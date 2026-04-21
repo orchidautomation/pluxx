@@ -38,6 +38,8 @@ describe('package metadata', () => {
     expect(pkg.files).toContain('bin/**/*')
     expect(pkg.types).toBe('dist/index.d.ts')
     expect(pkg.exports['.'].import).toBe('./dist/index.js')
+    expect(pkg.engines.node).toBe('>=18')
+    expect(pkg.engines.bun).toBeUndefined()
     expect(pkg.scripts.build).toContain('bun build src/cli/entry.ts')
     expect(pkg.scripts.build).toContain('dist/cli/index.js')
     expect(pkg.scripts.prepublishOnly).toMatch(/bun run build/)

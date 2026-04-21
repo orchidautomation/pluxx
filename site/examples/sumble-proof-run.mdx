@@ -19,14 +19,14 @@ Repository example:
 ## Prerequisites
 
 - a Sumble API key exposed as `SUMBLE_API_KEY`
-- Bun installed
-- Pluxx installed or available via `bun bin/pluxx.js`
+- Node 18+
+- Pluxx installed or available via `npx @orchid-labs/pluxx`
 
 ## Scaffold Command
 
 ```bash
 SUMBLE_API_KEY=... \
-bun bin/pluxx.js init \
+npx @orchid-labs/pluxx init \
   --from-mcp https://mcp.sumble.com \
   --yes \
   --name sumble-plugin \
@@ -42,10 +42,10 @@ bun bin/pluxx.js init \
 ## Validation Commands
 
 ```bash
-bun bin/pluxx.js doctor
-bun bin/pluxx.js lint
-bun bin/pluxx.js build
-bun bin/pluxx.js test --target claude-code cursor codex opencode
+npx @orchid-labs/pluxx doctor
+npx @orchid-labs/pluxx lint
+npx @orchid-labs/pluxx build
+npx @orchid-labs/pluxx test --target claude-code cursor codex opencode
 ```
 
 ## Generated Source Project
@@ -228,9 +228,9 @@ What this means:
 After scaffolding, the next typical commands are:
 
 ```bash
-bun bin/pluxx.js install --target claude-code --trust
-bun bin/pluxx.js agent run taxonomy --runner codex
-bun bin/pluxx.js agent run instructions --runner codex
+npx @orchid-labs/pluxx install --target claude-code --trust
+npx @orchid-labs/pluxx agent run taxonomy --runner codex
+npx @orchid-labs/pluxx agent run instructions --runner codex
 ```
 
 Related examples:

@@ -59,8 +59,7 @@
     "url": "https://github.com/orchidautomation/pluxx/issues"
   },
   "engines": {
-    "node": ">=18",
-    "bun": ">=1.0"
+    "node": ">=18"
   },
   "packageManager": "bun@1.2.17",
   "publishConfig": {
