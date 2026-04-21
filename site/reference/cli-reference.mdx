@@ -174,10 +174,17 @@ Generate the context pack and file boundaries for a host coding agent.
 ```bash
 npx @orchid-labs/pluxx agent prepare \
   --docs https://docs.example.com/overview \
-  --website https://example.com
+  --website https://example.com \
+  --ingest-provider auto
 ```
 
 If you pass a deep docs page like `https://docs.firecrawl.dev/mcp-server`, Pluxx now treats it as a seed, keeps that page in the context pack, and also infers the broader docs root when it can.
+
+Docs ingestion now has an explicit provider contract:
+
+- `auto`: prefer Firecrawl when `FIRECRAWL_API_KEY` is configured, otherwise use the local OSS path
+- `firecrawl`: require Firecrawl and fail fast if no API key is configured
+- `local`: force the built-in fetch + extraction path
 
 When website or docs URLs are provided, `agent prepare` now writes two additional provenance artifacts:
 
@@ -225,6 +232,8 @@ npx @orchid-labs/pluxx autopilot \
 ```
 
 Use `--mode quick|standard|thorough` to control how much semantic refinement autopilot performs.
+
+`pluxx autopilot` accepts the same `--ingest-provider auto|local|firecrawl` flag and passes it through to the shared docs-ingestion layer used by Agent Mode.
 
 If you want autopilot to seed a fully preapproved MCP permission policy in the generated source project:
 

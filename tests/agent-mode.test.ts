@@ -1141,6 +1141,165 @@ exit 1
     }
   })
 
+  it('uses Firecrawl-backed ingestion when configured and records provider provenance', async () => {
+    const originalFetch = globalThis.fetch
+    const originalFirecrawlKey = process.env.FIRECRAWL_API_KEY
+    process.env.FIRECRAWL_API_KEY = 'fc-test-key'
+
+    globalThis.fetch = (async (input, init) => {
+      const request = new Request(input, init)
+      if (request.url !== 'https://api.firecrawl.dev/v2/scrape') {
+        throw new Error(`Unexpected fetch to ${request.url}`)
+      }
+
+      const body = await request.json() as { url: string; formats: string[]; onlyMainContent: boolean }
+      const title = body.url.includes('docs') ? 'PlayKit Docs' : 'PlayKit'
+      return Response.json({
+        success: true,
+        data: {
+          markdown: `# ${title}\n\n## Knowledge Search\n\n## Clay API Workflows\n\nClay auth required for API workflows.`,
+          metadata: {
+            title,
+            description: 'Clay expertise in every AI conversation.',
+            sourceURL: body.url,
+            url: body.url,
+            statusCode: 200,
+            contentType: 'text/markdown',
+          },
+        },
+      })
+    }) as typeof fetch
+
+    try {
+      const plan = await planAgentPrepare(TEST_DIR, {
+        websiteUrl: 'https://playkit.sh/',
+        docsUrl: 'https://docs.playkit.sh/docs',
+        ingestProvider: 'auto',
+      })
+      await applyAgentPreparePlan(TEST_DIR, plan)
+
+      const context = readFileSync(resolve(TEST_DIR, AGENT_CONTEXT_PATH), 'utf-8')
+      const sources = JSON.parse(readFileSync(resolve(TEST_DIR, AGENT_SOURCES_PATH), 'utf-8')) as {
+        version: number
+        ingestion?: {
+          requestedProvider: string
+          resolvedProvider: string
+          fallbackToLocalOnError: boolean
+        }
+        sources: Array<{ label: string; provider?: string }>
+      }
+      const docsContext = JSON.parse(readFileSync(resolve(TEST_DIR, AGENT_DOCS_CONTEXT_PATH), 'utf-8')) as {
+        version: number
+        providers: string[]
+      }
+
+      expect(sources.version).toBe(2)
+      expect(sources.ingestion).toEqual({
+        requestedProvider: 'auto',
+        resolvedProvider: 'firecrawl',
+        fallbackToLocalOnError: true,
+      })
+      expect(sources.sources.filter((source) => source.label.startsWith('https://')).every((source) => source.provider === 'firecrawl')).toBe(true)
+      expect(docsContext.version).toBe(2)
+      expect(docsContext.providers).toEqual(['firecrawl'])
+      expect(context).toContain('Ingestion provider: auto -> firecrawl')
+      expect(context).toContain('Providers observed: firecrawl')
+      expect(context).toContain('- Provider: firecrawl')
+    } finally {
+      globalThis.fetch = originalFetch
+      if (originalFirecrawlKey === undefined) {
+        delete process.env.FIRECRAWL_API_KEY
+      } else {
+        process.env.FIRECRAWL_API_KEY = originalFirecrawlKey
+      }
+    }
+  })
+
+  it('falls back to local ingestion when auto-selected Firecrawl fails', async () => {
+    const originalFetch = globalThis.fetch
+    const originalFirecrawlKey = process.env.FIRECRAWL_API_KEY
+    process.env.FIRECRAWL_API_KEY = 'fc-test-key'
+
+    globalThis.fetch = (async (input, init) => {
+      const request = new Request(input, init)
+      if (request.url === 'https://api.firecrawl.dev/v2/scrape') {
+        return new Response(JSON.stringify({ success: false, error: 'upstream unavailable' }), {
+          status: 502,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+
+      if (request.url === 'https://docs.playkit.sh/') {
+        return new Response(
+          '<!doctype html><html><head><title>PlayKit Docs</title><meta name="description" content="Clay expertise in every AI conversation."></head><body><h1>PlayKit Docs</h1><h2>Knowledge Search</h2><p>Connect Clay before using API tools.</p></body></html>',
+          {
+            status: 200,
+            headers: { 'Content-Type': 'text/html; charset=utf-8' },
+          },
+        )
+      }
+
+      return new Response(
+        '<!doctype html><html><head><title>PlayKit</title><meta name="description" content="Clay expertise in every AI conversation."></head><body><h1>PlayKit</h1><p>Clay expertise in every AI conversation.</p></body></html>',
+        {
+          status: 200,
+          headers: { 'Content-Type': 'text/html; charset=utf-8' },
+        },
+      )
+    }) as typeof fetch
+
+    try {
+      const plan = await planAgentPrepare(TEST_DIR, {
+        websiteUrl: 'https://playkit.sh/',
+        ingestProvider: 'auto',
+      })
+      await applyAgentPreparePlan(TEST_DIR, plan)
+
+      const context = readFileSync(resolve(TEST_DIR, AGENT_CONTEXT_PATH), 'utf-8')
+      const sources = JSON.parse(readFileSync(resolve(TEST_DIR, AGENT_SOURCES_PATH), 'utf-8')) as {
+        ingestion?: {
+          requestedProvider: string
+          resolvedProvider: string
+          fallbackToLocalOnError: boolean
+        }
+        sources: Array<{ label: string; provider?: string; note?: string }>
+      }
+      expect(sources.ingestion).toEqual({
+        requestedProvider: 'auto',
+        resolvedProvider: 'firecrawl',
+        fallbackToLocalOnError: true,
+      })
+      expect(sources.sources.every((source) => !source.label.startsWith('https://') || source.provider === 'local')).toBe(true)
+      expect(sources.sources.some((source) => source.note?.includes('fell back to local fetch'))).toBe(true)
+      expect(context).toContain('Provider: local')
+      expect(context).toContain('fell back to local fetch')
+      expect(context).toContain('Ingestion provider: auto -> firecrawl')
+    } finally {
+      globalThis.fetch = originalFetch
+      if (originalFirecrawlKey === undefined) {
+        delete process.env.FIRECRAWL_API_KEY
+      } else {
+        process.env.FIRECRAWL_API_KEY = originalFirecrawlKey
+      }
+    }
+  })
+
+  it('fails fast when firecrawl is explicitly requested without a key', async () => {
+    const originalFirecrawlKey = process.env.FIRECRAWL_API_KEY
+    delete process.env.FIRECRAWL_API_KEY
+
+    try {
+      await expect(planAgentPrepare(TEST_DIR, {
+        websiteUrl: 'https://playkit.sh/',
+        ingestProvider: 'firecrawl',
+      })).rejects.toThrow('Firecrawl ingestion requires FIRECRAWL_API_KEY')
+    } finally {
+      if (originalFirecrawlKey !== undefined) {
+        process.env.FIRECRAWL_API_KEY = originalFirecrawlKey
+      }
+    }
+  })
+
   it('applies project-level agent overrides to context collection and prompt generation', async () => {
     writeFileSync(
       resolve(TEST_DIR, AGENT_OVERRIDES_PATH),

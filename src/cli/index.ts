@@ -3,6 +3,7 @@
 import { loadConfig } from '../config/load'
 import { build } from '../generators'
 import {
+  AGENT_INGEST_PROVIDERS,
   AGENT_PROMPT_KINDS,
   AGENT_RUNNERS,
   applyAgentPreparePlan,
@@ -11,6 +12,7 @@ import {
   planAgentPrompt,
   planAgentRun,
   runAgentPlan,
+  type AgentIngestProvider,
   type AgentPromptKind,
   type AgentRunner,
   type AgentRunnerModelSummary,
@@ -1800,12 +1802,17 @@ async function runDoctor() {
 
 async function runAgent() {
   const subcommand = args[1]
+  const ingestProviderRaw = readOption(args, '--ingest-provider')
+  const ingestProvider = ingestProviderRaw
+    ? parseChoiceOption(ingestProviderRaw, AGENT_INGEST_PROVIDERS, 'Ingestion provider')
+    : undefined
 
   if (subcommand === 'prepare') {
     const plan = await planAgentPrepare(process.cwd(), {
       docsUrl: readOption(args, '--docs'),
       websiteUrl: readOption(args, '--website'),
       contextPaths: readMultiValueOption(args, '--context'),
+      ingestProvider,
     })
 
     if (!runtime.dryRun) {
@@ -1895,13 +1902,13 @@ async function runAgent() {
   if (subcommand === 'run') {
     const kind = args[2] as AgentPromptKind | undefined
     if (!kind || !AGENT_PROMPT_KINDS.includes(kind)) {
-      console.error(`Usage: pluxx agent run <${AGENT_PROMPT_KINDS.join('|')}> --runner <${AGENT_RUNNERS.join('|')}> [--model NAME] [--attach URL (opencode only)] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
+      console.error(`Usage: pluxx agent run <${AGENT_PROMPT_KINDS.join('|')}> --runner <${AGENT_RUNNERS.join('|')}> [--model NAME] [--attach URL (opencode only)] [--docs URL] [--website URL] [--ingest-provider <${AGENT_INGEST_PROVIDERS.join('|')}>] [--context <files...>] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
       process.exit(1)
     }
 
     const runnerRaw = readOption(args, '--runner')
     if (!runnerRaw || !AGENT_RUNNERS.includes(runnerRaw as AgentRunner)) {
-      console.error(`Usage: pluxx agent run <${AGENT_PROMPT_KINDS.join('|')}> --runner <${AGENT_RUNNERS.join('|')}> [--model NAME] [--attach URL (opencode only)] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
+      console.error(`Usage: pluxx agent run <${AGENT_PROMPT_KINDS.join('|')}> --runner <${AGENT_RUNNERS.join('|')}> [--model NAME] [--attach URL (opencode only)] [--docs URL] [--website URL] [--ingest-provider <${AGENT_INGEST_PROVIDERS.join('|')}>] [--context <files...>] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
       process.exit(1)
     }
     const verboseRunner = args.includes('--verbose-runner')
@@ -1915,6 +1922,7 @@ async function runAgent() {
       docsUrl: readOption(args, '--docs'),
       websiteUrl: readOption(args, '--website'),
       contextPaths: readMultiValueOption(args, '--context'),
+      ingestProvider,
     })
 
     const summary = {
@@ -1974,7 +1982,7 @@ async function runAgent() {
     return
   }
 
-  console.error(`Usage: pluxx agent <prepare|prompt|run> [--docs URL] [--website URL] [--context <files...>] [--json] [--dry-run] [--quiet]`)
+  console.error(`Usage: pluxx agent <prepare|prompt|run> [--docs URL] [--website URL] [--ingest-provider <${AGENT_INGEST_PROVIDERS.join('|')}>] [--context <files...>] [--json] [--dry-run] [--quiet]`)
   process.exit(1)
 }
 
@@ -1984,6 +1992,10 @@ async function runAutopilot() {
   let modeRaw = readOption(args, '--mode')
   let docsUrl = readOption(args, '--docs')
   let websiteUrl = readOption(args, '--website')
+  const ingestProviderRaw = readOption(args, '--ingest-provider')
+  const ingestProvider = ingestProviderRaw
+    ? parseChoiceOption(ingestProviderRaw, AGENT_INGEST_PROVIDERS, 'Ingestion provider')
+    : undefined
   const contextPaths = readMultiValueOption(args, '--context')
   const model = readOption(args, '--model')
   const attach = readOption(args, '--attach')
@@ -1998,12 +2010,12 @@ async function runAutopilot() {
   let runtimeAuthMode = resolveRuntimeAuthMode(initOptions.runtimeAuth)
 
   if (!initOptions.source && !interactive) {
-    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--approve-mcp-tools] [--auth-env ENV] [--auth-type bearer|header|platform] [--auth-header NAME] [--auth-template TEMPLATE] [--runtime-auth inline|platform] [--oauth-wrapper] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
+    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--approve-mcp-tools] [--auth-env ENV] [--auth-type bearer|header|platform] [--auth-header NAME] [--auth-template TEMPLATE] [--runtime-auth inline|platform] [--oauth-wrapper] [--website URL] [--docs URL] [--ingest-provider <${AGENT_INGEST_PROVIDERS.join('|')}>] [--context <files...>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
     process.exit(1)
   }
 
   if ((!runnerRaw || !AGENT_RUNNERS.includes(runnerRaw as AgentRunner)) && !interactive) {
-    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--approve-mcp-tools] [--auth-env ENV] [--auth-type bearer|header|platform] [--auth-header NAME] [--auth-template TEMPLATE] [--runtime-auth inline|platform] [--oauth-wrapper] [--website URL] [--docs URL] [--context <files...>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
+    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--approve-mcp-tools] [--auth-env ENV] [--auth-type bearer|header|platform] [--auth-header NAME] [--auth-template TEMPLATE] [--runtime-auth inline|platform] [--oauth-wrapper] [--website URL] [--docs URL] [--ingest-provider <${AGENT_INGEST_PROVIDERS.join('|')}>] [--context <files...>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
     process.exit(1)
   }
 
@@ -2312,6 +2324,7 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
     const agentContextOptions = {
       docsUrl,
       websiteUrl,
+      ingestProvider,
       contextPaths,
     }
 
@@ -2958,6 +2971,7 @@ Common flags:
   --dry-run                               Show planned work without writing files or installing anything
   --mode quick|standard|thorough          Control how much agent refinement autopilot performs
   --approve-mcp-tools                     Preapprove all tools from the imported MCP in canonical permissions
+  --ingest-provider auto|local|firecrawl  Choose the docs/website ingestion backend for agent prepare/autopilot
 
 Targets:
   claude-code, cursor, codex, opencode, github-copilot, openhands,
@@ -2981,12 +2995,14 @@ Examples:
   pluxx sync --from-mcp https://example.com/mcp  Refresh using an explicit MCP source override
   pluxx agent prepare --dry-run           Preview agent context files without writing
   pluxx agent prepare --website https://example.com --docs https://docs.example.com
+  pluxx agent prepare --website https://example.com --docs https://docs.example.com --ingest-provider firecrawl
   pluxx agent prompt taxonomy             Generate the taxonomy prompt pack
   pluxx agent run taxonomy --runner claude
   pluxx agent run taxonomy --runner cursor
   pluxx agent run taxonomy --runner codex
   pluxx agent run taxonomy --runner codex --verbose-runner
   pluxx agent run review --runner opencode --attach http://localhost:4096 --no-verify
+  pluxx autopilot --from-mcp https://example.com/mcp --runner codex --website https://example.com --docs https://docs.example.com --ingest-provider auto
   pluxx mcp proxy --from-mcp "bun ./server.js" --record .pluxx/tapes/dev.json
   pluxx mcp proxy --replay .pluxx/tapes/dev.json
   --attach is only supported for the opencode runner

@@ -133,10 +133,17 @@ Optional flags:
 ```bash
 --docs https://docs.example.com
 --website https://example.com
+--ingest-provider auto
 --context README.md,docs/overview.md
 --json
 --dry-run
 ```
+
+Provider modes:
+
+- `auto`: use Firecrawl when configured and fall back to the local OSS path when not
+- `firecrawl`: require Firecrawl-backed scraping
+- `local`: force local fetch + extraction
 
 ## Runner Adapters
 
@@ -180,6 +187,8 @@ Deterministic scaffold rewrites (`pluxx sync --from-mcp` or taxonomy re-renders)
 ```
 
 If you pass a specific docs page like `https://docs.firecrawl.dev/mcp-server`, Pluxx uses that page directly and also infers the broader docs root when it can. That gives Agent Mode both the MCP-specific setup page and the higher-level product docs context.
+
+When remote sources are present, `.pluxx/sources.json` now records the requested and resolved ingestion provider so the provenance trail stays inspectable.
 
 Prompt packs are generated separately:
 

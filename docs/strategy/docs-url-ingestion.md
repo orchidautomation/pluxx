@@ -220,9 +220,13 @@ The first implementation slice now lives in `pluxx agent prepare`.
 Current behavior:
 
 - Pluxx accepts `--website` and `--docs` as seed URLs for Agent Mode.
+- Pluxx now accepts `--ingest-provider auto|local|firecrawl` for Agent Mode and autopilot.
+- `auto` prefers Firecrawl when configured and otherwise keeps the local OSS path.
+- `firecrawl` is an explicit opt-in that fails fast when no Firecrawl key is configured.
+- `local` forces the built-in fetch + extraction path even if Firecrawl is available.
 - If `--docs` points at a deep page like `https://docs.firecrawl.dev/mcp-server`, Pluxx keeps that exact page and also infers the broader docs root when it can.
 - If only `--website` is provided, Pluxx probes a small set of likely docs roots such as `docs.<host>`, `/docs`, `/developers`, `/api`, and `/reference`.
-- Pluxx writes provenance to `.pluxx/sources.json`.
+- Pluxx writes provenance to `.pluxx/sources.json`, including provider resolution.
 - Pluxx writes extracted structured signals to `.pluxx/docs-context.json`.
 
 That means the first step is no longer “stuff some fetched HTML into `context.md` and hope.” There is now a deterministic artifact trail for what was fetched, what was inferred, and what structured product signals were extracted.

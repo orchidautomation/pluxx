@@ -26,8 +26,11 @@ export const AGENT_DOCS_CONTEXT_PATH = '.pluxx/docs-context.json'
 export const AGENT_OVERRIDES_PATH = 'pluxx.agent.md'
 export const AGENT_PROMPT_KINDS = ['taxonomy', 'instructions', 'review'] as const
 export const AGENT_RUNNERS = ['claude', 'opencode', 'codex', 'cursor'] as const
+export const AGENT_INGEST_PROVIDERS = ['auto', 'local', 'firecrawl'] as const
 export type AgentPromptKind = typeof AGENT_PROMPT_KINDS[number]
 export type AgentRunner = typeof AGENT_RUNNERS[number]
+export type AgentIngestProvider = typeof AGENT_INGEST_PROVIDERS[number]
+type ResolvedAgentIngestProvider = Exclude<AgentIngestProvider, 'auto'>
 
 const AGENT_PROMPT_PATHS: Record<AgentPromptKind, string> = {
   taxonomy: '.pluxx/agent/taxonomy-prompt.md',
@@ -76,6 +79,7 @@ export interface AgentPrepareOptions {
   docsUrl?: string
   websiteUrl?: string
   contextPaths?: string[]
+  ingestProvider?: AgentIngestProvider
 }
 
 interface AgentPromptOptions {
@@ -173,6 +177,7 @@ interface AgentContextSource {
   role: 'seed' | 'inferred-root' | 'discovered-root' | 'local-file'
   status: 'ok' | 'error'
   summary: string
+  provider?: ResolvedAgentIngestProvider
   requestedUrl?: string
   resolvedUrl?: string
   httpStatus?: number
@@ -187,6 +192,7 @@ interface AgentContextSource {
 interface AgentContextPack {
   sources: AgentContextSource[]
   records: AgentContextSourceRecord[]
+  ingestion?: AgentContextIngestionArtifact
   docsContext?: AgentDocsContextArtifact
 }
 
@@ -196,6 +202,7 @@ interface AgentContextSourceRecord {
   role: AgentContextSource['role']
   selected: boolean
   status: AgentContextSource['status']
+  provider?: ResolvedAgentIngestProvider
   requestedUrl?: string
   resolvedUrl?: string
   httpStatus?: number
@@ -206,13 +213,21 @@ interface AgentContextSourceRecord {
 }
 
 interface AgentSourcesArtifact {
-  version: 1
+  version: 2
+  ingestion?: AgentContextIngestionArtifact
   sources: AgentContextSourceRecord[]
 }
 
+interface AgentContextIngestionArtifact {
+  requestedProvider: AgentIngestProvider
+  resolvedProvider?: ResolvedAgentIngestProvider
+  fallbackToLocalOnError: boolean
+}
+
 interface AgentDocsContextArtifact {
-  version: 1
+  version: 2
   sourceLabels: string[]
+  providers: ResolvedAgentIngestProvider[]
   productName?: string
   shortDescription?: string
   setupHints: string[]
@@ -268,6 +283,17 @@ interface AgentOverrides {
   reviewCriteria?: string
 }
 
+interface AgentContextFetchStrategy {
+  requestedProvider: AgentIngestProvider
+  resolvedProvider: ResolvedAgentIngestProvider
+  fallbackToLocalOnError: boolean
+}
+
+interface RemoteContextFetchOptions {
+  strategy: AgentContextFetchStrategy
+  note?: string
+}
+
 function hasManagedCommands(metadata: McpScaffoldMetadata): boolean {
   return metadata.managedFiles.some((file) => file.startsWith('commands/'))
 }
@@ -291,14 +317,14 @@ export async function planAgentPrepare(
   if (contextPack.docsContext) {
     generatedFiles.push(AGENT_DOCS_CONTEXT_PATH)
   }
-  const contextContent = buildAgentContext(config, project, lint, contextSources, contextPack.docsContext, overrides)
+  const contextContent = buildAgentContext(config, project, lint, contextSources, contextPack.ingestion, contextPack.docsContext, overrides)
   const planContent = buildAgentModePlanJson(config, project, lint, editableFiles, protectedFiles, generatedFiles, contextSources)
 
   const files = [
     planFile(rootDir, AGENT_CONTEXT_PATH, contextContent),
     planFile(rootDir, AGENT_PLAN_PATH, `${planContent}\n`),
     ...(contextPack.records.length > 0
-      ? [planFile(rootDir, AGENT_SOURCES_PATH, `${JSON.stringify(buildSourcesArtifact(contextPack.records), null, 2)}\n`)]
+      ? [planFile(rootDir, AGENT_SOURCES_PATH, `${JSON.stringify(buildSourcesArtifact(contextPack.records, contextPack.ingestion), null, 2)}\n`)]
       : []),
     ...(contextPack.docsContext
       ? [planFile(rootDir, AGENT_DOCS_CONTEXT_PATH, `${JSON.stringify(contextPack.docsContext, null, 2)}\n`)]
@@ -672,6 +698,7 @@ function buildAgentContext(
   project: AgentProjectModel,
   lint: LintResult,
   contextSources: AgentContextSource[],
+  ingestion: AgentContextIngestionArtifact | undefined,
   docsContext: AgentDocsContextArtifact | undefined,
   overrides: AgentOverrides | null,
 ): string {
@@ -790,6 +817,9 @@ function buildAgentContext(
       if (source.note) {
         lines.push(`- Note: ${source.note}`)
       }
+      if (source.provider && source.kind !== 'file') {
+        lines.push(`- Provider: ${source.provider}`)
+      }
       if (source.title) {
         lines.push(`- Title: ${source.title}`)
       }
@@ -811,6 +841,15 @@ function buildAgentContext(
     lines.push('## Structured Source Signals')
     lines.push('')
     lines.push(`- Source labels: ${docsContext.sourceLabels.join(', ')}`)
+    if (ingestion?.resolvedProvider) {
+      const providerLine = ingestion.requestedProvider === ingestion.resolvedProvider
+        ? ingestion.resolvedProvider
+        : `${ingestion.requestedProvider} -> ${ingestion.resolvedProvider}`
+      lines.push(`- Ingestion provider: ${providerLine}`)
+    }
+    if (docsContext.providers.length > 0) {
+      lines.push(`- Providers observed: ${docsContext.providers.join(', ')}`)
+    }
     if (docsContext.productName) {
       lines.push(`- Product name: ${docsContext.productName}`)
     }
@@ -938,9 +977,12 @@ async function collectAgentContextPack(
   const records: AgentContextSourceRecord[] = []
   const seenFilePaths = new Set<string>()
   const seenUrls = new Set<string>()
+  const ingestStrategy = resolveAgentContextFetchStrategy(options.ingestProvider)
 
   if (options.websiteUrl) {
-    const websiteSource = await fetchContextSource(options.websiteUrl, 'website', 'seed')
+    const websiteSource = await fetchContextSource(options.websiteUrl, 'website', 'seed', {
+      strategy: ingestStrategy,
+    })
     if (websiteSource) {
       sources.push(websiteSource)
       records.push(buildContextSourceRecord(websiteSource, true))
@@ -949,7 +991,9 @@ async function collectAgentContextPack(
   }
 
   if (options.docsUrl) {
-    const docsSource = await fetchContextSource(options.docsUrl, 'docs', 'seed')
+    const docsSource = await fetchContextSource(options.docsUrl, 'docs', 'seed', {
+      strategy: ingestStrategy,
+    })
     if (docsSource) {
       sources.push(docsSource)
       records.push(buildContextSourceRecord(docsSource, true))
@@ -958,7 +1002,10 @@ async function collectAgentContextPack(
 
     const docsRootUrl = inferDocsRootUrl(options.docsUrl)
     if (docsRootUrl && !seenUrls.has(normalizeUrlIdentity(docsRootUrl))) {
-      const docsRootSource = await fetchContextSource(docsRootUrl, 'docs', 'inferred-root', `Inferred from ${options.docsUrl}`)
+      const docsRootSource = await fetchContextSource(docsRootUrl, 'docs', 'inferred-root', {
+        strategy: ingestStrategy,
+        note: `Inferred from ${options.docsUrl}`,
+      })
       if (docsRootSource) {
         sources.push(docsRootSource)
         records.push(buildContextSourceRecord(docsRootSource, true))
@@ -966,7 +1013,7 @@ async function collectAgentContextPack(
       }
     }
   } else if (options.websiteUrl) {
-    const discoveredDocs = await discoverDocsContextSource(options.websiteUrl, seenUrls)
+    const discoveredDocs = await discoverDocsContextSource(options.websiteUrl, seenUrls, ingestStrategy)
     records.push(...discoveredDocs.records)
     if (discoveredDocs.selected) {
       const identity = normalizeUrlIdentity(discoveredDocs.selected.resolvedUrl ?? discoveredDocs.selected.requestedUrl ?? discoveredDocs.selected.label)
@@ -1016,6 +1063,11 @@ async function collectAgentContextPack(
   return {
     sources,
     records,
+    ingestion: {
+      requestedProvider: ingestStrategy.requestedProvider,
+      resolvedProvider: ingestStrategy.resolvedProvider,
+      fallbackToLocalOnError: ingestStrategy.fallbackToLocalOnError,
+    },
     docsContext: buildDocsContextArtifact(sources),
   }
 }
@@ -1023,6 +1075,7 @@ async function collectAgentContextPack(
 async function discoverDocsContextSource(
   websiteUrl: string,
   seenUrls: Set<string>,
+  ingestStrategy: AgentContextFetchStrategy,
 ): Promise<{
   selected?: AgentContextSource
   records: AgentContextSourceRecord[]
@@ -1031,7 +1084,10 @@ async function discoverDocsContextSource(
   const fetched = await Promise.all(
     candidates
       .filter((candidate) => !seenUrls.has(normalizeUrlIdentity(candidate)))
-      .map(async (candidate) => fetchContextSource(candidate, 'docs', 'discovered-root', `Discovered from ${websiteUrl}`)),
+      .map(async (candidate) => fetchContextSource(candidate, 'docs', 'discovered-root', {
+        strategy: ingestStrategy,
+        note: `Discovered from ${websiteUrl}`,
+      })),
   )
 
   const successful = fetched.filter((source): source is AgentContextSource => Boolean(source))
@@ -1059,6 +1115,28 @@ async function fetchContextSource(
   url: string,
   kind: 'website' | 'docs',
   role: AgentContextSource['role'],
+  options: RemoteContextFetchOptions,
+): Promise<AgentContextSource | null> {
+  if (options.strategy.resolvedProvider === 'firecrawl') {
+    const firecrawlSource = await fetchContextSourceWithFirecrawl(url, kind, role, options.note)
+    if (firecrawlSource.status === 'ok' || !options.strategy.fallbackToLocalOnError) {
+      return firecrawlSource
+    }
+
+    const fallbackReason = firecrawlSource.summary.replace(/^Unavailable:\s*/i, '').replace(/\.$/, '')
+    return fetchContextSourceLocally(url, kind, role, appendAgentContextNote(
+      options.note,
+      `Firecrawl scrape failed (${fallbackReason}); fell back to local fetch.`,
+    ))
+  }
+
+  return fetchContextSourceLocally(url, kind, role, options.note)
+}
+
+async function fetchContextSourceLocally(
+  url: string,
+  kind: 'website' | 'docs',
+  role: AgentContextSource['role'],
   note?: string,
 ): Promise<AgentContextSource | null> {
   try {
@@ -1071,6 +1149,7 @@ async function fetchContextSource(
         role,
         status: 'error',
         summary: `Unavailable: fetch failed with ${response.status} ${response.statusText}.`,
+        provider: 'local',
         requestedUrl: url,
         resolvedUrl,
         httpStatus: response.status,
@@ -1091,6 +1170,7 @@ async function fetchContextSource(
       role,
       status: 'ok',
       summary: parsed.summary,
+      provider: 'local',
       requestedUrl: url,
       resolvedUrl,
       httpStatus: response.status,
@@ -1108,6 +1188,90 @@ async function fetchContextSource(
       role,
       status: 'error',
       summary: `Unavailable: ${error instanceof Error ? error.message : String(error)}.`,
+      provider: 'local',
+      requestedUrl: url,
+      note,
+    }
+  }
+}
+
+async function fetchContextSourceWithFirecrawl(
+  url: string,
+  kind: 'website' | 'docs',
+  role: AgentContextSource['role'],
+  note?: string,
+): Promise<AgentContextSource> {
+  const apiKey = resolveFirecrawlApiKey()
+  if (!apiKey) {
+    throw new Error('Firecrawl provider requires FIRECRAWL_API_KEY (or PLUXX_FIRECRAWL_API_KEY).')
+  }
+
+  try {
+    const response = await fetch(`${resolveFirecrawlApiBaseUrl()}/v2/scrape`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        url,
+        formats: ['markdown'],
+        onlyMainContent: true,
+        removeBase64Images: true,
+      }),
+    })
+
+    if (!response.ok) {
+      const responseBody = await response.text()
+      return {
+        label: url,
+        kind,
+        role,
+        status: 'error',
+        summary: `Unavailable: Firecrawl scrape failed with ${response.status} ${response.statusText}${responseBody ? ` (${truncateForNote(responseBody, 140)})` : ''}.`,
+        provider: 'firecrawl',
+        requestedUrl: url,
+        httpStatus: response.status,
+        contentType: response.headers.get('content-type') ?? 'application/json',
+        note,
+      }
+    }
+
+    const payload = await response.json() as FirecrawlScrapeResponse
+    const data = payload.data ?? {}
+    const metadata = data.metadata ?? {}
+    const resolvedUrl = metadata.sourceURL ?? metadata.url ?? url
+    const markdown = typeof data.markdown === 'string' ? data.markdown : ''
+    const parsed = summarizeMarkdownArtifact(markdown, {
+      title: metadata.title,
+      description: metadata.description,
+    })
+
+    return {
+      label: url,
+      kind,
+      role,
+      status: 'ok',
+      summary: parsed.summary,
+      provider: 'firecrawl',
+      requestedUrl: url,
+      resolvedUrl,
+      httpStatus: metadata.statusCode ?? response.status,
+      contentType: metadata.contentType ?? 'text/markdown',
+      title: parsed.title,
+      description: parsed.description,
+      headings: parsed.headings,
+      paragraphs: parsed.paragraphs,
+      note: appendAgentContextNote(note, data.warning),
+    }
+  } catch (error) {
+    return {
+      label: url,
+      kind,
+      role,
+      status: 'error',
+      summary: `Unavailable: ${error instanceof Error ? error.message : String(error)}.`,
+      provider: 'firecrawl',
       requestedUrl: url,
       note,
     }
@@ -1121,6 +1285,7 @@ function buildContextSourceRecord(source: AgentContextSource, selected: boolean)
     role: source.role,
     selected,
     status: source.status,
+    provider: source.provider,
     requestedUrl: source.requestedUrl,
     resolvedUrl: source.resolvedUrl,
     httpStatus: source.httpStatus,
@@ -1131,9 +1296,13 @@ function buildContextSourceRecord(source: AgentContextSource, selected: boolean)
   }
 }
 
-function buildSourcesArtifact(records: AgentContextSourceRecord[]): AgentSourcesArtifact {
+function buildSourcesArtifact(
+  records: AgentContextSourceRecord[],
+  ingestion?: AgentContextIngestionArtifact,
+): AgentSourcesArtifact {
   return {
-    version: 1,
+    version: 2,
+    ingestion,
     sources: records,
   }
 }
@@ -1153,8 +1322,13 @@ function buildDocsContextArtifact(sources: AgentContextSource[]): AgentDocsConte
   const importantTerms = collectImportantTerms(remoteSources)
 
   return {
-    version: 1,
+    version: 2,
     sourceLabels: remoteSources.map((source) => source.label),
+    providers: uniqueStrings(
+      remoteSources
+        .map((source) => source.provider)
+        .filter((value): value is ResolvedAgentIngestProvider => Boolean(value)),
+    ),
     productName,
     shortDescription,
     setupHints,
@@ -1163,6 +1337,156 @@ function buildDocsContextArtifact(sources: AgentContextSource[]): AgentDocsConte
     importantTerms,
     warnings,
   }
+}
+
+interface FirecrawlScrapeResponse {
+  success?: boolean
+  data?: {
+    markdown?: string
+    warning?: string
+    metadata?: {
+      title?: string
+      description?: string
+      sourceURL?: string
+      url?: string
+      statusCode?: number
+      contentType?: string
+    }
+  }
+}
+
+function resolveAgentContextFetchStrategy(
+  requestedProvider: AgentIngestProvider | undefined,
+): AgentContextFetchStrategy {
+  const requested = requestedProvider ?? 'auto'
+  if (requested === 'local') {
+    return {
+      requestedProvider: requested,
+      resolvedProvider: 'local',
+      fallbackToLocalOnError: false,
+    }
+  }
+
+  if (requested === 'firecrawl') {
+    if (!resolveFirecrawlApiKey()) {
+      throw new Error('Firecrawl ingestion requires FIRECRAWL_API_KEY (or PLUXX_FIRECRAWL_API_KEY).')
+    }
+    return {
+      requestedProvider: requested,
+      resolvedProvider: 'firecrawl',
+      fallbackToLocalOnError: false,
+    }
+  }
+
+  if (resolveFirecrawlApiKey()) {
+    return {
+      requestedProvider: requested,
+      resolvedProvider: 'firecrawl',
+      fallbackToLocalOnError: true,
+    }
+  }
+
+  return {
+    requestedProvider: requested,
+    resolvedProvider: 'local',
+    fallbackToLocalOnError: false,
+  }
+}
+
+function resolveFirecrawlApiKey(): string | undefined {
+  return process.env.FIRECRAWL_API_KEY || process.env.PLUXX_FIRECRAWL_API_KEY || undefined
+}
+
+function resolveFirecrawlApiBaseUrl(): string {
+  return trimTrailingSlash(process.env.FIRECRAWL_API_URL || process.env.PLUXX_FIRECRAWL_API_URL || 'https://api.firecrawl.dev')
+}
+
+function trimTrailingSlash(value: string): string {
+  return value.replace(/\/+$/, '')
+}
+
+function appendAgentContextNote(base: string | undefined, extra: string | undefined): string | undefined {
+  const normalizedBase = base?.trim()
+  const normalizedExtra = extra?.trim()
+  if (!normalizedBase) return normalizedExtra || undefined
+  if (!normalizedExtra) return normalizedBase
+  return `${normalizedBase} ${normalizedExtra}`
+}
+
+function truncateForNote(value: string, maxLength: number): string {
+  const normalized = value.replace(/\s+/g, ' ').trim()
+  if (normalized.length <= maxLength) return normalized
+  return `${normalized.slice(0, Math.max(0, maxLength - 3))}...`
+}
+
+function summarizeMarkdownArtifact(
+  content: string,
+  metadata: {
+    title?: string
+    description?: string
+  } = {},
+): {
+  summary: string
+  title?: string
+  description?: string
+  headings: string[]
+  paragraphs: string[]
+} {
+  const cleaned = content.replace(/\r\n/g, '\n')
+  const headings = cleaned
+    .split('\n')
+    .map((line) => line.match(/^#{1,3}\s+(.+)$/)?.[1]?.trim())
+    .filter((value): value is string => Boolean(value))
+    .map(stripMarkdownFormatting)
+    .filter(Boolean)
+    .slice(0, 5)
+
+  const paragraphs = cleaned
+    .split(/\n{2,}/)
+    .map((chunk) => stripMarkdownFormatting(chunk))
+    .map((chunk) => chunk.replace(/\s+/g, ' ').trim())
+    .filter((chunk) => Boolean(chunk) && !chunk.startsWith('#'))
+    .slice(0, 3)
+
+  const title = metadata.title?.trim() || headings[0] || paragraphs[0]
+  const description = metadata.description?.trim() || paragraphs[0]
+  const lines: string[] = []
+
+  if (title) {
+    lines.push(`Title: ${title}`)
+  }
+  if (description) {
+    lines.push(`Description: ${description}`)
+  }
+  if (headings.length > 0) {
+    lines.push(`Headings: ${headings.join(' | ')}`)
+  }
+  if (paragraphs.length > 0) {
+    lines.push(`Excerpt: ${paragraphs.join(' ').slice(0, 900)}`)
+  }
+
+  return {
+    summary: lines.join('\n') || summarizePlainText(content),
+    title,
+    description,
+    headings,
+    paragraphs,
+  }
+}
+
+function stripMarkdownFormatting(value: string): string {
+  return value
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/^>\s*/gm, '')
+    .replace(/^\s*[-*+]\s+/gm, '')
+    .replace(/^\s*\d+\.\s+/gm, '')
+    .replace(/[_*~#]+/g, ' ')
+    .replace(/\|/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 function summarizeHtml(html: string): {
@@ -1408,8 +1732,8 @@ function splitIntoSentences(value: string): string[] {
     .filter(Boolean)
 }
 
-function uniqueStrings(values: string[]): string[] {
-  return [...new Set(values.map((value) => value.trim()).filter(Boolean))]
+function uniqueStrings<T extends string>(values: T[]): T[] {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean) as T[])]
 }
 
 function matchHtmlTag(html: string, tag: string): string | null {
