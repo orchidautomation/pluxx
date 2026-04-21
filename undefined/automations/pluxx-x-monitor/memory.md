@@ -1,0 +1,3 @@
+- 2026-04-21T22:05:35Z: Required discovery actor `scraperx/x-twitter-posts-search` was blocked by Apify rental/free-trial expiration, so the run fell back to tracked config actor `apidojo/tweet-scraper`.
+- Fresh posts after strict cutoff were `@axelroark`, `@kate_whodesigns`, and `@its_benji_books`; none qualified for Pluxx, so `leads.csv` stayed unchanged.
+- Runtime updated: `state.json`, `events.jsonl`, and `reply-drafts.md`; current run time 2026-04-21T22:05:35Z.
