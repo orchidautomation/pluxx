@@ -83,6 +83,7 @@ const matrixRows = [
   ["Rules", "CLAUDE.md", "rules/*.mdc", "AGENTS.md", "config-driven"],
   ["Brand", "Basic", "Basic", "Rich metadata", "Minimal"],
 ] as const;
+const matrixSurfaces = ["Claude Code", "Cursor", "Codex", "OpenCode"] as const;
 
 export default function Home() {
   return (
@@ -247,35 +248,53 @@ export default function Home() {
 
           <div className="matrix-card">
             <div className="matrix-wrap">
-              <table className="matrix-table">
-                <colgroup>
-                  <col />
-                  <col />
-                  <col />
-                  <col />
-                  <col />
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th>Surface</th>
-                    <th>Claude Code</th>
-                    <th>Cursor</th>
-                    <th>Codex</th>
-                    <th>OpenCode</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {matrixRows.map((row) => (
-                    <tr key={row[0]}>
-                      <td>{row[0]}</td>
-                      <td>{row[1]}</td>
-                      <td>{row[2]}</td>
-                      <td>{row[3]}</td>
-                      <td>{row[4]}</td>
+              <div className="matrix-desktop">
+                <table className="matrix-table">
+                  <colgroup>
+                    <col />
+                    <col />
+                    <col />
+                    <col />
+                    <col />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th>Surface</th>
+                      <th>Claude Code</th>
+                      <th>Cursor</th>
+                      <th>Codex</th>
+                      <th>OpenCode</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {matrixRows.map((row) => (
+                      <tr key={row[0]}>
+                        <td>{row[0]}</td>
+                        <td>{row[1]}</td>
+                        <td>{row[2]}</td>
+                        <td>{row[3]}</td>
+                        <td>{row[4]}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="matrix-mobile" aria-label="Surface matrix">
+                {matrixRows.map((row) => (
+                  <article className="matrix-mobile-card" key={row[0]}>
+                    <h3>{row[0]}</h3>
+                    <dl>
+                      {row.slice(1).map((value, index) => (
+                        <div className="matrix-mobile-row" key={`${row[0]}-${matrixSurfaces[index]}`}>
+                          <dt>{matrixSurfaces[index]}</dt>
+                          <dd>{value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </article>
+                ))}
+              </div>
             </div>
           </div>
         </div>
