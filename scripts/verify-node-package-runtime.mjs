@@ -97,6 +97,12 @@ function verifyInstalledPackage(packageFile) {
     createFixtureProject(fixtureDir)
 
     const installedBin = join(tempRoot, 'node_modules', '@orchid-labs', 'pluxx', 'bin', 'pluxx.js')
+    const doctor = run('node', [installedBin, 'doctor', '--json'], { cwd: fixtureDir })
+    const doctorReport = JSON.parse(doctor.stdout)
+    if (doctorReport.ok !== true) {
+      throw new Error(`installed-package doctor returned non-ok JSON: ${doctor.stdout}`)
+    }
+
     const validate = run('node', [installedBin, 'validate'], { cwd: fixtureDir })
     assertIncludes(validate.stdout, 'Config valid: node-runtime-fixture@0.1.0', 'installed-package validate')
 
@@ -119,6 +125,16 @@ function verifyNpmExec(packageFile) {
   try {
     run('npm', ['init', '-y'], { cwd: tempRoot })
     createFixtureProject(tempRoot)
+
+    const doctor = run(
+      'npm',
+      ['exec', '--yes', '--package', packageFile, '--', 'pluxx', 'doctor', '--json'],
+      { cwd: tempRoot },
+    )
+    const doctorReport = JSON.parse(doctor.stdout)
+    if (doctorReport.ok !== true) {
+      throw new Error(`npm exec doctor returned non-ok JSON: ${doctor.stdout}`)
+    }
 
     const validate = run(
       'npm',

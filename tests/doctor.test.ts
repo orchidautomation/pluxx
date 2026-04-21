@@ -175,6 +175,7 @@ describe('doctorProject', () => {
       expect(report.ok).toBe(true)
       expect(report.errors).toBe(0)
       expect(report.warnings).toBeGreaterThanOrEqual(1)
+      expect(report.checks.some((check) => check.code === 'node-version' && check.level === 'success')).toBe(true)
       expect(report.checks.some((check) => check.code === 'hooks-trust-required' && check.level === 'warning')).toBe(true)
       expect(report.checks.some((check) => check.code === 'mcp-auth-env' && check.level === 'info')).toBe(true)
       expect(report.checks.some((check) => check.code === 'user-config-declared' && check.level === 'info')).toBe(true)

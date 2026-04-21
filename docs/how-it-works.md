@@ -420,14 +420,15 @@ $ npx @orchid-labs/pluxx lint
 ```bash
 $ npx @orchid-labs/pluxx doctor
 
-SUCCESS bun-version Supported Bun runtime detected
+SUCCESS node-version Supported Node runtime detected
+INFO bun-version Bun detected for contributor workflows
 SUCCESS config-valid Config parsed successfully
 WARNING hooks-trust-required Hook commands require install trust
 
 Doctor summary: 0 error(s), 1 warning(s), 1 info message(s)
 ```
 
-`pluxx doctor` is read-only. It checks runtime health, config validity, configured paths, MCP auth/transport shape, scaffold metadata, and trust advisories.
+`pluxx doctor` is read-only. It checks Node runtime health for the published CLI, config validity, configured paths, MCP auth/transport shape, scaffold metadata, and trust advisories. If Bun is present, it also notes contributor-script readiness.
 
 ```bash
 $ npx @orchid-labs/pluxx test
