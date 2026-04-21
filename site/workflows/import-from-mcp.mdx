@@ -108,6 +108,23 @@ That emits canonical permission intent into `pluxx.config.ts` as:
 
 - `permissions.allow = ["MCP(<server>.*)"]`
 
+If you also have a product website or docs, you can seed sourced context during the deterministic import itself:
+
+```bash
+npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp \
+  --yes \
+  --website https://example.com \
+  --docs https://docs.example.com/mcp \
+  --ingest-provider auto
+```
+
+That writes:
+
+- `.pluxx/sources.json`
+- `.pluxx/docs-context.json`
+
+and uses those sourced signals to improve the first-pass scaffold before you move into Agent Mode.
+
 ## When to bring in the agent layer
 
 After this deterministic import flow passes, you can optionally move into:

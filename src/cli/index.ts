@@ -1,17 +1,23 @@
 #!/usr/bin/env bun
 
+import { existsSync } from 'fs'
 import { loadConfig } from '../config/load'
 import { build } from '../generators'
 import {
+  AGENT_DOCS_CONTEXT_PATH,
   AGENT_INGEST_PROVIDERS,
   AGENT_PROMPT_KINDS,
   AGENT_RUNNERS,
+  AGENT_SOURCES_PATH,
   applyAgentPreparePlan,
   applyAgentPromptPlan,
+  collectAgentContextPack,
   planAgentPrepare,
   planAgentPrompt,
   planAgentRun,
   runAgentPlan,
+  type AgentContextIngestionArtifact,
+  type AgentDocsContextArtifact,
   type AgentIngestProvider,
   type AgentPromptKind,
   type AgentRunner,
@@ -96,6 +102,10 @@ export interface InitFromMcpOptions {
   author?: string
   displayName?: string
   targets?: string
+  docsUrl?: string
+  websiteUrl?: string
+  contextPaths?: string[]
+  ingestProvider?: AgentIngestProvider
   authEnv?: string
   authType?: string
   authHeader?: string
@@ -127,6 +137,8 @@ interface InitFromMcpSummary {
     warnings: number
   }
   quality: McpQualityReport
+  contextInputs?: string[]
+  ingestion?: AgentContextIngestionArtifact
   notes: string[]
   nextSteps: string[]
   dryRun?: boolean
@@ -1040,6 +1052,8 @@ function buildInitSummary(input: {
   updatedFiles: string[]
   lint: { errors: number; warnings: number }
   quality: McpQualityReport
+  contextInputs?: string[]
+  ingestion?: AgentContextIngestionArtifact
   approveMcpTools?: boolean
   dryRun?: boolean
 }): InitFromMcpSummary {
@@ -1067,6 +1081,17 @@ function buildInitSummary(input: {
     notes.push('Preapproved all tools from the imported MCP in canonical permissions. Review the generated permission policy before publishing if you want tighter tool access.')
   }
 
+  if (input.contextInputs && input.contextInputs.length > 0) {
+    notes.push(`Sourced context: ${input.contextInputs.join(', ')}`)
+  }
+
+  if (input.ingestion?.resolvedProvider) {
+    const providerLine = input.ingestion.requestedProvider === input.ingestion.resolvedProvider
+      ? input.ingestion.resolvedProvider
+      : `${input.ingestion.requestedProvider} -> ${input.ingestion.resolvedProvider}`
+    notes.push(`Docs ingestion provider: ${providerLine}`)
+  }
+
   const nextSteps = [
     'Review INSTRUCTIONS.md and the generated skills before publishing.',
     'Run: pluxx build',
@@ -1088,9 +1113,59 @@ function buildInitSummary(input: {
     updatedFiles: input.updatedFiles,
     lint: input.lint,
     quality: input.quality,
+    contextInputs: input.contextInputs,
+    ingestion: input.ingestion,
     notes,
     nextSteps,
     dryRun: input.dryRun,
+  }
+}
+
+async function planInitContextArtifactFiles(
+  rootDir: string,
+  contextPack: {
+    records: Array<unknown>
+    ingestion?: AgentContextIngestionArtifact
+    docsContext?: AgentDocsContextArtifact
+  } | undefined,
+): Promise<Array<{ relativePath: string; content: string; action: 'create' | 'update' | 'unchanged' }>> {
+  if (!contextPack || contextPack.records.length === 0) {
+    return []
+  }
+
+  const plannedFiles: Array<{ relativePath: string; content: string; action: 'create' | 'update' | 'unchanged' }> = []
+  const sourceContent = `${JSON.stringify({
+    version: 2,
+    ingestion: contextPack.ingestion,
+    sources: contextPack.records,
+  }, null, 2)}\n`
+
+  plannedFiles.push(await planAuxiliaryFile(rootDir, AGENT_SOURCES_PATH, sourceContent))
+
+  if (contextPack.docsContext) {
+    plannedFiles.push(await planAuxiliaryFile(
+      rootDir,
+      AGENT_DOCS_CONTEXT_PATH,
+      `${JSON.stringify(contextPack.docsContext, null, 2)}\n`,
+    ))
+  }
+
+  return plannedFiles
+}
+
+async function planAuxiliaryFile(
+  rootDir: string,
+  relativePath: string,
+  content: string,
+): Promise<{ relativePath: string; content: string; action: 'create' | 'update' | 'unchanged' }> {
+  const filePath = resolve(rootDir, relativePath)
+  const action = existsSync(filePath)
+    ? ((await Bun.file(filePath).text()) === content ? 'unchanged' : 'update')
+    : 'create'
+  return {
+    relativePath,
+    content,
+    action,
   }
 }
 
@@ -1127,6 +1202,10 @@ export function parseInitFromMcpOptions(rawArgs: string[], initialName?: string,
     author: readOption(rawArgs, '--author'),
     displayName: readOption(rawArgs, '--display-name'),
     targets: readOption(rawArgs, '--targets'),
+    docsUrl: readOption(rawArgs, '--docs'),
+    websiteUrl: readOption(rawArgs, '--website'),
+    contextPaths: readMultiValueOption(rawArgs, '--context'),
+    ingestProvider: readOption(rawArgs, '--ingest-provider') as AgentIngestProvider | undefined,
     authEnv: readOption(rawArgs, '--auth-env'),
     authType: readOption(rawArgs, '--auth-type'),
     authHeader: readOption(rawArgs, '--auth-header'),
@@ -1318,6 +1397,12 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
   const defaultTargets = DEFAULT_INIT_TARGETS.join(',')
   const interactive = !options.jsonOutput && !options.assumeDefaults && runtime.isInteractive
   let runtimeAuthMode = resolveRuntimeAuthMode(options.runtimeAuth)
+  let docsUrl = options.docsUrl
+  let websiteUrl = options.websiteUrl
+  const contextPaths = options.contextPaths ?? []
+  const ingestProvider = options.ingestProvider
+    ? parseChoiceOption(options.ingestProvider, AGENT_INGEST_PROVIDERS, 'Ingestion provider')
+    : undefined
 
   if (!options.jsonOutput && !runtime.quiet) {
     clack.intro('pluxx init --from-mcp')
@@ -1472,9 +1557,33 @@ ${formatAuthRequiredMessage('init', retryError, source)}`)
     const serverLabel = introspection.serverInfo.title ?? introspection.serverInfo.name
     s?.stop(`Connected: ${serverLabel} (${formatMcpDiscoverySummary(introspection)})`)
     const quality = analyzeMcpQuality(introspection.tools)
+    let sourcedContextPack: Awaited<ReturnType<typeof collectAgentContextPack>> | undefined
 
     if (!options.jsonOutput && !runtime.quiet && quality.issues.length > 0) {
       clack.note(formatMcpQualityLines(quality).join('\n'), 'MCP quality check')
+    }
+
+    if (quality.warnings > 0) {
+      if (!websiteUrl) {
+        websiteUrl = introspection.serverInfo.websiteUrl
+      }
+
+      if (interactive) {
+        websiteUrl = await clackText('Website URL for sourced context (optional)', websiteUrl ?? '')
+        docsUrl = await clackText('Docs URL for sourced context (optional)', docsUrl ?? '')
+      }
+    }
+
+    if (hasAgentContextHints({ docsUrl, websiteUrl, contextPaths })) {
+      const contextSpinner = createSpinner(runtime)
+      contextSpinner?.start('Collecting sourced docs and website context...')
+      sourcedContextPack = await collectAgentContextPack(process.cwd(), {
+        docsUrl,
+        websiteUrl,
+        contextPaths,
+        ingestProvider,
+      })
+      contextSpinner?.stop(`Collected sourced context from ${sourcedContextPack.sources.length} input(s)`)
     }
 
     // Only ask for stdio auth env when the source has no env vars and no auth already
@@ -1520,7 +1629,9 @@ ${formatAuthRequiredMessage('init', retryError, source)}`)
         ? await clackText('Plugin name', defaultPluginName)
         : defaultPluginName),
     )
-    const defaultDisplayName = options.displayName ?? deriveDisplayName(introspection, pluginName)
+    const defaultDisplayName = options.displayName
+      ?? sourcedContextPack?.docsContext?.productName
+      ?? deriveDisplayName(introspection, pluginName)
     const displayName = options.displayName ?? (interactive
       ? await clackText('Display name', defaultDisplayName)
       : defaultDisplayName)
@@ -1574,9 +1685,19 @@ ${formatAuthRequiredMessage('init', retryError, source)}`)
       runtimeAuthMode,
       introspection,
       displayName,
+      description: sourcedContextPack?.docsContext?.shortDescription,
+      websiteUrl,
       skillGrouping: grouping,
       hookMode,
       approveMcpTools: options.approveMcpTools,
+      sourcedContext: sourcedContextPack?.docsContext
+        ? {
+            workflowHints: sourcedContextPack.docsContext.workflowHints,
+            setupHints: sourcedContextPack.docsContext.setupHints,
+            authHints: sourcedContextPack.docsContext.authHints,
+            warnings: sourcedContextPack.docsContext.warnings,
+          }
+        : undefined,
     })
     const createdFiles = plan.files
       .filter((file) => file.action === 'create')
@@ -1584,9 +1705,15 @@ ${formatAuthRequiredMessage('init', retryError, source)}`)
     const updatedFiles = plan.files
       .filter((file) => file.action === 'update')
       .map((file) => file.relativePath)
+    const contextArtifactFiles = await planInitContextArtifactFiles(process.cwd(), sourcedContextPack)
+    createdFiles.push(...contextArtifactFiles.filter((file) => file.action === 'create').map((file) => file.relativePath))
+    updatedFiles.push(...contextArtifactFiles.filter((file) => file.action === 'update').map((file) => file.relativePath))
 
     if (!runtime.dryRun) {
       await applyMcpScaffoldPlan(process.cwd(), plan)
+      for (const file of contextArtifactFiles) {
+        await Bun.write(resolve(process.cwd(), file.relativePath), file.content)
+      }
     }
 
     const lintResult = runtime.dryRun
@@ -1602,7 +1729,7 @@ ${formatAuthRequiredMessage('init', retryError, source)}`)
       requestedHookMode: hookMode,
       hookMode: plan.generatedHookMode,
       hookEvents: plan.generatedHookEvents,
-      files: plan.generatedFiles,
+      files: [...plan.generatedFiles, ...contextArtifactFiles.map((file) => file.relativePath)],
       createdFiles,
       updatedFiles,
       lint: {
@@ -1610,6 +1737,8 @@ ${formatAuthRequiredMessage('init', retryError, source)}`)
         warnings: lintResult.warnings,
       },
       quality,
+      contextInputs: sourcedContextPack?.sources.map((source) => source.label),
+      ingestion: sourcedContextPack?.ingestion,
       approveMcpTools: options.approveMcpTools,
       dryRun: runtime.dryRun,
     })

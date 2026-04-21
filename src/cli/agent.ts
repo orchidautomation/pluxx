@@ -30,7 +30,7 @@ export const AGENT_INGEST_PROVIDERS = ['auto', 'local', 'firecrawl'] as const
 export type AgentPromptKind = typeof AGENT_PROMPT_KINDS[number]
 export type AgentRunner = typeof AGENT_RUNNERS[number]
 export type AgentIngestProvider = typeof AGENT_INGEST_PROVIDERS[number]
-type ResolvedAgentIngestProvider = Exclude<AgentIngestProvider, 'auto'>
+export type ResolvedAgentIngestProvider = Exclude<AgentIngestProvider, 'auto'>
 
 const AGENT_PROMPT_PATHS: Record<AgentPromptKind, string> = {
   taxonomy: '.pluxx/agent/taxonomy-prompt.md',
@@ -189,14 +189,14 @@ interface AgentContextSource {
   note?: string
 }
 
-interface AgentContextPack {
+export interface AgentContextPack {
   sources: AgentContextSource[]
   records: AgentContextSourceRecord[]
   ingestion?: AgentContextIngestionArtifact
   docsContext?: AgentDocsContextArtifact
 }
 
-interface AgentContextSourceRecord {
+export interface AgentContextSourceRecord {
   label: string
   kind: AgentContextSource['kind']
   role: AgentContextSource['role']
@@ -218,13 +218,13 @@ interface AgentSourcesArtifact {
   sources: AgentContextSourceRecord[]
 }
 
-interface AgentContextIngestionArtifact {
+export interface AgentContextIngestionArtifact {
   requestedProvider: AgentIngestProvider
   resolvedProvider?: ResolvedAgentIngestProvider
   fallbackToLocalOnError: boolean
 }
 
-interface AgentDocsContextArtifact {
+export interface AgentDocsContextArtifact {
   version: 2
   sourceLabels: string[]
   providers: ResolvedAgentIngestProvider[]
@@ -306,7 +306,7 @@ export async function planAgentPrepare(
   const project = await loadAgentProjectModel(rootDir, config)
   const lint = await lintProject(rootDir)
   const overrides = await loadAgentOverrides(rootDir)
-  const contextPack = await collectAgentContextPack(rootDir, options, overrides)
+  const contextPack = await collectAgentContextPackInternal(rootDir, options, overrides)
   const contextSources = contextPack.sources
   const editableFiles = buildEditableFiles(config, project)
   const protectedFiles = buildProtectedFiles()
@@ -968,7 +968,7 @@ function buildAgentModePlanJson(
   return JSON.stringify(plan, null, 2)
 }
 
-async function collectAgentContextPack(
+async function collectAgentContextPackInternal(
   rootDir: string,
   options: AgentPrepareOptions,
   overrides: AgentOverrides | null,
@@ -1070,6 +1070,13 @@ async function collectAgentContextPack(
     },
     docsContext: buildDocsContextArtifact(sources),
   }
+}
+
+export async function collectAgentContextPack(
+  rootDir: string = process.cwd(),
+  options: AgentPrepareOptions = {},
+): Promise<AgentContextPack> {
+  return collectAgentContextPackInternal(rootDir, options, null)
 }
 
 async function discoverDocsContextSource(

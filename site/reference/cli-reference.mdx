@@ -21,6 +21,20 @@ Scaffold a Pluxx source project from a live MCP server or local stdio command.
 npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp
 ```
 
+`init --from-mcp` also accepts the same sourced-context flags when you want the first scaffold to start from better product truth:
+
+```bash
+npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp \
+  --website https://example.com \
+  --docs https://docs.example.com/mcp \
+  --ingest-provider auto
+```
+
+When sourced context is provided, `init` now writes the same provenance artifacts used by Agent Mode:
+
+- `.pluxx/sources.json`
+- `.pluxx/docs-context.json`
+
 If you already know every tool from that MCP should be preapproved in the generated source project:
 
 ```bash

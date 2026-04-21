@@ -278,6 +278,181 @@ describe('Phase 2 CLI flows', () => {
     }
   })
 
+  it('writes sourced context artifacts during init --from-mcp when docs and website URLs are provided', async () => {
+    const { dir, statePath, stubServerPath } = createStubServerFixture()
+    writeFileSync(
+      statePath,
+      JSON.stringify({
+        serverInfo: {
+          name: 'firecrawl',
+          title: 'Firecrawl',
+          version: '1.0.0',
+          description: 'Generated from the firecrawl MCP server.',
+          websiteUrl: 'https://www.firecrawl.dev/',
+        },
+        instructions: 'Prefer the most specific Firecrawl tool for the request.',
+        tools: [
+          {
+            name: 'scrape',
+            description: 'Scrape a single page into markdown.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                url: { type: 'string' },
+              },
+              required: ['url'],
+            },
+          },
+        ],
+      }, null, 2),
+    )
+
+    const docsServer = Bun.serve({
+      port: 0,
+      fetch(request) {
+        const url = new URL(request.url)
+        if (url.pathname === '/docs/mcp') {
+          return new Response(
+            '<!doctype html><html><head><title>Firecrawl MCP</title><meta name="description" content="Turn websites into clean markdown and structured data."></head><body><h1>Firecrawl MCP</h1><h2>Scrape pages</h2><p>Set the Firecrawl API key before using the hosted endpoint.</p></body></html>',
+            { headers: { 'Content-Type': 'text/html; charset=utf-8' } },
+          )
+        }
+
+        return new Response(
+          '<!doctype html><html><head><title>Firecrawl</title><meta name="description" content="Turn websites into clean markdown and structured data."></head><body><h1>Firecrawl</h1><h2>Map sites</h2><p>Use onlyMainContent when you want cleaner extraction.</p></body></html>',
+          { headers: { 'Content-Type': 'text/html; charset=utf-8' } },
+        )
+      },
+    })
+
+    try {
+      const websiteUrl = `http://127.0.0.1:${docsServer.port}/`
+      const docsUrl = `http://127.0.0.1:${docsServer.port}/docs/mcp`
+      const proc = spawnCli([
+        'init',
+        '--from-mcp',
+        `bun ${stubServerPath} ${statePath}`,
+        '--yes',
+        '--name',
+        'firecrawl',
+        '--display-name',
+        'Firecrawl',
+        '--author',
+        'Firecrawl',
+        '--website',
+        websiteUrl,
+        '--docs',
+        docsUrl,
+        '--ingest-provider',
+        'local',
+        '--json',
+      ], dir)
+
+      const stdout = await new Response(proc.stdout).text()
+      const stderr = await new Response(proc.stderr).text()
+      const exitCode = await proc.exited
+
+      expect(exitCode).toBe(0)
+      expect(stderr).toBe('')
+
+      const summary = JSON.parse(stdout) as {
+        contextInputs?: string[]
+        ingestion?: { requestedProvider: string; resolvedProvider: string }
+        createdFiles: string[]
+      }
+
+      expect(summary.contextInputs).toEqual([
+        websiteUrl,
+        docsUrl,
+        websiteUrl.replace(/\/$/, '/docs'),
+      ])
+      expect(summary.ingestion).toEqual({
+        requestedProvider: 'local',
+        resolvedProvider: 'local',
+        fallbackToLocalOnError: false,
+      })
+      expect(summary.createdFiles).toContain('.pluxx/sources.json')
+      expect(summary.createdFiles).toContain('.pluxx/docs-context.json')
+      expect(existsSync(resolve(dir, '.pluxx/sources.json'))).toBe(true)
+      expect(existsSync(resolve(dir, '.pluxx/docs-context.json'))).toBe(true)
+
+      const config = readFileSync(resolve(dir, 'pluxx.config.ts'), 'utf-8')
+      const instructions = readFileSync(resolve(dir, 'INSTRUCTIONS.md'), 'utf-8')
+      const sources = JSON.parse(readFileSync(resolve(dir, '.pluxx/sources.json'), 'utf-8')) as {
+        ingestion?: { requestedProvider: string; resolvedProvider: string }
+      }
+
+      expect(config).toContain('description: "Turn websites into clean markdown and structured data."')
+      expect(config).toContain(`websiteURL: ${JSON.stringify(websiteUrl)}`)
+      expect(instructions).toContain('## Sourced Context')
+      expect(instructions).toContain('Auth hints: Set the Firecrawl API key before using the hosted endpoint.')
+      expect(sources.ingestion).toEqual({
+        requestedProvider: 'local',
+        resolvedProvider: 'local',
+        fallbackToLocalOnError: false,
+      })
+    } finally {
+      docsServer.stop(true)
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('fails clearly when init --from-mcp requests firecrawl ingestion without an API key', async () => {
+    const { dir, statePath, stubServerPath } = createStubServerFixture()
+    writeFileSync(
+      statePath,
+      JSON.stringify({
+        serverInfo: {
+          name: 'stub-server',
+          title: 'Stub Server',
+          version: '1.0.0',
+          description: 'A fake MCP server.',
+        },
+        instructions: 'Initial instructions.',
+        tools: [
+          {
+            name: 'query',
+            description: 'Run a query.',
+            inputSchema: { type: 'object', properties: {} },
+          },
+        ],
+      }, null, 2),
+    )
+
+    try {
+      const proc = spawnCli([
+        'init',
+        '--from-mcp',
+        `bun ${stubServerPath} ${statePath}`,
+        '--yes',
+        '--name',
+        'stub-server',
+        '--display-name',
+        'Stub Server',
+        '--author',
+        'Test Author',
+        '--website',
+        'https://example.com',
+        '--json',
+        '--ingest-provider',
+        'firecrawl',
+      ], dir, {
+        FIRECRAWL_API_KEY: '',
+        PLUXX_FIRECRAWL_API_KEY: '',
+      })
+
+      const stdout = await new Response(proc.stdout).text()
+      const stderr = await new Response(proc.stderr).text()
+      const exitCode = await proc.exited
+
+      expect(exitCode).toBe(1)
+      expect(stdout).toBe('')
+      expect(stderr).toContain('Firecrawl ingestion requires FIRECRAWL_API_KEY')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('runs pluxx test with JSON output', async () => {
     const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-test-command-'))
     mkdirSync(resolve(dir, 'skills/hello'), { recursive: true })

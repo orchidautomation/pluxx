@@ -21,11 +21,18 @@ export interface McpScaffoldOptions {
   serverName?: string
   displayName?: string
   description?: string
+  websiteUrl?: string
   skillGrouping?: McpSkillGrouping
   hookMode?: McpHookMode
   runtimeAuthMode?: McpRuntimeAuthMode
   permissions?: PluginConfig['permissions']
   approveMcpTools?: boolean
+  sourcedContext?: {
+    workflowHints: string[]
+    setupHints: string[]
+    authHints: string[]
+    warnings: string[]
+  }
   persistedSkills?: PersistedSkill[]
   toolRenames?: Map<string, string>
 }
@@ -384,7 +391,7 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
       displayName,
       serverName,
       source: options.source,
-      websiteUrl: options.introspection.serverInfo.websiteUrl,
+      websiteUrl: options.websiteUrl ?? options.introspection.serverInfo.websiteUrl,
       targets: options.targets,
       userConfig,
       hooks: generatedHooks.hookEntries,
@@ -410,6 +417,7 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
           resourceTemplates: options.introspection.resourceTemplates ?? [],
           prompts: options.introspection.prompts ?? [],
           userConfig,
+          sourcedContext: options.sourcedContext,
         }),
       existsSync(instructionsPath) ? await Bun.file(instructionsPath).text() : undefined,
       {
@@ -752,6 +760,12 @@ export function buildInstructionsContent(input: {
   resourceTemplates: IntrospectedMcpResourceTemplate[]
   prompts: IntrospectedMcpPrompt[]
   userConfig?: UserConfigEntry[]
+  sourcedContext?: {
+    workflowHints: string[]
+    setupHints: string[]
+    authHints: string[]
+    warnings: string[]
+  }
 }): string {
   const accessLine = describePluginAccess(input.displayName, input.source, input.runtimeAuthMode ?? 'inline')
   const lines = [
@@ -777,6 +791,31 @@ export function buildInstructionsContent(input: {
 
   for (const tool of input.tools) {
     lines.push(`- \`${tool.name}\`: ${summarizeToolForInstructions(tool)}`)
+  }
+
+  if (
+    input.sourcedContext
+    && (
+      input.sourcedContext.workflowHints.length > 0
+      || input.sourcedContext.setupHints.length > 0
+      || input.sourcedContext.authHints.length > 0
+      || input.sourcedContext.warnings.length > 0
+    )
+  ) {
+    lines.push('', '## Sourced Context', '')
+
+    if (input.sourcedContext.workflowHints.length > 0) {
+      lines.push(`- Workflow hints: ${input.sourcedContext.workflowHints.join(' | ')}`)
+    }
+    if (input.sourcedContext.setupHints.length > 0) {
+      lines.push(`- Setup hints: ${input.sourcedContext.setupHints.join(' | ')}`)
+    }
+    if (input.sourcedContext.authHints.length > 0) {
+      lines.push(`- Auth hints: ${input.sourcedContext.authHints.join(' | ')}`)
+    }
+    if (input.sourcedContext.warnings.length > 0) {
+      lines.push(`- Warnings: ${input.sourcedContext.warnings.join(' | ')}`)
+    }
   }
 
   if (input.resources.length > 0 || input.resourceTemplates.length > 0) {

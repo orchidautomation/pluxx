@@ -612,6 +612,52 @@ describe('init-from-mcp scaffold', () => {
     expect(instructionsFile).not.toContain('**Returns:**')
   })
 
+  it('can fold sourced docs context into the initial scaffold deterministically', async () => {
+    await writeMcpScaffold({
+      rootDir: TEST_DIR,
+      pluginName: 'firecrawl',
+      authorName: 'Firecrawl',
+      displayName: 'Firecrawl',
+      description: 'Turn websites into clean markdown and structured data for downstream workflows.',
+      websiteUrl: 'https://www.firecrawl.dev/',
+      sourcedContext: {
+        workflowHints: ['Scrape pages', 'Map large docs sites'],
+        setupHints: ['Use onlyMainContent when you want cleaner page bodies.'],
+        authHints: ['Set FIRECRAWL_API_KEY before calling hosted scraping flows.'],
+        warnings: ['Deep MCP docs pages are often best paired with the broader docs root.'],
+      },
+      skillGrouping: 'workflow',
+      hookMode: 'none',
+      targets: ['codex'],
+      source: {
+        transport: 'http',
+        url: 'https://api.firecrawl.dev/mcp',
+      },
+      introspection: {
+        ...introspection,
+        serverInfo: {
+          ...introspection.serverInfo,
+          name: 'firecrawl',
+          title: 'Firecrawl',
+          description: 'Generated from the firecrawl MCP server.',
+        },
+      },
+    })
+
+    const config = readFileSync(resolve(TEST_DIR, 'pluxx.config.ts'), 'utf-8')
+    const instructionsFile = readFileSync(resolve(TEST_DIR, 'INSTRUCTIONS.md'), 'utf-8')
+
+    expect(config).toContain('description: "Turn websites into clean markdown and structured data for downstream workflows."')
+    expect(config).toContain('shortDescription: "Turn websites into clean markdown and structured data for downstream workflows."')
+    expect(config).toContain('websiteURL: "https://www.firecrawl.dev/"')
+
+    expect(instructionsFile).toContain('## Sourced Context')
+    expect(instructionsFile).toContain('Workflow hints: Scrape pages | Map large docs sites')
+    expect(instructionsFile).toContain('Setup hints: Use onlyMainContent when you want cleaner page bodies.')
+    expect(instructionsFile).toContain('Auth hints: Set FIRECRAWL_API_KEY before calling hosted scraping flows.')
+    expect(instructionsFile).toContain('Warnings: Deep MCP docs pages are often best paired with the broader docs root.')
+  })
+
   it('derives product-facing fallback metadata when MCP metadata is generic', async () => {
     await writeMcpScaffold({
       rootDir: TEST_DIR,
