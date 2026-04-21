@@ -1141,6 +1141,79 @@ exit 1
     }
   })
 
+  it('prefers main content over docs-site chrome for local HTML ingestion', async () => {
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = (async (input) => {
+      const request = new Request(input)
+      if (request.url === 'https://docs.firecrawl.dev/mcp-server') {
+        return new Response(
+          `<!doctype html>
+          <html>
+            <head>
+              <title>Firecrawl MCP Server</title>
+              <meta name="description" content="Turn websites into clean markdown and structured data.">
+            </head>
+            <body>
+              <header>
+                <nav>
+                  <p>Pricing</p>
+                  <p>Blog</p>
+                  <p>Search docs</p>
+                </nav>
+              </header>
+              <main>
+                <h1>Firecrawl MCP</h1>
+                <h2>Scrape pages</h2>
+                <p>Set the Firecrawl API key before using the hosted endpoint.</p>
+                <p>Use onlyMainContent when you want cleaner page bodies.</p>
+              </main>
+              <footer>
+                <p>Privacy Policy</p>
+              </footer>
+            </body>
+          </html>`,
+          {
+            status: 200,
+            headers: { 'Content-Type': 'text/html; charset=utf-8' },
+          },
+        )
+      }
+
+      return new Response(
+        '<!doctype html><html><head><title>Firecrawl</title><meta name="description" content="Turn websites into clean markdown and structured data."></head><body><main><h1>Firecrawl</h1><p>Map sites and scrape pages.</p></main></body></html>',
+        {
+          status: 200,
+          headers: { 'Content-Type': 'text/html; charset=utf-8' },
+        },
+      )
+    }) as typeof fetch
+
+    try {
+      const plan = await planAgentPrepare(TEST_DIR, {
+        websiteUrl: 'https://www.firecrawl.dev/',
+        docsUrl: 'https://docs.firecrawl.dev/mcp-server',
+        ingestProvider: 'local',
+      })
+      await applyAgentPreparePlan(TEST_DIR, plan)
+
+      const context = readFileSync(resolve(TEST_DIR, AGENT_CONTEXT_PATH), 'utf-8')
+      const docsContext = JSON.parse(readFileSync(resolve(TEST_DIR, AGENT_DOCS_CONTEXT_PATH), 'utf-8')) as {
+        setupHints: string[]
+        authHints: string[]
+        workflowHints: string[]
+      }
+
+      expect(docsContext.workflowHints).toContain('Scrape pages')
+      expect(docsContext.authHints).toContain('Set the Firecrawl API key before using the hosted endpoint.')
+      expect(docsContext.setupHints).toContain('Use onlyMainContent when you want cleaner page bodies.')
+      expect(context).not.toContain('Pricing')
+      expect(context).not.toContain('Privacy Policy')
+      expect(context).not.toContain('Search docs')
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
   it('uses Firecrawl-backed ingestion when configured and records provider provenance', async () => {
     const originalFetch = globalThis.fetch
     const originalFirecrawlKey = process.env.FIRECRAWL_API_KEY

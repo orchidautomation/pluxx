@@ -1322,7 +1322,7 @@ function buildDocsContextArtifact(sources: AgentContextSource[]): AgentDocsConte
   const shortDescription = remoteSources
     .map((source) => source.description ?? source.paragraphs?.[0])
     .find((value): value is string => Boolean(value && value.trim()))
-  const setupHints = collectHintSentences(remoteSources, ['setup', 'install', 'get started', 'quickstart', 'configuration', 'configuring', 'running', 'restart'])
+  const setupHints = collectHintSentences(remoteSources, ['setup', 'install', 'get started', 'quickstart', 'configuration', 'configuring', 'running', 'restart', 'onlymaincontent', 'main content'])
   const authHints = collectHintSentences(remoteSources, ['auth', 'authentication', 'api key', 'bearer', 'header', 'token', 'credential'])
   const warnings = collectHintSentences(remoteSources, ['warning', 'note', 'requires', 'must', 'if you', 'unavailable', 'couldn'])
   const workflowHints = collectWorkflowHints(remoteSources)
@@ -1503,10 +1503,15 @@ function summarizeHtml(html: string): {
   headings: string[]
   paragraphs: string[]
 } {
+  const cleanedHtml = stripNonContentHtml(html)
+  const primaryHtml = selectPrimaryHtmlFragment(cleanedHtml)
   const title = matchHtmlTag(html, 'title')
   const description = matchMetaDescription(html)
-  const headings = matchHtmlTags(html, ['h1', 'h2', 'h3']).slice(0, 5)
-  const paragraphs = matchHtmlTags(html, ['p']).slice(0, 3)
+  const headings = matchHtmlTags(primaryHtml, ['h1', 'h2', 'h3'])
+    .filter((value) => !isLikelyChromeHeading(value))
+    .slice(0, 5)
+  const paragraphs = filterLikelyContentText(matchHtmlTags(primaryHtml, ['p']))
+    .slice(0, 3)
   const lines: string[] = []
 
   if (title) {
@@ -1529,6 +1534,133 @@ function summarizeHtml(html: string): {
     headings,
     paragraphs,
   }
+}
+
+function stripNonContentHtml(html: string): string {
+  return html
+    .replace(/<!--[\s\S]*?-->/g, ' ')
+    .replace(/<(script|style|noscript|svg|template)[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+}
+
+function selectPrimaryHtmlFragment(html: string): string {
+  const preferredPatterns = [
+    /<main\b[^>]*>([\s\S]*?)<\/main>/gi,
+    /<article\b[^>]*>([\s\S]*?)<\/article>/gi,
+    /<([a-z0-9:-]+)\b[^>]*\brole=["']main["'][^>]*>([\s\S]*?)<\/\1>/gi,
+    /<([a-z0-9:-]+)\b[^>]*\b(?:id|class)=["'][^"']*(?:content|docs|doc-content|article|main|prose)[^"']*["'][^>]*>([\s\S]*?)<\/\1>/gi,
+  ]
+
+  let bestFragment = ''
+  let bestScore = Number.NEGATIVE_INFINITY
+
+  for (const pattern of preferredPatterns) {
+    const matches = html.matchAll(pattern)
+    for (const match of matches) {
+      const fragment = match[2] ?? match[1] ?? ''
+      const score = scoreHtmlFragment(fragment)
+      if (score > bestScore) {
+        bestScore = score
+        bestFragment = fragment
+      }
+    }
+  }
+
+  if (bestFragment) return bestFragment
+
+  const body = html.match(/<body\b[^>]*>([\s\S]*?)<\/body>/i)?.[1]
+  return body || html
+}
+
+function scoreHtmlFragment(fragment: string): number {
+  const text = cleanHtmlText(fragment)
+  const paragraphCount = (fragment.match(/<p\b/gi) ?? []).length
+  const headingCount = (fragment.match(/<h[1-3]\b/gi) ?? []).length
+  const chromePenalty = isLikelyChromeText(text) ? 120 : 0
+  return text.length + paragraphCount * 120 + headingCount * 80 - chromePenalty
+}
+
+function filterLikelyContentText(values: string[]): string[] {
+  const filtered = uniqueStrings(values)
+    .map((value) => value.replace(/\s+/g, ' ').trim())
+    .filter((value) => value.length > 0)
+    .filter((value) => !isLikelyChromeText(value))
+
+  if (filtered.length > 0) {
+    return filtered
+  }
+
+  return uniqueStrings(values)
+    .map((value) => value.replace(/\s+/g, ' ').trim())
+    .filter((value) => value.length > 0)
+}
+
+function isLikelyChromeHeading(value: string): boolean {
+  const normalized = value.replace(/\s+/g, ' ').trim()
+  if (!normalized) return true
+
+  const lower = normalized.toLowerCase()
+  const chromePatterns = [
+    'search docs',
+    'table of contents',
+    'on this page',
+    'previous',
+    'next',
+    'privacy',
+    'terms',
+    'cookie',
+    'copyright',
+    'blog',
+    'pricing',
+    'careers',
+    'discord',
+    'github',
+    'twitter',
+    'sign in',
+    'log in',
+  ]
+
+  return chromePatterns.some((pattern) => lower.includes(pattern))
+}
+
+function isLikelyChromeText(value: string): boolean {
+  const normalized = value.replace(/\s+/g, ' ').trim()
+  if (!normalized) return true
+
+  const lower = normalized.toLowerCase()
+  const wordCount = normalized.split(/\s+/).length
+  const chromePatterns = [
+    'search docs',
+    'table of contents',
+    'on this page',
+    'previous',
+    'next',
+    'privacy',
+    'terms',
+    'cookie',
+    'copyright',
+    'blog',
+    'pricing',
+    'careers',
+    'discord',
+    'github',
+    'twitter',
+    'sign in',
+    'log in',
+  ]
+
+  if (chromePatterns.some((pattern) => lower.includes(pattern))) {
+    return true
+  }
+
+  if (wordCount <= 3 && /^(home|docs|documentation|api|guides|reference|pricing|blog|careers|search)$/i.test(normalized)) {
+    return true
+  }
+
+  if (wordCount < 5 && !/[.!?]/.test(normalized) && !/:/.test(normalized)) {
+    return true
+  }
+
+  return false
 }
 
 function summarizePlainText(content: string): string {
