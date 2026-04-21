@@ -18,6 +18,11 @@ import {
 } from './init-from-mcp'
 import { applyPersistedTaxonomy } from './sync-from-mcp'
 import { type PluginConfig, getConfiguredCompilerBuckets } from '../schema'
+import {
+  resolveDocsIngestionProvider,
+  type DocsIngestionProvider,
+  type DocsIngestionSelection,
+} from './docs-ingestion'
 
 export const AGENT_CONTEXT_PATH = '.pluxx/agent/context.md'
 export const AGENT_PLAN_PATH = '.pluxx/agent/plan.json'
@@ -76,6 +81,8 @@ export interface AgentPrepareOptions {
   docsUrl?: string
   websiteUrl?: string
   contextPaths?: string[]
+  docsIngestionProvider?: DocsIngestionProvider
+  docsIngestionEnv?: NodeJS.ProcessEnv
 }
 
 interface AgentPromptOptions {
@@ -182,12 +189,15 @@ interface AgentContextSource {
   headings?: string[]
   paragraphs?: string[]
   note?: string
+  ingestionProvider?: DocsIngestionSelection['resolvedProvider']
+  ingestionFetcher?: 'native-fetch' | 'filesystem'
 }
 
 interface AgentContextPack {
   sources: AgentContextSource[]
   records: AgentContextSourceRecord[]
   docsContext?: AgentDocsContextArtifact
+  providerSelection: DocsIngestionSelection
 }
 
 interface AgentContextSourceRecord {
@@ -203,10 +213,16 @@ interface AgentContextSourceRecord {
   title?: string
   description?: string
   note?: string
+  ingestion?: {
+    requestedProvider: DocsIngestionProvider
+    resolvedProvider: DocsIngestionSelection['resolvedProvider']
+    fetcher: 'native-fetch' | 'filesystem'
+  }
 }
 
 interface AgentSourcesArtifact {
-  version: 1
+  version: 2
+  ingestion: DocsIngestionSelection
   sources: AgentContextSourceRecord[]
 }
 
@@ -298,7 +314,7 @@ export async function planAgentPrepare(
     planFile(rootDir, AGENT_CONTEXT_PATH, contextContent),
     planFile(rootDir, AGENT_PLAN_PATH, `${planContent}\n`),
     ...(contextPack.records.length > 0
-      ? [planFile(rootDir, AGENT_SOURCES_PATH, `${JSON.stringify(buildSourcesArtifact(contextPack.records), null, 2)}\n`)]
+      ? [planFile(rootDir, AGENT_SOURCES_PATH, `${JSON.stringify(buildSourcesArtifact(contextPack.records, contextPack.providerSelection), null, 2)}\n`)]
       : []),
     ...(contextPack.docsContext
       ? [planFile(rootDir, AGENT_DOCS_CONTEXT_PATH, `${JSON.stringify(contextPack.docsContext, null, 2)}\n`)]
@@ -934,39 +950,43 @@ async function collectAgentContextPack(
   options: AgentPrepareOptions,
   overrides: AgentOverrides | null,
 ): Promise<AgentContextPack> {
+  const providerSelection = resolveDocsIngestionProvider(
+    options.docsIngestionProvider ?? 'auto',
+    options.docsIngestionEnv ?? process.env,
+  )
   const sources: AgentContextSource[] = []
   const records: AgentContextSourceRecord[] = []
   const seenFilePaths = new Set<string>()
   const seenUrls = new Set<string>()
 
   if (options.websiteUrl) {
-    const websiteSource = await fetchContextSource(options.websiteUrl, 'website', 'seed')
+    const websiteSource = await fetchContextSource(options.websiteUrl, 'website', 'seed', providerSelection)
     if (websiteSource) {
       sources.push(websiteSource)
-      records.push(buildContextSourceRecord(websiteSource, true))
+      records.push(buildContextSourceRecord(websiteSource, true, providerSelection))
       seenUrls.add(normalizeUrlIdentity(websiteSource.resolvedUrl ?? websiteSource.requestedUrl ?? websiteSource.label))
     }
   }
 
   if (options.docsUrl) {
-    const docsSource = await fetchContextSource(options.docsUrl, 'docs', 'seed')
+    const docsSource = await fetchContextSource(options.docsUrl, 'docs', 'seed', providerSelection)
     if (docsSource) {
       sources.push(docsSource)
-      records.push(buildContextSourceRecord(docsSource, true))
+      records.push(buildContextSourceRecord(docsSource, true, providerSelection))
       seenUrls.add(normalizeUrlIdentity(docsSource.resolvedUrl ?? docsSource.requestedUrl ?? docsSource.label))
     }
 
     const docsRootUrl = inferDocsRootUrl(options.docsUrl)
     if (docsRootUrl && !seenUrls.has(normalizeUrlIdentity(docsRootUrl))) {
-      const docsRootSource = await fetchContextSource(docsRootUrl, 'docs', 'inferred-root', `Inferred from ${options.docsUrl}`)
+      const docsRootSource = await fetchContextSource(docsRootUrl, 'docs', 'inferred-root', providerSelection, `Inferred from ${options.docsUrl}`)
       if (docsRootSource) {
         sources.push(docsRootSource)
-        records.push(buildContextSourceRecord(docsRootSource, true))
+        records.push(buildContextSourceRecord(docsRootSource, true, providerSelection))
         seenUrls.add(normalizeUrlIdentity(docsRootSource.resolvedUrl ?? docsRootSource.requestedUrl ?? docsRootSource.label))
       }
     }
   } else if (options.websiteUrl) {
-    const discoveredDocs = await discoverDocsContextSource(options.websiteUrl, seenUrls)
+    const discoveredDocs = await discoverDocsContextSource(options.websiteUrl, seenUrls, providerSelection)
     records.push(...discoveredDocs.records)
     if (discoveredDocs.selected) {
       const identity = normalizeUrlIdentity(discoveredDocs.selected.resolvedUrl ?? discoveredDocs.selected.requestedUrl ?? discoveredDocs.selected.label)
@@ -994,9 +1014,11 @@ async function collectAgentContextPack(
         status: 'error',
         summary: `Unavailable: local file not found.`,
         note: 'Context file was requested but does not exist.',
+        ingestionFetcher: 'filesystem',
+        ingestionProvider: providerSelection.resolvedProvider,
       }
       sources.push(source)
-      records.push(buildContextSourceRecord(source, true))
+      records.push(buildContextSourceRecord(source, true, providerSelection))
       continue
     }
 
@@ -1008,21 +1030,25 @@ async function collectAgentContextPack(
       status: 'ok',
       summary: summarizePlainText(content),
       note: 'User-supplied local context file.',
+      ingestionFetcher: 'filesystem',
+      ingestionProvider: providerSelection.resolvedProvider,
     }
     sources.push(source)
-    records.push(buildContextSourceRecord(source, true))
+    records.push(buildContextSourceRecord(source, true, providerSelection))
   }
 
   return {
     sources,
     records,
     docsContext: buildDocsContextArtifact(sources),
+    providerSelection,
   }
 }
 
 async function discoverDocsContextSource(
   websiteUrl: string,
   seenUrls: Set<string>,
+  providerSelection: DocsIngestionSelection,
 ): Promise<{
   selected?: AgentContextSource
   records: AgentContextSourceRecord[]
@@ -1031,7 +1057,7 @@ async function discoverDocsContextSource(
   const fetched = await Promise.all(
     candidates
       .filter((candidate) => !seenUrls.has(normalizeUrlIdentity(candidate)))
-      .map(async (candidate) => fetchContextSource(candidate, 'docs', 'discovered-root', `Discovered from ${websiteUrl}`)),
+      .map(async (candidate) => fetchContextSource(candidate, 'docs', 'discovered-root', providerSelection, `Discovered from ${websiteUrl}`)),
   )
 
   const successful = fetched.filter((source): source is AgentContextSource => Boolean(source))
@@ -1051,7 +1077,7 @@ async function discoverDocsContextSource(
 
   return {
     selected: bestSource,
-    records: successful.map((source) => buildContextSourceRecord(source, source.label === bestSource?.label)),
+    records: successful.map((source) => buildContextSourceRecord(source, source.label === bestSource?.label, providerSelection)),
   }
 }
 
@@ -1059,8 +1085,14 @@ async function fetchContextSource(
   url: string,
   kind: 'website' | 'docs',
   role: AgentContextSource['role'],
+  providerSelection: DocsIngestionSelection,
   note?: string,
 ): Promise<AgentContextSource | null> {
+  const providerNote = providerSelection.resolvedProvider === 'firecrawl'
+    ? 'Provider resolved to firecrawl; current contract routes through native fetch until provider-specific ingestion lands.'
+    : undefined
+  const mergedNote = [note, providerNote].filter((value): value is string => Boolean(value)).join(' ')
+
   try {
     const response = await fetch(url)
     const resolvedUrl = response.url || url
@@ -1075,7 +1107,9 @@ async function fetchContextSource(
         resolvedUrl,
         httpStatus: response.status,
         contentType: response.headers.get('content-type') ?? '',
-        note,
+        note: mergedNote,
+        ingestionProvider: providerSelection.resolvedProvider,
+        ingestionFetcher: 'native-fetch',
       }
     }
 
@@ -1099,7 +1133,9 @@ async function fetchContextSource(
       description: parsed.description,
       headings: parsed.headings,
       paragraphs: parsed.paragraphs,
-      note,
+      note: mergedNote,
+      ingestionProvider: providerSelection.resolvedProvider,
+      ingestionFetcher: 'native-fetch',
     }
   } catch (error) {
     return {
@@ -1109,12 +1145,18 @@ async function fetchContextSource(
       status: 'error',
       summary: `Unavailable: ${error instanceof Error ? error.message : String(error)}.`,
       requestedUrl: url,
-      note,
+      note: mergedNote,
+      ingestionProvider: providerSelection.resolvedProvider,
+      ingestionFetcher: 'native-fetch',
     }
   }
 }
 
-function buildContextSourceRecord(source: AgentContextSource, selected: boolean): AgentContextSourceRecord {
+function buildContextSourceRecord(
+  source: AgentContextSource,
+  selected: boolean,
+  providerSelection: DocsIngestionSelection,
+): AgentContextSourceRecord {
   return {
     label: source.label,
     kind: source.kind,
@@ -1128,12 +1170,20 @@ function buildContextSourceRecord(source: AgentContextSource, selected: boolean)
     title: source.title,
     description: source.description,
     note: source.note,
+    ingestion: source.ingestionFetcher
+      ? {
+          requestedProvider: providerSelection.requestedProvider,
+          resolvedProvider: source.ingestionProvider ?? 'local',
+          fetcher: source.ingestionFetcher,
+        }
+      : undefined,
   }
 }
 
-function buildSourcesArtifact(records: AgentContextSourceRecord[]): AgentSourcesArtifact {
+function buildSourcesArtifact(records: AgentContextSourceRecord[], providerSelection: DocsIngestionSelection): AgentSourcesArtifact {
   return {
-    version: 1,
+    version: 2,
+    ingestion: providerSelection,
     sources: records,
   }
 }

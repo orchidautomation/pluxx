@@ -10,6 +10,7 @@ import type {
   IntrospectedMcpTool,
 } from '../mcp/introspect'
 import { collectUserConfigEntries } from '../user-config'
+import type { DocsIngestionProvider } from './docs-ingestion'
 
 export interface McpScaffoldOptions {
   rootDir: string
@@ -26,6 +27,7 @@ export interface McpScaffoldOptions {
   runtimeAuthMode?: McpRuntimeAuthMode
   permissions?: PluginConfig['permissions']
   approveMcpTools?: boolean
+  docsIngestionProvider?: DocsIngestionProvider
   persistedSkills?: PersistedSkill[]
   toolRenames?: Map<string, string>
 }
@@ -120,6 +122,7 @@ export interface McpScaffoldMetadata {
     generatedHookMode: McpHookMode
     generatedHookEvents: string[]
     runtimeAuthMode: McpRuntimeAuthMode
+    docsIngestionProvider: DocsIngestionProvider
   }
   userConfig: UserConfigEntry[]
   tools: IntrospectedMcpTool[]
@@ -464,6 +467,7 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
     generatedHookMode: generatedHooks.mode,
     generatedHookEvents: Object.keys(generatedHooks.hookEntries ?? {}),
     runtimeAuthMode,
+    docsIngestionProvider: options.docsIngestionProvider ?? 'auto',
     userConfig,
     plannedSkills,
     managedFiles: [...generatedFiles, taxonomyPath, metadataPath],
@@ -1125,6 +1129,7 @@ function buildMcpScaffoldMetadata(input: {
   generatedHookMode: McpHookMode
   generatedHookEvents: string[]
   runtimeAuthMode: McpRuntimeAuthMode
+  docsIngestionProvider: DocsIngestionProvider
   userConfig: UserConfigEntry[]
   plannedSkills: PlannedSkill[]
   managedFiles: string[]
@@ -1146,6 +1151,7 @@ function buildMcpScaffoldMetadata(input: {
       generatedHookMode: input.generatedHookMode,
       generatedHookEvents: input.generatedHookEvents,
       runtimeAuthMode: input.runtimeAuthMode,
+      docsIngestionProvider: input.docsIngestionProvider,
     },
     userConfig: input.userConfig,
     tools: input.introspection.tools,
