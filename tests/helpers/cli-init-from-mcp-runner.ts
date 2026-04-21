@@ -235,6 +235,7 @@ function installMocks(options: {
     listHookCommands: () => [],
     planInstallPlugin: () => [],
     planInstallUserConfig: () => ({ requirements: [], notes: [] }),
+    resolveInstalledConsumerPath: () => '/tmp/pluxx-consumer-install',
     resolveInstallUserConfig: async () => ({ values: {}, unresolved: [], provided: [] }),
     uninstallPlugin: async () => {},
   }))

@@ -15,7 +15,8 @@ Arguments: $ARGUMENTS
    - or local stdio command
 3. If auth details are missing, ask only for the auth shape and env var names, not raw secret values.
 4. Prefer a deterministic first pass with `pluxx init --from-mcp ... --yes`.
-5. After import, summarize the generated scaffold and run:
+5. If the user wants imported MCP tool calls preapproved, include `--approve-mcp-tools`.
+6. After import, summarize the generated scaffold and run:
    - `pluxx doctor`
    - `pluxx lint`
    - `pluxx test --target claude-code cursor codex opencode`

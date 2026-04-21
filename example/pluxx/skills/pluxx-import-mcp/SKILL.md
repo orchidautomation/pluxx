@@ -16,6 +16,7 @@ Use this skill when the task is: bring an MCP server into Pluxx, generate the in
 2. Prefer a deterministic first pass:
    - use `pluxx init --from-mcp ... --yes`
    - include `--display-name`, `--targets`, `--grouping`, and auth flags when needed
+   - include `--approve-mcp-tools` when the user wants the imported MCP tools preapproved in canonical permissions
 3. If there is supporting context, prepare the agent pack:
    - `pluxx agent prepare --website ... --docs ...`
 4. Show the user what was generated:
@@ -33,6 +34,7 @@ Use this skill when the task is: bring an MCP server into Pluxx, generate the in
 - Use `--dry-run --json` first when you need to preview changes or explain the plan before writing files.
 - Keep the first scaffold deterministic. Do not jump straight into semantic rewrites before the plugin builds and tests.
 - When auth is custom-header based, pass explicit `--auth-type header --auth-header ... --auth-template ...` flags.
+- If the user wants MCP tool calls preapproved in the generated plugin, prefer `--approve-mcp-tools` during import instead of hand-editing permissions later.
 - After import, summarize the generated file tree and any warnings that remain.
 
 ## Output
