@@ -15,7 +15,7 @@
     "pluxx": "bin/pluxx.js"
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir dist --target node && tsc --emitDeclarationOnly",
+    "build": "bun build src/index.ts --outdir dist --target node && bun build src/cli/entry.ts --outfile dist/cli/index.js --target node && tsc --emitDeclarationOnly",
     "dev": "bun --watch src/cli/index.ts",
     "eval:docs-ingestion": "bun scripts/evaluate-docs-ingestion.ts",
     "generate:compatibility": "bun scripts/generate-compatibility-matrix.ts",

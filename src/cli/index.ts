@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 
 import { existsSync } from 'fs'
 import { loadConfig } from '../config/load'
