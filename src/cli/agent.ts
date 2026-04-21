@@ -3,6 +3,7 @@ import { chmod, copyFile, mkdir, mkdtemp, readFile, rm } from 'fs/promises'
 import { homedir, tmpdir } from 'os'
 import { relative, resolve } from 'path'
 import { spawn } from 'child_process'
+import { planTextFileAction, readTextFile, writeTextFile } from '../text-files'
 import { loadConfig } from '../config/load'
 import { readCanonicalCommandFiles } from '../commands'
 import { lintProject, type LintResult } from './lint'
@@ -358,7 +359,7 @@ export async function applyAgentPreparePlan(rootDir: string, plan: AgentPrepareP
     if (parentDir) {
       await mkdir(resolve(rootDir, parentDir), { recursive: true })
     }
-    await Bun.write(filePath, file.content)
+    await writeTextFile(filePath, file.content)
   }
 }
 
@@ -410,7 +411,7 @@ export async function applyAgentPromptPlan(rootDir: string, plan: AgentPromptPla
     if (parentDir) {
       await mkdir(resolve(rootDir, parentDir), { recursive: true })
     }
-    await Bun.write(filePath, file.content)
+    await writeTextFile(filePath, file.content)
   }
 }
 
@@ -539,7 +540,7 @@ async function writePlannedFiles(rootDir: string, files: AgentPreparePlannedFile
     if (parentDir) {
       await mkdir(resolve(rootDir, parentDir), { recursive: true })
     }
-    await Bun.write(filePath, file.content)
+    await writeTextFile(filePath, file.content)
   }
 }
 
@@ -604,7 +605,7 @@ async function loadMcpScaffoldMetadata(rootDir: string): Promise<McpScaffoldMeta
   }
 
   try {
-    const text = await Bun.file(metadataPath).text()
+    const text = await readTextFile(metadataPath)
     return JSON.parse(text) as McpScaffoldMetadata
   } catch (error) {
     throw new Error(
@@ -687,9 +688,7 @@ function loadManualAgentProjectModel(rootDir: string, config: PluginConfig): Age
 
 async function planFile(rootDir: string, relativePath: string, content: string): Promise<AgentPreparePlannedFile> {
   const filePath = resolve(rootDir, relativePath)
-  const action = existsSync(filePath)
-    ? ((await Bun.file(filePath).text()) === content ? 'unchanged' : 'update')
-    : 'create'
+  const action = await planTextFileAction(filePath, content)
   return { relativePath, content, action }
 }
 
@@ -1065,7 +1064,7 @@ async function collectAgentContextPackInternal(
       continue
     }
 
-    const content = await Bun.file(filePath).text()
+    const content = await readTextFile(filePath)
     const source: AgentContextSource = {
       label: relativePath,
       kind: 'file',
@@ -2973,7 +2972,7 @@ async function prepareRunnerExecution(runner: AgentRunner): Promise<{
 
     const shimDir = await mkdtemp(resolve(tmpdir(), 'pluxx-cursor-bin-'))
     const shimPath = resolve(shimDir, AGENT_RUNNER_BINARIES.cursor)
-    await Bun.write(
+    await writeTextFile(
       shimPath,
       `#!/bin/sh\nexec ${shellQuote(cursorBinary)} "$@"\n`,
     )
@@ -3060,7 +3059,7 @@ async function loadAgentOverrides(rootDir: string): Promise<AgentOverrides | nul
     return null
   }
 
-  const content = await Bun.file(overridesPath).text()
+  const content = await readTextFile(overridesPath)
   return parseAgentOverrides(content, AGENT_OVERRIDES_PATH)
 }
 

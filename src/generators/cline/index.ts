@@ -1,6 +1,7 @@
 import { existsSync } from 'fs'
 import { Generator } from '../base'
 import type { TargetPlatform } from '../../schema'
+import { readTextFile } from '../../text-files'
 
 /**
  * Cline uses .clinerules for instructions, .cline/mcp.json for MCP config,
@@ -25,7 +26,7 @@ export class ClineGenerator extends Generator {
     const srcPath = this.resolveConfigPath(this.config.instructions, 'instructions')
     if (!existsSync(srcPath)) return
 
-    const content = await Bun.file(srcPath).text()
+    const content = await readTextFile(srcPath)
     await this.writeFile('.clinerules', content)
   }
 

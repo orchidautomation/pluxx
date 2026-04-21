@@ -76,6 +76,7 @@ import { printTestResult, runTestSuite, type TestRunResult } from './test'
 import { printEvalReport, runEvalSuite } from './eval'
 import { buildPrimitiveTranslationSummary, renderPrimitiveTranslationSummary } from './primitive-summary'
 import { printVerifyInstallResult, verifyInstall } from './verify-install'
+import { planTextFileAction, writeTextFile } from '../text-files'
 
 const args = process.argv.slice(2)
 const command = args[0]
@@ -1156,9 +1157,7 @@ async function planAuxiliaryFile(
   content: string,
 ): Promise<{ relativePath: string; content: string; action: 'create' | 'update' | 'unchanged' }> {
   const filePath = resolve(rootDir, relativePath)
-  const action = existsSync(filePath)
-    ? ((await Bun.file(filePath).text()) === content ? 'unchanged' : 'update')
-    : 'create'
+  const action = await planTextFileAction(filePath, content)
   return {
     relativePath,
     content,
@@ -1341,7 +1340,7 @@ ${mcpBlock}${brandBlock}
 `
 
     // Write config
-    await Bun.write('pluxx.config.ts', template)
+    await writeTextFile(resolve(process.cwd(), 'pluxx.config.ts'), template)
 
     // Create skills directory with a starter SKILL.md
     const skillDir = `skills/${skillName}`
@@ -1367,7 +1366,7 @@ Example prompt or command here
 \`\`\`
 `
 
-    await Bun.write(`${skillDir}/SKILL.md`, skillContent)
+    await writeTextFile(resolve(process.cwd(), `${skillDir}/SKILL.md`), skillContent)
 
     console.log('')
     console.log('  Created:')
@@ -1709,7 +1708,7 @@ ${formatAuthRequiredMessage('init', retryError, source)}`)
     if (!runtime.dryRun) {
       await applyMcpScaffoldPlan(process.cwd(), plan)
       for (const file of contextArtifactFiles) {
-        await Bun.write(resolve(process.cwd(), file.relativePath), file.content)
+        await writeTextFile(resolve(process.cwd(), file.relativePath), file.content)
       }
     }
 

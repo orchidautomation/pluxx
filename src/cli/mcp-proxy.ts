@@ -4,6 +4,7 @@ import * as readline from 'readline'
 import type { Readable, Writable } from 'stream'
 import { createMcpClient, McpIntrospectionError, type McpClient } from '../mcp/introspect'
 import { parseMcpSourceInput } from './init-from-mcp'
+import { writeTextFile } from '../text-files'
 
 interface ProxyTapeInteraction {
   kind: 'request' | 'notify'
@@ -130,7 +131,7 @@ async function loadReplayTape(filepath: string): Promise<ProxyTape> {
 async function writeTape(filepath: string, tape: ProxyTape): Promise<void> {
   const absolutePath = resolve(process.cwd(), filepath)
   mkdirSync(dirname(absolutePath), { recursive: true })
-  await Bun.write(absolutePath, `${JSON.stringify(tape, null, 2)}\n`)
+  await writeTextFile(absolutePath, `${JSON.stringify(tape, null, 2)}\n`)
 }
 
 function serializeError(error: unknown): { code: number; message: string } {
