@@ -7,6 +7,7 @@ Pluxx is a cross-host compiler for MCP-backed plugins. It helps MCP vendors, dev
 
 Goals:
 - find new MCP launch posts
+- find new Claude Code plugin launches
 - find cross-host plugin packaging pain
 - find founders asking how to distribute, grow, or monetize an MCP
 - find platform/DevEx teams discussing rollout, standardization, and internal agent workflow distribution
@@ -35,6 +36,8 @@ Workflow:
 4. Load `state.json` and skip anything already seen.
 5. For each query in `queries.json`, use `apidojo/tweet-scraper` in fresh/latest mode for a short recent window.
 6. Filter hard for quality. Ignore reposts, duplicates, generic AI chatter, memes, politics, spam, and low-signal noise.
+   Prefer official company accounts, founders, product builders, and engineers clearly shipping a real MCP server, plugin, gateway, or host integration.
+   Be aggressive about discovery volume, but not about lowering quality.
 7. For each qualified new post:
    - hydrate the author with `apidojo/twitter-profile-scraper`
    - extract normalized fields
@@ -65,8 +68,11 @@ Workflow:
 
 Prioritize posts that match one or more of these patterns:
 - new MCP launches
+- new Claude Code plugin launches
 - newly released MCP servers or plugins
 - people launching in only one host
+- official launch posts from product/company accounts
+- founder or builder launch posts for a real shipped MCP, plugin, gateway, or agent integration
 - explicit cross-host packaging, manifest, auth, hooks, rules, agent, or install pain
 - founders asking how to get users, customers, distribution, awareness, GTM, or monetization for an MCP
 - internal AI platform / DevEx teams discussing rollout, standardization, internal workflows, or fragmented host adoption
@@ -74,6 +80,7 @@ Prioritize posts that match one or more of these patterns:
 Ignore:
 - reposts and duplicates
 - quote-posts with no substantive new signal
+- news roundups, ecosystem recaps, and aggregator accounts when a primary source exists
 - top-of-funnel generic “MCP is cool” chatter
 - controversy, ragebait, politics, giveaways, obvious spam, and unrelated launches
 - posts where Pluxx would be a stretch rather than a natural fit
