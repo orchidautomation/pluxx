@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 import { mkdirSync, rmSync, writeFileSync } from 'fs'
+import { spawnSync } from 'child_process'
 import { resolve } from 'path'
 import type { PluginConfig } from '../src/schema'
 import { planPublish, runPublish } from '../src/cli/publish'
@@ -13,6 +14,7 @@ function makeConfig(): PluginConfig {
     description: 'A publish test plugin',
     author: { name: 'Test Author' },
     license: 'MIT',
+    repository: 'https://github.com/orchidautomation/publish-plugin',
     skills: './skills/',
     instructions: './INSTRUCTIONS.md',
     targets: ['claude-code', 'opencode'],
@@ -57,7 +59,18 @@ describe('planPublish', () => {
     expect(plan.channels.npm.enabled).toBe(true)
     expect(plan.channels.githubRelease.enabled).toBe(true)
     expect(plan.channels.npm.packageName).toBe('@orchid/publish-plugin-opencode')
-    expect(plan.channels.githubRelease.assets.map((asset) => asset.platform)).toEqual(['claude-code', 'opencode'])
+    expect(plan.channels.githubRelease.repo).toBe('orchidautomation/publish-plugin')
+    expect(plan.channels.githubRelease.assets.map((asset) => asset.name)).toEqual([
+      'publish-plugin-claude-code-v1.2.3.tar.gz',
+      'publish-plugin-claude-code-latest.tar.gz',
+      'publish-plugin-opencode-v1.2.3.tar.gz',
+      'publish-plugin-opencode-latest.tar.gz',
+      'install-claude-code.sh',
+      'install-opencode.sh',
+      'install-all.sh',
+      'release-manifest.json',
+      'SHA256SUMS.txt',
+    ])
     expect(plan.checks.every((check) => check.ok)).toBe(true)
   })
 
@@ -126,5 +139,64 @@ describe('runPublish', () => {
     expect(result.ok).toBe(true)
     expect(result.execution?.npm?.ok).toBe(true)
     expect(calls.some((call) => call.command === 'npm' && call.args[0] === 'publish')).toBe(true)
+  })
+
+  it('packages consumer-facing release assets for github releases', () => {
+    const config = makeConfig()
+    prepareBuiltTarget('claude-code', { '.claude-plugin/plugin.json': JSON.stringify({ name: 'publish-plugin', version: '1.2.3' }) })
+    prepareBuiltTarget('opencode', {
+      'package.json': JSON.stringify({ name: '@orchid/publish-plugin-opencode' }),
+      'index.ts': 'export {}',
+    })
+
+    const calls: Array<{ command: string; args: string[]; cwd?: string }> = []
+    const result = runPublish(config, {
+      rootDir: ROOT,
+      requestedChannels: ['github-release'],
+      runCommand: (command, args, options) => {
+        calls.push({ command, args, cwd: options?.cwd })
+
+        if (command === 'tar') {
+          const proc = spawnSync(command, args, {
+            cwd: options?.cwd,
+            encoding: 'utf-8',
+          })
+          return {
+            status: proc.status,
+            stdout: proc.stdout ?? '',
+            stderr: proc.stderr ?? '',
+          }
+        }
+
+        if (command === 'git') return { status: 0, stdout: '', stderr: '' }
+        if (command === 'gh' && args[0] === 'auth') return { status: 0, stdout: '', stderr: '' }
+        if (command === 'gh' && args[0] === 'release' && args[1] === 'view') return { status: 1, stdout: '', stderr: 'missing' }
+        if (command === 'gh' && args[0] === 'release' && args[1] === 'create') return { status: 0, stdout: 'created', stderr: '' }
+        return { status: 0, stdout: '', stderr: '' }
+      },
+    })
+
+    expect(result.ok).toBe(true)
+    expect(result.execution?.githubRelease?.ok).toBe(true)
+
+    const ghCreateCall = calls.find((call) => call.command === 'gh' && call.args[0] === 'release' && call.args[1] === 'create')
+    expect(ghCreateCall).toBeDefined()
+
+    const uploadedAssetNames = (ghCreateCall?.args ?? [])
+      .filter((value) => value.startsWith('/') && !value.endsWith('.tmp'))
+      .map((value) => value.split('/').pop())
+      .filter(Boolean)
+
+    expect(uploadedAssetNames).toEqual(expect.arrayContaining([
+      'publish-plugin-claude-code-v1.2.3.tar.gz',
+      'publish-plugin-claude-code-latest.tar.gz',
+      'publish-plugin-opencode-v1.2.3.tar.gz',
+      'publish-plugin-opencode-latest.tar.gz',
+      'install-claude-code.sh',
+      'install-opencode.sh',
+      'install-all.sh',
+      'release-manifest.json',
+      'SHA256SUMS.txt',
+    ]))
   })
 })

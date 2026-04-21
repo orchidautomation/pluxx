@@ -60,3 +60,9 @@ export {
   type CompilerIntentSkillPolicy,
 } from './compiler-intent'
 export { formatPublishPlan, planPublish, runPublish, type PublishAssetPlan, type PublishCheck, type PublishPlan, type PublishPlanOptions, type PublishRunResult } from './cli/publish'
+export {
+  printVerifyInstallResult,
+  verifyInstall,
+  type VerifyInstallCheck,
+  type VerifyInstallResult,
+} from './cli/verify-install'

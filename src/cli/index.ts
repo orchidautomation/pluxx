@@ -75,6 +75,7 @@ import { createCliRuntime, createSpinner, printJson, readFlag, readMultiValueOpt
 import { printTestResult, runTestSuite, type TestRunResult } from './test'
 import { printEvalReport, runEvalSuite } from './eval'
 import { buildPrimitiveTranslationSummary, renderPrimitiveTranslationSummary } from './primitive-summary'
+import { printVerifyInstallResult, verifyInstall } from './verify-install'
 
 const args = process.argv.slice(2)
 const command = args[0]
@@ -245,6 +246,9 @@ export async function main() {
       break
     case 'install':
       await runInstall()
+      break
+    case 'verify-install':
+      await runVerifyInstall()
       break
     case 'publish':
       await runPublishCommand()
@@ -440,33 +444,26 @@ async function maybeInstallBuiltOutputs(
     })
   }
 
-  const verification = options.verifyConsumers && !runtime.dryRun
+  const verificationResult = options.verifyConsumers && !runtime.dryRun
+    ? await verifyInstall(config, {
+        rootDir: process.cwd(),
+        targets: platforms,
+        builtOnly: true,
+      })
+    : undefined
+  const verification = verificationResult
     ? {
-        ok: true,
-        checks: await Promise.all(
-          installPlan
-            .filter((target) => target.built)
-            .map(async (target) => {
-              const consumerPath = resolveInstalledConsumerPath(target, config.name)
-              const report = await doctorConsumer(consumerPath)
-              const ok = report.errors === 0
-
-              return {
-                platform: target.platform,
-                consumerPath,
-                ok,
-                errors: report.errors,
-                warnings: report.warnings,
-                infos: report.infos,
-              }
-            }),
-        ),
+        ok: verificationResult.ok,
+        checks: verificationResult.checks.map((check) => ({
+          platform: check.platform,
+          consumerPath: check.consumerPath,
+          ok: check.ok,
+          errors: check.errors,
+          warnings: check.warnings,
+          infos: check.infos,
+        })),
       }
     : undefined
-
-  if (verification) {
-    verification.ok = verification.checks.every((check) => check.ok)
-  }
 
   return {
     enabled: true,
@@ -3026,6 +3023,52 @@ async function runPublishCommand() {
   }
 }
 
+async function runVerifyInstall() {
+  const targets = parseTargetFlagValues(args)
+  const config = await loadConfig()
+
+  if (runtime.dryRun) {
+    const distDir = resolve(process.cwd(), config.outDir)
+    const plan = planInstallPlugin(distDir, config.name, targets ?? config.targets)
+    const summary = {
+      dryRun: true,
+      pluginName: config.name,
+      checks: plan.map((target) => ({
+        platform: target.platform,
+        installPath: target.pluginDir,
+        consumerPath: resolveInstalledConsumerPath(target, config.name),
+        built: target.built,
+        existing: target.existing,
+      })),
+    }
+
+    if (runtime.jsonOutput) {
+      printJson(summary)
+    } else if (!runtime.quiet) {
+      console.log(`Dry run: would verify installed ${config.name} targets`)
+      for (const check of summary.checks) {
+        console.log(`  ${check.platform} -> ${check.consumerPath}${check.built ? '' : ' (bundle not built locally)'}`)
+      }
+    }
+    return
+  }
+
+  const result = await verifyInstall(config, {
+    rootDir: process.cwd(),
+    targets,
+  })
+
+  if (runtime.jsonOutput) {
+    printJson(result)
+  } else if (!runtime.quiet) {
+    printVerifyInstallResult(result)
+  }
+
+  if (!result.ok) {
+    process.exit(1)
+  }
+}
+
 async function runUninstall() {
   const targets = parseTargetFlagValues(args)
 
@@ -3089,6 +3132,7 @@ Usage:
   pluxx test [--target <platforms...>] [--install]    Run config, lint, eval, build, and smoke checks
   pluxx eval                              Evaluate scaffold and prompt-pack quality
   pluxx install [--target <platforms>] [--trust]  Install built plugins for local testing
+  pluxx verify-install [--target <platforms>]    Inspect installed host-visible plugin state
   pluxx publish [--npm] [--github-release] [--dry-run] [--json] [--tag latest] [--version x.y.z]
   pluxx uninstall [--target <platforms>]  Remove symlinked plugins
   pluxx help                              Show this help
@@ -3148,6 +3192,7 @@ Examples:
   pluxx test --install                    Verify and install all configured targets locally
   pluxx install                           Install to all configured targets
   pluxx install --target claude-code      Install to Claude Code only
+  pluxx verify-install --target codex     Verify the installed Codex bundle in its native local path
   pluxx install --dry-run                 Preview local install paths and trust implications
   pluxx install --trust                   Install without hook trust confirmation
 `)
