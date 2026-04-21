@@ -105,6 +105,12 @@ Current state:
 Open work:
 
 - evaluate docs ingestion across real MCP fixtures
+- add an explicit ingestion-provider model:
+  - `auto`
+  - `firecrawl`
+  - `local`
+- make Firecrawl the preferred docs-ingestion provider when configured
+- keep a real OSS/local fallback based on local fetch + content extraction + html-to-markdown
 - decide the input contract for:
   - `pluxx init --from-mcp`
   - `pluxx autopilot`
