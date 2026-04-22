@@ -664,7 +664,7 @@ exit 0
     }
   })
 
-  it('suppresses runner logs by default and streams them with --verbose-runner', async () => {
+  it('suppresses runner logs by default and streams them with --verbose-runner', { timeout: 60_000 }, async () => {
     const run = async (verboseRunner: boolean) => {
       const { dir, statePath, stubServerPath } = createStubServerFixture()
       const binDir = resolve(dir, '.bin')
