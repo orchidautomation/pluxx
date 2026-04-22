@@ -294,4 +294,62 @@ describe('Plugin compiler bucket mapping', () => {
       'distribution',
     ])
   })
+
+  it('accepts keyed record maps for mcp, env, matcher, and platform override objects', () => {
+    const config = PluginConfigSchema.parse({
+      name: 'synabun',
+      description: 'Synabun plugin',
+      author: {
+        name: 'Orchid Labs',
+      },
+      skills: './skills/',
+      mcp: {
+        synabun: {
+          transport: 'stdio',
+          command: 'node',
+          args: ['server.js'],
+          env: {
+            SYNABUN_API_KEY: '${SYNABUN_API_KEY}',
+          },
+        },
+      },
+      hooks: {
+        preToolUse: [
+          {
+            command: 'echo gate',
+            matcher: {
+              tool: 'write_file',
+              path: 'src/**',
+            },
+          },
+        ],
+      },
+      platforms: {
+        'claude-code': {
+          skillDefaults: {
+            temperature: 0.2,
+          },
+        },
+        codex: {
+          interface: {
+            websiteURL: 'https://synabun.dev',
+          },
+        },
+      },
+      targets: ['codex', 'cursor'],
+    })
+
+    expect(config.mcp?.synabun.transport).toBe('stdio')
+    expect(config.mcp?.synabun.env?.SYNABUN_API_KEY).toBe('${SYNABUN_API_KEY}')
+    expect(config.hooks?.preToolUse?.[0]?.matcher).toEqual({
+      tool: 'write_file',
+      path: 'src/**',
+    })
+    expect(config.platforms?.['claude-code']?.skillDefaults).toEqual({
+      temperature: 0.2,
+    })
+    expect(config.platforms?.codex?.interface).toEqual({
+      websiteURL: 'https://synabun.dev',
+    })
+  })
 })

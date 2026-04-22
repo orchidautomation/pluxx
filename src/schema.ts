@@ -41,7 +41,7 @@ const McpServerHttpSchema = z.object({
   url: z.string().url(),
   command: z.never().optional(),
   args: z.array(z.string()).optional(),
-  env: z.record(z.string()).optional(),
+  env: z.record(z.string(), z.string()).optional(),
   auth: McpAuthSchema.optional(),
 }).strict()
 
@@ -50,7 +50,7 @@ const McpServerSseSchema = z.object({
   url: z.string().url(),
   command: z.never().optional(),
   args: z.array(z.string()).optional(),
-  env: z.record(z.string()).optional(),
+  env: z.record(z.string(), z.string()).optional(),
   auth: McpAuthSchema.optional(),
 }).strict()
 
@@ -59,7 +59,7 @@ const McpServerStdioSchema = z.object({
   command: z.string(),
   url: z.never().optional(),
   args: z.array(z.string()).optional(),
-  env: z.record(z.string()).optional(),
+  env: z.record(z.string(), z.string()).optional(),
   auth: McpAuthSchema.optional(),
 }).strict()
 
@@ -81,7 +81,7 @@ export const HookEntrySchema = z.object({
   prompt: z.string().optional(),
   model: z.string().optional(),
   timeout: z.number().optional(),
-  matcher: z.union([z.string(), z.record(z.unknown())]).optional(),
+  matcher: z.union([z.string(), z.record(z.string(), z.unknown())]).optional(),
   failClosed: z.boolean().optional(),
   loop_limit: z.number().nullable().optional(),
 }).superRefine((entry, ctx) => {
@@ -224,7 +224,7 @@ export const PermissionsSchema = z.object({
 // ── Platform Overrides ───────────────────────────────────────────
 
 export const ClaudeCodeOverridesSchema = z.object({
-  skillDefaults: z.record(z.unknown()).optional(),
+  skillDefaults: z.record(z.string(), z.unknown()).optional(),
   mcpAuth: z.enum(['inline', 'platform']).optional(),
 }).catchall(z.unknown())
 
@@ -239,7 +239,7 @@ export const CursorOverridesSchema = z.object({
 }).catchall(z.unknown())
 
 export const CodexOverridesSchema = z.object({
-  interface: z.record(z.unknown()).optional(),
+  interface: z.record(z.string(), z.unknown()).optional(),
 }).catchall(z.unknown())
 
 export const OpenCodeOverridesSchema = z.object({
@@ -281,7 +281,7 @@ export const PluginConfigSchema = z.object({
   instructions: z.string().optional(),
 
   // MCP servers
-  mcp: z.record(McpServerSchema).optional(),
+  mcp: z.record(z.string(), McpServerSchema).optional(),
 
   // Hooks
   hooks: HooksSchema.optional(),
