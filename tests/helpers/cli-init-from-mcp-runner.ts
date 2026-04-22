@@ -17,6 +17,7 @@ const MIGRATE_PATH = resolve(import.meta.dir, '../../src/cli/migrate.ts')
 const SYNC_PATH = resolve(import.meta.dir, '../../src/cli/sync-from-mcp.ts')
 const originalStdinIsTTY = process.stdin.isTTY
 const originalStdoutIsTTY = process.stdout.isTTY
+const originalCI = process.env.CI
 
 type Issue = {
   level: 'error' | 'warning'
@@ -277,6 +278,11 @@ afterEach(() => {
   process.chdir(originalCwd)
   Object.defineProperty(process.stdin, 'isTTY', { value: originalStdinIsTTY, configurable: true })
   Object.defineProperty(process.stdout, 'isTTY', { value: originalStdoutIsTTY, configurable: true })
+  if (originalCI === undefined) {
+    delete process.env.CI
+  } else {
+    process.env.CI = originalCI
+  }
   mock.restore()
 })
 
@@ -286,6 +292,7 @@ describe('isolated init --from-mcp CLI checks', () => {
 
     try {
       process.chdir(cwd)
+      process.env.CI = '0'
       Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true })
       Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true })
       process.argv = ['bun', 'pluxx', 'init', '--from-mcp', 'https://example.com/mcp']
@@ -312,6 +319,7 @@ describe('isolated init --from-mcp CLI checks', () => {
 
     try {
       process.chdir(cwd)
+      process.env.CI = '0'
       Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true })
       Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true })
       process.argv = ['bun', 'pluxx', 'init', '--from-mcp', 'https://example.com/mcp']
