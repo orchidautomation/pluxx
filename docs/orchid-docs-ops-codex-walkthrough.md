@@ -178,10 +178,18 @@ All commands below were run from:
 
 - `example/docs-ops`
 
+Public-friendly form:
+
+- `pluxx <command>`
+
+Repo-maintainer equivalent when you want to force the checked-out local CLI instead of a globally installed one:
+
+- `node ../../bin/pluxx.js <command>`
+
 ### 1. Check The Source Project
 
 ```bash
-node ../../bin/pluxx.js doctor
+pluxx doctor
 ```
 
 What this told us:
@@ -194,7 +202,7 @@ What this told us:
 ### 2. Lint The Cross-Host Surface
 
 ```bash
-node ../../bin/pluxx.js lint
+pluxx lint
 ```
 
 What this told us:
@@ -208,7 +216,7 @@ This is important because Pluxx should be truthful, not magical.
 ### 3. Build The Native Bundles
 
 ```bash
-node ../../bin/pluxx.js build
+pluxx build
 ```
 
 What this produced:
