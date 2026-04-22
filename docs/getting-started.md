@@ -23,6 +23,7 @@ Related docs:
 - [One-shot autopilot spec](./autopilot-spec.md)
 - [Homepage messaging](./homepage-messaging.md)
 - [PlayKit case study](./playkit-case-study.md)
+- [Orchid Docs Ops Codex walkthrough](./orchid-docs-ops-codex-walkthrough.md)
 
 ## Product Boundary
 

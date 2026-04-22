@@ -36,10 +36,11 @@ That means the flagship example is no longer only theoretical:
 - the core-four build passes
 - the Orchid Docsalot MCP endpoint initializes publicly with no API key
 - the public MCP surface is proven for read-side workflows
+- a real Orchid Accordion before/after rewrite artifact exists in `example/docs-ops/demo-rewrites/`
+- the generated plugin has been installed and used in Codex against the live Orchid surface
 
 The next gap is write-side proof:
 
-- a stronger before/after rewrite artifact
 - a separate authenticated publish path, if Orchid wants true write/publish demos
 
 ## Chosen Example

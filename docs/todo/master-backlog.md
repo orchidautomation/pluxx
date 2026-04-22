@@ -87,6 +87,11 @@ Open work:
 - [~] Keep the scaffold and live read-only Orchid proof in place:
   - `example/docs-ops`
   - `example/docs-ops/ORCHID-READONLY-DEMO.md`
+- [x] Capture one cleaner before/after rewrite artifact on a real Orchid docs page:
+  - `example/docs-ops/demo-rewrites/orchid-components-accordion.before.md`
+  - `example/docs-ops/demo-rewrites/orchid-components-accordion.after.md`
+- [x] Prove the generated plugin can be installed and used in Codex against the live Orchid Docsalot MCP:
+  - `docs/orchid-docs-ops-codex-walkthrough.md`
 - [ ] Exercise richer Claude skill surfaces where useful:
   - supporting files / references
   - scripts
@@ -98,7 +103,6 @@ Open work:
   - a regression fixture
   - a docs anchor
   - a sales proof asset
-- [ ] Capture one cleaner before/after rewrite artifact on a real Orchid docs page
 - [ ] Separate the public read-only Docsalot MCP proof from the private write/publish auth path
 - [ ] Document what is truly preserved vs translated vs degraded across the core four in this example
 

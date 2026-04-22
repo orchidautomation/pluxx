@@ -118,6 +118,8 @@ The repo already proves a lot.
 - the self-hosted Pluxx plugin exists as a real source project in `example/pluxx`
 - the repo-local Codex dogfood plugin exists in `plugins/pluxx`
 - the flagship `example/docs-ops` source project exists and is wired to a live public Orchid Docsalot MCP endpoint for read-only proof
+- the flagship example also has a concrete Orchid Accordion before/after rewrite artifact under `example/docs-ops/demo-rewrites/`
+- the flagship example has now been installed and used successfully in Codex against the live Orchid Docsalot MCP
 - docs/website ingestion has a provider model and writes deterministic artifacts:
   - `.pluxx/sources.json`
   - `.pluxx/docs-context.json`
@@ -182,6 +184,15 @@ See [docs/flagship-docs-ops-plugin.md](./flagship-docs-ops-plugin.md).
 The read-only Orchid Docsalot proof is documented in:
 
 - `example/docs-ops/ORCHID-READONLY-DEMO.md`
+
+The first concrete rewrite proof lives in:
+
+- `example/docs-ops/demo-rewrites/orchid-components-accordion.before.md`
+- `example/docs-ops/demo-rewrites/orchid-components-accordion.after.md`
+
+The full installed-plugin walkthrough lives in:
+
+- `docs/orchid-docs-ops-codex-walkthrough.md`
 
 ### 3. Docs Ingestion Proof
 

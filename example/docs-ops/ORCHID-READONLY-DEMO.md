@@ -89,6 +89,11 @@ Could be stronger:
 - make the icon support guidance less buried
 - consider a more product-shaped example title than `I am an Accordion.`
 
+Read-only proof artifact now captured at:
+
+- `demo-rewrites/orchid-components-accordion.before.md`
+- `demo-rewrites/orchid-components-accordion.after.md`
+
 ### Response Types page
 
 Strong already:
@@ -113,10 +118,46 @@ It shows:
 - one maintained source project can target a real Docsalot endpoint
 - no API key is needed for the public read-side workflow
 - the flagship example can inspect, list, and pull real pages today
-- the remaining gap is not "can we read docs?" but "how do we prove rewrite/publish workflows cleanly?"
+- the flagship example can also produce a concrete read-only before/after rewrite artifact on a real page
+- the flagship example can be installed into Codex and used against the live Orchid Docsalot MCP through the plugin surface
+- the remaining gap is no longer "can we read and rewrite?" but "how do we prove authenticated publish workflows cleanly?"
+
+## Codex Installed Plugin Proof
+
+The Codex path is now proven end to end.
+
+Install flow:
+
+```bash
+pluxx install --target codex --trust
+pluxx verify-install --target codex
+```
+
+Then, after adding the local plugin in the Codex UI, the plugin was used successfully with prompts like:
+
+```text
+Use [@docs-ops](plugin://docs-ops@local-plugins) to inspect the Orchid Docsalot surface and summarize the page at components/accordion in 3 bullets.
+```
+
+and:
+
+```text
+Use [@docs-ops](plugin://docs-ops@local-plugins) to rewrite the Orchid page at components/accordion so it has better examples and best practices, but keep it read-only.
+```
+
+That confirms:
+
+- the generated Codex bundle installs cleanly
+- the plugin appears natively in Codex
+- the plugin can call the live Orchid Docsalot MCP
+- the installed plugin produces useful inspect and rewrite output
+
+For the full story, see:
+
+- [docs/orchid-docs-ops-codex-walkthrough.md](../../docs/orchid-docs-ops-codex-walkthrough.md)
 
 ## Next Proof Steps
 
-1. capture one before/after rewrite artifact for an Orchid page
-2. decide whether that artifact should stay read-only in repo or become a true write/publish demo
-3. if true publish is desired, identify the separate authenticated write path outside the public MCP surface
+1. decide whether the Accordion rewrite should stay the canonical read-only proof or whether a second page should join it
+2. if a stronger publish proof is desired, identify the separate authenticated write path outside the public MCP surface
+3. test a true authoring or publish loop only after that write path is explicit

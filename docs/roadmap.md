@@ -80,7 +80,9 @@ The current status is stronger than a pure scaffold:
 
 - `example/docs-ops` exists
 - it is wired to Orchid's public Docsalot MCP endpoint for read-only proof
-- the next proof step is a real before/after rewrite asset plus a separate write/publish auth path
+- it now includes a concrete Orchid Accordion before/after rewrite artifact
+- it has now been installed and used in Codex through the local plugin surface
+- the next proof step is the separate write/publish auth path
 
 This is the strongest next proof surface for:
 

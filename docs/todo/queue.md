@@ -95,12 +95,16 @@ Open work:
 - treat the current scaffold and Orchid read-only proof as complete:
   - `example/docs-ops`
   - `example/docs-ops/ORCHID-READONLY-DEMO.md`
+- treat the first concrete rewrite proof as complete:
+  - `example/docs-ops/demo-rewrites/orchid-components-accordion.before.md`
+  - `example/docs-ops/demo-rewrites/orchid-components-accordion.after.md`
+- treat the installed Codex plugin proof as complete:
+  - `docs/orchid-docs-ops-codex-walkthrough.md`
 - explicitly cover richer Claude skill capabilities where useful:
   - supporting files / references
   - scripts
   - `context: fork`
   - more sophisticated skill behaviors
-- capture a stronger before/after rewrite proof on one Orchid page
 - identify the write/publish auth surface separately from the public Docsalot MCP read surface
 - use that reference plugin as:
   - a proof fixture

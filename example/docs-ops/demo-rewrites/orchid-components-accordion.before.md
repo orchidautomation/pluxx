@@ -1,0 +1,43 @@
+# Accordions
+
+> Source page: `https://orchid-docs.docsalot.dev/components/accordion`
+> Path: `components/accordion`
+> Mode: read-only proof artifact captured through the public Orchid Docsalot MCP
+
+Description: A dropdown component for toggling content
+
+<Accordion title="I am an Accordion.">
+  You can put any content in here. Check out
+  [AccordionGroup](/components/accordion-group) if you want to group multiple
+  Accordions into a single display.
+</Accordion>
+
+<RequestExample>
+  ```jsx Accordion Example
+  <Accordion title="I am an Accordion.">
+    You can put any content in here.
+  </Accordion>
+  ```
+</RequestExample>
+
+## Props
+
+<ResponseField name="title" type="string" required>
+  Title in the Accordion preview.
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Detail below the title in the Accordion preview.
+</ResponseField>
+
+<ResponseField name="defaultOpen" type="boolean" default="false">
+  Whether the Accordion is open by default.
+</ResponseField>
+
+<ResponseField name="icon" type="string or svg">
+  A [Font Awesome icon](https://fontawesome.com/icons) or SVG code in `icon={}`
+</ResponseField>
+
+<ResponseField name="iconType" type="string">
+  One of `regular`, `solid`, `light`, `thin`, `sharp-solid`, `duotone`, `brands`
+</ResponseField>
