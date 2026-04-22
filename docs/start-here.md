@@ -117,6 +117,7 @@ The repo already proves a lot.
 - `migrate`, `eval`, and `mcp proxy --record/--replay` are shipped
 - the self-hosted Pluxx plugin exists as a real source project in `example/pluxx`
 - the repo-local Codex dogfood plugin exists in `plugins/pluxx`
+- the flagship `example/docs-ops` source project exists and is wired to a live public Orchid Docsalot MCP endpoint for read-only proof
 - docs/website ingestion has a provider model and writes deterministic artifacts:
   - `.pluxx/sources.json`
   - `.pluxx/docs-context.json`
@@ -178,6 +179,10 @@ This should exercise advanced features like:
 
 See [docs/flagship-docs-ops-plugin.md](./flagship-docs-ops-plugin.md).
 
+The read-only Orchid Docsalot proof is documented in:
+
+- `example/docs-ops/ORCHID-READONLY-DEMO.md`
+
 ### 3. Docs Ingestion Proof
 
 Turn docs ingestion from “implemented” into “obviously useful.”
@@ -233,6 +238,7 @@ Use this map if you are trying to orient quickly.
   - canonical self-hosted Pluxx plugin source project
 - `example/docs-ops/`
   - flagship docs-ops source project scaffold for the rich host-depth example
+  - includes a live Orchid read-only Docsalot demo target
 - `plugins/pluxx/`
   - repo-local Codex dogfood plugin surface
 - `tests/`

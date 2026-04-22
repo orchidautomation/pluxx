@@ -23,13 +23,21 @@ It is intentionally richer than a thin MCP wrapper and is meant to prove:
 - `/publish-docs [scope]`
 - `/rollback-doc-change [page-or-release]`
 
+## Current Demo Target
+
+This example is currently wired to Orchid's public Docsalot MCP endpoint:
+
+- `https://orchid-docs.docsalot.dev/api/mcp`
+
+The public Orchid docs surface gives this flagship example a real read-only proof target.
+
+See:
+
+- `ORCHID-READONLY-DEMO.md`
+
 ## Important Setup Note
 
-This scaffold uses a placeholder Docsalot MCP endpoint:
-
-- `https://example-docs.docsalot.dev/api/mcp`
-
-Replace it with the real hosted endpoint for the docs site you want to operate against.
+If you want to operate against a different Docsalot surface, replace the configured endpoint with that site's hosted MCP URL.
 
 Docsalot's hosted MCP pattern is:
 

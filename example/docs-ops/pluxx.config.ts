@@ -40,7 +40,7 @@ export default definePlugin({
   mcp: {
     docsalot: {
       transport: 'http',
-      url: 'https://example-docs.docsalot.dev/api/mcp',
+      url: 'https://orchid-docs.docsalot.dev/api/mcp',
       auth: {
         type: 'none',
       },

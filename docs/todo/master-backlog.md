@@ -81,9 +81,12 @@ Goal:
 
 Open work:
 
-- [ ] Build the chosen flagship example from a single maintained source project:
+- [~] Build the chosen flagship example from a single maintained source project:
   - Docsalot-style `docs-ops`
 - [ ] Use [docs/flagship-docs-ops-plugin.md](../flagship-docs-ops-plugin.md) as the concrete build spec
+- [~] Keep the scaffold and live read-only Orchid proof in place:
+  - `example/docs-ops`
+  - `example/docs-ops/ORCHID-READONLY-DEMO.md`
 - [ ] Exercise richer Claude skill surfaces where useful:
   - supporting files / references
   - scripts
@@ -95,6 +98,8 @@ Open work:
   - a regression fixture
   - a docs anchor
   - a sales proof asset
+- [ ] Capture one cleaner before/after rewrite artifact on a real Orchid docs page
+- [ ] Separate the public read-only Docsalot MCP proof from the private write/publish auth path
 - [ ] Document what is truly preserved vs translated vs degraded across the core four in this example
 
 ### 3. Docs and website ingestion proof

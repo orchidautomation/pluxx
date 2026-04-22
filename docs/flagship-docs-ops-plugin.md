@@ -20,6 +20,28 @@ Last updated: 2026-04-22
 
 This doc turns the generic "maximal reference plugin" priority into one concrete build target.
 
+## Current Status
+
+The scaffold now exists in:
+
+- `example/docs-ops`
+
+And the read-only public Orchid validation lives in:
+
+- `example/docs-ops/ORCHID-READONLY-DEMO.md`
+
+That means the flagship example is no longer only theoretical:
+
+- the source project exists
+- the core-four build passes
+- the Orchid Docsalot MCP endpoint initializes publicly with no API key
+- the public MCP surface is proven for read-side workflows
+
+The next gap is write-side proof:
+
+- a stronger before/after rewrite artifact
+- a separate authenticated publish path, if Orchid wants true write/publish demos
+
 ## Chosen Example
 
 Build a Docsalot-style docs workflow plugin from one maintained Pluxx source project.

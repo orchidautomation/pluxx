@@ -76,6 +76,12 @@ The chosen first example is:
 
 Use [docs/flagship-docs-ops-plugin.md](./flagship-docs-ops-plugin.md) as the concrete spec.
 
+The current status is stronger than a pure scaffold:
+
+- `example/docs-ops` exists
+- it is wired to Orchid's public Docsalot MCP endpoint for read-only proof
+- the next proof step is a real before/after rewrite asset plus a separate write/publish auth path
+
 This is the strongest next proof surface for:
 
 - product credibility
