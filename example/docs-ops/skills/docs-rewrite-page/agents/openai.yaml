@@ -1,0 +1,4 @@
+interface:
+  display_name: "Rewrite Page"
+  short_description: "Rewrite one docs page with stronger product and setup clarity"
+  default_prompt: "Use Docs Ops to rewrite this page so it is clearer, more product-shaped, and more faithful to how the workflow actually works."

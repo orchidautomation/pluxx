@@ -1,0 +1,21 @@
+<svg width="1200" height="720" viewBox="0 0 1200 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="720" rx="28" fill="#0F172A"/>
+  <rect x="48" y="56" width="1104" height="608" rx="24" fill="#111827" stroke="#334155"/>
+  <text x="84" y="120" fill="#E2E8F0" font-family="Arial, sans-serif" font-size="36" font-weight="700">Docs Ops: validate before publish</text>
+  <rect x="94" y="216" width="242" height="268" rx="18" fill="#0B1220" stroke="#334155"/>
+  <text x="122" y="274" fill="#93C5FD" font-family="Arial, sans-serif" font-size="24" font-weight="700">review-doc-changes</text>
+  <rect x="394" y="216" width="214" height="268" rx="18" fill="#1E40AF"/>
+  <text x="430" y="274" fill="#EFF6FF" font-family="Arial, sans-serif" font-size="24" font-weight="700">checks</text>
+  <text x="430" y="318" fill="#DBEAFE" font-family="Arial, sans-serif" font-size="18">frontmatter</text>
+  <text x="430" y="350" fill="#DBEAFE" font-family="Arial, sans-serif" font-size="18">links</text>
+  <text x="430" y="382" fill="#DBEAFE" font-family="Arial, sans-serif" font-size="18">diff summary</text>
+  <rect x="666" y="216" width="214" height="268" rx="18" fill="#14532D"/>
+  <text x="704" y="274" fill="#DCFCE7" font-family="Arial, sans-serif" font-size="24" font-weight="700">publish-docs</text>
+  <text x="704" y="318" fill="#DCFCE7" font-family="Arial, sans-serif" font-size="18">changed-pages</text>
+  <rect x="938" y="216" width="168" height="268" rx="18" fill="#7F1D1D"/>
+  <text x="962" y="274" fill="#FEE2E2" font-family="Arial, sans-serif" font-size="24" font-weight="700">rollback</text>
+  <text x="962" y="318" fill="#FECACA" font-family="Arial, sans-serif" font-size="18">if needed</text>
+  <path d="M336 348H394" stroke="#60A5FA" stroke-width="8" stroke-linecap="round"/>
+  <path d="M608 348H666" stroke="#60A5FA" stroke-width="8" stroke-linecap="round"/>
+  <path d="M880 348H938" stroke="#60A5FA" stroke-width="8" stroke-linecap="round"/>
+</svg>

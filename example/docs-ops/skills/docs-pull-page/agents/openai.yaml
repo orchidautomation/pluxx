@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pull Doc Page"
+  short_description: "Pull one docs page or a very small focused set of pages"
+  default_prompt: "Use Docs Ops to pull the target doc page, keep the working set tight, and show me only the sections that matter."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Publish Docs"
+  short_description: "Run the checks and prepare a safe docs publish"
+  default_prompt: "Use Docs Ops to validate the docs changes, summarize the remaining risk, and only then prepare a safe publish."

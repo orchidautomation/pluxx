@@ -1,0 +1,4 @@
+interface:
+  display_name: "Rollback Docs"
+  short_description: "Prepare a safe rollback path for a docs change or publish"
+  default_prompt: "Use Docs Ops to plan the smallest safe rollback for this docs issue and call out any risks before changing anything."

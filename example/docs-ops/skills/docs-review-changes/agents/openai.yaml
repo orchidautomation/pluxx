@@ -1,0 +1,4 @@
+interface:
+  display_name: "Review Changes"
+  short_description: "Review docs edits critically before publish"
+  default_prompt: "Use Docs Ops to review these docs changes, return findings first, and tell me whether they are actually safe to publish."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Inspect Surface"
+  short_description: "Map the docs surface and find the right page before editing"
+  default_prompt: "Use Docs Ops to inspect this documentation surface, find the best page to change, and summarize the nearby pages that matter."

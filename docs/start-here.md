@@ -231,6 +231,8 @@ Use this map if you are trying to orient quickly.
   - CLI, config loading, generators, validation, compilation logic
 - `example/pluxx/`
   - canonical self-hosted Pluxx plugin source project
+- `example/docs-ops/`
+  - flagship docs-ops source project scaffold for the rich host-depth example
 - `plugins/pluxx/`
   - repo-local Codex dogfood plugin surface
 - `tests/`

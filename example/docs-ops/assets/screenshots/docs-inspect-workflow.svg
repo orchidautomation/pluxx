@@ -1,0 +1,22 @@
+<svg width="1200" height="720" viewBox="0 0 1200 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="720" rx="28" fill="#0F172A"/>
+  <rect x="48" y="56" width="1104" height="608" rx="24" fill="#111827" stroke="#334155"/>
+  <text x="84" y="120" fill="#E2E8F0" font-family="Arial, sans-serif" font-size="36" font-weight="700">Docs Ops: inspect the docs surface first</text>
+  <rect x="84" y="164" width="316" height="432" rx="18" fill="#0B1220" stroke="#334155"/>
+  <text x="110" y="214" fill="#93C5FD" font-family="Arial, sans-serif" font-size="24" font-weight="700">Surface map</text>
+  <text x="110" y="260" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="20">• list pages</text>
+  <text x="110" y="298" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="20">• search docs</text>
+  <text x="110" y="336" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="20">• find setup gaps</text>
+  <text x="110" y="374" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="20">• isolate target page</text>
+  <rect x="442" y="220" width="314" height="172" rx="18" fill="#1E3A8A"/>
+  <text x="472" y="278" fill="#EFF6FF" font-family="Arial, sans-serif" font-size="28" font-weight="700">pull-doc-page</text>
+  <text x="472" y="320" fill="#DBEAFE" font-family="Arial, sans-serif" font-size="20">focus the work before rewriting</text>
+  <path d="M400 304H442" stroke="#60A5FA" stroke-width="8" stroke-linecap="round"/>
+  <path d="M756 304H814" stroke="#60A5FA" stroke-width="8" stroke-linecap="round"/>
+  <rect x="814" y="164" width="302" height="432" rx="18" fill="#0B1220" stroke="#334155"/>
+  <text x="840" y="214" fill="#93C5FD" font-family="Arial, sans-serif" font-size="24" font-weight="700">Rich inputs</text>
+  <text x="840" y="260" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="20">• docs API notes</text>
+  <text x="840" y="298" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="20">• style guide</text>
+  <text x="840" y="336" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="20">• voice &amp; tone</text>
+  <text x="840" y="374" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="20">• examples</text>
+</svg>
