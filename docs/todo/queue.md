@@ -10,6 +10,7 @@ Last updated: 2026-04-22
   - [master-backlog.md](./master-backlog.md)
   - [docs/roadmap.md](../roadmap.md)
   - [docs/oss-wedge-and-trust-layer.md](../oss-wedge-and-trust-layer.md)
+  - [docs/flagship-docs-ops-plugin.md](../flagship-docs-ops-plugin.md)
   - [Linear](https://linear.app/orchid-automation)
 - Update together:
   - [docs/start-here.md](../start-here.md)
@@ -88,7 +89,9 @@ Goal:
 
 Open work:
 
-- build one maximal reference plugin that exercises advanced plugin and skill surfaces
+- build the chosen flagship example:
+  - a Docsalot-style `docs-ops` plugin from one maintained source project
+- use [docs/flagship-docs-ops-plugin.md](../flagship-docs-ops-plugin.md) as the concrete build spec
 - explicitly cover richer Claude skill capabilities where useful:
   - supporting files / references
   - scripts

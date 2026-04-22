@@ -10,6 +10,7 @@ Last updated: 2026-04-22
   - [docs/todo/queue.md](./todo/queue.md)
   - [docs/todo/master-backlog.md](./todo/master-backlog.md)
   - [docs/oss-wedge-and-trust-layer.md](./oss-wedge-and-trust-layer.md)
+  - [docs/flagship-docs-ops-plugin.md](./flagship-docs-ops-plugin.md)
   - [Linear](https://linear.app/orchid-automation)
 - Update together:
   - [docs/start-here.md](./start-here.md)
@@ -66,6 +67,14 @@ This includes:
 ### 2. Flagship reference plugin
 
 Build one maximal reference plugin that proves Pluxx handles rich native host depth, not just basic MCP wrappers.
+
+The chosen first example is:
+
+- a Docsalot-style `docs-ops` plugin
+- built from one maintained source project
+- used to prove supporting files, scripts, richer commands, reviewer/research patterns, and truthful cross-host translation
+
+Use [docs/flagship-docs-ops-plugin.md](./flagship-docs-ops-plugin.md) as the concrete spec.
 
 This is the strongest next proof surface for:
 

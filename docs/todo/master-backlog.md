@@ -21,6 +21,7 @@ This is not the same thing as the short queue.
   - [queue.md](./queue.md)
   - [docs/roadmap.md](../roadmap.md)
   - [docs/oss-wedge-and-trust-layer.md](../oss-wedge-and-trust-layer.md)
+  - [docs/flagship-docs-ops-plugin.md](../flagship-docs-ops-plugin.md)
   - [Linear](https://linear.app/orchid-automation)
 - Update together:
   - [docs/start-here.md](../start-here.md)
@@ -80,7 +81,9 @@ Goal:
 
 Open work:
 
-- [ ] Build one maximal reference plugin from a single maintained source project
+- [ ] Build the chosen flagship example from a single maintained source project:
+  - Docsalot-style `docs-ops`
+- [ ] Use [docs/flagship-docs-ops-plugin.md](../flagship-docs-ops-plugin.md) as the concrete build spec
 - [ ] Exercise richer Claude skill surfaces where useful:
   - supporting files / references
   - scripts

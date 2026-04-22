@@ -8,9 +8,10 @@ Last updated: 2026-04-22
 - Related:
   - [docs/todo/queue.md](./todo/queue.md)
   - [docs/todo/master-backlog.md](./todo/master-backlog.md)
-  - [docs/roadmap.md](./roadmap.md)
-  - [docs/oss-wedge-and-trust-layer.md](./oss-wedge-and-trust-layer.md)
-  - [README.md](../README.md)
+- [docs/roadmap.md](./roadmap.md)
+- [docs/oss-wedge-and-trust-layer.md](./oss-wedge-and-trust-layer.md)
+- [docs/flagship-docs-ops-plugin.md](./flagship-docs-ops-plugin.md)
+- [README.md](../README.md)
 - Update together:
   - [docs/todo/queue.md](./todo/queue.md)
   - [docs/todo/master-backlog.md](./todo/master-backlog.md)
@@ -162,6 +163,10 @@ That includes:
 
 Build one maximal reference plugin that proves Pluxx handles richer host surfaces, not just basic `SKILL.md` scaffolds.
 
+The chosen first flagship example is:
+
+- a Docsalot-style `docs-ops` plugin built from one maintained source project
+
 This should exercise advanced features like:
 
 - supporting files
@@ -170,6 +175,8 @@ This should exercise advanced features like:
 - advanced Claude skill behavior
 - hooks
 - richer agent/subagent patterns where the host allows them
+
+See [docs/flagship-docs-ops-plugin.md](./flagship-docs-ops-plugin.md).
 
 ### 3. Docs Ingestion Proof
 
