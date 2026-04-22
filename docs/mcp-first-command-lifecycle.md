@@ -22,6 +22,21 @@ This is the blunt answer to:
 
 > what commands do I run, in what order, and what does each one do?
 
+## Running Example
+
+This doc uses one fake company all the way through so the lifecycle is obvious:
+
+- company: `Northstar Support`
+- what they have today: a raw MCP
+- public MCP URL: `https://mcp.northstar-support.example/mcp`
+- private staging MCP URL: `https://staging-mcp.northstar-support.example/mcp`
+- local stdio package: `@northstar-support/mcp`
+- plugin they want to ship: `northstar-support`
+
+Think about the commands below as:
+
+> “Northstar Support already has an MCP. Now they want one maintained Pluxx source project that can ship native plugins to Claude Code, Cursor, Codex, and OpenCode.”
+
 ## First Rule
 
 If you are starting from a raw MCP, the first command is usually:
@@ -89,45 +104,52 @@ publish when the plugin is actually ready
 ## Step 0: Create A Project Folder
 
 ```bash
-mkdir my-plugin
-cd my-plugin
+mkdir northstar-support-plugin
+cd northstar-support-plugin
 ```
 
 You want an empty working directory before running the import.
+
+In this example, this folder becomes the long-term source of truth for the Northstar Support plugin.
 
 ## Step 1: Export Auth If The MCP Needs It
 
 Bearer example:
 
 ```bash
-export ACME_API_KEY='your_real_key'
+export NORTHSTAR_API_KEY='your_real_key'
 ```
 
 Custom header example:
 
 ```bash
-export ACME_API_KEY='your_real_key'
+export NORTHSTAR_API_KEY='your_real_key'
 ```
 
 If the MCP is public, skip this.
+
+For Northstar Support:
+
+- use no auth for the public production MCP
+- use `NORTHSTAR_API_KEY` when importing the private staging MCP
 
 ## Step 2: Import The MCP Into A Pluxx Source Project
 
 Public remote HTTP MCP:
 
 ```bash
-pluxx init --from-mcp https://example.com/mcp --yes
+pluxx init --from-mcp https://mcp.northstar-support.example/mcp --yes
 ```
 
 Remote MCP with explicit naming and targets:
 
 ```bash
 pluxx init \
-  --from-mcp https://example.com/mcp \
+  --from-mcp https://mcp.northstar-support.example/mcp \
   --yes \
-  --name acme \
-  --display-name "Acme" \
-  --author "Acme" \
+  --name northstar-support \
+  --display-name "Northstar Support" \
+  --author "Northstar Support" \
   --targets claude-code,cursor,codex,opencode \
   --grouping workflow \
   --hooks safe
@@ -137,9 +159,9 @@ Remote bearer auth:
 
 ```bash
 pluxx init \
-  --from-mcp https://example.com/mcp \
+  --from-mcp https://staging-mcp.northstar-support.example/mcp \
   --yes \
-  --auth-env ACME_API_KEY \
+  --auth-env NORTHSTAR_API_KEY \
   --auth-type bearer
 ```
 
@@ -147,9 +169,9 @@ Remote custom-header auth:
 
 ```bash
 pluxx init \
-  --from-mcp https://example.com/mcp \
+  --from-mcp https://staging-mcp.northstar-support.example/mcp \
   --yes \
-  --auth-env ACME_API_KEY \
+  --auth-env NORTHSTAR_API_KEY \
   --auth-type header \
   --auth-header X-API-Key \
   --auth-template '${value}'
@@ -159,7 +181,7 @@ Local stdio MCP:
 
 ```bash
 pluxx init \
-  --from-mcp "npx -y -p @acme/mcp acme-mcp" \
+  --from-mcp "npx -y -p @northstar-support/mcp northstar-support-mcp" \
   --yes
 ```
 
@@ -171,10 +193,12 @@ What `init --from-mcp` does:
 - generates initial `skills/`
 - writes `.pluxx/mcp.json` so the source project can sync later
 
+For Northstar Support, this is the command that turns “we have an MCP” into “we now have a real plugin source project.”
+
 If you only want to preview what would happen:
 
 ```bash
-pluxx init --from-mcp https://example.com/mcp --yes --dry-run --json
+pluxx init --from-mcp https://mcp.northstar-support.example/mcp --yes --dry-run --json
 ```
 
 ## Step 3: Validate The Basic Shape
@@ -190,6 +214,8 @@ What `validate` does:
 - confirms the expected top-level structure is recognized
 
 Use it first because it is cheap.
+
+For Northstar Support, this is the quick “did the import create a valid Pluxx project at all?” check.
 
 ## Step 4: Run Doctor
 
@@ -208,6 +234,8 @@ What `doctor` does:
 
 If `validate` says "the config loads," `doctor` says "this project is healthy enough to proceed."
 
+For Northstar Support, this is where you catch auth wiring mistakes, missing paths, or bad scaffold assumptions before refining anything.
+
 ## Step 5: Lint The Cross-Host Surface
 
 ```bash
@@ -222,6 +250,10 @@ What `lint` does:
 - surfaces problems before `build`
 
 This is where you find out if the source project is asking for features one host does not support cleanly.
+
+For Northstar Support, this is the first real answer to:
+
+> “Can this one source project ship cleanly across the core four, or is it still too host-specific?”
 
 ## Step 6: Build The Native Outputs
 
@@ -260,6 +292,8 @@ Preview only:
 pluxx build --dry-run
 ```
 
+For Northstar Support, this is the exact moment where one source project becomes four native output bundles.
+
 ## Step 7: Install One Host First
 
 Do not try to validate every host at once first.
@@ -295,6 +329,8 @@ What `install` does:
 - installs or symlinks the built bundle into the host’s local plugin path
 - updates marketplace/local catalog state where the host needs it
 
+For Northstar Support, this is where the plugin stops being “just generated files” and becomes something a real Codex user can install.
+
 ## Step 8: Verify The Installed Host State
 
 ```bash
@@ -313,6 +349,11 @@ This is different from `build`.
 
 `verify-install` says the host can actually see the installed shape you intended.
 
+For Northstar Support, this is the difference between:
+
+- “we produced a Codex bundle”
+- “Codex can actually consume the installed Northstar Support plugin”
+
 ## Step 9: Use The Plugin In The Host
 
 Restart or reload the host if needed, then actually use the installed plugin.
@@ -325,6 +366,14 @@ This is where you find out:
 - whether the install is only technically valid or actually usable
 
 This step is not optional if you care about product quality.
+
+In the Northstar Support example, this is where you would open Codex and try a prompt like:
+
+```text
+Use Northstar Support to inspect our support docs and tell me which workflow a support engineer should use first.
+```
+
+That is the real product moment. If the plugin does not feel native here, the rest of the lifecycle is not enough.
 
 ## Step 10: Run The Broader Verification Contract
 
@@ -345,6 +394,8 @@ What `test` does:
 
 This is what should end up in CI.
 
+For Northstar Support, this is the command that moves the project from “works locally” to “safe enough to keep shipping.”
+
 ## Step 11: Sync Later When The MCP Changes
 
 If the plugin came from an MCP, this is the long-term maintenance move:
@@ -356,7 +407,7 @@ pluxx sync
 Or repoint explicitly:
 
 ```bash
-pluxx sync --from-mcp https://example.com/mcp
+pluxx sync --from-mcp https://mcp.northstar-support.example/mcp
 ```
 
 Preview first:
@@ -371,6 +422,8 @@ What `sync` does:
 - preserves custom blocks
 - keeps one maintained source project aligned with the evolving MCP
 
+For Northstar Support, this is what you run after the MCP team ships new tools, updated descriptions, or cleaner schemas.
+
 ## Step 12: Publish When The Plugin Is Actually Ready
 
 ```bash
@@ -384,6 +437,8 @@ What `publish` does:
 - checks release readiness
 - prepares npm and GitHub release surfaces
 
+For Northstar Support, this is where the plugin becomes something teammates or customers can install from a release instead of only from a local checkout.
+
 Do this after:
 
 - the source project is healthy
@@ -396,7 +451,7 @@ Do this after:
 If you want the shortest correct MCP-first path:
 
 ```bash
-pluxx init --from-mcp https://example.com/mcp --yes
+pluxx init --from-mcp https://mcp.northstar-support.example/mcp --yes
 pluxx validate
 pluxx doctor
 pluxx lint
@@ -417,7 +472,7 @@ Then:
 `autopilot` is the shortcut when you want import + refinement + verification in one command:
 
 ```bash
-pluxx autopilot --from-mcp https://example.com/mcp --runner codex --yes
+pluxx autopilot --from-mcp https://mcp.northstar-support.example/mcp --runner codex --yes
 ```
 
 It is useful.
