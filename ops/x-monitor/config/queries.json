@@ -1,41 +1,59 @@
 {
-  "discoveryActor": "scraperx/x-twitter-posts-search",
-  "fallbackDiscoveryActor": "apidojo/tweet-scraper",
+  "discoveryActor": "apidojo/tweet-scraper",
+  "optionalDiscoveryUpgradeActor": "scraperx/x-twitter-posts-search",
   "authorHydrationActor": "apidojo/twitter-profile-scraper",
   "queries": [
     {
       "name": "official_mcp_launches",
-      "query": "(\"MCP\" OR \"mcp server\" OR \"Model Context Protocol\") (launch OR launched OR shipping OR shipped OR released OR \"now live\" OR beta OR GA OR \"public beta\" OR \"private beta\") (official OR company OR startup OR team OR founder OR product) -filter:replies"
+      "query": "(\"MCP\" OR \"mcp server\" OR \"Model Context Protocol\") (launch OR launched OR shipping OR shipped OR released OR \"now live\" OR beta OR GA OR \"public beta\") (official OR company OR startup OR team OR founder OR product) (site: OR github OR npm OR docs OR API) -filter:replies"
+    },
+    {
+      "name": "mcp_product_launches",
+      "query": "(\"MCP\" OR \"mcp server\") (launch OR launched OR released OR shipping OR shipped OR \"now live\") (company OR startup OR founder OR product) (github OR docs OR API OR \"try it\") -filter:replies"
     },
     {
       "name": "claude_code_plugin_launches",
-      "query": "(\"Claude Code\" OR \"Anthropic marketplace\" OR \"/plugin install\" OR \"/plugin marketplace\") (plugin OR extension) (launch OR launched OR shipped OR released OR \"now live\" OR beta) -filter:replies"
+      "query": "(\"Claude Code\" OR claudecode) (plugin OR skill OR skills OR marketplace) (launch OR launched OR shipped OR released OR available OR \"now live\") (company OR startup OR founder OR product OR team) -filter:replies"
+    },
+    {
+      "name": "claude_code_plugin_official_accounts",
+      "query": "(\"Claude Code\" plugin OR \"Claude Code\" skill OR \"Claude Code\" marketplace) (official OR company OR startup OR founder OR product) (github OR docs OR install OR \"Anthropic marketplace\") -filter:replies"
     },
     {
       "name": "cross_host_launches",
-      "query": "(\"MCP\" OR plugin) (Claude OR Cursor OR Codex OR ChatGPT OR OpenCode OR Windsurf OR VSCode) (launch OR launched OR shipped OR \"now live\" OR available) -filter:replies"
+      "query": "(\"MCP\" OR plugin OR extension) (Claude Code OR Cursor OR Codex OR OpenCode OR Gemini OR Copilot) (launch OR launched OR shipped OR released OR available) -filter:replies"
     },
     {
       "name": "one_host_first_launches",
-      "query": "(\"MCP\" OR plugin) (Cursor OR Codex OR \"Claude Code\" OR Claude Desktop) (\"now live\" OR launched OR shipped OR released) -filter:replies"
+      "query": "(\"MCP\" OR plugin) (Cursor OR Codex OR \"Claude Code\" OR Claude Desktop) (\"now live\" OR launched OR shipped OR released) (founder OR startup OR company OR product) -filter:replies"
+    },
+    {
+      "name": "plugin_portability_and_packaging",
+      "query": "(plugin OR skills OR extension OR MCP) (Claude Code OR Cursor OR Codex OR OpenCode) (packaging OR portability OR install OR auth OR manifest OR hooks OR sync OR rollout) -filter:replies"
     },
     {
       "name": "mcp_distribution_and_growth",
-      "query": "(\"MCP\" OR \"mcp server\") (distribution OR grow OR adoption OR customers OR users OR pricing OR monetize OR monetization OR GTM OR revenue) -filter:replies"
+      "query": "(\"MCP\" OR \"mcp server\" OR plugin) (distribution OR adoption OR customers OR users OR pricing OR monetize OR monetization OR GTM OR revenue) (founder OR startup OR team OR company) -filter:replies"
     },
     {
       "name": "platform_rollout_and_auth",
-      "query": "(\"MCP\" OR plugin OR agent) (auth OR OAuth OR rollout OR governance OR policy OR gateway OR manifest OR install OR packaging OR hooks OR portability) (Claude OR Cursor OR Codex OR enterprise OR platform) -filter:replies"
-    },
-    {
-      "name": "npm_github_producthunt_releases",
-      "query": "(\"MCP\" OR plugin) (npm OR GitHub OR \"Product Hunt\") (launch OR launched OR shipped OR released OR \"now live\") -filter:replies"
+      "query": "(\"MCP\" OR plugin OR agent) (auth OR OAuth OR rollout OR governance OR policy OR install OR packaging OR hooks OR portability) (Claude OR Cursor OR Codex OR enterprise OR platform) -filter:replies"
     }
   ],
   "defaults": {
     "language": "en",
-    "maxResultsPerQuery": 50,
-    "lookbackMinutes": 90,
+    "maxResultsPerQuery": 45,
+    "lookbackMinutes": 360,
     "replyDraftsPerLead": 2
+  },
+  "qualityBar": {
+    "requireCompanySignal": true,
+    "requireWebsiteOrDomainForHighFit": true,
+    "discardPersonalAccountsWithoutCompanyContext": true,
+    "discardAggregatorsAndRoundups": true,
+    "allowedFitScores": ["High", "Medium"],
+    "targetSignalsPerDay": 25,
+    "stretchSignalsPerDay": 50,
+    "maxLeadsPerRun": 8
   }
 }
