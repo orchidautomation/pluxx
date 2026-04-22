@@ -219,6 +219,31 @@ This is important because Pluxx should be truthful, not magical.
 pluxx build
 ```
 
+Why there is no explicit `--target` here:
+
+- `pluxx build` uses the targets already declared in `pluxx.config.ts`
+- in this example, those targets are:
+  - `claude-code`
+  - `cursor`
+  - `codex`
+  - `opencode`
+
+So `pluxx build` means:
+
+> build every configured target for this source project
+
+If you only want one host during development, use:
+
+```bash
+pluxx build --target codex
+```
+
+Or a smaller subset:
+
+```bash
+pluxx build --target claude-code cursor
+```
+
 What this produced:
 
 - `dist/claude-code/`
@@ -505,12 +530,64 @@ What `publish` is for:
 - install scripts
 - npm/GitHub release readiness checks
 
+Today, `publish` can generate installer assets such as:
+
+- `install-claude-code.sh`
+- `install-cursor.sh`
+- `install-codex.sh`
+- `install-opencode.sh`
+- `install-all.sh`
+- release manifest and checksums
+
 It belongs at the end of the lifecycle, after:
 
 - the source project is healthy
 - the outputs build
 - at least one host install is proven
 - the plugin is actually worth releasing
+
+## Do We Already Have One-Click Global Install Links?
+
+Not fully, and not yet as one polished universal product surface.
+
+### What Exists Today
+
+- local global-ish install works through:
+
+```bash
+pluxx install --target codex
+```
+
+- `publish` can generate host-specific installer scripts plus `install-all.sh`
+- Codex and Claude already have marketplace-oriented local install paths
+- the generated plugin metadata is rich enough to look native inside the host UI
+
+### What Does Not Exist Yet
+
+- one single public "click this once and install everywhere" flow across all hosts
+- one canonical hosted install page that abstracts every host equally well
+- a fully polished one-click global install UX on the public docs/site
+
+That is partly because the hosts are genuinely different:
+
+- some want marketplace registration
+- some want local plugin install flows
+- some want shell installer scripts
+- some expose richer native distribution surfaces than others
+
+So the honest answer today is:
+
+```text
+one source project
+    ->
+many installable outputs
+
+but not yet
+    ->
+one universal hosted install button for every host
+```
+
+That install/distribution layer is real product work still in front of us.
 
 ## What Codex Looked Like After Install
 
