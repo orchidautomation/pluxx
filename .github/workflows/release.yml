@@ -56,8 +56,6 @@ jobs:
         run: node scripts/verify-node-package-runtime.mjs --package-file "${{ steps.pack.outputs.package_file }}"
 
       - name: Publish to npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --provenance --access public
 
       - name: Create GitHub release
