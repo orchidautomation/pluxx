@@ -1,179 +1,164 @@
 # Roadmap
 
-Last updated: 2026-04-17
+Last updated: 2026-04-22
+
+## Doc Links
+
+- Role: execution direction
+- Related:
+  - [docs/start-here.md](./start-here.md)
+  - [docs/todo/queue.md](./todo/queue.md)
+  - [docs/todo/master-backlog.md](./todo/master-backlog.md)
+  - [docs/oss-wedge-and-trust-layer.md](./oss-wedge-and-trust-layer.md)
+  - [Linear](https://linear.app/orchid-automation)
+- Update together:
+  - [docs/start-here.md](./start-here.md)
+  - [docs/todo/queue.md](./todo/queue.md)
+  - [docs/todo/master-backlog.md](./todo/master-backlog.md)
 
 This doc is direction, not the day-to-day execution queue.
 
-For the live operational queue, use [TODO](../TODO.md).
+If you are new to the repo, read [start-here.md](./start-here.md) first.
+For the live operational queue, use [docs/todo/queue.md](./todo/queue.md).
+For the broadest repo-native backlog, use [docs/todo/master-backlog.md](./todo/master-backlog.md).
 For the product strategy behind this roadmap, use [OSS wedge and trust layer](./oss-wedge-and-trust-layer.md).
 
 ## Product Frame
 
-Pluxx now has two distinct layers:
+Pluxx has two layers:
 
 1. an OSS authoring substrate
-2. a later operated trust layer
+2. a later trust / distribution layer
 
-The current build priority is the OSS substrate.
+The current build center is the OSS authoring substrate.
 
-That means:
+That means Pluxx should become excellent at:
 
 - import
 - scaffold
 - refine
 - lint
 - doctor
-- test
+- eval
 - build
+- test
 - install
 - sync
 
-must become excellent for real MCP vendors and plugin authors before Pluxx spends serious energy on a hosted control plane.
+before it spends serious energy on an operated control plane.
 
-## Shipped Foundation
+## Current Priority Order
 
-The core product-contract layer is already in place:
+### 1. Product clarity and source-of-truth coherence
 
-- `PLUXX-50` publish / npm / GitHub release flow
-- `PLUXX-113` canonical `userConfig`
-- `PLUXX-114` canonical permissions
-- `PLUXX-115` build-time cap validation
+Make the repo front door and planning surfaces tell the same story.
 
-The first real MCP dogfood-quality batch is also landed:
+This includes:
 
-- `PLUXX-125` product-brand baseline and launch asset system
-- `PLUXX-126` Claude command-first slash UX without losing semantic skills
-- `PLUXX-127` saved agent-pack freshness after taxonomy rerenders
-- `PLUXX-128` better deterministic scaffold metadata and branding defaults
-- `PLUXX-129` better generated examples and command blurbs
-- `PLUXX-130` better autopilot prompt quality and regression coverage
+- start-here
+- queue
+- master backlog
+- roadmap
+- README
+- site hero and metadata
+- Linear
 
-So the remaining question is not whether Pluxx is mechanically credible.
+### 2. Flagship reference plugin
 
-The remaining question is whether Pluxx can become the default OSS substrate for real cross-host plugin authoring.
+Build one maximal reference plugin that proves Pluxx handles rich native host depth, not just basic MCP wrappers.
 
-## Active Direction
+This is the strongest next proof surface for:
 
-### `PLUXX-79` Core + Agent Coherence
+- product credibility
+- docs
+- demos
+- regression fixtures
+- outbound proof
 
-- status: `In Progress`
-- role: umbrella
-- job:
-  - keep the deterministic Core layer and semantic Agent layer coherent
-  - prevent MCP-derived scaffolds from feeling generic or stale
+### 3. Docs and website ingestion proof
 
-### `PLUXX-61` Import Beyond `tools/list`
+Turn docs ingestion from “implemented” into “obviously useful.”
 
-- role: umbrella
-- child issues:
-  - `PLUXX-67` scaffold from MCP resources and resource templates
-  - `PLUXX-68` scaffold prompt-aware plugin content from MCP prompt templates
-- goal:
-  - make generated plugins reflect more than tool metadata
+The current focus is:
 
-### `PLUXX-62` Auth And Discovery Depth
+- real Firecrawl comparison
+- live before/after demo
+- better extracted signal quality
 
-- role: umbrella
-- child issues:
-  - `PLUXX-43` OAuth 2.1 auth type to schema and generators
-  - `PLUXX-69` richer MCP auth discovery and OAuth-ready scaffold support
-- goal:
-  - make auth/import behavior more truthful for real remote MCPs
+### 4. Release-grade Pluxx plugin
 
-## Next OSS Leverage Bets
+Make the self-hosted Pluxx plugin feel polished, real, and easy to install.
 
-These are the highest-signal new bets after the current discovery/auth work:
+The plugin should stay thin.
+The CLI should stay the execution engine.
 
-### `PLUXX-132` First-Class Evals
+### 5. Customer discovery and GTM learning
 
-Goal:
+Run two learning lanes in parallel:
 
-- turn scaffold and autopilot quality into measurable regression tests
+- MCP vendors
+- internal AI platform / DevEx teams
 
-Why it matters:
+This is for learning and proof, not for prematurely building the full trust layer.
 
-- prompt quality is now a product surface
-- Agent Mode needs more than "looks good" review loops
+### 6. Next release
 
-Current baseline:
+Ship the next npm cut after the story, plugin, and proof surfaces are coherent enough to ship together.
 
-- shipped via `pluxx eval`
-- included in `pluxx test`
-- checks deterministic scaffold surfaces plus taxonomy/instructions/review prompt-pack contracts
+## What This Roadmap Is Optimizing For
 
-### `PLUXX-131` `pluxx migrate`
+The near-term question is no longer whether Pluxx is mechanically credible.
 
-Goal:
+The near-term question is whether Pluxx can become the default way to maintain one plugin source project and ship native outputs across the core four.
 
-- import an existing host-native plugin into a Pluxx source project
+## Next OSS Leverage After The Current Block
 
-Why it matters:
+These matter, but they are not the immediate center:
 
-- this is the cleanest adoption unlock left in the product
+### Import and discovery depth
 
-Current baseline:
+- import beyond plain `tools/list`
+- better use of MCP resources and resource templates
+- more product-shaped imported scaffolds
 
-- shipped via `pluxx migrate`
-- synthesizes `.pluxx/taxonomy.json` and `.pluxx/mcp.json` for migrated projects so Agent Mode and `pluxx eval` still work
+### Auth depth
 
-### `PLUXX-133` MCP Dev Proxy With Record/Replay
+- more truthful remote MCP auth handling
+- OAuth-ready scaffold support
+- clearer auth hints and validation
 
-Goal:
+### Eval and regression confidence
 
-- create a deterministic local dev and CI loop for MCP-backed plugins
+- stronger `pluxx eval` coverage
+- more stable fixtures around prompt-pack quality
+- reference-plugin and docs-ingestion fixtures
 
-Why it matters:
+### Migration and sync depth
 
-- real MCP integrations are flaky enough that record/replay is now leverage, not polish
+- stronger `pluxx migrate`
+- safer `pluxx sync`
+- clearer change visibility after sync
 
-Current baseline:
+### Compatibility truthfulness
 
-- shipped via `pluxx mcp proxy --from-mcp <source> --record <tape.json>`
-- replayed via `pluxx mcp proxy --replay <tape.json>` for deterministic stdio MCP sessions
+- keep the core-four matrix current
+- keep preserve/translate/degrade/drop visible
+- do not imply equal support where the repo cannot prove it
 
-### `PLUXX-134` Consumer-Side `pluxx doctor`
+## Strategic Horizon: Trust / Distribution Layer
 
-Goal:
-
-- help installed-plugin users diagnose auth, env, and host wiring issues
-
-Why it matters:
-
-- current `doctor` is author-first
-- real support load eventually lands on installed plugin health
-
-Current baseline:
-
-- shipped via `pluxx doctor --consumer`
-- validates built or installed platform bundles directly instead of requiring a source project
-
-## Parallel Track: Brand / Launch Follow-Through
-
-### `PLUXX-125` Product Branding + Launch Asset System
-
-- shipped baseline:
-  - canonical brand direction
-  - launch-asset checklist
-- proof/demo pack:
-  - [first proof and demo asset pack](./first-proof-demo-asset-pack.md)
-- likely follow-on work:
-  - docs/site alignment
-  - screenshots and marketplace-facing media
-  - npm / GitHub / site message coherence
-
-## Strategic Horizon: Operated Trust Layer
-
-This is the later layer Pluxx may grow into, but it is not the current execution queue.
+This is strategically important, but it is not the current execution queue.
 
 Potential surfaces:
 
-- verified multi-host distribution
+- organization-wide rollout
+- managed distribution
 - signing / provenance / attestations
-- canary checks against real MCPs
 - compatibility verification artifacts
 - runtime health and adoption visibility
+- approval and policy controls
 
-This layer matters strategically because it is the most plausible paid / operated extension of the OSS wedge.
+This is the clearest plausible paid extension of the OSS wedge.
 
 But Pluxx should earn the right to build it by first becoming the best OSS authoring substrate.
 
@@ -183,32 +168,10 @@ These may become important later, but they should not drive the roadmap now:
 
 - plugin marketplace / commerce
 - private registry complexity beyond initial design
-- cross-plugin dependency management
 - skill-pack economy bets
 - deep enterprise governance before real demand exists
+- trying to support every host equally
 
-## Separate Track: Validation / Sandbox Issues
+## Linear Note
 
-These remain real, but they are not the main product roadmap:
-
-- `PLUXX-100`
-- `PLUXX-108`
-- `PLUXX-109`
-- `PLUXX-110`
-- `PLUXX-111`
-- `PLUXX-112`
-
-Treat them as validation / linear-swarm work, not as the core Pluxx direction.
-
-## If You Only Want The Next Sequence
-
-Do this in order:
-
-1. `PLUXX-79`
-2. `PLUXX-116`
-
-That sequence keeps Pluxx focused on:
-
-- deeper agent/autopilot use of the richer MCP surfaces already shipped
-- turning the shipped deterministic development baseline into a more polished author workflow
-- continued docs/site clarity while the OSS wedge hardens
+Use [Linear](https://linear.app/orchid-automation) for issue-by-issue sequencing, ownership, and project-level detail.

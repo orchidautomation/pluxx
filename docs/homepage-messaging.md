@@ -2,9 +2,23 @@
 
 This is the working homepage copy for Pluxx. It is intentionally concise and structured so it can drive the site, README positioning, and launch assets without diverging.
 
+## Doc Links
+
+- Role: homepage and hero messaging source
+- Related:
+  - [README.md](../README.md)
+  - [docs/start-here.md](./start-here.md)
+  - [apps/web/app/page.tsx](../apps/web/app/page.tsx)
+  - [apps/web/app/layout.tsx](../apps/web/app/layout.tsx)
+  - [apps/web/app/opengraph-image.tsx](../apps/web/app/opengraph-image.tsx)
+- Update together:
+  - [README.md](../README.md)
+  - [apps/web/app/page.tsx](../apps/web/app/page.tsx)
+  - [apps/web/app/layout.tsx](../apps/web/app/layout.tsx)
+
 ## Positioning
 
-Pluxx gives you one maintained plugin source project for Claude Code, Codex, Cursor, and OpenCode.
+Pluxx gives you one maintained plugin source project that ships native plugins for Claude Code, Codex, Cursor, and OpenCode.
 
 The important product promise is:
 
@@ -17,11 +31,11 @@ The important product promise is:
 
 ### Headline
 
-Build once. Ship native plugins everywhere.
+Maintain one plugin source. Ship fully native experiences.
 
 ### Subheadline
 
-Turn one MCP or source project into native plugins for Claude Code, Cursor, Codex, and OpenCode. Pluxx generates the scaffold, host-specific files, and managed guardrails up front so your coding agent can safely refine taxonomy and instructions.
+Pluxx turns one maintained source project into native plugins for Claude Code, Cursor, Codex, and OpenCode, so you do not rebuild the same workflow four times. Pluxx generates the scaffold, host-specific files, and managed guardrails up front so your coding agent can safely refine taxonomy and instructions.
 
 ### Primary CTA
 

@@ -2,11 +2,23 @@
 
 Last updated: 2026-04-17
 
+## Doc Links
+
+- Role: product framing
+- Related:
+  - [docs/start-here.md](./start-here.md)
+  - [docs/todo/queue.md](./todo/queue.md)
+  - [docs/todo/master-backlog.md](./todo/master-backlog.md)
+  - [docs/roadmap.md](./roadmap.md)
+- Update together:
+  - [docs/start-here.md](./start-here.md)
+  - [docs/roadmap.md](./roadmap.md)
+
 This doc explains the current strategic direction for Pluxx.
 
 It is intentionally simpler than the full roadmap:
 
-- [TODO](../TODO.md) is the live queue
+- [docs/todo/queue.md](./todo/queue.md) is the live queue
 - [Roadmap](./roadmap.md) is the execution direction
 - this doc is the product framing behind both
 

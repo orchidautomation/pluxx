@@ -82,7 +82,7 @@ export default function OpenGraphImage() {
               textTransform: "uppercase",
             }}
           >
-            One MCP. Four native plugin surfaces.
+            One source project. Four native plugin surfaces.
           </div>
           <div
             style={{

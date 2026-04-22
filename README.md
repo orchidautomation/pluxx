@@ -1,11 +1,14 @@
 # pluxx
 
-**The cross-host compiler for MCP-backed plugins.**
+**Maintain one plugin source. Ship fully native experiences to Claude Code, Cursor, Codex, and OpenCode.**
 
-Import a raw MCP or an existing host-native plugin, keep one maintained source project, and compile native outputs for **Claude Code, Cursor, Codex, and OpenCode**.
+Import a raw MCP or an existing host-native plugin, keep one maintained source project, and compile native outputs for **Claude Code, Cursor, Codex, and OpenCode** instead of maintaining four separate plugin codebases.
 
-Pluxx is the authoring, maintenance, and compilation layer for MCP teams that want one source of truth instead of separate per-host plugin repos.
+Pluxx is the authoring, maintenance, and compilation layer for teams that want one source of truth instead of four drifting per-host plugin repos.
 
+Raw MCP access is usually not enough. Most products still need workflow grouping, stronger instructions, hooks, commands, auth/setup guidance, and honest host-native packaging. Pluxx is the layer that makes that repeatable.
+
+- Start here: [docs/start-here.md](./docs/start-here.md)
 - Docs: [docs.pluxx.dev](https://docs.pluxx.dev/)
 - Website: [pluxx.dev](https://pluxx.dev/)
 
@@ -22,6 +25,19 @@ Every host has different plugin contracts and different places to express the sa
 - brand and packaging metadata
 
 Without Pluxx, those details drift across multiple repos. With Pluxx, you keep one source project and compile honest host-native outputs.
+
+The current product focus is the OSS authoring substrate:
+
+- import
+- scaffold
+- refine
+- lint
+- doctor
+- eval
+- build
+- test
+- install
+- sync
 
 Pluxx is built around an explicit compiler model:
 

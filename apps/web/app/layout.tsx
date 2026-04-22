@@ -27,22 +27,22 @@ const mono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://pluxx.dev"),
-  title: "Pluxx | One MCP In. Native Plugins Out.",
+  title: "Pluxx | One Source Project. Four Native Plugins.",
   description:
-    "Pluxx turns a raw MCP into a maintainable source project that can generate native plugin bundles for Codex, Cursor, Claude Code, OpenCode, and more.",
+    "Maintain one plugin source project and ship native plugins to Claude Code, Cursor, Codex, and OpenCode instead of four separate plugin repos.",
   openGraph: {
-    title: "Pluxx | One MCP In. Native Plugins Out.",
+    title: "Pluxx | One Source Project. Four Native Plugins.",
     description:
-      "Import a raw MCP, refine safely with coding agents, and ship native plugin bundles everywhere without maintaining seven drifting plugin repos.",
+      "Maintain one plugin source project and ship native plugins to Claude Code, Cursor, Codex, and OpenCode instead of four separate plugin repos.",
     url: "https://pluxx.dev",
     siteName: "Pluxx",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Pluxx | One MCP In. Native Plugins Out.",
+    title: "Pluxx | One Source Project. Four Native Plugins.",
     description:
-      "Build AI agent plugins once. Ship native bundles everywhere from one source project.",
+      "Maintain one plugin source. Ship native plugins to Claude Code, Cursor, Codex, and OpenCode.",
   },
 };
 

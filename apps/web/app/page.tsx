@@ -122,17 +122,18 @@ export default function Home() {
           <div className="hero-copy">
             <span className="eyebrow">
               <span className="eyebrow-dot" aria-hidden />
-              One MCP. Four native plugin surfaces.
+              One source project. Four native plugin surfaces.
             </span>
             <h1 className="hero-title">
-              Build once.
+              Maintain one plugin source.
               <br />
-              <span className="hero-title-secondary">Ship native plugins everywhere.</span>
+              <span className="hero-title-secondary">Ship fully native experiences.</span>
             </h1>
             <p className="lede">
-              Turn one MCP or source project into native plugins for Claude&nbsp;Code, Cursor,
-              Codex, and OpenCode. Pluxx generates the scaffold, host-specific files, and managed
-              guardrails up front so your coding agent can safely refine taxonomy and instructions.
+              Pluxx turns one maintained source project into native plugins for Claude&nbsp;Code,
+              Cursor, Codex, and OpenCode, so you do not rebuild the same workflow four times. It
+              generates the scaffold, host-specific files, and managed guardrails up front so your
+              coding agent can safely refine taxonomy and instructions.
             </p>
 
             <div className="cta-row">

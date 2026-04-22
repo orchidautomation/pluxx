@@ -14,8 +14,9 @@ Goals:
 - turn those signals into logged leads and candidate human replies
 
 Use these actors explicitly:
-1. Discovery actor: `apidojo/tweet-scraper`
+1. Discovery actor: `scraperx/x-twitter-posts-search`
 2. Author hydration actor: `apidojo/twitter-profile-scraper`
+3. If the ScraperX actor cannot run because the current Apify account does not have an active rental, fall back to `apidojo/tweet-scraper` and log that fallback in `events.jsonl` and `state.json`
 
 Rules:
 - never reply, post, DM, like, repost, or take any outbound action on X
@@ -34,7 +35,7 @@ Workflow:
    - `events.jsonl`
    - `reply-drafts.md`
 4. Load `state.json` and skip anything already seen.
-5. For each query in `queries.json`, use `apidojo/tweet-scraper` in fresh/latest mode for a short recent window.
+5. For each query in `queries.json`, use `scraperx/x-twitter-posts-search` in fresh/latest mode for a short recent window.
 6. Filter hard for quality. Ignore reposts, duplicates, generic AI chatter, memes, politics, spam, and low-signal noise.
    Prefer official company accounts, founders, product builders, and engineers clearly shipping a real MCP server, plugin, gateway, or host integration.
    Be aggressive about discovery volume, but not about lowering quality.
