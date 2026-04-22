@@ -266,6 +266,7 @@ After this file:
 - read [docs/todo/queue.md](./todo/queue.md) for the short operational queue
 - read [docs/todo/master-backlog.md](./todo/master-backlog.md) for the broadest repo-native backlog
 - read [roadmap.md](./roadmap.md) for execution direction
+- read [mcp-first-command-lifecycle.md](./mcp-first-command-lifecycle.md) for the exact MCP-first CLI order
 - read [oss-wedge-and-trust-layer.md](./oss-wedge-and-trust-layer.md) for product framing
 - read [enterprise-adoption-thesis.md](./enterprise-adoption-thesis.md) for the stronger future enterprise thesis
 - read [status-quo-vs-pluxx-story.md](./status-quo-vs-pluxx-story.md) for the broader positioning narrative
