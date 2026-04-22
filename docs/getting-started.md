@@ -58,7 +58,14 @@ Pluxx accepts three MCP source shapes today:
 
 - remote HTTP: `npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp`
 - legacy SSE: `npx @orchid-labs/pluxx init --from-mcp https://example.com/sse --transport sse`
-- local stdio: `npx @orchid-labs/pluxx init --from-mcp "npx -y @acme/mcp"`
+- local stdio: `npx @orchid-labs/pluxx init --from-mcp "npx -y -p @acme/mcp acme-mcp"`
+
+For local stdio imports, pass the real executable command. Do not assume the npm package name is also the runnable bin name.
+
+Examples:
+
+- installed locally: `npx @orchid-labs/pluxx init --from-mcp "./node_modules/.bin/acme-mcp" --yes`
+- one-shot via npm: `npx @orchid-labs/pluxx init --from-mcp "npx -y -p @acme/mcp acme-mcp" --yes`
 
 If the remote server requires auth and responds with `401`, `402`, or `403`, Pluxx can scaffold it with either bearer auth or a custom header. Use the auth flags up front for non-interactive imports:
 

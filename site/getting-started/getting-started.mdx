@@ -16,7 +16,14 @@ Pluxx accepts three MCP source shapes:
 
 - remote HTTP: `npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp`
 - legacy SSE: `npx @orchid-labs/pluxx init --from-mcp https://example.com/sse --transport sse`
-- local stdio: `npx @orchid-labs/pluxx init --from-mcp "npx -y @acme/mcp"`
+- local stdio: `npx @orchid-labs/pluxx init --from-mcp "npx -y -p @acme/mcp acme-mcp"`
+
+For local stdio imports, pass the real executable command. Do not assume the npm package name is also the runnable bin name.
+
+Examples:
+
+- installed locally: `npx @orchid-labs/pluxx init --from-mcp "./node_modules/.bin/acme-mcp" --yes`
+- one-shot via npm: `npx @orchid-labs/pluxx init --from-mcp "npx -y -p @acme/mcp acme-mcp" --yes`
 
 The default target set is:
 

@@ -3155,7 +3155,7 @@ Examples:
   pluxx build --target claude-code cursor  Build for specific platforms
   pluxx init my-plugin                    Scaffold a new plugin config
   pluxx init --from-mcp https://example.com/mcp  Scaffold from a remote MCP server
-  pluxx init --from-mcp "npx -y @acme/mcp"       Scaffold from a local MCP command
+  pluxx init --from-mcp "npx -y -p @acme/mcp acme-mcp"  Scaffold from a local MCP command
   pluxx init --from-mcp https://example.com/mcp --yes --name acme --display-name "Acme" --author "Acme" --targets claude-code,codex --grouping workflow --hooks safe --json
   pluxx init --from-mcp https://example.com/mcp --yes --auth-env API_KEY --auth-type header --auth-header X-API-Key --auth-template "\${value}"
   pluxx init --from-mcp https://example.com/mcp --yes --auth-type platform --runtime-auth platform
@@ -3175,7 +3175,7 @@ Examples:
   pluxx agent run taxonomy --runner codex --verbose-runner
   pluxx agent run review --runner opencode --attach http://localhost:4096 --no-verify
   pluxx autopilot --from-mcp https://example.com/mcp --runner codex --website https://example.com --docs https://docs.example.com --ingest-provider auto
-  pluxx mcp proxy --from-mcp "bun ./server.js" --record .pluxx/tapes/dev.json
+  pluxx mcp proxy --from-mcp "node ./server.js" --record .pluxx/tapes/dev.json
   pluxx mcp proxy --replay .pluxx/tapes/dev.json
   --attach is only supported for the opencode runner
   pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode quick --yes
@@ -3183,7 +3183,7 @@ Examples:
   pluxx autopilot --from-mcp https://example.com/mcp --runner codex --yes --approve-mcp-tools
   pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode thorough --yes --verbose-runner
   pluxx autopilot --from-mcp https://mcp.linear.app/mcp --runner codex --yes --oauth-wrapper
-  pluxx autopilot --from-mcp "npx -y @acme/mcp" --runner claude --targets claude-code,codex --website https://example.com --docs https://docs.example.com
+  pluxx autopilot --from-mcp "npx -y -p @acme/mcp acme-mcp" --runner claude --targets claude-code,codex --website https://example.com --docs https://docs.example.com
   pluxx doctor --json                     Inspect source-project health as JSON
   pluxx doctor --consumer ./dist/cursor   Inspect a built or installed platform bundle
   pluxx eval --json                       Inspect scaffold/prompt-pack quality as JSON

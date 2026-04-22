@@ -67,6 +67,12 @@ dist/
   opencode/
 ```
 
+For local stdio MCPs, pass the real executable command, not just the npm package name. The bin name can differ from the package name.
+
+```bash
+npx @orchid-labs/pluxx init --from-mcp "npx -y -p @acme/mcp acme-mcp" --yes
+```
+
 ## Command Cheat Sheet
 
 ```text

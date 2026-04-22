@@ -21,6 +21,13 @@ Scaffold a Pluxx source project from a live MCP server or local stdio command.
 npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp
 ```
 
+For local stdio imports, pass the real executable command. Do not assume the npm package name is also the runnable bin name.
+
+Examples:
+
+- installed locally: `npx @orchid-labs/pluxx init --from-mcp "./node_modules/.bin/acme-mcp" --yes`
+- one-shot via npm: `npx @orchid-labs/pluxx init --from-mcp "npx -y -p @acme/mcp acme-mcp" --yes`
+
 `init --from-mcp` also accepts the same sourced-context flags when you want the first scaffold to start from better product truth:
 
 ```bash
