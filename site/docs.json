@@ -7,6 +7,11 @@
     "light": "#C5ADFF",
     "dark": "#6E3EDC"
   },
+  "seo": {
+    "metatags": {
+      "canonical": "https://docs.pluxx.dev"
+    }
+  },
   "navigation": {
     "groups": [
       {
