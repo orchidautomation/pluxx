@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-04-23T18:17:05.754Z",
+  "generatedAt": "2026-04-23T18:24:11.391Z",
   "firecrawlEnabled": true,
   "fixtureResults": [
     {
@@ -139,7 +139,7 @@
               "The skill file contains everything you need: auth setup, API usage, and all available capabilities (scrape, search, crawl, map, browse).",
               "You can either use our remote hosted URL or run the server locally.",
               "Open Cursor Settings Go to Features > MCP Servers Click ”+ Add New MCP Server” Enter the following: Name: “firecrawl-mcp” (or your preferred name) Type: “command” Command: env FIRECRAWL API KEY=your-api-key npx -y firecrawl-mcp",
-              "``` Remote hosted URL (recommended) claude mcp add firecrawl --url https://mcp.firecrawl.dev/your-api-key/v2/mcp"
+              "Remote hosted URL (recommended) claude mcp add firecrawl --url https://mcp.firecrawl.dev/your-api-key/v2/mcp"
             ],
             "authHints": [
               "Fetch this skill to sign up your user, get an API key, and start building with Firecrawl.",
@@ -383,10 +383,7 @@
           "contextInputs": [
             "https://sumble.com",
             "https://docs.sumble.com/api/mcp",
-            "https://docs.sumble.com/",
-            "https://docs.sumble.com/sales-functions",
-            "https://docs.sumble.com/sales-functions/generate-pipeline",
-            "https://docs.sumble.com/sales-functions/close-deals"
+            "https://docs.sumble.com/"
           ],
           "ingestion": {
             "requestedProvider": "firecrawl",
@@ -398,10 +395,7 @@
             "sourceLabels": [
               "https://sumble.com",
               "https://docs.sumble.com/api/mcp",
-              "https://docs.sumble.com/",
-              "https://docs.sumble.com/sales-functions",
-              "https://docs.sumble.com/sales-functions/generate-pipeline",
-              "https://docs.sumble.com/sales-functions/close-deals"
+              "https://docs.sumble.com/"
             ],
             "providers": [
               "firecrawl"
@@ -416,14 +410,14 @@
               "Complete auth and the MCP will be successfully setup"
             ],
             "workflowHints": [
-              "hashtag Research primed accounts",
-              "hashtag Research an account",
               "Tech stack",
               "Active projects",
               "Org structure",
               "Sumble Web",
               "Sumble Signals",
-              "Sumble Enrich"
+              "Sumble Enrich",
+              "Compatibility",
+              "Claude instructions"
             ],
             "importantTerms": [
               "Tech stack",
@@ -435,9 +429,7 @@
               "Sumble Signals",
               "Sumble Enrich"
             ],
-            "warnings": [
-              "If you already have an account list you can import it into sumble you can follow the instructions at Import account list and start researching immediately."
-            ]
+            "warnings": []
           },
           "matched": {
             "productName": true,
@@ -472,30 +464,6 @@
               "status": "ok",
               "provider": "firecrawl",
               "note": "Inferred from https://docs.sumble.com/api/mcp",
-              "httpStatus": 200
-            },
-            {
-              "label": "https://docs.sumble.com/sales-functions",
-              "role": "discovered-page",
-              "status": "ok",
-              "provider": "firecrawl",
-              "note": "Discovered via Firecrawl map + batch scrape.",
-              "httpStatus": 200
-            },
-            {
-              "label": "https://docs.sumble.com/sales-functions/generate-pipeline",
-              "role": "discovered-page",
-              "status": "ok",
-              "provider": "firecrawl",
-              "note": "Discovered via Firecrawl map + batch scrape.",
-              "httpStatus": 200
-            },
-            {
-              "label": "https://docs.sumble.com/sales-functions/close-deals",
-              "role": "discovered-page",
-              "status": "ok",
-              "provider": "firecrawl",
-              "note": "Discovered via Firecrawl map + batch scrape.",
               "httpStatus": 200
             }
           ]
@@ -553,7 +521,7 @@
             "shortDescription": "Production-ready architectures. Credit-optimized workflows. Claygent prompts that work. The MCP that gives your AI agent Clay expertise. Save 60-90% on credits.",
             "setupHints": [
               "Full setup guide, 24 tools reference, and troubleshooting.",
-              "Install the PlayKit plugin in one command to get 24 Clay MCP tools + 6 curated workflow skills — including /clay-doc , one command to document any Clay workflow.",
+              "Install the Play Kit plugin in one command to get 24 Clay MCP tools + 6 curated workflow skills — including /clay-doc , one command to document any Clay workflow.",
               "Choose your client and install method."
             ],
             "authHints": [],
@@ -562,7 +530,7 @@
               "Setup Guide",
               "Connect to Clay",
               "Raw MCP Setup",
-              "Tribal knowledge buried in Slack threads and LinkedIn posts.",
+              "Tribal knowledge buried in Slack threads and Linked In posts.",
               "Every workflow, you’re asking yourself:",
               "Knowledge tools work immediately."
             ],
@@ -640,18 +608,18 @@
               "After install, run /reload-plugins in Claude Code to pick up the new commands."
             ],
             "authHints": [
-              "[mcp servers.playkit.env http headers] \"X-API-Key\" = \"PLAYKIT API KEY\" ```",
+              "[mcp servers.playkit.env http headers] \"X-API-Key\" = \"PLAYKIT API KEY\"",
               "Export PLAYKIT API KEY first."
             ],
             "workflowHints": [
-              "design\\ workflow",
-              "Workflow SkillsNew",
+              "design workflow",
+              "Workflow Skills New",
               "Not answers. Confidence.",
-              "build\\ table",
-              "claygent\\ prompts",
-              "brainstorm\\ play",
-              "compare\\ providers",
-              "write\\ outreach"
+              "build table",
+              "claygent prompts",
+              "brainstorm play",
+              "compare providers",
+              "write outreach"
             ],
             "importantTerms": [
               "Not answers. Confidence.",

@@ -1,6 +1,6 @@
 # Docs Ingestion Fixture Eval
 
-Generated: 2026-04-23T18:17:05.754Z
+Generated: 2026-04-23T18:24:11.391Z
 
 This snapshot compares the current sourced-context extraction paths across real MCP-shaped product fixtures.
 
@@ -41,7 +41,7 @@ This snapshot compares the current sourced-context extraction paths across real 
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | baseline | ok | 0/3 | — | — | — | — | no external sources captured |
 | local | ok | 3/3 | Sumble | Research primed accounts / MCP / Compatibility | The Sumble API is a RESTful service for enriching CRM data, building lead generation tools, and running market research queries. | — | all sources fetched successfully |
-| firecrawl | ok | 3/3 | Sumble | hashtag Research primed accounts / hashtag Research an account / Tech stack | Run the following command in your terminal to install the MCP claude mcp add --transport http sumble https://mcp.sumble.com --scope user / Complete auth and the MCP will be successfully setup | Complete auth and the MCP will be successfully setup | all sources fetched successfully |
+| firecrawl | ok | 3/3 | Sumble | Tech stack / Active projects / Org structure | Run the following command in your terminal to install the MCP claude mcp add --transport http sumble https://mcp.sumble.com --scope user / Complete auth and the MCP will be successfully setup | Complete auth and the MCP will be successfully setup | all sources fetched successfully |
 
 ## PlayKit
 
@@ -52,6 +52,6 @@ This snapshot compares the current sourced-context extraction paths across real 
 | Provider | Status | Matched Signals | Product | Workflow Hints | Setup Hints | Auth Hints | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | baseline | ok | 0/2 | — | — | — | — | no external sources captured |
-| local | ok | 2/2 | PlayKit | Workflow Skills New / Setup Guide / Connect to Clay | Full setup guide, 24 tools reference, and troubleshooting. / Install the PlayKit plugin in one command to get 24 Clay MCP tools + 6 curated workflow skills — including /clay-doc , one command to document any Clay workflow. / Choose your client and install method. | — | all sources fetched successfully |
-| firecrawl | ok | 2/2 | PlayKit | design\ workflow / Workflow SkillsNew / Not answers. Confidence. | Full setup guide, 24 tools reference, and troubleshooting. / Most users should use the plugin install above instead. / The installer reads it from your shell env and wires it into the runner — the key is never written to disk. | [mcp servers.playkit.env http headers] "X-API-Key" = "PLAYKIT API KEY" ``` / Export PLAYKIT API KEY first. | all sources fetched successfully |
+| local | ok | 2/2 | PlayKit | Workflow Skills New / Setup Guide / Connect to Clay | Full setup guide, 24 tools reference, and troubleshooting. / Install the Play Kit plugin in one command to get 24 Clay MCP tools + 6 curated workflow skills — including /clay-doc , one command to document any Clay workflow. / Choose your client and install method. | — | all sources fetched successfully |
+| firecrawl | ok | 2/2 | PlayKit | design workflow / Workflow Skills New / Not answers. Confidence. | Full setup guide, 24 tools reference, and troubleshooting. / Most users should use the plugin install above instead. / The installer reads it from your shell env and wires it into the runner — the key is never written to disk. | [mcp servers.playkit.env http headers] "X-API-Key" = "PLAYKIT API KEY" / Export PLAYKIT API KEY first. | all sources fetched successfully |
 

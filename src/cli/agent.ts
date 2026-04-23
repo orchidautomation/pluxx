@@ -2528,6 +2528,11 @@ function splitIntoHintSegments(value: string): string[] {
 function normalizeHintText(value: string): string {
   return value
     .replace(/[\u200B-\u200D\uFEFF]/g, ' ')
+    .replace(/^(?:hashtag\s+)+/gi, '')
+    .replace(/^(?:[#>*-]+\s*)+/, '')
+    .replace(/[\\]+/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/[`*_]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
 }

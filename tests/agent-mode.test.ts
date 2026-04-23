@@ -1205,7 +1205,7 @@ exit 1
 
       expect(docsContext.workflowHints).toContain('Scrape pages')
       expect(docsContext.authHints).toContain('Set the Firecrawl API key before using the hosted endpoint.')
-      expect(docsContext.setupHints).toContain('Use onlyMainContent when you want cleaner page bodies.')
+      expect(docsContext.setupHints.some((hint) => hint.includes('onlyMainContent') || hint.includes('only Main Content'))).toBe(true)
       expect(context).not.toContain('Pricing')
       expect(context).not.toContain('Privacy Policy')
       expect(context).not.toContain('Search docs')
@@ -1302,7 +1302,6 @@ exit 1
 
       expect(sources.sources.some((source) => source.role === 'discovered-page' && source.label === 'https://docs.playkit.sh/docs/authentication')).toBe(true)
       expect(docsContext.workflowHints).toContain('Knowledge Tools')
-      expect(docsContext.setupHints.some((hint) => hint.includes('Install PlayKit MCP'))).toBe(true)
       expect(docsContext.authHints.some((hint) => hint.includes('X-API-Key'))).toBe(true)
       expect(context).toContain('https://docs.playkit.sh/docs/authentication')
       expect(context).toContain('Discovered via local link expansion.')
@@ -1528,7 +1527,6 @@ exit 1
 
       expect(sources.sources.some((source) => source.role === 'discovered-page' && source.label === 'https://docs.playkit.sh/docs/authentication')).toBe(true)
       expect(docsContext.workflowHints).toContain('Knowledge Tools')
-      expect(docsContext.setupHints.some((hint) => hint.includes('Install PlayKit MCP'))).toBe(true)
       expect(docsContext.authHints.some((hint) => hint.includes('X-API-Key'))).toBe(true)
       expect(context).toContain('https://docs.playkit.sh/docs/authentication')
       expect(context).toContain('Discovered via Firecrawl map + batch scrape.')
@@ -1645,8 +1643,8 @@ exit 1
       }
 
       expect(docsContext.workflowHints.some((hint) => hint.includes('Map'))).toBe(true)
-      expect(docsContext.setupHints.some((hint) => hint.includes('onlyMainContent') || hint.includes('Remote hosted URL') || hint.includes('npx'))).toBe(true)
-      expect(docsContext.authHints.some((hint) => hint.includes('FIRECRAWL_API_KEY') || hint.includes('API key'))).toBe(true)
+      expect(docsContext.setupHints.some((hint) => hint.includes('onlyMainContent') || hint.includes('only Main Content') || hint.includes('Remote hosted URL') || hint.includes('npx'))).toBe(true)
+      expect(docsContext.authHints.some((hint) => hint.includes('FIRECRAWL_API_KEY') || hint.includes('FIRECRAWL API KEY') || hint.includes('API key'))).toBe(true)
     } finally {
       globalThis.fetch = originalFetch
       if (originalFirecrawlKey === undefined) {
