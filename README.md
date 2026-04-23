@@ -211,6 +211,7 @@ Pluxx owns the deterministic scaffold, validation, and host compilation layer. Y
 - [Create a Pluxx plugin](./docs/create-a-pluxx-plugin.md)
 - [How it works](./docs/how-it-works.md)
 - [Self-hosted core-four proof](./docs/pluxx-self-hosted-core-four-proof.md)
+- [Docs Ops core-four proof](./docs/docs-ops-core-four-proof.md)
 - [Proof and install guide](./docs/proof-and-install.md)
 - [Docs Ops Codex walkthrough](./docs/orchid-docs-ops-codex-walkthrough.md)
 - [Use Pluxx in host agents](./docs/use-pluxx-in-host-agents.md)
