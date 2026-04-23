@@ -217,7 +217,7 @@ The latest local build/install/verify rerun across Claude Code, Cursor, Codex, a
 
 The plugin surface is now meaningfully comprehensive, but a few things are still thinner than they should be:
 
-### 1. Cross-host proof is now locally real, but it should become a cleaner public proof asset
+### 1. Cross-host proof is now locally real, and the first public landing page exists
 
 The self-hosted plugin now has a real local core-four proof:
 
@@ -228,10 +228,14 @@ The self-hosted plugin now has a real local core-four proof:
 
 That closes the “does the canonical source project actually install and verify across the core four” question.
 
+The first repo-native proof/install landing page now also exists at:
+
+- [docs/proof-and-install.md](./proof-and-install.md)
+
 The remaining work is:
 
 - keep that proof current after major compatibility and lifecycle changes
-- turn it into a cleaner public-facing install proof asset
+- turn the landing page into a cleaner visual public-facing install proof asset
 - keep it easy for a new user to understand without reading internal repo context
 
 ### 2. `doctor --consumer` is still secondary

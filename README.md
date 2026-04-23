@@ -16,6 +16,8 @@ Raw MCP access is usually not enough. Most products still need workflow grouping
 
 If you want the fastest way to see what is already real, start with these:
 
+- [Proof and install guide](./docs/proof-and-install.md)
+  - the shortest public path to the current demos plus one-command install paths for the released self-hosted plugin
 - [Self-hosted core-four proof](./docs/pluxx-self-hosted-core-four-proof.md)
   - `example/pluxx` rebuilt, installed, and `verify-install` checked across Claude Code, Cursor, Codex, and OpenCode
 - [Docs Ops live Codex walkthrough](./docs/orchid-docs-ops-codex-walkthrough.md)
@@ -31,7 +33,7 @@ If you want the fastest way to see what is already real, start with these:
 - [Docs-ingestion scaffold before/after demo](./docs/strategy/docs-ingestion-scaffold-before-after.md)
   - a committed Sumble scaffold delta showing what sourced Firecrawl context changes in real generated files
 
-The biggest remaining docs-ingestion work is now continued improvement on the weak fixtures and more public-facing packaging of this proof.
+The biggest remaining docs-ingestion work is now continued fixture hardening and broader public packaging, not basic proof-of-value.
 
 ## Why Pluxx
 
@@ -207,6 +209,7 @@ Pluxx owns the deterministic scaffold, validation, and host compilation layer. Y
 - [Create a Pluxx plugin](./docs/create-a-pluxx-plugin.md)
 - [How it works](./docs/how-it-works.md)
 - [Self-hosted core-four proof](./docs/pluxx-self-hosted-core-four-proof.md)
+- [Proof and install guide](./docs/proof-and-install.md)
 - [Docs Ops Codex walkthrough](./docs/orchid-docs-ops-codex-walkthrough.md)
 - [Use Pluxx in host agents](./docs/use-pluxx-in-host-agents.md)
 - [Core primitives](./docs/core-primitives.md)

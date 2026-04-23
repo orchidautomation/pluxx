@@ -15,6 +15,8 @@ This is no longer a speculative launch memo.
 
 It is the current proof inventory plus the next capture plan.
 
+If you want the shortest public-facing entrypoint instead of the fuller planning inventory, start with [docs/proof-and-install.md](./proof-and-install.md).
+
 ## The Claims That Matter
 
 The current public proof should support these claims:
@@ -25,6 +27,10 @@ The current public proof should support these claims:
 4. Pluxx is truthful about host differences instead of pretending every host works the same way
 
 The biggest remaining missing claim is no longer docs-ingestion proof. It is cleaner public packaging of the proof that now exists.
+
+The first pass of that packaging now exists at:
+
+- [Proof and install guide](./proof-and-install.md)
 
 ## Proof That Already Exists
 
@@ -114,7 +120,7 @@ What it proves:
 - a real Firecrawl-backed comparison now exists on the current fixture set
 - Firecrawl materially improves extracted product/setup/auth/workflow context on those fixtures
 - the docs-ingestion lane now has a committed scaffold-quality before/after demo, not only eval snapshots
-- the remaining gap is now broader public packaging and continued weak-fixture improvement, not basic proof-of-value
+- the remaining gap is now broader public packaging and continued fixture hardening, not basic proof-of-value
 
 Best public use:
 
@@ -139,7 +145,7 @@ Why it matters:
 
 Missing artifact:
 
-- one concise visual/story asset showing:
+- one stronger visual/story asset than the current doc-only landing page showing:
   - source project in
   - native bundles out
   - install
@@ -147,7 +153,7 @@ Missing artifact:
 
 Why it matters:
 
-- the self-hosted plugin proof is real, but still reads like repo proof rather than polished public proof
+- [docs/proof-and-install.md](./proof-and-install.md) is the right first packaging step, but it is still doc-led rather than a polished visual public asset
 
 ## Best Current Demo Flow
 

@@ -153,7 +153,7 @@ Use this file to:
   - keyed local harness snapshot exists
 - [x] A live before/after scaffold improvement demo exists:
   - [docs/strategy/docs-ingestion-scaffold-before-after.md](../strategy/docs-ingestion-scaffold-before-after.md)
-- [ ] The fixture harness weak cases have been tightened based on real eval output
+- [x] The fixture harness weak cases have been tightened based on real eval output
 - [x] The resulting proof is strong enough to use in docs, demos, and outreach
 
 ## 8. Distribution And Install UX
@@ -161,8 +161,8 @@ Use this file to:
 - [x] Host-specific install scripts can be generated at publish time
 - [x] The Codex installer path is proven live from a real GitHub release
 - [~] Install/update/reload guidance is now documented honestly
-- [ ] One-click or near-one-click install UX is defined clearly per host
-- [ ] The release asset and docs experience is clean enough that a user does not need repo context to install
+- [x] One-click or near-one-click install UX is defined clearly per host
+- [~] The release asset and docs experience is now repo-native enough that a user can install without maintainer context, but it still needs a stronger visual/public asset
 - [ ] The future embeddable install component direction is captured and intentionally scoped
 
 ## 9. Public Site, Docs, And Proof Assets

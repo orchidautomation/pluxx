@@ -92,9 +92,9 @@ const FIXTURES: FixtureDefinition[] = [
     docsUrl: 'https://docs.firecrawl.dev/mcp-server',
     expectations: {
       productName: 'Firecrawl',
-      descriptionTerms: ['markdown', 'structured data'],
-      workflowTerms: ['Scrape', 'Map'],
-      setupTerms: ['main content'],
+      descriptionTerms: ['web at scale', 'AI agents'],
+      workflowTerms: ['Search', 'Scrape'],
+      setupTerms: ['npx', 'Remote hosted URL'],
       authTerms: ['API key'],
     },
   },
@@ -392,8 +392,18 @@ function buildSummaryBullets(fixtureResults: FixtureResult[], firecrawlEnabled: 
 
   const firecrawlFixture = fixtureResults.find((fixtureResult) => fixtureResult.fixture.name === 'firecrawl')
   const firecrawlLocal = firecrawlFixture?.results.find((result) => result.provider === 'local')
+  const firecrawlRemote = firecrawlFixture?.results.find((result) => result.provider === 'firecrawl')
   if (firecrawlLocal?.status === 'ok' && firecrawlLocal.matched.expectedCount > 0 && firecrawlLocal.matched.matchedCount < firecrawlLocal.matched.expectedCount) {
-    bullets.push('Firecrawl remains the clearest weak case for the local OSS fallback: product name and auth signal land, but workflow/setup extraction is still noisy on that JS-heavy surface')
+    bullets.push('Firecrawl remains the clearest weak case for the local OSS fallback: product name and some workflow language land, but setup/auth extraction is still weak on that JS-heavy surface')
+  }
+
+  if (
+    firecrawlEnabled
+    && firecrawlLocal?.status === 'ok'
+    && firecrawlRemote?.status === 'ok'
+    && firecrawlRemote.matched.matchedCount > firecrawlLocal.matched.matchedCount
+  ) {
+    bullets.push('The Firecrawl-backed path now clearly outperforms the local fallback on the Firecrawl fixture by recovering workflow, setup, and auth signals that the JS-heavy surface hides from the local extractor')
   }
 
   const playkitFixture = fixtureResults.find((fixtureResult) => fixtureResult.fixture.name === 'playkit')

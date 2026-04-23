@@ -131,7 +131,7 @@ The next plugin-specific work is:
 
 - keep `example/pluxx`, `plugins/pluxx`, and the published `pluxx-plugin` repo aligned
 - improve install/update clarity and release distribution UX
-- turn the now-complete local self-hosted proof into a cleaner public-facing install proof asset
+- treat [docs/proof-and-install.md](./proof-and-install.md) as the first repo-native public proof/install landing page, then push it into a cleaner visual public asset
 - evaluate whether a `gh skill`-compatible export belongs as an additional distribution channel for the skills-only slice of Pluxx output
 
 ### 5. Customer discovery and GTM learning

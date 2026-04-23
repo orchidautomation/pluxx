@@ -163,7 +163,9 @@ Open work:
 - keep [docs/pluxx-plugin-surface-audit.md](../pluxx-plugin-surface-audit.md) accurate now that lifecycle coverage is present
 - treat the local self-hosted core-four proof as complete:
   - [docs/pluxx-self-hosted-core-four-proof.md](../pluxx-self-hosted-core-four-proof.md)
-- turn that local proof into a cleaner public-facing install proof asset
+- treat the first repo-native public proof/install landing page as complete:
+  - [docs/proof-and-install.md](../proof-and-install.md)
+- keep turning that landing page into a cleaner visual public asset
 - evaluate whether a `gh skill`-compatible export/publish path makes sense for the skills-only slice of a Pluxx project
 - decide later whether distribution should stay in the main repo or move to a dedicated plugin/marketplace repo
 

@@ -26,6 +26,8 @@ This is the shortest accurate explanation of what Pluxx is, what is already real
 
 If you want the broadest completeness checklist after reading this, use [docs/todo/success-checklist.md](./todo/success-checklist.md).
 
+If you want the shortest public proof and install path after this file, use [docs/proof-and-install.md](./proof-and-install.md).
+
 ## What Pluxx Is
 
 Pluxx turns raw MCPs or strong host-native agent plugins into one maintained source project that can ship native plugin outputs for:
@@ -246,7 +248,7 @@ The latest local core-four self-hosted plugin proof is documented in:
 The next plugin-specific work is now:
 
 - hardening metadata, prompts, screenshots, and install/update guidance
-- turning the now-complete local proof into a cleaner public-facing install proof asset
+- treating [docs/proof-and-install.md](./proof-and-install.md) as the first repo-native public proof/install landing page, then pushing it into a cleaner visual public asset
 - tightening release automation and distribution UX
 
 ### 5. Customer Discovery

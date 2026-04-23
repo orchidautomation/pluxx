@@ -428,7 +428,7 @@ Building for: claude-code, cursor, codex, opencode, github-copilot, openhands, w
   dist/claude-code/    .claude-plugin/plugin.json, .mcp.json, CLAUDE.md, hooks/hooks.json
   dist/cursor/         .cursor-plugin/plugin.json, mcp.json, hooks/hooks.json, rules/
   dist/codex/          .codex-plugin/plugin.json, .mcp.json, AGENTS.md, interface metadata
-  dist/opencode/       package.json, index.ts wrapper
+  dist/opencode/       package.json, runtime plugin module, commands/
   ...
 
 Done! 85 files generated across 11 platforms.

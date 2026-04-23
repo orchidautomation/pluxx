@@ -2436,6 +2436,11 @@ function collectWorkflowHints(sources: AgentContextSource[]): string[] {
     'developer guides',
     'quickstarts',
     'mcp server',
+    'ready to build?',
+    'ready to build',
+    'use well-known tools',
+    'code you can trust',
+    'frequently asked questions',
   ])
   const workflowKeywords = ['search', 'scrape', 'map', 'crawl', 'extract', 'agent', 'browser', 'workflow', 'knowledge']
   const workflowStopKeywords = ['install', 'auth', 'token', 'header', 'configuration', 'quickstart']
@@ -2448,7 +2453,7 @@ function collectWorkflowHints(sources: AgentContextSource[]): string[] {
   const headingHints = uniqueStrings(
     sources.flatMap((source) => source.headings ?? []),
   )
-    .map((heading) => heading.replace(/\s+/g, ' ').trim())
+    .map(normalizeHintText)
     .filter((heading) =>
       heading.length > 0
       && heading.split(/\s+/).length <= 4
@@ -2456,6 +2461,15 @@ function collectWorkflowHints(sources: AgentContextSource[]): string[] {
       && (!sourceTitles.has(heading.toLowerCase()) || workflowKeywords.some((keyword) => containsWholeWordKeyword(heading, keyword)))
       && !heading.includes('://')
     )
+    .map((heading, index) => ({
+      value: heading,
+      index,
+      score: scoreWorkflowHint(heading, workflowKeywords),
+    }))
+    .filter((entry) => entry.score > 0)
+    .sort((left, right) => right.score - left.score || left.index - right.index)
+    .map((entry) => entry.value)
+
   const paragraphHints = uniqueStrings(
     sources.flatMap((source) =>
       (source.paragraphs ?? [])
@@ -2469,6 +2483,15 @@ function collectWorkflowHints(sources: AgentContextSource[]): string[] {
         }),
     ),
   )
+    .map(normalizeHintText)
+    .map((segment, index) => ({
+      value: segment,
+      index,
+      score: scoreWorkflowHint(segment, workflowKeywords),
+    }))
+    .filter((entry) => entry.score > 0)
+    .sort((left, right) => right.score - left.score || left.index - right.index)
+    .map((entry) => entry.value)
 
   return uniqueStrings([
     ...headingHints,
@@ -2498,8 +2521,39 @@ function splitIntoSentences(value: string): string[] {
 function splitIntoHintSegments(value: string): string[] {
   return value
     .split(/(?<=[.!?])\s+|\n+/)
-    .map((segment) => segment.replace(/\s+/g, ' ').trim())
+    .map(normalizeHintText)
     .filter(Boolean)
+}
+
+function normalizeHintText(value: string): string {
+  return value
+    .replace(/[\u200B-\u200D\uFEFF]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function scoreWorkflowHint(value: string, workflowKeywords: string[]): number {
+  const normalized = normalizeHintText(value)
+  const lower = normalized.toLowerCase()
+  let score = 0
+
+  for (const keyword of workflowKeywords) {
+    if (containsWholeWordKeyword(lower, keyword)) {
+      score += 30
+    } else if (lower.includes(keyword)) {
+      score += 10
+    }
+  }
+
+  if (lower.includes('feature') || lower.includes('ready to build') || lower.includes('faq') || lower.includes('question')) {
+    score -= 20
+  }
+
+  if (normalized.split(/\s+/).length <= 3) {
+    score += 5
+  }
+
+  return score
 }
 
 function containsWholeWordKeyword(value: string, keyword: string): boolean {

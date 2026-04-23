@@ -151,6 +151,8 @@ Open work:
 - [ ] Harden metadata, prompts, screenshots, and install guidance
 - [x] Verify the self-hosted plugin path across Claude Code, Cursor, Codex, and OpenCode:
   - [docs/pluxx-self-hosted-core-four-proof.md](../pluxx-self-hosted-core-four-proof.md)
+- [x] Add the first repo-native public proof/install landing page:
+  - [docs/proof-and-install.md](../proof-and-install.md)
 - [ ] Keep the plugin thin and the CLI as the execution engine
 - [x] Close the plugin workflow coverage gap documented in `docs/pluxx-plugin-surface-audit.md`
 - [ ] Keep `example/pluxx`, `plugins/pluxx`, and the published `pluxx-plugin` repo aligned
@@ -162,6 +164,7 @@ Open work:
   - direct install commands
   - one-click install buttons where hosts support them
   - how much Pluxx should abstract host-specific install flows vs expose them clearly
+- [ ] Turn the repo-native proof/install landing page into a stronger visual public asset
 
 ### 5. Public site and docs polish
 
