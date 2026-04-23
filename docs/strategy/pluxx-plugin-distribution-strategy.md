@@ -241,6 +241,46 @@ The important takeaway is:
 
 Use [gh-skill-and-agent-skills-note.md](./gh-skill-and-agent-skills-note.md) for the detailed read.
 
+## Future install surface direction
+
+The near-term install surface should stay simple and release-driven.
+
+That means:
+
+- keep per-host installer scripts as the canonical current install surface
+- keep [docs/proof-and-install.md](../proof-and-install.md) as the repo-native proof and install landing page
+- keep host differences explicit instead of pretending one button erases them
+
+The next packaging layer after that should be:
+
+- release-backed install links per host
+- one embeddable install component for docs/product pages
+- a host tab or card UI that shows:
+  - the exact install command or install action
+  - update guidance
+  - reload / restart guidance
+  - release/version source
+
+The design target is closer to a polished SDK install surface than a hidden runtime trick.
+
+The point is:
+
+- make installation feel clearer and more native
+- let docs pages, plugin pages, and future marketplace-like surfaces reuse one install UX
+- keep Pluxx honest about host-specific install behavior
+
+This should **not** mean:
+
+- inventing fake universal auto-update where the host does not support it
+- hiding host-specific reload behavior
+- turning the install component into a new execution or distribution backend
+
+So the intended sequence is:
+
+1. prove the release artifacts and install scripts are real
+2. make the repo-native proof/install docs solid
+3. add the embeddable install component later as presentation and reuse polish
+
 ## Recommended next build sequence
 
 1. treat `example/pluxx` as the canonical product plugin source

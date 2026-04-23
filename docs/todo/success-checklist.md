@@ -170,7 +170,8 @@ Use this file to:
 - [~] Install/update/reload guidance is now documented honestly
 - [x] One-click or near-one-click install UX is defined clearly per host
 - [~] The release asset and docs experience is now repo-native enough that a user can install without maintainer context, but it still needs a stronger visual/public asset
-- [ ] The future embeddable install component direction is captured and intentionally scoped
+- [x] The future embeddable install component direction is captured and intentionally scoped:
+  - [docs/strategy/pluxx-plugin-distribution-strategy.md](../strategy/pluxx-plugin-distribution-strategy.md)
 
 ## 9. Public Site, Docs, And Proof Assets
 
