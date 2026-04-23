@@ -1,6 +1,6 @@
 # Create A Pluxx Plugin
 
-This is the step-by-step guide for making a real Pluxx plugin from an MCP server.
+This is the step-by-step guide for turning a raw MCP into one maintained Pluxx source project that can compile native plugins for Claude Code, Cursor, Codex, and OpenCode.
 
 If you are not starting from MCP, initialize a source project with `npx @orchid-labs/pluxx init my-plugin`, fill in `pluxx.config.ts`, `INSTRUCTIONS.md`, and `skills/`, then continue from the validation/build steps in this guide.
 
@@ -11,11 +11,16 @@ Use this doc when you want the exact sequence for:
 - refining the scaffold with Claude, Codex, Cursor, or OpenCode
 - validating the result
 - building target bundles
-- installing and testing the plugin in a host app
+- installing and verifying the plugin in a host app
+- syncing later when the MCP changes
 
 ## The Mental Model
 
-Pluxx works in two layers:
+Pluxx is not just an installer. It is the source-of-truth compiler and maintenance loop for host-native plugins.
+
+That matters most for MCP-backed plugins: Pluxx can take a raw MCP and turn it into a workflow-driven native plugin surface instead of leaving users with a thin tool dump.
+
+It works in two layers:
 
 1. `Core` generates the deterministic scaffold.
 2. `Agent` optionally refines that scaffold semantically.
@@ -26,12 +31,15 @@ That means the normal flow is:
 raw MCP
   -> pluxx init
   -> optional agent refinement
-  -> pluxx doctor / lint / test
+  -> pluxx validate / doctor / lint
   -> pluxx build
   -> pluxx install
+  -> pluxx verify-install
+  -> pluxx test
+  -> pluxx sync later
 ```
 
-`pluxx autopilot` wraps that whole flow into one command, but the manual path is often easier to understand and debug.
+`pluxx autopilot` wraps that whole flow into one command, which makes it the fastest way for an MCP owner to get to a workflow-driven cross-platform native plugin. The manual path is still often easier to understand and debug.
 
 ## Path A: Manual And Controlled
 
@@ -144,6 +152,8 @@ Key files:
 - `skills/*/SKILL.md` — workflow surfaces over raw MCP tools
 - `.pluxx/mcp.json` — scaffold ownership metadata for future syncs
 
+The important rule is: edit the source project, not `dist/`.
+
 ### 5. Prepare the agent context pack
 
 If you want semantic refinement, give Pluxx the product context first:
@@ -239,6 +249,12 @@ Codex:
 
 ```bash
 npx @orchid-labs/pluxx install --trust --target codex
+```
+
+Then verify the host-visible install state before you move on:
+
+```bash
+npx @orchid-labs/pluxx verify-install --target codex
 ```
 
 Then restart the host app and test real requests.

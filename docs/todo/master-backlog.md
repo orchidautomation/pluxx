@@ -23,6 +23,7 @@ This is not the same thing as the short queue.
   - [docs/oss-wedge-and-trust-layer.md](../oss-wedge-and-trust-layer.md)
   - [docs/flagship-docs-ops-plugin.md](../flagship-docs-ops-plugin.md)
   - [docs/pluxx-plugin-surface-audit.md](../pluxx-plugin-surface-audit.md)
+  - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
   - [Linear](https://linear.app/orchid-automation)
 - Update together:
   - [docs/start-here.md](../start-here.md)
@@ -142,13 +143,10 @@ Open work:
 - [ ] Harden metadata, prompts, screenshots, and install guidance
 - [ ] Verify the self-hosted plugin path across Claude Code, Cursor, Codex, and OpenCode
 - [ ] Keep the plugin thin and the CLI as the execution engine
-- [ ] Close the plugin workflow coverage gap documented in `docs/pluxx-plugin-surface-audit.md`
-- [ ] Add first-class plugin workflows for:
-  - `verify-install`
-  - `publish`
-  - `autopilot`
-  - explicit context-prep / docs-ingestion
+- [x] Close the plugin workflow coverage gap documented in `docs/pluxx-plugin-surface-audit.md`
+- [ ] Keep `example/pluxx`, `plugins/pluxx`, and the published `pluxx-plugin` repo aligned
 - [ ] Decide what belongs in `example/pluxx` vs `plugins/pluxx`
+- [ ] Evaluate a `gh skill`-compatible export/publish path for the skills-only slice of a Pluxx project
 - [ ] Decide whether plugin distribution should stay in this repo or move later
 - [ ] Decide the public install/distribution UX for docs and marketplace-like surfaces:
   - direct install commands
@@ -232,6 +230,11 @@ These are already part of the strategy direction and should stay in view:
 - [ ] Keep the core-four compatibility matrix current
 - [ ] Make preserve/translate/degrade/drop more visible in docs and demos
 - [ ] Avoid promising equal support across hosts when the product cannot prove it
+- [ ] Refresh the platform rules and generated compatibility docs from the first-party provider audit:
+  - `src/validation/platform-rules.ts`
+  - `docs/compatibility.md`
+  - `docs/core-four-primitive-matrix.md`
+  - `docs/core-four-provider-docs-audit.md`
 
 ## Later
 

@@ -1,13 +1,14 @@
 # Getting Started With Pluxx
 
-Pluxx is for one specific job: maintain one plugin source project and generate native bundles for Claude Code, Cursor, Codex, and OpenCode.
+Pluxx is for one specific job: maintain one source project, compile truthful native bundles for Claude Code, Cursor, Codex, and OpenCode, and keep those outputs in sync over time.
 
-The strongest path today is MCP-first: bring an existing MCP server, scaffold the plugin from it, then keep shipping from one source of truth. But MCP is not a hard requirement. You can also start from an empty plugin and author the skills, instructions, hooks, and metadata yourself.
+The strongest path today is MCP-first: bring an existing MCP server, scaffold the plugin from it, verify the installed result in a real host, then keep shipping from one maintained source of truth. If you want the shortest path, `pluxx autopilot` can turn that raw MCP into a workflow-driven cross-platform native plugin in one flow. MCP is not a hard requirement. You can also start from an empty plugin and author the skills, instructions, hooks, and metadata yourself.
 
 This walkthrough covers:
 
 - choose an MCP-first or hand-authored starting point
 - scaffold a plugin
+- use `autopilot` when you want the one-shot path
 - lint, build, install, and test it
 - sync later when the MCP changes
 - run the same checks in CI
@@ -28,29 +29,32 @@ Related docs:
 
 ## Product Boundary
 
-Pluxx is the plugin authoring and maintenance layer for cross-host plugins.
+Pluxx is the source-of-truth compiler and maintenance layer for cross-host plugins.
 
 The best fit today is an MCP-backed plugin, because that is where import, auth translation, and sync save the most work. But Pluxx also works for plugins with no MCP.
 
 Pluxx owns:
 
-- source-plugin scaffolding
-- scaffold generation from local or remote MCPs when you have one
-- plugin validation, build, local install, and sync
-- keeping generated plugin repos maintainable as MCPs evolve
+- one maintained source project
+- source-plugin scaffolding from local or remote MCPs when you have one
+- plugin validation, build, local install, install verification, and sync
+- keeping generated plugin repos maintainable as MCPs and host surfaces evolve
 
 Pluxx does not own:
 
 - deploying or hosting the MCP backend service itself
 - operating production MCP infrastructure
+- the future trust or distribution layer as the current product center
 
 ## Lifecycle At A Glance
 
-1. Start from a local stdio/remote MCP or initialize an empty plugin.
-2. Generate and refine one plugin source repo.
-3. Validate/build/install locally.
-4. If your plugin is MCP-backed, repoint sync to the remote endpoint when the backend is deployed.
-5. Keep the plugin repo as your long-term source of truth.
+1. Start from a local stdio MCP, remote MCP, or empty plugin.
+2. Generate and refine one maintained source repo.
+3. Validate the source project.
+4. Build and install one host locally.
+5. Run `verify-install` so the host-visible bundle is actually present and shaped correctly.
+6. If your plugin is MCP-backed, repoint sync to the remote endpoint when the backend is deployed.
+7. Keep the plugin repo as your long-term source of truth.
 
 ## 1. Choose Your Starting Point
 
@@ -186,6 +190,12 @@ Pluxx writes:
 - optional `scripts/` for safe generated hooks
 - `.pluxx/mcp.json` ownership metadata for future syncs when the project was scaffolded from MCP
 
+The important contract is:
+
+- edit the source project
+- do not hand-edit `dist/`
+- rebuild and reinstall when you want fresh host outputs
+
 Generated `INSTRUCTIONS.md` and `SKILL.md` files use mixed ownership:
 
 - a Pluxx-managed generated block
@@ -225,6 +235,7 @@ npx @orchid-labs/pluxx doctor --json
 npx @orchid-labs/pluxx lint
 npx @orchid-labs/pluxx build
 npx @orchid-labs/pluxx install --target claude-code
+npx @orchid-labs/pluxx verify-install --target claude-code
 npx @orchid-labs/pluxx test
 ```
 
@@ -234,6 +245,8 @@ Useful previews:
 npx @orchid-labs/pluxx build --dry-run
 npx @orchid-labs/pluxx install --dry-run
 ```
+
+`pluxx verify-install` checks the actual installed host-visible bundle, not just generated files in `dist/`.
 
 `pluxx test` runs the default verification contract:
 

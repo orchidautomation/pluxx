@@ -22,6 +22,8 @@ This is the blunt answer to:
 
 > what commands do I run, in what order, and what does each one do?
 
+The important framing is that this is not just an import flow. It is the full maintenance loop for turning one raw MCP into one maintained Pluxx source project, then compiling, installing, verifying, and later syncing truthful host-native outputs.
+
 ## Running Example
 
 This doc uses one fake company all the way through so the lifecycle is obvious:
@@ -100,6 +102,14 @@ sync later when the MCP changes
     ->
 publish when the plugin is actually ready
 ```
+
+That order is the product story in miniature:
+
+- `init --from-mcp` creates the maintained source project
+- `doctor` and `lint` tell you whether the source project is healthy and honest across hosts
+- `build` compiles host-native outputs
+- `install` and `verify-install` prove the output is real in an actual host
+- `sync` keeps the source project current later without resetting curated work
 
 ## Step 0: Create A Project Folder
 
@@ -192,6 +202,8 @@ What `init --from-mcp` does:
 - creates `INSTRUCTIONS.md`
 - generates initial `skills/`
 - writes `.pluxx/mcp.json` so the source project can sync later
+
+This is the key step where a raw MCP stops being just a backend endpoint and becomes a maintained plugin source project.
 
 For Northstar Support, this is the command that turns “we have an MCP” into “we now have a real plugin source project.”
 

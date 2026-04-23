@@ -1,6 +1,6 @@
 import { ImageResponse } from "next/og";
 
-export const alt = "Pluxx | Stop maintaining four plugin repos for one MCP.";
+export const alt = "Pluxx | Turn a raw MCP into a native plugin.";
 export const size = {
   width: 1200,
   height: 630,
@@ -82,7 +82,7 @@ export default function OpenGraphImage() {
               textTransform: "uppercase",
             }}
           >
-            One source project. Four native plugin surfaces.
+            Raw MCP in. Native plugin out.
           </div>
           <div
             style={{
@@ -95,8 +95,8 @@ export default function OpenGraphImage() {
               lineHeight: 1.02,
             }}
           >
-            <span>Stop maintaining four</span>
-            <span>plugin repos for one MCP.</span>
+            <span>Turn a raw MCP</span>
+            <span>into a native plugin.</span>
           </div>
           <div
             style={{
@@ -110,9 +110,11 @@ export default function OpenGraphImage() {
             }}
           >
             <span>
-              Pluxx keeps one source project for Claude Code, Cursor, Codex, and OpenCode,
+              Pluxx turns raw MCPs into workflow-driven plugins for Claude Code, Cursor,
             </span>
-            <span>then compiles the native bundle each host expects.</span>
+            <span>
+              Codex, and OpenCode, with autopilot available for the one-shot path.
+            </span>
           </div>
         </div>
 

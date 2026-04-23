@@ -20,7 +20,7 @@ Use this doc when you want the blunt answer to:
 
 - how the Pluxx plugin actually works
 - what is in the plugin today
-- what CLI workflows are still missing from the plugin surface
+- how the plugin surface maps to the CLI today
 
 ## Short Answer
 
@@ -93,16 +93,20 @@ That local plugin is useful, but it is not the canonical source project.
 
 ## What The Plugin Contains Today
 
-The self-hosted plugin currently exposes eight core workflows:
+The self-hosted plugin now exposes twelve core workflows:
 
 1. `pluxx-import-mcp`
 2. `pluxx-migrate-plugin`
 3. `pluxx-validate-scaffold`
-4. `pluxx-refine-taxonomy`
-5. `pluxx-rewrite-instructions`
-6. `pluxx-review-scaffold`
-7. `pluxx-build-install`
-8. `pluxx-sync-mcp`
+4. `pluxx-prepare-context`
+5. `pluxx-refine-taxonomy`
+6. `pluxx-rewrite-instructions`
+7. `pluxx-review-scaffold`
+8. `pluxx-build-install`
+9. `pluxx-verify-install`
+10. `pluxx-sync-mcp`
+11. `pluxx-autopilot`
+12. `pluxx-publish-plugin`
 
 In Codex, those are primarily exposed as:
 
@@ -112,14 +116,18 @@ In Codex, those are primarily exposed as:
 
 In hosts with command surfaces, the canonical source project also defines matching explicit commands:
 
+- `/pluxx:autopilot`
+- `/pluxx:build-install`
 - `/pluxx:import-mcp`
 - `/pluxx:migrate-plugin`
+- `/pluxx:prepare-context`
+- `/pluxx:publish-plugin`
 - `/pluxx:validate-scaffold`
 - `/pluxx:refine-taxonomy`
 - `/pluxx:rewrite-instructions`
 - `/pluxx:review-scaffold`
-- `/pluxx:build-install`
 - `/pluxx:sync-mcp`
+- `/pluxx:verify-install`
 
 ## How The Current Plugin Actually Works
 
@@ -170,131 +178,68 @@ This is the important table.
 | `agent prepare` + instructions pass | Yes | Yes | Covered by `pluxx-rewrite-instructions` |
 | review pass | Yes | Yes | Covered by `pluxx-review-scaffold` |
 | `build` + `install` | Yes | Yes | Covered by `pluxx-build-install` |
+| `verify-install` | Yes | Yes | Covered by `pluxx-verify-install` |
 | `sync` | Yes | Yes | Covered by `pluxx-sync-mcp` |
-| `verify-install` | No explicit workflow | Yes | Important now that install verification is a real differentiated Pluxx surface |
-| `publish` | No explicit workflow | Yes | Important for the public plugin/distribution story |
-| `autopilot` | No explicit workflow | Yes | Important because it is a real user-facing one-shot path now |
-| docs/website ingestion / `agent prepare` as a standalone workflow | Partial only | Probably yes | Currently hidden inside taxonomy/instructions flows instead of being a clear workflow |
+| `publish` | Yes | Yes | Covered by `pluxx-publish-plugin` |
+| `autopilot` | Yes | Yes | Covered by `pluxx-autopilot` |
+| docs/website ingestion / `agent prepare` as a standalone workflow | Yes | Yes | Covered by `pluxx-prepare-context` |
 | `doctor --consumer` | Indirect only | Maybe | Valuable as a troubleshooting workflow after install |
 | `uninstall` | No | Maybe | Useful but not urgent for the plugin’s first polished operator surface |
 | `mcp proxy --record/--replay` | No | Probably not by default | Useful maintainer/debug flow, but not core plugin UX |
 | `dev` | No | No | Maintainer workflow, not product workflow |
 
-## The Real Gaps
+## What Changed
 
-The current plugin is good, but it is not comprehensive yet.
+The plugin workflow coverage gap is now closed across the maintained source project and the repo-local Codex dogfood plugin.
 
-The biggest product-facing gaps are:
+That means the plugin surface now covers the full modern Pluxx lifecycle:
 
-### 1. `verify-install` is shipped in the CLI but missing as a first-class plugin workflow
-
-That matters because install verification is one of the cleanest reasons Pluxx is more than a thin generator.
-
-The plugin should have a clear operator flow for:
-
+- import
+- migrate
+- validate
+- prepare context
+- refine
+- rewrite
+- review
+- build
 - install
-- verify installed state
-- explain host-specific follow-up if the host still looks wrong
+- verify
+- sync
+- autopilot
+- publish
 
-### 2. `publish` is real in the CLI but not surfaced in the plugin
+## Remaining Thin Spots
 
-That matters because the self-hosted plugin story now includes:
+The plugin surface is now meaningfully comprehensive, but a few things are still thinner than they should be:
 
-- release assets
-- host-specific install scripts
-- release-driven distribution
+### 1. Cross-host proof should be rerun more systematically
 
-If the plugin does not surface publish at all, the operator story stops short of a real lifecycle.
+The self-hosted plugin now has the right workflows, but we still need stronger repeated proof across:
 
-### 3. `autopilot` exists but is not visible in the plugin surface
+- Claude Code
+- Cursor
+- Codex
+- OpenCode
 
-That matters because some users want:
+### 2. `doctor --consumer` is still secondary
 
-- one-shot import
-- one-shot refinement
-- one-shot verification
+We currently surface consumer troubleshooting through:
 
-If we believe `autopilot` is a real product surface, the plugin should acknowledge it directly.
+- `pluxx-verify-install`
+- selective `pluxx doctor --consumer`
 
-### 4. Docs/context preparation is still too hidden
+That is probably enough for now, but install troubleshooting may deserve a more explicit operator path later if users keep getting stuck there.
 
-Right now the plugin uses `pluxx agent prepare` inside taxonomy and instructions workflows.
+### 3. Distribution and update UX still matter more than more workflows
 
-That works, but it hides an important capability:
+The next plugin-specific improvements are not more skills.
 
-- website ingestion
-- docs ingestion
-- context-pack preparation
+They are:
 
-This should probably become a named workflow instead of staying an invisible implementation detail.
-
-### 5. Consumer troubleshooting is undersurfaced
-
-The CLI now has stronger installed-bundle validation.
-
-The plugin should likely have a more obvious troubleshooting workflow for:
-
-- install looks wrong
-- host cannot see the bundle
-- runtime shape does not match expectation
-
-## Recommended Next Additions
-
-In priority order:
-
-### 1. `pluxx-verify-install`
-
-Job:
-
-- verify that a built and installed target is actually visible and healthy in the host
-
-CLI it should orchestrate:
-
-- `pluxx verify-install --target ...`
-- optionally `pluxx doctor --consumer --target ...` when deeper diagnosis is needed
-
-### 2. `pluxx-publish-plugin`
-
-Job:
-
-- package the current plugin for release distribution and explain the install outputs
-
-CLI it should orchestrate:
-
-- `pluxx publish`
-
-### 3. `pluxx-autopilot`
-
-Job:
-
-- run the one-shot import/refine/verify path deliberately
-
-CLI it should orchestrate:
-
-- `pluxx autopilot --from-mcp ...`
-
-### 4. `pluxx-prepare-context`
-
-Job:
-
-- ingest website/docs/local context and prepare the agent pack before semantic refinement
-
-CLI it should orchestrate:
-
-- `pluxx agent prepare ...`
-
-### 5. `pluxx-troubleshoot-install`
-
-Job:
-
-- diagnose why a host does not see or trust the installed plugin
-
-CLI it should orchestrate:
-
-- `pluxx verify-install --target ...`
-- `pluxx doctor --consumer --target ...`
-
-This could be merged with `pluxx-verify-install`, but the user intent is different enough that separate flows may be cleaner.
+- polished install/update docs
+- release automation that is less manual
+- clearer host-specific reload/update guidance
+- one-click install surfaces where the hosts allow it
 
 ## What Should Stay CLI-First
 
@@ -310,30 +255,25 @@ The plugin should feel comprehensive around the real lifecycle, not bloated arou
 
 ## Current Conclusion
 
-The plugin architecture is right:
+The plugin architecture is still right:
 
 - thin plugin
 - CLI as engine
 - canonical source project in `example/pluxx`
 
-But the surface is not complete yet.
+And now the surface is materially closer to the real lifecycle.
 
 The shortest honest summary is:
 
 ```text
-good operator shell
-not yet full lifecycle coverage
+full lifecycle coverage is present
+polish and distribution still need work
 ```
 
-The most important next move is not changing the architecture.
+The most important next moves are not new workflows.
 
-It is closing the workflow coverage gap so the plugin itself can honestly represent the full modern Pluxx lifecycle:
+They are:
 
-- import
-- refine
-- validate
-- build
-- install
-- verify
-- publish
-- one-shot autopilot
+- keeping `example/pluxx`, `plugins/pluxx`, and the published plugin repo aligned
+- verifying the self-hosted plugin path across the core four
+- making install, update, and release distribution feel simpler

@@ -1,10 +1,10 @@
 # pluxx
 
-**Maintain one plugin source. Ship fully native experiences to Claude Code, Cursor, Codex, and OpenCode.**
+**Turn a raw MCP into a native plugin across Claude Code, Cursor, Codex, and OpenCode.**
 
 Import a raw MCP or an existing host-native plugin, keep one maintained source project, and compile native outputs for **Claude Code, Cursor, Codex, and OpenCode** instead of maintaining four separate plugin codebases.
 
-Pluxx is the authoring, maintenance, and compilation layer for teams that want one source of truth instead of four drifting per-host plugin repos.
+Pluxx is the authoring, maintenance, and compilation layer for teams that want one source of truth instead of four drifting per-host plugin repos. Start with `init`, or use `pluxx autopilot` when you want the one-shot path.
 
 Raw MCP access is usually not enough. Most products still need workflow grouping, stronger instructions, hooks, commands, auth/setup guidance, and honest host-native packaging. Pluxx is the layer that makes that repeatable.
 
@@ -25,6 +25,8 @@ Every host has different plugin contracts and different places to express the sa
 - brand and packaging metadata
 
 Without Pluxx, those details drift across multiple repos. With Pluxx, you keep one source project and compile honest host-native outputs.
+
+For teams that want the shortest path from raw MCP to something usable, `pluxx autopilot` wraps import, refinement, and build/test flow into one command.
 
 The current product focus is the OSS authoring substrate:
 
@@ -71,6 +73,16 @@ npx @orchid-labs/pluxx doctor
 npx @orchid-labs/pluxx lint
 npx @orchid-labs/pluxx build
 npx @orchid-labs/pluxx test
+```
+
+One-shot path:
+
+```bash
+npx @orchid-labs/pluxx autopilot \
+  --from-mcp https://example.com/mcp \
+  --runner codex \
+  --name my-plugin \
+  --yes
 ```
 
 Common output shape:

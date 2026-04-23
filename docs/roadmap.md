@@ -12,6 +12,7 @@ Last updated: 2026-04-23
   - [docs/oss-wedge-and-trust-layer.md](./oss-wedge-and-trust-layer.md)
   - [docs/flagship-docs-ops-plugin.md](./flagship-docs-ops-plugin.md)
   - [docs/pluxx-plugin-surface-audit.md](./pluxx-plugin-surface-audit.md)
+  - [docs/core-four-provider-docs-audit.md](./core-four-provider-docs-audit.md)
   - [Linear](https://linear.app/orchid-automation)
 - Update together:
   - [docs/start-here.md](./start-here.md)
@@ -110,16 +111,16 @@ Make the self-hosted Pluxx plugin feel polished, real, and easy to install.
 The plugin should stay thin.
 The CLI should stay the execution engine.
 
-The next plugin-specific gap is workflow coverage.
+The plugin workflow coverage gap is now closed in the maintained source project and the repo-local Codex dogfood plugin.
 
 Use [docs/pluxx-plugin-surface-audit.md](./pluxx-plugin-surface-audit.md) as the concrete reference.
 
-The main missing first-class workflows are:
+The next plugin-specific work is:
 
-- `verify-install`
-- `publish`
-- `autopilot`
-- explicit context-prep / docs-ingestion
+- repeat the self-hosted plugin proof across Claude Code, Cursor, Codex, and OpenCode
+- keep `example/pluxx`, `plugins/pluxx`, and the published `pluxx-plugin` repo aligned
+- improve install/update clarity and release distribution UX
+- evaluate whether a `gh skill`-compatible export belongs as an additional distribution channel for the skills-only slice of Pluxx output
 
 ### 5. Customer discovery and GTM learning
 
@@ -173,6 +174,7 @@ These matter, but they are not the immediate center:
 - keep the core-four matrix current
 - keep preserve/translate/degrade/drop visible
 - do not imply equal support where the repo cannot prove it
+- use [docs/core-four-provider-docs-audit.md](./core-four-provider-docs-audit.md) to refresh the machine-readable rules and generated compatibility docs after each major host-doc review
 
 ## Strategic Horizon: Trust / Distribution Layer
 

@@ -72,9 +72,14 @@ A thin plugin is easier to reason about for:
 The plugin should provide the best in-host entrypoint for the same core workflows:
 
 - import an MCP
+- prepare context
 - refine taxonomy
 - rewrite instructions
 - review a scaffold
+- build and install
+- verify installed state
+- publish a release
+- run autopilot when the user wants the one-shot path
 - sync an MCP-derived scaffold
 
 It should also help users discover the broader deterministic commands:
@@ -223,6 +228,18 @@ Later, if distribution needs diverge:
 - split a dedicated plugin/marketplace repo for cleaner discovery and release management
 
 That split should happen for distribution reasons, not because the architecture requires it.
+
+## New ecosystem signal: `gh skill`
+
+GitHub's new `gh skill` workflow is a useful signal, not a reason to change the core Pluxx thesis.
+
+The important takeaway is:
+
+- Agent Skills are becoming package-managed infrastructure
+- skills-only distribution now has a stronger install/update/publish path
+- Pluxx should evaluate whether a `gh skill`-friendly export belongs in the future distribution story
+
+Use [gh-skill-and-agent-skills-note.md](./gh-skill-and-agent-skills-note.md) for the detailed read.
 
 ## Recommended next build sequence
 

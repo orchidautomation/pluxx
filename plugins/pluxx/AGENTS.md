@@ -147,3 +147,20 @@ A good Pluxx result should leave the user with:
 - `pluxx verify-install` is the install-state proof after local install.
 - `pluxx publish` is the packaging and release path after the scaffold is healthy.
 - For OAuth-first MCPs, import auth and runtime auth may differ. Do not assume a bearer import token is the correct long-term runtime auth shape.
+
+## Command Routing
+
+This plugin defines canonical command entrypoints. Codex does not package them as native slash commands today, so route those requests through the matching workflow directly.
+
+- `/autopilot` - Run the one-shot Pluxx import, refinement, and verification path
+- `/build-install` - Build installable plugins and optionally install requested targets locally
+- `/import-mcp` - Scaffold a new Pluxx plugin from an MCP source
+- `/migrate-plugin` - Migrate an existing host-native plugin into a Pluxx source project
+- `/prepare-context` - Ingest docs, website, and local context into the Pluxx agent pack
+- `/publish-plugin` - Package the current plugin for release distribution
+- `/refine-taxonomy` - Improve the skill taxonomy for an existing Pluxx scaffold
+- `/review-scaffold` - Review a Pluxx scaffold critically before shipping
+- `/rewrite-instructions` - Rewrite INSTRUCTIONS.md so a Pluxx scaffold explains itself clearly
+- `/sync-mcp` - Refresh an existing Pluxx scaffold from its MCP source
+- `/validate-scaffold` - Run deterministic health and quality checks on the current Pluxx scaffold
+- `/verify-install` - Verify that an installed host bundle is actually visible and healthy

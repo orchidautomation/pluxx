@@ -20,22 +20,29 @@ This is the working homepage copy for Pluxx. It is intentionally concise and str
 
 Pluxx gives you one maintained plugin source project that ships native plugins for Claude Code, Codex, Cursor, and OpenCode.
 
+The sharpest wedge is MCP-first:
+
+- bring a raw MCP
+- turn it into a real native plugin
+- use `autopilot` when you want the one-shot path
+
 The important product promise is:
 
 - deterministic structure from Pluxx
 - semantic refinement from the coding agent the user already works in
 - one maintained source of truth over time
 - optional MCP import when the plugin wraps a live server
+- a one-shot path from raw MCP to native plugin via `autopilot`
 
 ## Hero
 
 ### Headline
 
-Maintain one plugin source. Ship fully native experiences.
+Turn a raw MCP into a native plugin.
 
 ### Subheadline
 
-Pluxx turns one maintained source project into native plugins for Claude Code, Cursor, Codex, and OpenCode, so you do not rebuild the same workflow four times. Pluxx generates the scaffold, host-specific files, and managed guardrails up front so your coding agent can safely refine taxonomy and instructions.
+Pluxx turns a barebones MCP into a workflow-driven plugin for Claude Code, Cursor, Codex, and OpenCode. Start with `init`, or use `autopilot` when you want the one-shot path.
 
 ### Primary CTA
 
@@ -47,7 +54,7 @@ View repository
 
 ### Command chip
 
-`npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp`
+`npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp --yes`
 
 ### Proof line
 

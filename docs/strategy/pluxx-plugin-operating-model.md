@@ -58,7 +58,7 @@ Today that should be:
 
 ## Recommended skill set
 
-The Pluxx plugin should expose eight core operator skills.
+The Pluxx plugin should expose twelve core operator skills.
 
 ### 1. `pluxx-import-mcp`
 
@@ -100,7 +100,17 @@ CLI it orchestrates:
 - `pluxx eval`
 - `pluxx test`
 
-### 4. `pluxx-refine-taxonomy`
+### 4. `pluxx-prepare-context`
+
+Job:
+
+- ingest website docs, product docs, and local context before semantic refinement
+
+CLI it orchestrates:
+
+- `pluxx agent prepare`
+
+### 5. `pluxx-refine-taxonomy`
 
 Job:
 
@@ -114,7 +124,7 @@ CLI it orchestrates:
 - `pluxx lint`
 - `pluxx test`
 
-### 5. `pluxx-rewrite-instructions`
+### 6. `pluxx-rewrite-instructions`
 
 Job:
 
@@ -128,7 +138,7 @@ CLI it orchestrates:
 - `pluxx lint`
 - `pluxx test`
 
-### 6. `pluxx-review-scaffold`
+### 7. `pluxx-review-scaffold`
 
 Job:
 
@@ -141,7 +151,7 @@ CLI it orchestrates:
 - `pluxx agent run review --runner ...`
 - optional deterministic checks when they materially improve the review
 
-### 7. `pluxx-build-install`
+### 8. `pluxx-build-install`
 
 Job:
 
@@ -154,7 +164,18 @@ CLI it orchestrates:
 - `pluxx install --target ...`
 - `pluxx install --trust --target ...` when explicitly needed
 
-### 8. `pluxx-sync-mcp`
+### 9. `pluxx-verify-install`
+
+Job:
+
+- prove that an installed host bundle is actually visible and healthy
+
+CLI it orchestrates:
+
+- `pluxx verify-install --target ...`
+- `pluxx doctor --consumer` when the installed state still looks wrong
+
+### 10. `pluxx-sync-mcp`
 
 Job:
 
@@ -168,46 +189,78 @@ CLI it orchestrates:
 - `pluxx lint`
 - `pluxx test`
 
+### 11. `pluxx-autopilot`
+
+Job:
+
+- run the one-shot import, refinement, and verification path
+
+CLI it orchestrates:
+
+- `pluxx autopilot --from-mcp ...`
+
+### 12. `pluxx-publish-plugin`
+
+Job:
+
+- package the current plugin for release distribution
+
+CLI it orchestrates:
+
+- `pluxx publish`
+
 ## Command surface by host
 
 ### Claude Code
 
 Expose namespaced explicit commands:
 
+- `/pluxx:autopilot`
+- `/pluxx:build-install`
 - `/pluxx:import-mcp`
 - `/pluxx:migrate-plugin`
+- `/pluxx:prepare-context`
+- `/pluxx:publish-plugin`
 - `/pluxx:validate-scaffold`
 - `/pluxx:refine-taxonomy`
 - `/pluxx:rewrite-instructions`
 - `/pluxx:review-scaffold`
-- `/pluxx:build-install`
 - `/pluxx:sync-mcp`
+- `/pluxx:verify-install`
 
 ### Cursor
 
 Expose the same explicit command set where plugin commands are supported:
 
+- `/pluxx:autopilot`
+- `/pluxx:build-install`
 - `/pluxx:import-mcp`
 - `/pluxx:migrate-plugin`
+- `/pluxx:prepare-context`
+- `/pluxx:publish-plugin`
 - `/pluxx:validate-scaffold`
 - `/pluxx:refine-taxonomy`
 - `/pluxx:rewrite-instructions`
 - `/pluxx:review-scaffold`
-- `/pluxx:build-install`
 - `/pluxx:sync-mcp`
+- `/pluxx:verify-install`
 
 ### OpenCode
 
 Expose the same workflow command set in OpenCode’s native command surface:
 
+- `/pluxx:autopilot`
+- `/pluxx:build-install`
 - `/pluxx:import-mcp`
 - `/pluxx:migrate-plugin`
+- `/pluxx:prepare-context`
+- `/pluxx:publish-plugin`
 - `/pluxx:validate-scaffold`
 - `/pluxx:refine-taxonomy`
 - `/pluxx:rewrite-instructions`
 - `/pluxx:review-scaffold`
-- `/pluxx:build-install`
 - `/pluxx:sync-mcp`
+- `/pluxx:verify-install`
 
 ### Codex
 
@@ -222,14 +275,18 @@ Use:
 
 Equivalent operator surface:
 
+- `pluxx-autopilot`
+- `pluxx-build-install`
 - `pluxx-import-mcp`
 - `pluxx-migrate-plugin`
+- `pluxx-prepare-context`
+- `pluxx-publish-plugin`
 - `pluxx-validate-scaffold`
 - `pluxx-refine-taxonomy`
 - `pluxx-rewrite-instructions`
 - `pluxx-review-scaffold`
-- `pluxx-build-install`
 - `pluxx-sync-mcp`
+- `pluxx-verify-install`
 
 ## CLI resolution model
 
@@ -263,15 +320,19 @@ This gives us:
 
 That is the architecture we should optimize from here.
 
-## Current gaps vs target
+## Current state vs target
 
-The current dogfood/plugin surface started narrower than this spec.
-
-The target surface above is the one Pluxx should converge on:
+The maintained source project and repo-local Codex dogfood surface now match this lifecycle more closely:
 
 - full operator skill pack
 - explicit command parity where hosts support it
 - Codex skill-first orchestration
 - one CLI resolution contract across all hosts
 
-This is the right model for a real Pluxx plugin, not just a dogfood artifact.
+The remaining work is no longer workflow coverage.
+
+It is:
+
+- repeated proof across the core four
+- keeping the source project and dogfood bundle aligned
+- polishing install/update/release UX

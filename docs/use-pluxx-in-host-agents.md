@@ -7,9 +7,11 @@ Use this doc when you want the meta workflow:
 - install or enable Pluxx in your host
 - ask Claude, Codex, Cursor, or OpenCode to use Pluxx for you
 - scaffold a plugin from an MCP
-- refine the scaffold
+- prepare context and refine the scaffold
 - review it
-- sync it later
+- verify an install
+- publish it
+- or sync it later
 
 This is different from [Create a Pluxx plugin](./create-a-pluxx-plugin.md), which is the CLI-first authoring walkthrough.
 
@@ -31,38 +33,50 @@ Pluxx is the plugin-authoring substrate underneath it.
 
 ## The Main Pluxx Workflows
 
-The recommended Pluxx skill pack is organized around eight jobs:
+The recommended Pluxx skill pack is organized around twelve jobs:
 
 - `pluxx-import-mcp`
 - `pluxx-migrate-plugin`
 - `pluxx-validate-scaffold`
+- `pluxx-prepare-context`
 - `pluxx-refine-taxonomy`
 - `pluxx-rewrite-instructions`
 - `pluxx-review-scaffold`
 - `pluxx-build-install`
+- `pluxx-verify-install`
 - `pluxx-sync-mcp`
+- `pluxx-autopilot`
+- `pluxx-publish-plugin`
 
 Those correspond to:
 
 1. import an MCP and scaffold a plugin
 2. migrate an existing host-native plugin into Pluxx
 3. validate the scaffold deterministically
-4. improve the skill taxonomy
-5. rewrite the shared instructions
-6. review the scaffold critically
-7. build native outputs and optionally install them
-8. refresh the scaffold when the MCP changes
+4. prepare website/docs/local context before semantic refinement
+5. improve the skill taxonomy
+6. rewrite the shared instructions
+7. review the scaffold critically
+8. build native outputs and optionally install them
+9. verify that the installed host bundle is actually healthy
+10. refresh the scaffold when the MCP changes
+11. run the one-shot import/refine/verify path
+12. package the plugin for release distribution
 
 The self-hosting plugin also exposes matching explicit commands in hosts that support plugin commands:
 
+- `/pluxx:autopilot`
+- `/pluxx:build-install`
 - `/pluxx:import-mcp`
 - `/pluxx:migrate-plugin`
+- `/pluxx:prepare-context`
+- `/pluxx:publish-plugin`
 - `/pluxx:validate-scaffold`
 - `/pluxx:refine-taxonomy`
 - `/pluxx:rewrite-instructions`
 - `/pluxx:review-scaffold`
-- `/pluxx:build-install`
 - `/pluxx:sync-mcp`
+- `/pluxx:verify-install`
 
 Use commands when you want a direct host-native entrypoint in Claude Code, Cursor, or OpenCode. In Codex, use `@pluxx` and the skill list instead; `/` is reserved for native Codex commands. Use skills when you want the host agent to choose the right Pluxx workflow automatically.
 
@@ -71,9 +85,12 @@ Use commands when you want a direct host-native entrypoint in Claude Code, Curso
 Think in terms of what you want the host agent to do:
 
 - “Use Pluxx to scaffold this MCP”
+- “Use Pluxx to prepare context before rewriting this scaffold”
 - “Use Pluxx to improve the taxonomy”
 - “Use Pluxx to rewrite the instructions”
 - “Use Pluxx to review this scaffold”
+- “Use Pluxx to verify the installed Codex plugin”
+- “Use Pluxx to publish this plugin”
 - “Use Pluxx to sync this plugin from its MCP again”
 
 You do **not** need to memorize the exact CLI every time if the host agent already has Pluxx available.

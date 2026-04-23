@@ -11,6 +11,7 @@ Last updated: 2026-04-23
 - [docs/roadmap.md](./roadmap.md)
 - [docs/oss-wedge-and-trust-layer.md](./oss-wedge-and-trust-layer.md)
 - [docs/flagship-docs-ops-plugin.md](./flagship-docs-ops-plugin.md)
+- [docs/core-four-provider-docs-audit.md](./core-four-provider-docs-audit.md)
 - [README.md](../README.md)
 - Update together:
   - [docs/todo/queue.md](./todo/queue.md)
@@ -124,6 +125,8 @@ The repo already proves a lot.
   - `.pluxx/sources.json`
   - `.pluxx/docs-context.json`
 - release smoke exists for the core four
+- a first-party provider-doc audit now exists at:
+  - `docs/core-four-provider-docs-audit.md`
 
 ## What Pluxx Is Not Yet
 
@@ -161,6 +164,7 @@ That includes:
 - cleaner public framing
 - fewer stale planning artifacts
 - truthful public metadata and links
+- first-party provider docs reflected accurately in the compatibility story
 
 ### 2. Flagship Depth Example
 
@@ -208,21 +212,22 @@ That means:
 
 Make the self-hosted Pluxx plugin feel like a real install surface, not just dogfood.
 
-That now includes closing the workflow coverage gap called out in:
+The workflow coverage gap called out in:
 
 - `docs/pluxx-plugin-surface-audit.md`
 
-The plugin architecture is right:
+is now closed in the maintained source project and the repo-local Codex dogfood plugin.
+
+The plugin architecture is still right:
 
 - thin plugin
 - CLI as the execution engine
 
-But the plugin surface is not fully comprehensive yet. The main missing first-class workflows are:
+The next plugin-specific work is now:
 
-- `verify-install`
-- `publish`
-- `autopilot`
-- explicit context-prep / ingestion
+- rerunning cross-host proof across Claude Code, Cursor, Codex, and OpenCode
+- hardening metadata, prompts, screenshots, and install/update guidance
+- tightening release automation and distribution UX
 
 ### 5. Customer Discovery
 
@@ -283,7 +288,8 @@ After this file:
 - read [docs/todo/master-backlog.md](./todo/master-backlog.md) for the broadest repo-native backlog
 - read [roadmap.md](./roadmap.md) for execution direction
 - read [mcp-first-command-lifecycle.md](./mcp-first-command-lifecycle.md) for the exact MCP-first CLI order
-- read [pluxx-plugin-surface-audit.md](./pluxx-plugin-surface-audit.md) for how the self-hosted plugin works and what it still does not cover
+- read [pluxx-plugin-surface-audit.md](./pluxx-plugin-surface-audit.md) for how the self-hosted plugin works and where the remaining polish is
+- read [strategy/gh-skill-and-agent-skills-note.md](./strategy/gh-skill-and-agent-skills-note.md) for what GitHub's new `gh skill` workflow changes and does not change for Pluxx
 - read [oss-wedge-and-trust-layer.md](./oss-wedge-and-trust-layer.md) for product framing
 - read [enterprise-adoption-thesis.md](./enterprise-adoption-thesis.md) for the stronger future enterprise thesis
 - read [status-quo-vs-pluxx-story.md](./status-quo-vs-pluxx-story.md) for the broader positioning narrative

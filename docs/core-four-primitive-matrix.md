@@ -13,6 +13,8 @@ The goal is to normalize author intent once, then compile it into the best nativ
 
 If you want the maintainer-facing build plan that follows from this matrix, read [Core-Four Primitive Implementation Plan](./core-four-primitive-implementation-plan.md).
 
+If you want the April 2026 first-party host audit that compares Pluxx's current assumptions against official provider docs, read [Core-Four Provider Docs Audit](./core-four-provider-docs-audit.md).
+
 ## Compiler Buckets
 
 These are the eight buckets Pluxx should compile from:
@@ -63,14 +65,14 @@ This is a compiler-facing model. It is not a claim that each host has one identi
 
 | Bucket | Claude Code | Cursor | Codex | OpenCode | Pluxx mapping rule |
 |---|---|---|---|---|---|
-| `instructions` | `CLAUDE.md` plus plugin-level guidance surfaces | `rules/` plus `AGENTS.md` support | `AGENTS.md` and `AGENTS.override.md` | config-driven instruction files | Keep one instruction source of truth and compile it into the host-native guidance surface rather than duplicating prose by hand. |
-| `skills` | `skills/<skill>/SKILL.md` | `skills/<skill>/SKILL.md` with a narrower documented frontmatter set | `skills/<skill>/SKILL.md`, optionally bundled through plugins | `skills/<skill>/SKILL.md` | Skills stay the semantic center. Preserve shared metadata and strip or downgrade host-only frontmatter during migration and build. |
-| `commands` | native `commands/` markdown command files | native `commands/` plugin files | no documented plugin-packaged command directory today | native command system through markdown or JSON command definitions | Treat commands as first-class where the host exposes them. For Codex, degrade commands into skills and instruction routing instead of pretending parity exists. |
-| `agents` | plugin `agents/` with rich frontmatter and isolation settings | plugin agents plus Cursor subagents | custom agents in `.codex/agents/*.toml` and subagent workflows | primary agents and subagents with model and permission config | Treat agents as specialist execution surfaces. Compile one specialist concept into each host's native agent or subagent format, even when the storage location differs. |
-| `hooks` | `hooks/hooks.json` or inline plugin manifest hooks | `hooks/hooks.json` plus project and user hook locations | `.codex/hooks.json` or `~/.codex/hooks.json`, guarded by the `codex_hooks` feature flag | JS or TS plugin event handlers | Normalize hook intent and compile per host. Do not assume event names or return contracts are portable 1:1. |
+| `instructions` | `CLAUDE.md` plus plugin-level guidance surfaces | `rules/` plus `AGENTS.md` support | `AGENTS.md`, `AGENTS.override.md`, and config fallback instruction files | `AGENTS.md`, `CLAUDE.md` fallback, and config-driven instruction files | Keep one instruction source of truth and compile it into the host-native guidance surface rather than duplicating prose by hand. |
+| `skills` | `skills/<skill>/SKILL.md` with the richest documented frontmatter | `skills/<skill>/SKILL.md` with a narrower documented frontmatter set and compatibility dirs | `skills/<skill>/SKILL.md`, optionally bundled through plugins or discovered through `.agents/skills` | `skills/<skill>/SKILL.md` plus compatibility dirs inside host config space | Skills stay the semantic center. Preserve shared metadata and strip or downgrade host-only frontmatter during migration and build. |
+| `commands` | native `commands/` markdown command files, with increasing convergence toward skills | native command and slash-command surfaces | no documented plugin-packaged command directory today | native command system through markdown or config definitions | Treat commands as first-class where the host exposes them. For Codex, degrade commands into skills and instruction routing instead of pretending parity exists. |
+| `agents` | plugin `agents/` with rich frontmatter and isolation settings, but explicit plugin-agent limits | plugin agents plus Cursor subagents | custom agents in `.codex/agents/*.toml` and subagent workflows | primary agents and subagents with model and permission config | Treat agents as specialist execution surfaces. Compile one specialist concept into each host's native agent or subagent format, even when the storage location differs. |
+| `hooks` | `hooks/hooks.json`, inline plugin hooks, settings hooks, and skill or agent frontmatter hooks | `hooks/hooks.json` plus project and user hook locations | `.codex/hooks.json` or `~/.codex/hooks.json`, guarded by the `codex_hooks` feature flag | JS or TS plugin event handlers | Normalize hook intent and compile per host. Do not assume event names or return contracts are portable 1:1. |
 | `permissions` | tool scoping and approval controls live in Claude-specific agent, hook, and runtime surfaces | hook allow or deny decisions, CLI permission config, and subagent tool access | approvals, sandbox policy, hook matchers, and custom-agent config | first-class permission config plus per-agent overrides | Keep `allow` / `ask` / `deny` as the canonical authoring model. When one host lacks a per-skill field, move the policy to its native agent, hook, or runtime control plane. |
-| `runtime` | `.mcp.json` or inline MCP config, plus plugin support files | `mcp.json`, plugin support files, and host config integration | `.mcp.json` in plugins plus active MCP state in `config.toml`, with optional `.app.json` | config-driven MCP and JS plugin runtime | Runtime owns MCP, auth, env wiring, helper code, local runtimes, and passthrough dirs. Compile into bundle-local files when possible and external host config when required. |
-| `distribution` | `.claude-plugin/plugin.json`, install scopes, user configuration, plugin cache, install command surfaces | `.cursor-plugin/plugin.json`, marketplace metadata, publish surface, local install path | `.codex-plugin/plugin.json`, marketplace catalogs, cache install path, interface metadata | npm or local JS plugin distribution rather than one shared manifest | Distribution owns `userConfig`, brand, legal links, icons, screenshots, install metadata, and publish metadata. Emit rich manifest fields where supported and install shims where they are not. |
+| `runtime` | `.mcp.json` or inline MCP config, plus plugin support files | `mcp.json`, host `mcp.json` config, plugin support files, and richer auth surfaces | `.mcp.json` in plugins plus active MCP state in `config.toml`, with optional `.app.json` | config-driven MCP plus JS or TS plugin runtime | Runtime owns MCP, auth, env wiring, helper code, local runtimes, and passthrough dirs. Compile into bundle-local files when possible and external host config when required. |
+| `distribution` | `.claude-plugin/plugin.json`, marketplaces, install scopes, user configuration, reload surface | `.cursor-plugin/plugin.json`, marketplace metadata, publish surface, local install path, reload-window flow | `.codex-plugin/plugin.json`, marketplace catalogs, cache install path, interface metadata, restart-after-update flow | npm or local JS plugin distribution plus config-based loading rather than one shared manifest | Distribution owns `userConfig`, brand, legal links, icons, screenshots, install metadata, and publish metadata. Emit rich manifest fields where supported and install shims where they are not. |
 
 ## Practical Consequences
 
@@ -91,6 +93,9 @@ This matrix implies a few hard rules for Pluxx:
 5. OpenCode is code-first for plugins.
    Hooks, runtime extensions, and some distribution behavior need real JS or TS generation rather than manifest-only generation.
 
+6. Install and update behavior are part of compatibility truth, not just packaging trivia.
+   The host story includes reload behavior, restart requirements, cache semantics, and marketplace or local install paths.
+
 ## Official Docs Basis
 
 ### Claude Code
@@ -104,31 +109,40 @@ This matrix implies a few hard rules for Pluxx:
 
 ### Cursor
 
-- [Plugins Reference](https://cursor.com/docs/reference/plugins)
 - [Plugins](https://cursor.com/docs/plugins)
 - [Agent Skills](https://cursor.com/docs/skills)
 - [Subagents](https://cursor.com/docs/subagents)
 - [Hooks](https://cursor.com/docs/hooks)
 - [Rules](https://cursor.com/docs/rules)
+- [MCP](https://cursor.com/docs/mcp)
+- [Slash commands](https://cursor.com/docs/cli/reference/slash-commands)
+- [Authentication](https://cursor.com/docs/cli/reference/authentication)
 - [Permissions](https://cursor.com/docs/cli/reference/permissions)
 
 ### Codex
 
+- [Plugins](https://developers.openai.com/codex/plugins)
 - [Build plugins](https://developers.openai.com/codex/plugins/build)
 - [Agent Skills](https://developers.openai.com/codex/skills)
 - [Subagents](https://developers.openai.com/codex/subagents)
 - [Hooks](https://developers.openai.com/codex/hooks)
 - [Model Context Protocol](https://developers.openai.com/codex/mcp)
 - [Custom instructions with AGENTS.md](https://developers.openai.com/codex/guides/agents-md)
+- [Advanced config](https://developers.openai.com/codex/config-advanced)
 
 ### OpenCode
 
+- [SDK](https://opencode.ai/docs/sdk/)
+- [Server](https://opencode.ai/docs/server/)
 - [Config](https://opencode.ai/docs/config/)
 - [Plugins](https://opencode.ai/docs/plugins/)
 - [Skills](https://opencode.ai/docs/skills/)
 - [Commands](https://opencode.ai/docs/commands/)
 - [Agents](https://opencode.ai/docs/agents/)
+- [Permissions](https://opencode.ai/docs/permissions/)
+- [Rules](https://opencode.ai/docs/rules/)
 
 ## Related Docs
 
 - [Portable Delegation Model](./portable-delegation-model.md)
+- [Core-Four Provider Docs Audit](./core-four-provider-docs-audit.md)

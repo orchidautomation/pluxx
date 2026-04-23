@@ -48,11 +48,11 @@ const featureCards = [
 ] as const;
 
 const docsUrl = "https://docs.pluxx.dev";
-const quickStartCommand = "npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp";
+const quickStartCommand = "npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp --yes";
 
 const heroTerminal = String.raw`$ npx @orchid-labs/pluxx init --from-mcp https://mcp.playkit.sh/mcp --yes
 
-Introspecting MCP...
+Importing MCP...
 Discovered 24 tools and drafted 8 workflow skills
 
   pluxx.config.ts      source-of-truth plugin config
@@ -122,18 +122,17 @@ export default function Home() {
           <div className="hero-copy">
             <span className="eyebrow">
               <span className="eyebrow-dot" aria-hidden />
-              One source project. Four native plugin surfaces.
+              Raw MCP in. Native plugin out.
             </span>
             <h1 className="hero-title">
-              Maintain one plugin source.
+              Turn a raw MCP
               <br />
-              <span className="hero-title-secondary">Ship fully native experiences.</span>
+              <span className="hero-title-secondary">into a native plugin.</span>
             </h1>
             <p className="lede">
-              Pluxx turns one maintained source project into native plugins for Claude&nbsp;Code,
-              Cursor, Codex, and OpenCode, so you do not rebuild the same workflow four times. It
-              generates the scaffold, host-specific files, and managed guardrails up front so your
-              coding agent can safely refine taxonomy and instructions.
+              Pluxx turns a barebones MCP into a workflow-driven plugin for Claude&nbsp;Code,
+              Cursor, Codex, and OpenCode. Start with <code>init</code>, or use{" "}
+              <code>autopilot</code> when you want the one-shot path.
             </p>
 
             <div className="cta-row">

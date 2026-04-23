@@ -15,16 +15,26 @@ Each platform also has its own validation rules that only surface at runtime —
 
 ## The Solution
 
-pluxx lets you define your plugin once and generates correct, validated output for every platform.
+pluxx is the source-of-truth compiler and maintenance layer for host-native agent plugins.
+
+The core job is not just "generate bundles once." The core job is:
+
+- import an MCP or migrate an existing plugin into one maintained source project
+- turn a raw MCP into a workflow-driven native plugin surface instead of a bare tool dump
+- compile truthful native outputs for Claude Code, Cursor, Codex, and OpenCode
+- verify the installed host-visible state, not just `dist/`
+- sync later when the MCP or plugin surface changes without throwing away curated edits
 
 You can start from a hand-authored plugin source project or import an MCP and let Pluxx scaffold the source project for you. MCP-backed plugins are the sharpest wedge, not a hard requirement.
 
+If you want the shortest path from MCP to usable plugin, `pluxx autopilot` wraps that flow into one command: import the MCP, shape it into workflow-oriented plugin surfaces, and produce native outputs you can test locally.
+
 The product now has two intentional layers:
 
-- `Core`: deterministic scaffolding, linting, build, install, and sync
+- `Core`: deterministic import, scaffolding, validation, build, install, verify, and sync
 - `Agent`: prompt packs and context packs for Claude Code / Codex to semantically refine the scaffold
 
-Pluxx is intentionally the plugin authoring/distribution layer, not the MCP hosting layer. You still deploy and operate your MCP backend service.
+Pluxx is intentionally the authoring and maintenance layer, not the MCP hosting layer. You still deploy and operate your MCP backend service. The later trust and distribution layer matters strategically, but it is not the current build center.
 
 See [Agent Mode](./agent-mode.md) for the semantic-authoring layer.
 See [Architecture](./architecture.md) for the system view and [Customer Journey](./customer-journey.md) for the end-to-end user path.
@@ -105,11 +115,13 @@ This is the mechanical layer. It handles:
 
 - source scaffold generation
 - MCP import and introspection when present
+- migration from existing host-native plugin surfaces
 - taxonomy persistence
 - install/runtime config modeling
 - validation
 - build
 - install
+- install verification
 - sync
 
 This layer should always be able to produce a valid plugin project even if no AI runner is used.
@@ -147,13 +159,14 @@ The compiler layer is explicitly honest about host differences instead of preten
 
 The current end-to-end flow is:
 
-1. start from an MCP import or a hand-authored source plugin
+1. start from an MCP import, an existing plugin migration, or a hand-authored source plugin
 2. generate or refine the source scaffold
 3. optionally refine semantics with a runner
-4. validate the result
+4. validate the result with `validate`, `doctor`, and `lint`
 5. build host bundles
-6. install locally for testing
-7. if MCP-backed, sync later when the MCP changes
+6. install one host locally
+7. verify the installed host-visible state with `verify-install`
+8. if MCP-backed, sync later when the MCP changes
 
 That means Pluxx is both:
 

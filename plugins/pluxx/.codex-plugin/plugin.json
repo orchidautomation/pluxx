@@ -1,48 +1,49 @@
 {
   "name": "pluxx",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Build once, ship installable plugins to Claude, Cursor, Codex, and OpenCode.",
   "author": {
     "name": "Orchid Automation",
     "url": "https://github.com/orchidautomation"
   },
-  "homepage": "https://github.com/orchidautomation/pluxx",
-  "repository": "https://github.com/orchidautomation/pluxx",
+  "homepage": "https://github.com/orchidautomation/pluxx-plugin",
+  "repository": "https://github.com/orchidautomation/pluxx-plugin",
   "license": "MIT",
   "keywords": [
     "mcp",
     "plugins",
-    "codex",
     "claude-code",
     "cursor",
-    "opencode"
+    "codex",
+    "opencode",
+    "pluxx"
   ],
   "skills": "./skills/",
   "interface": {
     "displayName": "Pluxx",
     "shortDescription": "Build once, ship installable plugins to Claude, Cursor, Codex, and OpenCode",
-    "longDescription": "Use Pluxx inside Codex to import MCPs or migrate existing plugins, validate and refine the scaffold, then generate installable plugins for Claude, Cursor, Codex, and OpenCode from one maintained source project.",
-    "developerName": "Orchid Automation",
     "category": "Productivity",
+    "longDescription": "Use Pluxx to import MCPs or migrate existing plugins, prepare richer context, validate and refine the scaffold, then build, verify, and publish installable plugins for Claude, Cursor, Codex, and OpenCode from one maintained source project.",
+    "brandColor": "#0F172A",
+    "composerIcon": "./assets/icon/pluxx-icon.svg",
+    "logo": "./assets/icon/pluxx-icon.svg",
+    "defaultPrompt": [
+      "Use Pluxx to import or migrate this plugin into a maintained Pluxx project and validate the first pass.",
+      "Use Pluxx to prepare context for this scaffold, refine the taxonomy and instructions, then rerun validation safely.",
+      "Use Pluxx to build, verify, and publish installable plugins for Claude, Cursor, Codex, and OpenCode."
+    ],
+    "websiteURL": "https://pluxx.dev",
+    "privacyPolicyURL": "https://docs.pluxx.dev/reference/privacy-policy",
+    "termsOfServiceURL": "https://docs.pluxx.dev/reference/terms-of-service",
+    "screenshots": [
+      "./assets/screenshots/import-workflow.svg",
+      "./assets/screenshots/build-install-workflow.svg"
+    ],
     "capabilities": [
       "Interactive",
       "Read",
       "Write"
     ],
-    "websiteURL": "https://pluxx.dev",
-    "privacyPolicyURL": "https://docs.pluxx.dev/reference/privacy-policy",
-    "termsOfServiceURL": "https://docs.pluxx.dev/reference/terms-of-service",
-    "defaultPrompt": [
-      "Use Pluxx to import or migrate this plugin into a maintained project and validate the result.",
-      "Use Pluxx to refine this scaffold safely, then rerun validation.",
-      "Use Pluxx to build installable plugins for Claude, Cursor, Codex, and OpenCode, then install the target I want to test."
-    ],
-    "brandColor": "#0F172A",
-    "composerIcon": "./assets/icon/pluxx-icon.svg",
-    "logo": "./assets/icon/pluxx-icon.svg",
-    "screenshots": [
-      "./assets/screenshots/import-workflow.svg",
-      "./assets/screenshots/build-install-workflow.svg"
-    ]
+    "developerName": "Orchid Automation"
   }
 }

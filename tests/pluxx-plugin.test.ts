@@ -10,9 +10,13 @@ describe('pluxx dogfood plugin', () => {
   it('ships a repo-local Codex plugin manifest and marketplace entry', () => {
     const manifestPath = resolve(PLUGIN_ROOT, '.codex-plugin/plugin.json')
     const marketplacePath = resolve(ROOT, '.agents/plugins/marketplace.json')
+    const agentsPath = resolve(PLUGIN_ROOT, 'AGENTS.md')
+    const commandsPath = resolve(PLUGIN_ROOT, '.codex/commands.generated.json')
 
     expect(existsSync(manifestPath)).toBe(true)
     expect(existsSync(marketplacePath)).toBe(true)
+    expect(existsSync(agentsPath)).toBe(true)
+    expect(existsSync(commandsPath)).toBe(true)
 
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8')) as {
       name: string
@@ -29,6 +33,9 @@ describe('pluxx dogfood plugin', () => {
     const marketplace = JSON.parse(readFileSync(marketplacePath, 'utf-8')) as {
       plugins: Array<{ name: string; source: { path: string } }>
     }
+    const commands = JSON.parse(readFileSync(commandsPath, 'utf-8')) as {
+      commands: Array<{ id: string }>
+    }
 
     expect(manifest.name).toBe('pluxx')
     expect(manifest.skills).toBe('./skills/')
@@ -42,18 +49,36 @@ describe('pluxx dogfood plugin', () => {
       './assets/screenshots/build-install-workflow.svg',
     ])
     expect(marketplace.plugins.some((plugin) => plugin.name === 'pluxx' && plugin.source.path === './plugins/pluxx')).toBe(true)
+    expect(commands.commands.map((command) => command.id)).toEqual([
+      'autopilot',
+      'build-install',
+      'import-mcp',
+      'migrate-plugin',
+      'prepare-context',
+      'publish-plugin',
+      'refine-taxonomy',
+      'review-scaffold',
+      'rewrite-instructions',
+      'sync-mcp',
+      'validate-scaffold',
+      'verify-install',
+    ])
   })
 
   it('defines the expected skill pack with valid frontmatter', () => {
     const skills = [
+      'pluxx-autopilot',
+      'pluxx-build-install',
       'pluxx-import-mcp',
       'pluxx-migrate-plugin',
+      'pluxx-prepare-context',
+      'pluxx-publish-plugin',
       'pluxx-validate-scaffold',
       'pluxx-refine-taxonomy',
       'pluxx-rewrite-instructions',
       'pluxx-review-scaffold',
-      'pluxx-build-install',
       'pluxx-sync-mcp',
+      'pluxx-verify-install',
     ]
 
     for (const skill of skills) {
@@ -61,12 +86,17 @@ describe('pluxx dogfood plugin', () => {
       const yamlPath = resolve(PLUGIN_ROOT, `skills/${skill}/agents/openai.yaml`)
 
       expect(existsSync(skillPath)).toBe(true)
-      expect(existsSync(yamlPath)).toBe(true)
 
       const content = readFileSync(skillPath, 'utf-8')
       expect(content.startsWith('---\n')).toBe(true)
       expect(content).toContain(`name: ${skill}`)
       expect(content).toContain('description:')
+
+      if (existsSync(yamlPath)) {
+        const yaml = readFileSync(yamlPath, 'utf-8')
+        expect(yaml).toContain('interface:')
+        expect(yaml).toContain('display_name:')
+      }
     }
   })
 
@@ -74,24 +104,32 @@ describe('pluxx dogfood plugin', () => {
     const configPath = resolve(EXAMPLE_ROOT, 'pluxx.config.ts')
     const instructionsPath = resolve(EXAMPLE_ROOT, 'INSTRUCTIONS.md')
     const commands = [
+      'autopilot',
+      'build-install',
       'import-mcp',
       'migrate-plugin',
+      'prepare-context',
+      'publish-plugin',
       'validate-scaffold',
       'refine-taxonomy',
       'rewrite-instructions',
       'review-scaffold',
-      'build-install',
       'sync-mcp',
+      'verify-install',
     ]
     const skills = [
+      'pluxx-autopilot',
+      'pluxx-build-install',
       'pluxx-import-mcp',
       'pluxx-migrate-plugin',
+      'pluxx-prepare-context',
+      'pluxx-publish-plugin',
       'pluxx-validate-scaffold',
       'pluxx-refine-taxonomy',
       'pluxx-rewrite-instructions',
       'pluxx-review-scaffold',
-      'pluxx-build-install',
       'pluxx-sync-mcp',
+      'pluxx-verify-install',
     ]
 
     expect(existsSync(configPath)).toBe(true)

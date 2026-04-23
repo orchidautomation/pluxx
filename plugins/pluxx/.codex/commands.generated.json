@@ -1,0 +1,79 @@
+{
+  "model": "pluxx.commands.v1",
+  "nativeSurface": "degraded-to-guidance",
+  "note": "Codex does not currently document plugin-packaged slash commands. Use these canonical command entries as workflow routing guidance alongside AGENTS.md.",
+  "commands": [
+    {
+      "id": "autopilot",
+      "title": "autopilot",
+      "description": "Run the one-shot Pluxx import, refinement, and verification path",
+      "template": "Use the Pluxx autopilot workflow.\n\nArguments: $ARGUMENTS\n\n## What To Do\n\n1. Use the `pluxx-autopilot` skill.\n2. Treat the first argument as the MCP source when one is provided.\n3. Prefer `pluxx autopilot --from-mcp ... --yes` for a real one-shot import path.\n4. Make the mode, review behavior, and verification behavior explicit.\n5. Summarize what autopilot changed, what it skipped, and what still needs human follow-up.\n\nReturn the important created or updated files, the refinement passes that ran, and the verification result."
+    },
+    {
+      "id": "build-install",
+      "title": "build-install",
+      "description": "Build installable plugins and optionally install requested targets locally",
+      "template": "Use the Pluxx build and install workflow.\n\nArguments: $ARGUMENTS\n\n## What To Do\n\n1. Use the `pluxx-build-install` skill.\n2. Prefer `pluxx test --install` when the user wants the strongest local proof in one command.\n3. Otherwise validate first when the scaffold changed materially.\n4. Build the requested targets.\n5. Install only if the user wants local testing.\n6. Surface trust requirements, reload steps, and `pluxx doctor --consumer` when the installed host still looks wrong.\n\nReturn what was built, what was installed, and any host-specific follow-up steps."
+    },
+    {
+      "id": "import-mcp",
+      "title": "import-mcp",
+      "description": "Scaffold a new Pluxx plugin from an MCP source",
+      "template": "Use the Pluxx MCP import workflow.\n\nArguments: $ARGUMENTS\n\n## What To Do\n\n1. Use the `pluxx-import-mcp` skill.\n2. Treat the first argument as the MCP source:\n   - remote HTTP/SSE URL\n   - or local stdio command\n3. If auth details are missing, ask only for the auth shape and env var names, not raw secret values.\n4. Prefer a deterministic first pass with `pluxx init --from-mcp ... --yes`.\n5. If the user wants imported MCP tool calls preapproved, include `--approve-mcp-tools`.\n6. After import, summarize the generated scaffold and run:\n   - `pluxx doctor`\n   - `pluxx lint`\n   - `pluxx test --target claude-code cursor codex opencode`\n\nReturn the important generated files, any quality warnings, and whether validation passed."
+    },
+    {
+      "id": "migrate-plugin",
+      "title": "migrate-plugin",
+      "description": "Migrate an existing host-native plugin into a Pluxx source project",
+      "template": "Use the Pluxx plugin migration workflow.\n\nArguments: $ARGUMENTS\n\n## What To Do\n\n1. Use the `pluxx-migrate-plugin` skill.\n2. Treat the argument as the source plugin path.\n3. Run `pluxx migrate <plugin-path>`.\n4. Validate the migrated project with:\n   - `pluxx doctor`\n   - `pluxx lint`\n   - `pluxx eval`\n   - `pluxx test`\n\nExplain what was imported, any translation caveats, and whether the migrated project is now healthy enough to maintain in Pluxx."
+    },
+    {
+      "id": "prepare-context",
+      "title": "prepare-context",
+      "description": "Ingest docs, website, and local context into the Pluxx agent pack",
+      "template": "Use the Pluxx context preparation workflow.\n\nArguments: $ARGUMENTS\n\n## What To Do\n\n1. Use the `pluxx-prepare-context` skill.\n2. Treat the arguments as hints for website URLs, docs URLs, or local context files.\n3. Run `pluxx agent prepare` with the richest safe context available.\n4. Summarize what sources were ingested and what artifacts were written.\n5. Point to the next best follow-up workflow:\n   - taxonomy\n   - rewrite instructions\n   - review\n\nReturn the selected sources, the generated context artifacts, and the next recommended refinement step."
+    },
+    {
+      "id": "publish-plugin",
+      "title": "publish-plugin",
+      "description": "Package the current plugin for release distribution",
+      "template": "Use the Pluxx publish workflow.\n\nArguments: $ARGUMENTS\n\n## What To Do\n\n1. Use the `pluxx-publish-plugin` skill.\n2. Validate that the current project is healthy enough to publish.\n3. Run `pluxx publish` with the requested release options when appropriate.\n4. Summarize the release artifacts and install scripts that were produced.\n5. Call out anything that still blocks an actual release.\n\nReturn what was published, what artifacts were generated, and any remaining release caveats."
+    },
+    {
+      "id": "refine-taxonomy",
+      "title": "refine-taxonomy",
+      "description": "Improve the skill taxonomy for an existing Pluxx scaffold",
+      "template": "Use the Pluxx taxonomy refinement workflow.\n\nArguments: $ARGUMENTS\n\n## What To Do\n\n1. Use the `pluxx-refine-taxonomy` skill.\n2. Assume the current scaffold already imports and validates.\n3. Refresh the agent pack with relevant context if the argument includes docs, website, or local context hints.\n4. Run the taxonomy pass and keep edits inside Pluxx-managed boundaries.\n5. Re-run:\n   - `pluxx lint`\n   - `pluxx test`\n\nExplain what changed in the taxonomy, why it improved the product surface, and what still feels weak."
+    },
+    {
+      "id": "review-scaffold",
+      "title": "review-scaffold",
+      "description": "Review a Pluxx scaffold critically before shipping",
+      "template": "Use the Pluxx scaffold review workflow.\n\nArguments: $ARGUMENTS\n\n## What To Do\n\n1. Use the `pluxx-review-scaffold` skill.\n2. Review the current scaffold critically instead of rewriting it blindly.\n3. Focus on the requested area if the argument names one.\n4. Use findings-first output tied to files.\n5. Run `pluxx doctor`, `pluxx lint`, or `pluxx test` only when they materially improve the review.\n\nReturn concrete findings first, then a brief summary of residual risks or follow-up work."
+    },
+    {
+      "id": "rewrite-instructions",
+      "title": "rewrite-instructions",
+      "description": "Rewrite INSTRUCTIONS.md so a Pluxx scaffold explains itself clearly",
+      "template": "Use the Pluxx instructions rewrite workflow.\n\nArguments: $ARGUMENTS\n\n## What To Do\n\n1. Use the `pluxx-rewrite-instructions` skill.\n2. Refresh the agent pack with docs, website, or local context when the argument provides it.\n3. Limit edits to the generated block in `INSTRUCTIONS.md`.\n4. Keep the result concise, operational, and product-shaped.\n5. Re-run:\n   - `pluxx lint`\n   - `pluxx test`\n\nSummarize the rewritten instructions and call out any setup or auth caveats that still need manual confirmation."
+    },
+    {
+      "id": "sync-mcp",
+      "title": "sync-mcp",
+      "description": "Refresh an existing Pluxx scaffold from its MCP source",
+      "template": "Use the Pluxx MCP sync workflow.\n\nArguments: $ARGUMENTS\n\n## What To Do\n\n1. Use the `pluxx-sync-mcp` skill.\n2. If an override MCP source is provided, use it; otherwise sync from the scaffold's current MCP config.\n3. Preview first with `pluxx sync --dry-run --json` when the impact is unclear.\n4. Run the real sync when safe.\n5. Summarize:\n   - updated files\n   - preserved files\n   - removed files\n   - any follow-up taxonomy or instructions work\n6. Re-run:\n   - `pluxx doctor`\n   - `pluxx lint`\n   - `pluxx test`\n\nExplain what changed, what stayed preserved, and whether more semantic cleanup is needed afterward."
+    },
+    {
+      "id": "validate-scaffold",
+      "title": "validate-scaffold",
+      "description": "Run deterministic health and quality checks on the current Pluxx scaffold",
+      "template": "Use the Pluxx scaffold validation workflow.\n\nArguments: $ARGUMENTS\n\n## What To Do\n\n1. Use the `pluxx-validate-scaffold` skill.\n2. Run:\n   - `pluxx doctor`\n   - `pluxx lint`\n   - `pluxx eval`\n   - `pluxx test`\n3. If the argument names targets, scope `test` to that subset when appropriate.\n\nReturn the important failures or warnings first, then the smallest sensible next step."
+    },
+    {
+      "id": "verify-install",
+      "title": "verify-install",
+      "description": "Verify that an installed host bundle is actually visible and healthy",
+      "template": "Use the Pluxx install verification workflow.\n\nArguments: $ARGUMENTS\n\n## What To Do\n\n1. Use the `pluxx-verify-install` skill.\n2. Run `pluxx verify-install --target ...` for the requested host or hosts.\n3. If the install still looks wrong, use `pluxx doctor --consumer` when it materially improves diagnosis.\n4. Return findings before reassurance.\n5. Make the next step obvious:\n   - reload host\n   - trust hooks\n   - reinstall\n   - publish\n\nReturn the installed-target verification result and the smallest sensible next step."
+    }
+  ]
+}
