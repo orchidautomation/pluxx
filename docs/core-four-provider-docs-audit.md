@@ -109,11 +109,9 @@ Confirmed by official docs:
 
 Current repo gaps:
 
-- `src/validation/platform-rules.ts` under-models Claude-only skill frontmatter
-- Claude hook events and hook surfaces are too narrow
-- Claude MCP auth is under-described
-- `docs/compatibility.md` compresses Claude to one manifest, one hook file, one MCP file, and `CLAUDE.md`
-- `docs/core-four-primitive-matrix.md` needs clearer language around commands being merged into skills and around plugin subagent limitations
+- the main machine-readable Claude frontmatter, hook-surface, and MCP-auth gaps have now been corrected in `src/validation/platform-rules.ts`
+- `docs/compatibility.md` and `docs/core-four-primitive-matrix.md` still need to stay aligned with that richer Claude shape when future provider changes land
+- downstream maintainer docs can still drift back toward the older “one manifest, one hook file, one MCP file” simplification if they are not kept current
 
 Concrete files to update:
 
@@ -140,9 +138,7 @@ Confirmed by official docs:
 
 Current repo gaps:
 
-- `src/validation/platform-rules.ts` still uses generic `http` wording instead of streamable HTTP
-- Cursor hook event names are missing
-- Cursor MCP auth is under-modeled
+- the main machine-readable Cursor transport, hook-event, and auth gaps have now been corrected in `src/validation/platform-rules.ts`
 - some wording in `docs/core-four-primitive-matrix.md` is stronger than the supplied docs justify for exact plugin command and agent storage paths
 - `docs/compatibility.md` is directionally right but too compressed for lifecycle and auth nuance
 
@@ -201,15 +197,10 @@ Confirmed by official docs:
 
 Current repo gaps:
 
-- OpenCode is the largest mismatch in the repo today
-- `src/validation/platform-rules.ts` currently treats OpenCode as `package.json + index.ts`
-- `docs/compatibility.md` currently claims:
-  - manifest: `package.json, index.ts`
-  - hooks: `index.ts`
-  - MCP: `index.ts`
-  - instructions: `index.ts`
-- `docs/core-four-primitive-matrix.md` still frames OpenCode too much like a manifest host instead of a config and runtime host
-- current skill discovery dirs and instruction surfaces are incomplete
+- the main machine-readable OpenCode mismatch has now been corrected in `src/validation/platform-rules.ts`
+- `docs/compatibility.md` now reflects OpenCode as a config/runtime host rather than a `package.json + index.ts` manifest host
+- the remaining risk is downstream docs and examples slipping back into manifest-host framing instead of code-first/runtime-host framing
+- current skill discovery dirs and instruction surfaces need to stay current as OpenCode evolves
 
 Concrete files to update:
 

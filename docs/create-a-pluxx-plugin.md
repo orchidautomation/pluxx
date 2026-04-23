@@ -257,7 +257,17 @@ Then verify the host-visible install state before you move on:
 npx @orchid-labs/pluxx verify-install --target codex
 ```
 
-Then restart the host app and test real requests.
+Then pick up the installed bundle in the host app and test real requests:
+
+- Claude Code: run `/reload-plugins`
+- Cursor: reload the window or restart Cursor
+- Codex: use `Plugins > Refresh` if available, otherwise restart Codex
+- OpenCode: reload or restart OpenCode
+
+For the cleanest repo-native install/demo walkthroughs, use:
+
+- [Proof and install](./proof-and-install.md)
+- [Core-four install and update lifecycle](./core-four-install-update-lifecycle.md)
 
 ## Path B: One-Shot Autopilot
 
@@ -370,6 +380,7 @@ That path is usually more understandable than jumping straight to full autopilot
 
 ## Related Docs
 
+- [Proof and install](./proof-and-install.md)
 - [Getting started](./getting-started.md)
 - [Practical handbook](./practical-handbook.md)
 - [Agent Mode](./agent-mode.md)

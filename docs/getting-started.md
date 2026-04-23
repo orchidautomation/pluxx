@@ -17,6 +17,8 @@ This walkthrough covers:
 
 If you want proof before you want process, look at these first:
 
+- [Proof and install guide](./proof-and-install.md)
+  - the shortest repo-native path to current demos plus one-command install paths for the released self-hosted plugin
 - [Self-hosted core-four proof](./pluxx-self-hosted-core-four-proof.md)
   - the canonical `example/pluxx` source project rebuilt, installed, and `verify-install` checked across Claude Code, Cursor, Codex, and OpenCode
 - [Orchid Docs Ops Codex walkthrough](./orchid-docs-ops-codex-walkthrough.md)
@@ -34,6 +36,7 @@ The biggest remaining docs-ingestion work is now improving the weak fixtures and
 
 Related docs:
 
+- [Proof and install](./proof-and-install.md)
 - [Create a Pluxx plugin](./create-a-pluxx-plugin.md)
 - [MCP-first command lifecycle](./mcp-first-command-lifecycle.md)
 - [Use Pluxx in host agents](./use-pluxx-in-host-agents.md)
