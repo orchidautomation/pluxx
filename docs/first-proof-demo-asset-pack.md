@@ -1,137 +1,198 @@
-# First Proof And Demo Asset Pack
+# Current Proof And Demo Asset Pack
 
-Last updated: 2026-04-17
+Last updated: 2026-04-23
 
-This doc defines the first proof assets and demo flows for the Pluxx OSS launch.
+This doc is the public-proof map for Pluxx.
 
-It is intentionally execution-first:
+Use it when you want the cleanest answer to:
 
-- what to capture
-- in what order
-- from which source plugin/MCP examples
-- and which public claim each artifact must support
+- what proof already exists
+- what claims that proof actually supports
+- what proof is still missing
+- what public-facing demo assets should be built next
 
-For broader brand and visual standards, use [Brand launch asset system](./brand-launch-asset-system.md).
+This is no longer a speculative launch memo.
 
-## Primary Claims To Prove
+It is the current proof inventory plus the next capture plan.
 
-The first pack should prove these four claims with concrete artifacts:
+## The Claims That Matter
 
-1. one maintained source project can ship native bundles for the core four (Claude Code, Cursor, Codex, OpenCode)
-2. MCP-first scaffold is fast and practical
-3. deterministic quality gates (`doctor`, `test`, `build`) keep the scaffold trustworthy
-4. real plugin sources (not toy files) can be maintained and synced over time
+The current public proof should support these claims:
 
-## Source Plugin / MCP Choices (Intentional)
+1. one maintained source project can ship native outputs for Claude Code, Cursor, Codex, and OpenCode
+2. raw MCP is not enough; Pluxx shapes that raw surface into a better native workflow
+3. installed-state verification is real, not just `dist/` screenshots
+4. Pluxx is truthful about host differences instead of pretending every host works the same way
 
-Use these three sources for v1 proof coverage:
+The biggest remaining missing claim is:
 
-1. `example/firecrawl-plugin/pluxx.config.ts`
-   - Why: real remote HTTP MCP with bearer auth; proves MCP auth wiring and practical workflow plugin shape.
-2. `examples/prospeo-mcp/pluxx.config.ts`
-   - Why: real sales-enrichment workflow with skills + hooks + stdio MCP; proves deeper plugin surface, not just import.
-3. `example/pluxx/pluxx.config.ts`
-   - Why: "Pluxx-in-Pluxx" dogfood plugin; proves command/skill/instruction packaging and cross-host consistency.
+5. Firecrawl-backed docs ingestion materially improves scaffold quality in a visible way
 
-## Recommended Demo Flows
+## Proof That Already Exists
 
-### Flow A (P0): MCP-first scaffold to cross-host build proof
+### 1. Self-hosted Pluxx plugin across the core four
 
-Objective: prove the sharpest launch wedge in one pass.
+Primary doc:
 
-Capture sequence:
+- [Self-hosted core-four proof](./pluxx-self-hosted-core-four-proof.md)
 
-1. terminal: `npx @orchid-labs/pluxx init --from-mcp https://api.firecrawl.dev/mcp`
-2. terminal: first generated scaffold tree and `pluxx.config.ts` MCP block
-3. terminal: `npx @orchid-labs/pluxx doctor`
-4. terminal: `npx @orchid-labs/pluxx test`
-5. terminal: `npx @orchid-labs/pluxx build`
-6. file explorer or terminal tree: `dist/claude-code`, `dist/cursor`, `dist/codex`, `dist/opencode`
+What it proves:
 
-Output artifacts:
+- `example/pluxx` is a real maintained source project
+- it builds native bundles for Claude Code, Cursor, Codex, and OpenCode
+- `pluxx install` works across the core four
+- `pluxx verify-install` can prove the host-visible bundle state after install
 
-- 4-6 terminal captures (16:10)
-- 1 cross-host `dist/` proof screenshot (16:10 + 1:1)
-- optional 45-second clip covering steps 1-6
+Best public use:
 
-### Flow B (P1): Real workflow plugin depth proof (Prospeo)
+- repo proof block
+- install-trust story
+- “one maintained source project” claim
 
-Objective: show Pluxx handles practical plugin depth (skills, hooks, env checks), not only scaffold generation.
+### 2. Flagship docs workflow example in Codex
 
-Capture sequence:
+Primary doc:
 
-1. open `examples/prospeo-mcp/pluxx.config.ts` with focus on MCP + hooks + targets
-2. open one skill file (`skills/search-person/SKILL.md`) to show workflow-oriented output
-3. terminal: `npx @orchid-labs/pluxx build` from the example
-4. terminal or file explorer: generated host bundles and script/hook artifacts
+- [Orchid Docs Ops Codex walkthrough](./orchid-docs-ops-codex-walkthrough.md)
 
-Output artifacts:
+What it proves:
 
-- 2 source screenshots (config + skill)
-- 2 build/output screenshots
-- 1 short caption card explaining "real plugin depth"
+- one maintained `docs-ops` source project can compile into a real Codex plugin
+- the plugin can talk to Orchid’s live public Docsalot MCP
+- the result is a useful workflow surface, not just raw tool output
 
-### Flow C (P1): Dogfood authoring workflow proof (Pluxx plugin)
+Best public use:
 
-Objective: show that Pluxx itself uses Pluxx for ongoing maintenance.
+- flagship product walkthrough
+- Codex-native proof
+- “raw MCP is not enough” story
 
-Capture sequence:
+### 3. Concrete before/after rewrite artifact
 
-1. open `example/pluxx/pluxx.config.ts` (commands + skills + instructions + codex interface)
-2. terminal: run build for this plugin
-3. show generated outputs and instruction/command packaging in at least two target hosts
+Primary files:
 
-Output artifacts:
+- [before](../example/docs-ops/demo-rewrites/orchid-components-accordion.before.md)
+- [after](../example/docs-ops/demo-rewrites/orchid-components-accordion.after.md)
 
-- 2 source/config screenshots
-- 2 generated-output screenshots
-- optional 30-second clip focused on "maintained over time" narrative
+What it proves:
 
-## Prioritized Asset List
+- the flagship example produces legible output, not just config files
+- Pluxx can be shown through user-visible outcome, not only generator internals
 
-| Priority | Asset | Source Flow | Format | Primary Use |
-|---|---|---|---|---|
-| P0 | Hero proof terminal strip (`init` -> `doctor` -> `test` -> `build`) | Flow A | PNG/WebP (16:10) | site hero, README proof block |
-| P0 | Cross-host `dist/` proof (core four visible) | Flow A | PNG/WebP (16:10 + 1:1) | site proof section, social card |
-| P0 | 45-second wedge demo clip | Flow A | MP4/GIF teaser | docs landing, social launch thread |
-| P1 | Firecrawl MCP auth/config screenshot | Flow A | PNG | docs/how-it-works, marketplace prep |
-| P1 | Prospeo workflow depth panel (config + skill + build output) | Flow B | PNG set | README "real plugin depth" proof |
-| P1 | Pluxx dogfood panel (self-hosted plugin config + outputs) | Flow C | PNG set | docs/oss wedge narrative |
-| P2 | Marketplace prep screenshot composite | Flow A + docs | PNG | marketplace submission support |
-| P2 | Square social proof card variants | Derived | PNG (1:1) | X/LinkedIn launch posts |
+Best public use:
 
-## Mapping Assets To Public Claims
+- demo slide
+- docs proof block
+- founder demo narrative
 
-| Public claim | Proof asset(s) | Primary public surface |
-|---|---|---|
-| "Maintain one plugin. Ship it everywhere." | Hero proof terminal strip + cross-host `dist/` screenshot | homepage messaging, README top narrative |
-| "MCP-first authoring is the sharpest wedge." | Flow A clip + Firecrawl MCP auth/config screenshot | README "Why", docs/how-it-works |
-| "Deterministic scaffold + validation gates." | `doctor` and `test` terminal captures from Flow A | docs/getting-started, practical handbook |
-| "Real plugins, not toy demos." | Prospeo depth panel + Pluxx dogfood panel | roadmap/strategy references, social launch thread |
-| "Core four are prime-time launch path." | Cross-host `dist/` screenshot with visible target directories | homepage messaging, docs/compatibility |
+### 4. Host-truth audit
 
-## Capture Standards
+Primary docs:
 
-- capture at minimum 1600px width source
-- export both archival PNG and optimized WebP
-- produce both 16:10 and 1:1 where listed
-- keep terminal theme consistent across all captures
-- redact secrets, local usernames, and absolute home paths
-- use deterministic filenames under `assets/launch/`
+- [Core-four provider docs audit](./core-four-provider-docs-audit.md)
+- [Core-four install and update lifecycle](./core-four-install-update-lifecycle.md)
+- [Compatibility matrix](./compatibility.md)
 
-Suggested naming:
+What it proves:
 
-- `pluxx-proof-flow-a-init-doctor-test-build.png`
-- `pluxx-proof-core-four-dist.png`
-- `pluxx-proof-firecrawl-auth-config.png`
-- `pluxx-proof-prospeo-workflow-depth.png`
-- `pluxx-proof-pluxx-dogfood.png`
-- `pluxx-proof-flow-a-demo-45s.mp4`
+- Pluxx is not hand-waving host support
+- capability, lifecycle, and install behavior are grounded in first-party docs plus current observed host behavior
 
-## Execution Order
+Best public use:
 
-1. Produce Flow A assets first (all P0)
-2. Produce Flow B and C stills (P1)
-3. Export 1:1 social variants
-4. Wire assets into site/docs/README surfaces
-5. Keep this doc as the source of truth for future refreshes
+- trust and truthfulness narrative
+- release notes
+- technical buyer confidence
+
+## What Is Still Missing
+
+### 1. Live Firecrawl docs-ingestion proof
+
+Missing artifact:
+
+- a real `local` vs `firecrawl` before/after comparison with visible scaffold improvement
+
+Why it matters:
+
+- this is the strongest remaining unproven product surface in the checklist
+- it would strengthen product demos, docs, and outreach in one shot
+
+### 2. Flagship example beyond Codex
+
+Missing artifact:
+
+- the same level of obvious, user-facing proof for Claude Code, Cursor, and OpenCode
+
+Why it matters:
+
+- the `docs-ops` flagship proof is strongest in Codex today
+- the story gets better when the same source project feels native in more than one host
+
+### 3. Cleaner public install proof asset
+
+Missing artifact:
+
+- one concise visual/story asset showing:
+  - source project in
+  - native bundles out
+  - install
+  - verify-install
+
+Why it matters:
+
+- the self-hosted plugin proof is real, but still reads like repo proof rather than polished public proof
+
+## Best Current Demo Flow
+
+If you need the strongest current narrative without waiting on Firecrawl, use this order:
+
+1. start with [README](../README.md) and [start-here](./start-here.md)
+2. show [Self-hosted core-four proof](./pluxx-self-hosted-core-four-proof.md)
+3. show [Orchid Docs Ops Codex walkthrough](./orchid-docs-ops-codex-walkthrough.md)
+4. show the [Accordion before/after rewrite](../example/docs-ops/demo-rewrites/orchid-components-accordion.after.md)
+5. close with [Core-four provider docs audit](./core-four-provider-docs-audit.md)
+
+That sequence supports the current product story:
+
+- one maintained source project
+- native bundles across the core four
+- real installed-state verification
+- richer workflow surface than raw MCP alone
+- truthful compatibility stance
+
+## Next Asset Pack To Build
+
+The next public-facing asset block should be:
+
+### P0
+
+- one clean self-hosted plugin proof panel
+  - source project
+  - built outputs
+  - install/verify state
+- one cleaner flagship docs-ops proof panel
+  - source project
+  - live MCP backend
+  - rewrite result
+
+### P1
+
+- one Firecrawl docs-ingestion comparison panel
+- one cross-host flagship comparison panel once Claude/Cursor/OpenCode proof catches up
+
+## Working Rule
+
+Do not treat every internal proof artifact as public proof automatically.
+
+For public proof, prefer artifacts that show:
+
+- the source project
+- the user-facing outcome
+- the installed host state
+- the exact product claim being supported
+
+Avoid turning public proof into:
+
+- a pile of internal screenshots
+- a changelog
+- or a maintainer-only validation note

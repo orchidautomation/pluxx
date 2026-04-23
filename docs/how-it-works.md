@@ -36,6 +36,23 @@ The product now has two intentional layers:
 
 Pluxx is intentionally the authoring and maintenance layer, not the MCP hosting layer. You still deploy and operate your MCP backend service. The later trust and distribution layer matters strategically, but it is not the current build center.
 
+## What Is Already Proven
+
+The most important shift in the repo is that Pluxx is no longer just describing how this should work.
+
+It now has real proof surfaces:
+
+- [Self-hosted core-four proof](./pluxx-self-hosted-core-four-proof.md)
+  - the canonical `example/pluxx` source project rebuilt, installed, and `verify-install` checked across Claude Code, Cursor, Codex, and OpenCode
+- [Orchid Docs Ops Codex walkthrough](./orchid-docs-ops-codex-walkthrough.md)
+  - one maintained `docs-ops` source project compiled into a real Codex plugin and used against Orchid's live Docsalot MCP
+- [Orchid Accordion before/after rewrite](../example/docs-ops/demo-rewrites/orchid-components-accordion.after.md)
+  - a concrete rewrite artifact from the flagship docs workflow example
+- [Core-four provider docs audit](./core-four-provider-docs-audit.md)
+  - first-party docs normalized into one capability and lifecycle truth set
+
+The main proof still missing is the live Firecrawl-backed docs-ingestion comparison.
+
 See [Agent Mode](./agent-mode.md) for the semantic-authoring layer.
 See [Architecture](./architecture.md) for the system view and [Customer Journey](./customer-journey.md) for the end-to-end user path.
 See [Practical handbook](./practical-handbook.md) for the operational command-by-command workflow.

@@ -12,6 +12,21 @@ Raw MCP access is usually not enough. Most products still need workflow grouping
 - Docs: [docs.pluxx.dev](https://docs.pluxx.dev/)
 - Website: [pluxx.dev](https://pluxx.dev/)
 
+## Current Proof
+
+If you want the fastest way to see what is already real, start with these:
+
+- [Self-hosted core-four proof](./docs/pluxx-self-hosted-core-four-proof.md)
+  - `example/pluxx` rebuilt, installed, and `verify-install` checked across Claude Code, Cursor, Codex, and OpenCode
+- [Docs Ops live Codex walkthrough](./docs/orchid-docs-ops-codex-walkthrough.md)
+  - one maintained `docs-ops` source project compiled into a real Codex plugin and used against Orchid's live Docsalot MCP
+- [Orchid Accordion before/after rewrite](./example/docs-ops/demo-rewrites/orchid-components-accordion.after.md)
+  - concrete output from the flagship docs workflow example
+- [Core-four provider docs audit](./docs/core-four-provider-docs-audit.md)
+  - first-party host capability and lifecycle truth for Claude Code, Cursor, Codex, and OpenCode
+
+The biggest proof still missing is the live Firecrawl-backed docs-ingestion demo.
+
 ## Why Pluxx
 
 Every host has different plugin contracts and different places to express the same intent:
@@ -185,6 +200,8 @@ Pluxx owns the deterministic scaffold, validation, and host compilation layer. Y
 - [Getting started](./docs/getting-started.md)
 - [Create a Pluxx plugin](./docs/create-a-pluxx-plugin.md)
 - [How it works](./docs/how-it-works.md)
+- [Self-hosted core-four proof](./docs/pluxx-self-hosted-core-four-proof.md)
+- [Docs Ops Codex walkthrough](./docs/orchid-docs-ops-codex-walkthrough.md)
 - [Use Pluxx in host agents](./docs/use-pluxx-in-host-agents.md)
 - [Core primitives](./docs/core-primitives.md)
 - [OSS wedge and trust layer](./docs/oss-wedge-and-trust-layer.md)

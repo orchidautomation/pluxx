@@ -13,6 +13,19 @@ This walkthrough covers:
 - sync later when the MCP changes
 - run the same checks in CI
 
+## Current Proof To Inspect First
+
+If you want proof before you want process, look at these first:
+
+- [Self-hosted core-four proof](./pluxx-self-hosted-core-four-proof.md)
+  - the canonical `example/pluxx` source project rebuilt, installed, and `verify-install` checked across Claude Code, Cursor, Codex, and OpenCode
+- [Orchid Docs Ops Codex walkthrough](./orchid-docs-ops-codex-walkthrough.md)
+  - the flagship `docs-ops` example compiled into a real Codex plugin and used against Orchid's live Docsalot MCP
+- [Orchid Accordion rewrite artifact](../example/docs-ops/demo-rewrites/orchid-components-accordion.after.md)
+  - one concrete before/after output from the flagship example
+
+The biggest proof still not captured here is the real Firecrawl-backed docs-ingestion comparison.
+
 Related docs:
 
 - [Create a Pluxx plugin](./create-a-pluxx-plugin.md)
