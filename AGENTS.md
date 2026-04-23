@@ -23,6 +23,28 @@ When editing a doc that contains a `Doc Links` block:
    - OSS authoring substrate first
    - later trust / distribution layer second
 
+## Docs And Linear Sync Rule
+
+If a change affects any of these:
+
+- product truth
+- what is shipped vs not shipped
+- proof state
+- priority order
+- host compatibility or lifecycle truth
+- release readiness
+
+then update the relevant repo docs and the relevant Linear issue or project in the same work block.
+
+Minimum repo-doc surfaces to consider:
+
+- [docs/start-here.md](./docs/start-here.md)
+- [docs/todo/queue.md](./docs/todo/queue.md)
+- [docs/todo/master-backlog.md](./docs/todo/master-backlog.md)
+- [docs/roadmap.md](./docs/roadmap.md)
+
+If the change is narrower than that, update only the specific source-of-truth doc it affects.
+
 ## Canonical Planning Files
 
 The canonical planning docs now live in `docs/todo/`:

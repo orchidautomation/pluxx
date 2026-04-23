@@ -2977,6 +2977,7 @@ async function runPublishCommand() {
     version: readOption(args, '--version'),
     tag: readOption(args, '--tag'),
     dryRun: runtime.dryRun,
+    allowDirty: args.includes('--allow-dirty'),
   })
 
   if (runtime.dryRun) {
@@ -3000,6 +3001,7 @@ async function runPublishCommand() {
     version: readOption(args, '--version'),
     tag: readOption(args, '--tag'),
     dryRun: false,
+    allowDirty: args.includes('--allow-dirty'),
   })
 
   if (runtime.jsonOutput) {
@@ -3132,7 +3134,7 @@ Usage:
   pluxx eval                              Evaluate scaffold and prompt-pack quality
   pluxx install [--target <platforms>] [--trust]  Install built plugins for local testing
   pluxx verify-install [--target <platforms>]    Inspect installed host-visible plugin state
-  pluxx publish [--npm] [--github-release] [--dry-run] [--json] [--tag latest] [--version x.y.z]
+  pluxx publish [--npm] [--github-release] [--allow-dirty] [--dry-run] [--json] [--tag latest] [--version x.y.z]
   pluxx uninstall [--target <platforms>]  Remove symlinked plugins
   pluxx help                              Show this help
 
@@ -3141,6 +3143,7 @@ Common flags:
   --quiet                                 Suppress non-error chatter
   --verbose-runner                        Stream runner stdout/stderr for agent run/autopilot
   --dry-run                               Show planned work without writing files or installing anything
+  --allow-dirty                           Skip the clean-working-tree check for publish planning or CI release flows
   --mode quick|standard|thorough          Control how much agent refinement autopilot performs
   --approve-mcp-tools                     Preapprove all tools from the imported MCP in canonical permissions
   --ingest-provider auto|local|firecrawl  Choose the docs/website ingestion backend for agent prepare/autopilot

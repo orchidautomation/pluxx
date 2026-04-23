@@ -11,10 +11,11 @@ Last updated: 2026-04-23
   - [success-checklist.md](./success-checklist.md)
   - [docs/roadmap.md](../roadmap.md)
   - [docs/oss-wedge-and-trust-layer.md](../oss-wedge-and-trust-layer.md)
-- [docs/flagship-docs-ops-plugin.md](../flagship-docs-ops-plugin.md)
-- [docs/pluxx-plugin-surface-audit.md](../pluxx-plugin-surface-audit.md)
-- [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
-- [Linear](https://linear.app/orchid-automation)
+  - [docs/flagship-docs-ops-plugin.md](../flagship-docs-ops-plugin.md)
+  - [docs/pluxx-plugin-surface-audit.md](../pluxx-plugin-surface-audit.md)
+  - [docs/pluxx-self-hosted-core-four-proof.md](../pluxx-self-hosted-core-four-proof.md)
+  - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
+  - [Linear](https://linear.app/orchid-automation)
 - Update together:
   - [docs/start-here.md](../start-here.md)
   - [master-backlog.md](./master-backlog.md)
@@ -39,6 +40,7 @@ For broader context, use:
 - [docs/strategy/pluxx-plugin-distribution-strategy.md](../strategy/pluxx-plugin-distribution-strategy.md)
 - [docs/strategy/pluxx-plugin-operating-model.md](../strategy/pluxx-plugin-operating-model.md)
 - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
+- [docs/core-four-maintenance-routine.md](../core-four-maintenance-routine.md)
 - [Linear workspace](https://linear.app/orchid-automation)
 
 ## Current Truth
@@ -69,6 +71,12 @@ The public baseline is also real.
 - the self-hosted Pluxx plugin exists:
   - canonical source project: `example/pluxx`
   - repo-local Codex dogfood surface: `plugins/pluxx`
+- the self-hosted Pluxx plugin has now been rebuilt, installed, and `verify-install` checked from `example/pluxx` across:
+  - Claude Code
+  - Cursor
+  - Codex
+  - OpenCode
+  - `docs/pluxx-self-hosted-core-four-proof.md`
 - docs/website ingestion is now a real surface with deterministic artifacts:
   - `.pluxx/sources.json`
   - `.pluxx/docs-context.json`
@@ -146,10 +154,12 @@ Goal:
 Open work:
 
 - harden metadata, prompts, screenshots, and install guidance
-- rebuild and test the self-hosted plugin across the core four
 - keep the plugin thin and the CLI as the execution engine
 - keep `example/pluxx`, `plugins/pluxx`, and the published `pluxx-plugin` repo in sync
 - keep [docs/pluxx-plugin-surface-audit.md](../pluxx-plugin-surface-audit.md) accurate now that lifecycle coverage is present
+- treat the local self-hosted core-four proof as complete:
+  - [docs/pluxx-self-hosted-core-four-proof.md](../pluxx-self-hosted-core-four-proof.md)
+- turn that local proof into a cleaner public-facing install proof asset
 - evaluate whether a `gh skill`-compatible export/publish path makes sense for the skills-only slice of a Pluxx project
 - decide later whether distribution should stay in the main repo or move to a dedicated plugin/marketplace repo
 

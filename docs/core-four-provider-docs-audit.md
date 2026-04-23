@@ -52,10 +52,20 @@ The biggest corrections are:
 
 If we want the compatibility story to stay truthful, the next updates should land in this order:
 
-1. `src/validation/platform-rules.ts`
+1. keep `src/validation/platform-rules.ts` current
 2. regenerate `docs/compatibility.md`
 3. tighten `docs/core-four-primitive-matrix.md`
-4. add a small install/update/reload matrix for end users
+4. keep the install/update/reload matrix current for end users
+
+Status:
+
+- the first refresh pass has already landed in:
+  - `src/validation/platform-rules.ts`
+  - `docs/compatibility.md`
+  - `docs/core-four-primitive-matrix.md`
+  - `docs/core-four-install-update-lifecycle.md`
+
+This doc should now be treated as the audit source for future refreshes, not as a still-pending recommendation list from the first pass.
 
 ## Capability Matrix
 

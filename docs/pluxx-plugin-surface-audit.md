@@ -7,6 +7,7 @@
   - [docs/start-here.md](./start-here.md)
   - [docs/todo/queue.md](./todo/queue.md)
   - [docs/roadmap.md](./roadmap.md)
+  - [docs/pluxx-self-hosted-core-four-proof.md](./pluxx-self-hosted-core-four-proof.md)
   - [docs/use-pluxx-in-host-agents.md](./use-pluxx-in-host-agents.md)
   - [docs/strategy/pluxx-plugin-operating-model.md](./strategy/pluxx-plugin-operating-model.md)
   - [docs/strategy/pluxx-plugin-distribution-strategy.md](./strategy/pluxx-plugin-distribution-strategy.md)
@@ -208,18 +209,30 @@ That means the plugin surface now covers the full modern Pluxx lifecycle:
 - autopilot
 - publish
 
+The latest local build/install/verify rerun across Claude Code, Cursor, Codex, and OpenCode is documented in:
+
+- [docs/pluxx-self-hosted-core-four-proof.md](./pluxx-self-hosted-core-four-proof.md)
+
 ## Remaining Thin Spots
 
 The plugin surface is now meaningfully comprehensive, but a few things are still thinner than they should be:
 
-### 1. Cross-host proof should be rerun more systematically
+### 1. Cross-host proof is now locally real, but it should become a cleaner public proof asset
 
-The self-hosted plugin now has the right workflows, but we still need stronger repeated proof across:
+The self-hosted plugin now has a real local core-four proof:
 
 - Claude Code
 - Cursor
 - Codex
 - OpenCode
+
+That closes the “does the canonical source project actually install and verify across the core four” question.
+
+The remaining work is:
+
+- keep that proof current after major compatibility and lifecycle changes
+- turn it into a cleaner public-facing install proof asset
+- keep it easy for a new user to understand without reading internal repo context
 
 ### 2. `doctor --consumer` is still secondary
 

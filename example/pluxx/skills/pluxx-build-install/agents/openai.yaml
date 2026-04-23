@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build and Install"
+  short_description: "Build native bundles and optionally install requested targets"
+  default_prompt: "Use Pluxx to build this plugin for Claude, Cursor, Codex, and OpenCode, then install the targets I want to test locally."

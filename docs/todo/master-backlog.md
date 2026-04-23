@@ -26,6 +26,7 @@ This is not the same thing as the short queue.
   - [docs/oss-wedge-and-trust-layer.md](../oss-wedge-and-trust-layer.md)
   - [docs/flagship-docs-ops-plugin.md](../flagship-docs-ops-plugin.md)
   - [docs/pluxx-plugin-surface-audit.md](../pluxx-plugin-surface-audit.md)
+  - [docs/pluxx-self-hosted-core-four-proof.md](../pluxx-self-hosted-core-four-proof.md)
   - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
   - [Linear](https://linear.app/orchid-automation)
 - Update together:
@@ -144,10 +145,12 @@ Goal:
 Open work:
 
 - [ ] Harden metadata, prompts, screenshots, and install guidance
-- [ ] Verify the self-hosted plugin path across Claude Code, Cursor, Codex, and OpenCode
+- [x] Verify the self-hosted plugin path across Claude Code, Cursor, Codex, and OpenCode:
+  - [docs/pluxx-self-hosted-core-four-proof.md](../pluxx-self-hosted-core-four-proof.md)
 - [ ] Keep the plugin thin and the CLI as the execution engine
 - [x] Close the plugin workflow coverage gap documented in `docs/pluxx-plugin-surface-audit.md`
 - [ ] Keep `example/pluxx`, `plugins/pluxx`, and the published `pluxx-plugin` repo aligned
+- [ ] Keep the self-hosted core-four proof current after major compatibility and lifecycle changes
 - [ ] Decide what belongs in `example/pluxx` vs `plugins/pluxx`
 - [ ] Evaluate a `gh skill`-compatible export/publish path for the skills-only slice of a Pluxx project
 - [ ] Decide whether plugin distribution should stay in this repo or move later

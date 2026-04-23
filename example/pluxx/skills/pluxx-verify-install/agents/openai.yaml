@@ -1,0 +1,4 @@
+interface:
+  display_name: "Verify Install"
+  short_description: "Prove that an installed host bundle is actually visible and healthy"
+  default_prompt: "Use Pluxx to verify the installed plugin state for this target and tell me exactly what the host is pointing at."

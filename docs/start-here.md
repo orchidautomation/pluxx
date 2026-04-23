@@ -9,11 +9,12 @@ Last updated: 2026-04-23
   - [docs/todo/queue.md](./todo/queue.md)
   - [docs/todo/master-backlog.md](./todo/master-backlog.md)
   - [docs/todo/success-checklist.md](./todo/success-checklist.md)
-- [docs/roadmap.md](./roadmap.md)
-- [docs/oss-wedge-and-trust-layer.md](./oss-wedge-and-trust-layer.md)
-- [docs/flagship-docs-ops-plugin.md](./flagship-docs-ops-plugin.md)
-- [docs/core-four-provider-docs-audit.md](./core-four-provider-docs-audit.md)
-- [README.md](../README.md)
+  - [docs/roadmap.md](./roadmap.md)
+  - [docs/oss-wedge-and-trust-layer.md](./oss-wedge-and-trust-layer.md)
+  - [docs/flagship-docs-ops-plugin.md](./flagship-docs-ops-plugin.md)
+  - [docs/core-four-provider-docs-audit.md](./core-four-provider-docs-audit.md)
+  - [docs/pluxx-self-hosted-core-four-proof.md](./pluxx-self-hosted-core-four-proof.md)
+  - [README.md](../README.md)
 - Update together:
   - [docs/todo/queue.md](./todo/queue.md)
   - [docs/todo/master-backlog.md](./todo/master-backlog.md)
@@ -121,6 +122,8 @@ The repo already proves a lot.
 - `migrate`, `eval`, and `mcp proxy --record/--replay` are shipped
 - the self-hosted Pluxx plugin exists as a real source project in `example/pluxx`
 - the repo-local Codex dogfood plugin exists in `plugins/pluxx`
+- the self-hosted Pluxx plugin has now been rebuilt, installed, and `verify-install` checked from the canonical source project across the core four:
+  - `docs/pluxx-self-hosted-core-four-proof.md`
 - the flagship `example/docs-ops` source project exists and is wired to a live public Orchid Docsalot MCP endpoint for read-only proof
 - the flagship example also has a concrete Orchid Accordion before/after rewrite artifact under `example/docs-ops/demo-rewrites/`
 - the flagship example has now been installed and used successfully in Codex against the live Orchid Docsalot MCP
@@ -226,10 +229,14 @@ The plugin architecture is still right:
 - thin plugin
 - CLI as the execution engine
 
+The latest local core-four self-hosted plugin proof is documented in:
+
+- `docs/pluxx-self-hosted-core-four-proof.md`
+
 The next plugin-specific work is now:
 
-- rerunning cross-host proof across Claude Code, Cursor, Codex, and OpenCode
 - hardening metadata, prompts, screenshots, and install/update guidance
+- turning the now-complete local proof into a cleaner public-facing install proof asset
 - tightening release automation and distribution UX
 
 ### 5. Customer Discovery

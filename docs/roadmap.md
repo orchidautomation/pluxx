@@ -13,7 +13,9 @@ Last updated: 2026-04-23
   - [docs/oss-wedge-and-trust-layer.md](./oss-wedge-and-trust-layer.md)
   - [docs/flagship-docs-ops-plugin.md](./flagship-docs-ops-plugin.md)
   - [docs/pluxx-plugin-surface-audit.md](./pluxx-plugin-surface-audit.md)
+  - [docs/pluxx-self-hosted-core-four-proof.md](./pluxx-self-hosted-core-four-proof.md)
   - [docs/core-four-provider-docs-audit.md](./core-four-provider-docs-audit.md)
+  - [docs/core-four-maintenance-routine.md](./core-four-maintenance-routine.md)
   - [Linear](https://linear.app/orchid-automation)
 - Update together:
   - [docs/start-here.md](./start-here.md)
@@ -117,11 +119,15 @@ The plugin workflow coverage gap is now closed in the maintained source project 
 
 Use [docs/pluxx-plugin-surface-audit.md](./pluxx-plugin-surface-audit.md) as the concrete reference.
 
+The latest local self-hosted core-four proof is documented in:
+
+- [docs/pluxx-self-hosted-core-four-proof.md](./pluxx-self-hosted-core-four-proof.md)
+
 The next plugin-specific work is:
 
-- repeat the self-hosted plugin proof across Claude Code, Cursor, Codex, and OpenCode
 - keep `example/pluxx`, `plugins/pluxx`, and the published `pluxx-plugin` repo aligned
 - improve install/update clarity and release distribution UX
+- turn the now-complete local self-hosted proof into a cleaner public-facing install proof asset
 - evaluate whether a `gh skill`-compatible export belongs as an additional distribution channel for the skills-only slice of Pluxx output
 
 ### 5. Customer discovery and GTM learning

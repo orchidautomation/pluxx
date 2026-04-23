@@ -1,0 +1,4 @@
+interface:
+  display_name: "Validate Scaffold"
+  short_description: "Run doctor, lint, eval, and test on the current Pluxx scaffold"
+  default_prompt: "Use Pluxx to run the deterministic validation pass on this scaffold and tell me what needs fixing before we go deeper."

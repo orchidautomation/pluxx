@@ -26,6 +26,7 @@ export interface PublishPlanOptions {
   version?: string
   tag?: string
   dryRun?: boolean
+  allowDirty?: boolean
   rootDir?: string
   runCommand?: CommandRunner
 }
@@ -248,6 +249,7 @@ function collectChecks(args: {
   config: PluginConfig
   npmEnabled: boolean
   githubReleaseEnabled: boolean
+  allowDirty: boolean
   packageDir?: string
   packageName?: string
   githubRepo?: string
@@ -268,9 +270,11 @@ function collectChecks(args: {
   const gitStatus = args.runCommand('git', ['status', '--porcelain'], { cwd: args.rootDir })
   checks.push({
     name: 'git-clean',
-    ok: gitStatus.status === 0 && gitStatus.stdout.trim() === '',
+    ok: args.allowDirty || (gitStatus.status === 0 && gitStatus.stdout.trim() === ''),
     code: 'git-clean',
-    detail: gitStatus.status !== 0
+    detail: args.allowDirty
+      ? 'Working tree cleanliness check skipped via --allow-dirty.'
+      : gitStatus.status !== 0
       ? (gitStatus.stderr || gitStatus.stdout || 'Unable to read git status')
       : gitStatus.stdout.trim() === ''
         ? 'Working tree is clean.'
@@ -341,6 +345,7 @@ export function planPublish(config: PluginConfig, options: PublishPlanOptions = 
     config,
     npmEnabled,
     githubReleaseEnabled,
+    allowDirty: options.allowDirty ?? false,
     packageDir,
     packageName,
     githubRepo,

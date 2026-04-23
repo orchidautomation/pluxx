@@ -12,6 +12,8 @@ This folder is the canonical home for Pluxx planning and execution docs.
   - the broadest repo-native backlog
 - [success-checklist.md](./success-checklist.md)
   - the broadest completeness checklist for making sure Pluxx is set up for success
+- [../core-four-maintenance-routine.md](../core-four-maintenance-routine.md)
+  - the repeatable maintainer loop for host-doc audit, compatibility refresh, proof rerun, and release decisions
 
 ## How To Use This Folder
 
@@ -19,6 +21,7 @@ This folder is the canonical home for Pluxx planning and execution docs.
 - Use [queue.md](./queue.md) when you want the next active block of work.
 - Use [master-backlog.md](./master-backlog.md) when you want the full repo-native backlog.
 - Use [success-checklist.md](./success-checklist.md) when you want the broadest “are we actually covered?” execution checklist.
+- Use [../core-four-maintenance-routine.md](../core-four-maintenance-routine.md) when you want the repeatable maintenance loop for host truth and release readiness.
 - Use [Linear](https://linear.app/orchid-automation) for ticket-level detail, ownership, and state.
 
 ## Note

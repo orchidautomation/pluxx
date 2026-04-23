@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">Pluxx verify install workflow screenshot</title>
+  <desc id="desc">Illustrated plugin screenshot showing verify-install proving host bundle visibility across Claude, Cursor, Codex, and OpenCode.</desc>
+  <rect width="1200" height="760" fill="#090612"/>
+  <rect x="52" y="44" width="1096" height="672" rx="28" fill="#120d1f" stroke="#2b2045"/>
+  <text x="88" y="106" fill="#ece5f8" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="700">Prove the installed bundle is the one you think it is</text>
+  <text x="88" y="150" fill="#b9b0cb" font-family="Inter, Arial, sans-serif" font-size="22">Verify the real host state after install instead of trusting dist alone.</text>
+  <rect x="88" y="194" width="1024" height="116" rx="18" fill="#0d0a16" stroke="#2b2045"/>
+  <text x="118" y="242" fill="#9d6dff" font-family="'SFMono-Regular', monospace" font-size="24">$ pluxx verify-install --target codex</text>
+  <text x="118" y="278" fill="#cfc5e1" font-family="'SFMono-Regular', monospace" font-size="21">PASS codex: ~/.codex/plugins/pluxx - built yes, installed yes</text>
+  <g transform="translate(88 350)">
+    <rect width="226" height="234" rx="18" fill="#0d0a16" stroke="#2b2045"/>
+    <text x="24" y="42" fill="#ece5f8" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700">Claude</text>
+    <text x="24" y="86" fill="#cfc5e1" font-family="Inter, Arial, sans-serif" font-size="20">install path checked</text>
+    <text x="24" y="120" fill="#cfc5e1" font-family="Inter, Arial, sans-serif" font-size="20">bundle target checked</text>
+    <text x="24" y="170" fill="#9d6dff" font-family="Inter, Arial, sans-serif" font-size="18">Reload with</text>
+    <text x="24" y="202" fill="#9d6dff" font-family="'SFMono-Regular', monospace" font-size="18">/reload-plugins</text>
+  </g>
+  <g transform="translate(344 350)">
+    <rect width="226" height="234" rx="18" fill="#0d0a16" stroke="#2b2045"/>
+    <text x="24" y="42" fill="#ece5f8" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700">Cursor</text>
+    <text x="24" y="86" fill="#cfc5e1" font-family="Inter, Arial, sans-serif" font-size="20">local plugin dir checked</text>
+    <text x="24" y="120" fill="#cfc5e1" font-family="Inter, Arial, sans-serif" font-size="20">native bundle checked</text>
+    <text x="24" y="170" fill="#9d6dff" font-family="Inter, Arial, sans-serif" font-size="18">Pick up changes with</text>
+    <text x="24" y="202" fill="#9d6dff" font-family="Inter, Arial, sans-serif" font-size="18">Reload Window or restart</text>
+  </g>
+  <g transform="translate(600 350)">
+    <rect width="226" height="234" rx="18" fill="#0d0a16" stroke="#2b2045"/>
+    <text x="24" y="42" fill="#ece5f8" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700">Codex</text>
+    <text x="24" y="86" fill="#cfc5e1" font-family="Inter, Arial, sans-serif" font-size="20">marketplace entry checked</text>
+    <text x="24" y="120" fill="#cfc5e1" font-family="Inter, Arial, sans-serif" font-size="20">plugin bundle checked</text>
+    <text x="24" y="170" fill="#9d6dff" font-family="Inter, Arial, sans-serif" font-size="18">Pick up changes with</text>
+    <text x="24" y="202" fill="#9d6dff" font-family="Inter, Arial, sans-serif" font-size="18">Refresh or restart</text>
+  </g>
+  <g transform="translate(856 350)">
+    <rect width="226" height="234" rx="18" fill="#0d0a16" stroke="#2b2045"/>
+    <text x="24" y="42" fill="#ece5f8" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="700">OpenCode</text>
+    <text x="24" y="86" fill="#cfc5e1" font-family="Inter, Arial, sans-serif" font-size="20">wrapper checked</text>
+    <text x="24" y="120" fill="#cfc5e1" font-family="Inter, Arial, sans-serif" font-size="20">plugin dir checked</text>
+    <text x="24" y="170" fill="#9d6dff" font-family="Inter, Arial, sans-serif" font-size="18">Pick up changes with</text>
+    <text x="24" y="202" fill="#9d6dff" font-family="Inter, Arial, sans-serif" font-size="18">restart or reload</text>
+  </g>
+</svg>

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Autopilot"
+  short_description: "Run the one-shot Pluxx import, refine, and verify path"
+  default_prompt: "Use Pluxx Autopilot to turn this MCP into one maintained source project and verify the result before we review it."

@@ -14,6 +14,7 @@ Last updated: 2026-04-23
   - [docs/core-four-install-update-lifecycle.md](../core-four-install-update-lifecycle.md)
   - [docs/flagship-docs-ops-plugin.md](../flagship-docs-ops-plugin.md)
   - [docs/pluxx-plugin-surface-audit.md](../pluxx-plugin-surface-audit.md)
+  - [docs/pluxx-self-hosted-core-four-proof.md](../pluxx-self-hosted-core-four-proof.md)
   - [Linear](https://linear.app/orchid-automation)
 - Update together:
   - [docs/start-here.md](../start-here.md)
@@ -75,7 +76,8 @@ Use this file to:
   - [master-backlog.md](./master-backlog.md)
   - [docs/roadmap.md](../roadmap.md)
   - Linear
-- [ ] A simple standing rule exists for when Linear changes should trigger repo-doc updates and vice versa
+- [x] A simple standing rule exists for when Linear changes should trigger repo-doc updates and vice versa:
+  - [AGENTS.md](../../AGENTS.md)
 - [ ] The remaining stale secondary docs have been reconciled or explicitly marked as historical
 
 ## 3. Host Truth And Compatibility Truth
@@ -132,9 +134,11 @@ Use this file to:
 - [x] `plugins/pluxx` exists as the repo-local Codex dogfood surface
 - [x] The published `pluxx-plugin` repo exists
 - [x] The plugin workflow coverage gap has been closed
+- [x] A real local build/install/verify proof exists for the self-hosted plugin across Claude Code, Cursor, Codex, and OpenCode:
+  - [docs/pluxx-self-hosted-core-four-proof.md](../pluxx-self-hosted-core-four-proof.md)
 - [~] `example/pluxx`, `plugins/pluxx`, and the published plugin repo are staying aligned
 - [~] Install/update guidance is now much more truthful across the core four
-- [ ] Metadata, screenshots, prompts, and store/listing quality are polished enough for the plugin to feel obviously high quality
+- [~] Metadata, screenshots, prompts, and store/listing quality are moving in the right direction, but are not polished enough yet
 - [ ] Release automation is healthy enough that local/manual release work is the exception, not the normal path
 - [ ] The public install/update experience is excellent enough that a new user can succeed quickly without reading half the repo
 
@@ -194,7 +198,7 @@ Use this file to:
   - self-hosted plugin story is polished
   - install/update story is clear
   - docs/site front door is consistent
-- [ ] Release smoke across the core four has been rerun after the latest compatibility and lifecycle fixes
+- [~] Release smoke across the core four has been rerun after the latest compatibility and lifecycle fixes
 - [ ] The release notes/story tell one coherent “why this release matters” narrative
 
 ## 12. Operational Safety
@@ -203,12 +207,13 @@ Use this file to:
 - [x] The docs now have visible dependency links for coordinated updates
 - [~] Important proof and planning artifacts are easier for humans and agents to keep aligned
 - [ ] The remaining high-churn docs have enough structure that future edits are unlikely to reintroduce major drift
-- [ ] The repo has a simple repeatable routine for:
+- [x] The repo has a simple repeatable routine for:
   - host-doc audit
   - compatibility update
   - proof rerun
   - docs refresh
   - release decision
+  - [docs/core-four-maintenance-routine.md](../core-four-maintenance-routine.md)
 
 ## 13. Definition Of “Set Up For Success”
 
