@@ -139,7 +139,7 @@ Use this file to:
 - [~] `example/pluxx`, `plugins/pluxx`, and the published plugin repo are staying aligned
 - [~] Install/update guidance is now much more truthful across the core four
 - [~] Metadata, screenshots, prompts, and store/listing quality are moving in the right direction, but are not polished enough yet
-- [ ] Release automation is healthy enough that local/manual release work is the exception, not the normal path
+- [~] Release automation is healthier now, but tagged GitHub release publishing still needs one fresh fully automatic proof
 - [ ] The public install/update experience is excellent enough that a new user can succeed quickly without reading half the repo
 
 ## 7. Docs And Website Ingestion Proof
