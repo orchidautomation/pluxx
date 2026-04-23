@@ -25,6 +25,7 @@ This is not the same thing as the short queue.
   - [docs/roadmap.md](../roadmap.md)
   - [docs/oss-wedge-and-trust-layer.md](../oss-wedge-and-trust-layer.md)
   - [docs/flagship-docs-ops-plugin.md](../flagship-docs-ops-plugin.md)
+  - [docs/docs-ops-core-four-proof.md](../docs-ops-core-four-proof.md)
   - [docs/pluxx-plugin-surface-audit.md](../pluxx-plugin-surface-audit.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](../pluxx-self-hosted-core-four-proof.md)
   - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
@@ -93,17 +94,22 @@ Open work:
 - [~] Keep the scaffold and live read-only Orchid proof in place:
   - `example/docs-ops`
   - `example/docs-ops/ORCHID-READONLY-DEMO.md`
+- [x] Prove the flagship source project builds, installs, and passes `verify-install` across Claude Code, Cursor, Codex, and OpenCode:
+  - `docs/docs-ops-core-four-proof.md`
 - [x] Capture one cleaner before/after rewrite artifact on a real Orchid docs page:
   - `example/docs-ops/demo-rewrites/orchid-components-accordion.before.md`
   - `example/docs-ops/demo-rewrites/orchid-components-accordion.after.md`
 - [x] Prove the generated plugin can be installed and used in Codex against the live Orchid Docsalot MCP:
   - `docs/orchid-docs-ops-codex-walkthrough.md`
+- [~] Repeat the same obvious user-facing inspect / pull / rewrite proof beyond Codex:
+  - install/verify proof now exists across the core four
+  - live user-facing proof is still strongest in Codex today
 - [ ] Exercise richer Claude skill surfaces where useful:
   - supporting files / references
   - scripts
   - `context: fork`
   - more advanced skill behavior
-- [ ] Exercise the best equivalent native surfaces in Cursor, Codex, and OpenCode
+- [ ] Exercise the best equivalent native surfaces in Claude Code, Cursor, and OpenCode
 - [ ] Use the reference plugin as:
   - a product demo
   - a regression fixture

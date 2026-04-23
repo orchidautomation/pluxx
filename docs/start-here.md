@@ -12,6 +12,7 @@ Last updated: 2026-04-23
   - [docs/roadmap.md](./roadmap.md)
   - [docs/oss-wedge-and-trust-layer.md](./oss-wedge-and-trust-layer.md)
   - [docs/flagship-docs-ops-plugin.md](./flagship-docs-ops-plugin.md)
+  - [docs/docs-ops-core-four-proof.md](./docs-ops-core-four-proof.md)
   - [docs/core-four-provider-docs-audit.md](./core-four-provider-docs-audit.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](./pluxx-self-hosted-core-four-proof.md)
   - [README.md](../README.md)
@@ -127,6 +128,8 @@ The repo already proves a lot.
 - the self-hosted Pluxx plugin has now been rebuilt, installed, and `verify-install` checked from the canonical source project across the core four:
   - `docs/pluxx-self-hosted-core-four-proof.md`
 - the flagship `example/docs-ops` source project exists and is wired to a live public Orchid Docsalot MCP endpoint for read-only proof
+- the flagship example has now also been rebuilt, installed, and `verify-install` checked from the source project across Claude Code, Cursor, Codex, and OpenCode:
+  - `docs/docs-ops-core-four-proof.md`
 - the flagship example also has a concrete Orchid Accordion before/after rewrite artifact under `example/docs-ops/demo-rewrites/`
 - the flagship example has now been installed and used successfully in Codex against the live Orchid Docsalot MCP
 - docs/website ingestion has a provider model and writes deterministic artifacts:
@@ -203,6 +206,10 @@ The read-only Orchid Docsalot proof is documented in:
 
 - `example/docs-ops/ORCHID-READONLY-DEMO.md`
 
+The cross-host build/install/verify proof is documented in:
+
+- `docs/docs-ops-core-four-proof.md`
+
 The first concrete rewrite proof lives in:
 
 - `example/docs-ops/demo-rewrites/orchid-components-accordion.before.md`
@@ -211,6 +218,11 @@ The first concrete rewrite proof lives in:
 The full installed-plugin walkthrough lives in:
 
 - `docs/orchid-docs-ops-codex-walkthrough.md`
+
+The next proof steps are:
+
+- repeat the live workflow in Claude Code, Cursor, and OpenCode
+- separate the write/publish auth path from the public read-only MCP proof
 
 ### 3. Docs Ingestion Proof
 

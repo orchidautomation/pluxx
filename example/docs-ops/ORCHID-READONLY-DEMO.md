@@ -119,6 +119,8 @@ It shows:
 - no API key is needed for the public read-side workflow
 - the flagship example can inspect, list, and pull real pages today
 - the flagship example can also produce a concrete read-only before/after rewrite artifact on a real page
+- a separate core-four build/install/verify proof now exists at:
+  - `docs/docs-ops-core-four-proof.md`
 - the flagship example can be installed into Codex and used against the live Orchid Docsalot MCP through the plugin surface
 - the remaining gap is no longer "can we read and rewrite?" but "how do we prove authenticated publish workflows cleanly?"
 
@@ -158,6 +160,7 @@ For the full story, see:
 
 ## Next Proof Steps
 
-1. decide whether the Accordion rewrite should stay the canonical read-only proof or whether a second page should join it
-2. if a stronger publish proof is desired, identify the separate authenticated write path outside the public MCP surface
-3. test a true authoring or publish loop only after that write path is explicit
+1. repeat the same obvious user-facing inspect and rewrite proof in Claude Code, Cursor, and OpenCode
+2. decide whether the Accordion rewrite should stay the canonical read-only proof or whether a second page should join it
+3. if a stronger publish proof is desired, identify the separate authenticated write path outside the public MCP surface
+4. test a true authoring or publish loop only after that write path is explicit

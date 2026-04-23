@@ -12,6 +12,7 @@ Last updated: 2026-04-23
   - [docs/todo/success-checklist.md](./todo/success-checklist.md)
   - [docs/oss-wedge-and-trust-layer.md](./oss-wedge-and-trust-layer.md)
   - [docs/flagship-docs-ops-plugin.md](./flagship-docs-ops-plugin.md)
+  - [docs/docs-ops-core-four-proof.md](./docs-ops-core-four-proof.md)
   - [docs/pluxx-plugin-surface-audit.md](./pluxx-plugin-surface-audit.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](./pluxx-self-hosted-core-four-proof.md)
   - [docs/core-four-provider-docs-audit.md](./core-four-provider-docs-audit.md)
@@ -86,9 +87,11 @@ The current status is stronger than a pure scaffold:
 
 - `example/docs-ops` exists
 - it is wired to Orchid's public Docsalot MCP endpoint for read-only proof
+- it now builds, installs, and passes `verify-install` across Claude Code, Cursor, Codex, and OpenCode:
+  - `docs/docs-ops-core-four-proof.md`
 - it now includes a concrete Orchid Accordion before/after rewrite artifact
 - it has now been installed and used in Codex through the local plugin surface
-- the next proof step is the separate write/publish auth path
+- the next proof steps are repeating the live workflow in Claude Code, Cursor, and OpenCode, then separating the write/publish auth path
 
 This is the strongest next proof surface for:
 

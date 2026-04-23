@@ -44,6 +44,8 @@ It now has real proof surfaces:
 
 - [Self-hosted core-four proof](./pluxx-self-hosted-core-four-proof.md)
   - the canonical `example/pluxx` source project rebuilt, installed, and `verify-install` checked across Claude Code, Cursor, Codex, and OpenCode
+- [Docs Ops core-four proof](./docs-ops-core-four-proof.md)
+  - the flagship `example/docs-ops` source project rebuilt, installed, and `verify-install` checked across Claude Code, Cursor, Codex, and OpenCode
 - [Orchid Docs Ops Codex walkthrough](./orchid-docs-ops-codex-walkthrough.md)
   - one maintained `docs-ops` source project compiled into a real Codex plugin and used against Orchid's live Docsalot MCP
 - [Orchid Accordion before/after rewrite](../example/docs-ops/demo-rewrites/orchid-components-accordion.after.md)

@@ -13,6 +13,7 @@ Last updated: 2026-04-23
   - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
   - [docs/core-four-install-update-lifecycle.md](../core-four-install-update-lifecycle.md)
   - [docs/flagship-docs-ops-plugin.md](../flagship-docs-ops-plugin.md)
+  - [docs/docs-ops-core-four-proof.md](../docs-ops-core-four-proof.md)
   - [docs/pluxx-plugin-surface-audit.md](../pluxx-plugin-surface-audit.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](../pluxx-self-hosted-core-four-proof.md)
   - [Linear](https://linear.app/orchid-automation)
@@ -121,10 +122,16 @@ Use this file to:
 - [x] The flagship spec exists:
   - [docs/flagship-docs-ops-plugin.md](../flagship-docs-ops-plugin.md)
 - [x] The flagship example is wired to a live public Docsalot MCP surface
+- [x] A core-four build/install/verify proof exists for the flagship example:
+  - [docs/docs-ops-core-four-proof.md](../docs-ops-core-four-proof.md)
 - [x] There is at least one real before/after rewrite artifact
 - [x] There is at least one installed-plugin proof in Codex
-- [ ] The same level of proof has been repeated across Claude Code, Cursor, and OpenCode
-- [ ] The flagship example clearly demonstrates what is preserved vs translated vs degraded across the core four
+- [~] The same level of proof is spreading across Claude Code, Cursor, and OpenCode:
+  - core-four build/install/verify proof now exists
+  - live user-facing workflow proof is still strongest in Codex today
+- [~] The flagship example now demonstrates preserve / translate / degrade behavior materially:
+  - [docs/docs-ops-core-four-proof.md](../docs-ops-core-four-proof.md)
+  - the user-facing story still needs cleaner visual packaging
 - [ ] The private write/publish auth path has been separated and tested as its own follow-on proof
 - [ ] The flagship example has been turned into a clean public-facing demo asset
 

@@ -9,6 +9,7 @@ Last updated: 2026-04-23
   - [README.md](../README.md)
   - [docs/first-proof-demo-asset-pack.md](./first-proof-demo-asset-pack.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](./pluxx-self-hosted-core-four-proof.md)
+  - [docs/docs-ops-core-four-proof.md](./docs-ops-core-four-proof.md)
   - [docs/orchid-docs-ops-codex-walkthrough.md](./orchid-docs-ops-codex-walkthrough.md)
   - [docs/core-four-install-update-lifecycle.md](./core-four-install-update-lifecycle.md)
   - [docs/strategy/docs-ingestion-scaffold-before-after.md](./strategy/docs-ingestion-scaffold-before-after.md)
@@ -44,16 +45,19 @@ If you want the shortest credible answer to "is this real yet?", use this order:
 1. [Self-hosted core-four proof](./pluxx-self-hosted-core-four-proof.md)
    What it proves: one maintained `example/pluxx` source project builds, installs, and passes `verify-install` across Claude Code, Cursor, Codex, and OpenCode.
 
-2. [Docs Ops live Codex walkthrough](./orchid-docs-ops-codex-walkthrough.md)
+2. [Docs Ops core-four proof](./docs-ops-core-four-proof.md)
+   What it proves: the flagship `example/docs-ops` source project also builds, installs, and passes `verify-install` across Claude Code, Cursor, Codex, and OpenCode.
+
+3. [Docs Ops live Codex walkthrough](./orchid-docs-ops-codex-walkthrough.md)
    What it proves: one maintained `docs-ops` source project compiles into a real plugin and talks to Orchid's live Docsalot MCP.
 
-3. [Orchid Accordion before/after rewrite](../example/docs-ops/demo-rewrites/orchid-components-accordion.after.md)
+4. [Orchid Accordion before/after rewrite](../example/docs-ops/demo-rewrites/orchid-components-accordion.after.md)
    What it proves: the flagship example produces user-visible output, not just config files.
 
-4. [Docs-ingestion scaffold before/after demo](./strategy/docs-ingestion-scaffold-before-after.md)
+5. [Docs-ingestion scaffold before/after demo](./strategy/docs-ingestion-scaffold-before-after.md)
    What it proves: Firecrawl-backed sourced context changes the real generated scaffold, not just an eval row.
 
-5. [Core-four provider docs audit](./core-four-provider-docs-audit.md)
+6. [Core-four provider docs audit](./core-four-provider-docs-audit.md)
    What it proves: the compatibility story is grounded in first-party provider docs, not hand-waving.
 
 ## Install The Released Pluxx Plugin
@@ -121,16 +125,19 @@ Use this when you want a clean founder demo, customer walkthrough, or investor p
 2. Show [Self-hosted core-four proof](./pluxx-self-hosted-core-four-proof.md)
    Frame: installed-state verification is real.
 
-3. Show [Docs Ops live Codex walkthrough](./orchid-docs-ops-codex-walkthrough.md)
+3. Show [Docs Ops core-four proof](./docs-ops-core-four-proof.md)
+   Frame: the flagship example is mechanically real across the core four, not only inside one host.
+
+4. Show [Docs Ops live Codex walkthrough](./orchid-docs-ops-codex-walkthrough.md)
    Frame: raw MCP is not enough; shaped workflows matter.
 
-4. Show the [Accordion before/after output](../example/docs-ops/demo-rewrites/orchid-components-accordion.after.md)
+5. Show the [Accordion before/after output](../example/docs-ops/demo-rewrites/orchid-components-accordion.after.md)
    Frame: the product changes user-visible output, not only internals.
 
-5. Show [Docs-ingestion scaffold before/after demo](./strategy/docs-ingestion-scaffold-before-after.md)
+6. Show [Docs-ingestion scaffold before/after demo](./strategy/docs-ingestion-scaffold-before-after.md)
    Frame: sourced product/docs context materially improves the scaffold.
 
-6. Close with [Core-four provider docs audit](./core-four-provider-docs-audit.md)
+7. Close with [Core-four provider docs audit](./core-four-provider-docs-audit.md)
    Frame: the compatibility story is truthful and provider-backed.
 
 ## What This Page Does Not Claim
@@ -140,7 +147,7 @@ This page is intentionally narrow.
 It does not claim:
 
 - the website is already the strongest public surface
-- every host has equally polished flagship proof yet
+- every host already has equally polished user-facing flagship proof yet
 - the trust/distribution layer is already the main product
 
 It does claim:

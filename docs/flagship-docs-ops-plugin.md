@@ -1,6 +1,6 @@
 # Flagship Docs-Ops Plugin
 
-Last updated: 2026-04-22
+Last updated: 2026-04-23
 
 ## Doc Links
 
@@ -10,6 +10,7 @@ Last updated: 2026-04-22
   - [docs/todo/queue.md](./todo/queue.md)
   - [docs/todo/master-backlog.md](./todo/master-backlog.md)
   - [docs/roadmap.md](./roadmap.md)
+  - [docs/docs-ops-core-four-proof.md](./docs-ops-core-four-proof.md)
   - [docs/strategy/docs-url-ingestion.md](./strategy/docs-url-ingestion.md)
   - [Linear](https://linear.app/orchid-automation)
 - Update together:
@@ -30,17 +31,24 @@ And the read-only public Orchid validation lives in:
 
 - `example/docs-ops/ORCHID-READONLY-DEMO.md`
 
+And the core-four build/install/verify proof lives in:
+
+- `docs/docs-ops-core-four-proof.md`
+
 That means the flagship example is no longer only theoretical:
 
 - the source project exists
 - the core-four build passes
+- the flagship example now installs and passes `verify-install` across Claude Code, Cursor, Codex, and OpenCode
 - the Orchid Docsalot MCP endpoint initializes publicly with no API key
 - the public MCP surface is proven for read-side workflows
 - a real Orchid Accordion before/after rewrite artifact exists in `example/docs-ops/demo-rewrites/`
 - the generated plugin has been installed and used in Codex against the live Orchid surface
 
-The next gap is write-side proof:
+The next gaps are user-facing cross-host proof and write-side proof:
 
+- repeat obvious inspect / pull / rewrite proof in Claude Code, Cursor, and OpenCode
+- document preserve / translate / degrade behavior clearly in this example
 - a separate authenticated publish path, if Orchid wants true write/publish demos
 
 ## Chosen Example
@@ -240,6 +248,17 @@ Goal:
 - preserve the same maintained source project
 - carry over the docs-ops operator pack in the best native shape OpenCode supports
 - use this example to document exactly where behavior is preserved, translated, or degraded
+
+### Observed Today
+
+The example is now strong enough to document the first honest current mapping:
+
+- instructions: preserve in Claude Code, Cursor, and Codex; translate in OpenCode
+- commands: preserve in Claude Code, Cursor, and OpenCode; degrade in Codex
+- hooks: preserve in Claude Code and Cursor; translate in Codex and OpenCode
+- distribution: preserve in Cursor and Codex; translate in Claude Code and OpenCode
+
+See [docs/docs-ops-core-four-proof.md](./docs-ops-core-four-proof.md) for the current proof artifact and the concrete host paths used in the rerun.
 
 ## Source Project Shape
 

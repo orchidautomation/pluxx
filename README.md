@@ -20,6 +20,8 @@ If you want the fastest way to see what is already real, start with these:
   - the shortest public path to the current demos plus one-command install paths for the released self-hosted plugin
 - [Self-hosted core-four proof](./docs/pluxx-self-hosted-core-four-proof.md)
   - `example/pluxx` rebuilt, installed, and `verify-install` checked across Claude Code, Cursor, Codex, and OpenCode
+- [Docs Ops core-four proof](./docs/docs-ops-core-four-proof.md)
+  - the flagship `example/docs-ops` source project rebuilt, installed, and `verify-install` checked across Claude Code, Cursor, Codex, and OpenCode
 - [Docs Ops live Codex walkthrough](./docs/orchid-docs-ops-codex-walkthrough.md)
   - one maintained `docs-ops` source project compiled into a real Codex plugin and used against Orchid's live Docsalot MCP
 - [Orchid Accordion before/after rewrite](./example/docs-ops/demo-rewrites/orchid-components-accordion.after.md)

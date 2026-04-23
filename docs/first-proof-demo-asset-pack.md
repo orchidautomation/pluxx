@@ -71,6 +71,24 @@ Best public use:
 - Codex-native proof
 - “raw MCP is not enough” story
 
+### 2b. Flagship docs workflow example across the core four
+
+Primary doc:
+
+- [Docs Ops core-four proof](./docs-ops-core-four-proof.md)
+
+What it proves:
+
+- the flagship `example/docs-ops` source project builds native bundles for Claude Code, Cursor, Codex, and OpenCode
+- `pluxx install` works for the flagship example across the core four
+- `pluxx verify-install` confirms the installed host-visible state for the flagship example too
+
+Best public use:
+
+- bridge between the self-hosted proof and the narrower live Codex walkthrough
+- proof that the flagship example is mechanically real beyond one host
+- cleaner install-story support for the flagship lane
+
 ### 3. Concrete before/after rewrite artifact
 
 Primary files:
@@ -130,15 +148,16 @@ Best public use:
 
 ## What Is Still Missing
 
-### 1. Flagship example beyond Codex
+### 1. Flagship user-facing proof beyond Codex
 
 Missing artifact:
 
-- the same level of obvious, user-facing proof for Claude Code, Cursor, and OpenCode
+- the same level of obvious, user-facing inspect / pull / rewrite proof for Claude Code, Cursor, and OpenCode
 
 Why it matters:
 
-- the `docs-ops` flagship proof is strongest in Codex today
+- the `docs-ops` flagship install/verify proof now exists across the core four
+- the `docs-ops` live user-facing proof is still strongest in Codex today
 - the story gets better when the same source project feels native in more than one host
 
 ### 2. Cleaner public install proof asset
@@ -161,10 +180,11 @@ If you need the strongest current narrative without waiting on Firecrawl, use th
 
 1. start with [README](../README.md) and [start-here](./start-here.md)
 2. show [Self-hosted core-four proof](./pluxx-self-hosted-core-four-proof.md)
-3. show [Orchid Docs Ops Codex walkthrough](./orchid-docs-ops-codex-walkthrough.md)
-4. show the [Accordion before/after rewrite](../example/docs-ops/demo-rewrites/orchid-components-accordion.after.md)
-5. show the [Docs-ingestion scaffold before/after demo](./strategy/docs-ingestion-scaffold-before-after.md)
-6. close with [Core-four provider docs audit](./core-four-provider-docs-audit.md)
+3. show [Docs Ops core-four proof](./docs-ops-core-four-proof.md)
+4. show [Orchid Docs Ops Codex walkthrough](./orchid-docs-ops-codex-walkthrough.md)
+5. show the [Accordion before/after rewrite](../example/docs-ops/demo-rewrites/orchid-components-accordion.after.md)
+6. show the [Docs-ingestion scaffold before/after demo](./strategy/docs-ingestion-scaffold-before-after.md)
+7. close with [Core-four provider docs audit](./core-four-provider-docs-audit.md)
 
 That sequence supports the current product story:
 
@@ -186,6 +206,7 @@ The next public-facing asset block should be:
   - install/verify state
 - one cleaner flagship docs-ops proof panel
   - source project
+  - core-four install/verify state
   - live MCP backend
   - rewrite result
 

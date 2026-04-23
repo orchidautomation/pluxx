@@ -12,6 +12,7 @@ Last updated: 2026-04-23
   - [docs/roadmap.md](../roadmap.md)
   - [docs/oss-wedge-and-trust-layer.md](../oss-wedge-and-trust-layer.md)
   - [docs/flagship-docs-ops-plugin.md](../flagship-docs-ops-plugin.md)
+  - [docs/docs-ops-core-four-proof.md](../docs-ops-core-four-proof.md)
   - [docs/pluxx-plugin-surface-audit.md](../pluxx-plugin-surface-audit.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](../pluxx-self-hosted-core-four-proof.md)
   - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
@@ -113,11 +114,18 @@ Open work:
 - treat the current scaffold and Orchid read-only proof as complete:
   - `example/docs-ops`
   - `example/docs-ops/ORCHID-READONLY-DEMO.md`
+- treat the core-four build/install/verify proof as complete:
+  - `docs/docs-ops-core-four-proof.md`
 - treat the first concrete rewrite proof as complete:
   - `example/docs-ops/demo-rewrites/orchid-components-accordion.before.md`
   - `example/docs-ops/demo-rewrites/orchid-components-accordion.after.md`
 - treat the installed Codex plugin proof as complete:
   - `docs/orchid-docs-ops-codex-walkthrough.md`
+- repeat the same obvious user-facing inspect / pull / rewrite proof in:
+  - Claude Code
+  - Cursor
+  - OpenCode
+- document what the example preserves vs translates vs degrades across the core four
 - explicitly cover richer Claude skill capabilities where useful:
   - supporting files / references
   - scripts
