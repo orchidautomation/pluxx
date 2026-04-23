@@ -617,7 +617,7 @@ rm -rf "$INSTALL_DIR"
 cp -R "$BUNDLE_DIR" "$INSTALL_DIR"
 
 echo "Installed $PLUGIN_NAME to $INSTALL_DIR"
-echo "If Cursor is already open, restart or reload it so the plugin is picked up."
+echo "If Cursor is already open, use Developer: Reload Window or restart Cursor so the plugin is picked up."
 `
 }
 
@@ -732,7 +732,7 @@ NODE
 
 echo "Installed $PLUGIN_NAME to $INSTALL_DIR"
 echo "Updated Codex marketplace catalog at $MARKETPLACE_PATH"
-echo "If Codex is already open, restart it so the plugin is picked up."
+echo "If Codex is already open, use Plugins > Refresh if that action is available in your current UI, or restart Codex so the plugin is picked up."
 `
 }
 

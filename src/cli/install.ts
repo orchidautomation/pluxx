@@ -269,7 +269,7 @@ function getInstallTargets(pluginName: string): InstallTarget[] {
     {
       platform: 'opencode',
       pluginDir: resolve(home, '.config/opencode/plugins', pluginName),
-      description: `~/.config/opencode/plugins/${pluginName}.ts`,
+      description: `~/.config/opencode/plugins/${pluginName}.ts + ~/.config/opencode/plugins/${pluginName}/`,
     },
     {
       platform: 'github-copilot',
@@ -461,6 +461,15 @@ export function getInstallFollowupNotes(platforms: TargetPlatform[]): string[] {
 
   if (platforms.includes('claude-code')) {
     notes.push('Claude Code note: if Claude is already open, run /reload-plugins in the session to pick up the new install.')
+  }
+  if (platforms.includes('cursor')) {
+    notes.push('Cursor note: if Cursor is already open, use Developer: Reload Window or restart Cursor to pick up the new install.')
+  }
+  if (platforms.includes('codex')) {
+    notes.push('Codex note: if Codex is already open, use Plugins > Refresh if that action is available in your current UI, or restart Codex to pick up the new install.')
+  }
+  if (platforms.includes('opencode')) {
+    notes.push('OpenCode note: if OpenCode is already open, restart or reload it so the plugin is picked up.')
   }
 
   return notes

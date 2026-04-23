@@ -8,6 +8,7 @@ Last updated: 2026-04-23
 - Related:
   - [docs/todo/queue.md](./todo/queue.md)
   - [docs/todo/master-backlog.md](./todo/master-backlog.md)
+  - [docs/todo/success-checklist.md](./todo/success-checklist.md)
 - [docs/roadmap.md](./roadmap.md)
 - [docs/oss-wedge-and-trust-layer.md](./oss-wedge-and-trust-layer.md)
 - [docs/flagship-docs-ops-plugin.md](./flagship-docs-ops-plugin.md)
@@ -21,6 +22,8 @@ Last updated: 2026-04-23
 If you are new to Pluxx, read this file first.
 
 This is the shortest accurate explanation of what Pluxx is, what is already real, what is not the product yet, and where to look next.
+
+If you want the broadest completeness checklist after reading this, use [docs/todo/success-checklist.md](./todo/success-checklist.md).
 
 ## What Pluxx Is
 

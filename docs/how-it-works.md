@@ -5,13 +5,13 @@
 Every AI coding tool has its own plugin format. If you want your tool inside Claude Code, Cursor, Codex, OpenCode, and GitHub Copilot, you need to maintain separate manifests, MCP configs, hooks, and rules for each one.
 
 ```
-Claude Code wants: .claude-plugin/plugin.json + headers auth + CLAUDE.md + PascalCase hooks
-Cursor wants:      .cursor-plugin/plugin.json + headers auth + AGENTS.md + rules/ + hooks/hooks.json
-Codex wants:       .codex-plugin/plugin.json + .mcp.json (`bearer_token_env_var` / `env_http_headers` / `http_headers`) + AGENTS.md + external hooks in .codex/hooks.json
-OpenCode wants:    package.json + index.ts wrapper + dot.notation events
+Claude Code wants: optional .claude-plugin/plugin.json + .mcp.json or inline MCP config + CLAUDE.md + hooks/hooks.json or inline/settings hooks
+Cursor wants:      .cursor-plugin/plugin.json + mcp.json + AGENTS.md + rules/ + hooks/hooks.json (+ host-level .cursor/* config)
+Codex wants:       .codex-plugin/plugin.json + skills/ + optional .mcp.json / .app.json + AGENTS.md / AGENTS.override.md + external hooks in .codex/hooks.json
+OpenCode wants:    opencode.json + a code-first JS/TS plugin module + .opencode/plugins/ or ~/.config/opencode/plugins/ + AGENTS.md / CLAUDE.md fallback + config-driven MCP/permissions
 ```
 
-Each platform also has its own validation rules that only surface at runtime — Codex rejects skill descriptions over 1024 characters, Claude Code silently truncates at 250, Cursor requires skill names to match directory names. Discovering these gotchas is trial and error.
+Each platform also has its own validation and lifecycle behavior. Some of that is official-doc-backed, some of it is conservative Pluxx compatibility policy, and all of it is easy to get wrong by hand. Claude has `/reload-plugins`, Cursor has reload-window behavior, Codex separates plugin bundle updates from skill discovery, and OpenCode is much more config/runtime-driven than a manifest-only host.
 
 ## The Solution
 
@@ -41,6 +41,7 @@ See [Architecture](./architecture.md) for the system view and [Customer Journey]
 See [Practical handbook](./practical-handbook.md) for the operational command-by-command workflow.
 See [Canonical permissions model](./permissions-canonical-model.md) for the current policy shape, generated mappings, and downgrade behavior.
 See [Core primitives](./core-primitives.md) for the tightened product scope.
+See [Core-Four Install And Update Lifecycle](./core-four-install-update-lifecycle.md) for the user-facing install, update, and reload matrix.
 See [Roadmap](./roadmap.md) for the current milestones, dependencies, and execution queue.
 
 ## What Pluxx Treats As Core
@@ -569,13 +570,12 @@ Your single `INSTRUCTIONS.md` becomes the right file for each platform:
 
 pluxx catches platform-specific gotchas before you ship:
 
-- Codex rejects SKILL.md descriptions over 1024 characters
 - Claude Code silently truncates descriptions at 250 characters
 - Cursor and Cline require skill names to match their directory names
-- Codex manifest allows max 3 default prompts, 128 chars each
 - Claude Code hook events must be PascalCase (26 valid events)
 - Manifest paths must start with `./` and cannot contain `../`
 - Plugin directories must be at root, not inside `.claude-plugin/`
+- Pluxx also applies conservative compatibility heuristics for some host-specific metadata where official docs are thinner than the real product surface
 - And 40 more checks across all 11 platforms
 
 ## The Next Product Delta

@@ -8,6 +8,7 @@ Last updated: 2026-04-23
 - Related:
   - [docs/start-here.md](../start-here.md)
   - [master-backlog.md](./master-backlog.md)
+  - [success-checklist.md](./success-checklist.md)
   - [docs/roadmap.md](../roadmap.md)
   - [docs/oss-wedge-and-trust-layer.md](../oss-wedge-and-trust-layer.md)
 - [docs/flagship-docs-ops-plugin.md](../flagship-docs-ops-plugin.md)
@@ -23,9 +24,12 @@ This file is the short operational queue for Pluxx.
 
 If you are new to the repo, read [docs/start-here.md](../start-here.md) first.
 
+If you want the broadest “make sure we are not missing anything” checklist, use [docs/todo/success-checklist.md](./success-checklist.md).
+
 For broader context, use:
 
 - [docs/todo/master-backlog.md](./master-backlog.md)
+- [docs/todo/success-checklist.md](./success-checklist.md)
 - [docs/roadmap.md](../roadmap.md)
 - [docs/oss-wedge-and-trust-layer.md](../oss-wedge-and-trust-layer.md)
 - [docs/enterprise-adoption-thesis.md](../enterprise-adoption-thesis.md)

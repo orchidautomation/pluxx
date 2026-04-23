@@ -6,6 +6,8 @@ This is the most complete repo-native backlog for Pluxx.
 
 Use this file when you want the broadest view of what still needs to happen across product, proof, docs, GTM, and the later trust layer.
 
+If you want the broadest completeness checklist rather than the broadest backlog, use [success-checklist.md](./success-checklist.md).
+
 This is not the same thing as the short queue.
 
 - Use [queue.md](./queue.md) for the active operational queue.
@@ -19,6 +21,7 @@ This is not the same thing as the short queue.
 - Related:
   - [docs/start-here.md](../start-here.md)
   - [queue.md](./queue.md)
+  - [success-checklist.md](./success-checklist.md)
   - [docs/roadmap.md](../roadmap.md)
   - [docs/oss-wedge-and-trust-layer.md](../oss-wedge-and-trust-layer.md)
   - [docs/flagship-docs-ops-plugin.md](../flagship-docs-ops-plugin.md)

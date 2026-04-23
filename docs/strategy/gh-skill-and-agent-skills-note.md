@@ -61,6 +61,11 @@ It is that GitHub is treating skills as a package-managed, release-driven distri
 
 Agent Skills are a lightweight open format for extending AI agents with portable knowledge and workflows.
 
+The important distinction is:
+
+- `Agent Skills` is the open format and execution model
+- `gh skill` is a GitHub distribution and lifecycle tool built around that format
+
 At the core, a skill is a directory with:
 
 - `SKILL.md`
@@ -80,6 +85,11 @@ This matters because it makes skills:
 - version-controlled
 - cross-product reusable
 - lightweight enough to keep many available at once
+
+It also gives a cleaner lens for Pluxx:
+
+- skills are the most portable workflow substrate
+- native plugin packaging is a separate host-specific layer above that substrate
 
 ## What This Changes For Pluxx
 
@@ -104,6 +114,15 @@ Now there is a major ecosystem player shipping:
 - provenance
 
 That means users will increasingly expect those behaviors.
+
+The Agent Skills standard itself also reinforces that the format is intentionally:
+
+- lightweight
+- open
+- progressively disclosed at runtime
+- reusable across many clients
+
+That strengthens the case for Pluxx keeping skills as the semantic center of the source model, even when the final output needs richer host-native packaging.
 
 ### 2. Provenance and update semantics matter more
 

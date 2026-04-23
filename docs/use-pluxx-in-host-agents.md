@@ -17,6 +17,8 @@ This is different from [Create a Pluxx plugin](./create-a-pluxx-plugin.md), whic
 
 The self-hosting reference project for this flow now lives at [example/pluxx](../example/pluxx).
 
+For host-specific install, update, and reload behavior, use [Core-Four Install And Update Lifecycle](./core-four-install-update-lifecycle.md).
+
 ## What This Means
 
 The meta workflow is:
@@ -267,6 +269,17 @@ Good prompt:
 ```text
 Use Pluxx to generate this plugin, then run the refinement passes through OpenCode and verify the final wrapper output.
 ```
+
+## Reload And Update Expectations
+
+When you install or update a generated host bundle, use the host-native pickup flow:
+
+- Claude Code: run `/reload-plugins`
+- Cursor: use `Developer: Reload Window` or restart Cursor
+- Codex: use `Plugins > Refresh` if that action is available in your current UI, otherwise restart Codex
+- OpenCode: restart or reload OpenCode
+
+Use [Core-Four Install And Update Lifecycle](./core-four-install-update-lifecycle.md) when you want the short per-host matrix instead of the broader operator guide.
 
 ## How To Ask For The Right Level Of Automation
 

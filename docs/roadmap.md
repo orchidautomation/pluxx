@@ -9,6 +9,7 @@ Last updated: 2026-04-23
   - [docs/start-here.md](./start-here.md)
   - [docs/todo/queue.md](./todo/queue.md)
   - [docs/todo/master-backlog.md](./todo/master-backlog.md)
+  - [docs/todo/success-checklist.md](./todo/success-checklist.md)
   - [docs/oss-wedge-and-trust-layer.md](./oss-wedge-and-trust-layer.md)
   - [docs/flagship-docs-ops-plugin.md](./flagship-docs-ops-plugin.md)
   - [docs/pluxx-plugin-surface-audit.md](./pluxx-plugin-surface-audit.md)
@@ -24,6 +25,7 @@ This doc is direction, not the day-to-day execution queue.
 If you are new to the repo, read [start-here.md](./start-here.md) first.
 For the live operational queue, use [docs/todo/queue.md](./todo/queue.md).
 For the broadest repo-native backlog, use [docs/todo/master-backlog.md](./todo/master-backlog.md).
+For the broadest completeness checklist, use [docs/todo/success-checklist.md](./todo/success-checklist.md).
 For the product strategy behind this roadmap, use [OSS wedge and trust layer](./oss-wedge-and-trust-layer.md).
 
 ## Product Frame
