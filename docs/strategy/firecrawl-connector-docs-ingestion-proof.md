@@ -8,7 +8,11 @@ It is intentionally separate from the repeatable local harness snapshot at:
 
 - [docs-ingestion-fixture-eval.md](./docs-ingestion-fixture-eval.md)
 
-That fixture harness still requires a local `FIRECRAWL_API_KEY` to rerun the `firecrawl` provider path through `npm run eval:docs-ingestion`.
+That fixture harness originally required a local `FIRECRAWL_API_KEY` to rerun the `firecrawl` provider path through `npm run eval:docs-ingestion`.
+
+That keyed rerun has now also been captured at:
+
+- [docs-ingestion-fixture-eval.md](./docs-ingestion-fixture-eval.md)
 
 This proof answers a narrower question:
 
@@ -31,17 +35,16 @@ Firecrawl-backed pass:
 - `firecrawl_extract` on each fixture website + docs pair
 - `firecrawl_scrape` on Firecrawl's MCP page to verify the lower-level technical terms that matter for scaffold quality
 
-This is a real Firecrawl-backed comparison, but it is not yet the same thing as rerunning the local fixture harness with a local key in the shell.
+This note still matters because it captured the first real Firecrawl-backed comparison before the keyed local harness rerun was available in the repo.
 
 ## Current Read
 
 - Firecrawl-backed ingestion is now proven on the current fixture set.
 - Sumble and PlayKit both produce clean, high-signal product/setup/auth/workflow context through Firecrawl.
 - Firecrawl itself is still the hardest surface, but Firecrawl extraction clearly recovers more useful workflow and auth truth than the local fallback did on the JS-heavy page.
-- The remaining gap is not "does Firecrawl help?" It is:
-  - rerun the harness locally with a real key
+- The remaining gap is no longer "can we run Firecrawl locally?" It is:
   - turn one fixture into a visible scaffold before/after demo
-  - tighten technical hint extraction so lower-level setup terms stay visible in the structured output
+  - tighten technical hint extraction further on the hardest Firecrawl fixture
 
 ## Fixture Comparison
 
@@ -140,12 +143,11 @@ The repo can now honestly say:
 
 The repo should not yet say:
 
-- the local keyed harness has been rerun end-to-end
-- the Firecrawl provider path has a fresh reproducible snapshot in `docs-ingestion-fixture-eval.json`
 - the before/after scaffold improvement demo is already captured
+- the weak Firecrawl fixture is fully solved
 
 ## Remaining Open Work
 
-1. Rerun `npm run eval:docs-ingestion` with a real local `FIRECRAWL_API_KEY`.
-2. Capture one fixture as a visible scaffold-quality before/after artifact.
-3. Tighten extraction so technical setup hints like `markdown`, `main content`, and host-specific install details survive more consistently in structured output.
+1. Capture one fixture as a visible scaffold-quality before/after artifact.
+2. Tighten extraction so technical setup hints like `markdown`, `main content`, and host-specific install details survive more consistently in structured output.
+3. Keep the keyed fixture snapshot current as the extraction heuristics improve.

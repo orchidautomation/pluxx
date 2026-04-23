@@ -132,6 +132,8 @@ The repo already proves a lot.
   - `.pluxx/docs-context.json`
 - a real connector-backed Firecrawl comparison now exists on the current fixture set:
   - `docs/strategy/firecrawl-connector-docs-ingestion-proof.md`
+- the keyed local fixture harness rerun now also exists:
+  - `docs/strategy/docs-ingestion-fixture-eval.md`
 - release smoke exists for the core four
 - a first-party provider-doc audit now exists at:
   - `docs/core-four-provider-docs-audit.md`
@@ -214,7 +216,8 @@ That means:
 
 - using the captured connector-backed Firecrawl comparison to prove the value of the ingestion lane:
   - `docs/strategy/firecrawl-connector-docs-ingestion-proof.md`
-- rerunning the local fixture harness with a real Firecrawl key
+- using the keyed local fixture snapshot to keep `baseline`, `local`, and `firecrawl` comparable:
+  - `docs/strategy/docs-ingestion-fixture-eval.md`
 - capturing a live before/after demo
 - documenting what changed in the resulting scaffold
 

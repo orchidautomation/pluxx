@@ -51,9 +51,11 @@ It now has real proof surfaces:
 - [Core-four provider docs audit](./core-four-provider-docs-audit.md)
   - first-party docs normalized into one capability and lifecycle truth set
 - [Firecrawl connector docs-ingestion proof](./strategy/firecrawl-connector-docs-ingestion-proof.md)
-  - a real Firecrawl-backed comparison on the current fixture set, while the keyed local harness rerun remains open
+  - the first real Firecrawl-backed comparison on the current fixture set
+- [Docs-ingestion fixture snapshot](./strategy/docs-ingestion-fixture-eval.md)
+  - the keyed local harness rerun with `baseline`, `local`, and `firecrawl` recorded side by side
 
-The main docs-ingestion work still open is the fully reproducible local-key harness rerun plus a cleaner scaffold before/after demo.
+The main docs-ingestion work still open is the cleaner scaffold before/after demo plus continued improvement on the weak Firecrawl fixture.
 
 See [Agent Mode](./agent-mode.md) for the semantic-authoring layer.
 See [Architecture](./architecture.md) for the system view and [Customer Journey](./customer-journey.md) for the end-to-end user path.

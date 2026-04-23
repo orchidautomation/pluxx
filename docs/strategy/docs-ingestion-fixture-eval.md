@@ -1,10 +1,10 @@
 # Docs Ingestion Fixture Eval
 
-Generated: 2026-04-21T10:09:35.542Z
+Generated: 2026-04-23T17:29:45.274Z
 
 This snapshot compares the current sourced-context extraction paths across real MCP-shaped product fixtures.
 
-- Firecrawl provider available: no
+- Firecrawl provider available: yes
 - Baseline = existing scaffold context only (no website/docs inputs)
 - Local = website/docs inputs through Pluxx local extraction
 - Firecrawl = website/docs inputs through Firecrawl markdown extraction when a key is configured
@@ -12,7 +12,6 @@ This snapshot compares the current sourced-context extraction paths across real 
 ## Current Read
 
 - local sourced context improved the baseline on 3/3 fixtures in this snapshot
-- the Firecrawl provider path is wired into the harness but was skipped in this snapshot because no FIRECRAWL_API_KEY was configured
 - Firecrawl remains the clearest weak case for the local OSS fallback: product name and auth signal land, but workflow/setup extraction is still noisy on that JS-heavy surface
 - PlayKit shows the local path can still work well when the docs root exposes strong setup and product language in server-rendered HTML
 - Sumble shows that even when docs-site detail is light, website + docs seeds can still recover useful product truth like product name and positioning
@@ -27,8 +26,8 @@ This snapshot compares the current sourced-context extraction paths across real 
 | Provider | Status | Matched Signals | Product | Workflow Hints | Setup Hints | Auth Hints | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | baseline | ok | 0/7 | — | — | — | — | no external sources captured |
-| local | ok | 2/7 | Firecrawl | Start scraping today / Use well-known tools | Python Node.js cURL CLI Copy code 1 # pip install firecrawl-py 2 from firecrawl import Firecrawl 3 4 app = Firecrawl ( api_key = "fc-YOUR_API_KEY" ) 5 6 # Scrape a website: 7 app . / Check out our repo [ 03 / 06 ] · Features // Zero configuration // We handle the hard stuff We handle the hard stuff JavaScript rendering, smart wait, media parsing, actions, and more. | Fetch this skill to sign up your user, get an API key, and start building with Firecrawl. | all sources fetched successfully |
-| firecrawl | skipped | 0/7 | — | — | — | — | FIRECRAWL_API_KEY not configured |
+| local | ok | 2/7 | Firecrawl | Start scraping today / Use well-known tools / The API to search, scrape, and interact with the web at scale. | — | — | all sources fetched successfully |
+| firecrawl | ok | 2/7 | Firecrawl | Startscraping today / Use well-known tools / Code you can trust | No extra configuration needed — just pass the URL. / AI agents can get started using the onboarding skill at https://www.firecrawl.dev/agent-onboarding/SKILL.md which handles signup and API key creation in one smooth flow. / The skill file contains everything you need: auth setup, API usage, and all available capabilities (scrape, search, crawl, map, browse). | Fetch this skill to sign up your user, get an API key, and start building with Firecrawl. / Get an API key here / AI agents can get started using the onboarding skill at https://www.firecrawl.dev/agent-onboarding/SKILL.md which handles signup and API key creation in one smooth flow. | all sources fetched successfully |
 
 ## Sumble
 
@@ -40,8 +39,8 @@ This snapshot compares the current sourced-context extraction paths across real 
 | Provider | Status | Matched Signals | Product | Workflow Hints | Setup Hints | Auth Hints | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | baseline | ok | 0/3 | — | — | — | — | no external sources captured |
-| local | ok | 3/3 | Sumble | MCP / Compatibility / Claude instructions | — | — | all sources fetched successfully |
-| firecrawl | skipped | 0/3 | — | — | — | — | FIRECRAWL_API_KEY not configured |
+| local | ok | 3/3 | Sumble | MCP / Compatibility / Claude instructions | The Sumble API is a RESTful service for enriching CRM data, building lead generation tools, and running market research queries. | — | all sources fetched successfully |
+| firecrawl | ok | 3/3 | Sumble | Tech stack / Active projects / Org structure | Run the following command in your terminal to install the MCP claude mcp add --transport http sumble https://mcp.sumble.com --scope user / Complete auth and the MCP will be successfully setup | Complete auth and the MCP will be successfully setup | all sources fetched successfully |
 
 ## PlayKit
 
@@ -52,6 +51,6 @@ This snapshot compares the current sourced-context extraction paths across real 
 | Provider | Status | Matched Signals | Product | Workflow Hints | Setup Hints | Auth Hints | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | baseline | ok | 0/2 | — | — | — | — | no external sources captured |
-| local | ok | 2/2 | PlayKit | Setup Guide / Quick Setup / Connect to Clay | Full setup guide, 24 tools reference, and troubleshooting. / Choose your client and install method. | claude mcp add --transport http playkit \ https://mcp.playkit.sh/mcp \ --header "X-API-Key: YOUR_API_KEY " ~/.claude.json Copy { "mcpServers" : { "playkit" : { "type" : "http" , "url" : "https://mcp.playkit.sh/mcp" , "headers" : { "X-API-Key" : " YOUR_API_KEY " } } } } Codex uses TOML config and requires API keys in environment variables. | all sources fetched successfully |
-| firecrawl | skipped | 0/2 | — | — | — | — | FIRECRAWL_API_KEY not configured |
+| local | ok | 2/2 | PlayKit | Setup Guide / Workflow Skills New / Connect to Clay | Full setup guide, 24 tools reference, and troubleshooting. / Install the PlayKit plugin in one command to get 24 Clay MCP tools + 6 curated workflow skills — including /clay-doc , one command to document any Clay workflow. / Choose your client and install method. | — | all sources fetched successfully |
+| firecrawl | ok | 2/2 | PlayKit | Not answers. Confidence. / design\ workflow / build\ table | Full setup guide, 24 tools reference, and troubleshooting. / Most users should use the plugin install above instead. / The installer reads it from your shell env and wires it into the runner — the key is never written to disk. | [mcp servers.playkit.env http headers] "X-API-Key" = "PLAYKIT API KEY" ``` / Export PLAYKIT API KEY first. | all sources fetched successfully |
 

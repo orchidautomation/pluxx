@@ -24,9 +24,11 @@ If you want proof before you want process, look at these first:
 - [Orchid Accordion rewrite artifact](../example/docs-ops/demo-rewrites/orchid-components-accordion.after.md)
   - one concrete before/after output from the flagship example
 - [Firecrawl connector docs-ingestion proof](./strategy/firecrawl-connector-docs-ingestion-proof.md)
-  - a real Firecrawl-backed comparison on the current fixture set, separate from the still-open local keyed harness rerun
+  - the first real Firecrawl-backed comparison on the current fixture set
+- [Docs-ingestion fixture snapshot](./strategy/docs-ingestion-fixture-eval.md)
+  - the keyed local harness rerun with `baseline`, `local`, and `firecrawl` captured side by side
 
-The biggest remaining docs-ingestion gap is the fully reproducible local-key harness rerun plus a visible scaffold before/after demo.
+The biggest remaining docs-ingestion gap is the visible scaffold before/after demo plus continued improvement on the weak Firecrawl fixture.
 
 Related docs:
 

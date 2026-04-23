@@ -122,8 +122,9 @@ Open work:
 
 - [x] Capture a real connector-backed Firecrawl comparison on the current fixture set:
   - [docs/strategy/firecrawl-connector-docs-ingestion-proof.md](../strategy/firecrawl-connector-docs-ingestion-proof.md)
-- [ ] Rerun `npm run eval:docs-ingestion` with a real Firecrawl key
-- [ ] Compare `local` vs `firecrawl` results directly through the keyed local harness
+- [x] Rerun `npm run eval:docs-ingestion` with a real Firecrawl key
+- [x] Compare `local` vs `firecrawl` results directly through the keyed local harness:
+  - [docs/strategy/docs-ingestion-fixture-eval.md](../strategy/docs-ingestion-fixture-eval.md)
 - [ ] Capture a live before/after demo:
   - source URLs
   - selected pages

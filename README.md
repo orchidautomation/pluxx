@@ -25,9 +25,11 @@ If you want the fastest way to see what is already real, start with these:
 - [Core-four provider docs audit](./docs/core-four-provider-docs-audit.md)
   - first-party host capability and lifecycle truth for Claude Code, Cursor, Codex, and OpenCode
 - [Firecrawl connector docs-ingestion proof](./docs/strategy/firecrawl-connector-docs-ingestion-proof.md)
-  - real Firecrawl-backed extraction results on the current fixture set, with the local keyed harness rerun still called out as separate follow-on work
+  - the first real Firecrawl-backed extraction proof on the fixture set
+- [Docs-ingestion fixture snapshot](./docs/strategy/docs-ingestion-fixture-eval.md)
+  - keyed local harness rerun with `baseline`, `local`, and `firecrawl` results recorded side by side
 
-The biggest remaining docs-ingestion gap is the fully reproducible local-key harness rerun plus a clean scaffold before/after demo.
+The biggest remaining docs-ingestion gap is the clean scaffold before/after demo plus continued improvement on the weak Firecrawl fixture.
 
 ## Why Pluxx
 

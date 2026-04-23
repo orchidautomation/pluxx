@@ -139,7 +139,8 @@ Open work:
 
 - treat the connector-backed comparison as captured:
   - [docs/strategy/firecrawl-connector-docs-ingestion-proof.md](../strategy/firecrawl-connector-docs-ingestion-proof.md)
-- rerun the fixture evaluation with a real Firecrawl key so the local harness can compare `firecrawl` directly against `local`
+- treat the keyed local fixture snapshot as captured:
+  - [docs/strategy/docs-ingestion-fixture-eval.md](../strategy/docs-ingestion-fixture-eval.md)
 - capture one live, legible before/after demo of sourced context improving a scaffold
 - use the fixture snapshots to improve the weak cases the harness now exposes
 - tighten signal extraction further:

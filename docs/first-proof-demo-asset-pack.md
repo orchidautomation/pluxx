@@ -26,7 +26,7 @@ The current public proof should support these claims:
 
 The biggest remaining missing claim is:
 
-5. the keyed local Firecrawl harness rerun and scaffold-quality before/after demo are both visible enough to use as a clean public proof asset
+5. the docs-ingestion lane has a clean scaffold-quality before/after demo, not just comparison snapshots
 
 ## Proof That Already Exists
 
@@ -124,16 +124,15 @@ Best public use:
 
 ## What Is Still Missing
 
-### 1. Reproducible keyed Firecrawl docs-ingestion proof
+### 1. Scaffold-quality Firecrawl docs-ingestion demo
 
 Missing artifact:
 
-- a fresh `npm run eval:docs-ingestion` run with a real local Firecrawl key
 - a visible scaffold before/after comparison driven by that ingestion path
 
 Why it matters:
 
-- this is the strongest remaining unproven product surface in the checklist
+- this is still the strongest remaining incomplete product surface in the checklist
 - it would strengthen product demos, docs, and outreach in one shot
 
 ### 2. Flagship example beyond Codex

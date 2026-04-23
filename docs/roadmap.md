@@ -106,7 +106,8 @@ The current focus is:
 
 - connector-backed Firecrawl proof now captured:
   - `docs/strategy/firecrawl-connector-docs-ingestion-proof.md`
-- local keyed Firecrawl harness rerun
+- keyed local Firecrawl harness snapshot now captured:
+  - `docs/strategy/docs-ingestion-fixture-eval.md`
 - live before/after demo
 - better extracted signal quality
 
