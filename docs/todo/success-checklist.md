@@ -148,7 +148,9 @@ Use this file to:
 - [x] Deterministic artifacts exist:
   - `.pluxx/sources.json`
   - `.pluxx/docs-context.json`
-- [ ] A real Firecrawl-backed comparison has been run and documented clearly
+- [~] A real Firecrawl-backed comparison has been run and documented clearly:
+  - connector-backed proof exists
+  - keyed local harness rerun still open
 - [ ] A live before/after scaffold improvement demo exists
 - [ ] The fixture harness weak cases have been tightened based on real eval output
 - [ ] The resulting proof is strong enough to use in docs, demos, and outreach

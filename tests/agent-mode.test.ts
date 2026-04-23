@@ -1535,6 +1535,121 @@ exit 1
     }
   })
 
+  it('retains technical workflow and setup/auth hints from Firecrawl markdown docs pages', async () => {
+    const originalFetch = globalThis.fetch
+    const originalFirecrawlKey = process.env.FIRECRAWL_API_KEY
+    process.env.FIRECRAWL_API_KEY = 'fc-test-key'
+
+    globalThis.fetch = (async (input, init) => {
+      const request = new Request(input, init)
+
+      if (request.url === 'https://api.firecrawl.dev/v2/map') {
+        return Response.json({
+          success: true,
+          links: [],
+        })
+      }
+
+      if (request.url === 'https://api.firecrawl.dev/v2/scrape') {
+        const body = await request.json() as { url: string }
+        if (body.url === 'https://docs.firecrawl.dev/mcp-server') {
+          return Response.json({
+            success: true,
+            data: {
+              markdown: [
+                '[Skip to main content](https://docs.firecrawl.dev/mcp-server#content-area)',
+                '',
+                '# Firecrawl MCP Server',
+                '',
+                'Use Firecrawl API through the Model Context Protocol.',
+                '',
+                '## Features',
+                '',
+                '- Search the web and get full page content',
+                '- Scrape any URL into clean, structured data',
+                '',
+                '## Installation',
+                '',
+                '### Remote hosted URL',
+                '',
+                '```',
+                'https://mcp.firecrawl.dev/{FIRECRAWL_API_KEY}/v2/mcp',
+                '```',
+                '',
+                '### Available Tools',
+                '',
+                '#### Scrape Tool',
+                '#### Map Tool',
+                '',
+                '```bash',
+                'env FIRECRAWL_API_KEY=fc-YOUR_API_KEY npx -y firecrawl-mcp',
+                '```',
+                '',
+                '```json',
+                '{',
+                '  "formats": ["markdown"],',
+                '  "onlyMainContent": true',
+                '}',
+                '```',
+              ].join('\n'),
+              metadata: {
+                title: 'Firecrawl MCP Server',
+                description: 'Use Firecrawl API through the Model Context Protocol.',
+                sourceURL: body.url,
+                url: body.url,
+                statusCode: 200,
+                contentType: 'text/markdown',
+              },
+            },
+          })
+        }
+
+        return Response.json({
+          success: true,
+          data: {
+            markdown: '# Firecrawl\n\nTurn websites into clean markdown and structured data.',
+            metadata: {
+              title: 'Firecrawl',
+              description: 'Turn websites into clean markdown and structured data.',
+              sourceURL: body.url,
+              url: body.url,
+              statusCode: 200,
+              contentType: 'text/markdown',
+            },
+          },
+        })
+      }
+
+      throw new Error(`Unexpected fetch to ${request.url}`)
+    }) as typeof fetch
+
+    try {
+      const plan = await planAgentPrepare(TEST_DIR, {
+        websiteUrl: 'https://www.firecrawl.dev/',
+        docsUrl: 'https://docs.firecrawl.dev/mcp-server',
+        ingestProvider: 'firecrawl',
+      })
+      await applyAgentPreparePlan(TEST_DIR, plan)
+
+      const docsContext = JSON.parse(readFileSync(resolve(TEST_DIR, AGENT_DOCS_CONTEXT_PATH), 'utf-8')) as {
+        workflowHints: string[]
+        setupHints: string[]
+        authHints: string[]
+      }
+
+      expect(docsContext.workflowHints.some((hint) => hint.includes('Map'))).toBe(true)
+      expect(docsContext.setupHints.some((hint) => hint.includes('onlyMainContent') || hint.includes('Remote hosted URL') || hint.includes('npx'))).toBe(true)
+      expect(docsContext.authHints.some((hint) => hint.includes('FIRECRAWL_API_KEY') || hint.includes('API key'))).toBe(true)
+    } finally {
+      globalThis.fetch = originalFetch
+      if (originalFirecrawlKey === undefined) {
+        delete process.env.FIRECRAWL_API_KEY
+      } else {
+        process.env.FIRECRAWL_API_KEY = originalFirecrawlKey
+      }
+    }
+  })
+
   it('falls back to local ingestion when auto-selected Firecrawl fails', async () => {
     const originalFetch = globalThis.fetch
     const originalFirecrawlKey = process.env.FIRECRAWL_API_KEY

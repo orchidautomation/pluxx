@@ -24,8 +24,10 @@ If you want the fastest way to see what is already real, start with these:
   - concrete output from the flagship docs workflow example
 - [Core-four provider docs audit](./docs/core-four-provider-docs-audit.md)
   - first-party host capability and lifecycle truth for Claude Code, Cursor, Codex, and OpenCode
+- [Firecrawl connector docs-ingestion proof](./docs/strategy/firecrawl-connector-docs-ingestion-proof.md)
+  - real Firecrawl-backed extraction results on the current fixture set, with the local keyed harness rerun still called out as separate follow-on work
 
-The biggest proof still missing is the live Firecrawl-backed docs-ingestion demo.
+The biggest remaining docs-ingestion gap is the fully reproducible local-key harness rerun plus a clean scaffold before/after demo.
 
 ## Why Pluxx
 

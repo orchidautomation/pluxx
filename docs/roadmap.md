@@ -104,7 +104,9 @@ Turn docs ingestion from “implemented” into “obviously useful.”
 
 The current focus is:
 
-- real Firecrawl comparison
+- connector-backed Firecrawl proof now captured:
+  - `docs/strategy/firecrawl-connector-docs-ingestion-proof.md`
+- local keyed Firecrawl harness rerun
 - live before/after demo
 - better extracted signal quality
 

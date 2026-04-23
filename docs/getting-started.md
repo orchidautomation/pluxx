@@ -23,8 +23,10 @@ If you want proof before you want process, look at these first:
   - the flagship `docs-ops` example compiled into a real Codex plugin and used against Orchid's live Docsalot MCP
 - [Orchid Accordion rewrite artifact](../example/docs-ops/demo-rewrites/orchid-components-accordion.after.md)
   - one concrete before/after output from the flagship example
+- [Firecrawl connector docs-ingestion proof](./strategy/firecrawl-connector-docs-ingestion-proof.md)
+  - a real Firecrawl-backed comparison on the current fixture set, separate from the still-open local keyed harness rerun
 
-The biggest proof still not captured here is the real Firecrawl-backed docs-ingestion comparison.
+The biggest remaining docs-ingestion gap is the fully reproducible local-key harness rerun plus a visible scaffold before/after demo.
 
 Related docs:
 

@@ -26,7 +26,7 @@ The current public proof should support these claims:
 
 The biggest remaining missing claim is:
 
-5. Firecrawl-backed docs ingestion materially improves scaffold quality in a visible way
+5. the keyed local Firecrawl harness rerun and scaffold-quality before/after demo are both visible enough to use as a clean public proof asset
 
 ## Proof That Already Exists
 
@@ -104,13 +104,32 @@ Best public use:
 - release notes
 - technical buyer confidence
 
+### 5. Connector-backed Firecrawl docs-ingestion proof
+
+Primary doc:
+
+- [Firecrawl connector docs-ingestion proof](./strategy/firecrawl-connector-docs-ingestion-proof.md)
+
+What it proves:
+
+- a real Firecrawl-backed comparison now exists on the current fixture set
+- Firecrawl materially improves extracted product/setup/auth/workflow context on those fixtures
+- the remaining gap is now reproducibility and public demo packaging, not basic proof-of-value
+
+Best public use:
+
+- docs-ingestion story
+- demo script support
+- product-proof bridge while the keyed local harness rerun is still open
+
 ## What Is Still Missing
 
-### 1. Live Firecrawl docs-ingestion proof
+### 1. Reproducible keyed Firecrawl docs-ingestion proof
 
 Missing artifact:
 
-- a real `local` vs `firecrawl` before/after comparison with visible scaffold improvement
+- a fresh `npm run eval:docs-ingestion` run with a real local Firecrawl key
+- a visible scaffold before/after comparison driven by that ingestion path
 
 Why it matters:
 

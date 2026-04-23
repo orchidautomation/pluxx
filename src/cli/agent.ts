@@ -1746,8 +1746,8 @@ function buildDocsContextArtifact(sources: AgentContextSource[]): AgentDocsConte
   const shortDescription = remoteSources
     .map((source) => source.description ?? source.paragraphs?.[0])
     .find((value): value is string => Boolean(value && value.trim()))
-  const setupHints = collectHintSentences(remoteSources, ['setup', 'install', 'get started', 'quickstart', 'configuration', 'configuring', 'running', 'restart', 'onlymaincontent', 'main content'])
-  const authHints = collectHintSentences(remoteSources, ['auth', 'authentication', 'api key', 'bearer', 'header', 'token', 'credential'])
+  const setupHints = collectHintSentences(remoteSources, ['setup', 'install', 'get started', 'quickstart', 'configuration', 'configuring', 'running', 'restart', 'onlymaincontent', 'main content', 'npx', 'npm', 'curl', 'remote hosted url'])
+  const authHints = collectHintSentences(remoteSources, ['auth', 'authentication', 'api key', 'api_key', 'firecrawl_api_key', 'bearer', 'header', 'token', 'credential'])
   const warnings = collectHintSentences(remoteSources, ['warning', 'note', 'requires', 'must', 'if you', 'unavailable', 'couldn'])
   const workflowHints = collectWorkflowHints(remoteSources)
   const importantTerms = collectImportantTerms(remoteSources)
@@ -1904,18 +1904,32 @@ function summarizeMarkdownArtifact(
   const cleaned = content.replace(/\r\n/g, '\n')
   const headings = cleaned
     .split('\n')
-    .map((line) => line.match(/^#{1,3}\s+(.+)$/)?.[1]?.trim())
+    .map((line) => line.match(/^#{1,4}\s+(.+)$/)?.[1]?.trim())
     .filter((value): value is string => Boolean(value))
     .map(stripMarkdownFormatting)
-    .filter(Boolean)
-    .slice(0, 5)
+    .filter((value) => Boolean(value) && !isLikelyChromeHeading(value))
+    .slice(0, 12)
 
-  const paragraphs = cleaned
+  const textChunks = cleaned
     .split(/\n{2,}/)
     .map((chunk) => stripMarkdownFormatting(chunk))
     .map((chunk) => chunk.replace(/\s+/g, ' ').trim())
     .filter((chunk) => Boolean(chunk) && !chunk.startsWith('#'))
-    .slice(0, 3)
+  const filteredTextChunks = filterLikelyContentText(textChunks)
+  const codeHints = extractMarkdownCodeHints(cleaned)
+  const paragraphCandidates = uniqueStrings([
+    ...filteredTextChunks,
+    ...codeHints,
+  ])
+  const paragraphs = paragraphCandidates
+    .map((chunk, index) => ({
+      chunk,
+      score: scoreMarkdownTextChunk(chunk),
+      index,
+    }))
+    .sort((left, right) => right.score - left.score || left.index - right.index)
+    .map(({ chunk }) => chunk)
+    .slice(0, 5)
 
   const title = metadata.title?.trim() || headings[0] || paragraphs[0]
   const description = metadata.description?.trim() || paragraphs[0]
@@ -1956,6 +1970,74 @@ function stripMarkdownFormatting(value: string): string {
     .replace(/\|/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+function extractMarkdownCodeHints(content: string): string[] {
+  const hints: string[] = []
+  for (const match of content.matchAll(/```[^\n]*\n([\s\S]*?)```/g)) {
+    const block = match[1] ?? ''
+    for (const rawLine of block.split('\n')) {
+      const line = rawLine.replace(/\r/g, '').trim()
+      if (!line) continue
+      if (!/(api[_-]?key|token|header|auth|install|npx|npm|curl|onlymaincontent|main content|map|scrape|crawl|extract|search|agent|command|url|mcp)/i.test(line)) {
+        continue
+      }
+      const normalized = line
+        .replace(/^[`"'[{(]+|[`"'[\]}):,;]+$/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+      if (normalized) {
+        hints.push(normalized)
+      }
+    }
+  }
+
+  return uniqueStrings(hints).slice(0, 10)
+}
+
+function scoreMarkdownTextChunk(value: string): number {
+  const normalized = value.replace(/\s+/g, ' ').trim()
+  if (!normalized) return Number.NEGATIVE_INFINITY
+  if (isLikelyChromeText(normalized)) return -200
+
+  const lower = normalized.toLowerCase()
+  let score = 0
+
+  if (/[.!?:]/.test(normalized)) score += 20
+  if (/`|https?:\/\/|(^| )npx( |$)|(^| )npm( |$)|(^| )curl( |$)|=/.test(normalized)) score += 20
+  if (
+    lower.includes('search')
+    || lower.includes('scrape')
+    || lower.includes('map')
+    || lower.includes('crawl')
+    || lower.includes('extract')
+    || lower.includes('agent')
+    || lower.includes('browser')
+    || lower.includes('workflow')
+    || lower.includes('knowledge')
+  ) {
+    score += 25
+  }
+  if (
+    lower.includes('api key')
+    || lower.includes('firecrawl_api_key')
+    || lower.includes('token')
+    || lower.includes('auth')
+    || lower.includes('header')
+    || lower.includes('install')
+    || lower.includes('quickstart')
+    || lower.includes('configuration')
+    || lower.includes('onlymaincontent')
+    || lower.includes('main content')
+    || lower.includes('remote hosted url')
+  ) {
+    score += 25
+  }
+
+  if (normalized.length >= 24 && normalized.length <= 240) score += 10
+  if (normalized.split(/\s+/).length > 40) score -= 10
+
+  return score
 }
 
 function summarizeHtml(html: string): {
@@ -2063,8 +2145,11 @@ function isLikelyChromeHeading(value: string): boolean {
   const lower = normalized.toLowerCase()
   const chromePatterns = [
     'search docs',
+    'skip to main content',
     'table of contents',
     'on this page',
+    'navigation',
+    'ctrl k',
     'previous',
     'next',
     'privacy',
@@ -2074,6 +2159,8 @@ function isLikelyChromeHeading(value: string): boolean {
     'blog',
     'pricing',
     'careers',
+    'playground',
+    'community',
     'discord',
     'github',
     'twitter',
@@ -2092,8 +2179,11 @@ function isLikelyChromeText(value: string): boolean {
   const wordCount = normalized.split(/\s+/).length
   const chromePatterns = [
     'search docs',
+    'skip to main content',
     'table of contents',
     'on this page',
+    'navigation',
+    'ctrl k',
     'previous',
     'next',
     'privacy',
@@ -2103,6 +2193,8 @@ function isLikelyChromeText(value: string): boolean {
     'blog',
     'pricing',
     'careers',
+    'playground',
+    'community',
     'discord',
     'github',
     'twitter',
@@ -2276,15 +2368,13 @@ function normalizeProductNameCandidate(value: string): string | undefined {
 function collectHintSentences(sources: AgentContextSource[], keywords: string[]): string[] {
   const sentences = uniqueStrings(
     sources.flatMap((source) => {
-      const text = [
-        source.description,
-        ...(source.paragraphs ?? []),
+      const segments = [
+        ...(source.description ? splitIntoHintSegments(source.description) : []),
+        ...(source.paragraphs ?? []).flatMap(splitIntoHintSegments),
       ]
-        .filter(Boolean)
-        .join(' ')
-      return splitIntoSentences(text)
+      return segments
         .filter((sentence) => keywords.some((keyword) => sentence.toLowerCase().includes(keyword)))
-        .slice(0, 4)
+        .slice(0, 6)
     }),
   )
 
@@ -2298,6 +2388,8 @@ function collectWorkflowHints(sources: AgentContextSource[]): string[] {
     'manual installation',
     'configuration',
     'environment variables',
+    'remote hosted url',
+    'available tools',
     'features',
     'get started',
     'overview',
@@ -2305,13 +2397,43 @@ function collectWorkflowHints(sources: AgentContextSource[]): string[] {
     'quickstarts',
     'mcp server',
   ])
+  const workflowKeywords = ['search', 'scrape', 'map', 'crawl', 'extract', 'agent', 'browser', 'workflow', 'knowledge']
+  const workflowStopKeywords = ['install', 'auth', 'token', 'header', 'configuration', 'quickstart']
+  const sourceTitles = new Set(
+    sources
+      .flatMap((source) => (source.title ? [source.title.toLowerCase()] : []))
+      .filter(Boolean),
+  )
 
-  return uniqueStrings(
+  const headingHints = uniqueStrings(
     sources.flatMap((source) => source.headings ?? []),
   )
     .map((heading) => heading.replace(/\s+/g, ' ').trim())
-    .filter((heading) => heading.length > 0 && heading.split(/\s+/).length <= 4 && !genericHeadings.has(heading.toLowerCase()))
-    .slice(0, 8)
+    .filter((heading) =>
+      heading.length > 0
+      && heading.split(/\s+/).length <= 4
+      && !genericHeadings.has(heading.toLowerCase())
+      && (!sourceTitles.has(heading.toLowerCase()) || workflowKeywords.some((keyword) => containsWholeWordKeyword(heading, keyword)))
+      && !heading.includes('://')
+    )
+  const paragraphHints = uniqueStrings(
+    sources.flatMap((source) =>
+      (source.paragraphs ?? [])
+        .flatMap(splitIntoHintSegments)
+        .filter((segment) => {
+          const lower = segment.toLowerCase()
+          return workflowKeywords.some((keyword) => containsWholeWordKeyword(lower, keyword))
+            && !workflowStopKeywords.some((keyword) => lower.includes(keyword))
+            && !segment.includes('://')
+            && !segment.includes('=')
+        }),
+    ),
+  )
+
+  return uniqueStrings([
+    ...headingHints,
+    ...paragraphHints,
+  ]).slice(0, 8)
 }
 
 function collectImportantTerms(sources: AgentContextSource[]): string[] {
@@ -2331,6 +2453,18 @@ function splitIntoSentences(value: string): string[] {
     .split(/(?<=[.!?])\s+/)
     .map((sentence) => sentence.replace(/\s+/g, ' ').trim())
     .filter(Boolean)
+}
+
+function splitIntoHintSegments(value: string): string[] {
+  return value
+    .split(/(?<=[.!?])\s+|\n+/)
+    .map((segment) => segment.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+}
+
+function containsWholeWordKeyword(value: string, keyword: string): boolean {
+  const pattern = new RegExp(`\\b${keyword.replace(/\s+/g, '\\s+')}\\b`, 'i')
+  return pattern.test(value)
 }
 
 function uniqueStrings<T extends string>(values: T[]): T[] {

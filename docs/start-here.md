@@ -130,6 +130,8 @@ The repo already proves a lot.
 - docs/website ingestion has a provider model and writes deterministic artifacts:
   - `.pluxx/sources.json`
   - `.pluxx/docs-context.json`
+- a real connector-backed Firecrawl comparison now exists on the current fixture set:
+  - `docs/strategy/firecrawl-connector-docs-ingestion-proof.md`
 - release smoke exists for the core four
 - a first-party provider-doc audit now exists at:
   - `docs/core-four-provider-docs-audit.md`
@@ -210,7 +212,9 @@ Turn docs ingestion from “implemented” into “obviously useful.”
 
 That means:
 
-- rerunning fixture evals with a real Firecrawl key
+- using the captured connector-backed Firecrawl comparison to prove the value of the ingestion lane:
+  - `docs/strategy/firecrawl-connector-docs-ingestion-proof.md`
+- rerunning the local fixture harness with a real Firecrawl key
 - capturing a live before/after demo
 - documenting what changed in the resulting scaffold
 
