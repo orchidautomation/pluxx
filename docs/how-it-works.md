@@ -54,8 +54,10 @@ It now has real proof surfaces:
   - the first real Firecrawl-backed comparison on the current fixture set
 - [Docs-ingestion fixture snapshot](./strategy/docs-ingestion-fixture-eval.md)
   - the keyed local harness rerun with `baseline`, `local`, and `firecrawl` recorded side by side
+- [Docs-ingestion scaffold before/after demo](./strategy/docs-ingestion-scaffold-before-after.md)
+  - a committed Sumble scaffold delta showing exactly what sourced Firecrawl context changes in generated scaffold files
 
-The main docs-ingestion work still open is the cleaner scaffold before/after demo plus continued improvement on the weak Firecrawl fixture.
+The main docs-ingestion work still open is improving the weak fixtures and packaging the captured proof into cleaner public-facing demos.
 
 See [Agent Mode](./agent-mode.md) for the semantic-authoring layer.
 See [Architecture](./architecture.md) for the system view and [Customer Journey](./customer-journey.md) for the end-to-end user path.

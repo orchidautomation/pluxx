@@ -1368,6 +1368,7 @@ exit 1
       const docsContext = JSON.parse(readFileSync(resolve(TEST_DIR, AGENT_DOCS_CONTEXT_PATH), 'utf-8')) as {
         version: number
         providers: string[]
+        shortDescription?: string
       }
 
       expect(sources.version).toBe(2)
@@ -1379,6 +1380,7 @@ exit 1
       expect(sources.sources.filter((source) => source.label.startsWith('https://')).every((source) => source.provider === 'firecrawl')).toBe(true)
       expect(docsContext.version).toBe(2)
       expect(docsContext.providers).toEqual(['firecrawl'])
+      expect(docsContext.shortDescription).toBe('Clay expertise in every AI conversation.')
       expect(context).toContain('Ingestion provider: auto -> firecrawl')
       expect(context).toContain('Providers observed: firecrawl')
       expect(context).toContain('- Provider: firecrawl')
@@ -1424,6 +1426,11 @@ exit 1
         return Response.json({
           success: true,
           links: [
+            {
+              url: 'https://docs.playkit.sh/sitemap.xml',
+              title: 'Sitemap',
+              description: 'XML sitemap for the docs site.',
+            },
             {
               url: 'https://docs.playkit.sh/docs/authentication',
               title: 'Authentication',

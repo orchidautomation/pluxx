@@ -1,0 +1,53 @@
+{
+  "version": 2,
+  "ingestion": {
+    "requestedProvider": "firecrawl",
+    "resolvedProvider": "firecrawl",
+    "fallbackToLocalOnError": false
+  },
+  "sources": [
+    {
+      "label": "https://sumble.com",
+      "kind": "website",
+      "role": "seed",
+      "selected": true,
+      "status": "ok",
+      "provider": "firecrawl",
+      "requestedUrl": "https://sumble.com",
+      "resolvedUrl": "https://sumble.com",
+      "httpStatus": 200,
+      "contentType": "text/html",
+      "title": "Sumble | Precise GTM data\nthat actually closes deals",
+      "description": "Sumble provides account intelligence data, enabling sales teams to do deep research. Use it to better inform your targeting and outreach., Sumble provides account intelligence data, enabling sales teams to do deep research. Use it to better inform your targeting and outreach."
+    },
+    {
+      "label": "https://docs.sumble.com/api/mcp",
+      "kind": "docs",
+      "role": "seed",
+      "selected": true,
+      "status": "ok",
+      "provider": "firecrawl",
+      "requestedUrl": "https://docs.sumble.com/api/mcp",
+      "resolvedUrl": "https://docs.sumble.com/api/mcp",
+      "httpStatus": 200,
+      "contentType": "text/html; charset=utf-8",
+      "title": "MCP | Sumble Docs",
+      "description": "Run the following command in your terminal to install the MCP claude mcp add --transport http sumble https://mcp.sumble.com --scope user"
+    },
+    {
+      "label": "https://docs.sumble.com/",
+      "kind": "docs",
+      "role": "inferred-root",
+      "selected": true,
+      "status": "ok",
+      "provider": "firecrawl",
+      "requestedUrl": "https://docs.sumble.com/",
+      "resolvedUrl": "https://docs.sumble.com/",
+      "httpStatus": 200,
+      "contentType": "text/html; charset=utf-8",
+      "title": "Sumble | Sumble Docs",
+      "description": "Explore all the layers of Sumble's detailed data for free at sumble.comarrow-up-right. From searching for organizations to diving into teams, people, job posts, and trends — our intuitive web application makes it easy to find the right person, opportunity, and time.",
+      "note": "Inferred from https://docs.sumble.com/api/mcp"
+    }
+  ]
+}

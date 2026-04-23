@@ -151,9 +151,10 @@ Use this file to:
 - [x] A real Firecrawl-backed comparison has been run and documented clearly:
   - connector-backed proof exists
   - keyed local harness snapshot exists
-- [ ] A live before/after scaffold improvement demo exists
+- [x] A live before/after scaffold improvement demo exists:
+  - [docs/strategy/docs-ingestion-scaffold-before-after.md](../strategy/docs-ingestion-scaffold-before-after.md)
 - [ ] The fixture harness weak cases have been tightened based on real eval output
-- [ ] The resulting proof is strong enough to use in docs, demos, and outreach
+- [x] The resulting proof is strong enough to use in docs, demos, and outreach
 
 ## 8. Distribution And Install UX
 

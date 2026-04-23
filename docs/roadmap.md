@@ -108,7 +108,8 @@ The current focus is:
   - `docs/strategy/firecrawl-connector-docs-ingestion-proof.md`
 - keyed local Firecrawl harness snapshot now captured:
   - `docs/strategy/docs-ingestion-fixture-eval.md`
-- live before/after demo
+- live before/after demo now captured:
+  - `docs/strategy/docs-ingestion-scaffold-before-after.md`
 - better extracted signal quality
 
 ### 4. Release-grade Pluxx plugin

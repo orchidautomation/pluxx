@@ -24,9 +24,7 @@ The current public proof should support these claims:
 3. installed-state verification is real, not just `dist/` screenshots
 4. Pluxx is truthful about host differences instead of pretending every host works the same way
 
-The biggest remaining missing claim is:
-
-5. the docs-ingestion lane has a clean scaffold-quality before/after demo, not just comparison snapshots
+The biggest remaining missing claim is no longer docs-ingestion proof. It is cleaner public packaging of the proof that now exists.
 
 ## Proof That Already Exists
 
@@ -109,33 +107,24 @@ Best public use:
 Primary doc:
 
 - [Firecrawl connector docs-ingestion proof](./strategy/firecrawl-connector-docs-ingestion-proof.md)
+- [Docs-ingestion scaffold before/after demo](./strategy/docs-ingestion-scaffold-before-after.md)
 
 What it proves:
 
 - a real Firecrawl-backed comparison now exists on the current fixture set
 - Firecrawl materially improves extracted product/setup/auth/workflow context on those fixtures
-- the remaining gap is now reproducibility and public demo packaging, not basic proof-of-value
+- the docs-ingestion lane now has a committed scaffold-quality before/after demo, not only eval snapshots
+- the remaining gap is now broader public packaging and continued weak-fixture improvement, not basic proof-of-value
 
 Best public use:
 
 - docs-ingestion story
 - demo script support
-- product-proof bridge while the keyed local harness rerun is still open
+- product-proof bridge while broader public demo packaging catches up
 
 ## What Is Still Missing
 
-### 1. Scaffold-quality Firecrawl docs-ingestion demo
-
-Missing artifact:
-
-- a visible scaffold before/after comparison driven by that ingestion path
-
-Why it matters:
-
-- this is still the strongest remaining incomplete product surface in the checklist
-- it would strengthen product demos, docs, and outreach in one shot
-
-### 2. Flagship example beyond Codex
+### 1. Flagship example beyond Codex
 
 Missing artifact:
 
@@ -146,7 +135,7 @@ Why it matters:
 - the `docs-ops` flagship proof is strongest in Codex today
 - the story gets better when the same source project feels native in more than one host
 
-### 3. Cleaner public install proof asset
+### 2. Cleaner public install proof asset
 
 Missing artifact:
 
@@ -168,7 +157,8 @@ If you need the strongest current narrative without waiting on Firecrawl, use th
 2. show [Self-hosted core-four proof](./pluxx-self-hosted-core-four-proof.md)
 3. show [Orchid Docs Ops Codex walkthrough](./orchid-docs-ops-codex-walkthrough.md)
 4. show the [Accordion before/after rewrite](../example/docs-ops/demo-rewrites/orchid-components-accordion.after.md)
-5. close with [Core-four provider docs audit](./core-four-provider-docs-audit.md)
+5. show the [Docs-ingestion scaffold before/after demo](./strategy/docs-ingestion-scaffold-before-after.md)
+6. close with [Core-four provider docs audit](./core-four-provider-docs-audit.md)
 
 That sequence supports the current product story:
 

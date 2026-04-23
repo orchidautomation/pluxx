@@ -235,6 +235,8 @@ Current behavior:
   - `docs/strategy/firecrawl-connector-docs-ingestion-proof.md`
 - the keyed local harness rerun now exists too:
   - `docs/strategy/docs-ingestion-fixture-eval.md`
+- the visible scaffold before/after demo now exists too:
+  - `docs/strategy/docs-ingestion-scaffold-before-after.md`
 
 That means the first step is no longer “stuff some fetched HTML into `context.md` and hope.” There is now a deterministic artifact trail for what was fetched, what was inferred, and what structured product signals were extracted.
 
@@ -247,6 +249,8 @@ The current snapshot is useful enough to steer product work already:
   - `docs/strategy/firecrawl-connector-docs-ingestion-proof.md`
 - the local keyed harness rerun is now also captured:
   - `docs/strategy/docs-ingestion-fixture-eval.md`
+- the scaffold-quality before/after demo is now also captured:
+  - `docs/strategy/docs-ingestion-scaffold-before-after.md`
 - Firecrawl remains the clearest weak case for the local fallback because the JS-heavy surface still leaks noisy setup/workflow signals
 - PlayKit shows the local path can work well when the docs root exposes strong setup and product language in server-rendered HTML
 - Sumble shows that even when docs detail is light, website + docs seeds can still recover useful product truth like product name and positioning

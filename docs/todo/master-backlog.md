@@ -125,7 +125,8 @@ Open work:
 - [x] Rerun `npm run eval:docs-ingestion` with a real Firecrawl key
 - [x] Compare `local` vs `firecrawl` results directly through the keyed local harness:
   - [docs/strategy/docs-ingestion-fixture-eval.md](../strategy/docs-ingestion-fixture-eval.md)
-- [ ] Capture a live before/after demo:
+- [x] Capture a live before/after demo:
+  - [docs/strategy/docs-ingestion-scaffold-before-after.md](../strategy/docs-ingestion-scaffold-before-after.md)
   - source URLs
   - selected pages
   - `.pluxx/sources.json`

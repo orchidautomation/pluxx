@@ -28,8 +28,10 @@ If you want the fastest way to see what is already real, start with these:
   - the first real Firecrawl-backed extraction proof on the fixture set
 - [Docs-ingestion fixture snapshot](./docs/strategy/docs-ingestion-fixture-eval.md)
   - keyed local harness rerun with `baseline`, `local`, and `firecrawl` results recorded side by side
+- [Docs-ingestion scaffold before/after demo](./docs/strategy/docs-ingestion-scaffold-before-after.md)
+  - a committed Sumble scaffold delta showing what sourced Firecrawl context changes in real generated files
 
-The biggest remaining docs-ingestion gap is the clean scaffold before/after demo plus continued improvement on the weak Firecrawl fixture.
+The biggest remaining docs-ingestion work is now continued improvement on the weak fixtures and more public-facing packaging of this proof.
 
 ## Why Pluxx
 

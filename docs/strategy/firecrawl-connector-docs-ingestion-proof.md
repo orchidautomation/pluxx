@@ -43,8 +43,8 @@ This note still matters because it captured the first real Firecrawl-backed comp
 - Sumble and PlayKit both produce clean, high-signal product/setup/auth/workflow context through Firecrawl.
 - Firecrawl itself is still the hardest surface, but Firecrawl extraction clearly recovers more useful workflow and auth truth than the local fallback did on the JS-heavy page.
 - The remaining gap is no longer "can we run Firecrawl locally?" It is:
-  - turn one fixture into a visible scaffold before/after demo
-  - tighten technical hint extraction further on the hardest Firecrawl fixture
+  - keep tightening technical hint extraction on the hardest fixtures
+  - turn the captured proofs into cleaner public-facing demo packaging
 
 ## Fixture Comparison
 
@@ -140,14 +140,16 @@ The repo can now honestly say:
 - a real Firecrawl-backed docs-ingestion comparison has been captured
 - Firecrawl materially improves extracted product context on the current fixtures
 - Firecrawl is especially useful for auth/setup/workflow recovery on hosted docs surfaces
+- a committed scaffold-quality before/after demo now exists:
+  - [docs-ingestion-scaffold-before-after.md](./docs-ingestion-scaffold-before-after.md)
 
 The repo should not yet say:
 
-- the before/after scaffold improvement demo is already captured
 - the weak Firecrawl fixture is fully solved
+- every docs surface is equally strong
 
 ## Remaining Open Work
 
-1. Capture one fixture as a visible scaffold-quality before/after artifact.
-2. Tighten extraction so technical setup hints like `markdown`, `main content`, and host-specific install details survive more consistently in structured output.
-3. Keep the keyed fixture snapshot current as the extraction heuristics improve.
+1. Tighten extraction so technical setup hints like `markdown`, `main content`, and host-specific install details survive more consistently in structured output.
+2. Keep the keyed fixture snapshot current as the extraction heuristics improve.
+3. Turn the now-captured proof into cleaner public demo panels and install-story support.

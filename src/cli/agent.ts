@@ -1550,6 +1550,10 @@ function scoreFirecrawlMappedLink(link: FirecrawlMappedLink, kind: 'website' | '
   const text = [link.title, link.description, link.url].filter(Boolean).join(' ').toLowerCase()
   let score = 0
 
+  if (url.endsWith('.xml') || text.includes('sitemap')) {
+    return -100
+  }
+
   if (kind === 'docs') {
     if (url.includes('/mcp')) score += 50
     if (url.includes('quickstart') || url.includes('get-started')) score += 35
@@ -1743,9 +1747,9 @@ function buildDocsContextArtifact(sources: AgentContextSource[]): AgentDocsConte
   if (remoteSources.length === 0) return undefined
 
   const productName = inferProductName(remoteSources)
-  const shortDescription = remoteSources
+  const shortDescription = dedupeRepeatedSentences(remoteSources
     .map((source) => source.description ?? source.paragraphs?.[0])
-    .find((value): value is string => Boolean(value && value.trim()))
+    .find((value): value is string => Boolean(value && value.trim())))
   const setupHints = collectHintSentences(remoteSources, ['setup', 'install', 'get started', 'quickstart', 'configuration', 'configuring', 'running', 'restart', 'onlymaincontent', 'main content', 'npx', 'npm', 'curl', 'remote hosted url'])
   const authHints = collectHintSentences(remoteSources, ['auth', 'authentication', 'api key', 'api_key', 'firecrawl_api_key', 'bearer', 'header', 'token', 'credential'])
   const warnings = collectHintSentences(remoteSources, ['warning', 'note', 'requires', 'must', 'if you', 'unavailable', 'couldn'])
@@ -2136,6 +2140,42 @@ function filterLikelyContentText(values: string[]): string[] {
   return uniqueStrings(values)
     .map((value) => value.replace(/\s+/g, ' ').trim())
     .filter((value) => value.length > 0)
+}
+
+function dedupeRepeatedSentences(value: string | undefined): string | undefined {
+  if (!value) return undefined
+
+  const normalized = value
+    .replace(/\s+/g, ' ')
+    .replace(/([.!?])\s*,\s*/g, '$1 ')
+    .trim()
+
+  if (!normalized) return undefined
+
+  const sentenceMatches = normalized.match(/[^.!?]+[.!?]?/g)
+  if (!sentenceMatches) return normalized
+
+  const seen = new Set<string>()
+  const uniqueSentences: string[] = []
+
+  for (const rawSentence of sentenceMatches) {
+    const sentence = rawSentence.trim().replace(/^,+\s*/, '')
+    if (!sentence) continue
+    const key = sentence
+      .replace(/[.!?]+$/, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase()
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    uniqueSentences.push(sentence)
+  }
+
+  if (uniqueSentences.length === 0) {
+    return normalized
+  }
+
+  return uniqueSentences.join(' ')
 }
 
 function isLikelyChromeHeading(value: string): boolean {

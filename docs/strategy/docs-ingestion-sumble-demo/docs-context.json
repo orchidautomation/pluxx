@@ -1,0 +1,41 @@
+{
+  "version": 2,
+  "sourceLabels": [
+    "https://sumble.com",
+    "https://docs.sumble.com/api/mcp",
+    "https://docs.sumble.com/"
+  ],
+  "providers": [
+    "firecrawl"
+  ],
+  "productName": "Sumble",
+  "shortDescription": "Sumble provides account intelligence data, enabling sales teams to do deep research. Use it to better inform your targeting and outreach.",
+  "setupHints": [
+    "Run the following command in your terminal to install the MCP claude mcp add --transport http sumble https://mcp.sumble.com --scope user",
+    "Complete auth and the MCP will be successfully setup"
+  ],
+  "authHints": [
+    "Complete auth and the MCP will be successfully setup"
+  ],
+  "workflowHints": [
+    "Tech stack",
+    "Active projects",
+    "Org structure",
+    "Company and people profiles",
+    "Access Sumble your way",
+    "Sumble Web",
+    "Sumble Signals",
+    "Sumble Enrich"
+  ],
+  "importantTerms": [
+    "Tech stack",
+    "Active projects",
+    "Org structure",
+    "Company and people profiles",
+    "Access Sumble your way",
+    "Sumble Web",
+    "Sumble Signals",
+    "Sumble Enrich"
+  ],
+  "warnings": []
+}

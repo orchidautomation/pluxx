@@ -16,6 +16,7 @@
   },
   "scripts": {
     "build": "node scripts/build.mjs && tsc --emitDeclarationOnly",
+    "demo:docs-ingestion": "tsx scripts/generate-docs-ingestion-demo.ts",
     "dev": "tsx watch src/cli/index.ts",
     "eval:docs-ingestion": "tsx scripts/evaluate-docs-ingestion.ts",
     "generate:compatibility": "tsx scripts/generate-compatibility-matrix.ts",

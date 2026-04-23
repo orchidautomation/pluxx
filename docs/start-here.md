@@ -134,6 +134,8 @@ The repo already proves a lot.
   - `docs/strategy/firecrawl-connector-docs-ingestion-proof.md`
 - the keyed local fixture harness rerun now also exists:
   - `docs/strategy/docs-ingestion-fixture-eval.md`
+- the visible scaffold before/after demo now also exists:
+  - `docs/strategy/docs-ingestion-scaffold-before-after.md`
 - release smoke exists for the core four
 - a first-party provider-doc audit now exists at:
   - `docs/core-four-provider-docs-audit.md`
@@ -218,8 +220,9 @@ That means:
   - `docs/strategy/firecrawl-connector-docs-ingestion-proof.md`
 - using the keyed local fixture snapshot to keep `baseline`, `local`, and `firecrawl` comparable:
   - `docs/strategy/docs-ingestion-fixture-eval.md`
-- capturing a live before/after demo
-- documenting what changed in the resulting scaffold
+- using the committed Sumble before/after demo to show the scaffold delta plainly:
+  - `docs/strategy/docs-ingestion-scaffold-before-after.md`
+- improving weak fixtures and tightening extracted signal quality
 
 ### 4. Release-Grade Pluxx Plugin
 

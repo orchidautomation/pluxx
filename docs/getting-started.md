@@ -27,8 +27,10 @@ If you want proof before you want process, look at these first:
   - the first real Firecrawl-backed comparison on the current fixture set
 - [Docs-ingestion fixture snapshot](./strategy/docs-ingestion-fixture-eval.md)
   - the keyed local harness rerun with `baseline`, `local`, and `firecrawl` captured side by side
+- [Docs-ingestion scaffold before/after demo](./strategy/docs-ingestion-scaffold-before-after.md)
+  - a committed Sumble scaffold delta showing what Firecrawl-sourced context changes in real generated files
 
-The biggest remaining docs-ingestion gap is the visible scaffold before/after demo plus continued improvement on the weak Firecrawl fixture.
+The biggest remaining docs-ingestion work is now improving the weak fixtures and turning the captured proof into cleaner public-facing demo assets.
 
 Related docs:
 

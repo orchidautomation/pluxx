@@ -141,7 +141,8 @@ Open work:
   - [docs/strategy/firecrawl-connector-docs-ingestion-proof.md](../strategy/firecrawl-connector-docs-ingestion-proof.md)
 - treat the keyed local fixture snapshot as captured:
   - [docs/strategy/docs-ingestion-fixture-eval.md](../strategy/docs-ingestion-fixture-eval.md)
-- capture one live, legible before/after demo of sourced context improving a scaffold
+- treat the live scaffold before/after demo as captured:
+  - [docs/strategy/docs-ingestion-scaffold-before-after.md](../strategy/docs-ingestion-scaffold-before-after.md)
 - use the fixture snapshots to improve the weak cases the harness now exposes
 - tighten signal extraction further:
   - product description quality
