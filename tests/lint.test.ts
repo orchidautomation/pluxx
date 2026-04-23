@@ -129,7 +129,7 @@ describe('lintProject', () => {
         description: 'test',
         author: { name: 'Test Author' },
         skills: './skills/',
-        targets: ['codex'],
+        targets: ['opencode'],
       }, null, 2),
     )
 
@@ -146,7 +146,7 @@ describe('lintProject', () => {
     )
 
     const result = await lintProject(projectDir)
-    expect(result.issues.some(issue => issue.code === 'skill-description-length' && issue.platform === 'codex')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'skill-description-length' && issue.platform === 'opencode')).toBe(true)
   })
 
   it('reports skill-description-truncation warning for display max', async () => {
@@ -213,6 +213,39 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'skill-description-length' && issue.platform === 'claude-code')).toBe(true)
   })
 
+  it('reports Codex description heuristic as a guideline warning', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['codex'],
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      [
+        '---',
+        'name: my-skill',
+        `description: "${'x'.repeat(1100)}"`,
+        '---',
+        '',
+        '# My Skill',
+      ].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'skill-description-guideline' && issue.platform === 'codex')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'skill-description-length' && issue.platform === 'codex')).toBe(false)
+  })
+
   it('reports skill-name-dir-mismatch error for platforms requiring dir match', async () => {
     const projectDir = createTempProject()
     mkdirSync(resolve(projectDir, 'skills/wrong-dir'), { recursive: true })
@@ -243,6 +276,39 @@ describe('lintProject', () => {
 
     const result = await lintProject(projectDir)
     expect(result.issues.some(issue => issue.code === 'skill-name-dir-mismatch')).toBe(true)
+  })
+
+  it('reports skill-name-dir-guideline warning for Codex portability heuristics', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/wrong-dir'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['codex'],
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/wrong-dir/SKILL.md'),
+      [
+        '---',
+        'name: my-skill',
+        'description: "A valid skill"',
+        '---',
+        '',
+        '# My Skill',
+      ].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'skill-name-dir-guideline' && issue.platform === 'codex')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'skill-name-dir-mismatch' && issue.platform === 'codex')).toBe(false)
   })
 
   it('does not report dir mismatch for platforms that do not require it', async () => {
@@ -277,7 +343,7 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'skill-name-dir-mismatch')).toBe(false)
   })
 
-  it('reports platform-prompt-count and platform-prompt-length for Codex limits', async () => {
+  it('reports Codex prompt listing heuristics as guideline warnings', async () => {
     const projectDir = createTempProject()
     mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
 
@@ -315,8 +381,8 @@ describe('lintProject', () => {
     )
 
     const result = await lintProject(projectDir)
-    expect(result.issues.some(issue => issue.code === 'platform-prompt-count' && issue.platform === 'codex')).toBe(true)
-    expect(result.issues.some(issue => issue.code === 'platform-prompt-length' && issue.platform === 'codex')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'platform-prompt-count-guideline' && issue.platform === 'codex')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'platform-prompt-length-guideline' && issue.platform === 'codex')).toBe(true)
   })
 
   it('reports platform-instructions-size warning when instructions file exceeds max bytes', async () => {

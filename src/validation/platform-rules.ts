@@ -208,10 +208,22 @@ export const PLATFORM_LIMIT_POLICIES: Record<TargetPlatform, PlatformLimitPolici
   },
   'codex': {
     ...NULL_LIMIT_POLICIES,
-    skillDescriptionMax: { kind: 'hard' },
-    skillNameMustMatchDir: { kind: 'hard' },
-    manifestPromptMax: { kind: 'hard' },
-    manifestPromptCountMax: { kind: 'hard' },
+    skillDescriptionMax: {
+      kind: 'advisory',
+      notes: 'Pluxx keeps Codex descriptions concise at 1,024 characters as a conservative compatibility heuristic; the current docs do not state this as an official hard cap.',
+    },
+    skillNameMustMatchDir: {
+      kind: 'advisory',
+      notes: 'Pluxx keeps Codex skill directory names aligned with skill names for portability and predictability, but the current docs do not state this as a formal hard requirement.',
+    },
+    manifestPromptMax: {
+      kind: 'advisory',
+      notes: 'Pluxx keeps Codex default prompts short at 128 characters as a conservative listing heuristic; the current docs do not publish this as a hard limit.',
+    },
+    manifestPromptCountMax: {
+      kind: 'advisory',
+      notes: 'Pluxx keeps Codex default prompt count to three as a conservative listing heuristic; the current docs do not publish this as a hard limit.',
+    },
     manifestPathPrefix: { kind: 'hard' },
     instructionsMaxBytes: {
       kind: 'hard',

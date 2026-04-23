@@ -96,6 +96,45 @@ This matrix implies a few hard rules for Pluxx:
 6. Install and update behavior are part of compatibility truth, not just packaging trivia.
    The host story includes reload behavior, restart requirements, cache semantics, and marketplace or local install paths.
 
+## What Users Should Expect
+
+If you are trying to predict what Pluxx will actually do to your project, use these examples:
+
+### Commands
+
+- Claude Code: preserve native command intent through Claude-native command and skill surfaces
+- Cursor: preserve command intent through native slash-command surfaces
+- Codex: degrade command intent into skills plus instruction routing because Codex does not document a plugin-packaged custom command directory equivalent
+- OpenCode: preserve command intent through native markdown or config-defined commands
+
+### Hooks
+
+- Claude Code: preserve or translate hook intent into plugin hooks, settings hooks, or skill/agent frontmatter hooks
+- Cursor: translate hook intent into Cursor hook JSON plus documented event names
+- Codex: degrade plugin-bundled hook intent into external `.codex/hooks.json` or `~/.codex/hooks.json` guidance because the current plugin build guide does not document bundled hooks
+- OpenCode: translate hook intent into runtime JS or TS plugin handlers
+
+### Runtime And MCP
+
+- Claude Code: preserve MCP intent inside `.mcp.json` or inline plugin config
+- Cursor: preserve MCP intent, but compile transport and auth into Cursor's `mcp.json` model
+- Codex: preserve MCP bundle intent where possible, but expect active state and install behavior to involve `config.toml`, marketplace catalogs, and bundle caches
+- OpenCode: translate runtime intent into config plus code-first plugin runtime artifacts rather than a manifest-only bundle
+
+### Distribution
+
+- Claude Code: install, update, and reload are part of the product surface, including `/reload-plugins`
+- Cursor: install/update tends to resolve through reload-window or restart behavior
+- Codex: install/update is marketplace plus bundle based, with `Plugins > Refresh` when available and restart as the safe fallback
+- OpenCode: distribution is config/runtime oriented and does not currently present the same marketplace-first install loop as the others
+
+The short rule is:
+
+- preserve when the host has a truthful native surface
+- translate when the same intent belongs in a different native surface
+- degrade when the host only has a weaker equivalent
+- drop only when there is no honest native equivalent at all
+
 ## Official Docs Basis
 
 ### Claude Code

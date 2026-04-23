@@ -68,7 +68,7 @@ describe('PLATFORM_LIMITS', () => {
     expect(platforms).toContain('opencode')
   })
 
-  it('codex has hard description limit of 1024', () => {
+  it('codex keeps a conservative 1024-character description guideline', () => {
     expect(PLATFORM_LIMITS['codex'].skillDescriptionMax).toBe(1024)
   })
 
@@ -84,7 +84,7 @@ describe('PLATFORM_LIMITS', () => {
     expect(PLATFORM_LIMITS['cursor'].rulesMaxLines).toBe(500)
   })
 
-  it('codex has max 3 prompts of 128 chars', () => {
+  it('codex keeps conservative prompt listing heuristics', () => {
     expect(PLATFORM_LIMITS['codex'].manifestPromptCountMax).toBe(3)
     expect(PLATFORM_LIMITS['codex'].manifestPromptMax).toBe(128)
   })
@@ -98,6 +98,13 @@ describe('PLATFORM_LIMITS', () => {
 describe('PLATFORM_LIMIT_POLICIES', () => {
   it('classifies Codex AGENTS.md byte cap as hard', () => {
     expect(PLATFORM_LIMIT_POLICIES['codex'].instructionsMaxBytes?.kind).toBe('hard')
+  })
+
+  it('classifies Codex description and prompt limits as advisory heuristics', () => {
+    expect(PLATFORM_LIMIT_POLICIES['codex'].skillDescriptionMax?.kind).toBe('advisory')
+    expect(PLATFORM_LIMIT_POLICIES['codex'].skillNameMustMatchDir.kind).toBe('advisory')
+    expect(PLATFORM_LIMIT_POLICIES['codex'].manifestPromptCountMax?.kind).toBe('advisory')
+    expect(PLATFORM_LIMIT_POLICIES['codex'].manifestPromptMax?.kind).toBe('advisory')
   })
 
   it('classifies Cursor rule line guidance as advisory', () => {

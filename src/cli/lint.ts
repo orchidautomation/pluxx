@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'fs'
 import { resolve, relative, basename, dirname } from 'path'
 import { loadConfig } from '../config/load'
 import { getConfiguredCompilerBuckets, type PluginConfig, type PluxxCompilerBucket, type TargetPlatform } from '../schema'
-import { PLATFORM_LIMITS, getCoreFourPrimitiveCapabilities, type CoreFourPlatform, type PrimitiveTranslationMode } from '../validation/platform-rules'
+import { PLATFORM_LIMITS, PLATFORM_LIMIT_POLICIES, getCoreFourPrimitiveCapabilities, type CoreFourPlatform, type PrimitiveTranslationMode } from '../validation/platform-rules'
 import { collectPermissionRules, permissionRulesNeedToolLevelDowngrade } from '../permissions'
 import { buildPrimitiveTranslationSummary, renderPrimitiveTranslationSummary, type PrimitiveTranslationSummary } from './primitive-summary'
 import {
@@ -250,14 +250,25 @@ function lintSkillFile(
     // Check skill name must match directory for platforms that require it
     const expectedDirName = basename(dirname(skillFile))
     const platformsRequiringDirMatch = targets.filter(t => PLATFORM_LIMITS[t].skillNameMustMatchDir)
-    if (platformsRequiringDirMatch.length > 0 && nameField.value !== expectedDirName) {
-      const platformNames = platformsRequiringDirMatch.join(', ')
+    const hardDirMatchPlatforms = platformsRequiringDirMatch.filter((target) => PLATFORM_LIMIT_POLICIES[target].skillNameMustMatchDir.kind === 'hard')
+    const advisoryDirMatchPlatforms = platformsRequiringDirMatch.filter((target) => PLATFORM_LIMIT_POLICIES[target].skillNameMustMatchDir.kind !== 'hard')
+    if (hardDirMatchPlatforms.length > 0 && nameField.value !== expectedDirName) {
+      const platformNames = hardDirMatchPlatforms.join(', ')
       pushIssue(issues, {
         level: 'error',
         code: 'skill-name-dir-mismatch',
         message: `Skill name "${nameField.value}" must match directory name "${expectedDirName}" (required by ${platformNames}).`,
         file: skillFile,
-        platform: platformsRequiringDirMatch[0],
+        platform: hardDirMatchPlatforms[0],
+      })
+    } else if (advisoryDirMatchPlatforms.length > 0 && nameField.value !== expectedDirName) {
+      const platformNames = advisoryDirMatchPlatforms.join(', ')
+      pushIssue(issues, {
+        level: 'warning',
+        code: 'skill-name-dir-guideline',
+        message: `Skill name "${nameField.value}" should match directory name "${expectedDirName}" for ${platformNames} compatibility.`,
+        file: skillFile,
+        platform: advisoryDirMatchPlatforms[0],
       })
     }
 
@@ -285,10 +296,13 @@ function lintSkillFile(
     for (const target of targets) {
       const limits = PLATFORM_LIMITS[target]
       if (limits.skillDescriptionMax !== null && descriptionField.value.length > limits.skillDescriptionMax) {
+        const policy = PLATFORM_LIMIT_POLICIES[target].skillDescriptionMax
         pushIssue(issues, {
-          level: 'error',
-          code: 'skill-description-length',
-          message: `Description exceeds ${target} max of ${limits.skillDescriptionMax} characters.`,
+          level: policy?.kind === 'hard' ? 'error' : 'warning',
+          code: policy?.kind === 'hard' ? 'skill-description-length' : 'skill-description-guideline',
+          message: policy?.kind === 'hard'
+            ? `Description exceeds ${target} max of ${limits.skillDescriptionMax} characters.`
+            : `Description exceeds the Pluxx ${target} compatibility guideline of ${limits.skillDescriptionMax} characters.`,
           file: skillFile,
           platform: target,
         })
@@ -546,10 +560,13 @@ function lintManifestPromptLimits(config: PluginConfig, issues: LintIssue[]): vo
     if (!prompts) continue
 
     if (limits.manifestPromptCountMax !== null && prompts.length > limits.manifestPromptCountMax) {
+      const policy = PLATFORM_LIMIT_POLICIES[target].manifestPromptCountMax
       pushIssue(issues, {
-        level: 'error',
-        code: 'platform-prompt-count',
-        message: `${target} supports at most ${limits.manifestPromptCountMax} default prompts (found ${prompts.length}).`,
+        level: policy?.kind === 'hard' ? 'error' : 'warning',
+        code: policy?.kind === 'hard' ? 'platform-prompt-count' : 'platform-prompt-count-guideline',
+        message: policy?.kind === 'hard'
+          ? `${target} supports at most ${limits.manifestPromptCountMax} default prompts (found ${prompts.length}).`
+          : `Pluxx recommends keeping ${target} default prompts to ${limits.manifestPromptCountMax} or fewer (found ${prompts.length}).`,
         file: 'pluxx.config.ts',
         platform: target,
       })
@@ -558,10 +575,13 @@ function lintManifestPromptLimits(config: PluginConfig, issues: LintIssue[]): vo
     if (limits.manifestPromptMax !== null) {
       for (const prompt of prompts) {
         if (prompt.length > limits.manifestPromptMax) {
+          const policy = PLATFORM_LIMIT_POLICIES[target].manifestPromptMax
           pushIssue(issues, {
-            level: 'error',
-            code: 'platform-prompt-length',
-            message: `A default prompt exceeds ${target} max of ${limits.manifestPromptMax} characters.`,
+            level: policy?.kind === 'hard' ? 'error' : 'warning',
+            code: policy?.kind === 'hard' ? 'platform-prompt-length' : 'platform-prompt-length-guideline',
+            message: policy?.kind === 'hard'
+              ? `A default prompt exceeds ${target} max of ${limits.manifestPromptMax} characters.`
+              : `A default prompt exceeds the Pluxx ${target} compatibility guideline of ${limits.manifestPromptMax} characters.`,
             file: 'pluxx.config.ts',
             platform: target,
           })

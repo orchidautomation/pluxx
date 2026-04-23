@@ -171,15 +171,13 @@ Confirmed by official docs:
 
 Current repo gaps:
 
-- `src/validation/platform-rules.ts` still lists Codex MCP transports as `stdio`, `http`, and `sse`
-- Codex hook events are missing
-- several current hard limits appear to be Pluxx assumptions rather than official-doc-backed facts:
+- the main machine-readable Codex transport and hook-event gaps have now been corrected in `src/validation/platform-rules.ts`
+- several conservative Codex listing limits are now encoded as Pluxx advisory heuristics rather than official-doc-backed hard facts:
   - `skillDescriptionMax: 1024`
   - `skillNameMustMatchDir: true`
   - `manifestPromptMax: 128`
   - `manifestPromptCountMax: 3`
-- `docs/compatibility.md` omits important real surfaces like `AGENTS.override.md`, `.app.json`, marketplace cache behavior, and hook constraints
-- `docs/core-four-primitive-matrix.md` should more clearly distinguish skill auto-detection from plugin update restart behavior
+- `docs/compatibility.md` and `docs/core-four-primitive-matrix.md` still need to stay aligned with that more careful wording when future host behavior shifts again
 
 Concrete files to update:
 

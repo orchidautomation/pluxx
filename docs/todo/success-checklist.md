@@ -94,7 +94,7 @@ Use this file to:
   - [docs/core-four-install-update-lifecycle.md](../core-four-install-update-lifecycle.md)
 - [~] The runtime, installer, and docs surfaces all reflect the current audited host truth
 - [ ] The remaining downstream generator and maintainer docs that still embed older assumptions have been reconciled
-- [ ] Preserve / translate / degrade / drop behavior is visible enough that a user can predict what Pluxx will do per host
+- [~] Preserve / translate / degrade / drop behavior is becoming visible enough that a user can predict what Pluxx will do per host
 
 ## 4. OSS Authoring Substrate Quality
 
