@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-04-22
+Last updated: 2026-04-23
 
 ## Doc Links
 
@@ -11,6 +11,7 @@ Last updated: 2026-04-22
   - [docs/todo/master-backlog.md](./todo/master-backlog.md)
   - [docs/oss-wedge-and-trust-layer.md](./oss-wedge-and-trust-layer.md)
   - [docs/flagship-docs-ops-plugin.md](./flagship-docs-ops-plugin.md)
+  - [docs/pluxx-plugin-surface-audit.md](./pluxx-plugin-surface-audit.md)
   - [Linear](https://linear.app/orchid-automation)
 - Update together:
   - [docs/start-here.md](./start-here.md)
@@ -108,6 +109,17 @@ Make the self-hosted Pluxx plugin feel polished, real, and easy to install.
 
 The plugin should stay thin.
 The CLI should stay the execution engine.
+
+The next plugin-specific gap is workflow coverage.
+
+Use [docs/pluxx-plugin-surface-audit.md](./pluxx-plugin-surface-audit.md) as the concrete reference.
+
+The main missing first-class workflows are:
+
+- `verify-install`
+- `publish`
+- `autopilot`
+- explicit context-prep / docs-ingestion
 
 ### 5. Customer discovery and GTM learning
 

@@ -1,6 +1,6 @@
 # Start Here
 
-Last updated: 2026-04-22
+Last updated: 2026-04-23
 
 ## Doc Links
 
@@ -208,6 +208,22 @@ That means:
 
 Make the self-hosted Pluxx plugin feel like a real install surface, not just dogfood.
 
+That now includes closing the workflow coverage gap called out in:
+
+- `docs/pluxx-plugin-surface-audit.md`
+
+The plugin architecture is right:
+
+- thin plugin
+- CLI as the execution engine
+
+But the plugin surface is not fully comprehensive yet. The main missing first-class workflows are:
+
+- `verify-install`
+- `publish`
+- `autopilot`
+- explicit context-prep / ingestion
+
 ### 5. Customer Discovery
 
 Run two lanes in parallel:
@@ -267,6 +283,7 @@ After this file:
 - read [docs/todo/master-backlog.md](./todo/master-backlog.md) for the broadest repo-native backlog
 - read [roadmap.md](./roadmap.md) for execution direction
 - read [mcp-first-command-lifecycle.md](./mcp-first-command-lifecycle.md) for the exact MCP-first CLI order
+- read [pluxx-plugin-surface-audit.md](./pluxx-plugin-surface-audit.md) for how the self-hosted plugin works and what it still does not cover
 - read [oss-wedge-and-trust-layer.md](./oss-wedge-and-trust-layer.md) for product framing
 - read [enterprise-adoption-thesis.md](./enterprise-adoption-thesis.md) for the stronger future enterprise thesis
 - read [status-quo-vs-pluxx-story.md](./status-quo-vs-pluxx-story.md) for the broader positioning narrative

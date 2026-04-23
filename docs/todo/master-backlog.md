@@ -1,6 +1,6 @@
 # Master Backlog
 
-Last updated: 2026-04-22
+Last updated: 2026-04-23
 
 This is the most complete repo-native backlog for Pluxx.
 
@@ -22,6 +22,7 @@ This is not the same thing as the short queue.
   - [docs/roadmap.md](../roadmap.md)
   - [docs/oss-wedge-and-trust-layer.md](../oss-wedge-and-trust-layer.md)
   - [docs/flagship-docs-ops-plugin.md](../flagship-docs-ops-plugin.md)
+  - [docs/pluxx-plugin-surface-audit.md](../pluxx-plugin-surface-audit.md)
   - [Linear](https://linear.app/orchid-automation)
 - Update together:
   - [docs/start-here.md](../start-here.md)
@@ -141,6 +142,12 @@ Open work:
 - [ ] Harden metadata, prompts, screenshots, and install guidance
 - [ ] Verify the self-hosted plugin path across Claude Code, Cursor, Codex, and OpenCode
 - [ ] Keep the plugin thin and the CLI as the execution engine
+- [ ] Close the plugin workflow coverage gap documented in `docs/pluxx-plugin-surface-audit.md`
+- [ ] Add first-class plugin workflows for:
+  - `verify-install`
+  - `publish`
+  - `autopilot`
+  - explicit context-prep / docs-ingestion
 - [ ] Decide what belongs in `example/pluxx` vs `plugins/pluxx`
 - [ ] Decide whether plugin distribution should stay in this repo or move later
 - [ ] Decide the public install/distribution UX for docs and marketplace-like surfaces:

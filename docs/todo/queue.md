@@ -1,6 +1,6 @@
 # Pluxx Queue
 
-Last updated: 2026-04-22
+Last updated: 2026-04-23
 
 ## Doc Links
 
@@ -10,8 +10,9 @@ Last updated: 2026-04-22
   - [master-backlog.md](./master-backlog.md)
   - [docs/roadmap.md](../roadmap.md)
   - [docs/oss-wedge-and-trust-layer.md](../oss-wedge-and-trust-layer.md)
-  - [docs/flagship-docs-ops-plugin.md](../flagship-docs-ops-plugin.md)
-  - [Linear](https://linear.app/orchid-automation)
+- [docs/flagship-docs-ops-plugin.md](../flagship-docs-ops-plugin.md)
+- [docs/pluxx-plugin-surface-audit.md](../pluxx-plugin-surface-audit.md)
+- [Linear](https://linear.app/orchid-automation)
 - Update together:
   - [docs/start-here.md](../start-here.md)
   - [master-backlog.md](./master-backlog.md)
@@ -138,6 +139,13 @@ Open work:
 - harden metadata, prompts, screenshots, and install guidance
 - rebuild and test the self-hosted plugin across the core four
 - keep the plugin thin and the CLI as the execution engine
+- close the plugin workflow coverage gap documented in:
+  - `docs/pluxx-plugin-surface-audit.md`
+- add first-class plugin workflows for:
+  - `verify-install`
+  - `publish`
+  - `autopilot`
+  - explicit context-prep / docs-ingestion
 - decide later whether distribution should stay in the main repo or move to a dedicated plugin/marketplace repo
 
 ### 5. GTM and audience
