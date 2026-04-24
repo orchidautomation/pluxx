@@ -388,6 +388,67 @@ describe('build', () => {
     expect(codexHooks.hooks.UserPromptSubmit?.[0]?.command).toContain('./scripts/check-prompt.sh')
   })
 
+  it('preserves hook fields only where the target can honestly carry them', async () => {
+    const hookConfig: PluginConfig = {
+      ...testConfig,
+      name: 'hook-translation-plugin',
+      hooks: {
+        beforeSubmitPrompt: [{
+          type: 'prompt',
+          prompt: 'Confirm before sending the prompt.',
+          model: 'gpt-5',
+        }],
+        preToolUse: [{
+          command: '${PLUGIN_ROOT}/scripts/confirm-mutation.sh',
+          matcher: 'Bash',
+          failClosed: true,
+          loop_limit: 2,
+        }],
+        stop: [{
+          command: '${PLUGIN_ROOT}/scripts/confirm-mutation.sh',
+          loop_limit: 3,
+        }],
+      },
+      targets: ['claude-code', 'cursor', 'codex', 'opencode'],
+      outDir: './hook-translation-dist',
+    }
+
+    await build(hookConfig, TEST_DIR)
+
+    const claudeHooks = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'hook-translation-dist/claude-code/hooks/hooks.json'), 'utf-8')
+    )
+    const cursorHooks = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'hook-translation-dist/cursor/hooks/hooks.json'), 'utf-8')
+    )
+    const codexHooks = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'hook-translation-dist/codex/.codex/hooks.generated.json'), 'utf-8')
+    )
+    const opencodeIndex = readFileSync(resolve(TEST_DIR, 'hook-translation-dist/opencode/index.ts'), 'utf-8')
+
+    expect(claudeHooks.hooks.UserPromptSubmit).toBeUndefined()
+    expect(claudeHooks.hooks.PreToolUse?.[0]?.matcher).toBe('Bash')
+    expect(claudeHooks.hooks.PreToolUse?.[0]?.failClosed).toBeUndefined()
+    expect(claudeHooks.hooks.Stop?.[0]?.loop_limit).toBeUndefined()
+
+    expect(cursorHooks.hooks.beforeSubmitPrompt?.[0]?.type).toBe('prompt')
+    expect(cursorHooks.hooks.beforeSubmitPrompt?.[0]?.prompt).toContain('Confirm before sending the prompt')
+    expect(cursorHooks.hooks.preToolUse?.[0]?.matcher).toBe('Bash')
+    expect(cursorHooks.hooks.preToolUse?.[0]?.failClosed).toBe(true)
+    expect(cursorHooks.hooks.preToolUse?.[0]?.loop_limit).toBeUndefined()
+    expect(cursorHooks.hooks.stop?.[0]?.loop_limit).toBe(3)
+
+    expect(codexHooks.hooks.PreToolUse?.[0]?.matcher).toBe('Bash')
+    expect(codexHooks.hooks.PreToolUse?.[0]?.failClosed).toBe(true)
+    expect(codexHooks.hooks.PreToolUse?.[0]?.loop_limit).toBeUndefined()
+    expect(codexHooks.hooks.UserPromptSubmit).toBeUndefined()
+
+    expect(opencodeIndex).toContain('"matcher": "Bash"')
+    expect(opencodeIndex).toContain('"failClosed": true')
+    expect(opencodeIndex).not.toContain('Confirm before sending the prompt.')
+    expect(opencodeIndex).not.toContain('"loop_limit": 3')
+  })
+
   it('carries compiler-intent skill policies into the Codex permissions companion when present', async () => {
     mkdirSync(resolve(TEST_DIR, '.pluxx'), { recursive: true })
     await Bun.write(

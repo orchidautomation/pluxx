@@ -120,7 +120,8 @@ Use this file to:
 - [x] `mcp proxy --record/--replay` is real
 - [~] The command lifecycle is documented clearly enough for a brand-new user starting from a raw MCP
 - [~] The best command-by-command docs feel less repo-maintainer-centric and more polished, but they are not done yet
-- [ ] The deterministic CLI and the host-plugin UX tell the same execution story without drift
+- [~] The deterministic CLI and the host-plugin UX tell the same execution story without drift
+  - the self-hosted plugin instructions and autopilot guidance now explicitly teach native shaping from raw MCP intent into commands, arguments, and specialist agents/subagents
 
 ## 5. Flagship Proof Surface
 

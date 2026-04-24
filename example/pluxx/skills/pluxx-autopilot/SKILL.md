@@ -31,6 +31,10 @@ Use this skill when the user wants the one-shot path instead of a manually stage
 
 - Do not present autopilot as magic. Explain what it actually ran.
 - Keep auth flags explicit when the MCP requires them.
+- Treat autopilot as a native-shaping pass, not just a file dump:
+  - promote repeated entrypoints into commands when that is stronger than a flat skill list
+  - promote isolated reviewer/research/delegated work into agents or subagents when the host supports that more naturally
+  - keep argument-rich workflows argument-rich instead of flattening them into vague generic commands
 - If the user is learning or debugging, suggest the manual lifecycle when autopilot hides too much.
 - If autopilot fails mid-run, say which stage failed:
   - auth

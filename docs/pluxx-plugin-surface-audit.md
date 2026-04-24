@@ -166,6 +166,17 @@ So yes, the plugin is largely skills-and-commands orchestrating the CLI.
 
 It is not mostly scripts orchestrating scripts.
 
+One important nuance for autopilot and Agent Mode now:
+
+- they are no longer framed as “just generate files from a raw MCP”
+- the prompt pack now explicitly teaches native shaping from raw MCP intent into:
+  - product-shaped skills
+  - explicit commands where repeated entrypoints deserve them
+  - argument-bearing command UX when workflows are parameterized
+  - specialist agents/subagents when the work wants isolation, delegation, review, or bounded execution
+
+That matters because the lure of autopilot is not just speed. It is that the first pass should already know how to aim for the strongest honest native plugin shape instead of stopping at a lowest-common-denominator skill dump.
+
 ## Coverage Audit
 
 This is the important table.

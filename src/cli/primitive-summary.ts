@@ -89,5 +89,27 @@ export function renderPrimitiveTranslationSummary(
   }
 
   lines.push('  legend: keep=preserve xlat=translate weak=degrade drop=drop')
+
+  const detailLines: string[] = []
+  for (const row of summary.rows) {
+    for (const target of summary.targets) {
+      const mode = row.modes[target]
+      if (!mode || mode === 'preserve') continue
+
+      const capability = getCoreFourPrimitiveCapabilities(target).buckets[row.bucket]
+      const verb = mode === 'translate'
+        ? 're-expressed via'
+        : mode === 'degrade'
+          ? 'weakened to'
+          : 'omitted; nearest surface would be'
+      const suffix = capability.notes ? ` ${capability.notes}` : ''
+      detailLines.push(`  - ${row.bucket} on ${TARGET_LABELS[target]}: ${verb} ${capability.nativeSurfaces.join(', ')}.${suffix}`)
+    }
+  }
+
+  if (detailLines.length > 0) {
+    lines.push('  details:')
+    lines.push(...detailLines)
+  }
   return lines
 }

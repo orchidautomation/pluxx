@@ -149,6 +149,8 @@ The repo already proves a lot.
   - `docs/core-four-provider-docs-audit.md`
 - a concrete closure tracker now exists for turning the audits into documented and proven translation behavior:
   - `docs/core-four-translation-hit-list.md`
+- the raw-MCP scaffold intelligence is now more explicit in the product itself:
+  - agent/autopilot prompt packs now teach native shaping from raw MCP intent into commands, argument-bearing entrypoints, and specialist agents/subagents instead of stopping at a flat skill dump
 
 ## What Pluxx Is Not Yet
 
@@ -191,8 +193,11 @@ That includes:
   - row-level translation docs now live in:
     - `docs/core-four-primitive-matrix.md`
     - `docs/core-four-branding-metadata-audit.md`
-  - remaining registry/generator/explainability/proof closure lives in:
+  - remaining closure is now narrower and lives in:
     - `docs/core-four-translation-hit-list.md`
+    - richer Claude-style skill fixture closure
+    - remaining runtime and instructions fixture closure
+    - any still-unclosed generator rows after that
 
 ### 2. Flagship Depth Example
 

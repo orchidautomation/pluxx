@@ -4,6 +4,7 @@ import type { TargetPlatform } from '../../schema'
 import { buildGeneratedPermissionHookScript } from '../../permissions'
 import { type AgentFrontmatterMap, readCanonicalAgentFiles } from '../../agents'
 import { buildDelegationBehaviorNotes } from '../../delegation'
+import { CURSOR_LOOP_LIMIT_HOOK_EVENTS } from '../../hook-events'
 import { readTextFile } from '../../text-files'
 
 export class CursorGenerator extends Generator {
@@ -108,7 +109,12 @@ export class CursorGenerator extends Generator {
         if (entry.timeout) hookDef.timeout = entry.timeout
         if (entry.matcher) hookDef.matcher = entry.matcher
         if (entry.failClosed) hookDef.failClosed = entry.failClosed
-        if (entry.loop_limit !== undefined) hookDef.loop_limit = entry.loop_limit
+        if (
+          entry.loop_limit !== undefined
+          && (CURSOR_LOOP_LIMIT_HOOK_EVENTS as readonly string[]).includes(event)
+        ) {
+          hookDef.loop_limit = entry.loop_limit
+        }
         return hookDef
       }),
       ]

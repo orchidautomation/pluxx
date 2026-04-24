@@ -65,6 +65,13 @@ What is still not fully closed:
 - several deltas are implemented in code but not yet explained well enough in docs and build output
 - some surfaces are documented but not yet proven with a strong fixture
 
+What just moved materially closer to closed:
+
+- agent/autopilot prompts now explicitly teach native shaping from raw MCP intent into commands, argument-bearing entrypoints, and specialist agents/subagents
+- lint now uses the audited registry for Cursor, Codex, and OpenCode skill-frontmatter explainability instead of only hardcoded Cursor assumptions
+- build and doctor summaries now include row-level native-surface detail lines for non-preserve buckets
+- hook translation closure is stronger because Cursor no longer emits unsupported `loop_limit` fields on non-supported hook events, and the hook translation fixture now asserts the Claude/Cursor/Codex/OpenCode outcomes directly
+
 ## P0 Closure Rules
 
 These are the non-negotiable rules for the remaining work:
@@ -143,7 +150,7 @@ We already know skills are the most portable layer. The remaining work is docume
   - Codex outcome
   - OpenCode outcome
 - [ ] Add one fixture that uses the richer Claude-style skill surface and rebuilds to all four
-- [ ] Add lint/build output that explains the strongest interesting degradations instead of generic warnings
+- [x] Add lint/build output that explains the strongest interesting degradations instead of generic warnings
 
 ### 4. Close the commands translation matrix
 
@@ -152,8 +159,8 @@ We already know skills are the most portable layer. The remaining work is docume
   - preserved in Cursor
   - degraded into skills/routing in Codex
   - preserved in OpenCode
-- [ ] Add a fixture that starts with command-rich source intent and snapshot the four outputs
-- [ ] Make build summaries explicitly call out the Codex degradation path
+- [x] Add a fixture that starts with command-rich source intent and snapshot the four outputs
+- [x] Make build summaries explicitly call out the Codex degradation path
 
 ### 5. Close the agents translation matrix
 
@@ -174,12 +181,12 @@ We already know skills are the most portable layer. The remaining work is docume
   - storage location
   - runtime behavior
   - whether the outcome is preserve, translate, or degrade
-- [ ] Add one fixture with meaningful hook intent and assert:
+- [x] Add one fixture with meaningful hook intent and assert:
   - Claude preserve/translate path
   - Cursor hook JSON path
   - Codex external hook guidance/degrade path
   - OpenCode runtime handler path
-- [ ] Make lint/build surface hook degradation explicitly instead of burying it in warnings
+- [x] Make lint/build surface hook degradation explicitly instead of burying it in warnings
 
 ### 7. Close the permissions translation matrix
 
@@ -194,7 +201,7 @@ This is still the most important under-documented bucket.
   - Cursor permission config and hook/subagent control planes
   - Codex approvals, sandbox, hook matchers, and agents
   - OpenCode permission config and per-agent overrides
-- [ ] Add at least one permission-rich fixture that proves the translation path
+- [x] Add at least one permission-rich fixture that proves the translation path
 - [ ] Make `migrate` normalize host-specific permission syntax into canonical intent
 
 ### 8. Close the runtime and MCP translation matrix

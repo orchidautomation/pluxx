@@ -73,6 +73,13 @@ This includes:
 - Linear
 - the audit-to-implementation closure plan in [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md)
 
+The closure plan is now narrower than it was before:
+
+- row-level translation docs are done
+- hook translation explainability and fixture closure are materially stronger
+- build and doctor now explain non-preserve mappings with more native-surface detail
+- the remaining P0 rows are richer skill fixtures, remaining runtime/MCP fixtures, and instruction-intent proof
+
 ### 2. Flagship reference plugin
 
 Build one maximal reference plugin that proves Pluxx handles rich native host depth, not just basic MCP wrappers.
@@ -140,6 +147,7 @@ The next plugin-specific work is:
 - improve install/update clarity and release distribution UX
 - treat [docs/proof-and-install.md](./proof-and-install.md) as the first repo-native public proof/install landing page, then push it into a cleaner visual public asset
 - evaluate whether a `gh skill`-compatible export belongs as an additional distribution channel for the skills-only slice of Pluxx output
+- keep the plugin/autopilot story honest: starting from a raw MCP should already aim for the strongest native mix of skills, commands, arguments, and specialist agents/subagents, not just a flat skill dump
 
 ### 5. Customer discovery and GTM learning
 

@@ -126,6 +126,7 @@ If the runtime is missing, do not pretend the host plugin can execute Pluxx by i
 - Before shipping, run `pluxx doctor`, `pluxx lint`, and `pluxx test`.
 - Before telling the user a local install is healthy, prefer `pluxx verify-install`.
 - Findings come before summaries when the user asks for a review.
+- When starting from a raw MCP, do not stop at a lowest-common-denominator skill dump. Shape the scaffold into the strongest native mix of skills, commands, argument-bearing entrypoints, and specialist agents/subagents that the discovered workflows justify.
 
 ### What Good Looks Like
 

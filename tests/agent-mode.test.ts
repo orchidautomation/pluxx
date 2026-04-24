@@ -297,6 +297,12 @@ describe('agent mode', () => {
     expect(prompt).toContain('Use per-skill related resources and prompt templates as strong evidence for workflow shape')
     expect(prompt).toContain('Reject stale scaffold assumptions')
     expect(prompt).toContain('avoid weak command UX')
+    expect(prompt).toContain('Promote clear, repeated user entrypoints into explicit commands')
+    expect(prompt).toContain('Promote specialist, delegated, reviewer, or bounded-execution workflows into agents/subagents')
+    expect(prompt).toContain('parameterized workflow')
+    expect(prompt).toContain('least-common-denominator skill-only scaffold')
+    expect(prompt).toContain('use realistic arguments when workflows are parameterized')
+    expect(prompt).toContain('promoted into agents/subagents')
     expect(prompt).toContain('per-skill resource and prompt-template associations remain coherent with the chosen taxonomy')
     expect(prompt).toContain('not stale scaffold assumptions')
   })
@@ -350,7 +356,7 @@ describe('agent mode', () => {
     expect(prompt).toContain('stale scaffold assumptions')
     expect(prompt).toContain('incoherent per-skill resource/prompt associations')
     expect(prompt).toContain('weak command UX')
-    expect(prompt).toContain('stale assumptions, incoherent per-skill discovery associations, and command-UX weaknesses are identified explicitly when present')
+    expect(prompt).toContain('stale assumptions, incoherent per-skill discovery associations, command-UX weaknesses, and missing agent/subagent shaping are identified explicitly when present')
   })
 
   it('supports CLI dry-run for review runs and keeps Claude in plan mode', async () => {
@@ -1809,8 +1815,14 @@ exit 1
     expect(instructionsPrompt).toContain('Replace stale scaffold claims with current discovery-backed language')
     expect(instructionsPrompt).toContain('copy-paste runnable')
     expect(instructionsPrompt).toContain('strong command UX')
+    expect(instructionsPrompt).toContain('parameterized workflow')
+    expect(instructionsPrompt).toContain('specialist agent/subagent')
     expect(reviewPrompt).toContain('Additional review criteria:')
     expect(reviewPrompt).toContain('Flag any skill grouping that mixes setup/admin tools with runtime workflows.')
+    expect(reviewPrompt).toContain('missing argument-bearing command entrypoints')
+    expect(reviewPrompt).toContain('missing specialist agent/subagent boundaries')
+    expect(reviewPrompt).toContain('lowest-common-denominator skill-only scaffolds')
+    expect(reviewPrompt).toContain('missing agent/subagent shaping')
   })
 
   it('supports prepare + review prompt generation for manual Pluxx projects without MCP metadata', async () => {

@@ -104,10 +104,9 @@ Open work:
   - row-level translation docs in:
     - [docs/core-four-primitive-matrix.md](../core-four-primitive-matrix.md)
     - [docs/core-four-branding-metadata-audit.md](../core-four-branding-metadata-audit.md)
-  - capability registry closure
-  - generator closure
-  - lint/build explainability
-  - fixture proof
+  - remaining richer skill-fixture closure
+  - remaining runtime/instructions proof closure
+  - any still-open registry or generator rows after the recent explainability and hook-translation fixes
 
 ### 2. Flagship depth example
 

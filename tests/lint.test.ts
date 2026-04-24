@@ -550,6 +550,7 @@ describe('lintProject', () => {
     const result = await lintProject(projectDir)
     expect(result.issues.some(issue => issue.code === 'primitive-degrade-summary' && issue.platform === 'codex' && issue.message.includes('commands'))).toBe(true)
     expect(result.issues.some(issue => issue.code === 'primitive-translate-summary' && issue.platform === 'opencode' && issue.message.includes('hooks'))).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'codex-commands-routing-guidance')).toBe(true)
   })
 
   it('warns on duplicate permission rules before mapping them', async () => {
@@ -1155,5 +1156,67 @@ describe('lintProject', () => {
     expect(result.issues.filter(issue => issue.code === 'cursor-hook-event-unknown')).toHaveLength(1)
     expect(result.issues.some(issue => issue.code === 'cursor-hook-loop-limit-unsupported-event')).toBe(true)
     expect(result.issues.some(issue => issue.code === 'cursor-skill-frontmatter-unsupported')).toBe(true)
+  })
+
+  it('warns about non-portable hook fields and richer frontmatter translations on Codex and OpenCode', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/rich-skill'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'translation-fixture',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        commands: './commands/',
+        hooks: {
+          beforeSubmitPrompt: [
+            {
+              type: 'prompt',
+              prompt: 'Confirm the request before sending it.',
+            },
+          ],
+          preToolUse: [
+            {
+              command: 'echo pretool',
+              failClosed: true,
+              loop_limit: 2,
+            },
+          ],
+        },
+        targets: ['claude-code', 'codex', 'opencode'],
+      }, null, 2),
+    )
+
+    mkdirSync(resolve(projectDir, 'commands'), { recursive: true })
+    writeFileSync(resolve(projectDir, 'commands/run.md'), '# Run\n')
+
+    writeFileSync(
+      resolve(projectDir, 'skills/rich-skill/SKILL.md'),
+      [
+        '---',
+        'name: rich-skill',
+        'description: "A valid skill"',
+        'arguments: [target]',
+        'allowed-tools: Read',
+        'context: fork',
+        'agent: Explore',
+        '---',
+        '',
+        '# Rich Skill',
+      ].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'claude-prompt-hook-degrade')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'codex-prompt-hook-drop')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'opencode-prompt-hook-drop')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'claude-hook-failclosed-degrade')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'codex-hook-loop-limit-drop')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'opencode-hook-loop-limit-drop')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'codex-skill-frontmatter-translation')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'opencode-skill-frontmatter-translation')).toBe(true)
   })
 })

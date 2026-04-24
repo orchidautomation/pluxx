@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'fs'
 import { resolve, relative, basename, dirname } from 'path'
 import { loadConfig } from '../config/load'
 import { getConfiguredCompilerBuckets, type PluginConfig, type PluxxCompilerBucket, type TargetPlatform } from '../schema'
-import { PLATFORM_LIMITS, PLATFORM_LIMIT_POLICIES, getCoreFourPrimitiveCapabilities, type CoreFourPlatform, type PrimitiveTranslationMode } from '../validation/platform-rules'
+import { PLATFORM_LIMITS, PLATFORM_LIMIT_POLICIES, getCoreFourPrimitiveCapabilities, getPlatformRules, type CoreFourPlatform, type PrimitiveTranslationMode } from '../validation/platform-rules'
 import { collectPermissionRules, permissionRulesNeedToolLevelDowngrade } from '../permissions'
 import { buildPrimitiveTranslationSummary, renderPrimitiveTranslationSummary, type PrimitiveTranslationSummary } from './primitive-summary'
 import {
@@ -988,26 +988,150 @@ function lintCursorSkillFrontmatter(
   issues: LintIssue[],
   frontmatterCache: Map<string, ParsedFrontmatterFile>,
 ): void {
-  if (!config.targets.includes('cursor')) return
-
-  const cursorSupportedFrontmatter = ['name', 'description', 'license', 'compatibility', 'metadata', 'disable-model-invocation']
+  const supportedByTarget = new Map(
+    (['cursor', 'codex', 'opencode'] as const)
+      .filter(target => config.targets.includes(target))
+      .map((target) => {
+        const rules = getPlatformRules(target)
+        return [target, new Set([...rules.frontmatter.standard, ...rules.frontmatter.additional])] as const
+      }),
+  )
+  if (supportedByTarget.size === 0) return
 
   for (const skillFile of skillFiles) {
     const { parsed } = getParsedFrontmatterFile(skillFile, frontmatterCache)
     if (!parsed.valid) continue
 
     for (const [key] of parsed.fields) {
-      if (!cursorSupportedFrontmatter.includes(key)) {
+      for (const [target, supported] of supportedByTarget.entries()) {
+        if (supported.has(key)) continue
+
+        const issue = target === 'cursor'
+          ? {
+              code: 'cursor-skill-frontmatter-unsupported',
+              message: `Skill frontmatter field "${key}" is not supported by Cursor. Supported: ${[...supported].join(', ')}`,
+              platform: 'Cursor',
+            }
+          : target === 'codex'
+            ? {
+                code: 'codex-skill-frontmatter-translation',
+                message: `Skill frontmatter field "${key}" is not part of documented Codex skill frontmatter. Pluxx may need to translate that intent through AGENTS.md, .codex/agents/*.toml, permissions companions, or runtime config instead of preserving it on SKILL.md.`,
+                platform: 'Codex',
+              }
+            : {
+                code: 'opencode-skill-frontmatter-translation',
+                message: `Skill frontmatter field "${key}" is not part of documented OpenCode skill frontmatter. Pluxx may need to translate that intent through commands, agents, opencode.json, or plugin runtime code instead of preserving it on SKILL.md.`,
+                platform: 'OpenCode',
+              }
+
         pushIssue(issues, {
           level: 'warning',
-          code: 'cursor-skill-frontmatter-unsupported',
-          message: `Skill frontmatter field "${key}" is not supported by Cursor. Supported: ${cursorSupportedFrontmatter.join(', ')}`,
           file: skillFile,
-          platform: 'Cursor',
+          ...issue,
         })
       }
     }
   }
+}
+
+function lintHookFieldTranslations(config: PluginConfig, issues: LintIssue[]): void {
+  if (!config.hooks) return
+
+  const hasPromptHooks = Object.values(config.hooks).some(entries =>
+    (entries ?? []).some(entry => entry.type === 'prompt'),
+  )
+  const hasFailClosed = Object.values(config.hooks).some(entries =>
+    (entries ?? []).some(entry => entry.failClosed !== undefined),
+  )
+  const hasLoopLimit = Object.values(config.hooks).some(entries =>
+    (entries ?? []).some(entry => entry.loop_limit !== undefined),
+  )
+
+  if (hasPromptHooks) {
+    if (config.targets.includes('claude-code')) {
+      pushIssue(issues, {
+        level: 'warning',
+        code: 'claude-prompt-hook-degrade',
+        message: 'Prompt hooks are documented in Claude-native hook surfaces, but the current Claude-family generator still drops prompt hooks. Expect a degraded result unless you remodel them as command hooks or host-specific manual work.',
+        file: 'pluxx.config.ts',
+        platform: 'claude-code',
+      })
+    }
+
+    if (config.targets.includes('codex')) {
+      pushIssue(issues, {
+        level: 'warning',
+        code: 'codex-prompt-hook-drop',
+        message: 'Codex currently receives only command-hook companions from Pluxx. Prompt hooks will be dropped from the generated Codex bundle.',
+        file: 'pluxx.config.ts',
+        platform: 'codex',
+      })
+    }
+
+    if (config.targets.includes('opencode')) {
+      pushIssue(issues, {
+        level: 'warning',
+        code: 'opencode-prompt-hook-drop',
+        message: 'The current OpenCode runtime wrapper only emits command hooks. Prompt hooks will be dropped from the generated OpenCode plugin.',
+        file: 'pluxx.config.ts',
+        platform: 'opencode',
+      })
+    }
+  }
+
+  if (hasFailClosed && config.targets.includes('claude-code')) {
+    pushIssue(issues, {
+      level: 'warning',
+      code: 'claude-hook-failclosed-degrade',
+      message: 'Claude hook entries currently drop `failClosed` in generated output. Keep this behavior host-specific or verify the generated hook bundle carefully.',
+      file: 'pluxx.config.ts',
+      platform: 'claude-code',
+    })
+  }
+
+  if (hasLoopLimit) {
+    if (config.targets.includes('claude-code')) {
+      pushIssue(issues, {
+        level: 'warning',
+        code: 'claude-hook-loop-limit-degrade',
+        message: 'Claude outputs currently drop `loop_limit`. Recursive hook protection is not preserved there today.',
+        file: 'pluxx.config.ts',
+        platform: 'claude-code',
+      })
+    }
+
+    if (config.targets.includes('codex')) {
+      pushIssue(issues, {
+        level: 'warning',
+        code: 'codex-hook-loop-limit-drop',
+        message: 'Codex hook companions currently drop `loop_limit`. Only command, matcher, timeout, and failClosed survive there today.',
+        file: 'pluxx.config.ts',
+        platform: 'codex',
+      })
+    }
+
+    if (config.targets.includes('opencode')) {
+      pushIssue(issues, {
+        level: 'warning',
+        code: 'opencode-hook-loop-limit-drop',
+        message: 'OpenCode runtime hooks currently drop `loop_limit`. Recursive hook protection is still Cursor-first in Pluxx.',
+        file: 'pluxx.config.ts',
+        platform: 'opencode',
+      })
+    }
+  }
+}
+
+function lintCodexCommandGuidance(config: PluginConfig, issues: LintIssue[]): void {
+  if (!config.targets.includes('codex') || !config.commands) return
+
+  pushIssue(issues, {
+    level: 'warning',
+    code: 'codex-commands-routing-guidance',
+    message: 'Codex does not currently document plugin-packaged slash-command parity. Pluxx will degrade commands into skills plus AGENTS.md and `.codex/commands.generated.json` routing guidance.',
+    file: 'pluxx.config.ts',
+    platform: 'codex',
+  })
 }
 
 function lintSkillListingBudgets(
@@ -1240,6 +1364,8 @@ export async function lintProject(
   lintCodexHooksExternalConfig(lintConfig, issues)
   lintPermissions(lintConfig, issues)
   lintPrimitiveTranslations(lintConfig, issues)
+  lintHookFieldTranslations(lintConfig, issues)
+  lintCodexCommandGuidance(lintConfig, issues)
 
   // Cursor-specific checks
   lintCursorHooks(lintConfig, issues)
