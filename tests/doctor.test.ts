@@ -102,6 +102,38 @@ function createConsumerFixture(): string {
   return dir
 }
 
+function createCodexConsumerFixture(): string {
+  const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-codex-consumer-'))
+  mkdirSync(resolve(dir, '.codex-plugin'), { recursive: true })
+  writeFileSync(
+    resolve(dir, '.codex-plugin/plugin.json'),
+    JSON.stringify({
+      name: 'codex-consumer-fixture',
+      version: '0.1.0',
+      skills: './skills/',
+      mcpServers: './.mcp.json',
+    }, null, 2),
+  )
+  writeFileSync(
+    resolve(dir, '.mcp.json'),
+    JSON.stringify({
+      mcpServers: {
+        hosted: {
+          url: 'https://example.com/mcp',
+        },
+        localFixture: {
+          command: 'node',
+          args: ['./mcp-server/dist/index.js', '--stdio'],
+          env: {
+            LOCAL_FIXTURE_TOKEN: '${LOCAL_FIXTURE_TOKEN}',
+          },
+        },
+      },
+    }, null, 2),
+  )
+  return dir
+}
+
 function createOpenCodeConsumerFixture(options: { includeEntry?: boolean; includeSyncedSkills?: boolean } = {}): string {
   const includeEntry = options.includeEntry ?? true
   const includeSyncedSkills = options.includeSyncedSkills ?? true
@@ -381,6 +413,20 @@ describe('doctorConsumer', () => {
       expect(report.ok).toBe(true)
       expect(report.checks.some((check) => check.code === 'consumer-platform-detected')).toBe(true)
       expect(report.checks.some((check) => check.code === 'consumer-mcp-inline-auth')).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('reports stdio and runtime-auth expectations for Codex-style installed bundles', async () => {
+    const dir = createCodexConsumerFixture()
+
+    try {
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-platform-detected' && check.level === 'success')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-mcp-stdio' && check.level === 'info')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-mcp-remote-auth-runtime' && check.level === 'info')).toBe(true)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

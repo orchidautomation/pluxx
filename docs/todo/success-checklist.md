@@ -102,7 +102,11 @@ Use this file to:
   - row-level translation docs now exist in:
     - [docs/core-four-primitive-matrix.md](../core-four-primitive-matrix.md)
     - [docs/core-four-branding-metadata-audit.md](../core-four-branding-metadata-audit.md)
-  - remaining closure is still in registry/generator/explainability/proof layers
+  - the last P0 fixture/proof block is now covered by repo tests:
+    - rich Claude-style skill fixture carry-through
+    - runtime/MCP bearer + OAuth + stdio fixture carry-through
+    - instruction-intent carry-through across the core four
+  - remaining closure is now mainly in registry/generator/public-proof layers
 
 ## 4. OSS Authoring Substrate Quality
 

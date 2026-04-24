@@ -193,11 +193,13 @@ That includes:
   - row-level translation docs now live in:
     - `docs/core-four-primitive-matrix.md`
     - `docs/core-four-branding-metadata-audit.md`
-  - remaining closure is now narrower and lives in:
+  - the old P0 closure block is now closed:
+    - richer Claude-style skill fixture proof
+    - runtime/MCP fixture proof
+    - instruction-intent proof
+  - remaining closure now lives in:
     - `docs/core-four-translation-hit-list.md`
-    - richer Claude-style skill fixture closure
-    - remaining runtime and instructions fixture closure
-    - any still-unclosed generator rows after that
+    - lingering generator, migration, and proof-packaging rows after the recent fixture closure pass
 
 ### 2. Flagship Depth Example
 

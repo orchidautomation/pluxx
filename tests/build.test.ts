@@ -84,6 +84,53 @@ beforeAll(async () => {
     resolve(TEST_DIR, 'skills/hello/SKILL.md'),
     '---\nname: hello\ndescription: Say hello\n---\n\nSay hello to the user.\n',
   )
+  mkdirSync(resolve(TEST_DIR, 'skills/deep-research/examples'), { recursive: true })
+  mkdirSync(resolve(TEST_DIR, 'skills/deep-research/scripts'), { recursive: true })
+  await Bun.write(
+    resolve(TEST_DIR, 'skills/deep-research/SKILL.md'),
+    [
+      '---',
+      'name: deep-research',
+      'description: "Run a deep research pass with strong routing guidance."',
+      'when_to_use: "Use when the user wants a thorough investigation with sourced evidence."',
+      'argument-hint: "[company] [region]"',
+      'arguments: [company, region]',
+      'disable-model-invocation: true',
+      'user-invocable: true',
+      'allowed-tools: Read Grep Bash(git status *)',
+      'model: inherit',
+      'effort: high',
+      'context: fork',
+      'agent: Explore',
+      'hooks: {"sessionStart":[{"type":"command","command":"bash ${CLAUDE_SKILL_DIR}/scripts/assist.sh"}]}',
+      'paths: ["src/**","docs/**"]',
+      'shell: bash',
+      '---',
+      '',
+      '# Deep Research',
+      '',
+      'Use this skill when the request needs a sourced, specialist investigation.',
+      '',
+      '## Extra context',
+      '',
+      '- Load [reference.md](reference.md) before you summarize.',
+      '- Use [examples/sample.md](examples/sample.md) to match the expected output shape.',
+      '- Run `${CLAUDE_SKILL_DIR}/scripts/assist.sh` if you need a helper command.',
+      '',
+    ].join('\n'),
+  )
+  await Bun.write(
+    resolve(TEST_DIR, 'skills/deep-research/reference.md'),
+    '# Research Reference\n\nPrefer concrete evidence over vague summaries.\n',
+  )
+  await Bun.write(
+    resolve(TEST_DIR, 'skills/deep-research/examples/sample.md'),
+    '# Sample Output\n\n- Problem\n- Evidence\n- Recommendation\n',
+  )
+  await Bun.write(
+    resolve(TEST_DIR, 'skills/deep-research/scripts/assist.sh'),
+    '#!/usr/bin/env bash\necho deep-research-helper\n',
+  )
   mkdirSync(resolve(TEST_DIR, 'commands/'), { recursive: true })
   await Bun.write(resolve(TEST_DIR, 'commands/pulse.md'), '# Pulse\n')
   mkdirSync(resolve(TEST_DIR, 'agents/'), { recursive: true })
@@ -116,7 +163,17 @@ beforeAll(async () => {
   await Bun.write(resolve(TEST_DIR, 'assets/screenshots/overview.svg'), '<svg />\n')
   mkdirSync(resolve(TEST_DIR, 'mcp-server/dist'), { recursive: true })
   await Bun.write(resolve(TEST_DIR, 'mcp-server/dist/index.js'), 'console.log("mcp")\n')
-  await Bun.write(resolve(TEST_DIR, 'INSTRUCTIONS.md'), 'Use test-plugin consistently.\n')
+  await Bun.write(
+    resolve(TEST_DIR, 'INSTRUCTIONS.md'),
+    [
+      '# Test Plugin Instructions',
+      '',
+      'Use test-plugin consistently.',
+      'If a workflow repeats, promote it into a command or specialist agent instead of hiding it in generic skills.',
+      'Prefer the strongest honest native surface for each host.',
+      '',
+    ].join('\n'),
+  )
 })
 
 afterAll(() => {
@@ -275,6 +332,117 @@ describe('build', () => {
     expect(cursorHooks.hooks.sessionStart).toBeUndefined()
     expect(claudeHooks.hooks.UserPromptSubmit).toBeDefined()
     expect(cursorHooks.hooks.beforeSubmitPrompt).toBeDefined()
+  })
+
+  it('carries a rich Claude-style skill fixture and supporting files into all core-four outputs', async () => {
+    const expectedPhrase = 'Use this skill when the request needs a sourced, specialist investigation.'
+
+    for (const platform of ['claude-code', 'cursor', 'codex', 'opencode'] as const) {
+      const skillRoot = resolve(OUT_DIR, platform, 'skills/deep-research')
+      const skillFile = readFileSync(resolve(skillRoot, 'SKILL.md'), 'utf-8')
+
+      expect(existsSync(resolve(skillRoot, 'reference.md'))).toBe(true)
+      expect(existsSync(resolve(skillRoot, 'examples/sample.md'))).toBe(true)
+      expect(existsSync(resolve(skillRoot, 'scripts/assist.sh'))).toBe(true)
+      expect(skillFile).toContain('when_to_use:')
+      expect(skillFile).toContain('argument-hint:')
+      expect(skillFile).toContain('arguments: [company, region]')
+      expect(skillFile).toContain('disable-model-invocation: true')
+      expect(skillFile).toContain('allowed-tools: Read Grep Bash(git status *)')
+      expect(skillFile).toContain('context: fork')
+      expect(skillFile).toContain('agent: Explore')
+      expect(skillFile).toContain('paths: ["src/**","docs/**"]')
+      expect(skillFile).toContain(expectedPhrase)
+    }
+  })
+
+  it('preserves remote bearer, runtime OAuth, and local stdio MCP intent across the core four', async () => {
+    const runtimeConfig: PluginConfig = {
+      ...testConfig,
+      name: 'runtime-fixture-plugin',
+      mcp: {
+        'bearer-server': {
+          url: 'https://bearer.example.com/mcp',
+          transport: 'http',
+          auth: {
+            type: 'bearer',
+            envVar: 'RUNTIME_TOKEN',
+            headerName: 'Authorization',
+            headerTemplate: 'Bearer ${value}',
+          },
+        },
+        'oauth-server': {
+          url: 'https://oauth.example.com/mcp',
+          transport: 'http',
+          auth: {
+            type: 'platform',
+            mode: 'oauth',
+          },
+        },
+        'local-server': {
+          transport: 'stdio',
+          command: 'node',
+          args: ['./mcp-server/dist/index.js', '--stdio'],
+          env: {
+            LOCAL_FIXTURE_TOKEN: '${LOCAL_FIXTURE_TOKEN}',
+          },
+        },
+      },
+      targets: ['claude-code', 'cursor', 'codex', 'opencode'],
+      outDir: './runtime-dist',
+    }
+
+    await build(runtimeConfig, TEST_DIR)
+
+    const claudeMcp = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'runtime-dist/claude-code/.mcp.json'), 'utf-8')
+    )
+    const cursorMcp = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'runtime-dist/cursor/mcp.json'), 'utf-8')
+    )
+    const codexMcp = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'runtime-dist/codex/.mcp.json'), 'utf-8')
+    )
+    const opencodeIndex = readFileSync(resolve(TEST_DIR, 'runtime-dist/opencode/index.ts'), 'utf-8')
+
+    expect(claudeMcp.mcpServers['bearer-server'].headers.Authorization).toContain('RUNTIME_TOKEN')
+    expect(cursorMcp.mcpServers['bearer-server'].headers.Authorization).toContain('RUNTIME_TOKEN')
+    expect(codexMcp.mcpServers['bearer-server'].bearer_token_env_var).toBe('RUNTIME_TOKEN')
+
+    expect(claudeMcp.mcpServers['oauth-server'].headers).toBeUndefined()
+    expect(cursorMcp.mcpServers['oauth-server'].headers).toBeUndefined()
+    expect(codexMcp.mcpServers['oauth-server'].bearer_token_env_var).toBeUndefined()
+    expect(codexMcp.mcpServers['oauth-server'].env_http_headers).toBeUndefined()
+
+    expect(claudeMcp.mcpServers['local-server']).toEqual({
+      command: 'node',
+      args: ['./mcp-server/dist/index.js', '--stdio'],
+      env: {
+        LOCAL_FIXTURE_TOKEN: '${LOCAL_FIXTURE_TOKEN}',
+      },
+    })
+    expect(cursorMcp.mcpServers['local-server']).toEqual({
+      command: 'node',
+      args: ['./mcp-server/dist/index.js', '--stdio'],
+      env: {
+        LOCAL_FIXTURE_TOKEN: '${LOCAL_FIXTURE_TOKEN}',
+      },
+    })
+    expect(codexMcp.mcpServers['local-server']).toEqual({
+      command: 'node',
+      args: ['./mcp-server/dist/index.js', '--stdio'],
+      env: {
+        LOCAL_FIXTURE_TOKEN: '${LOCAL_FIXTURE_TOKEN}',
+      },
+    })
+
+    expect(opencodeIndex).toContain('"bearer-server"')
+    expect(opencodeIndex).toContain('"oauth-server"')
+    expect(opencodeIndex).toContain('"local-server"')
+    expect(opencodeIndex).toContain('"transport": "stdio"')
+    expect(opencodeIndex).toContain('"command": "node"')
+    expect(opencodeIndex).toContain('"LOCAL_FIXTURE_TOKEN": "${LOCAL_FIXTURE_TOKEN}"')
+    expect(opencodeIndex).not.toContain('"type": "platform"')
   })
 
   it('generates Codex manifest with interface metadata', async () => {
@@ -519,6 +687,24 @@ describe('build', () => {
     expect(codexManifest.skills).toBe('./skills/')
     expect(codexManifest.mcpServers).toBe('./.mcp.json')
     expect(codexManifest.hooks).toBeUndefined()
+  })
+
+  it('preserves shared instruction intent across the core four native instruction surfaces', async () => {
+    const sourceInstructions = readFileSync(resolve(TEST_DIR, 'INSTRUCTIONS.md'), 'utf-8').trim()
+    const sharedLine = 'If a workflow repeats, promote it into a command or specialist agent instead of hiding it in generic skills.'
+
+    const claudeInstructions = readFileSync(resolve(OUT_DIR, 'claude-code/CLAUDE.md'), 'utf-8')
+    const cursorInstructions = readFileSync(resolve(OUT_DIR, 'cursor/AGENTS.md'), 'utf-8')
+    const codexInstructions = readFileSync(resolve(OUT_DIR, 'codex/AGENTS.md'), 'utf-8')
+    const opencodeIndex = readFileSync(resolve(OUT_DIR, 'opencode/index.ts'), 'utf-8')
+
+    expect(claudeInstructions).toContain(sourceInstructions)
+    expect(cursorInstructions).toContain(sourceInstructions)
+    expect(codexInstructions).toContain(sourceInstructions)
+    expect(opencodeIndex).toContain(JSON.stringify(sourceInstructions))
+    expect(opencodeIndex).toContain('const INSTRUCTIONS =')
+    expect(opencodeIndex).toContain('applyInstructions(output.system)')
+    expect(opencodeIndex).toContain(sharedLine)
   })
 
   it('compiles canonical agents into native Codex custom-agent TOML files', async () => {

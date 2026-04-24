@@ -578,18 +578,21 @@ Pluxx compiles canonical `permissions.{allow,ask,deny}` into each primary target
 
 ### Instructions Generation
 
-Your single `INSTRUCTIONS.md` becomes the right file for each platform:
+Your single `INSTRUCTIONS.md` becomes the right native instruction surface for each platform:
 
-| Platform | Generated file |
-|----------|----------------|
+| Platform | Generated instruction surface |
+|----------|-----------------------------|
 | Claude Code | `CLAUDE.md` |
 | Cursor | `AGENTS.md` + `rules/*.mdc` |
 | Codex | `AGENTS.md` |
+| OpenCode | runtime instruction injection in the generated plugin wrapper |
 | Warp | `AGENTS.md` |
 | Gemini CLI | `GEMINI.md` |
 | Roo Code | `.roorules` |
 | Cline | `.clinerules` |
 | AMP | `AGENT.md` |
+
+The important rule is that Pluxx keeps one instruction source of truth and compiles it into the strongest honest native surface per host. It does not pretend there is one universal output filename.
 
 ### 47 Lint Checks
 

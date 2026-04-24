@@ -78,7 +78,11 @@ The closure plan is now narrower than it was before:
 - row-level translation docs are done
 - hook translation explainability and fixture closure are materially stronger
 - build and doctor now explain non-preserve mappings with more native-surface detail
-- the remaining P0 rows are richer skill fixtures, remaining runtime/MCP fixtures, and instruction-intent proof
+- the former P0 fixture/proof block is now closed:
+  - richer skill fixtures
+  - runtime/MCP fixtures
+  - instruction-intent proof
+- the remaining closure work is now mainly lingering generator, migration, and proof-packaging rows tracked in [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md)
 
 ### 2. Flagship reference plugin
 

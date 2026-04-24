@@ -148,7 +148,7 @@ You should now have a source repo that looks roughly like:
 Key files:
 
 - `pluxx.config.ts` — source of truth for targets, MCP wiring, hooks, rules, and assets
-- `INSTRUCTIONS.md` — shared instructions that get translated into host outputs
+- `INSTRUCTIONS.md` — shared instruction source that compiles into host-native surfaces like `CLAUDE.md`, `AGENTS.md`, rules files, or OpenCode runtime instruction injection
 - `skills/*/SKILL.md` — workflow surfaces over raw MCP tools
 - `.pluxx/mcp.json` — scaffold ownership metadata for future syncs
 

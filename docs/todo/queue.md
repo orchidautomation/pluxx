@@ -104,9 +104,8 @@ Open work:
   - row-level translation docs in:
     - [docs/core-four-primitive-matrix.md](../core-four-primitive-matrix.md)
     - [docs/core-four-branding-metadata-audit.md](../core-four-branding-metadata-audit.md)
-  - remaining richer skill-fixture closure
-  - remaining runtime/instructions proof closure
-  - any still-open registry or generator rows after the recent explainability and hook-translation fixes
+  - the now-closed rich skill, runtime/MCP, and instruction proof block
+  - any still-open registry, generator, migration, or proof-packaging rows after the recent explainability and fixture fixes
 
 ### 2. Flagship depth example
 

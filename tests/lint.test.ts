@@ -485,6 +485,60 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'permissions-skill-selector-limited')).toBe(true)
   })
 
+  it('warns when MCP auth or local runtimes depend on external host state', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['claude-code', 'cursor', 'codex', 'opencode'],
+        platforms: {
+          'claude-code': {
+            mcpAuth: 'platform',
+          },
+          cursor: {
+            mcpAuth: 'platform',
+          },
+        },
+        mcp: {
+          oauthish: {
+            transport: 'http',
+            url: 'https://example.com/mcp',
+          },
+          hostedOauth: {
+            transport: 'http',
+            url: 'https://oauth.example.com/mcp',
+            auth: {
+              type: 'platform',
+              mode: 'oauth',
+            },
+          },
+          localFixture: {
+            transport: 'stdio',
+            command: 'node',
+            args: ['./server.js'],
+          },
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A valid skill"', '---', '', '# My Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'mcp-runtime-auth-external' && issue.message.includes('"oauthish"') && issue.message.includes('claude-code, cursor'))).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'mcp-runtime-auth-external' && issue.message.includes('"hostedOauth"') && issue.message.includes('claude-code, cursor, codex, opencode'))).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'mcp-stdio-runtime-dependency' && issue.message.includes('"localFixture"'))).toBe(true)
+  })
+
   it('warns when OpenCode permission output downgrades selector precision to tool-level', async () => {
     const projectDir = createTempProject()
     mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })

@@ -82,14 +82,17 @@ Any person or agent should be able to enter the repo and answer:
 - [ ] Define a simple rule for when repo docs should be updated alongside Linear
 - [~] Turn the provider and branding audits into an explicit closure tracker for every mapped cross-host feature:
   - [docs/core-four-translation-hit-list.md](../core-four-translation-hit-list.md)
-- [ ] Close the P0 rows from the translation hit list:
+- [x] Close the last P0 fixture/proof rows from the translation hit list:
   - row-level translation docs are now in:
     - [docs/core-four-primitive-matrix.md](../core-four-primitive-matrix.md)
     - [docs/core-four-branding-metadata-audit.md](../core-four-branding-metadata-audit.md)
   - richer Claude-style skill fixture closure
   - remaining runtime/MCP fixture closure
   - remaining instructions proof closure
-  - any still-open registry/generator rows after the recent explainability and hook-translation fixes
+- [ ] Continue closing the remaining non-P0 rows from the translation hit list:
+  - lingering registry/generator rows
+  - migration normalization rows
+  - brand/distribution proof and packaging rows
 
 ### 2. Flagship reference plugin
 

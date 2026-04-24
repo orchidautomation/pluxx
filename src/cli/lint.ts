@@ -534,6 +534,49 @@ function lintMcpUrls(config: PluginConfig, issues: LintIssue[]): void {
   }
 }
 
+function lintMcpRuntimeState(config: PluginConfig, issues: LintIssue[]): void {
+  if (!config.mcp) return
+
+  const claudeUsesPlatformAuth = config.targets.includes('claude-code')
+    && config.platforms?.['claude-code']?.mcpAuth === 'platform'
+  const cursorUsesPlatformAuth = config.targets.includes('cursor')
+    && config.platforms?.cursor?.mcpAuth === 'platform'
+
+  for (const [serverName, server] of Object.entries(config.mcp)) {
+    if (server.transport === 'stdio') {
+      pushIssue(issues, {
+        level: 'warning',
+        code: 'mcp-stdio-runtime-dependency',
+        message: `MCP server "${serverName}" runs through a local stdio command. End users still need that command and its runtime dependencies available after install.`,
+        file: 'pluxx.config.ts',
+        platform: 'MCP',
+      })
+    }
+
+    const runtimeAuthTargets: string[] = []
+    if (server.auth?.type === 'platform') {
+      for (const target of config.targets) {
+        if (target === 'claude-code' || target === 'cursor' || target === 'codex' || target === 'opencode') {
+          runtimeAuthTargets.push(target)
+        }
+      }
+    } else {
+      if (claudeUsesPlatformAuth) runtimeAuthTargets.push('claude-code')
+      if (cursorUsesPlatformAuth) runtimeAuthTargets.push('cursor')
+    }
+
+    if (runtimeAuthTargets.length > 0) {
+      pushIssue(issues, {
+        level: 'warning',
+        code: 'mcp-runtime-auth-external',
+        message: `MCP server "${serverName}" depends on host-managed auth or runtime config on ${runtimeAuthTargets.join(', ')}. Verify the installed bundle in the real host instead of assuming the bundle alone materializes auth.`,
+        file: 'pluxx.config.ts',
+        platform: 'MCP',
+      })
+    }
+  }
+}
+
 function lintCodexHookCompatibility(config: PluginConfig, issues: LintIssue[]): void {
   if (!isCodexTargetEnabled(config) || !config.hooks) return
 
@@ -1357,6 +1400,7 @@ export async function lintProject(
 
   // MCP and brand
   lintMcpUrls(lintConfig, issues)
+  lintMcpRuntimeState(lintConfig, issues)
   lintBrandMetadata(lintConfig, issues)
   lintCodexOverrides(lintConfig, issues)
   lintCodexHookCompatibility(lintConfig, issues)

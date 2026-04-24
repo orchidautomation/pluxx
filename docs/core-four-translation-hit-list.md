@@ -1,6 +1,6 @@
 # Core-Four Translation Hit List
 
-Last updated: 2026-04-23
+Last updated: 2026-04-24
 
 ## Doc Links
 
@@ -61,9 +61,9 @@ What is already materially true:
 
 What is still not fully closed:
 
-- the row-level translation docs have now landed, but most rows are still only documented rather than fully closed in the capability registry, generators, explainability, and proof layers
-- several deltas are implemented in code but not yet explained well enough in docs and build output
-- some surfaces are documented but not yet proven with a strong fixture
+- the row-level translation docs have now landed, but some rows are still only documented rather than fully closed in the capability registry, generators, explainability, and proof layers
+- several deltas are implemented in code but not yet explained well enough in public-facing proof assets
+- a few migration and distribution rows remain more lightly proven than the core skill/runtime/instructions path
 
 What just moved materially closer to closed:
 
@@ -71,6 +71,12 @@ What just moved materially closer to closed:
 - lint now uses the audited registry for Cursor, Codex, and OpenCode skill-frontmatter explainability instead of only hardcoded Cursor assumptions
 - build and doctor summaries now include row-level native-surface detail lines for non-preserve buckets
 - hook translation closure is stronger because Cursor no longer emits unsupported `loop_limit` fields on non-supported hook events, and the hook translation fixture now asserts the Claude/Cursor/Codex/OpenCode outcomes directly
+- a rich Claude-style skill fixture with supporting files and advanced frontmatter now rebuilds cleanly to Claude Code, Cursor, Codex, and OpenCode
+- runtime and MCP fixture closure now covers bearer auth, OAuth-shaped runtime auth, and local stdio MCP across the core four, with lint and doctor calling out external runtime state explicitly
+- shared instruction intent is now proven across all four native surfaces: `CLAUDE.md`, `AGENTS.md`, and OpenCode runtime instruction injection
+
+The previous three “remaining P0 fixture/proof rows” are now closed.
+The remaining unchecked items below are follow-on closure and polish work, not the old blocker cluster.
 
 ## P0 Closure Rules
 
@@ -149,7 +155,7 @@ We already know skills are the most portable layer. The remaining work is docume
   - Cursor outcome
   - Codex outcome
   - OpenCode outcome
-- [ ] Add one fixture that uses the richer Claude-style skill surface and rebuilds to all four
+- [x] Add one fixture that uses the richer Claude-style skill surface and rebuilds to all four
 - [x] Add lint/build output that explains the strongest interesting degradations instead of generic warnings
 
 ### 4. Close the commands translation matrix
@@ -216,11 +222,11 @@ This is still the most important under-documented bucket.
   - bearer token
   - OAuth
   - static OAuth credentials where supported
-- [ ] Add fixtures for:
+- [x] Add fixtures for:
   - remote bearer token MCP
   - OAuth-ready MCP shape
   - local stdio MCP
-- [ ] Make `doctor` and `lint` say clearly when the target host needs external config/runtime state rather than bundle-local state
+- [x] Make `doctor` and `lint` say clearly when the target host needs external config/runtime state rather than bundle-local state
 
 ### 9. Close the instructions translation matrix
 
@@ -229,8 +235,8 @@ This is still the most important under-documented bucket.
   - Cursor `rules/` plus `AGENTS.md`
   - Codex `AGENTS.md`, `AGENTS.override.md`, config fallbacks
   - OpenCode `AGENTS.md`, `CLAUDE.md`, config `instructions`
-- [ ] Add proof that migration/build preserve instruction intent across all four without hand-copying prose
-- [ ] Make examples stop implying there is only one universal instruction file shape
+- [x] Add proof that migration/build preserve instruction intent across all four without hand-copying prose
+- [x] Make examples stop implying there is only one universal instruction file shape
 
 ### 10. Close the install/update/distribution matrix
 
@@ -247,7 +253,7 @@ This is still the most important under-documented bucket.
 
 These are the concrete fixtures that should exist so the translation docs are backed by runnable proof.
 
-- [ ] Claude-rich skill fixture:
+- [x] Claude-rich skill fixture:
   - supporting files
   - advanced frontmatter
   - hooks
