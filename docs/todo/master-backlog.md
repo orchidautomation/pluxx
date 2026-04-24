@@ -29,6 +29,7 @@ This is not the same thing as the short queue.
   - [docs/pluxx-plugin-surface-audit.md](../pluxx-plugin-surface-audit.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](../pluxx-self-hosted-core-four-proof.md)
   - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
+  - [docs/core-four-translation-hit-list.md](../core-four-translation-hit-list.md)
   - [Linear](https://linear.app/orchid-automation)
 - Update together:
   - [docs/start-here.md](../start-here.md)
@@ -79,6 +80,14 @@ Any person or agent should be able to enter the repo and answer:
 - [ ] Decide which docs are public product docs vs strategy docs vs internal-only GTM docs
 - [ ] Move account-specific GTM and customer notes out of the public repo
 - [ ] Define a simple rule for when repo docs should be updated alongside Linear
+- [~] Turn the provider and branding audits into an explicit closure tracker for every mapped cross-host feature:
+  - [docs/core-four-translation-hit-list.md](../core-four-translation-hit-list.md)
+- [ ] Close the P0 rows from the translation hit list:
+  - row-level translation docs
+  - capability registry closure
+  - generator closure
+  - explainability closure
+  - fixture closure
 
 ### 2. Flagship reference plugin
 

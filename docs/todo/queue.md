@@ -16,6 +16,7 @@ Last updated: 2026-04-23
   - [docs/pluxx-plugin-surface-audit.md](../pluxx-plugin-surface-audit.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](../pluxx-self-hosted-core-four-proof.md)
   - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
+  - [docs/core-four-translation-hit-list.md](../core-four-translation-hit-list.md)
   - [Linear](https://linear.app/orchid-automation)
 - Update together:
   - [docs/start-here.md](../start-here.md)
@@ -99,6 +100,12 @@ Open work:
 - continue reconciling stale planning artifacts that still describe already-shipped work as future work
 - refresh `src/validation/platform-rules.ts`, `docs/compatibility.md`, and `docs/core-four-primitive-matrix.md` from the first-party provider audit:
   - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
+- use [docs/core-four-translation-hit-list.md](../core-four-translation-hit-list.md) as the concrete closure tracker for:
+  - row-level translation docs
+  - capability registry closure
+  - generator closure
+  - lint/build explainability
+  - fixture proof
 
 ### 2. Flagship depth example
 

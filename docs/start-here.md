@@ -14,6 +14,7 @@ Last updated: 2026-04-23
   - [docs/flagship-docs-ops-plugin.md](./flagship-docs-ops-plugin.md)
   - [docs/docs-ops-core-four-proof.md](./docs-ops-core-four-proof.md)
   - [docs/core-four-provider-docs-audit.md](./core-four-provider-docs-audit.md)
+  - [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](./pluxx-self-hosted-core-four-proof.md)
   - [README.md](../README.md)
 - Update together:
@@ -146,6 +147,8 @@ The repo already proves a lot.
 - release smoke exists for the core four
 - a first-party provider-doc audit now exists at:
   - `docs/core-four-provider-docs-audit.md`
+- a concrete closure tracker now exists for turning the audits into documented and proven translation behavior:
+  - `docs/core-four-translation-hit-list.md`
 
 ## What Pluxx Is Not Yet
 
@@ -184,6 +187,8 @@ That includes:
 - fewer stale planning artifacts
 - truthful public metadata and links
 - first-party provider docs reflected accurately in the compatibility story
+- every mapped cross-host delta documented as preserve/translate/degrade/drop with a concrete closure path:
+  - `docs/core-four-translation-hit-list.md`
 
 ### 2. Flagship Depth Example
 

@@ -11,6 +11,7 @@ Last updated: 2026-04-23
   - [master-backlog.md](./master-backlog.md)
   - [docs/roadmap.md](../roadmap.md)
   - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
+  - [docs/core-four-translation-hit-list.md](../core-four-translation-hit-list.md)
   - [docs/core-four-install-update-lifecycle.md](../core-four-install-update-lifecycle.md)
   - [docs/flagship-docs-ops-plugin.md](../flagship-docs-ops-plugin.md)
   - [docs/docs-ops-core-four-proof.md](../docs-ops-core-four-proof.md)
@@ -91,6 +92,8 @@ Use this file to:
   - [docs/core-four-primitive-matrix.md](../core-four-primitive-matrix.md)
 - [x] A first-party provider audit exists:
   - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
+- [x] A concrete closure tracker exists for turning mapped audit rows into documented and proven translation behavior:
+  - [docs/core-four-translation-hit-list.md](../core-four-translation-hit-list.md)
 - [x] A host lifecycle matrix exists:
   - [docs/core-four-install-update-lifecycle.md](../core-four-install-update-lifecycle.md)
 - [~] The runtime, installer, and docs surfaces all reflect the current audited host truth

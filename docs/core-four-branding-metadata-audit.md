@@ -9,6 +9,8 @@ This audit verifies what plugin branding and interface metadata actually works a
 - Codex
 - OpenCode
 
+Use [Core-Four Translation Hit List](./core-four-translation-hit-list.md) as the closure tracker for the brand/distribution rows in this audit.
+
 It compares:
 
 - `src/schema.ts`

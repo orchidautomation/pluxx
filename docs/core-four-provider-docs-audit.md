@@ -8,6 +8,7 @@ Last updated: 2026-04-23
 - Related:
   - [docs/core-four-primitive-matrix.md](./core-four-primitive-matrix.md)
   - [docs/compatibility.md](./compatibility.md)
+  - [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md)
   - [src/validation/platform-rules.ts](../src/validation/platform-rules.ts)
   - [docs/todo/queue.md](./todo/queue.md)
   - [docs/roadmap.md](./roadmap.md)
@@ -66,6 +67,13 @@ Status:
   - `docs/core-four-install-update-lifecycle.md`
 
 This doc should now be treated as the audit source for future refreshes, not as a still-pending recommendation list from the first pass.
+
+Use [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md) as the concrete closure tracker for turning these audit rows into:
+
+- row-level translation docs
+- generator work
+- explainability work
+- fixture and proof work
 
 ## Capability Matrix
 

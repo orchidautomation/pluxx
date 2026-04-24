@@ -16,6 +16,7 @@ Last updated: 2026-04-23
   - [docs/pluxx-plugin-surface-audit.md](./pluxx-plugin-surface-audit.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](./pluxx-self-hosted-core-four-proof.md)
   - [docs/core-four-provider-docs-audit.md](./core-four-provider-docs-audit.md)
+  - [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md)
   - [docs/core-four-maintenance-routine.md](./core-four-maintenance-routine.md)
   - [Linear](https://linear.app/orchid-automation)
 - Update together:
@@ -70,6 +71,7 @@ This includes:
 - README
 - site hero and metadata
 - Linear
+- the audit-to-implementation closure plan in [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md)
 
 ### 2. Flagship reference plugin
 
@@ -192,6 +194,7 @@ These matter, but they are not the immediate center:
 - keep preserve/translate/degrade/drop visible
 - do not imply equal support where the repo cannot prove it
 - use [docs/core-four-provider-docs-audit.md](./core-four-provider-docs-audit.md) to refresh the machine-readable rules and generated compatibility docs after each major host-doc review
+- use [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md) to close every mapped row from research through generator behavior and proof
 
 ## Strategic Horizon: Trust / Distribution Layer
 
