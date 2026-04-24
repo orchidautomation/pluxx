@@ -1,6 +1,6 @@
 # Current Proof And Demo Asset Pack
 
-Last updated: 2026-04-23
+Last updated: 2026-04-24
 
 This doc is the public-proof map for Pluxx.
 
@@ -31,6 +31,7 @@ The biggest remaining missing claim is no longer docs-ingestion proof. It is cle
 The first pass of that packaging now exists at:
 
 - [Proof and install guide](./proof-and-install.md)
+- [Docs Ops authenticated publish path](./docs-ops-authenticated-publish-path.md)
 
 ## Proof That Already Exists
 
@@ -88,6 +89,24 @@ Best public use:
 - bridge between the self-hosted proof and the narrower live Codex walkthrough
 - proof that the flagship example is mechanically real beyond one host
 - cleaner install-story support for the flagship lane
+
+### 2c. Flagship authenticated publish split
+
+Primary doc:
+
+- [Docs Ops authenticated publish path](./docs-ops-authenticated-publish-path.md)
+
+What it proves:
+
+- the public Orchid MCP endpoint is no longer being treated as a publish surface
+- the private authoring lane is now source-modeled through `userConfig`
+- install/runtime config and publish gating have now been exercised mechanically
+
+Best public use:
+
+- honest auth-story support for the flagship lane
+- proof that Pluxx is shaping more than read-only MCP access
+- bridge from the public read-only Orchid proof to a future real private publish proof
 
 ### 3. Concrete before/after rewrite artifact
 
@@ -148,32 +167,43 @@ Best public use:
 
 ## What Is Still Missing
 
-### 1. Cleaner packaging for the new cross-host workflow proof
+### 1. More visual public packaging for the current proof stack
 
 Missing artifact:
 
-- one cleaner public-facing asset that shows the flagship inspect / pull / rewrite workflow now works across the official Claude Code, Cursor, Codex, and OpenCode CLIs
-
-Why it matters:
-
-- the `docs-ops` flagship install/verify proof now exists across the core four
-- the `docs-ops` cross-host headless workflow proof now also exists across the core four
-- the polished in-app walkthrough is still strongest in Codex today
-- the story gets better when the same source project feels native in more than one host
-
-### 2. Cleaner public install proof asset
-
-Missing artifact:
-
-- one stronger visual/story asset than the current doc-only landing page showing:
+- one stronger visual asset that shows:
   - source project in
   - native bundles out
-  - install
-  - verify-install
+  - install and verify
+  - live flagship workflow
+  - separate authenticated publish lane
 
 Why it matters:
 
-- [docs/proof-and-install.md](./proof-and-install.md) is the right first packaging step, but it is still doc-led rather than a polished visual public asset
+- the repo docs now prove the story honestly
+- the public site/docs still need a tighter visual and screenshot-led surface
+
+### 2. Polished in-app walkthrough beyond Codex
+
+Missing artifact:
+
+- one polished in-app walkthrough outside Codex
+
+Why it matters:
+
+- the current CLI/headless proof is now real across all four
+- the in-app flagship story is still most legible in Codex today
+
+### 3. Live private publish / rollback proof
+
+Missing artifact:
+
+- one safe end-to-end authenticated publish and rollback run against a private sandbox target
+
+Why it matters:
+
+- the private publish lane is now modeled and mechanically guarded
+- the last missing flagship auth proof is a real private endpoint, not more source-project work
 
 ## Best Current Demo Flow
 
@@ -201,20 +231,14 @@ The next public-facing asset block should be:
 
 ### P0
 
-- one clean self-hosted plugin proof panel
-  - source project
-  - built outputs
-  - install/verify state
-- one cleaner flagship docs-ops proof panel
-  - source project
-  - core-four install/verify state
-  - live MCP backend
-  - rewrite result
+- one stronger visual self-hosted plugin proof panel
+- one stronger visual docs-ops flagship proof panel
+- one screenshot-led install and verify panel
 
 ### P1
 
 - one Firecrawl docs-ingestion comparison panel
-- one cross-host flagship comparison panel once Claude/Cursor/OpenCode proof catches up
+- one live private publish / rollback panel once the sandbox endpoint exists
 
 ## Working Rule
 

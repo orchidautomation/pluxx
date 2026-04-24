@@ -4,6 +4,8 @@ title: Self-hosting Pluxx Plugin
 
 This example uses the repository's self-hosting project in [`example/pluxx`](https://github.com/orchidautomation/pluxx/tree/main/example/pluxx).
 
+If you want the flagship third-party example instead of the self-hosted one, use [Docs Ops Flagship Proof](/examples/docs-ops-flagship).
+
 ## Why this example exists
 
 Pluxx ships its own local plugin so the same workflow can be used from inside a host coding agent.
@@ -54,8 +56,10 @@ dist/opencode/
 From the repository root:
 
 ```bash
-npx @orchid-labs/pluxx build --target claude-code cursor codex opencode
-npx @orchid-labs/pluxx test --target claude-code cursor codex opencode
+npx @orchid-labs/pluxx doctor
+npx @orchid-labs/pluxx lint
+npx @orchid-labs/pluxx test --install --trust
+npx @orchid-labs/pluxx verify-install --target claude-code cursor codex opencode
 ```
 
 Install one host locally:
@@ -65,6 +69,12 @@ npx @orchid-labs/pluxx install --target claude-code --trust
 ```
 
 If Claude Code is already open, run `/reload-plugins` in the active session after install.
+
+If the installed bundle still looks wrong, inspect the shipped bundle directly:
+
+```bash
+npx @orchid-labs/pluxx doctor --consumer ~/.claude/plugins/data/pluxx-local-pluxx/plugins/pluxx
+```
 
 ## What this proves
 

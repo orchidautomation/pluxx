@@ -10,6 +10,7 @@ Last updated: 2026-04-24
   - [docs/first-proof-demo-asset-pack.md](./first-proof-demo-asset-pack.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](./pluxx-self-hosted-core-four-proof.md)
   - [docs/docs-ops-core-four-proof.md](./docs-ops-core-four-proof.md)
+  - [docs/docs-ops-authenticated-publish-path.md](./docs-ops-authenticated-publish-path.md)
   - [docs/orchid-docs-ops-codex-walkthrough.md](./orchid-docs-ops-codex-walkthrough.md)
   - [docs/core-four-install-update-lifecycle.md](./core-four-install-update-lifecycle.md)
   - [docs/strategy/docs-ingestion-scaffold-before-after.md](./strategy/docs-ingestion-scaffold-before-after.md)
@@ -51,14 +52,28 @@ If you want the shortest credible answer to "is this real yet?", use this order:
 3. [Docs Ops live Codex walkthrough](./orchid-docs-ops-codex-walkthrough.md)
    What it proves: one maintained `docs-ops` source project compiles into a real in-app Codex plugin and talks to Orchid's live Docsalot MCP.
 
-4. [Orchid Accordion before/after rewrite](../example/docs-ops/demo-rewrites/orchid-components-accordion.after.md)
+4. [Docs Ops authenticated publish path](./docs-ops-authenticated-publish-path.md)
+   What it proves: the flagship example no longer treats Orchid's public MCP endpoint as a publish surface; the private write lane is separately modeled, install/runtime-configurable, and mechanically guarded.
+
+5. [Orchid Accordion before/after rewrite](../example/docs-ops/demo-rewrites/orchid-components-accordion.after.md)
    What it proves: the flagship example produces user-visible output, not just config files.
 
-5. [Docs-ingestion scaffold before/after demo](./strategy/docs-ingestion-scaffold-before-after.md)
+6. [Docs-ingestion scaffold before/after demo](./strategy/docs-ingestion-scaffold-before-after.md)
    What it proves: Firecrawl-backed sourced context changes the real generated scaffold, not just an eval row.
 
-6. [Core-four provider docs audit](./core-four-provider-docs-audit.md)
+7. [Core-four provider docs audit](./core-four-provider-docs-audit.md)
    What it proves: the compatibility story is grounded in first-party provider docs, not hand-waving.
+
+## Public Proof Panels
+
+If you need the public story in the fewest moving parts, use these four proof panels:
+
+| Panel | Read this | Supported claim |
+| --- | --- | --- |
+| Self-hosted core four | [pluxx-self-hosted-core-four-proof](./pluxx-self-hosted-core-four-proof.md) | one maintained source project can build, install, and verify across the core four |
+| Flagship read-only workflow | [docs-ops-core-four-proof](./docs-ops-core-four-proof.md) | the flagship example is real across the official CLIs, not just one host |
+| Flagship authenticated publish split | [docs-ops-authenticated-publish-path](./docs-ops-authenticated-publish-path.md) | read-only Orchid access is not being mislabeled as a publish path |
+| Docs-ingestion improvement | [docs-ingestion scaffold before/after](./strategy/docs-ingestion-scaffold-before-after.md) | sourced product/docs context materially improves the generated scaffold |
 
 ## Install The Released Pluxx Plugin
 
@@ -133,13 +148,16 @@ Use this when you want a clean founder demo, customer walkthrough, or investor p
 4. Show [Docs Ops live Codex walkthrough](./orchid-docs-ops-codex-walkthrough.md)
    Frame: raw MCP is not enough; shaped workflows matter.
 
-5. Show the [Accordion before/after output](../example/docs-ops/demo-rewrites/orchid-components-accordion.after.md)
+5. Show [Docs Ops authenticated publish path](./docs-ops-authenticated-publish-path.md)
+   Frame: read-only public MCP access is not being passed off as write/publish support.
+
+6. Show the [Accordion before/after output](../example/docs-ops/demo-rewrites/orchid-components-accordion.after.md)
    Frame: the product changes user-visible output, not only internals.
 
-6. Show [Docs-ingestion scaffold before/after demo](./strategy/docs-ingestion-scaffold-before-after.md)
+7. Show [Docs-ingestion scaffold before/after demo](./strategy/docs-ingestion-scaffold-before-after.md)
    Frame: sourced product/docs context materially improves the scaffold.
 
-7. Close with [Core-four provider docs audit](./core-four-provider-docs-audit.md)
+8. Close with [Core-four provider docs audit](./core-four-provider-docs-audit.md)
    Frame: the compatibility story is truthful and provider-backed.
 
 ## What This Page Does Not Claim
@@ -149,7 +167,8 @@ This page is intentionally narrow.
 It does not claim:
 
 - the website is already the strongest public surface
-- every host already has equally polished user-facing flagship proof yet
+- every host already has equally polished in-app flagship proof yet
+- Orchid authenticated publish is already proven end to end
 - the trust/distribution layer is already the main product
 
 It does claim:

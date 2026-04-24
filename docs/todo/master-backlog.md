@@ -122,8 +122,11 @@ Open work:
   - `docs/orchid-docs-ops-codex-walkthrough.md`
 - [x] Prove the same read-only inspect / pull / rewrite workflow through the official host CLIs across Claude Code, Cursor, Codex, and OpenCode:
   - `docs/docs-ops-core-four-proof.md`
+- [x] Separate and mechanically prove the authenticated write/publish lane as distinct from the public Orchid MCP surface:
+  - `docs/docs-ops-authenticated-publish-path.md`
 - [~] Turn the cross-host workflow proof into a cleaner public-facing asset:
-  - headless CLI proof now exists across the core four
+  - `docs/proof-and-install.md`
+  - `site/examples/docs-ops-flagship.mdx`
   - the polished in-app walkthrough is still Codex-first today
 - [ ] Exercise richer Claude skill surfaces where useful:
   - supporting files / references
@@ -136,7 +139,7 @@ Open work:
   - a regression fixture
   - a docs anchor
   - a sales proof asset
-- [ ] Separate the public read-only Docsalot MCP proof from the private write/publish auth path
+- [ ] Prove a real authenticated publish plus rollback against a safe private authoring target
 - [ ] Document what is truly preserved vs translated vs degraded across the core four in this example
 
 ### 3. Docs and website ingestion proof

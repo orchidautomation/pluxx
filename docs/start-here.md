@@ -13,6 +13,7 @@ Last updated: 2026-04-24
   - [docs/oss-wedge-and-trust-layer.md](./oss-wedge-and-trust-layer.md)
   - [docs/flagship-docs-ops-plugin.md](./flagship-docs-ops-plugin.md)
   - [docs/docs-ops-core-four-proof.md](./docs-ops-core-four-proof.md)
+  - [docs/docs-ops-authenticated-publish-path.md](./docs-ops-authenticated-publish-path.md)
   - [docs/core-four-provider-docs-audit.md](./core-four-provider-docs-audit.md)
   - [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](./pluxx-self-hosted-core-four-proof.md)
@@ -135,6 +136,8 @@ The repo already proves a lot.
 - the flagship example has now been installed and used successfully in Codex against the live Orchid Docsalot MCP
 - the flagship example now also completes the same read-only inspect and rewrite workflow headlessly through the official Claude Code, Cursor, Codex, and OpenCode CLIs:
   - `docs/docs-ops-core-four-proof.md`
+- the flagship example now also separates the private write/publish lane from the public Orchid MCP proof, and that install/runtime contract has been exercised mechanically:
+  - `docs/docs-ops-authenticated-publish-path.md`
 - docs/website ingestion has a provider model and writes deterministic artifacts:
   - `.pluxx/sources.json`
   - `.pluxx/docs-context.json`
@@ -240,9 +243,9 @@ The full installed-plugin walkthrough lives in:
 
 The next proof steps are:
 
-- package the all-four CLI workflow proof into a cleaner public-facing demo asset
 - capture at least one polished in-app walkthrough outside Codex
-- separate the write/publish auth path from the public read-only MCP proof
+- prove a real authenticated publish plus rollback against a safe private target
+- keep turning the repo and site proof surfaces into cleaner public-facing assets
 
 ### 3. Docs Ingestion Proof
 

@@ -1,0 +1,105 @@
+---
+title: Docs Ops Flagship Proof
+---
+
+This is the cleanest public-facing proof page for the flagship `docs-ops` example.
+
+Use it when you want the shortest answer to:
+
+- is the flagship example real across the core four
+- is the live Orchid proof only a Codex story
+- did Pluxx separate read-only Orchid access from the publish lane honestly
+
+## What this example proves
+
+The `docs-ops` source project in [`example/docs-ops`](https://github.com/orchidautomation/pluxx/tree/main/example/docs-ops) now proves four things:
+
+1. one maintained source project builds native outputs for Claude Code, Cursor, Codex, and OpenCode
+2. the installed bundles can be verified after install instead of trusting `dist/` alone
+3. the same read-only inspect and rewrite workflow runs through the official CLIs of all four hosts
+4. the public Orchid MCP endpoint is no longer being treated as the write/publish surface
+
+## Core-four install and verify proof
+
+Primary proof doc:
+
+- [Docs Ops core-four proof](https://github.com/orchidautomation/pluxx/blob/main/docs/docs-ops-core-four-proof.md)
+
+What that proof covers:
+
+- `doctor`
+- `lint`
+- `build`
+- `install`
+- `verify-install`
+
+Across:
+
+- Claude Code
+- Cursor
+- Codex
+- OpenCode
+
+## Live Orchid read-only workflow proof
+
+Primary proof docs:
+
+- [Orchid read-only demo](https://github.com/orchidautomation/pluxx/blob/main/example/docs-ops/ORCHID-READONLY-DEMO.md)
+- [Orchid Docs Ops Codex walkthrough](https://github.com/orchidautomation/pluxx/blob/main/docs/orchid-docs-ops-codex-walkthrough.md)
+
+The live public MCP endpoint under test is:
+
+- `https://orchid-docs.docsalot.dev/api/mcp`
+
+That surface is proven for:
+
+- inspect
+- search
+- pull
+- rewrite proposals
+- review
+
+It is not claimed as the publish lane.
+
+## Concrete output artifact
+
+The first user-visible proof artifact is the Orchid Accordion rewrite:
+
+- [before](https://github.com/orchidautomation/pluxx/blob/main/example/docs-ops/demo-rewrites/orchid-components-accordion.before.md)
+- [after](https://github.com/orchidautomation/pluxx/blob/main/example/docs-ops/demo-rewrites/orchid-components-accordion.after.md)
+
+That matters because the flagship example is now proving output quality, not just generator internals.
+
+## Authenticated publish split
+
+Primary proof doc:
+
+- [Docs Ops authenticated publish path](https://github.com/orchidautomation/pluxx/blob/main/docs/docs-ops-authenticated-publish-path.md)
+
+The honest split is:
+
+- public Orchid MCP endpoint
+  - read-only content access
+- private Docsalot authoring path
+  - write and publish
+
+The source project now models the private authoring lane through:
+
+- `DOCSALOT_AUTHORING_URL`
+- `DOCSALOT_AUTHORING_TOKEN`
+- `userConfig`
+- `scripts/check-publish-auth.sh`
+
+That contract has now been exercised mechanically through local install and `verify-install`.
+
+What is still missing:
+
+- a real private Orchid authoring endpoint
+- a safe sandbox publish target
+- one authenticated publish plus rollback run
+
+## Best next pages
+
+- [Self-hosting Pluxx plugin](/examples/self-hosting-pluxx)
+- [Firecrawl, Sumble, and PlayKit-style Examples](/examples/firecrawl-sumble-playkit)
+- [Local core-four proof](/workflows/local-core-four-proof)

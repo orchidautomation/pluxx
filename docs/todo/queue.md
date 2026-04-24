@@ -134,7 +134,9 @@ Open work:
   - Codex
   - OpenCode
   - `docs/docs-ops-core-four-proof.md`
-- package the all-four CLI workflow proof into a cleaner public-facing asset
+- treat the first cleaner public-facing packaging pass as in place:
+  - `docs/proof-and-install.md`
+  - `site/examples/docs-ops-flagship.mdx`
 - capture at least one polished in-app walkthrough outside Codex
 - document what the example preserves vs translates vs degrades across the core four
 - explicitly cover richer Claude skill capabilities where useful:
@@ -142,7 +144,9 @@ Open work:
   - scripts
   - `context: fork`
   - more sophisticated skill behaviors
-- identify the write/publish auth surface separately from the public Docsalot MCP read surface
+- treat the write/publish auth surface as mechanically separated and source-modeled:
+  - `docs/docs-ops-authenticated-publish-path.md`
+- prove a real authenticated publish plus rollback only after a safe private endpoint exists
 - use that reference plugin as:
   - a proof fixture
   - a demo target
@@ -185,6 +189,8 @@ Open work:
 - treat the first repo-native public proof/install landing page as complete:
   - [docs/proof-and-install.md](../proof-and-install.md)
 - keep turning that landing page into a cleaner visual public asset
+- keep the new flagship public example page aligned with the repo proof stack:
+  - `site/examples/docs-ops-flagship.mdx`
 - evaluate whether a `gh skill`-compatible export/publish path makes sense for the skills-only slice of a Pluxx project
 - decide later whether distribution should stay in the main repo or move to a dedicated plugin/marketplace repo
 

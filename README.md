@@ -24,6 +24,8 @@ If you want the fastest way to see what is already real, start with these:
   - the flagship `example/docs-ops` source project rebuilt, installed, `verify-install` checked, and exercised through read-only inspect/rewrite workflows across the official Claude Code, Cursor, Codex, and OpenCode CLIs
 - [Docs Ops live Codex walkthrough](./docs/orchid-docs-ops-codex-walkthrough.md)
   - one maintained `docs-ops` source project compiled into a real Codex plugin and used against Orchid's live Docsalot MCP
+- [Docs Ops authenticated publish path](./docs/docs-ops-authenticated-publish-path.md)
+  - the flagship example now separates Orchid's public read-only MCP proof from the private write/publish contract, and the install/runtime gate is mechanically proven
 - [Orchid Accordion before/after rewrite](./example/docs-ops/demo-rewrites/orchid-components-accordion.after.md)
   - concrete output from the flagship docs workflow example
 - [Core-four provider docs audit](./docs/core-four-provider-docs-audit.md)
@@ -35,7 +37,7 @@ If you want the fastest way to see what is already real, start with these:
 - [Docs-ingestion scaffold before/after demo](./docs/strategy/docs-ingestion-scaffold-before-after.md)
   - a committed Sumble scaffold delta showing what sourced Firecrawl context changes in real generated files
 
-The biggest remaining docs-ingestion work is now continued fixture hardening and broader public packaging, not basic proof-of-value.
+The biggest remaining flagship gap is now a real private publish and rollback run against a safe sandbox authoring target, not basic cross-host workflow proof.
 
 ## Why Pluxx
 

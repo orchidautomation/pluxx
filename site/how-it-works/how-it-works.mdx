@@ -8,10 +8,10 @@ Every AI coding tool has its own plugin format. If you want your tool inside Cla
 Claude Code wants: .claude-plugin/plugin.json + headers auth + CLAUDE.md + PascalCase hooks
 Cursor wants:      .cursor-plugin/plugin.json + headers auth + AGENTS.md + rules/ + hooks/hooks.json
 Codex wants:       .codex-plugin/plugin.json + .mcp.json (`bearer_token_env_var` / `env_http_headers` / `http_headers`) + AGENTS.md + external hooks in .codex/hooks.json
-OpenCode wants:    package.json + index.ts wrapper + dot.notation events
+OpenCode wants:    package.json + host entry code + JS/runtime config surfaces
 ```
 
-Each platform also has its own validation rules that only surface at runtime — Codex rejects skill descriptions over 1024 characters, Claude Code silently truncates at 250, Cursor requires skill names to match directory names. Discovering these gotchas is trial and error.
+Each platform also has its own validation and packaging rules. Some are published hard requirements, and some limits Pluxx treats conservatively as heuristics so generated bundles still land in native-looking territory. Discovering those differences by hand is trial and error.
 
 ## The Solution
 
@@ -28,6 +28,12 @@ See [Agent Mode](/how-it-works/agent-mode) for the semantic-authoring layer.
 See [Architecture](/how-it-works/architecture) for the system view and [Customer Journey](/workflows/import-from-mcp) for the end-to-end user path.
 See [Practical handbook](/getting-started/practical-handbook) for the operational command-by-command workflow.
 See [Core primitives](/overview/core-primitives) for the tightened product scope.
+
+If you want proof before theory, start with:
+
+- [Local core-four proof](/workflows/local-core-four-proof)
+- [Docs Ops Flagship Proof](/examples/docs-ops-flagship)
+- [Self-hosting Pluxx Plugin](/examples/self-hosting-pluxx)
 
 ## What Pluxx Treats As Core
 

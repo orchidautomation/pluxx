@@ -60,8 +60,8 @@ Use this file to:
   - the real OSS authoring substrate
   - the later trust / distribution layer
 - [~] README, docs homepage, GitHub About, and top-level docs all tell the same story
-- [ ] No stale front-door doc still frames already-shipped work as future work
-- [ ] The website and docs front door show the product proof as clearly as the repo docs now do
+- [~] No stale front-door doc still frames already-shipped work as future work
+- [~] The website and docs front door show the product proof as clearly as the repo docs now do
 
 ## 2. Canonical Planning And Doc Hygiene
 
@@ -148,8 +148,12 @@ Use this file to:
 - [~] The flagship example now demonstrates preserve / translate / degrade behavior materially:
   - [docs/docs-ops-core-four-proof.md](../docs-ops-core-four-proof.md)
   - the user-facing story still needs cleaner visual packaging
-- [ ] The private write/publish auth path has been separated and tested as its own follow-on proof
-- [ ] The flagship example has been turned into a clean public-facing demo asset
+- [x] The private write/publish auth path has been separated and mechanically tested as its own follow-on proof:
+  - [docs/docs-ops-authenticated-publish-path.md](../docs-ops-authenticated-publish-path.md)
+- [~] The flagship example has been turned into a cleaner public-facing demo asset:
+  - [docs/proof-and-install.md](../proof-and-install.md)
+  - [site/examples/docs-ops-flagship.mdx](../../site/examples/docs-ops-flagship.mdx)
+- [ ] A real authenticated publish and rollback run exists against a safe private target
 
 ## 6. Self-Hosted Pluxx Plugin Quality
 
@@ -192,9 +196,9 @@ Use this file to:
 ## 9. Public Site, Docs, And Proof Assets
 
 - [~] The repo docs are clearer than they were
-- [ ] The site hero and key pages reflect the stronger current proof
-- [ ] The docs homepage and getting-started path reflect the current product truth
-- [ ] Proof artifacts have dedicated, clean public presentation:
+- [~] The site hero and key pages reflect the stronger current proof
+- [~] The docs homepage and getting-started path reflect the current product truth
+- [~] Proof artifacts have dedicated, cleaner public presentation:
   - source project in
   - native outputs out
   - install verification

@@ -34,6 +34,24 @@ export default definePlugin({
   skills: './skills/',
   commands: './commands/',
   instructions: './INSTRUCTIONS.md',
+  userConfig: [
+    {
+      key: 'docsalot-authoring-url',
+      title: 'Docsalot Authoring URL',
+      description: 'Private authenticated Docsalot authoring endpoint for write and publish workflows. Keep this separate from the public read-only MCP URL.',
+      type: 'string',
+      required: false,
+      envVar: 'DOCSALOT_AUTHORING_URL',
+    },
+    {
+      key: 'docsalot-authoring-token',
+      title: 'Docsalot Authoring Token',
+      description: 'Private bearer or session credential for the Docsalot write and publish path.',
+      type: 'secret',
+      required: false,
+      envVar: 'DOCSALOT_AUTHORING_TOKEN',
+    },
+  ],
   scripts: './scripts/',
   assets: './assets/',
 

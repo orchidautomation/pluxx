@@ -35,6 +35,12 @@ See:
 
 - `ORCHID-READONLY-DEMO.md`
 
+The authenticated write and publish contract is separate.
+
+See:
+
+- `ORCHID-AUTHENTICATED-PUBLISH-PATH.md`
+
 ## Important Setup Note
 
 If you want to operate against a different Docsalot surface, replace the configured endpoint with that site's hosted MCP URL.
@@ -58,11 +64,36 @@ The intended workflow is:
 
 Do not jump straight to publishing if the docs surface has not been inspected or reviewed.
 
+## Read-Only Vs Publish
+
+Treat the current Orchid MCP endpoint as a public read-only content surface:
+
+- `https://orchid-docs.docsalot.dev/api/mcp`
+
+That endpoint is valid for:
+
+- inspect
+- search
+- pull
+- rewrite proposals
+- review
+
+It is not the authenticated publish path.
+
+If you want a true write or publish workflow, require the separate private authoring contract first:
+
+- `DOCSALOT_AUTHORING_URL`
+- `DOCSALOT_AUTHORING_TOKEN`
+
+Do not guess the write endpoint from the public MCP URL.
+Do not imply that a successful read-only MCP run means publish is configured.
+
 ## Bundled Scripts
 
 Docs Ops ships helper scripts under `scripts/`:
 
 - `check-docs-ops-setup.sh`
+- `check-publish-auth.sh`
 - `find-changed-pages.sh`
 - `summarize-diff.sh`
 - `check-frontmatter.sh`

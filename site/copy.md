@@ -2,7 +2,7 @@
 
 ## Hero
 **Headline**: Build AI agent plugins once. Ship the core four.
-**Subhead**: One config generates native plugin packages for Claude Code, Cursor, Codex, and OpenCode, with beta generators for additional hosts.
+**Subhead**: One config generates native plugin packages for Claude Code, Cursor, Codex, and OpenCode. The current proof stack now covers self-hosting, install verification, a live Docsalot flagship workflow, and a separate authenticated publish lane.
 
 **CTA**: `npx @orchid-labs/pluxx init`
 **Hero note**: Published CLI and maintainer flows run on Node 18+.
@@ -10,16 +10,17 @@
 
 ## Terminal Demo (show this as animated/static code block)
 ```
-$ npx @orchid-labs/pluxx build
+$ npx @orchid-labs/pluxx test --install --trust
 
-Loading config...
 Building for: claude-code, cursor, codex, opencode
+Installing local bundles...
 
-  dist/claude-code/    .claude-plugin/plugin.json, .mcp.json, CLAUDE.md, hooks, skills
-  dist/cursor/         .cursor-plugin/plugin.json, mcp.json, hooks.json, AGENTS.md
-  dist/codex/          .codex-plugin/plugin.json, .mcp.json, interface metadata
-  dist/opencode/       package.json, index.ts plugin wrapper
-Done! 39 files generated across 4 platforms.
+  PASS claude-code    installed bundle verified
+  PASS cursor         installed bundle verified
+  PASS codex          installed bundle verified
+  PASS opencode       installed bundle verified
+
+Ready for a real workflow run in the host you actually use.
 ```
 
 ## Agent Grid Section
@@ -76,14 +77,15 @@ mcp: {
 1. `npx @orchid-labs/pluxx init` — scaffold your plugin config
 2. Add your skills, MCP servers, hooks, and brand metadata
 3. `npx @orchid-labs/pluxx build` — generate for all platforms
-4. `npx @orchid-labs/pluxx install` — symlink for local testing
-5. Ship it.
+4. `npx @orchid-labs/pluxx test --install` — build, install, and verify local targets
+5. `npx @orchid-labs/pluxx verify-install` — inspect the host-visible installed state
+6. Ship it.
 
 ## Open Source
 **Headline**: Open source. MIT licensed.
 **Subhead**: The CLI is free forever. Build and test plugins locally with zero restrictions.
 
-**Coming soon**: pluxx.dev — publish to all marketplaces, analytics dashboard, team plugin registries.
+**Later direction**: release-driven install surfaces, stronger proof packaging, and a cleaner public install experience.
 
 ## Footer CTA
 **Headline**: Start building in 30 seconds

@@ -1,6 +1,6 @@
 # Docs Ops Core-Four Proof
 
-Last updated: 2026-04-23
+Last updated: 2026-04-24
 
 ## Doc Links
 
@@ -11,10 +11,12 @@ Last updated: 2026-04-23
   - [docs/todo/success-checklist.md](./todo/success-checklist.md)
   - [docs/roadmap.md](./roadmap.md)
   - [docs/flagship-docs-ops-plugin.md](./flagship-docs-ops-plugin.md)
+  - [docs/docs-ops-authenticated-publish-path.md](./docs-ops-authenticated-publish-path.md)
   - [docs/proof-and-install.md](./proof-and-install.md)
   - [docs/orchid-docs-ops-codex-walkthrough.md](./orchid-docs-ops-codex-walkthrough.md)
   - [docs/core-four-install-update-lifecycle.md](./core-four-install-update-lifecycle.md)
   - [example/docs-ops/ORCHID-READONLY-DEMO.md](../example/docs-ops/ORCHID-READONLY-DEMO.md)
+  - [example/docs-ops/ORCHID-AUTHENTICATED-PUBLISH-PATH.md](../example/docs-ops/ORCHID-AUTHENTICATED-PUBLISH-PATH.md)
 - Update together:
   - [docs/start-here.md](./start-here.md)
   - [docs/todo/queue.md](./todo/queue.md)
@@ -28,6 +30,7 @@ Use this doc when you want the shortest concrete answer to:
 - did the flagship example also complete real inspect and rewrite workflows through the official host CLIs
 - what exact commands were run
 - what this proves beyond the narrower in-app Codex walkthrough
+- what still remains separate from this read-only proof
 
 This is now the flagship mechanical plus headless-workflow core-four proof.
 
@@ -176,6 +179,8 @@ It now has real read-only inspect and rewrite proof through the official CLI/hea
 - the flagship example also now has real headless inspect and rewrite proof through Claude Code, Cursor, Codex, and OpenCode
 - the live Orchid Docsalot MCP wiring survives the host-native compilation path across all four targets
 - the current install/update/reload guidance in [docs/core-four-install-update-lifecycle.md](./core-four-install-update-lifecycle.md) matches observed local behavior well enough to use as product guidance
+- the public read-only Orchid proof is now clearly separated from a mechanically verified private publish contract:
+  - [docs/docs-ops-authenticated-publish-path.md](./docs-ops-authenticated-publish-path.md)
 - the current degrade story is visible in practice:
   - Cursor weakens some richer skill semantics
   - Codex separates hook packaging from the installed plugin bundle
@@ -207,7 +212,12 @@ That is the honest current claim:
 
 - it does not replace the in-app Codex workflow proof in [docs/orchid-docs-ops-codex-walkthrough.md](./orchid-docs-ops-codex-walkthrough.md)
 - it does not yet give us equally polished in-app walkthrough artifacts for Claude Code, Cursor, and OpenCode
-- it does not prove the private authenticated write/publish path yet
+- it does not prove a real authenticated Orchid publish yet
+- it only proves the private write/publish path mechanically today:
+  - source modeled
+  - install/runtime configurable
+  - guard checked
+  - [docs/docs-ops-authenticated-publish-path.md](./docs-ops-authenticated-publish-path.md)
 - it does not replace a cleaner visual public demo asset for the flagship example
 
 ## Why This Matters
@@ -220,12 +230,13 @@ The `docs-ops` proof stack is now more honest and more useful:
   - proves the flagship source project builds, installs, verifies, and completes read-only inspect and rewrite flows across Claude Code, Cursor, Codex, and OpenCode
 - [docs/orchid-docs-ops-codex-walkthrough.md](./orchid-docs-ops-codex-walkthrough.md)
   - proves one polished in-app host-native workflow end to end in Codex
+- [docs/docs-ops-authenticated-publish-path.md](./docs-ops-authenticated-publish-path.md)
+  - proves the private publish lane is now separate, source-modeled, install/runtime-configurable, and mechanically guarded
 
 That means the next best flagship work is no longer basic cross-host installation proof or basic cross-host workflow proof.
 
 It is:
 
-- package the new cross-host CLI workflow proof into a cleaner public-facing demo asset
 - capture at least one polished in-app walkthrough outside Codex
-- document the preserve / translate / degrade behavior more clearly in this example
-- separate and test the authenticated write/publish path
+- prove a real authenticated publish and rollback against a safe private target
+- keep turning the current proof stack into a cleaner public-facing demo asset

@@ -1,8 +1,12 @@
 # Orchid Read-Only Demo
 
-Last updated: 2026-04-22
+Last updated: 2026-04-24
 
 This note records the first real read-only validation of the flagship `docs-ops` example against Orchid's public Docsalot MCP surface.
+
+The separate authenticated publish lane is now documented in:
+
+- `ORCHID-AUTHENTICATED-PUBLISH-PATH.md`
 
 ## Endpoint
 
@@ -122,7 +126,7 @@ It shows:
 - a separate core-four build/install/verify proof now exists at:
   - `docs/docs-ops-core-four-proof.md`
 - the flagship example can be installed into Codex and used against the live Orchid Docsalot MCP through the plugin surface
-- the remaining gap is no longer "can we read and rewrite?" but "how do we prove authenticated publish workflows cleanly?"
+- the remaining gap is no longer "can we read and rewrite?" but "when do we get a real private publish sandbox to prove the authenticated authoring lane end to end?"
 
 ## Codex Installed Plugin Proof
 
@@ -160,7 +164,7 @@ For the full story, see:
 
 ## Next Proof Steps
 
-1. repeat the same obvious user-facing inspect and rewrite proof in Claude Code, Cursor, and OpenCode
-2. decide whether the Accordion rewrite should stay the canonical read-only proof or whether a second page should join it
-3. if a stronger publish proof is desired, identify the separate authenticated write path outside the public MCP surface
-4. test a true authoring or publish loop only after that write path is explicit
+1. decide whether the Accordion rewrite should stay the canonical read-only proof or whether a second page should join it
+2. keep the clean public-facing packaging of the flagship proof improving
+3. supply a real private authoring endpoint plus credential for a safe sandbox target
+4. test a true authoring publish plus rollback loop only after that private path is available

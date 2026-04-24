@@ -109,7 +109,9 @@ The current status is stronger than a pure scaffold:
 - it has now been installed and used in Codex through the local plugin surface
 - it now also completes the same read-only inspect and rewrite workflow through the official Claude Code, Cursor, Codex, and OpenCode CLIs:
   - `docs/docs-ops-core-four-proof.md`
-- the next proof steps are packaging that cross-host workflow proof cleanly, capturing at least one polished in-app walkthrough beyond Codex, then separating the write/publish auth path
+- it now also separates the private write/publish lane from the public Orchid MCP proof and proves that contract mechanically through install/runtime config plus publish gating:
+  - `docs/docs-ops-authenticated-publish-path.md`
+- the next proof steps are capturing at least one polished in-app walkthrough beyond Codex, then running a real authenticated publish plus rollback against a safe private target
 
 This is the strongest next proof surface for:
 
@@ -153,6 +155,8 @@ The next plugin-specific work is:
 - keep `example/pluxx`, `plugins/pluxx`, and the published `pluxx-plugin` repo aligned
 - improve install/update clarity and release distribution UX
 - treat [docs/proof-and-install.md](./proof-and-install.md) as the first repo-native public proof/install landing page, then push it into a cleaner visual public asset
+- keep the flagship public example page aligned with repo truth:
+  - `site/examples/docs-ops-flagship.mdx`
 - evaluate whether a `gh skill`-compatible export belongs as an additional distribution channel for the skills-only slice of Pluxx output
 - keep the plugin/autopilot story honest: starting from a raw MCP should already aim for the strongest native mix of skills, commands, arguments, and specialist agents/subagents, not just a flat skill dump
 

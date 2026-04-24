@@ -1,6 +1,6 @@
 # Flagship Docs-Ops Plugin
 
-Last updated: 2026-04-23
+Last updated: 2026-04-24
 
 ## Doc Links
 
@@ -11,6 +11,7 @@ Last updated: 2026-04-23
   - [docs/todo/master-backlog.md](./todo/master-backlog.md)
   - [docs/roadmap.md](./roadmap.md)
   - [docs/docs-ops-core-four-proof.md](./docs-ops-core-four-proof.md)
+  - [docs/docs-ops-authenticated-publish-path.md](./docs-ops-authenticated-publish-path.md)
   - [docs/strategy/docs-url-ingestion.md](./strategy/docs-url-ingestion.md)
   - [Linear](https://linear.app/orchid-automation)
 - Update together:
@@ -35,6 +36,10 @@ And the core-four build/install/verify proof lives in:
 
 - `docs/docs-ops-core-four-proof.md`
 
+And the separate authenticated publish contract now lives in:
+
+- `docs/docs-ops-authenticated-publish-path.md`
+
 That means the flagship example is no longer only theoretical:
 
 - the source project exists
@@ -45,13 +50,14 @@ That means the flagship example is no longer only theoretical:
 - a real Orchid Accordion before/after rewrite artifact exists in `example/docs-ops/demo-rewrites/`
 - the generated plugin has been installed and used in Codex against the live Orchid surface
 - the same read-only inspect and rewrite workflow now also runs headlessly through the official Claude Code, Cursor, Codex, and OpenCode CLIs
+- the private write/publish lane is now explicitly separated, source-modeled, install/runtime-configurable, and mechanically guarded
 
 The next gaps are no longer basic cross-host workflow proof. They are:
 
-- turn the new all-four CLI workflow proof into a cleaner public-facing proof asset
 - capture at least one polished in-app walkthrough outside Codex
 - document preserve / translate / degrade behavior clearly in this example
-- a separate authenticated publish path, if Orchid wants true write/publish demos
+- a real private authoring endpoint plus one authenticated publish and rollback proof
+- continued public-facing proof and install packaging polish
 
 ## Chosen Example
 

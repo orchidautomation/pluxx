@@ -10,6 +10,12 @@ They show how a public Docsalot MCP surface can be:
 
 without requiring a publish step.
 
+They intentionally sit on the read-only side of the flagship proof stack.
+
+The separate authenticated write/publish lane now lives in:
+
+- `../ORCHID-AUTHENTICATED-PUBLISH-PATH.md`
+
 Current artifact set:
 
 - `orchid-components-accordion.before.md`
