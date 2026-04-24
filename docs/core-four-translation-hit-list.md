@@ -61,7 +61,7 @@ What is already materially true:
 
 What is still not fully closed:
 
-- many features are only documented at the bucket level, not row-by-row translation level
+- the row-level translation docs have now landed, but most rows are still only documented rather than fully closed in the capability registry, generators, explainability, and proof layers
 - several deltas are implemented in code but not yet explained well enough in docs and build output
 - some surfaces are documented but not yet proven with a strong fixture
 
@@ -78,7 +78,7 @@ These are the non-negotiable rules for the remaining work:
 
 ### 1. Document the row-level translation contract for every compiler bucket
 
-- [ ] Add a row-level translation appendix to [docs/core-four-primitive-matrix.md](./core-four-primitive-matrix.md) for:
+- [x] Add a row-level translation appendix to [docs/core-four-primitive-matrix.md](./core-four-primitive-matrix.md) for:
   - skills
   - commands
   - agents
@@ -86,13 +86,13 @@ These are the non-negotiable rules for the remaining work:
   - permissions
   - runtime
   - distribution
-- [ ] For each row, state one of:
+- [x] For each row, state one of:
   - `preserve`
   - `translate`
   - `degrade`
   - `drop`
-- [ ] For each row, include the native target surface, not just the abstract bucket
-- [ ] For each row, include one sentence on the user-visible effect
+- [x] For each row, include the native target surface, not just the abstract bucket
+- [x] For each row, include one sentence on the user-visible effect
 
 ### 2. Turn the branding audit into an explicit translation table
 
@@ -114,11 +114,16 @@ For each field below, make the translation outcome explicit in docs and tests:
 | `privacyPolicyURL` | preserve in Codex only | document and test |
 | `termsOfServiceURL` | preserve in Codex only | document and test |
 
+Status:
+
+- [x] Row-level translation table now exists in [docs/core-four-branding-metadata-audit.md](./core-four-branding-metadata-audit.md)
+- [ ] Generator assertions and proof assets for every brand field still need to be closed row by row
+
 ### 3. Close the skills translation matrix
 
 We already know skills are the most portable layer. The remaining work is documenting and proving the deltas.
 
-- [ ] Create an explicit Claude-first frontmatter translation table covering:
+- [x] Create an explicit Claude-first frontmatter translation table covering:
   - `when_to_use`
   - `argument-hint`
   - `arguments`
@@ -132,7 +137,7 @@ We already know skills are the most portable layer. The remaining work is docume
   - `hooks`
   - `paths`
   - `shell`
-- [ ] For each field, state:
+- [x] For each field, state:
   - Claude outcome
   - Cursor outcome
   - Codex outcome
@@ -142,7 +147,7 @@ We already know skills are the most portable layer. The remaining work is docume
 
 ### 4. Close the commands translation matrix
 
-- [ ] Document the exact rule that commands are:
+- [x] Document the exact rule that commands are:
   - preserved in Claude
   - preserved in Cursor
   - degraded into skills/routing in Codex
@@ -152,7 +157,7 @@ We already know skills are the most portable layer. The remaining work is docume
 
 ### 5. Close the agents translation matrix
 
-- [ ] Document the strongest native mapping for:
+- [x] Document the strongest native mapping for:
   - Claude plugin `agents/`
   - Cursor agents/subagents
   - Codex `.codex/agents/*.toml`
@@ -164,7 +169,7 @@ We already know skills are the most portable layer. The remaining work is docume
 
 ### 6. Close the hooks translation matrix
 
-- [ ] Add a row-level hook translation table for:
+- [x] Add a row-level hook translation table for:
   - event surface
   - storage location
   - runtime behavior
@@ -180,11 +185,11 @@ We already know skills are the most portable layer. The remaining work is docume
 
 This is still the most important under-documented bucket.
 
-- [ ] Document the canonical permission intent model:
+- [x] Document the canonical permission intent model:
   - `allow`
   - `ask`
   - `deny`
-- [ ] Document where that intent lands per host:
+- [x] Document where that intent lands per host:
   - Claude skill/agent/runtime surfaces
   - Cursor permission config and hook/subagent control planes
   - Codex approvals, sandbox, hook matchers, and agents
@@ -194,12 +199,12 @@ This is still the most important under-documented bucket.
 
 ### 8. Close the runtime and MCP translation matrix
 
-- [ ] Document transport mapping explicitly:
+- [x] Document transport mapping explicitly:
   - Claude `stdio` / `http` / `sse`
   - Cursor `stdio` / `sse` / `streamable http`
   - Codex `stdio` / `streamable HTTP`
   - OpenCode local/remote MCP config
-- [ ] Document auth mapping explicitly:
+- [x] Document auth mapping explicitly:
   - env interpolation
   - bearer token
   - OAuth
@@ -212,7 +217,7 @@ This is still the most important under-documented bucket.
 
 ### 9. Close the instructions translation matrix
 
-- [ ] Document the fallback hierarchy per host:
+- [x] Document the fallback hierarchy per host:
   - Claude `CLAUDE.md`
   - Cursor `rules/` plus `AGENTS.md`
   - Codex `AGENTS.md`, `AGENTS.override.md`, config fallbacks
@@ -223,7 +228,7 @@ This is still the most important under-documented bucket.
 ### 10. Close the install/update/distribution matrix
 
 - [ ] Keep [docs/core-four-install-update-lifecycle.md](./core-four-install-update-lifecycle.md) in sync with the provider audit
-- [ ] Add one row-level distribution table covering:
+- [x] Add one row-level distribution table covering:
   - install surface
   - update surface
   - reload behavior

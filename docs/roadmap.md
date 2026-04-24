@@ -192,9 +192,13 @@ These matter, but they are not the immediate center:
 
 - keep the core-four matrix current
 - keep preserve/translate/degrade/drop visible
+- use the row-level appendices in:
+  - [docs/core-four-primitive-matrix.md](./core-four-primitive-matrix.md)
+  - [docs/core-four-branding-metadata-audit.md](./core-four-branding-metadata-audit.md)
+  as the current translation contract
 - do not imply equal support where the repo cannot prove it
 - use [docs/core-four-provider-docs-audit.md](./core-four-provider-docs-audit.md) to refresh the machine-readable rules and generated compatibility docs after each major host-doc review
-- use [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md) to close every mapped row from research through generator behavior and proof
+- use [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md) to close the remaining registry, generator, explainability, and proof work for every mapped row
 
 ## Strategic Horizon: Trust / Distribution Layer
 

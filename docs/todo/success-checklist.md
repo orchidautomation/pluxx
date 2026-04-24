@@ -99,6 +99,10 @@ Use this file to:
 - [~] The runtime, installer, and docs surfaces all reflect the current audited host truth
 - [ ] The remaining downstream generator and maintainer docs that still embed older assumptions have been reconciled
 - [~] Preserve / translate / degrade / drop behavior is becoming visible enough that a user can predict what Pluxx will do per host
+  - row-level translation docs now exist in:
+    - [docs/core-four-primitive-matrix.md](../core-four-primitive-matrix.md)
+    - [docs/core-four-branding-metadata-audit.md](../core-four-branding-metadata-audit.md)
+  - remaining closure is still in registry/generator/explainability/proof layers
 
 ## 4. OSS Authoring Substrate Quality
 

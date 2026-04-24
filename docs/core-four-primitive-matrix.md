@@ -135,6 +135,100 @@ The short rule is:
 - degrade when the host only has a weaker equivalent
 - drop only when there is no honest native equivalent at all
 
+## Row-Level Translation Appendix
+
+Use this appendix when the bucket-level matrix is too coarse.
+
+Each cell names the current Pluxx translation contract for that row and the strongest honest native surface we should target.
+
+Not every row is fully closed in generators and proof yet.
+
+Use [Core-Four Translation Hit List](./core-four-translation-hit-list.md) to track which rows are already:
+
+- documented only
+- encoded in the capability registry
+- emitted by generators
+- explained by lint/build
+- proven by fixtures or release smoke
+
+This is intentionally closure-oriented:
+
+- if a row says `preserve`, the host has a real native surface
+- if a row says `translate`, the intent survives but moves to a different native surface
+- if a row says `degrade`, the host only gets a weaker equivalent today
+- if a row says `drop`, there is no honest native equivalent today
+
+### Skills
+
+| Skill row | Claude Code | Cursor | Codex | OpenCode | User-visible effect |
+|---|---|---|---|---|---|
+| Shared Agent Skills frontmatter: `name`, `description`, `license`, `compatibility`, `metadata`, `disable-model-invocation` | `preserve -> SKILL.md` frontmatter | `preserve -> SKILL.md` frontmatter | `preserve -> SKILL.md` frontmatter | `preserve -> SKILL.md` frontmatter | The basic skill identity and discovery contract remains portable across the core four. |
+| Skill body, supporting files, and bundled scripts | `preserve -> skills/<skill>/` | `preserve -> skills/<skill>/` | `preserve -> skills/<skill>/` | `preserve -> skills/<skill>/` | Workflow instructions stay shared even when discovery and execution differ by host. |
+| Claude discovery hints: `when_to_use` | `preserve -> SKILL.md` frontmatter | `degrade -> compatibility metadata kept in SKILL.md; Cursor only documents the shared frontmatter set` | `degrade -> compatibility metadata kept in SKILL.md; Codex only documents the shared frontmatter set` | `degrade -> compatibility metadata kept in SKILL.md; OpenCode only documents the shared frontmatter set` | Rich Claude auto-invocation hints do not currently become a first-class native discovery surface elsewhere. |
+| Claude argument UX: `argument-hint`, `arguments` | `preserve -> SKILL.md` frontmatter | `degrade -> compatibility metadata only` | `degrade -> compatibility metadata only` | `degrade -> compatibility metadata only` | Argument-aware autocomplete and named argument UX is Claude-first today. |
+| Claude visibility control: `user-invocable` | `preserve -> SKILL.md` frontmatter | `degrade -> compatibility metadata only` | `degrade -> compatibility metadata only` | `degrade -> compatibility metadata only` | Menu visibility is currently strongest in Claude; other hosts should not be assumed to honor the same field directly. |
+| Tool/model tuning inside a skill: `allowed-tools`, `model`, `effort` | `preserve -> SKILL.md` frontmatter | `translate -> move intent to permissions, hooks, or subagent surfaces; raw field itself is not Cursor-native` | `translate -> move intent to permissions companion, approvals, sandboxing, or `.codex/agents/*.toml`; raw field itself is not Codex-native` | `translate -> move intent to permission maps or agent/config surfaces; raw field itself is not OpenCode-native` | The intent survives best when Pluxx promotes it out of the skill file into the host's real control plane. |
+| Delegation from a skill: `context`, `agent` | `preserve -> SKILL.md` frontmatter | `translate -> agents/subagents` | `translate -> custom agents and subagent workflows` | `translate -> agents/config-driven specialists` | Delegated workflow intent is portable, but it usually belongs in the host's native agent system rather than raw skill frontmatter. |
+| Skill-scoped hook intent: `hooks` | `preserve -> skill frontmatter hooks` | `degrade -> move to hooks/hooks.json; skill-local hook scoping is lost` | `degrade -> move to external `.codex/hooks.json`; skill-local hook scoping is lost` | `translate -> runtime event handlers in plugin code; skill-local scoping becomes runtime logic` | Hook behavior can survive, but not always at the same attachment point. |
+| Path/shell activation hints: `paths`, `shell` | `preserve -> SKILL.md` frontmatter | `degrade -> compatibility metadata only` | `degrade -> compatibility metadata only` | `degrade -> compatibility metadata only` | Path-conditioned activation and shell selection are currently Claude-first in the shared skill format. |
+
+### Commands
+
+| Command row | Claude Code | Cursor | Codex | OpenCode | User-visible effect |
+|---|---|---|---|---|---|
+| Canonical command markdown entry | `preserve -> commands/*.md` | `preserve -> commands/*` slash-command surface | `degrade -> .codex/commands.generated.json plus AGENTS.md routing guidance` | `preserve -> commands/*.md or config command definitions` | The workflow remains invocable everywhere, but Codex does not currently get a true plugin-native slash command. |
+| Command description and discovery text | `preserve -> command metadata` | `preserve -> slash-command listing` | `degrade -> description becomes routing guidance only` | `preserve -> command/config listing` | Codex users can still find the workflow, but through guidance rather than a native command palette. |
+| Command arguments and templates | `preserve -> native command template` | `preserve -> slash-command template` | `degrade -> route the same request through the matching skill or instruction flow` | `preserve -> markdown/config command template` | Exact invocation UX varies, but the underlying workflow should stay consistent. |
+
+### Agents
+
+| Agent row | Claude Code | Cursor | Codex | OpenCode | User-visible effect |
+|---|---|---|---|---|---|
+| Specialist prompt/body | `preserve -> agents/*.md` | `translate -> agents/*.md with Cursor-native framing` | `translate -> .codex/agents/*.toml developer_instructions` | `preserve -> agents/*.md or config agent definitions` | Specialist behavior survives, but the storage format differs substantially. |
+| Agent identity: `name`, `description` | `preserve -> frontmatter` | `preserve -> frontmatter` | `translate -> TOML fields` | `preserve -> config definition fields` | Agent names and descriptions remain visible across all four. |
+| Model and execution tuning: `model`, `model_reasoning_effort`, `sandbox_mode` | `preserve -> frontmatter` | `translate -> only a subset currently lands natively` | `translate -> TOML fields where Codex documents them` | `translate -> model lands natively; some tuning remains host-specific` | Tuning survives best in Codex and Claude today; some fields still need host-specific narrowing elsewhere. |
+| Delegation posture: `mode`, `hidden`, nested permission/tool policy | `preserve -> frontmatter` | `degrade -> turned into translation notes and subagent-oriented framing` | `degrade -> turned into TOML plus generated delegation notes` | `preserve/translate -> config-native agent fields such as mode, hidden, permission, tools` | Subagent intent survives semantically, but not every host exposes the same knobs directly. |
+
+### Hooks
+
+| Hook row | Claude Code | Cursor | Codex | OpenCode | User-visible effect |
+|---|---|---|---|---|---|
+| Command-based lifecycle hooks on common events | `preserve -> hooks/hooks.json, manifest hooks, settings hooks, frontmatter hooks` | `preserve -> hooks/hooks.json plus project/user hook files` | `translate -> .codex/hooks.generated.json as external config guidance` | `translate -> JS/TS runtime event handlers` | Hook automation is real across the four, but Codex and OpenCode relocate it out of a bundle-local JSON file. |
+| Prompt-based hooks | `degrade -> host can support more, but current generator drops prompt hooks with warnings` | `preserve -> hooks/hooks.json prompt entries` | `drop -> current generator does not emit prompt hooks` | `drop -> current runtime wrapper only emits command hooks today` | Prompt-driven hook automation is not yet a portable Pluxx surface. |
+| Hook `matcher` field | `preserve -> hook entries` | `preserve -> hook entries` | `translate -> matcher survives in .codex/hooks.generated.json companion` | `translate -> matcher survives in runtime hook definitions` | Matching logic is portable enough to keep, even when the storage layer changes. |
+| Hook `failClosed` | `degrade -> current Claude-family generator drops it` | `preserve -> hook entries` | `translate -> .codex/hooks.generated.json companion` | `translate -> runtime hook definitions` | Strict failure behavior is not yet consistent in Claude outputs. |
+| Hook `loop_limit` | `degrade -> dropped today` | `preserve -> supported on documented Cursor events` | `drop -> not carried into Codex hook output` | `drop -> not carried into OpenCode runtime output` | Recursive hook protection is currently Cursor-first in Pluxx. |
+| Event fidelity | `preserve -> richest event spread of the four` | `preserve -> documented Cursor hook events` | `degrade -> only the supported Codex event subset is emitted` | `translate -> canonical events mapped into runtime event names` | Hook intent is portable, but event names and supported event counts are not. |
+
+### Permissions
+
+| Permission row | Claude Code | Cursor | Codex | OpenCode | User-visible effect |
+|---|---|---|---|---|---|
+| Canonical `allow` / `ask` / `deny` DSL | `translate -> runtime approvals, hook decisions, and agent surfaces` | `translate -> generated permission hook plus CLI/subagent control planes` | `translate -> approvals, sandbox policy, hook matchers, custom agents, and .codex/permissions.generated.json` | `preserve -> config-native permission map plus per-agent overrides` | The user-facing permission story stays coherent, but only OpenCode has a closer direct config analog today. |
+| Tool-family rules: `Bash(...)`, `Edit(...)`, `Read(...)`, `MCP(...)` | `translate -> permission hook/runtime enforcement` | `translate -> generated permission hook script` | `translate -> companion file plus external runtime/admin enforcement` | `preserve -> generated tool-level permission map` | The core permission DSL is useful across all four even though the enforcement layer differs. |
+| Skill-scoped rules: `Skill(...)` and migrated Claude `allowed-tools` intent | `translate -> keep the idea in skill/agent/runtime controls` | `translate -> permission hook can still reason about skill invocations` | `translate -> compiler-intent skillPolicies in .codex/permissions.generated.json` | `degrade -> collapses to coarser tool-level policy because OpenCode lacks a native skill permission key` | Skill-specific permission nuance is still weakest outside Claude and Codex companion artifacts. |
+
+### Runtime
+
+| Runtime row | Claude Code | Cursor | Codex | OpenCode | User-visible effect |
+|---|---|---|---|---|---|
+| Local `stdio` MCP server | `preserve -> .mcp.json` | `preserve -> mcp.json` | `preserve -> .mcp.json` | `translate -> plugin runtime builds local MCP config in code` | Local MCP servers work everywhere, but OpenCode materializes them through runtime code rather than a bundle-local JSON file. |
+| Remote MCP transport | `preserve -> .mcp.json with http/sse` | `preserve -> mcp.json with stdio/sse/streamable-http` | `preserve -> .mcp.json with stdio/streamable-http` | `translate -> opencode.json/config mcp using local/remote semantics` | The same remote server may need a different transport spelling or config shape per host. |
+| Bearer token auth | `preserve -> inline env-backed headers or platform-managed auth` | `preserve -> inline headers or platform-managed auth` | `translate -> bearer_token_env_var when Codex can express it` | `translate -> runtime builds Authorization header from env/user config` | Bearer-token MCP auth is a strong portable case today. |
+| Custom header auth | `preserve -> inline headers` | `preserve -> inline headers` | `translate/degrade -> env_http_headers or static http_headers when Codex can express them exactly; otherwise warn and omit` | `translate -> runtime header materialization` | Custom headers are portable, but Codex cannot express every templated variant exactly. |
+| Platform-managed OAuth/auth | `preserve -> platform-managed auth when configured` | `preserve -> platform-managed auth when configured` | `degrade -> external host config/runtime still required` | `degrade -> external host config/runtime still required` | OAuth-ready plugins are Claude/Cursor-first in current Pluxx outputs. |
+| Helper scripts, assets, passthrough runtime dirs | `preserve -> scripts/, assets/, passthrough` | `preserve -> scripts/, assets/, passthrough` | `preserve -> scripts/, assets/, passthrough` | `preserve -> scripts/, assets/, passthrough plus runtime wrapper` | Shared support files remain portable even when the runtime host is code-first. |
+
+### Distribution
+
+| Distribution row | Claude Code | Cursor | Codex | OpenCode | User-visible effect |
+|---|---|---|---|---|---|
+| Plugin entry and package identity | `translate -> optional .claude-plugin/plugin.json plus marketplace install` | `preserve -> required .cursor-plugin/plugin.json` | `preserve -> required .codex-plugin/plugin.json` | `translate -> package.json plus JS/TS plugin entrypoint and config loading` | Plugin identity exists everywhere, but OpenCode is runtime/package-first and Claude can auto-discover more without a required manifest. |
+| Brand/listing metadata | `drop -> no shared manifest-backed brand contract today` | `translate -> homepage/logo only` | `preserve -> rich interface block` | `drop -> no shared manifest-backed brand contract today` | Rich listing polish is Codex-first today. Use [Core-Four Branding Metadata Audit](./core-four-branding-metadata-audit.md) for the row-level brand field map. |
+| Install, update, and reload surface | `preserve -> marketplace/local install plus /reload-plugins` | `preserve -> local install plus reload-window/restart` | `preserve -> bundle install plus marketplace catalog and refresh/restart behavior` | `translate -> local dir/config install plus reload/restart` | Distribution truth includes lifecycle behavior, not just which files get emitted. |
+| Marketplace and catalog registration | `preserve -> plugin marketplace support` | `preserve -> marketplace metadata and local marketplace path` | `preserve -> repo/home marketplace catalogs` | `degrade -> config/package distribution rather than a marketplace-first flow` | Discovery and updates are not one universal runtime pattern across the four. |
+| `userConfig` and secret setup | `translate -> install/runtime config and env materialization` | `translate -> install/runtime config and env materialization` | `translate -> install/runtime config, env materialization, and companion files` | `translate -> .pluxx-user.json consumed by runtime wrapper` | Users should enter secrets once during install instead of editing generated bundles by hand. |
+
 ## Official Docs Basis
 
 ### Claude Code

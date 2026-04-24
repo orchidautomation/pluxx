@@ -188,7 +188,11 @@ That includes:
 - truthful public metadata and links
 - first-party provider docs reflected accurately in the compatibility story
 - every mapped cross-host delta documented as preserve/translate/degrade/drop with a concrete closure path:
-  - `docs/core-four-translation-hit-list.md`
+  - row-level translation docs now live in:
+    - `docs/core-four-primitive-matrix.md`
+    - `docs/core-four-branding-metadata-audit.md`
+  - remaining registry/generator/explainability/proof closure lives in:
+    - `docs/core-four-translation-hit-list.md`
 
 ### 2. Flagship Depth Example
 

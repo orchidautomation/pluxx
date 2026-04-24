@@ -65,6 +65,10 @@ Status:
   - `docs/compatibility.md`
   - `docs/core-four-primitive-matrix.md`
   - `docs/core-four-install-update-lifecycle.md`
+- the row-level translation appendix has now landed in:
+  - `docs/core-four-primitive-matrix.md`
+- the row-level shared-brand translation contract has now landed in:
+  - `docs/core-four-branding-metadata-audit.md`
 
 This doc should now be treated as the audit source for future refreshes, not as a still-pending recommendation list from the first pass.
 

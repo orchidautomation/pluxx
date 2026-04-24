@@ -1,6 +1,23 @@
 # Core-Four Branding Metadata Audit
 
-Date: 2026-04-18
+Last updated: 2026-04-23
+
+## Doc Links
+
+- Role: row-level audit for shared `brand` metadata and target-native interface fields
+- Related:
+  - [docs/core-four-primitive-matrix.md](./core-four-primitive-matrix.md)
+  - [docs/core-four-provider-docs-audit.md](./core-four-provider-docs-audit.md)
+  - [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md)
+  - [src/schema.ts](../src/schema.ts)
+  - [src/generators/cursor/index.ts](../src/generators/cursor/index.ts)
+  - [src/generators/codex/index.ts](../src/generators/codex/index.ts)
+  - [src/generators/opencode/index.ts](../src/generators/opencode/index.ts)
+- Update together:
+  - [docs/core-four-primitive-matrix.md](./core-four-primitive-matrix.md)
+  - [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md)
+  - [docs/todo/queue.md](./todo/queue.md)
+  - [docs/todo/master-backlog.md](./todo/master-backlog.md)
 
 This audit verifies what plugin branding and interface metadata actually works across the core four:
 
@@ -113,6 +130,26 @@ Legend:
 3. Cursor only consumes a narrow subset of brand metadata: `homepage` and `logo`.
 4. Claude Code and OpenCode currently do not expose a manifest-backed brand/interface layer from the shared `brand` contract.
 5. Policy-link fields are now aligned between `BrandSchema` and the Codex generator.
+
+## Translation Contract
+
+This table is the closure-oriented view of the same audit.
+
+Each row says what Pluxx should claim today for that shared `brand` field.
+
+| Field | Claude Code | Cursor | Codex | OpenCode | User-visible effect |
+|---|---|---|---|---|---|
+| `displayName` | `drop -> no shared manifest-backed field today` | `drop -> no shared manifest-backed field today` | `preserve -> .codex-plugin/plugin.json interface.displayName` | `drop -> no shared manifest-backed field today` | Rich plugin naming in generated manifests is Codex-first today. |
+| `shortDescription` | `drop` | `drop` | `preserve -> interface.shortDescription` | `drop` | Short listing copy currently matters most in Codex plugin UIs. |
+| `longDescription` | `drop` | `drop` | `preserve -> interface.longDescription` | `drop` | Long-form marketplace-style description is Codex-first today. |
+| `category` | `drop` | `drop` | `preserve -> interface.category` | `drop` | Categorization is currently a Codex listing concern, not a shared manifest concept. |
+| `color` | `drop` | `drop` | `preserve -> interface.brandColor` | `drop` | Brand color currently affects Codex interface polish only. |
+| `icon` | `drop as a shared field` | `translate -> .cursor-plugin/plugin.json logo` | `preserve/translate -> interface.composerIcon and interface.logo` | `drop as a shared field` | The same icon asset is useful in Cursor and Codex, but the host field names differ. |
+| `defaultPrompts` | `drop` | `drop` | `preserve -> interface.defaultPrompt` | `drop` | Starter prompts are a Codex-native listing affordance today. |
+| `websiteURL` | `drop` | `translate -> .cursor-plugin/plugin.json homepage` | `preserve -> interface.websiteURL` | `drop` | Website links are portable intent, but Cursor and Codex consume them through different fields. |
+| `screenshots` | `drop` | `drop` | `preserve -> interface.screenshots` | `drop` | Screenshot-rich listing polish is Codex-first today. |
+| `privacyPolicyURL` | `drop` | `drop` | `preserve -> interface.privacyPolicyURL` | `drop` | Policy links are currently only native in Codex interface metadata. |
+| `termsOfServiceURL` | `drop` | `drop` | `preserve -> interface.termsOfServiceURL` | `drop` | Terms links are currently only native in Codex interface metadata. |
 
 ## Recommended Contract Language
 

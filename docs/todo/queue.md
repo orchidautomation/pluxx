@@ -101,7 +101,9 @@ Open work:
 - refresh `src/validation/platform-rules.ts`, `docs/compatibility.md`, and `docs/core-four-primitive-matrix.md` from the first-party provider audit:
   - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
 - use [docs/core-four-translation-hit-list.md](../core-four-translation-hit-list.md) as the concrete closure tracker for:
-  - row-level translation docs
+  - row-level translation docs in:
+    - [docs/core-four-primitive-matrix.md](../core-four-primitive-matrix.md)
+    - [docs/core-four-branding-metadata-audit.md](../core-four-branding-metadata-audit.md)
   - capability registry closure
   - generator closure
   - lint/build explainability

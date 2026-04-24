@@ -83,7 +83,9 @@ Any person or agent should be able to enter the repo and answer:
 - [~] Turn the provider and branding audits into an explicit closure tracker for every mapped cross-host feature:
   - [docs/core-four-translation-hit-list.md](../core-four-translation-hit-list.md)
 - [ ] Close the P0 rows from the translation hit list:
-  - row-level translation docs
+  - row-level translation docs are now in:
+    - [docs/core-four-primitive-matrix.md](../core-four-primitive-matrix.md)
+    - [docs/core-four-branding-metadata-audit.md](../core-four-branding-metadata-audit.md)
   - capability registry closure
   - generator closure
   - explainability closure
