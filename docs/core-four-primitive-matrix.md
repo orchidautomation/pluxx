@@ -141,7 +141,9 @@ Use this appendix when the bucket-level matrix is too coarse.
 
 Each cell names the current Pluxx translation contract for that row and the strongest honest native surface we should target.
 
-Not every row is fully closed in generators and proof yet.
+The current audited prime-time rows are now materially closed in generators, explainability, and proof.
+
+Use the hit list to track future host-drift refreshes and public-proof packaging work rather than assuming the row-level contract is still mostly aspirational.
 
 Use [Core-Four Translation Hit List](./core-four-translation-hit-list.md) to track which rows are already:
 

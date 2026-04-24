@@ -347,6 +347,18 @@ afterEach(() => {
   rmSync(TEST_DIR, { recursive: true, force: true })
 })
 
+async function runMigrate(sourceDir: string, outputDir: string): Promise<void> {
+  mkdirSync(outputDir, { recursive: true })
+
+  const previousCwd = process.cwd()
+  process.chdir(outputDir)
+  try {
+    await migrate(sourceDir)
+  } finally {
+    process.chdir(previousCwd)
+  }
+}
+
 describe('migrate', () => {
   for (const platform of ['claude', 'cursor', 'codex', 'opencode'] as const) {
     it(`migrates Megamind ${platform} example into pluxx config`, async () => {
@@ -503,8 +515,8 @@ describe('migrate', () => {
     const migratedAgent = readFileSync(resolve(outputDir, 'agents/sales-research.md'), 'utf-8')
     expect(migratedAgent).toContain('name: "sales-research"')
     expect(migratedAgent).toContain('description: "Handle complex: research tasks."')
-    expect(migratedAgent).toContain('Preferred model: `gpt-5.4`')
-    expect(migratedAgent).toContain('Preferred reasoning effort: `high`')
+    expect(migratedAgent).toContain('model: "gpt-5.4"')
+    expect(migratedAgent).toContain('model_reasoning_effort: "high"')
     expect(migratedAgent).toContain('Use the MCP for account intelligence.')
   })
 
@@ -530,15 +542,7 @@ describe('migrate', () => {
   it('normalizes OpenCode native agents into canonical markdown while preserving agent permissions', async () => {
     const sourceDir = await setupOpenCodeNativeAgentSource()
     const outputDir = resolve(TEST_DIR, 'out-opencode-native-agents')
-    mkdirSync(outputDir, { recursive: true })
-
-    const previousCwd = process.cwd()
-    process.chdir(outputDir)
-    try {
-      await migrate(sourceDir)
-    } finally {
-      process.chdir(previousCwd)
-    }
+    await runMigrate(sourceDir, outputDir)
 
     const config = readFileSync(resolve(outputDir, 'pluxx.config.ts'), 'utf-8')
     expect(config).toContain("agents: './agents/'")
@@ -552,5 +556,68 @@ describe('migrate', () => {
     expect(migratedAgent).toContain('edit: deny')
     expect(migratedAgent).toContain('"git diff": allow')
     expect(migratedAgent).toContain('"review-*": allow')
+  })
+
+  it('rebuilds a migrated Codex-native specialist into truthful native agent surfaces across the core four', async () => {
+    const sourceDir = await setupCodexNativeAgentSource()
+    const outputDir = resolve(TEST_DIR, 'out-codex-native-agent-proof')
+    await runMigrate(sourceDir, outputDir)
+
+    const migratedAgent = readFileSync(resolve(outputDir, 'agents/sales-research.md'), 'utf-8')
+    expect(migratedAgent).toContain('name: "sales-research"')
+    expect(migratedAgent).toContain('description: "Handle complex: research tasks."')
+    expect(migratedAgent).not.toContain('name = "Sales Research"')
+    expect(migratedAgent).not.toContain('developer_instructions = """')
+
+    const migratedConfig = await loadConfig(outputDir)
+    await build(migratedConfig, outputDir)
+
+    const claudeManifest = JSON.parse(
+      readFileSync(resolve(outputDir, 'dist/claude-code/.claude-plugin/plugin.json'), 'utf-8')
+    )
+    const cursorAgent = readFileSync(resolve(outputDir, 'dist/cursor/agents/sales-research.md'), 'utf-8')
+    const codexAgent = readFileSync(resolve(outputDir, 'dist/codex/.codex/agents/sales-research.toml'), 'utf-8')
+    const opencodeIndex = readFileSync(resolve(outputDir, 'dist/opencode/index.ts'), 'utf-8')
+
+    expect(claudeManifest.agents).toBe('./agents/')
+    expect(cursorAgent).toContain('name: "sales-research"')
+    expect(cursorAgent).toContain('description: "Handle complex: research tasks."')
+    expect(cursorAgent).toContain('Use the MCP for account intelligence.')
+    expect(codexAgent).toContain('name = "sales-research"')
+    expect(codexAgent).toContain('model = "gpt-5.4"')
+    expect(codexAgent).toContain('model_reasoning_effort = "high"')
+    expect(codexAgent).toContain('Use the MCP for account intelligence.')
+    expect(opencodeIndex).toContain('"sales-research"')
+    expect(opencodeIndex).toContain('"description": "Handle complex: research tasks."')
+    expect(opencodeIndex).toContain('Use the MCP for account intelligence.')
+  })
+
+  it('normalizes OpenCode-native permission syntax into canonical agent intent before rebuilding', async () => {
+    const sourceDir = await setupOpenCodeNativeAgentSource()
+    const outputDir = resolve(TEST_DIR, 'out-opencode-native-agent-proof')
+    await runMigrate(sourceDir, outputDir)
+
+    const migratedAgent = readFileSync(resolve(outputDir, 'agents/review.md'), 'utf-8')
+    expect(migratedAgent).toContain('permission:')
+    expect(migratedAgent).toContain('edit: deny')
+    expect(migratedAgent).toContain('"git diff": allow')
+    expect(migratedAgent).toContain('"review-*": allow')
+
+    const migratedConfig = await loadConfig(outputDir)
+    await build(migratedConfig, outputDir)
+
+    const cursorAgent = readFileSync(resolve(outputDir, 'dist/cursor/agents/review.md'), 'utf-8')
+    const codexAgent = readFileSync(resolve(outputDir, 'dist/codex/.codex/agents/review.toml'), 'utf-8')
+    const opencodeIndex = readFileSync(resolve(outputDir, 'dist/opencode/index.ts'), 'utf-8')
+
+    expect(cursorAgent).toContain('Cursor translation note: stay read-only unless the parent task explicitly asks for file edits.')
+    expect(cursorAgent).toContain('Cursor translation note: do not delegate further subtasks unless the parent task explicitly asks for additional specialist work.')
+    expect(codexAgent).toContain('Delegation contract:')
+    expect(codexAgent).toContain('Stay read-only unless the parent task explicitly asks for file edits.')
+    expect(opencodeIndex).toContain('"review"')
+    expect(opencodeIndex).toContain('"permission": {')
+    expect(opencodeIndex).toContain('"edit": "deny"')
+    expect(opencodeIndex).toContain('"git diff": "allow"')
+    expect(opencodeIndex).toContain('"review-*": "allow"')
   })
 })

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
 import { mkdirSync, rmSync, existsSync, lstatSync, readlinkSync, readFileSync } from 'fs'
 import { resolve } from 'path'
-import { ensureHookTrust, installPlugin, listHookCommands, planInstallUserConfig, uninstallPlugin } from '../src/cli/install'
+import { ensureHookTrust, getInstallFollowupNotes, installPlugin, listHookCommands, planInstallUserConfig, uninstallPlugin } from '../src/cli/install'
 import type { PluginConfig, TargetPlatform } from '../src/schema'
 
 const TEST_DIR = resolve(import.meta.dir, '.install-fixture')
@@ -158,6 +158,15 @@ describe('install', () => {
     expect(commands).toEqual([
       { event: 'sessionStart', command: 'echo setup' },
       { event: 'beforeSubmitPrompt', command: 'bash -lc "echo validate"' },
+    ])
+  })
+
+  it('reports host-specific reload guidance for the core four install surfaces', () => {
+    expect(getInstallFollowupNotes(['claude-code', 'cursor', 'codex', 'opencode'])).toEqual([
+      'Claude Code note: if Claude is already open, run /reload-plugins in the session to pick up the new install.',
+      'Cursor note: if Cursor is already open, use Developer: Reload Window or restart Cursor to pick up the new install.',
+      'Codex note: if Codex is already open, use Plugins > Refresh if that action is available in your current UI, or restart Codex to pick up the new install.',
+      'OpenCode note: if OpenCode is already open, restart or reload it so the plugin is picked up.',
     ])
   })
 

@@ -1,6 +1,6 @@
 # Pluxx Success Checklist
 
-Last updated: 2026-04-23
+Last updated: 2026-04-24
 
 ## Doc Links
 
@@ -96,17 +96,20 @@ Use this file to:
   - [docs/core-four-translation-hit-list.md](../core-four-translation-hit-list.md)
 - [x] A host lifecycle matrix exists:
   - [docs/core-four-install-update-lifecycle.md](../core-four-install-update-lifecycle.md)
-- [~] The runtime, installer, and docs surfaces all reflect the current audited host truth
-- [ ] The remaining downstream generator and maintainer docs that still embed older assumptions have been reconciled
-- [~] Preserve / translate / degrade / drop behavior is becoming visible enough that a user can predict what Pluxx will do per host
+- [x] The runtime, installer, and docs surfaces all reflect the current audited host truth
+- [~] The remaining downstream generator and maintainer docs that still embed older assumptions have been reconciled
+- [x] Preserve / translate / degrade / drop behavior is visible enough that a user can predict what Pluxx will do per host
   - row-level translation docs now exist in:
     - [docs/core-four-primitive-matrix.md](../core-four-primitive-matrix.md)
     - [docs/core-four-branding-metadata-audit.md](../core-four-branding-metadata-audit.md)
-  - the last P0 fixture/proof block is now covered by repo tests:
+  - the core translation closure set is now covered by repo tests:
     - rich Claude-style skill fixture carry-through
     - runtime/MCP bearer + OAuth + stdio fixture carry-through
     - instruction-intent carry-through across the core four
-  - remaining closure is now mainly in registry/generator/public-proof layers
+    - native Cursor/Codex/OpenCode fixture carry-through
+    - semantic migration carry-through for agent and permission intent
+    - lint/build/doctor explainability for translated rows
+  - remaining work is now mainly public-proof and install-surface packaging
 
 ## 4. OSS Authoring Substrate Quality
 

@@ -1,6 +1,6 @@
 # Proof And Install
 
-Last updated: 2026-04-23
+Last updated: 2026-04-24
 
 ## Doc Links
 
@@ -97,6 +97,8 @@ curl -fsSL https://github.com/orchidautomation/pluxx-plugin/releases/latest/down
 Then reload or restart OpenCode.
 
 For the fuller per-host install, update, and reload behavior, use [docs/core-four-install-update-lifecycle.md](./core-four-install-update-lifecycle.md).
+
+Those follow-up notes are now backed by repo install-surface tests, not just walkthrough copy.
 
 ## Run Pluxx From Source
 

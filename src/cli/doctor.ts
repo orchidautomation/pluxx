@@ -4,6 +4,7 @@ import { CONFIG_FILES, loadConfig } from '../config/load'
 import { listHookCommands } from './install'
 import { PLATFORM_LIMITS, getCoreFourPrimitiveCapabilities, type CoreFourPlatform, type PrimitiveTranslationMode } from '../validation/platform-rules'
 import { getConfiguredCompilerBuckets, type McpServer, type PluginConfig, type TargetPlatform } from '../schema'
+import { PLUXX_COMPILER_INTENT_PATH, readCompilerIntent } from '../compiler-intent'
 import { MCP_SCAFFOLD_METADATA_PATH, type McpScaffoldMetadata } from './init-from-mcp'
 import { buildPrimitiveTranslationSummary, renderPrimitiveTranslationSummary, type PrimitiveTranslationSummary } from './primitive-summary'
 
@@ -517,6 +518,47 @@ function checkMcpMetadataQuality(checks: DoctorCheck[], metadata: McpScaffoldMet
     fix: 'Before publishing, run `pluxx agent run review` and refine generated sections with concrete tool descriptions and product-shaped naming.',
     path: MCP_SCAFFOLD_METADATA_PATH,
   })
+}
+
+function checkCompilerIntent(checks: DoctorCheck[], rootDir: string): void {
+  try {
+    const compilerIntent = readCompilerIntent(rootDir)
+    if (!compilerIntent) return
+
+    if ((compilerIntent.skillPolicies?.length ?? 0) === 0) {
+      addCheck(checks, {
+        level: 'info',
+        code: 'compiler-intent-empty',
+        title: 'Compiler intent file present',
+        detail: `${PLUXX_COMPILER_INTENT_PATH} exists but does not currently carry migrated source-host policy rows.`,
+        fix: 'No action needed unless you expected migrated source-host policy to survive into generated outputs.',
+        path: PLUXX_COMPILER_INTENT_PATH,
+      })
+      return
+    }
+
+    const sourceLabels = [...new Set(
+      compilerIntent.skillPolicies.map((policy) => `${policy.source.platform}:${policy.source.kind}`),
+    )]
+
+    addCheck(checks, {
+      level: 'info',
+      code: 'compiler-intent-source-host',
+      title: 'Imported source-host intent still influences compilation',
+      detail: `${PLUXX_COMPILER_INTENT_PATH} preserves ${compilerIntent.skillPolicies.length} migrated skill polic${compilerIntent.skillPolicies.length === 1 ? 'y' : 'ies'} from ${sourceLabels.join(', ')} so Pluxx can translate that source-host intent into native target surfaces.`,
+      fix: 'Review the generated permissions, agents, and host companions to confirm the migrated source-host assumptions still match the plugin you want to ship.',
+      path: PLUXX_COMPILER_INTENT_PATH,
+    })
+  } catch (error) {
+    addCheck(checks, {
+      level: 'warning',
+      code: 'compiler-intent-invalid',
+      title: 'Compiler intent file could not be parsed',
+      detail: error instanceof Error ? error.message : String(error),
+      fix: `Repair or remove ${PLUXX_COMPILER_INTENT_PATH} and rerun pluxx doctor.`,
+      path: PLUXX_COMPILER_INTENT_PATH,
+    })
+  }
 }
 
 function checkScaffoldMetadata(checks: DoctorCheck[], rootDir: string, config: PluginConfig): void {
@@ -1150,6 +1192,7 @@ export async function doctorProject(rootDir: string = process.cwd()): Promise<Do
   checkMcpConfig(checks, config)
   checkUserConfig(checks, config)
   checkScaffoldMetadata(checks, rootDir, config)
+  checkCompilerIntent(checks, rootDir)
   checkHookTrust(checks, config)
 
   for (const target of config.targets) {

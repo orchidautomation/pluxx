@@ -1,6 +1,6 @@
 # Core-Four Install And Update Lifecycle
 
-Last updated: 2026-04-23
+Last updated: 2026-04-24
 
 This doc explains the practical install, update, and reload behavior for the four primary Pluxx targets:
 
@@ -70,3 +70,5 @@ That is the wording users should see in:
 - generated installer scripts
 - host-facing docs
 - walkthroughs and demo assets
+
+The repo now also asserts these follow-up notes directly in install-surface tests, so lifecycle wording is no longer only doc guidance.

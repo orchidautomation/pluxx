@@ -23,6 +23,7 @@ export class CodexGenerator extends Generator {
   async generate(): Promise<void> {
     await Promise.all([
       this.generateManifest(),
+      this.generateAppConfig(),
       this.generateMcpConfig('.mcp.json', {
         includeDefaultAuthHeaders: false,
         transformRemoteEntry: ({ name, server }) => {
@@ -134,6 +135,13 @@ export class CodexGenerator extends Generator {
     }
 
     await this.writeJson('.codex-plugin/plugin.json', manifest)
+  }
+
+  private async generateAppConfig(): Promise<void> {
+    const appConfig = this.config.platforms?.codex?.app
+    if (!appConfig || typeof appConfig !== 'object' || Array.isArray(appConfig)) return
+
+    await this.writeJson('.app.json', appConfig as Record<string, unknown>)
   }
 
   private async generatePermissionsCompanion(): Promise<void> {

@@ -1,6 +1,6 @@
 # Core-Four Provider Docs Audit
 
-Last updated: 2026-04-23
+Last updated: 2026-04-24
 
 ## Doc Links
 
@@ -69,6 +69,10 @@ Status:
   - `docs/core-four-primitive-matrix.md`
 - the row-level shared-brand translation contract has now landed in:
   - `docs/core-four-branding-metadata-audit.md`
+- the current audited Codex extras now also have direct generator and fixture coverage:
+  - optional `.app.json`
+  - rich interface metadata
+  - refresh/restart follow-up guidance in install notes
 
 This doc should now be treated as the audit source for future refreshes, not as a still-pending recommendation list from the first pass.
 

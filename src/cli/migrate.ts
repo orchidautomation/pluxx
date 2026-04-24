@@ -724,17 +724,6 @@ function renderMigratedAgentMarkdown(fileStem: string, parsed: ParsedCodexAgent)
   const title = parsed.name ?? titleCaseFromDirName(agentName)
   const bodyLines: string[] = []
 
-  if (parsed.model || parsed.effort) {
-    bodyLines.push('Source metadata:')
-    if (parsed.model) {
-      bodyLines.push(`- Preferred model: \`${parsed.model}\``)
-    }
-    if (parsed.effort) {
-      bodyLines.push(`- Preferred reasoning effort: \`${parsed.effort}\``)
-    }
-    bodyLines.push('')
-  }
-
   if (parsed.developerInstructions) {
     bodyLines.push(parsed.developerInstructions.trim())
   } else {
@@ -745,6 +734,8 @@ function renderMigratedAgentMarkdown(fileStem: string, parsed: ParsedCodexAgent)
     '---',
     `name: ${JSON.stringify(agentName)}`,
     ...(parsed.description ? [`description: ${JSON.stringify(parsed.description)}`] : []),
+    ...(parsed.model ? [`model: ${JSON.stringify(parsed.model)}`] : []),
+    ...(parsed.effort ? [`model_reasoning_effort: ${JSON.stringify(parsed.effort)}`] : []),
     '---',
     '',
     `# ${title}`,

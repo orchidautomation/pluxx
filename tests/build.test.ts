@@ -17,6 +17,7 @@ const testConfig: PluginConfig = {
   brand: {
     displayName: 'Test Plugin',
     shortDescription: 'A test plugin for testing',
+    longDescription: 'A longer test plugin description for rich host listings.',
     category: 'Productivity',
     color: '#FF0000',
     icon: './assets/icon.svg',
@@ -53,6 +54,14 @@ const testConfig: PluginConfig = {
   passthrough: ['./mcp-server/'],
   instructions: './INSTRUCTIONS.md',
   platforms: {
+    codex: {
+      app: {
+        capabilities: ['Interactive', 'Read'],
+        actions: {
+          openComposer: true,
+        },
+      },
+    },
     cursor: {
       rules: [{
         description: 'Megamind operating conventions',
@@ -450,6 +459,9 @@ describe('build', () => {
       readFileSync(resolve(OUT_DIR, 'codex/.codex-plugin/plugin.json'), 'utf-8')
     )
     expect(manifest.interface.displayName).toBe('Test Plugin')
+    expect(manifest.interface.shortDescription).toBe('A test plugin for testing')
+    expect(manifest.interface.longDescription).toBe('A longer test plugin description for rich host listings.')
+    expect(manifest.interface.category).toBe('Productivity')
     expect(manifest.interface.brandColor).toBe('#FF0000')
     expect(manifest.interface.composerIcon).toBe('./assets/icon.svg')
     expect(manifest.interface.logo).toBe('./assets/icon.svg')
@@ -460,12 +472,114 @@ describe('build', () => {
     expect(manifest.interface.termsOfServiceURL).toBe('https://example.com/terms')
   })
 
+  it('applies shared brand metadata only to truthful native listing surfaces', async () => {
+    const claudeManifest = JSON.parse(
+      readFileSync(resolve(OUT_DIR, 'claude-code/.claude-plugin/plugin.json'), 'utf-8')
+    )
+    const cursorManifest = JSON.parse(
+      readFileSync(resolve(OUT_DIR, 'cursor/.cursor-plugin/plugin.json'), 'utf-8')
+    )
+    const codexManifest = JSON.parse(
+      readFileSync(resolve(OUT_DIR, 'codex/.codex-plugin/plugin.json'), 'utf-8')
+    )
+    const opencodePackage = JSON.parse(
+      readFileSync(resolve(OUT_DIR, 'opencode/package.json'), 'utf-8')
+    )
+    const opencodeIndex = readFileSync(resolve(OUT_DIR, 'opencode/index.ts'), 'utf-8')
+
+    expect(codexManifest.interface).toEqual({
+      displayName: 'Test Plugin',
+      shortDescription: 'A test plugin for testing',
+      longDescription: 'A longer test plugin description for rich host listings.',
+      category: 'Productivity',
+      brandColor: '#FF0000',
+      composerIcon: './assets/icon.svg',
+      logo: './assets/icon.svg',
+      defaultPrompt: ['Hello from test plugin'],
+      websiteURL: 'https://example.com',
+      privacyPolicyURL: 'https://example.com/privacy',
+      termsOfServiceURL: 'https://example.com/terms',
+      screenshots: ['./assets/screenshots/overview.svg'],
+      developerName: 'Test Author',
+    })
+
+    expect(cursorManifest.homepage).toBe('https://example.com')
+    expect(cursorManifest.logo).toBe('./assets/icon.svg')
+    expect(cursorManifest.interface).toBeUndefined()
+    expect(cursorManifest.displayName).toBeUndefined()
+    expect(cursorManifest.defaultPrompt).toBeUndefined()
+
+    expect(claudeManifest.interface).toBeUndefined()
+    expect(claudeManifest.homepage).toBeUndefined()
+    expect(claudeManifest.logo).toBeUndefined()
+
+    expect(opencodePackage.description).toBe('A test plugin (OpenCode plugin)')
+    expect(opencodePackage.homepage).toBeUndefined()
+    expect(opencodeIndex).not.toContain('defaultPrompt')
+    expect(opencodeIndex).not.toContain('privacyPolicyURL')
+    expect(opencodeIndex).not.toContain('termsOfServiceURL')
+    expect(opencodeIndex).not.toContain('screenshots')
+  })
+
   it('generates Cursor manifest with homepage and logo metadata', async () => {
     const manifest = JSON.parse(
       readFileSync(resolve(OUT_DIR, 'cursor/.cursor-plugin/plugin.json'), 'utf-8')
     )
     expect(manifest.homepage).toBe('https://example.com')
     expect(manifest.logo).toBe('./assets/icon.svg')
+  })
+
+  it('compiles a native Cursor fixture with slash commands, hook events, MCP auth, and subagent translation', async () => {
+    const cursorManifest = JSON.parse(
+      readFileSync(resolve(OUT_DIR, 'cursor/.cursor-plugin/plugin.json'), 'utf-8')
+    )
+    const cursorHooks = JSON.parse(
+      readFileSync(resolve(OUT_DIR, 'cursor/hooks/hooks.json'), 'utf-8')
+    )
+    const cursorMcp = JSON.parse(
+      readFileSync(resolve(OUT_DIR, 'cursor/mcp.json'), 'utf-8')
+    )
+    const cursorAgent = readFileSync(resolve(OUT_DIR, 'cursor/agents/escalation.md'), 'utf-8')
+
+    expect(cursorManifest.commands).toBe('./commands/')
+    expect(cursorManifest.agents).toBe('./agents/')
+    expect(cursorManifest.hooks).toBe('./hooks/hooks.json')
+    expect(existsSync(resolve(OUT_DIR, 'cursor/commands/pulse.md'))).toBe(true)
+    expect(cursorHooks.hooks.sessionStart?.[0]?.command).toBe('./scripts/validate.sh')
+    expect(cursorHooks.hooks.beforeSubmitPrompt?.[0]?.command).toBe('./scripts/check-prompt.sh')
+    expect(cursorMcp.mcpServers['test-server'].headers.Authorization).toContain('TEST_API_KEY')
+    expect(cursorAgent).toContain('Cursor translation note: stay read-only unless the parent task explicitly asks for file edits.')
+    expect(cursorAgent).toContain('Cursor translation note: only delegate further subtasks when the work clearly benefits from another specialist.')
+  })
+
+  it('compiles a native Codex fixture with interface metadata, .app.json, hooks guidance, and agent metadata', async () => {
+    const codexManifest = JSON.parse(
+      readFileSync(resolve(OUT_DIR, 'codex/.codex-plugin/plugin.json'), 'utf-8')
+    )
+    const codexApp = JSON.parse(
+      readFileSync(resolve(OUT_DIR, 'codex/.app.json'), 'utf-8')
+    )
+    const codexHooks = JSON.parse(
+      readFileSync(resolve(OUT_DIR, 'codex/.codex/hooks.generated.json'), 'utf-8')
+    )
+    const codexCommands = JSON.parse(
+      readFileSync(resolve(OUT_DIR, 'codex/.codex/commands.generated.json'), 'utf-8')
+    )
+    const codexAgent = readFileSync(resolve(OUT_DIR, 'codex/.codex/agents/escalation.toml'), 'utf-8')
+    const codexAgentsMd = readFileSync(resolve(OUT_DIR, 'codex/AGENTS.md'), 'utf-8')
+
+    expect(codexManifest.interface.displayName).toBe('Test Plugin')
+    expect(codexApp).toEqual({
+      capabilities: ['Interactive', 'Read'],
+      actions: {
+        openComposer: true,
+      },
+    })
+    expect(codexHooks.hooks.SessionStart?.[0]?.command).toContain('./scripts/validate.sh')
+    expect(codexCommands.commands[0]?.id).toBe('pulse')
+    expect(codexAgent).toContain('name = "escalation"')
+    expect(codexAgent).toContain('description = "Escalation specialist."')
+    expect(codexAgentsMd).toContain('## Command Routing')
   })
 
   it('generates OpenCode plugin wrapper with env var check', async () => {
@@ -480,6 +594,28 @@ describe('build', () => {
     expect(indexTs).toContain('"hidden": true')
     expect(indexTs).toContain('"task": {')
     expect(indexTs).toContain('config.agent = {')
+  })
+
+  it('compiles a native OpenCode fixture with runtime hooks, config-driven instructions, MCP auth, and permission-rich agents', async () => {
+    const opencodePackage = JSON.parse(
+      readFileSync(resolve(OUT_DIR, 'opencode/package.json'), 'utf-8')
+    )
+    const indexTs = readFileSync(resolve(OUT_DIR, 'opencode/index.ts'), 'utf-8')
+
+    expect(opencodePackage.name).toBe('opencode-test-plugin')
+    expect(indexTs).toContain('const INSTRUCTIONS =')
+    expect(indexTs).toContain('applyInstructions(output.system)')
+    expect(indexTs).toContain('const MCP_DEFINITIONS =')
+    expect(indexTs).toContain('"headerName": "Authorization"')
+    expect(indexTs).toContain('remote.headers = { Authorization: `Bearer ${token}` }')
+    expect(indexTs).toContain('const EVENT_HOOKS')
+    expect(indexTs).toContain('"session.created"')
+    expect(indexTs).toContain('"chat.message"')
+    expect(indexTs).toContain('"escalation"')
+    expect(indexTs).toContain('"mode": "subagent"')
+    expect(indexTs).toContain('"hidden": true')
+    expect(indexTs).toContain('"permission": {')
+    expect(indexTs).toContain('"edit": "deny"')
   })
 
   it('writes documented hook outputs and omits undocumented Codex hook bundles', async () => {

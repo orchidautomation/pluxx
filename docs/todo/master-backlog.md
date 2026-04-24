@@ -1,6 +1,6 @@
 # Master Backlog
 
-Last updated: 2026-04-23
+Last updated: 2026-04-24
 
 This is the most complete repo-native backlog for Pluxx.
 
@@ -89,10 +89,15 @@ Any person or agent should be able to enter the repo and answer:
   - richer Claude-style skill fixture closure
   - remaining runtime/MCP fixture closure
   - remaining instructions proof closure
-- [ ] Continue closing the remaining non-P0 rows from the translation hit list:
-  - lingering registry/generator rows
+- [x] Close the remaining core translation-hit-list rows:
+  - native Cursor/Codex/OpenCode fixture closure
   - migration normalization rows
-  - brand/distribution proof and packaging rows
+  - lint/build/doctor explainability rows
+  - install-lifecycle alignment rows
+- [ ] Continue the post-closure follow-on work from the translation hit list:
+  - public proof and packaging polish
+  - install/distribution asset polish
+  - future host-drift refreshes
 
 ### 2. Flagship reference plugin
 

@@ -1,6 +1,6 @@
 # Start Here
 
-Last updated: 2026-04-23
+Last updated: 2026-04-24
 
 ## Doc Links
 
@@ -193,13 +193,14 @@ That includes:
   - row-level translation docs now live in:
     - `docs/core-four-primitive-matrix.md`
     - `docs/core-four-branding-metadata-audit.md`
-  - the old P0 closure block is now closed:
+  - the old closure block is now materially absorbed into code, tests, and docs:
     - richer Claude-style skill fixture proof
     - runtime/MCP fixture proof
     - instruction-intent proof
-  - remaining closure now lives in:
-    - `docs/core-four-translation-hit-list.md`
-    - lingering generator, migration, and proof-packaging rows after the recent fixture closure pass
+    - native Cursor/Codex/OpenCode fixture proof
+    - migration normalization proof for agents and permission intent
+    - lint/build/doctor explainability for translated rows
+  - [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md) now functions mainly as a maintenance and packaging tracker rather than a list of unresolved core row mappings
 
 ### 2. Flagship Depth Example
 

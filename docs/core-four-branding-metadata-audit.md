@@ -1,6 +1,6 @@
 # Core-Four Branding Metadata Audit
 
-Last updated: 2026-04-23
+Last updated: 2026-04-24
 
 ## Doc Links
 
@@ -130,6 +130,10 @@ Legend:
 3. Cursor only consumes a narrow subset of brand metadata: `homepage` and `logo`.
 4. Claude Code and OpenCode currently do not expose a manifest-backed brand/interface layer from the shared `brand` contract.
 5. Policy-link fields are now aligned between `BrandSchema` and the Codex generator.
+6. Repo build fixtures now assert the full shared-brand translation contract row by row:
+   - Codex preserves the rich interface block
+   - Cursor only gets the narrow homepage/logo translation
+   - Claude Code and OpenCode do not emit misleading shared listing metadata
 
 ## Translation Contract
 
@@ -157,3 +161,4 @@ Each row says what Pluxx should claim today for that shared `brand` field.
 - Describe it as target-graded rather than host-uniform.
 - Position rich metadata such as screenshots and default prompts as Codex-first until other hosts expose equivalent file-backed surfaces.
 - Do not imply that Claude Code or OpenCode consume shared `brand` metadata beyond indirect copy and asset reuse.
+- Treat remaining brand work as public-proof and install-surface polish, not as an unresolved compiler mapping problem.

@@ -1,6 +1,6 @@
 # Pluxx Queue
 
-Last updated: 2026-04-23
+Last updated: 2026-04-24
 
 ## Doc Links
 
@@ -104,8 +104,8 @@ Open work:
   - row-level translation docs in:
     - [docs/core-four-primitive-matrix.md](../core-four-primitive-matrix.md)
     - [docs/core-four-branding-metadata-audit.md](../core-four-branding-metadata-audit.md)
-  - the now-closed rich skill, runtime/MCP, and instruction proof block
-  - any still-open registry, generator, migration, or proof-packaging rows after the recent explainability and fixture fixes
+  - the now-closed registry, generator, migration, explainability, and fixture rows for the current audited core four
+  - any future host-drift refreshes and public proof-packaging follow-ons
 
 ### 2. Flagship depth example
 

@@ -61,9 +61,9 @@ What is already materially true:
 
 What is still not fully closed:
 
-- the row-level translation docs have now landed, but some rows are still only documented rather than fully closed in the capability registry, generators, explainability, and proof layers
-- several deltas are implemented in code but not yet explained well enough in public-facing proof assets
-- a few migration and distribution rows remain more lightly proven than the core skill/runtime/instructions path
+- public-facing proof packaging still lags the underlying generator and fixture truth
+- visual install and distribution assets still need to feel as polished as the code and tests already are
+- future host-doc changes still need the same audit -> registry -> generator -> proof loop
 
 What just moved materially closer to closed:
 
@@ -75,8 +75,8 @@ What just moved materially closer to closed:
 - runtime and MCP fixture closure now covers bearer auth, OAuth-shaped runtime auth, and local stdio MCP across the core four, with lint and doctor calling out external runtime state explicitly
 - shared instruction intent is now proven across all four native surfaces: `CLAUDE.md`, `AGENTS.md`, and OpenCode runtime instruction injection
 
-The previous three “remaining P0 fixture/proof rows” are now closed.
-The remaining unchecked items below are follow-on closure and polish work, not the old blocker cluster.
+The previous “remaining P0 fixture/proof rows” are now closed.
+The remaining work is now mainly public-proof packaging and future host-refresh maintenance, not unresolved core translation behavior.
 
 ## P0 Closure Rules
 
@@ -130,7 +130,7 @@ For each field below, make the translation outcome explicit in docs and tests:
 Status:
 
 - [x] Row-level translation table now exists in [docs/core-four-branding-metadata-audit.md](./core-four-branding-metadata-audit.md)
-- [ ] Generator assertions and proof assets for every brand field still need to be closed row by row
+- [x] Generator assertions now cover the full shared brand field set row by row; remaining brand work is public-facing packaging rather than compiler ambiguity
 
 ### 3. Close the skills translation matrix
 
@@ -175,10 +175,10 @@ We already know skills are the most portable layer. The remaining work is docume
   - Cursor agents/subagents
   - Codex `.codex/agents/*.toml`
   - OpenCode agents/config-driven specialists
-- [ ] Add one real imported or synthetic fixture that proves:
+- [x] Add one real imported or synthetic fixture that proves:
   - source host specialist intent
   - successful translation into the other three hosts
-- [ ] Make migration tests prove we normalize agent intent semantically, not syntactically
+- [x] Make migration tests prove we normalize agent intent semantically, not syntactically
 
 ### 6. Close the hooks translation matrix
 
@@ -208,7 +208,7 @@ This is still the most important under-documented bucket.
   - Codex approvals, sandbox, hook matchers, and agents
   - OpenCode permission config and per-agent overrides
 - [x] Add at least one permission-rich fixture that proves the translation path
-- [ ] Make `migrate` normalize host-specific permission syntax into canonical intent
+- [x] Make `migrate` normalize host-specific permission syntax into canonical intent
 
 ### 8. Close the runtime and MCP translation matrix
 
@@ -240,14 +240,14 @@ This is still the most important under-documented bucket.
 
 ### 10. Close the install/update/distribution matrix
 
-- [ ] Keep [docs/core-four-install-update-lifecycle.md](./core-four-install-update-lifecycle.md) in sync with the provider audit
+- [x] Keep [docs/core-four-install-update-lifecycle.md](./core-four-install-update-lifecycle.md) in sync with the provider audit
 - [x] Add one row-level distribution table covering:
   - install surface
   - update surface
   - reload behavior
   - restart requirement
   - update discovery model
-- [ ] Keep branding metadata, install scripts, and published proof artifacts aligned with this matrix
+- [x] Keep branding metadata, install scripts, and published proof artifacts aligned with this matrix
 
 ## P1 Proof And Fixture Hit List
 
@@ -258,17 +258,17 @@ These are the concrete fixtures that should exist so the translation docs are ba
   - advanced frontmatter
   - hooks
   - `context: fork`
-- [ ] Cursor-native fixture:
+- [x] Cursor-native fixture:
   - slash commands
   - hook events
   - MCP auth/config nuance
   - subagents
-- [ ] Codex-native fixture:
+- [x] Codex-native fixture:
   - plugin interface metadata
   - `.app.json`
   - hooks guidance path
   - agents metadata
-- [ ] OpenCode-native fixture:
+- [x] OpenCode-native fixture:
   - JS or TS plugin runtime
   - runtime hook handlers
   - config-driven instructions
@@ -276,10 +276,10 @@ These are the concrete fixtures that should exist so the translation docs are ba
 
 ## P1 Explainability Hit List
 
-- [ ] `lint` should explain not only that a feature degrades, but where it lands in the target host
-- [ ] `build` summaries should name the native surface emitted for each major translation
-- [ ] `doctor` should explain when an imported project still carries source-host assumptions
-- [ ] `compatibility.md` should be regenerated after each material closure pass, not only after audit refreshes
+- [x] `lint` should explain not only that a feature degrades, but where it lands in the target host
+- [x] `build` summaries should name the native surface emitted for each major translation
+- [x] `doctor` should explain when an imported project still carries source-host assumptions
+- [x] `compatibility.md` should be regenerated after each material closure pass, not only after audit refreshes
 
 ## Order Of Execution
 
@@ -292,6 +292,22 @@ If we want to close this without thrashing, do it in this order:
 5. fixture and proof closure
 6. public proof packaging
 
+## Current Closure State
+
+For the current prime-time core four, the mapped translation rows are now materially closed across:
+
+- row-level docs
+- capability registry behavior
+- generator behavior
+- lint/build/doctor explainability
+- fixture and migration proof
+
+What remains is not “can Pluxx translate this row truthfully?” but:
+
+- does the public proof surface make that truth obvious quickly
+- do the install and listing assets feel polished enough
+- do future host-doc changes keep the matrix current
+
 ## What “Closed” Looks Like
 
 We can say the audit work is truly absorbed when:
@@ -300,3 +316,5 @@ We can say the audit work is truly absorbed when:
 - every non-trivial row points to the generator and proof that back it up
 - the examples prove the strongest interesting native deltas
 - users can predict how Pluxx will translate a feature before they build
+
+That bar is now materially met for the current audited core four.

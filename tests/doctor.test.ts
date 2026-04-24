@@ -324,6 +324,37 @@ describe('doctorProject', () => {
     }
   })
 
+  it('explains when migrated source-host assumptions still influence compilation', async () => {
+    const dir = createProjectFixture()
+    mkdirSync(resolve(dir, '.pluxx'), { recursive: true })
+    writeFileSync(
+      resolve(dir, '.pluxx/compiler-intent.json'),
+      JSON.stringify({
+        version: 1,
+        skillPolicies: [
+          {
+            skillDir: 'hello',
+            title: 'hello',
+            source: {
+              kind: 'claude-allowed-tools',
+              platform: 'claude-code',
+            },
+            permissions: {
+              allow: ['Read(*)'],
+            },
+          },
+        ],
+      }, null, 2),
+    )
+
+    try {
+      const report = await doctorProject(dir)
+      expect(report.checks.some((check) => check.code === 'compiler-intent-source-host' && check.level === 'info')).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('prints stable JSON from the CLI', async () => {
     const dir = createProjectFixture()
 

@@ -4,7 +4,7 @@ import { tmpdir } from 'os'
 import { resolve } from 'path'
 
 const ROOT = resolve(import.meta.dir, '..')
-const CLI_PATH = resolve(ROOT, 'bin/pluxx.js')
+const CLI_PATH = resolve(ROOT, 'src/cli/index.ts')
 
 function spawnCli(argv: string[], cwd: string) {
   return Bun.spawn(['bun', CLI_PATH, ...argv], {
@@ -147,6 +147,69 @@ describe('build command lint gate', () => {
       expect(result.lint.errors).toBe(0)
       expect(existsSync(resolve(projectDir, 'dist/cursor/.cursor-plugin/plugin.json'))).toBe(true)
       expect(existsSync(resolve(projectDir, 'dist/opencode/package.json'))).toBe(false)
+    } finally {
+      rmSync(projectDir, { recursive: true, force: true })
+    }
+  })
+
+  it('prints native target surfaces in the build summary for translated buckets', async () => {
+    const projectDir = mkdtempSync(resolve(tmpdir(), 'pluxx-build-summary-'))
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+    mkdirSync(resolve(projectDir, 'commands'), { recursive: true })
+    mkdirSync(resolve(projectDir, 'agents'), { recursive: true })
+    writeBaseConfig(projectDir, ['claude-code', 'codex', 'opencode'])
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'summary-plugin',
+        version: '0.1.0',
+        description: 'summary fixture',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        commands: './commands/',
+        agents: './agents/',
+        instructions: './INSTRUCTIONS.md',
+        hooks: {
+          sessionStart: [{ command: './scripts/check.sh' }],
+        },
+        permissions: {
+          allow: ['Read(src/**)'],
+        },
+        mcp: {
+          fixture: {
+            transport: 'http',
+            url: 'https://example.com/mcp',
+          },
+        },
+        targets: ['claude-code', 'codex', 'opencode'],
+        outDir: './dist',
+      }, null, 2),
+    )
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A valid skill"', '---', '', '# My Skill'].join('\n'),
+    )
+    writeFileSync(resolve(projectDir, 'commands/run.md'), '# Run\n')
+    writeFileSync(
+      resolve(projectDir, 'agents/research.md'),
+      ['---', 'name: research', 'description: "Research specialist."', '---', '', '# Research'].join('\n'),
+    )
+    writeFileSync(resolve(projectDir, 'INSTRUCTIONS.md'), '# Instructions\n')
+
+    try {
+      const proc = spawnCli(['build'], projectDir)
+      const stdout = await new Response(proc.stdout).text()
+      const stderr = await new Response(proc.stderr).text()
+      const exitCode = await proc.exited
+
+      expect(exitCode).toBe(0)
+      expect(stderr).toBe('')
+      expect(stdout).toContain('Core-four mapping:')
+      expect(stdout).toContain('commands')
+      expect(stdout).toContain('hooks')
+      expect(stdout).toContain('permissions')
+      expect(stdout).toContain('commands on codex: weakened to skills/, AGENTS.md')
+      expect(stdout).toContain('hooks on open: re-expressed via plugin JS/TS event handlers')
     } finally {
       rmSync(projectDir, { recursive: true, force: true })
     }
