@@ -132,6 +132,8 @@ The repo already proves a lot.
   - `docs/docs-ops-core-four-proof.md`
 - the flagship example also has a concrete Orchid Accordion before/after rewrite artifact under `example/docs-ops/demo-rewrites/`
 - the flagship example has now been installed and used successfully in Codex against the live Orchid Docsalot MCP
+- the flagship example now also completes the same read-only inspect and rewrite workflow headlessly through the official Claude Code, Cursor, Codex, and OpenCode CLIs:
+  - `docs/docs-ops-core-four-proof.md`
 - docs/website ingestion has a provider model and writes deterministic artifacts:
   - `.pluxx/sources.json`
   - `.pluxx/docs-context.json`
@@ -221,7 +223,8 @@ The full installed-plugin walkthrough lives in:
 
 The next proof steps are:
 
-- repeat the live workflow in Claude Code, Cursor, and OpenCode
+- package the all-four CLI workflow proof into a cleaner public-facing demo asset
+- capture at least one polished in-app walkthrough outside Codex
 - separate the write/publish auth path from the public read-only MCP proof
 
 ### 3. Docs Ingestion Proof

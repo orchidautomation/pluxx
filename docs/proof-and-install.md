@@ -46,10 +46,10 @@ If you want the shortest credible answer to "is this real yet?", use this order:
    What it proves: one maintained `example/pluxx` source project builds, installs, and passes `verify-install` across Claude Code, Cursor, Codex, and OpenCode.
 
 2. [Docs Ops core-four proof](./docs-ops-core-four-proof.md)
-   What it proves: the flagship `example/docs-ops` source project also builds, installs, and passes `verify-install` across Claude Code, Cursor, Codex, and OpenCode.
+   What it proves: the flagship `example/docs-ops` source project builds, installs, passes `verify-install`, and completes read-only inspect/rewrite workflows through the official Claude Code, Cursor, Codex, and OpenCode CLIs.
 
 3. [Docs Ops live Codex walkthrough](./orchid-docs-ops-codex-walkthrough.md)
-   What it proves: one maintained `docs-ops` source project compiles into a real plugin and talks to Orchid's live Docsalot MCP.
+   What it proves: one maintained `docs-ops` source project compiles into a real in-app Codex plugin and talks to Orchid's live Docsalot MCP.
 
 4. [Orchid Accordion before/after rewrite](../example/docs-ops/demo-rewrites/orchid-components-accordion.after.md)
    What it proves: the flagship example produces user-visible output, not just config files.

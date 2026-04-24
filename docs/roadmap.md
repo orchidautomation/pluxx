@@ -91,7 +91,9 @@ The current status is stronger than a pure scaffold:
   - `docs/docs-ops-core-four-proof.md`
 - it now includes a concrete Orchid Accordion before/after rewrite artifact
 - it has now been installed and used in Codex through the local plugin surface
-- the next proof steps are repeating the live workflow in Claude Code, Cursor, and OpenCode, then separating the write/publish auth path
+- it now also completes the same read-only inspect and rewrite workflow through the official Claude Code, Cursor, Codex, and OpenCode CLIs:
+  - `docs/docs-ops-core-four-proof.md`
+- the next proof steps are packaging that cross-host workflow proof cleanly, capturing at least one polished in-app walkthrough beyond Codex, then separating the write/publish auth path
 
 This is the strongest next proof surface for:
 

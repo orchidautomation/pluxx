@@ -101,9 +101,11 @@ Open work:
   - `example/docs-ops/demo-rewrites/orchid-components-accordion.after.md`
 - [x] Prove the generated plugin can be installed and used in Codex against the live Orchid Docsalot MCP:
   - `docs/orchid-docs-ops-codex-walkthrough.md`
-- [~] Repeat the same obvious user-facing inspect / pull / rewrite proof beyond Codex:
-  - install/verify proof now exists across the core four
-  - live user-facing proof is still strongest in Codex today
+- [x] Prove the same read-only inspect / pull / rewrite workflow through the official host CLIs across Claude Code, Cursor, Codex, and OpenCode:
+  - `docs/docs-ops-core-four-proof.md`
+- [~] Turn the cross-host workflow proof into a cleaner public-facing asset:
+  - headless CLI proof now exists across the core four
+  - the polished in-app walkthrough is still Codex-first today
 - [ ] Exercise richer Claude skill surfaces where useful:
   - supporting files / references
   - scripts

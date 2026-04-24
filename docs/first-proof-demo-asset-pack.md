@@ -148,16 +148,17 @@ Best public use:
 
 ## What Is Still Missing
 
-### 1. Flagship user-facing proof beyond Codex
+### 1. Cleaner packaging for the new cross-host workflow proof
 
 Missing artifact:
 
-- the same level of obvious, user-facing inspect / pull / rewrite proof for Claude Code, Cursor, and OpenCode
+- one cleaner public-facing asset that shows the flagship inspect / pull / rewrite workflow now works across the official Claude Code, Cursor, Codex, and OpenCode CLIs
 
 Why it matters:
 
 - the `docs-ops` flagship install/verify proof now exists across the core four
-- the `docs-ops` live user-facing proof is still strongest in Codex today
+- the `docs-ops` cross-host headless workflow proof now also exists across the core four
+- the polished in-app walkthrough is still strongest in Codex today
 - the story gets better when the same source project feels native in more than one host
 
 ### 2. Cleaner public install proof asset

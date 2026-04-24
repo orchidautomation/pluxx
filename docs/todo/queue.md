@@ -121,10 +121,14 @@ Open work:
   - `example/docs-ops/demo-rewrites/orchid-components-accordion.after.md`
 - treat the installed Codex plugin proof as complete:
   - `docs/orchid-docs-ops-codex-walkthrough.md`
-- repeat the same obvious user-facing inspect / pull / rewrite proof in:
+- treat the official CLI inspect/rewrite proof as complete across:
   - Claude Code
   - Cursor
+  - Codex
   - OpenCode
+  - `docs/docs-ops-core-four-proof.md`
+- package the all-four CLI workflow proof into a cleaner public-facing asset
+- capture at least one polished in-app walkthrough outside Codex
 - document what the example preserves vs translates vs degrades across the core four
 - explicitly cover richer Claude skill capabilities where useful:
   - supporting files / references

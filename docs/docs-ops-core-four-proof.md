@@ -4,7 +4,7 @@ Last updated: 2026-04-23
 
 ## Doc Links
 
-- Role: concrete proof that the flagship `docs-ops` source project builds, installs, and verifies across the core four
+- Role: concrete proof that the flagship `docs-ops` source project builds, installs, verifies, and now runs read-only workflow proofs across the core four
 - Related:
   - [docs/start-here.md](./start-here.md)
   - [docs/todo/queue.md](./todo/queue.md)
@@ -25,12 +25,13 @@ Last updated: 2026-04-23
 Use this doc when you want the shortest concrete answer to:
 
 - did the flagship `docs-ops` source project really build, install, and pass `verify-install` across all four hosts
+- did the flagship example also complete real inspect and rewrite workflows through the official host CLIs
 - what exact commands were run
-- what this proves beyond the narrower live Codex walkthrough
+- what this proves beyond the narrower in-app Codex walkthrough
 
-This is the flagship mechanical core-four proof.
+This is now the flagship mechanical plus headless-workflow core-four proof.
 
-It is not the same thing as the user-facing Codex workflow proof.
+It is not the same thing as the user-facing in-app Codex workflow proof.
 
 ## Source Project Under Test
 
@@ -121,9 +122,58 @@ All four `verify-install` checks passed after install.
 | Codex | `~/.codex/plugins/docs-ops` | PASS | use `Plugins > Refresh` if present, otherwise restart Codex |
 | OpenCode | `~/.config/opencode/plugins/docs-ops` | PASS | reload or restart OpenCode |
 
+## Official CLI Workflow Proof
+
+After the build/install/verify rerun, the same read-only workflow was also exercised through each host's official CLI surface against Orchid's live public Docsalot MCP.
+
+### Commands actually run
+
+```bash
+claude -p --permission-mode bypassPermissions --output-format text \
+  "Use docs-ops to inspect the Orchid Docsalot surface and summarize the page at components/accordion in 3 bullets."
+
+claude -p --permission-mode bypassPermissions --output-format text \
+  "Use docs-ops to rewrite the Orchid page at components/accordion so it has better examples and best practices, but keep it read-only. Return the result as: 1. biggest problems with the current page 2. improved page copy 3. why the rewrite is better."
+
+cursor agent --print --trust --approve-mcps --force --workspace /Users/brandonguerrero/Documents/Orchid\ Automation/Orchid\ Labs/pluxx/example/docs-ops \
+  "Use docs-ops to inspect the Orchid Docsalot surface and summarize the page at components/accordion in 3 bullets."
+
+cursor agent --print --trust --approve-mcps --force --workspace /Users/brandonguerrero/Documents/Orchid\ Automation/Orchid\ Labs/pluxx/example/docs-ops \
+  "Use docs-ops to rewrite the Orchid page at components/accordion so it has better examples and best practices, but keep it read-only. Return the result as: 1. biggest problems with the current page 2. improved page copy 3. why the rewrite is better."
+
+codex exec -C /Users/brandonguerrero/Documents/Orchid\ Automation/Orchid\ Labs/pluxx --dangerously-bypass-approvals-and-sandbox \
+  "Use docs-ops to inspect the Orchid Docsalot surface and summarize the page at components/accordion in 3 bullets."
+
+codex exec -C /Users/brandonguerrero/Documents/Orchid\ Automation/Orchid\ Labs/pluxx --dangerously-bypass-approvals-and-sandbox \
+  "Use docs-ops to rewrite the Orchid page at components/accordion so it has better examples and best practices, but keep it read-only. Return the result as: 1. biggest problems with the current page 2. improved page copy 3. why the rewrite is better."
+
+opencode run --dir /Users/brandonguerrero/Documents/Orchid\ Automation/Orchid\ Labs/pluxx/example/docs-ops --dangerously-skip-permissions \
+  "Use docs-ops to inspect the Orchid Docsalot surface and summarize the page at components/accordion in 3 bullets."
+
+opencode run --dir /Users/brandonguerrero/Documents/Orchid\ Automation/Orchid\ Labs/pluxx/example/docs-ops --dangerously-skip-permissions \
+  "Use docs-ops to rewrite the Orchid page at components/accordion so it has better examples and best practices, but keep it read-only. Return the result as: 1. biggest problems with the current page 2. improved page copy 3. why the rewrite is better."
+```
+
+### Headless workflow result matrix
+
+| Host | Inspect page | Rewrite page | Notes |
+| --- | --- | --- | --- |
+| Claude Code CLI | PASS | PASS | cleanest headless run of the four |
+| Cursor CLI | PASS | PASS | clean headless run with MCP approval flags enabled |
+| Codex CLI | PASS | PASS | works cleanly when run from the repo root with approvals fully bypassed |
+| OpenCode CLI | PASS | PASS | workflow succeeds, but the local environment currently emits unrelated `megamind/scripts/confirm-mutation.sh` noise before and during the run |
+
+That means the flagship example is no longer only:
+
+- mechanically installable across the core four
+- or visibly live only inside Codex
+
+It now has real read-only inspect and rewrite proof through the official CLI/headless surfaces of all four hosts.
+
 ## What This Proves
 
 - the flagship `docs-ops` example is not only a Codex-specific curiosity; it now has a real core-four build/install/verify proof
+- the flagship example also now has real headless inspect and rewrite proof through Claude Code, Cursor, Codex, and OpenCode
 - the live Orchid Docsalot MCP wiring survives the host-native compilation path across all four targets
 - the current install/update/reload guidance in [docs/core-four-install-update-lifecycle.md](./core-four-install-update-lifecycle.md) matches observed local behavior well enough to use as product guidance
 - the current degrade story is visible in practice:
@@ -155,8 +205,8 @@ That is the honest current claim:
 
 ## What This Does Not Prove
 
-- it does not replace the live user-facing Codex workflow proof in [docs/orchid-docs-ops-codex-walkthrough.md](./orchid-docs-ops-codex-walkthrough.md)
-- it does not yet prove the same obvious inspect / pull / rewrite workflow inside Claude Code, Cursor, and OpenCode
+- it does not replace the in-app Codex workflow proof in [docs/orchid-docs-ops-codex-walkthrough.md](./orchid-docs-ops-codex-walkthrough.md)
+- it does not yet give us equally polished in-app walkthrough artifacts for Claude Code, Cursor, and OpenCode
 - it does not prove the private authenticated write/publish path yet
 - it does not replace a cleaner visual public demo asset for the flagship example
 
@@ -167,14 +217,15 @@ The `docs-ops` proof stack is now more honest and more useful:
 - [example/docs-ops/ORCHID-READONLY-DEMO.md](../example/docs-ops/ORCHID-READONLY-DEMO.md)
   - proves the live Orchid public Docsalot MCP surface and the first real rewrite opportunity
 - [docs/docs-ops-core-four-proof.md](./docs-ops-core-four-proof.md)
-  - proves the flagship source project builds, installs, and verifies across Claude Code, Cursor, Codex, and OpenCode
+  - proves the flagship source project builds, installs, verifies, and completes read-only inspect and rewrite flows across Claude Code, Cursor, Codex, and OpenCode
 - [docs/orchid-docs-ops-codex-walkthrough.md](./orchid-docs-ops-codex-walkthrough.md)
-  - proves one host-native live workflow end to end in Codex
+  - proves one polished in-app host-native workflow end to end in Codex
 
-That means the next best flagship work is no longer basic cross-host installation proof.
+That means the next best flagship work is no longer basic cross-host installation proof or basic cross-host workflow proof.
 
 It is:
 
-- repeat the user-facing workflow proof in Claude Code, Cursor, and OpenCode
+- package the new cross-host CLI workflow proof into a cleaner public-facing demo asset
+- capture at least one polished in-app walkthrough outside Codex
 - document the preserve / translate / degrade behavior more clearly in this example
 - separate and test the authenticated write/publish path

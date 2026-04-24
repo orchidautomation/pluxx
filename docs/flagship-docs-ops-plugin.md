@@ -44,10 +44,12 @@ That means the flagship example is no longer only theoretical:
 - the public MCP surface is proven for read-side workflows
 - a real Orchid Accordion before/after rewrite artifact exists in `example/docs-ops/demo-rewrites/`
 - the generated plugin has been installed and used in Codex against the live Orchid surface
+- the same read-only inspect and rewrite workflow now also runs headlessly through the official Claude Code, Cursor, Codex, and OpenCode CLIs
 
-The next gaps are user-facing cross-host proof and write-side proof:
+The next gaps are no longer basic cross-host workflow proof. They are:
 
-- repeat obvious inspect / pull / rewrite proof in Claude Code, Cursor, and OpenCode
+- turn the new all-four CLI workflow proof into a cleaner public-facing proof asset
+- capture at least one polished in-app walkthrough outside Codex
 - document preserve / translate / degrade behavior clearly in this example
 - a separate authenticated publish path, if Orchid wants true write/publish demos
 

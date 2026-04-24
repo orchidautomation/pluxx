@@ -126,9 +126,10 @@ Use this file to:
   - [docs/docs-ops-core-four-proof.md](../docs-ops-core-four-proof.md)
 - [x] There is at least one real before/after rewrite artifact
 - [x] There is at least one installed-plugin proof in Codex
-- [~] The same level of proof is spreading across Claude Code, Cursor, and OpenCode:
-  - core-four build/install/verify proof now exists
-  - live user-facing workflow proof is still strongest in Codex today
+- [x] The same read-only inspect and rewrite workflow is now proven headlessly across Claude Code, Cursor, Codex, and OpenCode:
+  - core-four build/install/verify proof exists
+  - official CLI workflow proof exists
+  - the polished in-app walkthrough is still Codex-first today
 - [~] The flagship example now demonstrates preserve / translate / degrade behavior materially:
   - [docs/docs-ops-core-four-proof.md](../docs-ops-core-four-proof.md)
   - the user-facing story still needs cleaner visual packaging
