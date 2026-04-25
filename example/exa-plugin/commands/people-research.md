@@ -1,5 +1,5 @@
 ---
-description: Find people, experts, operators, or recruiter-style candidate lists with Exa
+description: Exa: find people, experts, operators, or recruiter-style candidate lists
 argument-hint: [person-role-or-target-profile]
 agent: people-scout
 subtask: true

@@ -1,5 +1,5 @@
 ---
-description: Build a source-backed recent-news brief with Exa
+description: Exa: build a source-backed recent-news brief
 argument-hint: [topic-or-company]
 agent: news-scout
 subtask: true

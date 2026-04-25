@@ -1,5 +1,5 @@
 ---
-description: Run a parallel Exa research workflow with specialist agents and source review
+description: Exa: run a parallel research workflow with specialist agents
 argument-hint: [research-question]
 ---
 

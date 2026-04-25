@@ -1,5 +1,5 @@
 ---
-description: Map a company, category, competitor set, or market using Exa
+description: Exa: map a company, category, competitor set, or market
 argument-hint: [company-or-market]
 agent: company-scout
 subtask: true

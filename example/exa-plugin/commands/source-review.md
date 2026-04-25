@@ -1,5 +1,5 @@
 ---
-description: Audit a research result set for source quality, weak evidence, and ranking mistakes
+description: Exa: audit source quality, weak evidence, and ranking mistakes
 argument-hint: [topic-or-current-result-set]
 agent: source-auditor
 subtask: true
