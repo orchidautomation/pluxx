@@ -4,14 +4,34 @@ import Link from "next/link";
 import { featuredBlogPost } from "../posts";
 
 export const metadata: Metadata = {
-  title:
-    "How we rebuilt Exa's Claude-first plugin shape across Claude Code, Cursor, Codex, and OpenCode | Pluxx",
+  title: "How we rebuilt Exa for the core four | Pluxx",
   description:
     "A clean-room Exa example that proves one maintained Pluxx source project can ship native, Exa-backed workflows across Claude Code, Cursor, Codex, and OpenCode.",
 };
 
 const tryItCommand =
   "npx @orchid-labs/pluxx init --from-mcp https://mcp.exa.ai/mcp --yes";
+
+const heroStats = [
+  "1 maintained source project",
+  "4 native destinations",
+  "6 Exa research workflows",
+  "1 bundled Exa MCP",
+];
+
+const liveProofNotes = [
+  "Claude Code runs the Exa workflows in-app with the plugin-bundled MCP tools attached.",
+  "Cursor picks up the same research playbooks and routes them through Exa-backed workflows instead of a generic web-search fallback.",
+  "Codex Desktop can invoke the plugin directly and call Exa through the bundled plugin-scoped MCP connection.",
+  "OpenCode keeps the research pack intact through its own native agent and command surfaces.",
+];
+
+const shippedInBundle = [
+  "parallel research agents and subagents",
+  "company, people, code, news, and source-review workflows",
+  "auth wiring for EXA_API_KEY",
+  "branding, prompts, and screenshots where the host supports them",
+];
 
 export default function ExaBlogPostPage() {
   return (
@@ -54,16 +74,29 @@ export default function ExaBlogPostPage() {
                 <span>·</span>
                 <span>{featuredBlogPost.readTime}</span>
               </div>
+              <div className="blog-proof-strip">
+                {heroStats.map((item) => (
+                  <span className="blog-proof-pill" key={item}>
+                    {item}
+                  </span>
+                ))}
+              </div>
             </div>
 
             <div className="blog-prose">
               <p>
-                Most MCP demos stop too early. They prove a server can answer requests, but they do
-                not show what it takes to turn that server into something that feels native inside
-                the coding agents people actually use every day.
+                Raw MCP access is table stakes. The harder problem is turning that MCP into
+                something that actually feels native inside the coding agents people use every day.
               </p>
 
-              <p>That is the gap Pluxx is trying to close.</p>
+              <div className="blog-callout">
+                <span className="section-kicker">The gap</span>
+                <p>
+                  Most demos stop once the server responds. Pluxx is about what comes next:
+                  shaping that MCP into installable, native-feeling workflows without forking the
+                  project four different ways.
+                </p>
+              </div>
 
               <p>
                 To prove that, we built a clean-room Exa example from three inputs: Exa&apos;s
@@ -71,7 +104,7 @@ export default function ExaBlogPostPage() {
                 Claude plugin.
               </p>
 
-              <h2>What we built</h2>
+              <h2>What shipped</h2>
 
               <p>
                 The result is one maintained source project that now generates native bundles for
@@ -88,8 +121,8 @@ export default function ExaBlogPostPage() {
               </ul>
 
               <p>
-                It also carries the pieces that usually get lost when people reduce the story to
-                “skills everywhere”:
+                It also keeps the pieces that usually get flattened away when the story gets reduced
+                to “skills everywhere”:
               </p>
 
               <ul>
@@ -102,19 +135,24 @@ export default function ExaBlogPostPage() {
               <h2>Why Exa is the right example</h2>
 
               <p>
-                Exa makes the point clearly because it has a strong Claude-first workflow shape. If
-                Pluxx can carry that shape across the core four without flattening it into a single
-                search skill, then the product promise is real.
+                Exa makes the point clearly because it already has a strong workflow shape. If
+                Pluxx can take that shape, keep the research depth, and carry it across the core
+                four without collapsing it into one thin search skill, then the product promise is
+                real.
               </p>
 
               <p>
                 The value is not “we can connect to an MCP.” The value is “we can shape that MCP
-                into the most native honest plugin experience each host can actually support.”
+                into the most native honest plugin experience each host can actually support,” while
+                still keeping one maintained source project at the center.
               </p>
 
-              <h2>What is actually proven</h2>
+              <h2>What “live” means here</h2>
 
-              <p>The Exa example is now proven through real host workflows, not just build output:</p>
+              <p>
+                The Exa example is not just a build artifact. It has now been exercised through
+                real host workflows:
+              </p>
 
               <ul>
                 {featuredBlogPost.proof.map((item) => (
@@ -123,8 +161,22 @@ export default function ExaBlogPostPage() {
               </ul>
 
               <p>
-                That means the bundled Exa MCP is not merely listed in plugin metadata. It is
-                actually callable through the generated workflows.
+                That matters because it means the bundled Exa MCP is not merely listed in plugin
+                metadata. It is actually callable through the generated workflows.
+              </p>
+
+              <ul>
+                {liveProofNotes.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+
+              <h2>What this says about Pluxx</h2>
+
+              <p>
+                Pluxx is not a skill-pack copier and it is not an MCP wrapper service. It is the
+                layer that keeps one maintained plugin source project while compiling the best
+                truthful native version of that experience for each host.
               </p>
 
               <h2>Try it yourself</h2>
@@ -139,16 +191,8 @@ export default function ExaBlogPostPage() {
               </pre>
 
               <p>
-                From there, Pluxx can generate the native bundles, install them locally, and prove
-                the installed state with `verify-install`.
-              </p>
-
-              <h2>What this proves about Pluxx</h2>
-
-              <p>
-                Pluxx is not just a skill pack generator and not just an MCP wrapper. It is the
-                layer that keeps one maintained plugin source project while compiling the best
-                truthful native version of that experience for each host.
+                From there, Pluxx can generate the native bundles, install them locally, and verify
+                the installed state instead of trusting `dist/` alone.
               </p>
 
               <p>
@@ -161,9 +205,22 @@ export default function ExaBlogPostPage() {
           <aside className="blog-post-aside">
             <div className="blog-aside-card">
               <span className="section-kicker">Proof</span>
-              <h3>Live now</h3>
+              <h3>Live across the core four</h3>
+              <p className="blog-aside-copy">
+                These are real workflow runs, not just generated files or static screenshots.
+              </p>
               <ul className="proof-list">
                 {featuredBlogPost.proof.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="blog-aside-card">
+              <span className="section-kicker">Bundle</span>
+              <h3>What ships in the example</h3>
+              <ul className="proof-list">
+                {shippedInBundle.map((item) => (
                   <li key={item}>{item}</li>
                 ))}
               </ul>
@@ -178,17 +235,17 @@ export default function ExaBlogPostPage() {
                   rel="noreferrer"
                   target="_blank"
                 >
-                  View `example/exa-plugin`
+                  Browse the source project
                 </a>
                 <a
                   href="https://github.com/orchidautomation/pluxx/blob/main/docs/exa-research-example.md"
                   rel="noreferrer"
                   target="_blank"
                 >
-                  Read the proof note
+                  Read the repo proof note
                 </a>
                 <a href="https://docs.pluxx.dev/examples/exa-research-example" rel="noreferrer" target="_blank">
-                  See the docs example
+                  Open the docs example
                 </a>
               </div>
             </div>
