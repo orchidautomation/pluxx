@@ -919,6 +919,7 @@ export const CORE_FOUR_PRIMITIVE_CAPABILITIES: Record<CoreFourPlatform, CoreFour
       agents: {
         mode: 'preserve',
         nativeSurfaces: ['agents/*.md', 'config agent definitions'],
+        notes: 'OpenCode agents are first-class native surfaces. Prefer permission-first agent config for new builds; legacy tools remains compatibility input, not the preferred emitted shape.',
       },
       hooks: {
         mode: 'translate',
@@ -928,6 +929,7 @@ export const CORE_FOUR_PRIMITIVE_CAPABILITIES: Record<CoreFourPlatform, CoreFour
       permissions: {
         mode: 'preserve',
         nativeSurfaces: ['config permission', 'per-agent overrides'],
+        notes: 'OpenCode permission is keyed by tool name and patterns, including native skill and task controls. Legacy tools booleans are deprecated in favor of permission.',
       },
       runtime: {
         mode: 'preserve',

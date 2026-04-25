@@ -3,7 +3,7 @@ import { extname, relative, resolve } from 'path'
 import { Generator } from '../base'
 import type { HookEntry, TargetPlatform } from '../../schema'
 import { buildOpenCodePermissionMap } from '../../permissions'
-import { type AgentFrontmatterMap, readCanonicalAgentFiles } from '../../agents'
+import { type AgentFrontmatterMap, type AgentFrontmatterValue, readCanonicalAgentFiles } from '../../agents'
 import { readCanonicalCommandFiles } from '../../commands'
 
 type GeneratedHook = {
@@ -418,14 +418,36 @@ export class OpenCodeGenerator extends Generator {
       if (typeof agent.frontmatter.temperature === 'number') {
         definition.temperature = agent.frontmatter.temperature
       }
+      if (typeof agent.frontmatter.steps === 'number') {
+        definition.steps = agent.frontmatter.steps
+      }
+      if (typeof agent.frontmatter.maxSteps === 'number' && definition.steps === undefined) {
+        definition.steps = agent.frontmatter.maxSteps
+      }
+      if (typeof agent.frontmatter.disable === 'boolean') {
+        definition.disable = agent.frontmatter.disable
+      }
       if (typeof agent.frontmatter.hidden === 'boolean') {
         definition.hidden = agent.frontmatter.hidden
       }
-      const permission = asOpenCodeMap(agent.frontmatter.permission)
+      if (typeof agent.frontmatter.color === 'string' && agent.frontmatter.color) {
+        definition.color = agent.frontmatter.color
+      }
+      if (typeof agent.frontmatter.topP === 'number') {
+        definition.topP = agent.frontmatter.topP
+      }
+      if (typeof agent.frontmatter.top_p === 'number' && definition.topP === undefined) {
+        definition.topP = agent.frontmatter.top_p
+      }
+      const legacyToolTranslation = translateLegacyOpenCodeTools(agent.frontmatter.tools)
+      const permission = mergeOpenCodeMaps(
+        legacyToolTranslation.permission,
+        asOpenCodeMap(agent.frontmatter.permission),
+      )
       if (permission) {
         definition.permission = permission
       }
-      const tools = asOpenCodeMap(agent.frontmatter.tools)
+      const tools = legacyToolTranslation.untranslated
       if (tools) {
         definition.tools = tools
       }
@@ -527,6 +549,93 @@ export class OpenCodeGenerator extends Generator {
 function asOpenCodeMap(value: unknown): AgentFrontmatterMap | undefined {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
   return value as AgentFrontmatterMap
+}
+
+function mergeOpenCodeMaps(
+  base: AgentFrontmatterMap | undefined,
+  override: AgentFrontmatterMap | undefined,
+): AgentFrontmatterMap | undefined {
+  if (!base) return override
+  if (!override) return base
+
+  const merged: AgentFrontmatterMap = { ...base }
+  for (const [key, value] of Object.entries(override)) {
+    if (isOpenCodeMap(merged[key]) && isOpenCodeMap(value)) {
+      merged[key] = {
+        ...(merged[key] as AgentFrontmatterMap),
+        ...value,
+      }
+      continue
+    }
+    merged[key] = value
+  }
+  return merged
+}
+
+function translateLegacyOpenCodeTools(value: unknown): {
+  permission?: AgentFrontmatterMap
+  untranslated?: AgentFrontmatterMap
+} {
+  const tools = asOpenCodeMap(value)
+  if (!tools) return {}
+
+  const permission: AgentFrontmatterMap = {}
+  const untranslated: AgentFrontmatterMap = {}
+
+  for (const [rawKey, rawValue] of Object.entries(tools)) {
+    const key = normalizeLegacyOpenCodeToolKey(rawKey)
+    const translated = translateLegacyOpenCodeToolValue(rawValue)
+    if (translated === undefined) {
+      untranslated[rawKey] = rawValue
+      continue
+    }
+    permission[key] = translated
+  }
+
+  return {
+    ...(Object.keys(permission).length > 0 ? { permission } : {}),
+    ...(Object.keys(untranslated).length > 0 ? { untranslated } : {}),
+  }
+}
+
+function normalizeLegacyOpenCodeToolKey(key: string): string {
+  switch (key) {
+    case 'write':
+    case 'patch':
+    case 'multiedit':
+      return 'edit'
+    case 'shell':
+      return 'bash'
+    default:
+      return key
+  }
+}
+
+function translateLegacyOpenCodeToolValue(value: unknown): AgentFrontmatterValue | undefined {
+  if (typeof value === 'boolean') {
+    return value ? 'allow' : 'deny'
+  }
+
+  if (typeof value === 'string' && ['allow', 'ask', 'deny'].includes(value)) {
+    return value
+  }
+
+  if (!isOpenCodeMap(value)) return undefined
+
+  const nested: AgentFrontmatterMap = {}
+  for (const [key, rawNested] of Object.entries(value)) {
+    const translated = translateLegacyOpenCodeToolValue(rawNested)
+    if (translated === undefined || typeof translated === 'object') {
+      return undefined
+    }
+    nested[key] = translated
+  }
+
+  return nested
+}
+
+function isOpenCodeMap(value: unknown): value is AgentFrontmatterMap {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
 }
 
 

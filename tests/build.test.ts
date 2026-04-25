@@ -7,6 +7,14 @@ import type { PluginConfig } from '../src/schema'
 const TEST_DIR = resolve(import.meta.dir, '.fixture')
 const OUT_DIR = resolve(TEST_DIR, 'dist')
 
+function extractGeneratedJson<T>(source: string, constantName: string): T {
+  const match = source.match(new RegExp(`const ${constantName} = ([\\s\\S]*?)\\n\\nconst `))
+  if (!match?.[1]) {
+    throw new Error(`Could not locate ${constantName} in generated source.`)
+  }
+  return JSON.parse(match[1]) as T
+}
+
 const testConfig: PluginConfig = {
   name: 'test-plugin',
   version: '1.0.0',
@@ -160,6 +168,29 @@ beforeAll(async () => {
       '# Escalation',
       '',
       'Escalate tricky issues with a constrained tool policy.',
+      '',
+    ].join('\n'),
+  )
+  await Bun.write(
+    resolve(TEST_DIR, 'agents/legacy-review.md'),
+    [
+      '---',
+      'name: legacy-review',
+      'description: "Legacy review agent."',
+      'mode: subagent',
+      'steps: 5',
+      'disable: false',
+      'color: accent',
+      'topP: 0.2',
+      'tools:',
+      '  write: false',
+      '  bash: false',
+      '  "gh_grep_*": true',
+      '---',
+      '',
+      '# Legacy Review',
+      '',
+      'Review code without direct edits unless explicitly allowed.',
       '',
     ].join('\n'),
   )
@@ -601,6 +632,7 @@ describe('build', () => {
       readFileSync(resolve(OUT_DIR, 'opencode/package.json'), 'utf-8')
     )
     const indexTs = readFileSync(resolve(OUT_DIR, 'opencode/index.ts'), 'utf-8')
+    const agentDefinitions = extractGeneratedJson<Record<string, Record<string, unknown>>>(indexTs, 'AGENT_DEFINITIONS')
 
     expect(opencodePackage.name).toBe('opencode-test-plugin')
     expect(indexTs).toContain('const INSTRUCTIONS =')
@@ -616,6 +648,21 @@ describe('build', () => {
     expect(indexTs).toContain('"hidden": true')
     expect(indexTs).toContain('"permission": {')
     expect(indexTs).toContain('"edit": "deny"')
+    expect(agentDefinitions['legacy-review']).toEqual({
+      description: 'Legacy review agent.',
+      prompt: '# Legacy Review\n\nReview code without direct edits unless explicitly allowed.',
+      mode: 'subagent',
+      steps: 5,
+      disable: false,
+      color: 'accent',
+      topP: 0.2,
+      permission: {
+        edit: 'deny',
+        bash: 'deny',
+        'gh_grep_*': 'allow',
+      },
+    })
+    expect(JSON.stringify(agentDefinitions['legacy-review'])).not.toContain('"tools"')
   })
 
   it('writes documented hook outputs and omits undocumented Codex hook bundles', async () => {
@@ -670,9 +717,12 @@ describe('build', () => {
     expect(cursorHooks.hooks.beforeShellExecution).toBeDefined()
 
     expect(opencodeIndex).toContain('const PERMISSIONS =')
-    expect(opencodeIndex).toContain('"read": "allow"')
-    expect(opencodeIndex).toContain('"edit": "deny"')
-    expect(opencodeIndex).not.toContain('"skill"')
+    expect(opencodeIndex).toContain('"read": {')
+    expect(opencodeIndex).toContain('"src/**": "allow"')
+    expect(opencodeIndex).toContain('"edit": {')
+    expect(opencodeIndex).toContain('".env": "deny"')
+    expect(opencodeIndex).toContain('"skill": {')
+    expect(opencodeIndex).toContain('"review-scaffold": "deny"')
 
     expect(codexPermissions.model).toBe('pluxx.permissions.v1')
     expect(codexPermissions.enforcedByPluginBundle).toBe(false)

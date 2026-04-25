@@ -207,15 +207,18 @@ Confirmed by official docs:
 - skills, commands, and agents each have native discovery dirs
 - compatibility with `.claude/skills/` and `.agents/skills/` is real
 - MCP is configured directly in host config and supports local and remote servers
-- permissions are first-class host config
+- permissions are first-class host config and are keyed by tool name plus safety guards
+- native `skill` and `task` permission keys are documented
+- agent `tools` is deprecated in favor of `permission`, though still supported for backwards compatibility
 - instructions can come from `AGENTS.md`, `CLAUDE.md`, and config `instructions`
 - hooks are runtime plugin event handlers, not a standalone `hooks.json` convention
 
 Current repo gaps:
 
 - the main machine-readable OpenCode mismatch has now been corrected in `src/validation/platform-rules.ts`
+- the OpenCode generator now also prefers permission-first agent output and translates legacy agent `tools` into `permission` where possible
 - `docs/compatibility.md` now reflects OpenCode as a config/runtime host rather than a `package.json + index.ts` manifest host
-- the remaining risk is downstream docs and examples slipping back into manifest-host framing instead of code-first/runtime-host framing
+- the remaining risk is downstream docs and examples slipping back into manifest-host framing or deprecated legacy-tool framing instead of code-first, permission-first runtime-host framing
 - current skill discovery dirs and instruction surfaces need to stay current as OpenCode evolves
 
 Concrete files to update:

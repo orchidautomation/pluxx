@@ -154,6 +154,9 @@ The repo already proves a lot.
   - `docs/core-four-translation-hit-list.md`
 - the raw-MCP scaffold intelligence is now more explicit in the product itself:
   - agent/autopilot prompt packs now teach native shaping from raw MCP intent into commands, argument-bearing entrypoints, and specialist agents/subagents instead of stopping at a flat skill dump
+- OpenCode-native agent output is now permission-first:
+  - legacy agent `tools` input is translated forward where possible
+  - native OpenCode `skill` and `task` permission keys are treated as real first-class surfaces
 
 ## What Pluxx Is Not Yet
 

@@ -4,6 +4,7 @@ import { loadConfig } from '../config/load'
 import { getConfiguredCompilerBuckets, type PluginConfig, type PluxxCompilerBucket, type TargetPlatform } from '../schema'
 import { PLATFORM_LIMITS, PLATFORM_LIMIT_POLICIES, getCoreFourPrimitiveCapabilities, getPlatformRules, type CoreFourPlatform, type PrimitiveTranslationMode } from '../validation/platform-rules'
 import { collectPermissionRules, permissionRulesNeedToolLevelDowngrade } from '../permissions'
+import { readCanonicalAgentFiles } from '../agents'
 import { buildPrimitiveTranslationSummary, renderPrimitiveTranslationSummary, type PrimitiveTranslationSummary } from './primitive-summary'
 import {
   CURSOR_LOOP_LIMIT_HOOK_EVENTS,
@@ -852,6 +853,27 @@ function lintAgentIsolation(
   }
 }
 
+function lintOpenCodeAgentFrontmatter(
+  dir: string,
+  config: PluginConfig,
+  issues: LintIssue[],
+): void {
+  if (!config.targets.includes('opencode') || !config.agents) return
+
+  const agents = readCanonicalAgentFiles(resolve(dir, config.agents))
+  for (const agent of agents) {
+    if (!('tools' in agent.frontmatter)) continue
+
+    pushIssue(issues, {
+      level: 'warning',
+      code: 'opencode-agent-tools-deprecated',
+      message: 'OpenCode agent `tools` is deprecated. Pluxx will translate legacy agent tools into permission-first OpenCode output where possible, but canonical agents should prefer `permission`.',
+      file: relative(dir, agent.filePath).replace(/\\/g, '/'),
+      platform: 'OpenCode',
+    })
+  }
+}
+
 // ── Gotcha #9: Warn if absolute paths used in hooks/MCP instead of ${CLAUDE_PLUGIN_ROOT} ──
 function lintAbsolutePaths(config: PluginConfig, issues: LintIssue[]): void {
   const absolutePathPattern = /^\/[a-zA-Z]|^[A-Z]:\\/
@@ -1282,12 +1304,12 @@ function lintPermissions(config: PluginConfig, issues: LintIssue[]): void {
   }
 
   if (rules.some(rule => rule.kind === 'Skill')) {
-    const nonClaudeTargets = config.targets.filter(target => target !== 'claude-code')
-    if (nonClaudeTargets.length > 0) {
+    const limitedTargets = config.targets.filter(target => !['claude-code', 'codex', 'opencode'].includes(target))
+    if (limitedTargets.length > 0) {
       pushIssue(issues, {
         level: 'warning',
         code: 'permissions-skill-selector-limited',
-        message: `Skill(...) permission rules are Claude-style and will require downgrade or docs-only handling on ${nonClaudeTargets.join(', ')}.`,
+        message: `Skill(...) permission rules do not have the same native support on ${limitedTargets.join(', ')} and will require downgrade or translation there.`,
         file: 'pluxx.config.ts',
         platform: 'Permissions',
       })
@@ -1298,7 +1320,7 @@ function lintPermissions(config: PluginConfig, issues: LintIssue[]): void {
     pushIssue(issues, {
       level: 'warning',
       code: 'permissions-opencode-downgrade',
-      message: 'OpenCode permission output is currently tool-level. Selector patterns like file globs and specific MCP tool names are downgraded to coarse tool permissions there.',
+      message: 'OpenCode now preserves most canonical permission selectors natively, but MCP(...) rules still translate through OpenCode tool-name patterns and should be verified against the configured MCP server names.',
       file: 'pluxx.config.ts',
       platform: 'OpenCode',
     })
@@ -1393,10 +1415,11 @@ export async function lintProject(
   lintHookEvents(lintConfig, issues)
 
   // Agent file checks
-  const agentsDir = resolve(dir, 'agents')
+  const agentsDir = resolve(dir, lintConfig.agents ?? 'agents')
   const agentFiles = existsSync(agentsDir) ? collectMarkdownFiles(agentsDir) : []
   lintAgentFrontmatter(agentFiles, issues, frontmatterCache)
   lintAgentIsolation(agentFiles, issues, frontmatterCache)
+  lintOpenCodeAgentFrontmatter(dir, { ...lintConfig, agents: lintConfig.agents ?? './agents/' }, issues)
 
   // MCP and brand
   lintMcpUrls(lintConfig, issues)

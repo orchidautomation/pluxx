@@ -56,6 +56,9 @@ The core-four compiler sprint is done.
 - `doctor`, `lint`, and `build` explain preserve/translate/degrade/drop more clearly
 - `pluxx verify-install` is shipped as an explicit host-state check
 - `pluxx test --install` verifies installed consumer bundle state after install, not just `dist/`
+- OpenCode translation is now more honestly native:
+  - agent output prefers `permission` over deprecated legacy `tools`
+  - native `skill` / `task` permission keys are modeled as real host surfaces
 - local core-four proof is real in the host apps:
   - Claude
   - Cursor app

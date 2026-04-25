@@ -482,7 +482,7 @@ describe('lintProject', () => {
 
     const result = await lintProject(projectDir)
     expect(result.issues.some(issue => issue.code === 'codex-permissions-external-config')).toBe(true)
-    expect(result.issues.some(issue => issue.code === 'permissions-skill-selector-limited')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'permissions-skill-selector-limited')).toBe(false)
   })
 
   it('warns when MCP auth or local runtimes depend on external host state', async () => {
@@ -539,7 +539,7 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'mcp-stdio-runtime-dependency' && issue.message.includes('"localFixture"'))).toBe(true)
   })
 
-  it('warns when OpenCode permission output downgrades selector precision to tool-level', async () => {
+  it('warns when OpenCode MCP permission output still relies on tool-name translation', async () => {
     const projectDir = createTempProject()
     mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
 
@@ -553,7 +553,7 @@ describe('lintProject', () => {
         skills: './skills/',
         targets: ['opencode'],
         permissions: {
-          allow: ['Read(src/**)'],
+          allow: ['MCP(exa.search_company)'],
         },
       }, null, 2),
     )
@@ -572,6 +572,49 @@ describe('lintProject', () => {
 
     const result = await lintProject(projectDir)
     expect(result.issues.some(issue => issue.code === 'permissions-opencode-downgrade')).toBe(true)
+  })
+
+  it('warns when canonical agents still use deprecated OpenCode legacy tools', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+    mkdirSync(resolve(projectDir, 'agents'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        agents: './agents/',
+        targets: ['opencode'],
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A valid skill"', '---', '', '# My Skill'].join('\n'),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'agents/review.md'),
+      [
+        '---',
+        'name: review',
+        'description: "Legacy review agent"',
+        'mode: subagent',
+        'tools:',
+        '  write: false',
+        '  bash: false',
+        '---',
+        '',
+        '# Review',
+      ].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'opencode-agent-tools-deprecated')).toBe(true)
   })
 
   it('summarizes non-preserve primitive translations for active targets', async () => {

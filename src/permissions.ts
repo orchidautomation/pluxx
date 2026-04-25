@@ -11,7 +11,7 @@ export interface ParsedPermissionRule {
 }
 
 export interface OpenCodePermissionMap {
-  [tool: string]: PermissionAction
+  [tool: string]: PermissionAction | Record<string, PermissionAction>
 }
 
 const PERMISSION_RULE_REGEX = new RegExp(
@@ -70,7 +70,7 @@ function mergeAction(current: PermissionAction | undefined, next: PermissionActi
 export function permissionRulesNeedToolLevelDowngrade(
   permissions: Partial<Record<PermissionAction, string[]>> | undefined,
 ): boolean {
-  return collectPermissionRules(permissions).some((rule) => rule.pattern !== '*')
+  return collectPermissionRules(permissions).some((rule) => rule.kind === 'MCP')
 }
 
 export function buildOpenCodePermissionMap(
@@ -79,23 +79,83 @@ export function buildOpenCodePermissionMap(
   const rules = collectPermissionRules(permissions)
   const output: OpenCodePermissionMap = {}
 
-  const toolAliases: Record<PermissionRuleKind, string[]> = {
-    Bash: ['bash', 'shell'],
-    Edit: ['edit', 'write'],
-    Read: ['read'],
-    MCP: ['mcp'],
-    // OpenCode's native permission surface is tool-level and does not expose
-    // a dedicated skill permission key.
-    Skill: [],
-  }
-
   for (const rule of rules) {
-    for (const tool of toolAliases[rule.kind]) {
-      output[tool] = mergeAction(output[tool], rule.action)
+    if (rule.kind === 'MCP') {
+      const toolName = translateCanonicalMcpPermission(rule.pattern)
+      if (!toolName) continue
+      output[toolName] = mergeScalarPermission(output[toolName], rule.action)
+      continue
     }
+
+    const tool = toOpenCodePermissionTool(rule.kind)
+    if (!tool) continue
+    output[tool] = mergePatternPermission(output[tool], rule.pattern, rule.action)
   }
 
   return output
+}
+
+function toOpenCodePermissionTool(kind: PermissionRuleKind): string | null {
+  switch (kind) {
+    case 'Bash':
+      return 'bash'
+    case 'Edit':
+      return 'edit'
+    case 'Read':
+      return 'read'
+    case 'Skill':
+      return 'skill'
+    case 'MCP':
+      return null
+  }
+}
+
+function mergeScalarPermission(
+  current: PermissionAction | Record<string, PermissionAction> | undefined,
+  next: PermissionAction,
+): PermissionAction | Record<string, PermissionAction> {
+  if (!current) return next
+
+  if (typeof current === 'string') {
+    return mergeAction(current, next)
+  }
+
+  const merged = { ...current }
+  merged['*'] = mergeAction(merged['*'], next)
+  return merged
+}
+
+function mergePatternPermission(
+  current: PermissionAction | Record<string, PermissionAction> | undefined,
+  pattern: string,
+  next: PermissionAction,
+): PermissionAction | Record<string, PermissionAction> {
+  if (pattern === '*') {
+    return mergeScalarPermission(current, next)
+  }
+
+  const merged: Record<string, PermissionAction> = typeof current === 'string'
+    ? { '*': current }
+    : { ...(current ?? {}) }
+
+  merged[pattern] = mergeAction(merged[pattern], next)
+  return merged
+}
+
+function translateCanonicalMcpPermission(pattern: string): string | null {
+  const trimmed = pattern.trim()
+  if (!trimmed || trimmed === '*') return null
+
+  const dot = trimmed.indexOf('.')
+  if (dot === -1) {
+    return `${trimmed}_*`
+  }
+
+  const server = trimmed.slice(0, dot).trim()
+  const tool = trimmed.slice(dot + 1).trim()
+  if (!server || !tool) return null
+
+  return `${server}_${tool.replace(/\./g, '_')}`
 }
 
 export function buildGeneratedPermissionHookScript(

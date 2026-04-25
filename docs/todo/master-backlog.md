@@ -94,6 +94,10 @@ Any person or agent should be able to enter the repo and answer:
   - migration normalization rows
   - lint/build/doctor explainability rows
   - install-lifecycle alignment rows
+- [x] Tighten the OpenCode translation contract to match the current official docs:
+  - permission-first agent output
+  - legacy agent `tools` translated as compatibility input, not preferred output
+  - native `skill` / `task` permission keys treated as real host surfaces
 - [ ] Continue the post-closure follow-on work from the translation hit list:
   - public proof and packaging polish
   - install/distribution asset polish

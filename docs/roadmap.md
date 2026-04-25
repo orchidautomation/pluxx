@@ -103,6 +103,10 @@ The current status is stronger than a pure scaffold:
 
 - `example/docs-ops` exists
 - it is wired to Orchid's public Docsalot MCP endpoint for read-only proof
+- OpenCode compatibility is now more honest and native:
+  - agent output prefers `permission`
+  - legacy agent `tools` is compatibility input, not the preferred emitted shape
+  - `skill` / `task` permission keys are now treated as native host surfaces
 - it now builds, installs, and passes `verify-install` across Claude Code, Cursor, Codex, and OpenCode:
   - `docs/docs-ops-core-four-proof.md`
 - it now includes a concrete Orchid Accordion before/after rewrite artifact
