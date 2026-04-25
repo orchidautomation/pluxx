@@ -4,13 +4,33 @@ import Link from "next/link";
 import { featuredBlogPost } from "../posts";
 
 export const metadata: Metadata = {
-  title: "How we rebuilt Exa for the core four | Pluxx",
+  title: "How Exa can ship natively across Claude Code, Cursor, Codex, and OpenCode | Pluxx",
   description:
-    "A clean-room Exa example that proves one maintained Pluxx source project can ship native, Exa-backed workflows across Claude Code, Cursor, Codex, and OpenCode.",
+    "A clean-room Exa example that proves one maintained source project can ship native, Exa-backed workflows across Claude Code, Cursor, Codex, and OpenCode.",
 };
 
-const tryItCommand =
-  "npx @orchid-labs/pluxx init --from-mcp https://mcp.exa.ai/mcp --yes";
+const installCommands = [
+  {
+    label: "Claude Code",
+    command:
+      "curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example/exa-plugin/release/install-claude-code.sh | bash",
+  },
+  {
+    label: "Cursor",
+    command:
+      "curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example/exa-plugin/release/install-cursor.sh | bash",
+  },
+  {
+    label: "Codex",
+    command:
+      "curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example/exa-plugin/release/install-codex.sh | bash",
+  },
+  {
+    label: "OpenCode",
+    command:
+      "curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example/exa-plugin/release/install-opencode.sh | bash",
+  },
+];
 
 const heroStats = [
   "1 maintained source project",
@@ -136,9 +156,9 @@ export default function ExaBlogPostPage() {
 
               <p>
                 Exa makes the point clearly because it already has a strong workflow shape. If
-                Pluxx can take that shape, keep the research depth, and carry it across the core
-                four without collapsing it into one thin search skill, then the product promise is
-                real.
+                that same workflow can reach Claude Code, Cursor, Codex, and OpenCode without
+                becoming four separate plugin products, the distribution story is materially better
+                for Exa and for any team building on top of a serious MCP.
               </p>
 
               <p>
@@ -179,20 +199,27 @@ export default function ExaBlogPostPage() {
                 truthful native version of that experience for each host.
               </p>
 
-              <h2>Try it yourself</h2>
+              <h2>Install it</h2>
 
               <p>
-                If you want to start from Exa&apos;s public MCP and generate your own maintained
-                source project, the fastest entry path is:
+                These installers build the public Exa example from source and install the native
+                bundle directly into the host you already use:
               </p>
 
-              <pre className="blog-code">
-                <code>{tryItCommand}</code>
-              </pre>
+              {installCommands.map((item) => (
+                <div key={item.label}>
+                  <p>
+                    <strong>{item.label}</strong>
+                  </p>
+                  <pre className="blog-code">
+                    <code>{item.command}</code>
+                  </pre>
+                </div>
+              ))}
 
               <p>
-                From there, Pluxx can generate the native bundles, install them locally, and verify
-                the installed state instead of trusting `dist/` alone.
+                If you want higher Exa limits, set `EXA_API_KEY` in your shell before you run the
+                installer.
               </p>
 
               <p>

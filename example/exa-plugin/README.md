@@ -74,6 +74,40 @@ This example has already been:
 
 It also surfaced a real compiler gap during authoring: canonical Pluxx agents needed a stronger Claude-native translation layer instead of raw pass-through. That fix now lives in the main Pluxx generators.
 
+## Direct Install
+
+These one-command installers build the current Exa example from the public repo source and install it into the host you actually use.
+
+Claude Code:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example/exa-plugin/release/install-claude-code.sh | bash
+```
+
+Cursor:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example/exa-plugin/release/install-cursor.sh | bash
+```
+
+Codex:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example/exa-plugin/release/install-codex.sh | bash
+```
+
+OpenCode:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example/exa-plugin/release/install-opencode.sh | bash
+```
+
+Optional for higher limits:
+
+```bash
+export EXA_API_KEY="your_exa_api_key"
+```
+
 ## Local Validation
 
 From this directory:

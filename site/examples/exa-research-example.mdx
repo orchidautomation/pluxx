@@ -2,7 +2,7 @@
 title: Exa Research Example
 ---
 
-This is the cleanest public page for the Exa clean-room example.
+This is the cleanest public page for the Exa distribution example.
 
 Use it when you want the shortest answer to:
 
@@ -26,6 +26,38 @@ This example is built against:
 - the workflow shape of Exa's official Claude plugin
 
 It is a clean-room example, not an official Exa release.
+
+## Install in your host
+
+Claude Code:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example/exa-plugin/release/install-claude-code.sh | bash
+```
+
+Cursor:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example/exa-plugin/release/install-cursor.sh | bash
+```
+
+Codex:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example/exa-plugin/release/install-codex.sh | bash
+```
+
+OpenCode:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example/exa-plugin/release/install-opencode.sh | bash
+```
+
+Optional for higher limits:
+
+```bash
+export EXA_API_KEY="your_exa_api_key"
+```
 
 ## What is inside the source project
 
@@ -89,16 +121,18 @@ That matters because it shows the bundled Exa MCP is actually callable through t
 
 ## Why this example matters
 
-This example is useful because it forced Pluxx to get more native, not more generic.
+This example is useful because it shows what Exa could look like beyond a single Claude-first surface.
 
-While making this example install correctly, Pluxx had to improve:
+The important outcome is not just that Exa search is callable.
 
-- Claude-native agent translation
-- manifest-agent emission for Claude bundles
-- OpenCode permission-first agent output
+It is that one maintained workflow layer can now reach:
 
-So this page is not only showing a new example.
-It is showing a public example that made the compiler better.
+- Claude Code
+- Cursor
+- Codex
+- OpenCode
+
+without forcing Exa to maintain four separate plugin products just to keep the same research experience available where developers already work.
 
 ## Best next pages
 

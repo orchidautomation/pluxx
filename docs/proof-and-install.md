@@ -60,7 +60,7 @@ If you want the shortest credible answer to "is this real yet?", use this order:
    What it proves: the flagship example produces user-visible output, not just config files.
 
 6. [Exa Research Example](./exa-research-example.md)
-   What it proves: Pluxx can take a strong Claude-first research-plugin shape, keep specialist agents plus rich brand metadata, compile it into native bundles across Claude Code, Cursor, Codex, and OpenCode from one maintained source project, and execute real Exa-backed workflows through live host surfaces.
+   What it proves: Exa-style research workflows can ship natively across Claude Code, Cursor, Codex, and OpenCode from one maintained source project, while keeping bundled MCP wiring, specialist agents, and host-native install surfaces.
 
 7. [Docs-ingestion scaffold before/after demo](./strategy/docs-ingestion-scaffold-before-after.md)
    What it proves: Firecrawl-backed sourced context changes the real generated scaffold, not just an eval row.
@@ -77,7 +77,7 @@ If you need the public story in the fewest moving parts, use these four proof pa
 | Self-hosted core four | [pluxx-self-hosted-core-four-proof](./pluxx-self-hosted-core-four-proof.md) | one maintained source project can build, install, and verify across the core four |
 | Flagship read-only workflow | [docs-ops-core-four-proof](./docs-ops-core-four-proof.md) | the flagship example is real across the official CLIs, not just one host |
 | Flagship authenticated publish split | [docs-ops-authenticated-publish-path](./docs-ops-authenticated-publish-path.md) | read-only Orchid access is not being mislabeled as a publish path |
-| Clean-room research architecture | [exa-research-example](./exa-research-example.md) | Pluxx can carry a Claude-first subagent architecture plus rich brand metadata across the core four |
+| Exa distribution proof | [exa-research-example](./exa-research-example.md) | Exa-style research workflows can ship natively across the core four from one maintained source project |
 | Docs-ingestion improvement | [docs-ingestion scaffold before/after](./strategy/docs-ingestion-scaffold-before-after.md) | sourced product/docs context materially improves the generated scaffold |
 
 ## Install The Released Pluxx Plugin
@@ -136,6 +136,34 @@ npx @orchid-labs/pluxx verify-install --target codex
 ```
 
 Swap `codex` for `claude-code`, `cursor`, or `opencode` when you want to validate a different host.
+
+## Install The Exa Example From Source
+
+These installers build the public Exa example from the repo source and then install the native bundle into the selected host.
+
+### Claude Code
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example/exa-plugin/release/install-claude-code.sh | bash
+```
+
+### Cursor
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example/exa-plugin/release/install-cursor.sh | bash
+```
+
+### Codex
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example/exa-plugin/release/install-codex.sh | bash
+```
+
+### OpenCode
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example/exa-plugin/release/install-opencode.sh | bash
+```
 
 ## Best Demo Flow
 

@@ -1,6 +1,6 @@
 # Exa Research Example
 
-Last updated: 2026-04-24
+Last updated: 2026-04-25
 
 ## Doc Links
 
@@ -109,6 +109,40 @@ Hosted MCP:
 Optional auth:
 
 - `EXA_API_KEY`
+
+## Direct Install
+
+If you want the fastest external share path, use the host-specific one-command installers below. These fetch the public Pluxx repo source, build the Exa example, and install the resulting native bundle into the selected host.
+
+### Claude Code
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example/exa-plugin/release/install-claude-code.sh | bash
+```
+
+### Cursor
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example/exa-plugin/release/install-cursor.sh | bash
+```
+
+### Codex
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example/exa-plugin/release/install-codex.sh | bash
+```
+
+### OpenCode
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example/exa-plugin/release/install-opencode.sh | bash
+```
+
+Optional for higher limits:
+
+```bash
+export EXA_API_KEY="your_exa_api_key"
+```
 
 Setup hook:
 
