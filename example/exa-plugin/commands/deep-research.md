@@ -1,6 +1,6 @@
 ---
 description: Run a parallel Exa research workflow with specialist agents and source review
-argument-hint: "[research-question]"
+argument-hint: [research-question]
 ---
 
 Use the `exa-deep-research` skill.

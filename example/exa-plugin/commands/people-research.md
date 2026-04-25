@@ -1,6 +1,6 @@
 ---
 description: Find people, experts, operators, or recruiter-style candidate lists with Exa
-argument-hint: "[person-role-or-target-profile]"
+argument-hint: [person-role-or-target-profile]
 ---
 
 Use the `exa-people-research` skill.

@@ -1,6 +1,6 @@
 ---
 description: Audit a research result set for source quality, weak evidence, and ranking mistakes
-argument-hint: "[topic-or-current-result-set]"
+argument-hint: [topic-or-current-result-set]
 ---
 
 Use the `exa-source-review` skill.

@@ -1,6 +1,6 @@
 ---
 description: Build a source-backed recent-news brief with Exa
-argument-hint: "[topic-or-company]"
+argument-hint: [topic-or-company]
 ---
 
 Use the `exa-news-brief` skill.

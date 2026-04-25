@@ -377,7 +377,7 @@ describe('init-from-mcp scaffold', () => {
     expect(organizationSkill).toContain('"Find organizations matching <query>."')
     expect(organizationSkill.startsWith('---\n')).toBe(true)
     expect(organizationSkill).toContain('\n<!-- pluxx:generated:start -->\n# Find Organizations')
-    expect(organizationCommand).toContain('argument-hint: "[query]"')
+    expect(organizationCommand).toContain('argument-hint: [query]')
     expect(organizationCommand).toContain('Use this command when the user asks to search organizations by company attributes and signals.')
     expect(organizationCommand).toContain('Primary tools:')
     expect(organizationCommand).toContain('Related resources:')

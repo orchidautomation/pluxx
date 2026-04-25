@@ -1,6 +1,6 @@
 ---
 description: Map a company, category, competitor set, or market using Exa
-argument-hint: "[company-or-market]"
+argument-hint: [company-or-market]
 ---
 
 Use the `exa-company-research` skill.

@@ -150,6 +150,20 @@ beforeAll(async () => {
   )
   mkdirSync(resolve(TEST_DIR, 'commands/'), { recursive: true })
   await Bun.write(resolve(TEST_DIR, 'commands/pulse.md'), '# Pulse\n')
+  await Bun.write(
+    resolve(TEST_DIR, 'commands/research.md'),
+    [
+      '---',
+      'description: Run the deep research wrapper',
+      'argument-hint: [company] [region]',
+      '---',
+      '',
+      'Use the `deep-research` skill.',
+      '',
+      'Arguments: $ARGUMENTS',
+      '',
+    ].join('\n'),
+  )
   mkdirSync(resolve(TEST_DIR, 'agents/'), { recursive: true })
   await Bun.write(
     resolve(TEST_DIR, 'agents/escalation.md'),
@@ -159,6 +173,12 @@ beforeAll(async () => {
       'description: "Escalation specialist."',
       'mode: subagent',
       'hidden: true',
+      'tools: Read, Grep, Glob',
+      'skills: deep-research',
+      'memory: "project"',
+      'background: true',
+      'isolation: "worktree"',
+      'color: "purple"',
       'permission:',
       '  edit: deny',
       '  task:',
@@ -394,6 +414,17 @@ describe('build', () => {
       expect(skillFile).toContain('paths: ["src/**","docs/**"]')
       expect(skillFile).toContain(expectedPhrase)
     }
+  })
+
+  it('hides command-wrapped Claude skills from direct slash invocation while keeping their names stable', async () => {
+    const claudeSkill = readFileSync(
+      resolve(OUT_DIR, 'claude-code/skills/deep-research/SKILL.md'),
+      'utf-8',
+    )
+
+    expect(claudeSkill).toContain('name: deep-research')
+    expect(claudeSkill).toContain('user-invocable: false')
+    expect(claudeSkill).not.toContain('name: deep-research-skill')
   })
 
   it('preserves remote bearer, runtime OAuth, and local stdio MCP intent across the core four', async () => {
@@ -887,6 +918,12 @@ describe('build', () => {
     const claudeEscalationAgent = readFileSync(resolve(OUT_DIR, 'claude-code/agents/escalation.md'), 'utf-8')
     expect(claudeEscalationAgent).toContain('name: "escalation"')
     expect(claudeEscalationAgent).toContain('description: "Escalation specialist."')
+    expect(claudeEscalationAgent).toContain('tools: Read, Grep, Glob')
+    expect(claudeEscalationAgent).toContain('skills: deep-research')
+    expect(claudeEscalationAgent).toContain('memory: "project"')
+    expect(claudeEscalationAgent).toContain('background: true')
+    expect(claudeEscalationAgent).toContain('isolation: "worktree"')
+    expect(claudeEscalationAgent).toContain('color: "purple"')
     expect(claudeEscalationAgent).toContain('disallowedTools: Write, Edit, MultiEdit')
     expect(claudeEscalationAgent).not.toContain('\nmode:')
     expect(claudeEscalationAgent).not.toContain('\nhidden:')

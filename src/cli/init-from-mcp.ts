@@ -704,7 +704,7 @@ export function buildCommandContent(skill: PlannedSkill, existingContent?: strin
   const generatedContent = [
     '---',
     `description: ${JSON.stringify(description)}`,
-    `argument-hint: ${JSON.stringify(argumentHint)}`,
+    `argument-hint: ${formatArgumentHintFrontmatter(argumentHint)}`,
     '---',
     '',
     entryBlurb,
@@ -745,6 +745,15 @@ export function buildCommandContent(skill: PlannedSkill, existingContent?: strin
       defaultCustomContent: DEFAULT_SKILL_CUSTOM_CONTENT,
     },
   )
+}
+
+function formatArgumentHintFrontmatter(value: string): string {
+  const trimmed = value.trim()
+  if (!trimmed) return '""'
+  if (trimmed.includes('\n') || /(^#)|(\s#)/.test(trimmed)) {
+    return JSON.stringify(trimmed)
+  }
+  return trimmed
 }
 
 export function buildInstructionsContent(input: {

@@ -5,6 +5,7 @@ mode: subagent
 hidden: true
 steps: 5
 model_reasoning_effort: "medium"
+tools: Read, Grep, Glob, mcp__exa__web_search_exa, mcp__exa__web_fetch_exa, mcp__exa__web_search_advanced_exa
 permission:
   edit: deny
   bash: deny

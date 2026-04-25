@@ -37,13 +37,32 @@ export class ClaudeCodeGenerator extends Generator {
     super.copySkills()
 
     const collidingSkills = this.collectCollidingSkills()
+    const wrappedSkills = this.collectCommandWrappedSkills()
     for (const skill of collidingSkills) {
       const outputPath = join(this.outDir, 'skills', skill.dirName, 'SKILL.md')
       if (!existsSync(outputPath)) continue
 
       const current = readFileSync(outputPath, 'utf-8')
       const hiddenName = buildHiddenSkillName(skill.effectiveName)
-      const rewritten = rewriteClaudeCollidingSkill(current, hiddenName)
+      const rewritten = rewriteClaudeSkillVisibility(current, {
+        nameOverride: hiddenName,
+        userInvocable: false,
+      })
+      if (rewritten !== current) {
+        writeFileSync(outputPath, rewritten, 'utf-8')
+      }
+    }
+
+    for (const skill of wrappedSkills) {
+      if (collidingSkills.some((entry) => entry.dirName === skill.dirName)) continue
+
+      const outputPath = join(this.outDir, 'skills', skill.dirName, 'SKILL.md')
+      if (!existsSync(outputPath)) continue
+
+      const current = readFileSync(outputPath, 'utf-8')
+      const rewritten = rewriteClaudeSkillVisibility(current, {
+        userInvocable: false,
+      })
       if (rewritten !== current) {
         writeFileSync(outputPath, rewritten, 'utf-8')
       }
@@ -89,9 +108,29 @@ export class ClaudeCodeGenerator extends Generator {
         frontmatter.push(`maxTurns: ${maxTurns}`)
       }
 
+      if (typeof agent.frontmatter.tools === 'string' && agent.frontmatter.tools.trim()) {
+        frontmatter.push(`tools: ${agent.frontmatter.tools}`)
+      }
+
       const disallowedTools = buildClaudeDisallowedTools(agent.frontmatter)
       if (disallowedTools.length > 0) {
         frontmatter.push(`disallowedTools: ${disallowedTools.join(', ')}`)
+      }
+
+      if (typeof agent.frontmatter.skills === 'string' && agent.frontmatter.skills.trim()) {
+        frontmatter.push(`skills: ${agent.frontmatter.skills}`)
+      }
+      if (typeof agent.frontmatter.memory === 'string' && agent.frontmatter.memory.trim()) {
+        frontmatter.push(`memory: ${JSON.stringify(agent.frontmatter.memory)}`)
+      }
+      if (typeof agent.frontmatter.background === 'boolean') {
+        frontmatter.push(`background: ${agent.frontmatter.background}`)
+      }
+      if (typeof agent.frontmatter.isolation === 'string' && agent.frontmatter.isolation.trim()) {
+        frontmatter.push(`isolation: ${JSON.stringify(agent.frontmatter.isolation)}`)
+      }
+      if (typeof agent.frontmatter.color === 'string' && agent.frontmatter.color.trim()) {
+        frontmatter.push(`color: ${JSON.stringify(agent.frontmatter.color)}`)
       }
 
       frontmatter.push('---')
@@ -137,6 +176,33 @@ export class ClaudeCodeGenerator extends Generator {
 
     return collidingSkills
   }
+
+  private collectCommandWrappedSkills(): Array<{ dirName: string; effectiveName: string }> {
+    if (!this.config.commands) return []
+
+    const commandsSrc = this.resolveConfigPath(this.config.commands, 'commands')
+    const skillsSrc = this.resolveConfigPath(this.config.skills, 'skills')
+    if (!existsSync(commandsSrc) || !existsSync(skillsSrc)) return []
+
+    const referencedSkills = collectWrappedSkillNames(commandsSrc)
+    if (referencedSkills.size === 0) return []
+
+    const wrappedSkills: Array<{ dirName: string; effectiveName: string }> = []
+
+    for (const entry of readdirSync(skillsSrc, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue
+      const skillFile = join(skillsSrc, entry.name, 'SKILL.md')
+      if (!existsSync(skillFile)) continue
+
+      const content = readFileSync(skillFile, 'utf-8')
+      const effectiveName = getEffectiveSkillName(content, entry.name)
+      if (referencedSkills.has(effectiveName)) {
+        wrappedSkills.push({ dirName: entry.name, effectiveName })
+      }
+    }
+
+    return wrappedSkills
+  }
 }
 
 function collectTopLevelCommandNames(commandsRoot: string): Set<string> {
@@ -147,6 +213,20 @@ function collectTopLevelCommandNames(commandsRoot: string): Set<string> {
     }
   }
   return commandNames
+}
+
+function collectWrappedSkillNames(commandsRoot: string): Set<string> {
+  const wrappedSkills = new Set<string>()
+  for (const entry of readdirSync(commandsRoot, { withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.toLowerCase().endsWith('.md')) continue
+
+    const content = readFileSync(join(commandsRoot, entry.name), 'utf-8')
+    for (const match of content.matchAll(/Use the `([^`]+)` skill\./g)) {
+      const skillName = match[1]?.trim()
+      if (skillName) wrappedSkills.add(skillName)
+    }
+  }
+  return wrappedSkills
 }
 
 function getEffectiveSkillName(content: string, fallback: string): string {
@@ -169,13 +249,17 @@ function buildHiddenSkillName(name: string): string {
   return `${trimmed}-skill`
 }
 
-function rewriteClaudeCollidingSkill(content: string, hiddenName: string): string {
+function rewriteClaudeSkillVisibility(
+  content: string,
+  options: { nameOverride?: string; userInvocable?: boolean },
+): string {
   const frontmatter = extractFrontmatterLines(content)
   if (!frontmatter) {
+    const generatedFrontmatter = ['---']
+    if (options.nameOverride) generatedFrontmatter.push(`name: ${options.nameOverride}`)
+    if (options.userInvocable === false) generatedFrontmatter.push('user-invocable: false')
     return [
-      '---',
-      `name: ${hiddenName}`,
-      'user-invocable: false',
+      ...generatedFrontmatter,
       '---',
       '',
       content.trimStart(),
@@ -188,19 +272,19 @@ function rewriteClaudeCollidingSkill(content: string, hiddenName: string): strin
 
   for (let index = 0; index < rewritten.length; index += 1) {
     const trimmed = rewritten[index].trim()
-    if (/^name:\s*/i.test(trimmed)) {
-      rewritten[index] = `name: ${hiddenName}`
+    if (options.nameOverride && /^name:\s*/i.test(trimmed)) {
+      rewritten[index] = `name: ${options.nameOverride}`
       sawName = true
       continue
     }
-    if (/^user-invocable:\s*/i.test(trimmed)) {
+    if (options.userInvocable === false && /^user-invocable:\s*/i.test(trimmed)) {
       rewritten[index] = 'user-invocable: false'
       sawUserInvocable = true
     }
   }
 
-  if (!sawName) rewritten.push(`name: ${hiddenName}`)
-  if (!sawUserInvocable) rewritten.push('user-invocable: false')
+  if (options.nameOverride && !sawName) rewritten.push(`name: ${options.nameOverride}`)
+  if (options.userInvocable === false && !sawUserInvocable) rewritten.push('user-invocable: false')
 
   const lines = content.split('\n')
   const endIndex = findFrontmatterEndIndex(lines)
