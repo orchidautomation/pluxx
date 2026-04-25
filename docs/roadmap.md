@@ -120,10 +120,13 @@ The current status is stronger than a pure scaffold:
   - `example/exa-plugin`
   - `docs/exa-research-example.md`
 - that Exa example proves a clean-room subagent-heavy research operator pack with richer brand metadata from one maintained source project across the core four
-- that Exa example now also has real headless workflow proof in:
+- that Exa example now also has real workflow proof in:
+  - Claude Code app
   - Cursor CLI
+  - Codex Desktop app
   - OpenCode CLI
-- the remaining Exa headless gaps are currently local host-runtime blockers in Claude and Codex, not generator-shape blockers
+- the remaining Exa rerun gap is now narrower and host-local:
+  - fresh Cursor CLI reruns currently hit a local macOS keychain/auth issue on this machine
 - the next proof steps are capturing at least one polished in-app walkthrough beyond Codex, then running a real authenticated publish plus rollback against a safe private target
 
 This is the strongest next proof surface for:

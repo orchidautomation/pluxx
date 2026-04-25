@@ -70,10 +70,13 @@ The core-four compiler sprint is done.
   - `example/exa-plugin`
 - that Exa example now proves a clean-room subagent-heavy research architecture can also be built, installed, and `verify-install` checked across Claude Code, Cursor, Codex, and OpenCode:
   - `docs/exa-research-example.md`
-- the Exa example now also has partial official CLI workflow proof:
+- the Exa example now also has real live workflow proof across multiple host surfaces:
+  - Claude Code app PASS
   - Cursor CLI PASS
+  - Codex Desktop app PASS
   - OpenCode CLI PASS
-  - Claude and Codex are still blocked by local runtime issues in this environment, not by the generated plugin bundle
+- the remaining Exa rerun blocker is now narrower:
+  - fresh Cursor CLI reruns currently hit a local macOS keychain/auth issue on this machine, not a plugin-bundle issue
 
 The public baseline is also real.
 

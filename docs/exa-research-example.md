@@ -227,6 +227,29 @@ It does prove two useful things already:
 - the generated Exa plugin is strong enough to execute real headless workflows in Cursor and OpenCode
 - the remaining Claude and Codex blockers are currently host-runtime issues on this machine, not the generated Exa plugin shape
 
+## Interactive Host Proof Update
+
+The headless CLI matrix above is still historically accurate, but the live host proof is now stronger than that older block suggests.
+
+Additional observed results on this machine:
+
+| Host | Result | Notes |
+| --- | --- | --- |
+| Claude Code app | PASS | live plugin workflow now calls `exa - web_search_exa (MCP)` from delegated Exa specialists such as `people-scout` |
+| Codex Desktop app | PASS | live plugin workflows now complete end-to-end in chat and explicitly report `used Exa` |
+
+That means the Exa example is now proven through four real host surfaces overall:
+
+- Claude Code app
+- Cursor CLI
+- Codex Desktop app
+- OpenCode CLI
+
+The remaining rerun blockers are narrower than before:
+
+- a fresh Cursor CLI rerun on this machine currently hits a local macOS keychain/auth error (`SecItemCopyMatching failed -50`)
+- the older Claude CLI and Codex CLI failures are still ambient host-runtime issues, not plugin-bundle shape issues
+
 ## What This Forced Pluxx To Improve
 
 This example exposed a real compiler gap.

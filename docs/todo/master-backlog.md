@@ -136,11 +136,13 @@ Open work:
 - [x] Add a second clean-room public example that proves subagent-heavy research architecture and richer brand metadata from one maintained source project:
   - `example/exa-plugin`
   - `docs/exa-research-example.md`
-- [~] Extend the Exa example from pure mechanical proof into official CLI workflow proof:
+- [~] Extend the Exa example from pure mechanical proof into real multi-host workflow proof:
+  - Claude Code app PASS
   - Cursor CLI PASS
+  - Codex Desktop app PASS
   - OpenCode CLI PASS
-  - Claude CLI currently blocked by local API connectivity on this machine
-  - Codex CLI currently blocked by local model/account/runtime issues on this machine
+  - fresh Cursor CLI reruns currently hit a local macOS keychain/auth issue on this machine
+  - older Claude CLI and Codex CLI headless failures are still ambient host-runtime issues on this machine
 - [ ] Exercise richer Claude skill surfaces where useful:
   - supporting files / references
   - scripts

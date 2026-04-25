@@ -60,7 +60,7 @@ If you want the shortest credible answer to "is this real yet?", use this order:
    What it proves: the flagship example produces user-visible output, not just config files.
 
 6. [Exa Research Example](./exa-research-example.md)
-   What it proves: Pluxx can take a strong Claude-first research-plugin shape, keep specialist agents plus rich brand metadata, and compile it into native bundles across Claude Code, Cursor, Codex, and OpenCode from one maintained source project.
+   What it proves: Pluxx can take a strong Claude-first research-plugin shape, keep specialist agents plus rich brand metadata, compile it into native bundles across Claude Code, Cursor, Codex, and OpenCode from one maintained source project, and execute real Exa-backed workflows through live host surfaces.
 
 7. [Docs-ingestion scaffold before/after demo](./strategy/docs-ingestion-scaffold-before-after.md)
    What it proves: Firecrawl-backed sourced context changes the real generated scaffold, not just an eval row.
