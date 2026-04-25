@@ -73,6 +73,9 @@ Status:
   - optional `.app.json`
   - rich interface metadata
   - refresh/restart follow-up guidance in install notes
+- a clean-room Exa research example now also exercises two of the sharper native-translation paths:
+  - Claude-native agent frontmatter and manifest-agent emission
+  - OpenCode permission-first agent output in a real subagent-heavy source project
 
 This doc should now be treated as the audit source for future refreshes, not as a still-pending recommendation list from the first pass.
 
@@ -126,6 +129,7 @@ Confirmed by official docs:
 Current repo gaps:
 
 - the main machine-readable Claude frontmatter, hook-surface, and MCP-auth gaps have now been corrected in `src/validation/platform-rules.ts`
+- canonical Pluxx agents now also translate into Claude-native agent markdown and manifest entries instead of being copied through too raw
 - `docs/compatibility.md` and `docs/core-four-primitive-matrix.md` still need to stay aligned with that richer Claude shape when future provider changes land
 - downstream maintainer docs can still drift back toward the older “one manifest, one hook file, one MCP file” simplification if they are not kept current
 
@@ -217,6 +221,8 @@ Current repo gaps:
 
 - the main machine-readable OpenCode mismatch has now been corrected in `src/validation/platform-rules.ts`
 - the OpenCode generator now also prefers permission-first agent output and translates legacy agent `tools` into `permission` where possible
+- that permission-first output is now also exercised in a real public subagent-heavy example:
+  - `example/exa-plugin`
 - `docs/compatibility.md` now reflects OpenCode as a config/runtime host rather than a `package.json + index.ts` manifest host
 - the remaining risk is downstream docs and examples slipping back into manifest-host framing or deprecated legacy-tool framing instead of code-first, permission-first runtime-host framing
 - current skill discovery dirs and instruction surfaces need to stay current as OpenCode evolves

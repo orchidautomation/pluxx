@@ -13,6 +13,7 @@ Last updated: 2026-04-24
   - [docs/oss-wedge-and-trust-layer.md](./oss-wedge-and-trust-layer.md)
   - [docs/flagship-docs-ops-plugin.md](./flagship-docs-ops-plugin.md)
   - [docs/docs-ops-core-four-proof.md](./docs-ops-core-four-proof.md)
+  - [docs/exa-research-example.md](./exa-research-example.md)
   - [docs/pluxx-plugin-surface-audit.md](./pluxx-plugin-surface-audit.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](./pluxx-self-hosted-core-four-proof.md)
   - [docs/core-four-provider-docs-audit.md](./core-four-provider-docs-audit.md)
@@ -115,6 +116,10 @@ The current status is stronger than a pure scaffold:
   - `docs/docs-ops-core-four-proof.md`
 - it now also separates the private write/publish lane from the public Orchid MCP proof and proves that contract mechanically through install/runtime config plus publish gating:
   - `docs/docs-ops-authenticated-publish-path.md`
+- a second public example now also exists for a different shape of product:
+  - `example/exa-plugin`
+  - `docs/exa-research-example.md`
+- that Exa example proves a clean-room subagent-heavy research operator pack with richer brand metadata from one maintained source project across the core four
 - the next proof steps are capturing at least one polished in-app walkthrough beyond Codex, then running a real authenticated publish plus rollback against a safe private target
 
 This is the strongest next proof surface for:

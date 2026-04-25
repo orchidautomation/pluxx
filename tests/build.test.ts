@@ -859,7 +859,10 @@ describe('build', () => {
     )
 
     expect(claudeManifest.commands).toBe('./commands/')
-    expect(claudeManifest.agents).toBe('./agents/')
+    expect(claudeManifest.agents).toEqual([
+      './agents/escalation.md',
+      './agents/legacy-review.md',
+    ])
     expect(claudeManifest.hooks).toBeUndefined()
     expect(claudeManifest.mcpServers).toBe('./.mcp.json')
 
@@ -873,6 +876,22 @@ describe('build', () => {
     expect(codexManifest.skills).toBe('./skills/')
     expect(codexManifest.mcpServers).toBe('./.mcp.json')
     expect(codexManifest.hooks).toBeUndefined()
+  })
+
+  it('translates canonical agents into Claude-native agent files', async () => {
+    const claudeEscalationAgent = readFileSync(resolve(OUT_DIR, 'claude-code/agents/escalation.md'), 'utf-8')
+    expect(claudeEscalationAgent).toContain('name: "escalation"')
+    expect(claudeEscalationAgent).toContain('description: "Escalation specialist."')
+    expect(claudeEscalationAgent).toContain('disallowedTools: Write, Edit, MultiEdit')
+    expect(claudeEscalationAgent).not.toContain('\nmode:')
+    expect(claudeEscalationAgent).not.toContain('\nhidden:')
+    expect(claudeEscalationAgent).not.toContain('\npermission:')
+    expect(claudeEscalationAgent).toContain('Delegation contract:')
+
+    const claudeLegacyReviewAgent = readFileSync(resolve(OUT_DIR, 'claude-code/agents/legacy-review.md'), 'utf-8')
+    expect(claudeLegacyReviewAgent).toContain('maxTurns: 5')
+    expect(claudeLegacyReviewAgent).toContain('disallowedTools: Write, Edit, MultiEdit, Bash')
+    expect(claudeLegacyReviewAgent).not.toContain('\ntools:')
   })
 
   it('preserves shared instruction intent across the core four native instruction surfaces', async () => {

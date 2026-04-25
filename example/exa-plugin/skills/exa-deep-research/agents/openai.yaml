@@ -1,0 +1,4 @@
+interface:
+  display_name: "Deep Research"
+  short_description: "Run a parallel Exa research workflow with specialist agents"
+  default_prompt: "Use Exa Research Example to run a deep research pass on this topic with parallel specialist agents, source review, and a compact cited synthesis."

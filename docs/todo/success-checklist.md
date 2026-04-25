@@ -15,6 +15,7 @@ Last updated: 2026-04-24
   - [docs/core-four-install-update-lifecycle.md](../core-four-install-update-lifecycle.md)
   - [docs/flagship-docs-ops-plugin.md](../flagship-docs-ops-plugin.md)
   - [docs/docs-ops-core-four-proof.md](../docs-ops-core-four-proof.md)
+  - [docs/exa-research-example.md](../exa-research-example.md)
   - [docs/pluxx-plugin-surface-audit.md](../pluxx-plugin-surface-audit.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](../pluxx-self-hosted-core-four-proof.md)
   - [Linear](https://linear.app/orchid-automation)
@@ -153,6 +154,9 @@ Use this file to:
 - [~] The flagship example has been turned into a cleaner public-facing demo asset:
   - [docs/proof-and-install.md](../proof-and-install.md)
   - [site/examples/docs-ops-flagship.mdx](../../site/examples/docs-ops-flagship.mdx)
+- [x] A second clean-room public example exists for a different plugin shape:
+  - [docs/exa-research-example.md](../exa-research-example.md)
+  - it proves Pluxx can carry a Claude-first subagent-heavy research architecture plus rich brand metadata across the core four
 - [ ] A real authenticated publish and rollback run exists against a safe private target
 
 ## 6. Self-Hosted Pluxx Plugin Quality

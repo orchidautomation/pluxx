@@ -26,6 +26,8 @@ If you want the fastest way to see what is already real, start with these:
   - one maintained `docs-ops` source project compiled into a real Codex plugin and used against Orchid's live Docsalot MCP
 - [Docs Ops authenticated publish path](./docs/docs-ops-authenticated-publish-path.md)
   - the flagship example now separates Orchid's public read-only MCP proof from the private write/publish contract, and the install/runtime gate is mechanically proven
+- [Exa Research Example](./docs/exa-research-example.md)
+  - a clean-room Exa-style research operator pack built from one maintained source project, with specialist agents, rich brand metadata, and real build/install/verify proof across the core four
 - [Orchid Accordion before/after rewrite](./example/docs-ops/demo-rewrites/orchid-components-accordion.after.md)
   - concrete output from the flagship docs workflow example
 - [Core-four provider docs audit](./docs/core-four-provider-docs-audit.md)

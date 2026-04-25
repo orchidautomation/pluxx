@@ -1,0 +1,41 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="900" rx="32" fill="#020617"/>
+  <rect x="24" y="24" width="1552" height="852" rx="24" fill="#081122" stroke="#1E293B" stroke-width="2"/>
+  <rect x="96" y="92" width="1408" height="716" rx="28" fill="url(#panel)" stroke="#22324A" stroke-width="2"/>
+  <rect x="128" y="124" width="340" height="46" rx="23" fill="#10214B" stroke="#2B4DFF" stroke-width="2"/>
+  <text x="152" y="154" fill="#DCE8FF" font-size="20" font-family="Arial, sans-serif" font-weight="700">Exa Research Example</text>
+  <rect x="1186" y="124" width="278" height="46" rx="23" fill="#0D1730" stroke="#3957F6" stroke-width="2"/>
+  <text x="1214" y="154" fill="#B9CBFF" font-size="18" font-family="Arial, sans-serif" font-weight="700">Cross-host code research workflow</text>
+
+  <text x="144" y="236" fill="#F8FAFC" font-size="56" font-family="Arial, sans-serif" font-weight="700">Research APIs, docs, and examples from one maintained source</text>
+  <text x="144" y="292" fill="#CBD5E1" font-size="30" font-family="Arial, sans-serif">The command shape stays stable while each host gets the most native plugin surface it can support.</text>
+
+  <rect x="144" y="340" width="1312" height="114" rx="22" fill="#071225" stroke="#2B4DFF" stroke-width="2"/>
+  <text x="184" y="408" fill="#8BB3FF" font-size="34" font-family="Courier New, monospace">/code-research "Find the best OAuth device-flow docs, examples, and migration notes"</text>
+
+  <rect x="144" y="500" width="420" height="232" rx="24" fill="#091327" stroke="#26364F" stroke-width="2"/>
+  <rect x="592" y="500" width="420" height="232" rx="24" fill="#091327" stroke="#26364F" stroke-width="2"/>
+  <rect x="1040" y="500" width="416" height="232" rx="24" fill="#091327" stroke="#26364F" stroke-width="2"/>
+
+  <text x="180" y="570" fill="#F8FAFC" font-size="34" font-family="Arial, sans-serif" font-weight="700">Search</text>
+  <text x="180" y="622" fill="#CBD5E1" font-size="26" font-family="Arial, sans-serif">official docs first</text>
+  <text x="180" y="660" fill="#CBD5E1" font-size="26" font-family="Arial, sans-serif">then maintainers</text>
+  <text x="180" y="698" fill="#2B4DFF" font-size="26" font-family="Arial, sans-serif">code-scout</text>
+
+  <text x="628" y="570" fill="#F8FAFC" font-size="34" font-family="Arial, sans-serif" font-weight="700">Validate</text>
+  <text x="628" y="622" fill="#CBD5E1" font-size="26" font-family="Arial, sans-serif">fetch full pages</text>
+  <text x="628" y="660" fill="#CBD5E1" font-size="26" font-family="Arial, sans-serif">check examples</text>
+  <text x="628" y="698" fill="#CBD5E1" font-size="26" font-family="Arial, sans-serif">remove generic spam</text>
+
+  <text x="1076" y="570" fill="#F8FAFC" font-size="34" font-family="Arial, sans-serif" font-weight="700">Ship</text>
+  <text x="1076" y="622" fill="#CBD5E1" font-size="26" font-family="Arial, sans-serif">best links</text>
+  <text x="1076" y="660" fill="#CBD5E1" font-size="26" font-family="Arial, sans-serif">why they matter</text>
+  <text x="1076" y="698" fill="#22C55E" font-size="26" font-family="Arial, sans-serif">next step ready</text>
+
+  <defs>
+    <linearGradient id="panel" x1="116" y1="104" x2="1480" y2="780" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0E1732"/>
+      <stop offset="1" stop-color="#07101F"/>
+    </linearGradient>
+  </defs>
+</svg>

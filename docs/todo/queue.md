@@ -13,6 +13,7 @@ Last updated: 2026-04-24
   - [docs/oss-wedge-and-trust-layer.md](../oss-wedge-and-trust-layer.md)
   - [docs/flagship-docs-ops-plugin.md](../flagship-docs-ops-plugin.md)
   - [docs/docs-ops-core-four-proof.md](../docs-ops-core-four-proof.md)
+  - [docs/exa-research-example.md](../exa-research-example.md)
   - [docs/pluxx-plugin-surface-audit.md](../pluxx-plugin-surface-audit.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](../pluxx-self-hosted-core-four-proof.md)
   - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
@@ -65,6 +66,10 @@ The core-four compiler sprint is done.
   - Codex
   - OpenCode
 - `--approve-mcp-tools` can now scaffold canonical MCP-wide tool approval intent directly into generated config
+- a second major public example now exists:
+  - `example/exa-plugin`
+- that Exa example now proves a clean-room subagent-heavy research architecture can also be built, installed, and `verify-install` checked across Claude Code, Cursor, Codex, and OpenCode:
+  - `docs/exa-research-example.md`
 
 The public baseline is also real.
 
@@ -121,6 +126,9 @@ Open work:
 - keep building the chosen flagship example:
   - a Docsalot-style `docs-ops` plugin from one maintained source project
 - use [docs/flagship-docs-ops-plugin.md](../flagship-docs-ops-plugin.md) as the concrete build spec
+- keep the new Exa clean-room example in the proof stack as the clearest non-docs showcase of:
+  - raw MCP plus official-host workflow shape in
+  - branded native core-four bundles out
 - treat the current scaffold and Orchid read-only proof as complete:
   - `example/docs-ops`
   - `example/docs-ops/ORCHID-READONLY-DEMO.md`

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Company Research"
+  short_description: "Map a company, category, or competitor set with Exa"
+  default_prompt: "Use Exa Research Example to map this company or market, find the strongest sources, and summarize the competitive landscape."

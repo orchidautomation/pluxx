@@ -32,6 +32,7 @@ The first pass of that packaging now exists at:
 
 - [Proof and install guide](./proof-and-install.md)
 - [Docs Ops authenticated publish path](./docs-ops-authenticated-publish-path.md)
+- [Exa Research Example](./exa-research-example.md)
 
 ## Proof That Already Exists
 
@@ -126,6 +127,25 @@ Best public use:
 - docs proof block
 - founder demo narrative
 
+### 3b. Clean-room Exa-style research architecture
+
+Primary doc:
+
+- [Exa Research Example](./exa-research-example.md)
+
+What it proves:
+
+- a strong Claude-first research-operator shape can be rebuilt cleanly from one Pluxx source project
+- the source project can carry specialist agents, commands, auth, hooks, and rich brand metadata together
+- the example is already mechanically real across Claude Code, Cursor, Codex, and OpenCode
+- a real public example can pressure-test the compiler and improve it
+
+Best public use:
+
+- MCP-vendor outreach
+- “raw MCP is not enough” narrative
+- proof that Pluxx can port subagent-heavy architecture without copying private plugin internals
+
 ### 4. Host-truth audit
 
 Primary docs:
@@ -176,6 +196,7 @@ Missing artifact:
   - native bundles out
   - install and verify
   - live flagship workflow
+  - clean-room Exa architecture lane
   - separate authenticated publish lane
 
 Why it matters:

@@ -1,0 +1,4 @@
+interface:
+  display_name: "News Brief"
+  short_description: "Build a source-backed recent-news brief with Exa"
+  default_prompt: "Use Exa Research Example to build a recent-news brief on this topic with a short timeline and the strongest sources."

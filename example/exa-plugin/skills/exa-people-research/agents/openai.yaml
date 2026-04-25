@@ -1,0 +1,4 @@
+interface:
+  display_name: "People Research"
+  short_description: "Find experts, operators, or recruiter-style candidate lists"
+  default_prompt: "Use Exa Research Example to find the highest-signal people for this role or topic, including public proof of work and links."

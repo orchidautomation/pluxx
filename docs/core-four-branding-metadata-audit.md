@@ -37,6 +37,7 @@ It compares:
 - `src/generators/opencode/index.ts`
 - real generated outputs from:
   - `example/firecrawl-plugin`
+  - `example/exa-plugin`
   - `example/pluxx`
   - `example/megamind`
   - `examples/prospeo-mcp`
@@ -47,6 +48,8 @@ Built real examples for all four targets and inspected generated outputs:
 
 - Firecrawl:
   - `example/firecrawl-plugin/dist/{claude-code,cursor,codex,opencode}`
+- Exa:
+  - `example/exa-plugin/dist/{claude-code,cursor,codex,opencode}`
 - Pluxx:
   - `example/pluxx/dist/{claude-code,cursor,codex,opencode}`
 - Megamind:
@@ -99,6 +102,24 @@ Legend:
 
 - No `brand` block in config.
 - Generated outputs expose no brand/interface metadata, which matches current generators.
+
+### Exa (`example/exa-plugin`)
+
+- Config now sets the full shared brand block:
+  - display name
+  - short and long descriptions
+  - category
+  - color
+  - icon
+  - screenshots
+  - default prompts
+  - website URL
+  - privacy policy URL
+  - terms of service URL
+- Codex output is expected to preserve the full rich interface block.
+- Cursor output is expected to keep the narrow homepage and logo translation.
+- Claude and OpenCode are expected to reuse the source assets where useful without pretending they have a shared manifest-backed listing surface.
+- This example is now the clearest public proof that the shared brand contract is not only a schema row; it is exercised by a real multi-host source project.
 
 ### Prospeo (`examples/prospeo-mcp`)
 

@@ -26,6 +26,7 @@ This is not the same thing as the short queue.
   - [docs/oss-wedge-and-trust-layer.md](../oss-wedge-and-trust-layer.md)
   - [docs/flagship-docs-ops-plugin.md](../flagship-docs-ops-plugin.md)
   - [docs/docs-ops-core-four-proof.md](../docs-ops-core-four-proof.md)
+  - [docs/exa-research-example.md](../exa-research-example.md)
   - [docs/pluxx-plugin-surface-audit.md](../pluxx-plugin-surface-audit.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](../pluxx-self-hosted-core-four-proof.md)
   - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
@@ -132,6 +133,9 @@ Open work:
   - `docs/proof-and-install.md`
   - `site/examples/docs-ops-flagship.mdx`
   - the polished in-app walkthrough is still Codex-first today
+- [x] Add a second clean-room public example that proves subagent-heavy research architecture and richer brand metadata from one maintained source project:
+  - `example/exa-plugin`
+  - `docs/exa-research-example.md`
 - [ ] Exercise richer Claude skill surfaces where useful:
   - supporting files / references
   - scripts

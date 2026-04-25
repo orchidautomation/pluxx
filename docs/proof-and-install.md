@@ -11,6 +11,7 @@ Last updated: 2026-04-24
   - [docs/pluxx-self-hosted-core-four-proof.md](./pluxx-self-hosted-core-four-proof.md)
   - [docs/docs-ops-core-four-proof.md](./docs-ops-core-four-proof.md)
   - [docs/docs-ops-authenticated-publish-path.md](./docs-ops-authenticated-publish-path.md)
+  - [docs/exa-research-example.md](./exa-research-example.md)
   - [docs/orchid-docs-ops-codex-walkthrough.md](./orchid-docs-ops-codex-walkthrough.md)
   - [docs/core-four-install-update-lifecycle.md](./core-four-install-update-lifecycle.md)
   - [docs/strategy/docs-ingestion-scaffold-before-after.md](./strategy/docs-ingestion-scaffold-before-after.md)
@@ -58,10 +59,13 @@ If you want the shortest credible answer to "is this real yet?", use this order:
 5. [Orchid Accordion before/after rewrite](../example/docs-ops/demo-rewrites/orchid-components-accordion.after.md)
    What it proves: the flagship example produces user-visible output, not just config files.
 
-6. [Docs-ingestion scaffold before/after demo](./strategy/docs-ingestion-scaffold-before-after.md)
+6. [Exa Research Example](./exa-research-example.md)
+   What it proves: Pluxx can take a strong Claude-first research-plugin shape, keep specialist agents plus rich brand metadata, and compile it into native bundles across Claude Code, Cursor, Codex, and OpenCode from one maintained source project.
+
+7. [Docs-ingestion scaffold before/after demo](./strategy/docs-ingestion-scaffold-before-after.md)
    What it proves: Firecrawl-backed sourced context changes the real generated scaffold, not just an eval row.
 
-7. [Core-four provider docs audit](./core-four-provider-docs-audit.md)
+8. [Core-four provider docs audit](./core-four-provider-docs-audit.md)
    What it proves: the compatibility story is grounded in first-party provider docs, not hand-waving.
 
 ## Public Proof Panels
@@ -73,6 +77,7 @@ If you need the public story in the fewest moving parts, use these four proof pa
 | Self-hosted core four | [pluxx-self-hosted-core-four-proof](./pluxx-self-hosted-core-four-proof.md) | one maintained source project can build, install, and verify across the core four |
 | Flagship read-only workflow | [docs-ops-core-four-proof](./docs-ops-core-four-proof.md) | the flagship example is real across the official CLIs, not just one host |
 | Flagship authenticated publish split | [docs-ops-authenticated-publish-path](./docs-ops-authenticated-publish-path.md) | read-only Orchid access is not being mislabeled as a publish path |
+| Clean-room research architecture | [exa-research-example](./exa-research-example.md) | Pluxx can carry a Claude-first subagent architecture plus rich brand metadata across the core four |
 | Docs-ingestion improvement | [docs-ingestion scaffold before/after](./strategy/docs-ingestion-scaffold-before-after.md) | sourced product/docs context materially improves the generated scaffold |
 
 ## Install The Released Pluxx Plugin
@@ -151,13 +156,16 @@ Use this when you want a clean founder demo, customer walkthrough, or investor p
 5. Show [Docs Ops authenticated publish path](./docs-ops-authenticated-publish-path.md)
    Frame: read-only public MCP access is not being passed off as write/publish support.
 
-6. Show the [Accordion before/after output](../example/docs-ops/demo-rewrites/orchid-components-accordion.after.md)
+6. Show [Exa Research Example](./exa-research-example.md)
+   Frame: Pluxx can take a Claude-first research-operator shape with specialist agents, rich branding, and command surfaces and compile it across the core four from one source.
+
+7. Show the [Accordion before/after output](../example/docs-ops/demo-rewrites/orchid-components-accordion.after.md)
    Frame: the product changes user-visible output, not only internals.
 
-7. Show [Docs-ingestion scaffold before/after demo](./strategy/docs-ingestion-scaffold-before-after.md)
+8. Show [Docs-ingestion scaffold before/after demo](./strategy/docs-ingestion-scaffold-before-after.md)
    Frame: sourced product/docs context materially improves the scaffold.
 
-8. Close with [Core-four provider docs audit](./core-four-provider-docs-audit.md)
+9. Close with [Core-four provider docs audit](./core-four-provider-docs-audit.md)
    Frame: the compatibility story is truthful and provider-backed.
 
 ## What This Page Does Not Claim

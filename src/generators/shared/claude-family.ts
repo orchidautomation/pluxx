@@ -5,6 +5,7 @@ import type { PluginConfig, TargetPlatform } from '../../schema'
 import { mapHookEventToPascalCase } from '../../hook-events'
 import { buildGeneratedPermissionHookScript } from '../../permissions'
 import { readTextFile } from '../../text-files'
+import { readCanonicalAgentFiles } from '../../agents'
 
 export interface ClaudeFamilyOptions {
   manifestPath: string
@@ -13,6 +14,7 @@ export interface ClaudeFamilyOptions {
   titleSuffix?: string
   mapEventName?: (event: string) => string
   includeStandardHooksManifest?: boolean
+  agentsManifestMode?: 'directory' | 'files' | 'omit'
 }
 
 export async function generateClaudeFamilyOutputs(args: {
@@ -33,7 +35,7 @@ export async function generateClaudeFamilyOutputs(args: {
   } = args
 
   await Promise.all([
-    writeManifest(config, options, writeJson),
+    writeManifest(config, rootDir, options, writeJson),
     writeMcpConfig(config, platform, writeJson),
     writeHooks(config, platform, options, writeJson, writeFile),
     writeInstructions(config, rootDir, options, writeFile),
@@ -42,6 +44,7 @@ export async function generateClaudeFamilyOutputs(args: {
 
 async function writeManifest(
   config: PluginConfig,
+  rootDir: string,
   options: ClaudeFamilyOptions,
   writeJson: (relativePath: string, data: unknown) => Promise<void>,
 ): Promise<void> {
@@ -62,8 +65,15 @@ async function writeManifest(
   if (config.commands) {
     manifest.commands = './commands/'
   }
-  if (config.agents) {
+  const agentsManifestMode = options.agentsManifestMode ?? 'directory'
+  if (config.agents && agentsManifestMode === 'directory') {
     manifest.agents = './agents/'
+  } else if (config.agents && agentsManifestMode === 'files') {
+    const agentsDir = resolve(rootDir, config.agents)
+    const agents = readCanonicalAgentFiles(agentsDir)
+    if (agents.length > 0) {
+      manifest.agents = agents.map((agent) => `./agents/${agent.fileStem}.md`)
+    }
   }
   manifest.skills = './skills/'
   if ((config.hooks || config.permissions) && options.includeStandardHooksManifest !== false) {

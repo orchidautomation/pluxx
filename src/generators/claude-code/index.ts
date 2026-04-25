@@ -1,8 +1,10 @@
 import { Generator } from '../base'
 import { generateClaudeFamilyOutputs } from '../shared/claude-family'
 import type { TargetPlatform } from '../../schema'
-import { existsSync, readFileSync, readdirSync, writeFileSync } from 'fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'fs'
 import { basename, join } from 'path'
+import { type AgentFrontmatterMap, readCanonicalAgentFiles } from '../../agents'
+import { buildDelegationBehaviorNotes } from '../../delegation'
 
 export class ClaudeCodeGenerator extends Generator {
   readonly platform: TargetPlatform = 'claude-code'
@@ -17,6 +19,7 @@ export class ClaudeCodeGenerator extends Generator {
         instructionsFile: 'CLAUDE.md',
         pluginRootVar: 'CLAUDE_PLUGIN_ROOT',
         includeStandardHooksManifest: false,
+        agentsManifestMode: 'files',
       },
       writeJson: (relativePath, data) => this.writeJson(relativePath, data),
       writeFile: (relativePath, content) => this.writeFile(relativePath, content),
@@ -44,6 +47,69 @@ export class ClaudeCodeGenerator extends Generator {
       if (rewritten !== current) {
         writeFileSync(outputPath, rewritten, 'utf-8')
       }
+    }
+  }
+
+  protected copyAgents(): void {
+    if (!this.config.agents) return
+
+    const agentsDir = this.resolveConfigPath(this.config.agents, 'agents')
+    const agents = readCanonicalAgentFiles(agentsDir)
+    if (agents.length === 0) return
+    mkdirSync(join(this.outDir, 'agents'), { recursive: true })
+
+    for (const agent of agents) {
+      const frontmatter = [
+        '---',
+        `name: ${JSON.stringify(agent.name)}`,
+        `description: ${JSON.stringify(agent.description ?? `${agent.name} specialist.`)}`,
+      ]
+
+      if (typeof agent.frontmatter.model === 'string' && agent.frontmatter.model) {
+        frontmatter.push(`model: ${JSON.stringify(agent.frontmatter.model)}`)
+      }
+
+      const effort = typeof agent.frontmatter.model_reasoning_effort === 'string' && agent.frontmatter.model_reasoning_effort
+        ? agent.frontmatter.model_reasoning_effort
+        : typeof agent.frontmatter.effort === 'string' && agent.frontmatter.effort
+          ? agent.frontmatter.effort
+          : undefined
+      if (effort) {
+        frontmatter.push(`effort: ${JSON.stringify(effort)}`)
+      }
+
+      const maxTurns = typeof agent.frontmatter.maxTurns === 'number'
+        ? agent.frontmatter.maxTurns
+        : typeof agent.frontmatter.steps === 'number'
+          ? agent.frontmatter.steps
+          : typeof agent.frontmatter.maxSteps === 'number'
+            ? agent.frontmatter.maxSteps
+            : undefined
+      if (typeof maxTurns === 'number') {
+        frontmatter.push(`maxTurns: ${maxTurns}`)
+      }
+
+      const disallowedTools = buildClaudeDisallowedTools(agent.frontmatter)
+      if (disallowedTools.length > 0) {
+        frontmatter.push(`disallowedTools: ${disallowedTools.join(', ')}`)
+      }
+
+      frontmatter.push('---')
+
+      const delegationNotes = buildDelegationBehaviorNotes(agent.frontmatter)
+      const bodyParts = [
+        ...(delegationNotes.length > 0
+          ? [
+              'Delegation contract:',
+              ...delegationNotes.map((note) => `- ${note}`),
+              '',
+            ]
+          : []),
+        agent.body,
+      ].filter(Boolean)
+
+      const outputPath = join(this.outDir, 'agents', `${agent.fileStem}.md`)
+      writeFileSync(outputPath, `${frontmatter.join('\n')}\n\n${bodyParts.join('\n').trim()}\n`, 'utf-8')
     }
   }
 
@@ -170,4 +236,50 @@ function stripYamlScalar(value: string): string {
     return trimmed.slice(1, -1).trim()
   }
   return trimmed
+}
+
+function buildClaudeDisallowedTools(frontmatter: AgentFrontmatterMap): string[] {
+  const tools = new Set<string>()
+  const permission = asMap(frontmatter.permission)
+  const bash = asMap(permission?.bash)
+  const legacyTools = asMap(frontmatter.tools)
+
+  if (permission?.edit === 'deny') {
+    tools.add('Write')
+    tools.add('Edit')
+    tools.add('MultiEdit')
+  }
+
+  if (permission?.bash === 'deny' || bash?.['*'] === 'deny') {
+    tools.add('Bash')
+  }
+
+  if (
+    legacyTools?.write === false
+    || legacyTools?.edit === false
+    || legacyTools?.patch === false
+    || legacyTools?.multiedit === false
+  ) {
+    tools.add('Write')
+    tools.add('Edit')
+    tools.add('MultiEdit')
+  }
+
+  if (legacyTools?.bash === false || legacyTools?.shell === false) {
+    tools.add('Bash')
+  }
+
+  if (typeof frontmatter.disallowedTools === 'string') {
+    for (const token of frontmatter.disallowedTools.split(',')) {
+      const trimmed = token.trim()
+      if (trimmed) tools.add(trimmed)
+    }
+  }
+
+  return Array.from(tools)
+}
+
+function asMap(value: unknown): AgentFrontmatterMap | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  return value as AgentFrontmatterMap
 }

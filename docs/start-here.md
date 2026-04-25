@@ -14,6 +14,7 @@ Last updated: 2026-04-24
   - [docs/flagship-docs-ops-plugin.md](./flagship-docs-ops-plugin.md)
   - [docs/docs-ops-core-four-proof.md](./docs-ops-core-four-proof.md)
   - [docs/docs-ops-authenticated-publish-path.md](./docs-ops-authenticated-publish-path.md)
+  - [docs/exa-research-example.md](./exa-research-example.md)
   - [docs/core-four-provider-docs-audit.md](./core-four-provider-docs-audit.md)
   - [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](./pluxx-self-hosted-core-four-proof.md)
@@ -138,6 +139,13 @@ The repo already proves a lot.
   - `docs/docs-ops-core-four-proof.md`
 - the flagship example now also separates the private write/publish lane from the public Orchid MCP proof, and that install/runtime contract has been exercised mechanically:
   - `docs/docs-ops-authenticated-publish-path.md`
+- a second major public example now exists:
+  - `example/exa-plugin`
+- that Exa example is a clean-room rebuild of the workflow shape of Exa's official Claude plugin against Exa's public MCP:
+  - `docs/exa-research-example.md`
+- the Exa example now also builds, installs, and passes `verify-install` across Claude Code, Cursor, Codex, and OpenCode
+- the Exa example also pressured and improved the compiler itself:
+  - a real Claude agent translation bug was exposed and fixed while making the example install cleanly
 - docs/website ingestion has a provider model and writes deterministic artifacts:
   - `.pluxx/sources.json`
   - `.pluxx/docs-context.json`

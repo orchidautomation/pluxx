@@ -2,16 +2,16 @@
 
 ## The Problem
 
-Every AI coding tool has its own plugin format. If you want your tool inside Claude Code, Cursor, Codex, OpenCode, and GitHub Copilot, you need to maintain separate manifests, MCP configs, hooks, and rules for each one.
+Every AI coding tool has its own plugin format. If you want your tool inside Claude Code, Cursor, Codex, OpenCode, and GitHub Copilot, you need to maintain separate manifests, MCP configs, hooks, rules, and install/update behaviors for each one.
 
 ```
-Claude Code wants: .claude-plugin/plugin.json + headers auth + CLAUDE.md + PascalCase hooks
-Cursor wants:      .cursor-plugin/plugin.json + headers auth + AGENTS.md + rules/ + hooks/hooks.json
-Codex wants:       .codex-plugin/plugin.json + .mcp.json (`bearer_token_env_var` / `env_http_headers` / `http_headers`) + AGENTS.md + external hooks in .codex/hooks.json
-OpenCode wants:    package.json + host entry code + JS/runtime config surfaces
+Claude Code wants: optional .claude-plugin/plugin.json + .mcp.json or inline MCP config + CLAUDE.md + hooks/hooks.json or inline/settings hooks
+Cursor wants:      .cursor-plugin/plugin.json + mcp.json + AGENTS.md + rules/ + hooks/hooks.json (+ host-level .cursor/* config)
+Codex wants:       .codex-plugin/plugin.json + skills/ + optional .mcp.json / .app.json + AGENTS.md / AGENTS.override.md + external hooks in .codex/hooks.json
+OpenCode wants:    opencode.json + a code-first JS/TS plugin module + .opencode/plugins/ or ~/.config/opencode/plugins/ + AGENTS.md / CLAUDE.md fallback + config-driven MCP/permissions
 ```
 
-Each platform also has its own validation and packaging rules. Some are published hard requirements, and some limits Pluxx treats conservatively as heuristics so generated bundles still land in native-looking territory. Discovering those differences by hand is trial and error.
+Each platform also has its own validation and lifecycle behavior. Some of that is official-doc-backed, some of it is conservative Pluxx compatibility policy, and all of it is easy to get wrong by hand. Claude has `/reload-plugins`, Cursor has reload-window behavior, Codex separates plugin bundle updates from skill discovery, and OpenCode is much more config/runtime-driven than a manifest-only host.
 
 ## The Solution
 
@@ -33,6 +33,7 @@ If you want proof before theory, start with:
 
 - [Local core-four proof](/workflows/local-core-four-proof)
 - [Docs Ops Flagship Proof](/examples/docs-ops-flagship)
+- [Exa Research Example](/examples/exa-research-example)
 - [Self-hosting Pluxx Plugin](/examples/self-hosting-pluxx)
 
 ## What Pluxx Treats As Core
@@ -105,13 +106,15 @@ That gives one stable source project and multiple honest host outputs.
 
 This is the mechanical layer. It handles:
 
-- MCP import and introspection
 - source scaffold generation
+- MCP import and introspection when present
+- migration from existing host-native plugin surfaces
 - taxonomy persistence
 - install/runtime config modeling
 - validation
 - build
 - install
+- install verification
 - sync
 
 This layer should always be able to produce a valid plugin project even if no AI runner is used.

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Code Research"
+  short_description: "Find the best docs, examples, and migration notes for a technical topic"
+  default_prompt: "Use Exa Research Example to find the best docs, code examples, and practitioner notes for this technical problem."

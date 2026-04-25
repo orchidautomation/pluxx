@@ -1,0 +1,53 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1600" height="900" rx="32" fill="#020617"/>
+  <rect x="24" y="24" width="1552" height="852" rx="24" fill="#081122" stroke="#1E293B" stroke-width="2"/>
+  <rect x="96" y="92" width="1408" height="716" rx="28" fill="url(#panel)" stroke="#20304E" stroke-width="2"/>
+  <rect x="128" y="124" width="340" height="46" rx="23" fill="#10214B" stroke="#2B4DFF" stroke-width="2"/>
+  <text x="152" y="154" fill="#DCE8FF" font-size="20" font-family="Arial, sans-serif" font-weight="700">Exa Research Example</text>
+  <rect x="1228" y="124" width="236" height="46" rx="23" fill="#0D1730" stroke="#3957F6" stroke-width="2"/>
+  <text x="1258" y="154" fill="#B9CBFF" font-size="18" font-family="Arial, sans-serif" font-weight="700">Unofficial clean-room example</text>
+
+  <text x="144" y="236" fill="#F8FAFC" font-size="56" font-family="Arial, sans-serif" font-weight="700">Run deep research without flattening the workflow</text>
+  <text x="144" y="292" fill="#CBD5E1" font-size="30" font-family="Arial, sans-serif">One source project, parallel scouts, source review, then one compact cited answer.</text>
+
+  <rect x="144" y="340" width="1312" height="118" rx="24" fill="#071225" stroke="#2B4DFF" stroke-width="2"/>
+  <text x="184" y="410" fill="#8BB3FF" font-size="34" font-family="Courier New, monospace">/deep-research "Map AI browser operators and the strongest teams to watch"</text>
+
+  <rect x="144" y="510" width="224" height="220" rx="22" fill="#091327" stroke="#26364F" stroke-width="2"/>
+  <rect x="400" y="510" width="224" height="220" rx="22" fill="#091327" stroke="#26364F" stroke-width="2"/>
+  <rect x="656" y="510" width="224" height="220" rx="22" fill="#091327" stroke="#26364F" stroke-width="2"/>
+  <rect x="912" y="510" width="224" height="220" rx="22" fill="#091327" stroke="#26364F" stroke-width="2"/>
+  <rect x="1168" y="510" width="288" height="220" rx="22" fill="#091327" stroke="#26364F" stroke-width="2"/>
+
+  <text x="176" y="576" fill="#F8FAFC" font-size="32" font-family="Arial, sans-serif" font-weight="700">People</text>
+  <text x="176" y="626" fill="#CBD5E1" font-size="24" font-family="Arial, sans-serif">public writing</text>
+  <text x="176" y="662" fill="#CBD5E1" font-size="24" font-family="Arial, sans-serif">operator signal</text>
+  <text x="176" y="698" fill="#2B4DFF" font-size="24" font-family="Arial, sans-serif">people-scout</text>
+
+  <text x="432" y="576" fill="#F8FAFC" font-size="32" font-family="Arial, sans-serif" font-weight="700">Company</text>
+  <text x="432" y="626" fill="#CBD5E1" font-size="24" font-family="Arial, sans-serif">positioning</text>
+  <text x="432" y="662" fill="#CBD5E1" font-size="24" font-family="Arial, sans-serif">competitors</text>
+  <text x="432" y="698" fill="#2B4DFF" font-size="24" font-family="Arial, sans-serif">company-scout</text>
+
+  <text x="688" y="576" fill="#F8FAFC" font-size="32" font-family="Arial, sans-serif" font-weight="700">Code</text>
+  <text x="688" y="626" fill="#CBD5E1" font-size="24" font-family="Arial, sans-serif">docs</text>
+  <text x="688" y="662" fill="#CBD5E1" font-size="24" font-family="Arial, sans-serif">examples</text>
+  <text x="688" y="698" fill="#2B4DFF" font-size="24" font-family="Arial, sans-serif">code-scout</text>
+
+  <text x="944" y="576" fill="#F8FAFC" font-size="32" font-family="Arial, sans-serif" font-weight="700">News</text>
+  <text x="944" y="626" fill="#CBD5E1" font-size="24" font-family="Arial, sans-serif">timeline</text>
+  <text x="944" y="662" fill="#CBD5E1" font-size="24" font-family="Arial, sans-serif">recent signal</text>
+  <text x="944" y="698" fill="#2B4DFF" font-size="24" font-family="Arial, sans-serif">news-scout</text>
+
+  <text x="1200" y="576" fill="#F8FAFC" font-size="32" font-family="Arial, sans-serif" font-weight="700">Audit + Synthesize</text>
+  <text x="1200" y="626" fill="#CBD5E1" font-size="24" font-family="Arial, sans-serif">source-auditor</text>
+  <text x="1200" y="662" fill="#CBD5E1" font-size="24" font-family="Arial, sans-serif">synthesis-reviewer</text>
+  <text x="1200" y="710" fill="#22C55E" font-size="24" font-family="Arial, sans-serif">one cited answer</text>
+
+  <defs>
+    <linearGradient id="panel" x1="116" y1="104" x2="1480" y2="780" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0E1732"/>
+      <stop offset="1" stop-color="#07101F"/>
+    </linearGradient>
+  </defs>
+</svg>

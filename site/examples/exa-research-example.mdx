@@ -1,0 +1,94 @@
+---
+title: Exa Research Example
+---
+
+This is the cleanest public page for the Exa clean-room example.
+
+Use it when you want the shortest answer to:
+
+- can Pluxx take a strong Claude-first research-plugin shape and carry it across the core four
+- is there a public example that is not just a docs workflow
+- does Pluxx support specialist agents, commands, auth, and richer brand metadata together
+
+## What this example proves
+
+The source project in [`example/exa-plugin`](https://github.com/orchidautomation/pluxx/tree/main/example/exa-plugin) proves that one maintained Pluxx source project can package a research-operator workflow for:
+
+- Claude Code
+- Cursor
+- Codex
+- OpenCode
+
+This example is built against:
+
+- Exa's public MCP
+- Exa's public docs
+- the workflow shape of Exa's official Claude plugin
+
+It is a clean-room example, not an official Exa release.
+
+## What is inside the source project
+
+The example includes:
+
+- specialist agents:
+  - `people-scout`
+  - `company-scout`
+  - `code-scout`
+  - `news-scout`
+  - `source-auditor`
+  - `synthesis-reviewer`
+- explicit workflow commands:
+  - deep research
+  - company research
+  - people research
+  - code research
+  - source review
+  - news brief
+- shared auth and setup guidance
+- rich brand metadata:
+  - icon
+  - screenshots
+  - color
+  - default prompts
+  - website / privacy / terms links
+
+## Mechanical proof
+
+Primary proof doc:
+
+- [Exa Research Example proof](https://github.com/orchidautomation/pluxx/blob/main/docs/exa-research-example.md)
+
+That proof covers:
+
+- `doctor`
+- `lint`
+- `build`
+- `install`
+- `verify-install`
+
+Across:
+
+- Claude Code
+- Cursor
+- Codex
+- OpenCode
+
+## Why this example matters
+
+This example is useful because it forced Pluxx to get more native, not more generic.
+
+While making this example install correctly, Pluxx had to improve:
+
+- Claude-native agent translation
+- manifest-agent emission for Claude bundles
+- OpenCode permission-first agent output
+
+So this page is not only showing a new example.
+It is showing a public example that made the compiler better.
+
+## Best next pages
+
+- [Docs Ops Flagship Proof](/examples/docs-ops-flagship)
+- [Self-hosting Pluxx plugin](/examples/self-hosting-pluxx)
+- [Local core-four proof](/workflows/local-core-four-proof)

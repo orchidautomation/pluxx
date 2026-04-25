@@ -1,0 +1,4 @@
+interface:
+  display_name: "Source Review"
+  short_description: "Audit a result set for source quality and ranking mistakes"
+  default_prompt: "Use Exa Research Example to audit these sources, remove weak evidence, and explain which sources deserve the most trust."

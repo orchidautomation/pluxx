@@ -50,6 +50,8 @@ It now has real proof surfaces:
   - one maintained `docs-ops` source project compiled into a real Codex plugin and used against Orchid's live Docsalot MCP
 - [Orchid Accordion before/after rewrite](../example/docs-ops/demo-rewrites/orchid-components-accordion.after.md)
   - a concrete rewrite artifact from the flagship docs workflow example
+- [Exa Research Example](./exa-research-example.md)
+  - a clean-room Exa-style research operator pack with specialist agents, richer brand metadata, and real build/install/verify proof across Claude Code, Cursor, Codex, and OpenCode
 - [Core-four provider docs audit](./core-four-provider-docs-audit.md)
   - first-party docs normalized into one capability and lifecycle truth set
 - [Firecrawl connector docs-ingestion proof](./strategy/firecrawl-connector-docs-ingestion-proof.md)
