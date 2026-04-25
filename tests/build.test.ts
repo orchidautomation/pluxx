@@ -696,6 +696,10 @@ describe('build', () => {
     const claudeHooks = JSON.parse(
       readFileSync(resolve(TEST_DIR, 'permission-dist/claude-code/hooks/hooks.json'), 'utf-8')
     )
+    const claudePermissionScript = readFileSync(
+      resolve(TEST_DIR, 'permission-dist/claude-code/hooks/pluxx-permissions.mjs'),
+      'utf-8'
+    )
     const cursorManifest = JSON.parse(
       readFileSync(resolve(TEST_DIR, 'permission-dist/cursor/.cursor-plugin/plugin.json'), 'utf-8')
     )
@@ -710,6 +714,7 @@ describe('build', () => {
     expect(claudeManifest.hooks).toBeUndefined()
     expect(existsSync(resolve(TEST_DIR, 'permission-dist/claude-code/hooks/pluxx-permissions.mjs'))).toBe(true)
     expect(claudeHooks.hooks.PreToolUse).toBeDefined()
+    expect(claudePermissionScript).toContain('hookEventName: "PreToolUse"')
 
     expect(cursorManifest.hooks).toBe('./hooks/hooks.json')
     expect(existsSync(resolve(TEST_DIR, 'permission-dist/cursor/hooks/pluxx-permissions.mjs'))).toBe(true)

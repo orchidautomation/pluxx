@@ -298,6 +298,7 @@ function claudeResponse(match) {
   if (!match) return {};
   return {
     hookSpecificOutput: {
+      hookEventName: "PreToolUse",
       permissionDecision: match.action,
       permissionDecisionReason: "Pluxx permissions matched " + match.rule.raw,
     },
