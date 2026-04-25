@@ -146,6 +146,24 @@ Real authoring leverage. Not just bundle generation.
 
 Pluxx now covers migration, evals, consumer diagnostics, and deterministic MCP replay so the whole authoring loop is easier to trust and support.
 
+## Section: Journal
+
+### Heading
+
+Proof in public. Launch notes in the open.
+
+### Body
+
+The landing page should feature the Exa clean-room example as the first blog post. Position it as a live public proof that one maintained Pluxx source project can bundle a real MCP plus native workflows across Claude Code, Cursor, Codex, and OpenCode.
+
+### Featured post framing
+
+- Launch category
+- Exa clean-room example
+- explicit live proof line for Claude Code, Cursor, Codex, and OpenCode
+- CTA to read the post
+- CTA to browse the journal
+
 ## Footer CTA
 
 ### Heading

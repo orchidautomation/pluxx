@@ -1,3 +1,7 @@
+import Link from "next/link";
+
+import { featuredBlogPost } from "./blog/posts";
+
 const primaryPlatforms = [
   { index: "01", name: "Claude Code", note: "Plugin, hooks, skills, MCP — generated." },
   { index: "02", name: "Cursor", note: "Rules, hooks, plugin manifest, MCP." },
@@ -97,6 +101,7 @@ export default function Home() {
             <a href="#platforms">Platforms</a>
             <a href="#how-it-works">Workflow</a>
             <a href="#feature-surfaces">Features</a>
+            <a href="#journal">Blog</a>
             <a
               href="https://github.com/orchidautomation/pluxx"
               rel="noreferrer"
@@ -328,6 +333,58 @@ export default function Home() {
               </article>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section className="section section-divider" id="journal">
+        <div className="shell">
+          <div className="section-head">
+            <span className="section-kicker">Journal</span>
+            <h2 className="section-title">
+              Proof in public. <em>Launch notes in the open.</em>
+            </h2>
+            <p className="section-body">
+              The first post is the Exa clean-room example: a live public proof that one Pluxx
+              source project can bundle a real MCP plus native workflows across the core four.
+            </p>
+          </div>
+
+          <article className="journal-card">
+            <div className="journal-card-top">
+              <span className="status-pill">{featuredBlogPost.category}</span>
+              <div className="blog-meta">
+                <time dateTime={featuredBlogPost.isoDate}>{featuredBlogPost.publishedAt}</time>
+                <span>·</span>
+                <span>{featuredBlogPost.readTime}</span>
+              </div>
+            </div>
+
+            <div className="journal-grid">
+              <div className="journal-copy">
+                <h3>{featuredBlogPost.title}</h3>
+                <p>{featuredBlogPost.summary}</p>
+              </div>
+
+              <div className="journal-proof">
+                <span className="journal-proof-label">Live proof</span>
+                <ul className="proof-list">
+                  {featuredBlogPost.proof.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            <div className="journal-actions">
+              <Link className="button button-primary" href={`/blog/${featuredBlogPost.slug}`}>
+                <span>Read the post</span>
+                <span aria-hidden className="button-arrow">→</span>
+              </Link>
+              <Link className="button button-secondary" href="/blog">
+                Browse journal
+              </Link>
+            </div>
+          </article>
         </div>
       </section>
 

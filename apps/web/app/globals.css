@@ -1001,6 +1001,288 @@ pre {
 }
 
 /* ────────────────────────────────────────────────────────────────
+   Journal / blog
+   ──────────────────────────────────────────────────────────────── */
+
+.journal-card,
+.blog-card,
+.blog-aside-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(180deg, rgba(225, 215, 255, 0.035), rgba(225, 215, 255, 0)),
+    var(--bg-soft);
+  box-shadow: var(--shadow-soft);
+}
+
+.journal-card {
+  padding: 32px;
+}
+
+.journal-card-top,
+.blog-card-top,
+.blog-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.blog-meta {
+  color: var(--muted-text);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+}
+
+.journal-grid {
+  margin-top: 22px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.85fr);
+  gap: 30px;
+}
+
+.journal-copy h3,
+.blog-card h2,
+.blog-post-head h1,
+.blog-aside-card h3 {
+  margin: 0;
+  font-family: var(--font-display), serif;
+  font-weight: 400;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+.journal-copy h3,
+.blog-card h2 {
+  font-size: clamp(1.7rem, 3vw, 2.35rem);
+  line-height: 1.05;
+}
+
+.journal-copy p,
+.blog-card p,
+.blog-prose p,
+.blog-prose li {
+  color: var(--muted-strong);
+  line-height: 1.7;
+}
+
+.journal-copy p,
+.blog-card p {
+  margin: 14px 0 0;
+  font-size: 1rem;
+}
+
+.journal-proof {
+  padding: 20px 22px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: rgba(12, 9, 24, 0.66);
+}
+
+.journal-proof-label {
+  display: inline-flex;
+  margin-bottom: 12px;
+  color: var(--accent-2);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.76rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.proof-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.proof-list li {
+  position: relative;
+  padding-left: 18px;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.proof-list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.65em;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  box-shadow: 0 0 0 4px rgba(157, 109, 255, 0.1);
+}
+
+.journal-actions,
+.blog-card-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.journal-actions {
+  margin-top: 28px;
+}
+
+.blog-hero {
+  padding-bottom: 28px;
+}
+
+.blog-hero-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.blog-grid {
+  display: grid;
+  gap: 24px;
+}
+
+.blog-card {
+  padding: 30px;
+}
+
+.blog-card-featured {
+  position: relative;
+  overflow: hidden;
+}
+
+.blog-card-featured::after {
+  content: "";
+  position: absolute;
+  inset: auto -10% -40% 40%;
+  height: 200px;
+  background: radial-gradient(circle, rgba(157, 109, 255, 0.16), transparent 70%);
+  pointer-events: none;
+}
+
+.blog-card h2 {
+  margin-top: 18px;
+}
+
+.blog-card p {
+  max-width: 62ch;
+}
+
+.blog-card .proof-list {
+  margin-top: 22px;
+}
+
+.blog-card-actions {
+  margin-top: 24px;
+}
+
+.blog-post-shell {
+  padding-top: 46px;
+}
+
+.blog-post-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(260px, 0.7fr);
+  gap: 36px;
+  align-items: start;
+}
+
+.blog-post-main {
+  min-width: 0;
+}
+
+.blog-post-head {
+  display: grid;
+  gap: 14px;
+}
+
+.blog-post-head .section-title {
+  max-width: 14ch;
+}
+
+.blog-prose {
+  margin-top: 32px;
+  display: grid;
+  gap: 18px;
+}
+
+.blog-prose h2 {
+  margin: 18px 0 0;
+  font-family: var(--font-display), serif;
+  font-weight: 400;
+  font-size: clamp(1.55rem, 2.2vw, 2rem);
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+.blog-prose p,
+.blog-prose ul {
+  margin: 0;
+}
+
+.blog-prose ul {
+  padding-left: 20px;
+  display: grid;
+  gap: 10px;
+}
+
+.blog-prose code {
+  font-family: var(--font-mono), monospace;
+  font-size: 0.92em;
+  color: var(--ink);
+}
+
+.blog-code {
+  margin: 0;
+  padding: 18px 20px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: rgba(12, 9, 24, 0.72);
+  color: var(--accent-2);
+  font-family: var(--font-mono), monospace;
+  font-size: 0.84rem;
+  line-height: 1.7;
+  overflow-x: auto;
+}
+
+.blog-post-aside {
+  position: sticky;
+  top: 104px;
+  display: grid;
+  gap: 18px;
+}
+
+.blog-aside-card {
+  padding: 24px;
+}
+
+.blog-aside-card h3 {
+  margin-top: 12px;
+  font-size: 1.45rem;
+}
+
+.blog-link-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.blog-link-list a {
+  color: var(--ink-soft);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition:
+    color 160ms ease,
+    border-color 160ms ease;
+}
+
+.blog-link-list a:hover {
+  color: var(--ink);
+  border-color: rgba(225, 215, 255, 0.28);
+}
+
+/* ────────────────────────────────────────────────────────────────
    Colophon / footer
    ──────────────────────────────────────────────────────────────── */
 
@@ -1193,6 +1475,15 @@ pre {
     grid-template-columns: 1fr;
   }
 
+  .journal-grid,
+  .blog-post-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .blog-post-aside {
+    position: static;
+  }
+
   .workflow-card {
     border-bottom: 1px solid var(--line);
   }
@@ -1278,6 +1569,24 @@ pre {
   .workflow-grid,
   .feature-grid {
     grid-template-columns: 1fr;
+  }
+
+  .journal-card,
+  .blog-card,
+  .blog-aside-card {
+    padding: 22px;
+  }
+
+  .journal-card-top,
+  .blog-card-top,
+  .blog-meta,
+  .journal-actions,
+  .blog-card-actions {
+    align-items: flex-start;
+  }
+
+  .blog-post-shell {
+    padding-top: 24px;
   }
 
   .platform-card,

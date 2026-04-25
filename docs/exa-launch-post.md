@@ -83,20 +83,6 @@ That means:
 - translate where the host has a different native surface
 - degrade only where the host is genuinely weaker
 
-The Exa example ended up being a strong proof surface because it forced the compiler to improve.
-
-While building it, we found and fixed:
-
-- Claude-native agent translation gaps
-- Claude command argument-hint UX issues
-- permission-hook JSON contract issues
-- better behavior around command-wrapped skills vs direct slash discovery
-- stronger OpenCode agent/permission modeling
-
-So this was not just “we made a demo.”
-
-It was “a real public example found real compiler gaps and made the product better.”
-
 Today, the Exa example is proven through real host flows:
 
 - Claude Code app
