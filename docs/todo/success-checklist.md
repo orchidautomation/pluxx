@@ -157,6 +157,10 @@ Use this file to:
 - [x] A second clean-room public example exists for a different plugin shape:
   - [docs/exa-research-example.md](../exa-research-example.md)
   - it proves Pluxx can carry a Claude-first subagent-heavy research architecture plus rich brand metadata across the core four
+- [~] That Exa example is now partly proven through official host CLIs too:
+  - Cursor CLI PASS
+  - OpenCode CLI PASS
+  - Claude and Codex are still blocked by local runtime issues in this environment
 - [ ] A real authenticated publish and rollback run exists against a safe private target
 
 ## 6. Self-Hosted Pluxx Plugin Quality

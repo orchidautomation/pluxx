@@ -185,6 +185,48 @@ All four `verify-install` checks passed after install.
 | Codex | `~/.codex/plugins/exa-research-example` | PASS | native plugin bundle plus rich `interface` metadata, screenshots, prompts, legal links, and capabilities |
 | OpenCode | `~/.config/opencode/plugins/exa-research-example` | PASS | native code-first plugin bundle plus permission-first agent/runtime output |
 
+## Official CLI Workflow Attempt
+
+After the final branded build and install rerun, the same small Exa workflow was attempted through the official host CLIs.
+
+Prompt under test:
+
+```text
+Use Exa Research Example to map Exa.ai and one nearby competitor. Return:
+1. 3 key findings
+2. 3 high-signal source URLs.
+```
+
+Because `EXA_API_KEY` is currently sourced from the interactive shell on this machine, the commands were run through `zsh -ic ...`.
+
+### Commands actually run
+
+```bash
+zsh -ic 'claude -p --permission-mode bypassPermissions --output-format text "Use Exa Research Example to map Exa.ai and one nearby competitor. Return: 1. 3 key findings 2. 3 high-signal source URLs."'
+
+zsh -ic 'cursor agent --print --trust --approve-mcps --force --workspace "/Users/brandonguerrero/Documents/Orchid Automation/Orchid Labs/pluxx/example/exa-plugin" "Use Exa Research Example to map Exa.ai and one nearby competitor. Return: 1. 3 key findings 2. 3 high-signal source URLs."'
+
+zsh -ic 'codex exec -C "/Users/brandonguerrero/Documents/Orchid Automation/Orchid Labs/pluxx" --dangerously-bypass-approvals-and-sandbox "Use Exa Research Example to map Exa.ai and one nearby competitor. Return: 1. 3 key findings 2. 3 high-signal source URLs."'
+
+zsh -ic 'opencode run --dir "/Users/brandonguerrero/Documents/Orchid Automation/Orchid Labs/pluxx/example/exa-plugin" --dangerously-skip-permissions "Use Exa Research Example to map Exa.ai and one nearby competitor. Return: 1. 3 key findings 2. 3 high-signal source URLs."'
+```
+
+### Headless workflow result matrix
+
+| Host | Result | Notes |
+| --- | --- | --- |
+| Claude Code CLI | FAIL | local Claude runtime returned `API Error: Unable to connect to API (ConnectionRefused)` before a plugin-level result was returned |
+| Cursor CLI | PASS | returned a clean Exa-vs-Tavily comparison with three findings and three sources |
+| Codex CLI | FAIL | local Codex runtime is blocked by ambient environment issues rather than the Exa plugin bundle itself: current CLI/model mismatch plus an unrelated invalid local skill under `~/.agents/skills/one` |
+| OpenCode CLI | PASS | returned a substantive Exa-vs-Tavily comparison and clearly exercised Exa MCP tools; local environment still emits unrelated `megamind/scripts/confirm-mutation.sh` noise before the result |
+
+This does **not** count as full official CLI proof across the core four yet.
+
+It does prove two useful things already:
+
+- the generated Exa plugin is strong enough to execute real headless workflows in Cursor and OpenCode
+- the remaining Claude and Codex blockers are currently host-runtime issues on this machine, not the generated Exa plugin shape
+
 ## What This Forced Pluxx To Improve
 
 This example exposed a real compiler gap.
@@ -250,7 +292,7 @@ Concrete bundle inspection after the final branded build:
 
 This example is already a strong mechanical proof surface, but it does not yet prove everything:
 
-- it does not yet have the same official CLI live workflow proof stack that `docs-ops` has
+- it does not yet have the same full official CLI live workflow proof stack that `docs-ops` has
 - it does not yet have a polished in-app walkthrough in one host
 - it does not prove any special private Exa surface beyond the public MCP plus optional API-key auth
 

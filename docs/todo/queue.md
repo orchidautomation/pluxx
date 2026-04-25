@@ -70,6 +70,10 @@ The core-four compiler sprint is done.
   - `example/exa-plugin`
 - that Exa example now proves a clean-room subagent-heavy research architecture can also be built, installed, and `verify-install` checked across Claude Code, Cursor, Codex, and OpenCode:
   - `docs/exa-research-example.md`
+- the Exa example now also has partial official CLI workflow proof:
+  - Cursor CLI PASS
+  - OpenCode CLI PASS
+  - Claude and Codex are still blocked by local runtime issues in this environment, not by the generated plugin bundle
 
 The public baseline is also real.
 
@@ -129,6 +133,9 @@ Open work:
 - keep the new Exa clean-room example in the proof stack as the clearest non-docs showcase of:
   - raw MCP plus official-host workflow shape in
   - branded native core-four bundles out
+- finish the Exa host-runtime proof block when the local environment permits:
+  - Claude CLI connection issue
+  - Codex CLI model/account/runtime issue
 - treat the current scaffold and Orchid read-only proof as complete:
   - `example/docs-ops`
   - `example/docs-ops/ORCHID-READONLY-DEMO.md`

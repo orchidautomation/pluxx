@@ -144,6 +144,12 @@ The repo already proves a lot.
 - that Exa example is a clean-room rebuild of the workflow shape of Exa's official Claude plugin against Exa's public MCP:
   - `docs/exa-research-example.md`
 - the Exa example now also builds, installs, and passes `verify-install` across Claude Code, Cursor, Codex, and OpenCode
+- the Exa example has now also completed a real headless workflow through:
+  - Cursor CLI
+  - OpenCode CLI
+- the remaining Exa headless blockers are currently local host/runtime issues on this machine:
+  - Claude CLI API connection refusal
+  - Codex CLI model/account/runtime mismatch plus an unrelated local skill error
 - the Exa example also pressured and improved the compiler itself:
   - a real Claude agent translation bug was exposed and fixed while making the example install cleanly
 - docs/website ingestion has a provider model and writes deterministic artifacts:
