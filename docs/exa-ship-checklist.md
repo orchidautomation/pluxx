@@ -31,6 +31,47 @@ Use this file when the question is not “does the Exa example work?” but “w
   - OpenCode CLI
 - The example already pressures and improves the compiler, so it is not just demo content.
 
+## Nuanced Acceptance Pass
+
+Before we send this to Exa, we should verify not only that each host returns an answer, but that each host obeys the intended workflow shape.
+
+### Core workflow prompts
+
+Run these against the current installed Exa example:
+
+- `news-brief GPT-5.5 last 7 days`
+- `people-research GTM engineers`
+- `company-research Clay.com`
+- `deep-research OpenAI Codex plugins MCP behavior`
+- `source-review <a result set or candidate source list>`
+
+### What must be true
+
+1. The prompt uses Exa MCP tools for the live search path, not only local file reading or generic host web search.
+2. Argument-bearing entrypoints preserve the intended input shape instead of forcing the model to guess.
+3. Specialist workflows delegate when the host has a native subagent surface, and degrade honestly when the host does not.
+4. Source-review behavior actually improves ranking, filtering, or evidence quality instead of only restating search results.
+5. Permissions remain sane:
+   - Exa MCP access should run without spurious approval churn
+   - edit/bash prompts should still ask when the workflow crosses those boundaries
+6. The host-specific UI cues should match the native translation story.
+
+### Host-specific checks
+
+- Claude Code
+  - command argument hint is visible on slash commands like `news-brief`
+  - delegated agent calls visibly execute Exa MCP tools
+- Cursor
+  - skills are discoverable in chat
+  - delegated specialist passes show up as actual workflow steps, not just silent prompt paraphrase
+- Codex
+  - plugin mention or direct skill invoke results in a real `used Exa` path
+  - plugin-scoped MCP works even though it does not appear in the global MCP settings page
+- OpenCode
+  - generated OpenCode skills use explicit native `@subagent` cues for specialist agents
+  - specialist slash commands should bind native OpenCode `agent` + `subtask` metadata where one workflow clearly maps to one subagent
+  - the workflow should not claim OpenCode lacks subagents when the plugin bundle provides them
+
 ## Release Goal
 
 Ship one clean npm update for `@orchid-labs/pluxx` that includes:

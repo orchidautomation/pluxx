@@ -7,6 +7,9 @@ export interface ParsedCommandMarkdownFile {
   commandId: string
   title: string
   description?: string
+  agent?: string
+  subtask?: boolean
+  model?: string
   body: string
 }
 
@@ -74,6 +77,34 @@ function parseCommandFrontmatterDescription(frontmatterLines: string[]): string 
   return undefined
 }
 
+function parseCommandFrontmatterString(
+  frontmatterLines: string[],
+  key: string,
+): string | undefined {
+  const pattern = new RegExp(`^${key}:\\s*(.+)\\s*$`, 'i')
+  for (const line of frontmatterLines) {
+    const match = pattern.exec(line.trim())
+    if (match?.[1]) {
+      return stripYamlScalar(match[1])
+    }
+  }
+
+  return undefined
+}
+
+function parseCommandFrontmatterBoolean(
+  frontmatterLines: string[],
+  key: string,
+): boolean | undefined {
+  const value = parseCommandFrontmatterString(frontmatterLines, key)
+  if (!value) return undefined
+
+  if (/^true$/i.test(value)) return true
+  if (/^false$/i.test(value)) return false
+
+  return undefined
+}
+
 function walkMarkdownFiles(dir: string): string[] {
   const entries = readdirSync(dir)
   const files: string[] = []
@@ -113,6 +144,9 @@ export function readCanonicalCommandFiles(commandsDir: string | undefined): Pars
         commandId,
         title,
         description: parseCommandFrontmatterDescription(frontmatterLines),
+        agent: parseCommandFrontmatterString(frontmatterLines, 'agent'),
+        subtask: parseCommandFrontmatterBoolean(frontmatterLines, 'subtask'),
+        model: parseCommandFrontmatterString(frontmatterLines, 'model'),
         body: body.trim(),
       }
     })

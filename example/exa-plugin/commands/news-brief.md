@@ -1,6 +1,8 @@
 ---
 description: Build a source-backed recent-news brief with Exa
 argument-hint: [topic-or-company]
+agent: news-scout
+subtask: true
 ---
 
 Use the `exa-news-brief` skill.

@@ -1,6 +1,8 @@
 ---
 description: Find the best docs, code examples, and implementation notes for an API, library, or error
 argument-hint: [technology-or-problem]
+agent: code-scout
+subtask: true
 ---
 
 Use the `exa-code-research` skill.

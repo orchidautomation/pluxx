@@ -217,7 +217,7 @@ All four `verify-install` checks passed after install.
 | Claude Code | `~/.claude/plugins/data/pluxx-local-exa-research-example/plugins/exa-research-example` | PASS | native skills, commands, hooks, MCP wiring, and translated Claude agent files |
 | Cursor | `~/.cursor/plugins/local/exa-research-example` | PASS | native plugin bundle plus homepage/logo listing metadata |
 | Codex | `~/.codex/plugins/exa-research-example` | PASS | native plugin bundle plus rich `interface` metadata, screenshots, prompts, legal links, and capabilities |
-| OpenCode | `~/.config/opencode/plugins/exa-research-example` | PASS | native code-first plugin bundle plus permission-first agent/runtime output |
+| OpenCode | `~/.config/opencode/plugins/exa-research-example` | PASS | native code-first plugin bundle plus permission-first agent/runtime output, explicit `@subagent` cues in generated skills, and native command-level `agent`/`subtask` bindings for specialist workflows |
 
 ## Official CLI Workflow Attempt
 
@@ -257,6 +257,29 @@ zsh -ic 'opencode run --dir "/Users/brandonguerrero/Documents/Orchid Automation/
 This does **not** count as full official CLI proof across the core four yet.
 
 It does prove two useful things already:
+
+## OpenCode Specific Note
+
+OpenCode was the host that most clearly punished a “prompt-wrapper only” command translation.
+
+The current truthful OpenCode shape is now:
+
+- skills keep explicit `@subagent` cues like `@company-scout`
+- specialist slash commands also bind native OpenCode command metadata:
+  - `agent`
+  - `subtask`
+
+That matters because the skill text alone is only advisory. The OpenCode command docs explicitly support agent-bound commands, and subagent invocation becomes much more deterministic once the command itself declares the specialist agent to launch.
+
+For the Exa example, that now means:
+
+- `company-research` binds `company-scout`
+- `people-research` binds `people-scout`
+- `code-research` binds `code-scout`
+- `news-brief` binds `news-scout`
+- `source-review` binds `source-auditor`
+
+`deep-research` remains the intentionally richer orchestration workflow rather than a single-specialist command.
 
 - the generated Exa plugin is strong enough to execute real headless workflows in Cursor and OpenCode
 - the remaining Claude and Codex blockers are currently host-runtime issues on this machine, not the generated Exa plugin shape

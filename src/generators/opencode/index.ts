@@ -1,5 +1,5 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'fs'
-import { extname, relative, resolve } from 'path'
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'fs'
+import { basename, extname, relative, resolve } from 'path'
 import { Generator } from '../base'
 import type { HookEntry, TargetPlatform } from '../../schema'
 import { buildOpenCodePermissionMap } from '../../permissions'
@@ -54,9 +54,11 @@ export class OpenCodeGenerator extends Generator {
 
     this.copySkills()
     this.copyCommands()
+    this.copyAgents()
     this.copyScripts()
     this.copyAssets()
     this.copyPassthrough()
+    this.rewriteOpenCodeSkillAgentMentions()
   }
 
   private async generatePackageJson(): Promise<void> {
@@ -376,17 +378,32 @@ export class OpenCodeGenerator extends Generator {
     return output
   }
 
-  private getOpenCodeCommandDefinitions(): Record<string, { template: string; description?: string }> {
+  private getOpenCodeCommandDefinitions(): Record<string, {
+    template: string
+    description?: string
+    agent?: string
+    subtask?: boolean
+    model?: string
+  }> {
     if (!this.config.commands) return {}
 
     const commandsDir = this.resolveConfigPath(this.config.commands, 'commands')
     const commands = readCanonicalCommandFiles(commandsDir)
-    const output: Record<string, { template: string; description?: string }> = {}
+    const output: Record<string, {
+      template: string
+      description?: string
+      agent?: string
+      subtask?: boolean
+      model?: string
+    }> = {}
 
     for (const command of commands) {
       output[command.commandId] = {
         template: command.body,
         ...(command.description ? { description: command.description } : {}),
+        ...(command.agent ? { agent: command.agent } : {}),
+        ...(typeof command.subtask === 'boolean' ? { subtask: command.subtask } : {}),
+        ...(command.model ? { model: command.model } : {}),
       }
     }
 
@@ -544,6 +561,33 @@ export class OpenCodeGenerator extends Generator {
 
     return files
   }
+
+  private rewriteOpenCodeSkillAgentMentions(): void {
+    if (!this.config.agents || !this.config.skills) return
+
+    const skillsDir = resolve(this.outDir, 'skills')
+    if (!existsSync(skillsDir)) return
+
+    const agentsDir = this.resolveConfigPath(this.config.agents, 'agents')
+    const agentNames = readCanonicalAgentFiles(agentsDir).map((agent) => agent.name).filter(Boolean)
+    if (agentNames.length === 0) return
+
+    for (const filePath of this.walkFiles(skillsDir)) {
+      if (basename(filePath) !== 'SKILL.md') continue
+
+      const source = readFileSync(filePath, 'utf-8')
+      let rewritten = source
+
+      for (const agentName of agentNames) {
+        const escaped = escapeRegExp(agentName)
+        rewritten = rewritten.replace(new RegExp(`\`(${escaped})\``, 'g'), '`@$1`')
+      }
+
+      if (rewritten !== source) {
+        writeFileSync(filePath, rewritten)
+      }
+    }
+  }
 }
 
 function asOpenCodeMap(value: unknown): AgentFrontmatterMap | undefined {
@@ -662,4 +706,8 @@ function toPascalCase(str: string): string {
     .split('-')
     .map(part => part.charAt(0).toUpperCase() + part.slice(1))
     .join('')
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }

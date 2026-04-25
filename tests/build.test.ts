@@ -127,6 +127,7 @@ beforeAll(async () => {
       '# Deep Research',
       '',
       'Use this skill when the request needs a sourced, specialist investigation.',
+      'Start with `escalation` when the request needs a bounded specialist pass before synthesis.',
       '',
       '## Extra context',
       '',
@@ -156,6 +157,8 @@ beforeAll(async () => {
       '---',
       'description: Run the deep research wrapper',
       'argument-hint: [company] [region]',
+      'agent: escalation',
+      'subtask: true',
       '---',
       '',
       'Use the `deep-research` skill.',
@@ -269,6 +272,7 @@ describe('build', () => {
     // OpenCode
     expect(existsSync(resolve(OUT_DIR, 'opencode/package.json'))).toBe(true)
     expect(existsSync(resolve(OUT_DIR, 'opencode/index.ts'))).toBe(true)
+    expect(existsSync(resolve(OUT_DIR, 'opencode/agents/escalation.md'))).toBe(true)
     expect(existsSync(resolve(OUT_DIR, 'opencode/mcp-server/dist/index.js'))).toBe(true)
 
     // GitHub Copilot
@@ -663,9 +667,12 @@ describe('build', () => {
       readFileSync(resolve(OUT_DIR, 'opencode/package.json'), 'utf-8')
     )
     const indexTs = readFileSync(resolve(OUT_DIR, 'opencode/index.ts'), 'utf-8')
+    const opencodeSkill = readFileSync(resolve(OUT_DIR, 'opencode/skills/deep-research/SKILL.md'), 'utf-8')
     const agentDefinitions = extractGeneratedJson<Record<string, Record<string, unknown>>>(indexTs, 'AGENT_DEFINITIONS')
+    const commandDefinitions = extractGeneratedJson<Record<string, Record<string, unknown>>>(indexTs, 'TUI_COMMANDS')
 
     expect(opencodePackage.name).toBe('opencode-test-plugin')
+    expect(existsSync(resolve(OUT_DIR, 'opencode/agents/escalation.md'))).toBe(true)
     expect(indexTs).toContain('const INSTRUCTIONS =')
     expect(indexTs).toContain('applyInstructions(output.system)')
     expect(indexTs).toContain('const MCP_DEFINITIONS =')
@@ -679,6 +686,12 @@ describe('build', () => {
     expect(indexTs).toContain('"hidden": true')
     expect(indexTs).toContain('"permission": {')
     expect(indexTs).toContain('"edit": "deny"')
+    expect(opencodeSkill).toContain('`@escalation`')
+    expect(commandDefinitions.research).toMatchObject({
+      description: 'Run the deep research wrapper',
+      agent: 'escalation',
+      subtask: true,
+    })
     expect(agentDefinitions['legacy-review']).toEqual({
       description: 'Legacy review agent.',
       prompt: '# Legacy Review\n\nReview code without direct edits unless explicitly allowed.',
