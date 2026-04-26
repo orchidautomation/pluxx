@@ -3305,7 +3305,7 @@ Targets:
 Examples:
   pluxx --version                         Print the installed CLI version
   pluxx upgrade                           Upgrade the global npm install to latest
-  pluxx upgrade --version 0.1.5           Upgrade the global npm install to a specific version
+  pluxx upgrade --version x.y.z           Upgrade the global npm install to a specific version
   pluxx build                             Build for all configured targets
   pluxx build --install                   Build and install all configured targets locally
   pluxx build --target claude-code cursor  Build for specific platforms

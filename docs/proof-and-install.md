@@ -183,7 +183,7 @@ curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example
 
 Current release note:
 
-- the published npm package (`0.1.5`) now includes the Claude plugin-agent manifest fix
+- the published npm package now includes the Claude plugin-agent manifest fix
 - the public `pluxx test --install --trust --behavioral` path now matches the repo-local Exa proof state
 
 ## Best Demo Flow

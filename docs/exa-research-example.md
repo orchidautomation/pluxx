@@ -221,7 +221,7 @@ pluxx test --install --trust --behavioral --target claude-code cursor codex open
 
 Current package note:
 
-- the published npm package (`0.1.5`) now includes the Claude plugin install schema fix and the Claude behavioral smoke coverage
+- the published npm package now includes the Claude plugin install schema fix and the Claude behavioral smoke coverage
 - the public `pluxx test --install --trust --behavioral` path now matches the repo-local Exa proof state
 
 ```bash

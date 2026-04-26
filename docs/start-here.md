@@ -153,7 +153,7 @@ The repo already proves a lot.
   - Cursor CLI
   - Codex Desktop app
   - OpenCode CLI
-- the published npm package (`0.1.5`) now includes the Claude plugin-agent manifest fix, so the public `pluxx test --install --trust --behavioral` path matches the repo-local Exa proof state
+- the published npm package now includes the Claude plugin-agent manifest fix, so the public `pluxx test --install --trust --behavioral` path matches the repo-local Exa proof state
 - the remaining Exa rerun blockers are now narrower and host-local:
   - Cursor CLI currently hits a local macOS keychain/auth error on fresh rerun (`SecItemCopyMatching failed -50`)
   - the older Claude CLI and Codex CLI headless failures are still ambient host-runtime issues on this machine, not generator-shape issues

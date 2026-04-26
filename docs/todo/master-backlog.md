@@ -141,7 +141,7 @@ Open work:
   - Cursor CLI PASS
   - Codex Desktop app PASS
   - OpenCode CLI PASS
-  - published npm package (`0.1.5`) now includes the Claude plugin-agent manifest fix
+  - published npm package now includes the Claude plugin-agent manifest fix
   - public `pluxx test --install --trust --behavioral` now reflects the same Claude state as the repo-local proof
   - fresh Cursor CLI reruns currently hit a local macOS keychain/auth issue on this machine
   - older Claude CLI and Codex CLI headless failures are still ambient host-runtime issues on this machine
