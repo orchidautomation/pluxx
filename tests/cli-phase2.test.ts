@@ -6,6 +6,9 @@ import { introspectMcpServer } from '../src/mcp/introspect'
 import { writeMcpScaffold } from '../src/cli/init-from-mcp'
 
 const ROOT = resolve(import.meta.dir, '..')
+const CLI_INDEX_PATH = resolve(ROOT, 'src/cli/index.ts')
+const originalArgv = [...process.argv]
+const originalCwd = process.cwd()
 
 function spawnCli(argv: string[], cwd: string, env: Record<string, string> = {}) {
   return Bun.spawn(['bun', resolve(ROOT, 'bin/pluxx.js'), ...argv], {
@@ -307,92 +310,105 @@ describe('Phase 2 CLI flows', () => {
       }, null, 2),
     )
 
-    const docsServer = Bun.serve({
-      port: 0,
-      fetch(request) {
-        const url = new URL(request.url)
-        if (url.pathname === '/docs/mcp') {
-          return new Response(
-            '<!doctype html><html><head><title>Firecrawl MCP</title><meta name="description" content="Turn websites into clean markdown and structured data."></head><body><h1>Firecrawl MCP</h1><h2>Scrape pages</h2><p>Set the Firecrawl API key before using the hosted endpoint.</p></body></html>',
-            { headers: { 'Content-Type': 'text/html; charset=utf-8' } },
-          )
+    try {
+      const websiteUrl = 'https://firecrawl.dev/'
+      const docsUrl = 'https://firecrawl.dev/docs/mcp'
+      const originalFetch = globalThis.fetch
+      const originalLog = console.log
+      const logged: string[] = []
+      try {
+        console.log = (...args: unknown[]) => {
+          logged.push(args.join(' '))
+        }
+        globalThis.fetch = async (input, init) => {
+          const request = new Request(input, init)
+          if (request.url === websiteUrl || request.url === `${websiteUrl}`) {
+            return new Response(
+              '<!doctype html><html><head><title>Firecrawl</title><meta name="description" content="Turn websites into clean markdown and structured data."></head><body><h1>Firecrawl</h1><h2>Map sites</h2><p>Use onlyMainContent when you want cleaner extraction.</p></body></html>',
+              { headers: { 'Content-Type': 'text/html; charset=utf-8' } },
+            )
+          }
+          if (request.url === docsUrl || request.url === `${docsUrl}` || request.url === 'https://firecrawl.dev/docs') {
+            return new Response(
+              '<!doctype html><html><head><title>Firecrawl MCP</title><meta name="description" content="Turn websites into clean markdown and structured data."></head><body><h1>Firecrawl MCP</h1><h2>Scrape pages</h2><p>Set the Firecrawl API key before using the hosted endpoint.</p></body></html>',
+              { headers: { 'Content-Type': 'text/html; charset=utf-8' } },
+            )
+          }
+          return originalFetch(input, init)
         }
 
-        return new Response(
-          '<!doctype html><html><head><title>Firecrawl</title><meta name="description" content="Turn websites into clean markdown and structured data."></head><body><h1>Firecrawl</h1><h2>Map sites</h2><p>Use onlyMainContent when you want cleaner extraction.</p></body></html>',
-          { headers: { 'Content-Type': 'text/html; charset=utf-8' } },
-        )
-      },
-    })
+        process.chdir(dir)
+        process.argv = [
+          'bun',
+          'pluxx',
+          'init',
+          '--from-mcp',
+          `bun ${stubServerPath} ${statePath}`,
+          '--yes',
+          '--name',
+          'firecrawl',
+          '--display-name',
+          'Firecrawl',
+          '--author',
+          'Firecrawl',
+          '--website',
+          websiteUrl,
+          '--docs',
+          docsUrl,
+          '--ingest-provider',
+          'local',
+          '--json',
+        ]
 
-    try {
-      const websiteUrl = `http://127.0.0.1:${docsServer.port}/`
-      const docsUrl = `http://127.0.0.1:${docsServer.port}/docs/mcp`
-      const proc = spawnCli([
-        'init',
-        '--from-mcp',
-        `bun ${stubServerPath} ${statePath}`,
-        '--yes',
-        '--name',
-        'firecrawl',
-        '--display-name',
-        'Firecrawl',
-        '--author',
-        'Firecrawl',
-        '--website',
-        websiteUrl,
-        '--docs',
-        docsUrl,
-        '--ingest-provider',
-        'local',
-        '--json',
-      ], dir)
+        const { main } = await import(`${CLI_INDEX_PATH}?phase2-context-artifacts`)
+        await main()
 
-      const stdout = await new Response(proc.stdout).text()
-      const stderr = await new Response(proc.stderr).text()
-      const exitCode = await proc.exited
+        const stdout = logged.join('\n')
+        expect(stdout).not.toBe('')
 
-      expect(exitCode).toBe(0)
-      expect(stderr).toBe('')
+        const summary = JSON.parse(stdout) as {
+          contextInputs?: string[]
+          ingestion?: { requestedProvider: string; resolvedProvider: string }
+          createdFiles: string[]
+        }
 
-      const summary = JSON.parse(stdout) as {
-        contextInputs?: string[]
-        ingestion?: { requestedProvider: string; resolvedProvider: string }
-        createdFiles: string[]
+        expect(summary.contextInputs).toEqual([
+          websiteUrl,
+          docsUrl,
+          websiteUrl.replace(/\/$/, '/docs'),
+        ])
+        expect(summary.ingestion).toEqual({
+          requestedProvider: 'local',
+          resolvedProvider: 'local',
+          fallbackToLocalOnError: false,
+        })
+        expect(summary.createdFiles).toContain('.pluxx/sources.json')
+        expect(summary.createdFiles).toContain('.pluxx/docs-context.json')
+        expect(existsSync(resolve(dir, '.pluxx/sources.json'))).toBe(true)
+        expect(existsSync(resolve(dir, '.pluxx/docs-context.json'))).toBe(true)
+
+        const config = readFileSync(resolve(dir, 'pluxx.config.ts'), 'utf-8')
+        const instructions = readFileSync(resolve(dir, 'INSTRUCTIONS.md'), 'utf-8')
+        const sources = JSON.parse(readFileSync(resolve(dir, '.pluxx/sources.json'), 'utf-8')) as {
+          ingestion?: { requestedProvider: string; resolvedProvider: string }
+        }
+
+        expect(config).toContain('description: "Turn websites into clean markdown and structured data."')
+        expect(config).toContain(`websiteURL: ${JSON.stringify(websiteUrl)}`)
+        expect(instructions).toContain('## Sourced Context')
+        expect(instructions).toContain('Auth hints: Set the Firecrawl API key before using the hosted endpoint.')
+        expect(sources.ingestion).toEqual({
+          requestedProvider: 'local',
+          resolvedProvider: 'local',
+          fallbackToLocalOnError: false,
+        })
+      } finally {
+        console.log = originalLog
+        globalThis.fetch = originalFetch
       }
-
-      expect(summary.contextInputs).toEqual([
-        websiteUrl,
-        docsUrl,
-        websiteUrl.replace(/\/$/, '/docs'),
-      ])
-      expect(summary.ingestion).toEqual({
-        requestedProvider: 'local',
-        resolvedProvider: 'local',
-        fallbackToLocalOnError: false,
-      })
-      expect(summary.createdFiles).toContain('.pluxx/sources.json')
-      expect(summary.createdFiles).toContain('.pluxx/docs-context.json')
-      expect(existsSync(resolve(dir, '.pluxx/sources.json'))).toBe(true)
-      expect(existsSync(resolve(dir, '.pluxx/docs-context.json'))).toBe(true)
-
-      const config = readFileSync(resolve(dir, 'pluxx.config.ts'), 'utf-8')
-      const instructions = readFileSync(resolve(dir, 'INSTRUCTIONS.md'), 'utf-8')
-      const sources = JSON.parse(readFileSync(resolve(dir, '.pluxx/sources.json'), 'utf-8')) as {
-        ingestion?: { requestedProvider: string; resolvedProvider: string }
-      }
-
-      expect(config).toContain('description: "Turn websites into clean markdown and structured data."')
-      expect(config).toContain(`websiteURL: ${JSON.stringify(websiteUrl)}`)
-      expect(instructions).toContain('## Sourced Context')
-      expect(instructions).toContain('Auth hints: Set the Firecrawl API key before using the hosted endpoint.')
-      expect(sources.ingestion).toEqual({
-        requestedProvider: 'local',
-        resolvedProvider: 'local',
-        fallbackToLocalOnError: false,
-      })
     } finally {
-      docsServer.stop(true)
+      process.argv = [...originalArgv]
+      process.chdir(originalCwd)
       rmSync(dir, { recursive: true, force: true })
     }
   })

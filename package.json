@@ -20,8 +20,8 @@
     "dev": "tsx watch src/cli/index.ts",
     "eval:docs-ingestion": "tsx scripts/evaluate-docs-ingestion.ts",
     "generate:compatibility": "tsx scripts/generate-compatibility-matrix.ts",
-    "pack:check": "npm pack --dry-run",
-    "release:check": "npm run build && npm run typecheck && npm test && node scripts/verify-node-package-runtime.mjs && npm pack --dry-run",
+    "pack:check": "node scripts/run-npm-pack.mjs --dry-run",
+    "release:check": "npm run build && npm run typecheck && npm test && node scripts/verify-node-package-runtime.mjs && node scripts/run-npm-pack.mjs --dry-run",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build && npm run typecheck && npm test"

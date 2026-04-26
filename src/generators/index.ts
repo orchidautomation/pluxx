@@ -35,6 +35,50 @@ export interface BuildOptions {
   clean?: boolean
 }
 
+function assertPathWithinRoot(rootDir: string, configPath: string, configKey: string): void {
+  const resolvedPath = resolve(rootDir, configPath)
+  const rel = relative(rootDir, resolvedPath)
+  if (rel.startsWith('..')) {
+    throw new Error(`${configKey} path "${configPath}" resolves outside the project root.`)
+  }
+}
+
+function validateConfiguredPaths(config: PluginConfig, rootDir: string): void {
+  assertPathWithinRoot(rootDir, config.skills, 'skills')
+
+  if (config.commands) {
+    assertPathWithinRoot(rootDir, config.commands, 'commands')
+  }
+
+  if (config.agents) {
+    assertPathWithinRoot(rootDir, config.agents, 'agents')
+  }
+
+  if (config.scripts) {
+    assertPathWithinRoot(rootDir, config.scripts, 'scripts')
+  }
+
+  if (config.assets) {
+    assertPathWithinRoot(rootDir, config.assets, 'assets')
+  }
+
+  if (config.instructions) {
+    assertPathWithinRoot(rootDir, config.instructions, 'instructions')
+  }
+
+  for (const passthroughPath of config.passthrough ?? []) {
+    assertPathWithinRoot(rootDir, passthroughPath, 'passthrough')
+  }
+
+  if (config.brand?.icon) {
+    assertPathWithinRoot(rootDir, config.brand.icon, 'brand.icon')
+  }
+
+  for (const screenshot of config.brand?.screenshots ?? []) {
+    assertPathWithinRoot(rootDir, screenshot, 'brand.screenshots')
+  }
+}
+
 export async function build(
   config: PluginConfig,
   rootDir: string,
@@ -50,6 +94,8 @@ export async function build(
       `outDir "${config.outDir}" resolves outside the project root. Refusing to delete.`
     )
   }
+
+  validateConfiguredPaths(config, rootDir)
 
   if (options.clean !== false) {
     rmSync(outDir, { recursive: true, force: true })

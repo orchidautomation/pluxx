@@ -1,9 +1,13 @@
-import { describe, expect, it } from 'bun:test'
+import { describe, expect, it, mock } from 'bun:test'
 import { chmodSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { resolve } from 'path'
 
 const ROOT = resolve(import.meta.dir, '..')
+const CLI_INDEX_PATH = resolve(ROOT, 'src/cli/index.ts')
+const INTROSPECT_PATH = resolve(ROOT, 'src/mcp/introspect.ts')
+const originalArgv = [...process.argv]
+const originalCwd = process.cwd()
 
 function spawnCli(argv: string[], cwd: string, env: Record<string, string> = {}) {
   return Bun.spawn(['bun', resolve(ROOT, 'bin/pluxx.js'), ...argv], {
@@ -725,35 +729,15 @@ exit 0
 
   it('prints explicit auth guidance for OAuth-first remote MCPs', async () => {
     const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-autopilot-auth-'))
-    let port = 0
-    const server = Bun.serve({
-      port: 0,
-      fetch(request) {
-        const url = new URL(request.url)
-        if (url.pathname === '/mcp') {
-          return new Response(null, {
-            status: 302,
-            headers: {
-              location: `http://127.0.0.1:${port}/oauth/login`,
-            },
-          })
-        }
-
-        return new Response('<html><body>OAuth login required</body></html>', {
-          status: 200,
-          headers: {
-            'content-type': 'text/html',
-          },
-        })
-      },
-    })
-    port = server.port
 
     try {
-      const proc = spawnCli([
+      process.chdir(dir)
+      process.argv = [
+        'bun',
+        'pluxx',
         'autopilot',
         '--from-mcp',
-        `http://127.0.0.1:${server.port}/mcp`,
+        'https://mcp.exa.ai/mcp',
         '--runner',
         'codex',
         '--yes',
@@ -763,19 +747,72 @@ exit 0
         'OAuth Stub',
         '--author',
         'Test Author',
-      ], dir)
+      ]
 
-      const stdout = await new Response(proc.stdout).text()
-      const stderr = await new Response(proc.stderr).text()
-      const exitCode = await proc.exited
+      class MockMcpIntrospectionError extends Error {
+        status?: number
+        context?: {
+          responseHeaders?: Record<string, string>
+          responseBodySnippet?: string
+          responseUrl?: string
+        }
 
-      expect(exitCode).toBe(1)
-      expect(stdout).toBe('')
-      expect(stderr).toContain('This MCP server requires authentication')
-      expect(stderr).toContain('--auth-env YOUR_ENV_VAR')
-      expect(stderr).toContain('OAuth-first')
+        constructor(
+          message: string,
+          status?: number,
+          context?: {
+            responseHeaders?: Record<string, string>
+            responseBodySnippet?: string
+            responseUrl?: string
+          },
+        ) {
+          super(message)
+          this.name = 'McpIntrospectionError'
+          this.status = status
+          this.context = context
+        }
+      }
+
+      mock.module(INTROSPECT_PATH, () => ({
+        McpIntrospectionError: MockMcpIntrospectionError,
+        createMcpClient: async () => ({
+          request: async () => ({}),
+          notify: async () => {},
+          close: async () => {},
+        }),
+        discoverMcpAuthFromError: () => ({
+          kind: 'platform',
+          mode: 'oauth',
+          authorizationUrl: 'https://exa.ai/oauth/authorize',
+        }),
+        introspectMcpServer: async () => {
+          throw new MockMcpIntrospectionError(
+            'MCP HTTP request was redirected to an authentication page.',
+            401,
+            {
+              responseHeaders: {
+                location: 'https://exa.ai/oauth/authorize',
+              },
+              responseUrl: 'https://exa.ai/oauth/authorize',
+            },
+          )
+        },
+      }))
+
+      const { main } = await import(`${CLI_INDEX_PATH}?autopilot-auth-guidance`)
+      try {
+        await main()
+        throw new Error('Expected autopilot auth guidance to fail')
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        expect(message).toContain('This MCP server requires authentication')
+        expect(message).toContain('--auth-env YOUR_ENV_VAR')
+        expect(message).toContain('OAuth-first')
+      }
     } finally {
-      server.stop(true)
+      process.argv = [...originalArgv]
+      process.chdir(originalCwd)
+      mock.restore()
       rmSync(dir, { recursive: true, force: true })
     }
   })

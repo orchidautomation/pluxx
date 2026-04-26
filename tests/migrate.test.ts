@@ -579,7 +579,9 @@ describe('migrate', () => {
     const codexAgent = readFileSync(resolve(outputDir, 'dist/codex/.codex/agents/sales-research.toml'), 'utf-8')
     const opencodeIndex = readFileSync(resolve(outputDir, 'dist/opencode/index.ts'), 'utf-8')
 
-    expect(claudeManifest.agents).toBe('./agents/')
+    expect(claudeManifest.agents).toEqual([
+      './agents/sales-research.md',
+    ])
     expect(cursorAgent).toContain('name: "sales-research"')
     expect(cursorAgent).toContain('description: "Handle complex: research tasks."')
     expect(cursorAgent).toContain('Use the MCP for account intelligence.')

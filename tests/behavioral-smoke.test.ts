@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { resolve } from 'path'
 import type { PluginConfig } from '../src/schema'
@@ -17,7 +17,7 @@ function makeTempDir(prefix: string): string {
 
 function makeStubExecutable(path: string, body: string): void {
   writeFileSync(path, body)
-  Bun.spawnSync(['chmod', '+x', path])
+  chmodSync(path, 0o755)
 }
 
 afterEach(() => {

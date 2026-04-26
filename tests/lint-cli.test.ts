@@ -4,7 +4,7 @@ import { tmpdir } from 'os'
 import { resolve } from 'path'
 
 const ROOT = resolve(import.meta.dir, '..')
-const CLI_PATH = resolve(ROOT, 'src/cli/index.ts')
+const CLI_PATH = resolve(ROOT, 'bin/pluxx.js')
 
 function spawnCli(argv: string[], cwd: string) {
   return Bun.spawn(['bun', CLI_PATH, ...argv], {

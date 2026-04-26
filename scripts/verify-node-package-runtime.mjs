@@ -5,6 +5,8 @@ import { tmpdir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 
+const npmCacheDir = mkdtempSync(join(tmpdir(), 'pluxx-npm-cache-'))
+
 function parseArgs(argv) {
   let packageFile
   for (let index = 0; index < argv.length; index += 1) {
@@ -29,6 +31,9 @@ function run(command, args, options = {}) {
     stdio: 'pipe',
     env: {
       ...process.env,
+      ...(command === 'npm' && !process.env.NPM_CONFIG_CACHE
+        ? { NPM_CONFIG_CACHE: npmCacheDir }
+        : {}),
       ...options.env,
     },
   })
@@ -191,6 +196,9 @@ function main() {
     verifyNpmExec(packageArtifact.path)
     console.log('Node package runtime verification passed.')
   } finally {
+    if (existsSync(npmCacheDir)) {
+      rmSync(npmCacheDir, { recursive: true, force: true })
+    }
     if (packageArtifact.cleanupPath && existsSync(packageArtifact.cleanupPath)) {
       rmSync(packageArtifact.cleanupPath, { recursive: true, force: true })
     }
