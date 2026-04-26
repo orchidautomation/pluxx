@@ -53,6 +53,7 @@ That means Pluxx should become excellent at:
 - build
 - test
 - install
+- upgrade
 - sync
 
 before it spends serious energy on an operated control plane.

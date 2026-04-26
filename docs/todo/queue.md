@@ -84,6 +84,9 @@ The public baseline is also real.
 
 - npm package is live as `@orchid-labs/pluxx`
 - published CLI runtime is Node `>=18`
+- published CLI lifecycle ergonomics are now stronger for global installs:
+  - `pluxx --version`
+  - `pluxx upgrade`
 - docs site is live
 - Mintlify docs reflect the core compiler story more honestly
 - `migrate`, `eval`, `doctor --consumer`, and `mcp proxy --record/--replay` are shipped

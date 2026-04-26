@@ -76,6 +76,7 @@ It includes:
 - `build`
 - `test`
 - `install`
+- `upgrade`
 - `verify-install`
 - `migrate`
 - `sync`
@@ -122,6 +123,9 @@ The repo already proves a lot.
 - the public website is live at `https://pluxx.dev`
 - the docs site is live at `https://docs.pluxx.dev`
 - the published CLI runs on Node `>=18`
+- the published CLI now has first-class lifecycle helpers for global installs:
+  - `pluxx --version`
+  - `pluxx upgrade`
 - the core-four compiler work is materially shipped
 - `verify-install` exists and is tested
 - consumer-side `doctor --consumer` exists and is tested

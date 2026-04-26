@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { existsSync } from 'fs'
+import { existsSync, readFileSync } from 'fs'
 import { loadConfig } from '../config/load'
 import { build } from '../generators'
 import {
@@ -68,7 +68,7 @@ import type { McpAuth, McpServer, TargetPlatform } from '../schema'
 import { basename, resolve } from 'path'
 import { mkdir, mkdtemp, rm } from 'fs/promises'
 import { tmpdir } from 'os'
-import { spawn } from 'child_process'
+import { spawn, spawnSync } from 'child_process'
 import { formatSyncSummary, planSyncFromMcp, syncFromMcp } from './sync-from-mcp'
 import { formatPublishPlan, planPublish, runPublish } from './publish'
 import { createCliRuntime, createSpinner, printJson, readFlag, readMultiValueOption, readOption } from './runtime'
@@ -79,7 +79,9 @@ import { printVerifyInstallResult, verifyInstall } from './verify-install'
 import { runBehavioralSuite } from './behavioral'
 import { planTextFileAction, writeTextFile } from '../text-files'
 
-const args = process.argv.slice(2)
+const CLI_PACKAGE_NAME = '@orchid-labs/pluxx'
+const rawArgs = process.argv.slice(2)
+const args = normalizeTopLevelArgs(rawArgs)
 const command = args[0]
 const runtime = createCliRuntime(args)
 const DEFAULT_INIT_TARGETS = ['claude-code', 'cursor', 'codex', 'opencode'] as const satisfies readonly TargetPlatform[]
@@ -212,6 +214,16 @@ interface AutopilotSummary {
 
 type AutopilotMode = typeof AUTOPILOT_MODES[number]
 
+interface UpgradeCommandSummary {
+  dryRun: boolean
+  packageName: string
+  currentVersion: string
+  requestedVersion: string
+  specifier: string
+  command: string[]
+  note: string
+}
+
 interface AutopilotPassDecision {
   enabled: boolean
   reason: string
@@ -219,6 +231,12 @@ interface AutopilotPassDecision {
 
 export async function main() {
   switch (command) {
+    case 'version':
+      await runVersionCommand()
+      break
+    case 'upgrade':
+      await runUpgradeCommand()
+      break
     case 'build':
       await runBuild()
       break
@@ -280,6 +298,114 @@ export async function main() {
       console.error(`Unknown command: ${command}`)
       printHelp()
       process.exit(1)
+  }
+}
+
+function normalizeTopLevelArgs(input: string[]): string[] {
+  if (input[0] === '--version' || input[0] === '-v') {
+    return ['version', ...input.slice(1)]
+  }
+
+  if (input[0] === '--upgrade') {
+    return ['upgrade', ...input.slice(1)]
+  }
+
+  return input
+}
+
+function getCliPackageVersion(): string {
+  const packageJsonPath = new URL('../../package.json', import.meta.url)
+  const raw = JSON.parse(readFileSync(packageJsonPath, 'utf-8')) as { version?: string }
+  if (typeof raw.version !== 'string' || raw.version.trim() === '') {
+    throw new Error('Unable to determine the installed pluxx version from package.json.')
+  }
+  return raw.version.trim()
+}
+
+function resolveNpmExecutable(): string {
+  return process.platform === 'win32' ? 'npm.cmd' : 'npm'
+}
+
+function buildUpgradeSummary(): UpgradeCommandSummary {
+  const requestedVersion = readOption(args, '--version') ?? 'latest'
+  const specifier = `${CLI_PACKAGE_NAME}@${requestedVersion}`
+
+  return {
+    dryRun: runtime.dryRun,
+    packageName: CLI_PACKAGE_NAME,
+    currentVersion: getCliPackageVersion(),
+    requestedVersion,
+    specifier,
+    command: [resolveNpmExecutable(), 'install', '-g', specifier],
+    note: 'This updates the global npm install used by `pluxx` on your PATH. Repo-local and `npx` invocations are separate entrypoints.',
+  }
+}
+
+async function runVersionCommand() {
+  const version = getCliPackageVersion()
+  if (runtime.jsonOutput) {
+    printJson({ version })
+    return
+  }
+
+  console.log(version)
+}
+
+async function runUpgradeCommand() {
+  const summary = buildUpgradeSummary()
+
+  if (runtime.dryRun) {
+    if (runtime.jsonOutput) {
+      printJson(summary)
+      return
+    }
+
+    if (!runtime.quiet) {
+      console.log(`Dry run: would run \`${summary.command.join(' ')}\``)
+      console.log(summary.note)
+      console.log(`Current version: ${summary.currentVersion}`)
+    }
+    return
+  }
+
+  const install = spawnSync(summary.command[0], summary.command.slice(1), runtime.jsonOutput
+    ? {
+        env: process.env,
+        encoding: 'utf-8',
+        stdio: 'pipe',
+      }
+    : {
+        env: process.env,
+        stdio: 'inherit',
+      })
+
+  if (install.status !== 0) {
+    if (runtime.jsonOutput) {
+      printJson({
+        ...summary,
+        ok: false,
+        stdout: typeof install.stdout === 'string' ? install.stdout : '',
+        stderr: typeof install.stderr === 'string' ? install.stderr : '',
+        exitCode: install.status ?? 1,
+      })
+    }
+    throw new Error(`Failed to upgrade ${CLI_PACKAGE_NAME}.`)
+  }
+
+  const result = {
+    ...summary,
+    ok: true,
+  }
+
+  if (runtime.jsonOutput) {
+    printJson(result)
+    return
+  }
+
+  if (!runtime.quiet) {
+    console.log(`Upgraded ${summary.packageName} with \`${summary.command.join(' ')}\`.`)
+    console.log('Run `pluxx --version` to verify the active version on your PATH.')
+    console.log(summary.note)
   }
 }
 
@@ -3139,6 +3265,8 @@ function printHelp() {
 pluxx — Cross-platform AI agent plugin SDK
 
 Usage:
+  pluxx --version | -v                    Print the installed Pluxx CLI version
+  pluxx upgrade [--version x.y.z]         Upgrade the global npm install of Pluxx
   pluxx build [--target <platforms...>] [--install]   Generate platform-specific plugin files
   pluxx dev [--target <platforms...>]     Watch for changes and auto-rebuild
   pluxx validate                          Validate your config
@@ -3175,6 +3303,9 @@ Targets:
   warp, gemini-cli, roo-code, cline, amp
 
 Examples:
+  pluxx --version                         Print the installed CLI version
+  pluxx upgrade                           Upgrade the global npm install to latest
+  pluxx upgrade --version 0.1.5           Upgrade the global npm install to a specific version
   pluxx build                             Build for all configured targets
   pluxx build --install                   Build and install all configured targets locally
   pluxx build --target claude-code cursor  Build for specific platforms

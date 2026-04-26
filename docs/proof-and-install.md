@@ -137,6 +137,15 @@ npx @orchid-labs/pluxx verify-install --target codex
 
 Swap `codex` for `claude-code`, `cursor`, or `opencode` when you want to validate a different host.
 
+If you installed the published CLI globally, the shortest lifecycle commands are:
+
+```bash
+pluxx --version
+pluxx upgrade
+```
+
+`pluxx upgrade` upgrades the global npm install on your PATH. Repo-local `node ../../bin/pluxx.js ...` and `npx @orchid-labs/pluxx ...` flows stay separate.
+
 ## Install The Exa Example From Source
 
 These installers build the public Exa example from the repo source and then install the native bundle into the selected host.
