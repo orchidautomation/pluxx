@@ -281,6 +281,14 @@ For the Exa example, that now means:
 
 `deep-research` remains the intentionally richer orchestration workflow rather than a single-specialist command.
 
+One UI inconsistency is worth calling out explicitly:
+
+- Cursor makes plugin ownership fairly obvious through the plugin surface and namespaced skill labels.
+- OpenCode makes ownership obvious in the plugin detail page, MCP panel, and subagent list.
+- OpenCode's slash-command palette is the weaker surface: commands stay short (`/company-research`, `/people-research`, etc.) and rely on the description column for `Exa:` branding instead of repeating the full plugin name.
+
+That is intentional for now. We keep the OpenCode commands short and native-feeling, then document the palette ambiguity rather than forcing a heavier command prefix that the other hosts do not need.
+
 - the generated Exa plugin is strong enough to execute real headless workflows in Cursor and OpenCode
 - the remaining Claude and Codex blockers are currently host-runtime issues on this machine, not the generated Exa plugin shape
 

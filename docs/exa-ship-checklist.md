@@ -70,6 +70,7 @@ Run these against the current installed Exa example:
 - OpenCode
   - generated OpenCode skills use explicit native `@subagent` cues for specialist agents
   - specialist slash commands should bind native OpenCode `agent` + `subtask` metadata where one workflow clearly maps to one subagent
+  - command ids remain intentionally short in the OpenCode palette, so the description column must still clearly show `Exa:` branding
   - the workflow should not claim OpenCode lacks subagents when the plugin bundle provides them
 
 ## Release Goal
