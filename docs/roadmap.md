@@ -125,8 +125,8 @@ The current status is stronger than a pure scaffold:
   - Cursor CLI
   - Codex Desktop app
   - OpenCode CLI
-- the repo-local Exa behavioral smoke now also passes on Claude Code after the latest plugin-agent manifest fix
-- the published npm package still needs the next release before the public `pluxx test --behavioral` path reflects that same Claude state
+- the published npm package (`0.1.5`) now includes the Claude plugin-agent manifest fix
+- the public `pluxx test --install --trust --behavioral` path now reflects the same Claude state as the repo-local Exa proof
 - the remaining Exa rerun gap is now narrower and host-local:
   - fresh Cursor CLI reruns currently hit a local macOS keychain/auth issue on this machine
 - the Exa example also sharpened the import-quality question:

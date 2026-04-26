@@ -141,8 +141,8 @@ Open work:
   - Cursor CLI PASS
   - Codex Desktop app PASS
   - OpenCode CLI PASS
-  - repo-local Claude behavioral smoke PASS after the latest plugin-agent manifest fix
-  - published npm package still needs the next release before `pluxx test --behavioral` reflects that same Claude state
+  - published npm package (`0.1.5`) now includes the Claude plugin-agent manifest fix
+  - public `pluxx test --install --trust --behavioral` now reflects the same Claude state as the repo-local proof
   - fresh Cursor CLI reruns currently hit a local macOS keychain/auth issue on this machine
   - older Claude CLI and Codex CLI headless failures are still ambient host-runtime issues on this machine
 - [ ] Use the Exa example to tighten how much first-pass structure Pluxx can recover automatically from:

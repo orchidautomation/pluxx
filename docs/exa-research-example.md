@@ -221,12 +221,11 @@ pluxx test --install --trust --behavioral --target claude-code cursor codex open
 
 Current package note:
 
-- the repo-local source now passes the Claude behavioral smoke and the Claude plugin install schema fix
-- the currently published npm package (`0.1.4`) does not include that Claude fix yet
-- until the next npm release, use the repo-local CLI from this checkout for the Exa behavioral rerun:
+- the published npm package (`0.1.5`) now includes the Claude plugin install schema fix and the Claude behavioral smoke coverage
+- the public `pluxx test --install --trust --behavioral` path now matches the repo-local Exa proof state
 
 ```bash
-node ../../bin/pluxx.js test --install --trust --behavioral --target claude-code cursor codex opencode
+pluxx test --install --trust --behavioral --target claude-code cursor codex opencode
 ```
 
 The Exa example defines that query set in:

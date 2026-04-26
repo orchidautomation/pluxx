@@ -75,8 +75,8 @@ The core-four compiler sprint is done.
   - Cursor CLI PASS
   - Codex Desktop app PASS
   - OpenCode CLI PASS
-- the repo-local Exa behavioral smoke now also passes on Claude Code after the latest plugin-agent manifest fix:
-  - the published npm package still needs the next release before the public `pluxx test --behavioral` path matches that local state
+- the published npm package (`0.1.5`) now includes the Claude plugin-agent manifest fix:
+  - the public `pluxx test --install --trust --behavioral` path now matches the repo-local Exa proof state
 - the remaining Exa rerun blocker is now narrower:
   - fresh Cursor CLI reruns currently hit a local macOS keychain/auth issue on this machine, not a plugin-bundle issue
 

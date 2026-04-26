@@ -174,8 +174,8 @@ curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example
 
 Current release note:
 
-- the repo-local Exa behavioral smoke now passes on Claude Code after the latest plugin-agent manifest fix
-- the published npm package still needs the next release before the public `pluxx test --behavioral` path reflects that same Claude state
+- the published npm package (`0.1.5`) now includes the Claude plugin-agent manifest fix
+- the public `pluxx test --install --trust --behavioral` path now matches the repo-local Exa proof state
 
 ## Best Demo Flow
 
