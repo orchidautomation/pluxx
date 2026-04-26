@@ -1,6 +1,6 @@
 ---
-description: Exa: find people, experts, operators, or recruiter-style candidate lists
-argument-hint: [person-role-or-target-profile]
+description: "Exa: find people, experts, operators, or recruiter-style candidate lists"
+argument-hint: "[person-role-or-target-profile]"
 agent: people-scout
 subtask: true
 ---

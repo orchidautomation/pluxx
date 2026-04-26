@@ -76,6 +76,7 @@ import { printTestResult, runTestSuite, type TestRunResult } from './test'
 import { printEvalReport, runEvalSuite } from './eval'
 import { buildPrimitiveTranslationSummary, renderPrimitiveTranslationSummary } from './primitive-summary'
 import { printVerifyInstallResult, verifyInstall } from './verify-install'
+import { runBehavioralSuite } from './behavioral'
 import { planTextFileAction, writeTextFile } from '../text-files'
 
 const args = process.argv.slice(2)
@@ -2820,6 +2821,8 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
 }
 
 async function runTestCommand() {
+  const behavioral = readFlag(args, '--behavioral')
+  const behavioralPrompt = readOption(args, '--behavioral-prompt')
   const targets = parseTargetFlagValues(args)
   const result = await runTestSuite({
     rootDir: process.cwd(),
@@ -2827,13 +2830,19 @@ async function runTestCommand() {
   })
   const config = result.config.ok ? await loadConfig() : null
   const platforms = targets ?? config?.targets ?? []
+  if (behavioral && !args.includes('--install')) {
+    throw new Error('--behavioral requires --install so the selected host CLIs can see the installed plugin bundle.')
+  }
   const install = result.ok && config
     ? await maybeInstallBuiltOutputs(config, platforms, { verifyConsumers: true })
     : undefined
-  const finalResult = install?.verification
+  const behavioralResult = result.ok && config && install && behavioral
+    ? await runBehavioralSuite(process.cwd(), config, platforms, { promptOverride: behavioralPrompt })
+    : undefined
+  const finalResult = install?.verification || behavioralResult
     ? {
         ...result,
-        ok: result.ok && install.verification.ok,
+        ok: result.ok && (install?.verification?.ok ?? true) && (behavioralResult?.ok ?? true),
       }
     : result
 
@@ -2841,6 +2850,7 @@ async function runTestCommand() {
     printJson({
       ...finalResult,
       install,
+      behavioral: behavioralResult,
     })
     return
   }
@@ -2857,6 +2867,18 @@ async function runTestCommand() {
         for (const check of install.verification.checks) {
           const prefix = check.ok ? '  PASS' : '  FAIL'
           console.log(`${prefix} ${check.platform}: ${check.consumerPath}`)
+        }
+      }
+      if (behavioralResult) {
+        console.log('Behavioral headless smoke:')
+        for (const check of behavioralResult.checks) {
+          const prefix = check.ok ? '  PASS' : '  FAIL'
+          console.log(`${prefix} ${check.platform}/${check.caseName}: ${check.responsePreview || '(no response preview)'}`)
+          if (!check.ok) {
+            for (const failure of check.failures) {
+              console.log(`    - ${failure}`)
+            }
+          }
         }
       }
       for (const note of install.notes) {
@@ -3130,7 +3152,7 @@ Usage:
   pluxx init [name] [--from-mcp <source>] Create a new pluxx.config.ts
   pluxx sync [--from-mcp <source>]        Refresh MCP-derived scaffold files
   pluxx migrate <path>                    Import an existing plugin into pluxx
-  pluxx test [--target <platforms...>] [--install]    Run config, lint, eval, build, and smoke checks
+  pluxx test [--target <platforms...>] [--install] [--behavioral]    Run config, lint, eval, build, and smoke checks
   pluxx eval                              Evaluate scaffold and prompt-pack quality
   pluxx install [--target <platforms>] [--trust]  Install built plugins for local testing
   pluxx verify-install [--target <platforms>]    Inspect installed host-visible plugin state
@@ -3192,6 +3214,8 @@ Examples:
   pluxx eval --json                       Inspect scaffold/prompt-pack quality as JSON
   pluxx test --target claude-code codex  Verify selected target outputs
   pluxx test --install                    Verify and install all configured targets locally
+  pluxx test --install --trust --behavioral  Run installed headless example-query smoke checks
+  pluxx test --install --trust --behavioral --behavioral-prompt "Use My Plugin to summarize this repo"
   pluxx install                           Install to all configured targets
   pluxx install --target claude-code      Install to Claude Code only
   pluxx verify-install --target codex     Verify the installed Codex bundle in its native local path

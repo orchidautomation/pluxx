@@ -1,6 +1,6 @@
 # Proof And Install
 
-Last updated: 2026-04-24
+Last updated: 2026-04-26
 
 ## Doc Links
 
@@ -141,6 +141,13 @@ Swap `codex` for `claude-code`, `cursor`, or `opencode` when you want to validat
 
 These installers build the public Exa example from the repo source and then install the native bundle into the selected host.
 
+Important:
+
+- the Exa example includes a local `sessionStart` hook: `scripts/check-exa-setup.sh`
+- the hook only reports whether `EXA_API_KEY` is set and prints setup guidance
+- the direct installers intentionally trust that hook on your behalf
+- the equivalent source-path install command is `pluxx install --target <host> --trust`
+
 ### Claude Code
 
 ```bash
@@ -164,6 +171,11 @@ curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example
 ```bash
 curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example/exa-plugin/release/install-opencode.sh | bash
 ```
+
+Current release note:
+
+- the repo-local Exa behavioral smoke now passes on Claude Code after the latest plugin-agent manifest fix
+- the published npm package still needs the next release before the public `pluxx test --behavioral` path reflects that same Claude state
 
 ## Best Demo Flow
 

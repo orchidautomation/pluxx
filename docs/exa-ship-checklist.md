@@ -1,6 +1,6 @@
 # Exa Ship Checklist
 
-Last updated: 2026-04-25
+Last updated: 2026-04-26
 
 ## Doc Links
 
@@ -30,10 +30,33 @@ Use this file when the question is not “does the Exa example work?” but “w
   - Codex Desktop app
   - OpenCode CLI
 - The example already pressures and improves the compiler, so it is not just demo content.
+- The example now has a project-owned headless behavioral smoke case at:
+  - [example/exa-plugin/.pluxx/behavioral-smoke.json](../example/exa-plugin/.pluxx/behavioral-smoke.json)
 
 ## Nuanced Acceptance Pass
 
 Before we send this to Exa, we should verify not only that each host returns an answer, but that each host obeys the intended workflow shape.
+
+### Fastest repeatable rerun
+
+From [example/exa-plugin](../example/exa-plugin):
+
+```bash
+pluxx test --install --trust --behavioral --target claude-code cursor codex opencode
+```
+
+Until the next npm release lands, the published `pluxx` package still lags the latest Claude manifest fix. The repo-local equivalent is:
+
+```bash
+node ../../bin/pluxx.js test --install --trust --behavioral --target claude-code cursor codex opencode
+```
+
+That reruns:
+
+- config / lint / eval / build
+- local install into the selected hosts
+- `verify-install`
+- the project-owned headless example query in `.pluxx/behavioral-smoke.json`
 
 ### Core workflow prompts
 
@@ -45,6 +68,8 @@ Run these against the current installed Exa example:
 - `deep-research OpenAI Codex plugins MCP behavior`
 - `source-review <a result set or candidate source list>`
 
+The current headless behavioral smoke case intentionally targets the deep-research path because that was the highest-signal Claude failure mode.
+
 ### What must be true
 
 1. The prompt uses Exa MCP tools for the live search path, not only local file reading or generic host web search.
@@ -55,12 +80,17 @@ Run these against the current installed Exa example:
    - Exa MCP access should run without spurious approval churn
    - edit/bash prompts should still ask when the workflow crosses those boundaries
 6. The host-specific UI cues should match the native translation story.
+7. Every public install surface makes the trusted local hook explicit:
+   - `scripts/check-exa-setup.sh`
+   - what it does
+   - why `pluxx install --trust` is the equivalent source-path action
 
 ### Host-specific checks
 
 - Claude Code
   - command argument hint is visible on slash commands like `news-brief`
   - delegated agent calls visibly execute Exa MCP tools
+  - deep research should not fall back to `The skill bailed (context too long)`
 - Cursor
   - skills are discoverable in chat
   - delegated specialist passes show up as actual workflow steps, not just silent prompt paraphrase
@@ -94,6 +124,9 @@ npm run release:check
 ```
 
 - [ ] Rerun the Exa example mechanical proof on the published CLI path:
+- [ ] Cut the next npm release first so the published CLI includes the latest Claude plugin-agent manifest fix and the behavioral smoke runner.
+
+After that, rerun the Exa example mechanical proof on the published CLI path:
 
 ```bash
 pluxx doctor

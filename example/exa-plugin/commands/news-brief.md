@@ -1,6 +1,6 @@
 ---
-description: Exa: build a source-backed recent-news brief
-argument-hint: [topic-or-company]
+description: "Exa: build a source-backed recent-news brief"
+argument-hint: "[topic-or-company]"
 agent: news-scout
 subtask: true
 ---

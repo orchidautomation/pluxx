@@ -4,30 +4,29 @@ title: Exa Research Example
 
 This is the cleanest public page for the Exa distribution example.
 
-Use it when you want the shortest answer to:
+If you are at Exa and you just found Pluxx, the short version is:
+
+- you already have a strong public MCP
+- you already have a strong Claude-first workflow shape
+- Pluxx is the source-of-truth layer that turns those into one maintained plugin project for Claude Code, Cursor, Codex, and OpenCode
+
+You do not need to replace Exa's MCP or invent a new workflow from scratch. The point of this example is to show what happens when the Exa workflow layer gets compiled into native installs for the four agent hosts people are already using.
+
+Use this page when you want the shortest answer to:
 
 - can Pluxx take a strong Claude-first research-plugin shape and carry it across the core four
 - is there a public example that is not just a docs workflow
 - does Pluxx support specialist agents, commands, auth, and richer brand metadata together
 
-## What this example proves
-
-The source project in [`example/exa-plugin`](https://github.com/orchidautomation/pluxx/tree/main/example/exa-plugin) proves that one maintained Pluxx source project can package a research-operator workflow for:
-
-- Claude Code
-- Cursor
-- Codex
-- OpenCode
-
-This example is built against:
-
-- Exa's public MCP
-- Exa's public docs
-- the workflow shape of Exa's official Claude plugin
-
-It is a clean-room example, not an official Exa release.
-
 ## Install in your host
+
+If you just want to try it, start here.
+
+Important:
+
+- this example includes a local `sessionStart` hook: `scripts/check-exa-setup.sh`
+- the hook only reports whether `EXA_API_KEY` is set and prints setup guidance
+- using these installers means explicitly trusting that local hook
 
 Claude Code:
 
@@ -58,6 +57,34 @@ Optional for higher limits:
 ```bash
 export EXA_API_KEY="your_exa_api_key"
 ```
+
+## What this example proves
+
+The source project in [`example/exa-plugin`](https://github.com/orchidautomation/pluxx/tree/main/example/exa-plugin) proves that one maintained Pluxx source project can package an Exa-style research operator workflow for:
+
+- Claude Code
+- Cursor
+- Codex
+- OpenCode
+
+This example is built against:
+
+- Exa's public MCP
+- Exa's public docs
+- the workflow shape of Exa's official Claude plugin
+
+It is a clean-room example, not an official Exa release.
+
+## What Pluxx changes for a team like Exa
+
+Without Pluxx, expanding beyond one host usually means rebuilding the same workflow layer several times:
+
+- once for Claude Code
+- again for Cursor
+- again for Codex
+- again for OpenCode
+
+Pluxx changes that maintenance model. You keep one workflow source project, then Pluxx compiles the most native honest version of that experience for each host.
 
 ## What is inside the source project
 
@@ -133,6 +160,18 @@ It is that one maintained workflow layer can now reach:
 - OpenCode
 
 without forcing Exa to maintain four separate plugin products just to keep the same research experience available where developers already work.
+
+## What Pluxx actually adds
+
+Pluxx is not replacing Exa's MCP and it is not pretending one host can behave exactly like another.
+
+What it adds is:
+
+- one maintained source project for the workflow layer
+- native commands, skills, subagents, and install packaging per host
+- shared auth and setup guidance
+- install verification instead of trusting generated files alone
+- one place to improve prompts, workflow structure, and branding instead of redoing that work host by host
 
 ## Best next pages
 

@@ -78,6 +78,13 @@ It also surfaced a real compiler gap during authoring: canonical Pluxx agents ne
 
 These one-command installers build the current Exa example from the public repo source and install it into the host you actually use.
 
+Important:
+
+- this example includes a local `sessionStart` hook: `scripts/check-exa-setup.sh`
+- the hook only reports whether `EXA_API_KEY` is set and prints setup guidance
+- using these installers means explicitly trusting that local hook
+- the equivalent source-path install command is `pluxx install --target <host> --trust`
+
 Claude Code:
 
 ```bash
@@ -121,6 +128,18 @@ pluxx verify-install --target codex
 ```
 
 Repeat `install` and `verify-install` for Claude Code, Cursor, and OpenCode when you want full local proof.
+
+For the current Exa behavioral smoke across the core four:
+
+```bash
+pluxx test --install --trust --behavioral --target claude-code cursor codex opencode
+```
+
+Until the next npm release lands, the repo-local Claude manifest fix is ahead of the published `pluxx` package. From this repo checkout, the exact equivalent is:
+
+```bash
+node ../../bin/pluxx.js test --install --trust --behavioral --target claude-code cursor codex opencode
+```
 
 ## Important Note
 

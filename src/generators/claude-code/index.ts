@@ -108,8 +108,9 @@ export class ClaudeCodeGenerator extends Generator {
         frontmatter.push(`maxTurns: ${maxTurns}`)
       }
 
-      if (typeof agent.frontmatter.tools === 'string' && agent.frontmatter.tools.trim()) {
-        frontmatter.push(`tools: ${agent.frontmatter.tools}`)
+      const claudeTools = selectClaudeToolsField(agent.frontmatter)
+      if (claudeTools) {
+        frontmatter.push(`tools: ${claudeTools}`)
       }
 
       const disallowedTools = buildClaudeDisallowedTools(agent.frontmatter)
@@ -361,6 +362,27 @@ function buildClaudeDisallowedTools(frontmatter: AgentFrontmatterMap): string[] 
   }
 
   return Array.from(tools)
+}
+
+function selectClaudeToolsField(frontmatter: AgentFrontmatterMap): string | null {
+  if (typeof frontmatter.tools !== 'string') return null
+
+  const tools = frontmatter.tools
+    .split(',')
+    .map(token => token.trim())
+    .filter(Boolean)
+
+  if (tools.length === 0) return null
+
+  // Claude plugin subagents inherit MCP tools from the parent task. Emitting
+  // explicit mcp__... entries in the allowlist causes current plugin installs
+  // to fail schema validation, so prefer inherited MCP access plus
+  // disallowedTools restrictions in that case.
+  if (tools.some(token => token.startsWith('mcp__'))) {
+    return null
+  }
+
+  return tools.join(', ')
 }
 
 function asMap(value: unknown): AgentFrontmatterMap | undefined {

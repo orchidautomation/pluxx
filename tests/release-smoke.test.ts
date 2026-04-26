@@ -9,6 +9,7 @@ const RELEASE_SMOKE_PROJECTS = [
   'examples/prospeo-mcp',
   'example/firecrawl-plugin',
   'example/pluxx',
+  'example/exa-plugin',
 ]
 
 interface SmokeResult {

@@ -2,7 +2,6 @@
 name: exa-deep-research
 description: Run deep research with Exa using specialist agents, source review, and compact source-backed synthesis. Use for lead generation, literature reviews, competitive analysis, or any query where one search is not enough.
 arguments: [topic]
-context: fork
 agent: Explore
 allowed-tools: Read Write Edit MultiEdit
 ---

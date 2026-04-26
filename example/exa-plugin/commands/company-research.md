@@ -1,6 +1,6 @@
 ---
-description: Exa: map a company, category, competitor set, or market
-argument-hint: [company-or-market]
+description: "Exa: map a company, category, competitor set, or market"
+argument-hint: "[company-or-market]"
 agent: company-scout
 subtask: true
 ---

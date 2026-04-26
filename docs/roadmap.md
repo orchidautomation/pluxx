@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-04-24
+Last updated: 2026-04-26
 
 ## Doc Links
 
@@ -125,8 +125,13 @@ The current status is stronger than a pure scaffold:
   - Cursor CLI
   - Codex Desktop app
   - OpenCode CLI
+- the repo-local Exa behavioral smoke now also passes on Claude Code after the latest plugin-agent manifest fix
+- the published npm package still needs the next release before the public `pluxx test --behavioral` path reflects that same Claude state
 - the remaining Exa rerun gap is now narrower and host-local:
   - fresh Cursor CLI reruns currently hit a local macOS keychain/auth issue on this machine
+- the Exa example also sharpened the import-quality question:
+  - a raw import or migration can already get to a credible starting point
+  - the next product leverage is making that first pass recover more of the final workflow architecture and packaging quality automatically
 - the next proof steps are capturing at least one polished in-app walkthrough beyond Codex, then running a real authenticated publish plus rollback against a safe private target
 
 This is the strongest next proof surface for:
@@ -175,6 +180,7 @@ The next plugin-specific work is:
   - `site/examples/docs-ops-flagship.mdx`
 - evaluate whether a `gh skill`-compatible export belongs as an additional distribution channel for the skills-only slice of Pluxx output
 - keep the plugin/autopilot story honest: starting from a raw MCP should already aim for the strongest native mix of skills, commands, arguments, and specialist agents/subagents, not just a flat skill dump
+- keep improving how much mature Claude-first plugin intent `migrate` can preserve on the first canonical Pluxx pass so examples like Exa need less manual tightening
 
 ### 5. Customer discovery and GTM learning
 

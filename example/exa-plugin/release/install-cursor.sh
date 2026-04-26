@@ -37,6 +37,9 @@ if [[ -z "$SOURCE_ROOT" ]]; then
   exit 1
 fi
 
+echo "Trust note: this example installs a session-start shell hook (scripts/check-exa-setup.sh)."
+echo "The hook only reports whether EXA_API_KEY is set and prints setup guidance, but running this installer means trusting that local hook."
+
 echo "Building Pluxx ..."
 (cd "$SOURCE_ROOT" && npm ci && npm run build)
 

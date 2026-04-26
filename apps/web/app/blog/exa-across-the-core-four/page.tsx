@@ -4,7 +4,7 @@ import Link from "next/link";
 import { featuredBlogPost } from "../posts";
 
 export const metadata: Metadata = {
-  title: "How Exa can ship natively across Claude Code, Cursor, Codex, and OpenCode | Pluxx",
+  title: "If you're at Exa, this is what Pluxx gives you | Pluxx",
   description:
     "A clean-room Exa example that proves one maintained source project can ship native, Exa-backed workflows across Claude Code, Cursor, Codex, and OpenCode.",
 };
@@ -33,10 +33,10 @@ const installCommands = [
 ];
 
 const heroStats = [
-  "1 maintained source project",
-  "4 native destinations",
-  "6 Exa research workflows",
-  "1 bundled Exa MCP",
+  "1 source of truth",
+  "4 native installs",
+  "6 research workflows",
+  "live in real hosts",
 ];
 
 const liveProofNotes = [
@@ -51,6 +51,18 @@ const shippedInBundle = [
   "company, people, code, news, and source-review workflows",
   "auth wiring for EXA_API_KEY",
   "branding, prompts, and screenshots where the host supports them",
+];
+
+const exaAlreadyHas = [
+  "a public MCP that already solves the data layer",
+  "a strong Claude-first workflow shape with specialist research patterns",
+  "real user demand in more than one agent host",
+];
+
+const pluxxAdds = [
+  "one maintained source project for the workflow layer",
+  "native commands, skills, subagents, and install surfaces per host",
+  "shared auth, setup, and verification instead of four drifting plugin repos",
 ];
 
 export default function ExaBlogPostPage() {
@@ -104,30 +116,125 @@ export default function ExaBlogPostPage() {
             </div>
 
             <div className="blog-prose">
-              <p>
-                Raw MCP access is table stakes. The harder problem is turning that MCP into
-                something that actually feels native inside the coding agents people use every day.
-              </p>
-
               <div className="blog-callout">
-                <span className="section-kicker">The gap</span>
+                <span className="section-kicker">If you are at Exa</span>
                 <p>
-                  Most demos stop once the server responds. Pluxx is about what comes next:
-                  shaping that MCP into installable, native-feeling workflows without forking the
-                  project four different ways.
+                  You already have the hard parts: a public MCP and a strong Claude-first research
+                  workflow. Pluxx is the layer that turns those into one maintained source project
+                  that can ship native plugin installs for Claude Code, Cursor, Codex, and
+                  OpenCode.
                 </p>
               </div>
 
+              <div className="blog-answer-grid">
+                <div className="blog-answer-card">
+                  <span className="section-kicker">Exa already has</span>
+                  <ul className="proof-list">
+                    {exaAlreadyHas.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="blog-answer-card">
+                  <span className="section-kicker">Pluxx adds</span>
+                  <ul className="proof-list">
+                    {pluxxAdds.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              <div className="blog-support-grid">
+                <div className="blog-support-card">
+                  <span className="section-kicker">Install</span>
+                  <h3>Try it in your host</h3>
+                  <p>
+                    Build the Exa example from source and install the native bundle into the host
+                    your team already uses.
+                  </p>
+                  <div className="blog-link-list">
+                    {installCommands.map((item) => (
+                      <a
+                        href={`https://raw.githubusercontent.com/orchidautomation/pluxx/main/example/exa-plugin/release/install-${item.label
+                          .toLowerCase()
+                          .replace(/\s+/g, "-")}.sh`}
+                        key={item.label}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        {item.label} installer
+                      </a>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="blog-support-card">
+                  <span className="section-kicker">Proof</span>
+                  <h3>Live in real hosts</h3>
+                  <p>These are real workflow runs, not static screenshots or generated files.</p>
+                  <ul className="proof-list">
+                    {featuredBlogPost.proof.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="blog-support-card">
+                  <span className="section-kicker">Bundle</span>
+                  <h3>What ships in the example</h3>
+                  <ul className="proof-list">
+                    {shippedInBundle.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="blog-support-card">
+                  <span className="section-kicker">Source</span>
+                  <h3>Inspect the source of truth</h3>
+                  <div className="blog-link-list">
+                    <a
+                      href="https://github.com/orchidautomation/pluxx/tree/main/example/exa-plugin"
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      Browse the source project
+                    </a>
+                    <a
+                      href="https://github.com/orchidautomation/pluxx/blob/main/docs/exa-research-example.md"
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      Read the repo proof note
+                    </a>
+                    <a
+                      href="https://docs.pluxx.dev/examples/exa-research-example"
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      Open the docs example
+                    </a>
+                  </div>
+                </div>
+              </div>
+
               <p>
-                To prove that, we built a clean-room Exa example from three inputs: Exa&apos;s
-                public MCP, Exa&apos;s public docs, and the workflow shape of Exa&apos;s official
-                Claude plugin.
+                If you only expose the MCP, every host still needs someone to shape the user
+                experience around it. Commands, subagents, setup guidance, install packaging, and
+                host-specific behavior do not maintain themselves.
               </p>
 
-              <h2>What shipped</h2>
+              <p>
+                To show what that looks like in practice, we built a clean-room Exa example from
+                three inputs: Exa&apos;s public MCP, Exa&apos;s public docs, and the workflow shape
+                of Exa&apos;s official Claude plugin.
+              </p>
+
+              <h2>What we built from Exa</h2>
 
               <p>
-                The result is one maintained source project that now generates native bundles for
+                The result is one maintained source project that generates native bundles for
                 Claude Code, Cursor, Codex, and OpenCode from the same source tree.
               </p>
 
@@ -141,8 +248,8 @@ export default function ExaBlogPostPage() {
               </ul>
 
               <p>
-                It also keeps the pieces that usually get flattened away when the story gets reduced
-                to “skills everywhere”:
+                It also keeps the pieces that usually get flattened away when the story gets
+                reduced to a thin “here are the tools” surface:
               </p>
 
               <ul>
@@ -152,19 +259,19 @@ export default function ExaBlogPostPage() {
                 <li>a bundled Exa MCP connection rather than generic web-search fallback</li>
               </ul>
 
-              <h2>Why Exa is the right example</h2>
+              <h2>Why this matters for Exa</h2>
 
               <p>
-                Exa makes the point clearly because it already has a strong workflow shape. If
-                that same workflow can reach Claude Code, Cursor, Codex, and OpenCode without
-                becoming four separate plugin products, the distribution story is materially better
-                for Exa and for any team building on top of a serious MCP.
+                Exa already has a workflow that people want. The distribution problem is everything
+                around it. If the same operator-grade research experience can reach Claude Code,
+                Cursor, Codex, and OpenCode without becoming four separate plugin products, the
+                maintenance story gets materially better.
               </p>
 
               <p>
-                The value is not “we can connect to an MCP.” The value is “we can shape that MCP
-                into the most native honest plugin experience each host can actually support,” while
-                still keeping one maintained source project at the center.
+                The value is not “we can connect to Exa.” The value is “we can keep one workflow
+                layer, then compile the most native honest version of that experience for each
+                host.”
               </p>
 
               <h2>What “live” means here</h2>
@@ -191,11 +298,26 @@ export default function ExaBlogPostPage() {
                 ))}
               </ul>
 
+              <h2>How much was automatic</h2>
+
+              <p>
+                A raw `init --from-mcp` or `autopilot` run already gets to a credible Exa-shaped
+                starting point. `migrate` from a strong Claude-first plugin would likely get even
+                closer.
+              </p>
+
+              <p>
+                What still took explicit shaping in this final example was the workflow taxonomy,
+                the specialist-agent graph, the orchestrator prompts, and the public install and
+                proof surfaces. That is the next product leverage for Pluxx: make the first pass
+                recover more of that structure automatically.
+              </p>
+
               <h2>What this says about Pluxx</h2>
 
               <p>
-                Pluxx is not a skill-pack copier and it is not an MCP wrapper service. It is the
-                layer that keeps one maintained plugin source project while compiling the best
+                Pluxx is not just a skill-pack copier and it is not a generic MCP wrapper. It is
+                the layer that keeps one maintained plugin source project while compiling the best
                 truthful native version of that experience for each host.
               </p>
 
@@ -228,55 +350,6 @@ export default function ExaBlogPostPage() {
               </p>
             </div>
           </div>
-
-          <aside className="blog-post-aside">
-            <div className="blog-aside-card">
-              <span className="section-kicker">Proof</span>
-              <h3>Live across the core four</h3>
-              <p className="blog-aside-copy">
-                These are real workflow runs, not just generated files or static screenshots.
-              </p>
-              <ul className="proof-list">
-                {featuredBlogPost.proof.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="blog-aside-card">
-              <span className="section-kicker">Bundle</span>
-              <h3>What ships in the example</h3>
-              <ul className="proof-list">
-                {shippedInBundle.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="blog-aside-card">
-              <span className="section-kicker">Source</span>
-              <h3>Explore the example</h3>
-              <div className="blog-link-list">
-                <a
-                  href="https://github.com/orchidautomation/pluxx/tree/main/example/exa-plugin"
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  Browse the source project
-                </a>
-                <a
-                  href="https://github.com/orchidautomation/pluxx/blob/main/docs/exa-research-example.md"
-                  rel="noreferrer"
-                  target="_blank"
-                >
-                  Read the repo proof note
-                </a>
-                <a href="https://docs.pluxx.dev/examples/exa-research-example" rel="noreferrer" target="_blank">
-                  Open the docs example
-                </a>
-              </div>
-            </div>
-          </aside>
         </div>
       </article>
     </main>

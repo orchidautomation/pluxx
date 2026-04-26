@@ -1,0 +1,25 @@
+{
+  "cases": [
+    {
+      "name": "deep-research",
+      "targets": {
+        "claude-code": {
+          "prompt": "/exa-research-example:deep-research best open source agentic model in April 2026",
+          "forbid": [
+            "context too long",
+            "skill bailed"
+          ]
+        },
+        "cursor": {
+          "prompt": "/exa-deep-research best open source agentic model in April 2026"
+        },
+        "codex": {
+          "prompt": "Use Exa Research Example to run a deep research pass on the best open source agentic model in April 2026. Return three compact cited findings."
+        },
+        "opencode": {
+          "prompt": "/deep-research best open source agentic model in April 2026"
+        }
+      }
+    }
+  ]
+}

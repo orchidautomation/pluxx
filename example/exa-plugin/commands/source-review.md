@@ -1,6 +1,6 @@
 ---
-description: Exa: audit source quality, weak evidence, and ranking mistakes
-argument-hint: [topic-or-current-result-set]
+description: "Exa: audit source quality, weak evidence, and ranking mistakes"
+argument-hint: "[topic-or-current-result-set]"
 agent: source-auditor
 subtask: true
 ---

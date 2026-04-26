@@ -1,6 +1,6 @@
 ---
-description: Exa: run a parallel research workflow with specialist agents
-argument-hint: [research-question]
+description: "Exa: run a parallel research workflow with specialist agents"
+argument-hint: "[research-question]"
 ---
 
 Use the `exa-deep-research` skill.

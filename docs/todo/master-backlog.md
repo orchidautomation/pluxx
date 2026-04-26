@@ -1,6 +1,6 @@
 # Master Backlog
 
-Last updated: 2026-04-24
+Last updated: 2026-04-26
 
 This is the most complete repo-native backlog for Pluxx.
 
@@ -141,8 +141,17 @@ Open work:
   - Cursor CLI PASS
   - Codex Desktop app PASS
   - OpenCode CLI PASS
+  - repo-local Claude behavioral smoke PASS after the latest plugin-agent manifest fix
+  - published npm package still needs the next release before `pluxx test --behavioral` reflects that same Claude state
   - fresh Cursor CLI reruns currently hit a local macOS keychain/auth issue on this machine
   - older Claude CLI and Codex CLI headless failures are still ambient host-runtime issues on this machine
+- [ ] Use the Exa example to tighten how much first-pass structure Pluxx can recover automatically from:
+  - raw `init --from-mcp`
+  - `autopilot`
+  - `migrate` from a mature Claude-first plugin
+- [ ] Reduce the remaining Exa delta between:
+  - a credible imported or migrated starting point
+  - and the final polished source project with specialist-agent taxonomy, richer packaging, and public install surfaces
 - [ ] Exercise richer Claude skill surfaces where useful:
   - supporting files / references
   - scripts

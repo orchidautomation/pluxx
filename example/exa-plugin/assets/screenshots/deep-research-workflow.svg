@@ -10,8 +10,11 @@
   <text x="144" y="236" fill="#F8FAFC" font-size="56" font-family="Arial, sans-serif" font-weight="700">Run deep research without flattening the workflow</text>
   <text x="144" y="292" fill="#CBD5E1" font-size="30" font-family="Arial, sans-serif">One source project, parallel scouts, source review, then one compact cited answer.</text>
 
-  <rect x="144" y="340" width="1312" height="118" rx="24" fill="#071225" stroke="#2B4DFF" stroke-width="2"/>
-  <text x="184" y="410" fill="#8BB3FF" font-size="34" font-family="Courier New, monospace">/deep-research "Map AI browser operators and the strongest teams to watch"</text>
+  <rect x="144" y="340" width="1312" height="140" rx="24" fill="#071225" stroke="#2B4DFF" stroke-width="2"/>
+  <text x="184" y="402" fill="#8BB3FF" font-size="32" font-family="Courier New, monospace">
+    <tspan x="184" dy="0">/deep-research "Map AI browser operators and the strongest</tspan>
+    <tspan x="184" dy="42">teams to watch"</tspan>
+  </text>
 
   <rect x="144" y="510" width="224" height="220" rx="22" fill="#091327" stroke="#26364F" stroke-width="2"/>
   <rect x="400" y="510" width="224" height="220" rx="22" fill="#091327" stroke="#26364F" stroke-width="2"/>

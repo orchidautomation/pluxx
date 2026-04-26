@@ -10,8 +10,11 @@
   <text x="152" y="220" fill="#F8FAFC" font-size="56" font-family="Arial, sans-serif" font-weight="700">Map companies like an operator, not a search box</text>
   <text x="152" y="276" fill="#CBD5E1" font-size="30" font-family="Arial, sans-serif">Scout the market, filter weak directories, then ship the strongest public sources.</text>
 
-  <rect x="152" y="326" width="1296" height="114" rx="22" fill="#071225" stroke="#2B4DFF" stroke-width="2"/>
-  <text x="188" y="394" fill="#8BB3FF" font-size="34" font-family="Courier New, monospace">/company-research "Map AI browser agents for enterprise teams and show the strongest sources"</text>
+  <rect x="152" y="326" width="1296" height="140" rx="22" fill="#071225" stroke="#2B4DFF" stroke-width="2"/>
+  <text x="188" y="388" fill="#8BB3FF" font-size="32" font-family="Courier New, monospace">
+    <tspan x="188" dy="0">/company-research "Map AI browser agents for enterprise teams</tspan>
+    <tspan x="188" dy="42">and show the strongest public sources"</tspan>
+  </text>
 
   <rect x="152" y="500" width="360" height="252" rx="24" fill="#091327" stroke="#26364F" stroke-width="2"/>
   <rect x="544" y="500" width="360" height="252" rx="24" fill="#091327" stroke="#26364F" stroke-width="2"/>

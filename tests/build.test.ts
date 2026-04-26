@@ -217,6 +217,26 @@ beforeAll(async () => {
       '',
     ].join('\n'),
   )
+  await Bun.write(
+    resolve(TEST_DIR, 'agents/mcp-researcher.md'),
+    [
+      '---',
+      'name: mcp-researcher',
+      'description: "MCP research specialist."',
+      'mode: subagent',
+      'steps: 4',
+      'tools: Read, Grep, Glob, mcp__exa__web_search_exa, mcp__exa__web_fetch_exa',
+      'permission:',
+      '  edit: deny',
+      '  bash: deny',
+      '---',
+      '',
+      '# MCP Researcher',
+      '',
+      'Use inherited MCP tools to gather research evidence.',
+      '',
+    ].join('\n'),
+  )
   mkdirSync(resolve(TEST_DIR, 'scripts/'), { recursive: true })
   await Bun.write(resolve(TEST_DIR, 'scripts/validate.sh'), '#!/usr/bin/env bash\n')
   await Bun.write(resolve(TEST_DIR, 'scripts/confirm-mutation.sh'), '#!/usr/bin/env bash\n')
@@ -911,6 +931,7 @@ describe('build', () => {
     expect(claudeManifest.agents).toEqual([
       './agents/escalation.md',
       './agents/legacy-review.md',
+      './agents/mcp-researcher.md',
     ])
     expect(claudeManifest.hooks).toBeUndefined()
     expect(claudeManifest.mcpServers).toBe('./.mcp.json')
@@ -947,6 +968,11 @@ describe('build', () => {
     expect(claudeLegacyReviewAgent).toContain('maxTurns: 5')
     expect(claudeLegacyReviewAgent).toContain('disallowedTools: Write, Edit, MultiEdit, Bash')
     expect(claudeLegacyReviewAgent).not.toContain('\ntools:')
+
+    const claudeMcpResearcherAgent = readFileSync(resolve(OUT_DIR, 'claude-code/agents/mcp-researcher.md'), 'utf-8')
+    expect(claudeMcpResearcherAgent).toContain('maxTurns: 4')
+    expect(claudeMcpResearcherAgent).toContain('disallowedTools: Write, Edit, MultiEdit, Bash')
+    expect(claudeMcpResearcherAgent).not.toContain('\ntools:')
   })
 
   it('preserves shared instruction intent across the core four native instruction surfaces', async () => {

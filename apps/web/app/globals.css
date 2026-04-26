@@ -1183,9 +1183,7 @@ pre {
 
 .blog-post-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(260px, 0.7fr);
-  gap: 36px;
-  align-items: start;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .blog-post-main {
@@ -1198,7 +1196,7 @@ pre {
 }
 
 .blog-post-head .section-title {
-  max-width: 11ch;
+  max-width: 13ch;
 }
 
 .blog-proof-strip {
@@ -1224,6 +1222,58 @@ pre {
   margin-top: 32px;
   display: grid;
   gap: 18px;
+}
+
+.blog-answer-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.blog-answer-card {
+  padding: 22px 24px;
+  border-radius: 22px;
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(157, 109, 255, 0.06), transparent 54%),
+    rgba(18, 14, 31, 0.74);
+}
+
+.blog-answer-card .proof-list {
+  margin-top: 14px;
+}
+
+.blog-support-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.blog-support-card {
+  padding: 22px 24px;
+  border-radius: 22px;
+  border: 1px solid var(--line);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(157, 109, 255, 0.05), transparent 54%),
+    rgba(18, 14, 31, 0.68);
+}
+
+.blog-support-card h3 {
+  margin: 12px 0 0;
+  font-family: var(--font-display), serif;
+  font-weight: 400;
+  font-size: 1.4rem;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.blog-support-card p {
+  margin: 14px 0 0;
+}
+
+.blog-support-card .proof-list,
+.blog-support-card .blog-link-list {
+  margin-top: 16px;
 }
 
 .blog-prose h2 {
@@ -1278,32 +1328,9 @@ pre {
   overflow-x: auto;
 }
 
-.blog-post-aside {
-  position: sticky;
-  top: 104px;
-  display: grid;
-  gap: 18px;
-}
-
-.blog-aside-card {
-  padding: 24px;
-}
-
-.blog-aside-card h3 {
-  margin-top: 12px;
-  font-size: 1.45rem;
-}
-
-.blog-aside-copy {
-  margin: 14px 0 0;
-  color: var(--muted-strong);
-  line-height: 1.65;
-}
-
 .blog-link-list {
   display: grid;
   gap: 12px;
-  margin-top: 18px;
 }
 
 .blog-link-list a {
@@ -1318,6 +1345,13 @@ pre {
 .blog-link-list a:hover {
   color: var(--ink);
   border-color: rgba(225, 215, 255, 0.28);
+}
+
+@media (max-width: 880px) {
+  .blog-answer-grid,
+  .blog-support-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* ────────────────────────────────────────────────────────────────
@@ -1516,10 +1550,6 @@ pre {
   .journal-grid,
   .blog-post-grid {
     grid-template-columns: 1fr;
-  }
-
-  .blog-post-aside {
-    position: static;
   }
 
   .workflow-card {

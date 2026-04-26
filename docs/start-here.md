@@ -1,6 +1,6 @@
 # Start Here
 
-Last updated: 2026-04-24
+Last updated: 2026-04-26
 
 ## Doc Links
 
@@ -149,11 +149,15 @@ The repo already proves a lot.
   - Cursor CLI
   - Codex Desktop app
   - OpenCode CLI
+- the repo-local Exa behavioral smoke now also passes for Claude Code after a plugin-agent manifest fix, but the published npm package has not picked that fix up yet:
+  - use the repo-local CLI for that exact rerun until the next npm release
 - the remaining Exa rerun blockers are now narrower and host-local:
   - Cursor CLI currently hits a local macOS keychain/auth error on fresh rerun (`SecItemCopyMatching failed -50`)
   - the older Claude CLI and Codex CLI headless failures are still ambient host-runtime issues on this machine, not generator-shape issues
 - the Exa example also pressured and improved the compiler itself:
   - a real Claude agent translation bug was exposed and fixed while making the example install cleanly
+- the Exa example also clarified a still-open product gap:
+  - raw `init --from-mcp`, `autopilot`, and `migrate` can already produce a credible starting point, but the final Exa-quality workflow taxonomy, specialist-agent graph, and install/polish layer still benefited from explicit refinement
 - docs/website ingestion has a provider model and writes deterministic artifacts:
   - `.pluxx/sources.json`
   - `.pluxx/docs-context.json`
@@ -211,6 +215,9 @@ That includes:
 - fewer stale planning artifacts
 - truthful public metadata and links
 - first-party provider docs reflected accurately in the compatibility story
+- the remaining delta between:
+  - a credible imported or migrated source project
+  - and the final polished Exa-style workflow pack
 - every mapped cross-host delta documented as preserve/translate/degrade/drop with a concrete closure path:
   - row-level translation docs now live in:
     - `docs/core-four-primitive-matrix.md`

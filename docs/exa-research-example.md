@@ -1,6 +1,6 @@
 # Exa Research Example
 
-Last updated: 2026-04-25
+Last updated: 2026-04-26
 
 ## Doc Links
 
@@ -64,10 +64,11 @@ The important surfaces it exercises are:
 
 - specialist agents and subagents
 - explicit research commands
-- one intentionally richer Claude-style orchestrator skill with `arguments`, `context: fork`, `agent`, and `allowed-tools`
+- one intentionally richer Claude-style orchestrator skill with `arguments`, `agent`, and `allowed-tools`
 - shared auth and setup guidance
 - native brand and listing metadata
 - code-first OpenCode runtime output
+- project-owned headless behavioral smoke prompts
 
 ## Source Shape
 
@@ -114,6 +115,13 @@ Optional auth:
 
 If you want the fastest external share path, use the host-specific one-command installers below. These fetch the public Pluxx repo source, build the Exa example, and install the resulting native bundle into the selected host.
 
+Important:
+
+- this example includes a local `sessionStart` hook: `scripts/check-exa-setup.sh`
+- the hook only reports whether `EXA_API_KEY` is set and prints setup guidance
+- using these installers means explicitly trusting that local hook
+- the equivalent source-path install command is `pluxx install --target <host> --trust`
+
 ### Claude Code
 
 ```bash
@@ -148,6 +156,43 @@ Setup hook:
 
 - `scripts/check-exa-setup.sh`
 
+## What Was Automatic Vs Shaped
+
+The current Exa example should not be read as “Pluxx could only do this because we already knew the answer.”
+
+Pluxx already gets a meaningful amount for free today:
+
+- `init --from-mcp` can scaffold the MCP wiring, auth shape, canonical paths, shared instructions, base skills, and safe hook structure from a raw Exa MCP
+- `autopilot` can then push that first pass toward:
+  - product-shaped skills
+  - explicit commands
+  - argument-bearing command UX
+  - specialist agents and subagents when the workflow wants isolation or delegation
+- `migrate` can import a strong host-native plugin into a canonical Pluxx source project instead of forcing a rewrite from scratch
+
+What still took explicit product shaping in this Exa example was:
+
+- deciding the final workflow taxonomy
+- deciding which workflows deserved dedicated specialist agents
+- tightening the orchestrator prompts so they delegate instead of collapsing into one flat search flow
+- adding the richer shared brand layer:
+  - icon
+  - screenshots
+  - default prompts
+  - website / privacy / terms links
+- polishing the host-specific install and proof surfaces
+
+So the honest answer is:
+
+- a raw `init --from-mcp` or `autopilot` run would have produced a credible Exa starting point
+- `migrate` from a mature Claude-first plugin would likely have produced a stronger starting point than raw MCP alone
+- neither path should yet be described as “this exact polished Exa example would fall out automatically without refinement”
+
+The product gap now is narrower and clearer:
+
+- keep making `autopilot` smarter about recovering product-shaped workflow architecture from raw MCPs
+- keep making `migrate` better at preserving the intent of a mature Claude-first plugin shape so the first canonical Pluxx source project needs less manual tightening
+
 ## Public Command Sequence
 
 If a normal user wanted to rerun the mechanical proof with the published CLI, the shape would be:
@@ -167,6 +212,28 @@ pluxx verify-install --target cursor
 pluxx verify-install --target codex
 pluxx verify-install --target opencode
 ```
+
+For the behavioral smoke rerun that actually asks the installed hosts a real example query, use:
+
+```bash
+pluxx test --install --trust --behavioral --target claude-code cursor codex opencode
+```
+
+Current package note:
+
+- the repo-local source now passes the Claude behavioral smoke and the Claude plugin install schema fix
+- the currently published npm package (`0.1.4`) does not include that Claude fix yet
+- until the next npm release, use the repo-local CLI from this checkout for the Exa behavioral rerun:
+
+```bash
+node ../../bin/pluxx.js test --install --trust --behavioral --target claude-code cursor codex opencode
+```
+
+The Exa example defines that query set in:
+
+- [example/exa-plugin/.pluxx/behavioral-smoke.json](../example/exa-plugin/.pluxx/behavioral-smoke.json)
+
+The first case intentionally targets the deep-research path and forbids Claude's earlier `context too long` fallback text.
 
 ## Maintainer Commands Actually Run In This Repo
 
@@ -209,6 +276,8 @@ node ../../bin/pluxx.js verify-install --target opencode
 - OpenCode
 
 All four `verify-install` checks passed after install.
+
+The example also now has a project-owned headless behavioral smoke lane, so we can rerun a real installed-host query instead of relying only on screenshots and manual interactive checks.
 
 ## Host Result Matrix
 

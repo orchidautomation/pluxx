@@ -1,6 +1,6 @@
 ---
-description: Exa: find the best docs, code examples, and implementation notes
-argument-hint: [technology-or-problem]
+description: "Exa: find the best docs, code examples, and implementation notes"
+argument-hint: "[technology-or-problem]"
 agent: code-scout
 subtask: true
 ---

@@ -13,20 +13,20 @@ export type BlogPost = {
 export const blogPosts: BlogPost[] = [
   {
     slug: "exa-across-the-core-four",
-    title: "How Exa can ship natively across Claude Code, Cursor, Codex, and OpenCode",
+    title: "We rebuilt Exa's research plugin once and shipped it to four hosts",
     summary:
-      "A clean-room Exa example that shows how one maintained source project can ship native, Exa-backed workflows across Claude Code, Cursor, Codex, and OpenCode.",
+      "Exa maintains a Claude Code plugin and a Cursor plugin and has no presence on Codex or OpenCode. We took their public MCP, rebuilt the workflow layer in one source project, and let Pluxx compile native installs for every host.",
     deck:
-      "We took Exa's public MCP and the workflow shape of Exa's Claude-first plugin, then rebuilt it as one maintained source project that installs natively across the major coding agents without forking the workflow layer four different ways.",
+      "Today Exa ships a Claude Code plugin and a Cursor plugin. Two codebases, same MCP, half the agent landscape uncovered. We rebuilt the workflow layer once and let Pluxx compile native installs for Claude Code, Cursor, Codex, and OpenCode.",
     publishedAt: "April 25, 2026",
     isoDate: "2026-04-25",
-    readTime: "7 min read",
-    category: "Launch",
+    readTime: "8 min read",
+    category: "Field Note",
     proof: [
-      "Claude Code",
-      "Cursor",
+      "Claude Code app",
+      "Cursor CLI",
       "Codex Desktop",
-      "OpenCode",
+      "OpenCode CLI",
     ],
   },
 ];

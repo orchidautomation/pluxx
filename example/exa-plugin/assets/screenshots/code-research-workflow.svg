@@ -10,8 +10,11 @@
   <text x="144" y="236" fill="#F8FAFC" font-size="56" font-family="Arial, sans-serif" font-weight="700">Research APIs, docs, and examples from one maintained source</text>
   <text x="144" y="292" fill="#CBD5E1" font-size="30" font-family="Arial, sans-serif">The command shape stays stable while each host gets the most native plugin surface it can support.</text>
 
-  <rect x="144" y="340" width="1312" height="114" rx="22" fill="#071225" stroke="#2B4DFF" stroke-width="2"/>
-  <text x="184" y="408" fill="#8BB3FF" font-size="34" font-family="Courier New, monospace">/code-research "Find the best OAuth device-flow docs, examples, and migration notes"</text>
+  <rect x="144" y="340" width="1312" height="140" rx="22" fill="#071225" stroke="#2B4DFF" stroke-width="2"/>
+  <text x="184" y="402" fill="#8BB3FF" font-size="32" font-family="Courier New, monospace">
+    <tspan x="184" dy="0">/code-research "Find the best OAuth device-flow docs, examples,</tspan>
+    <tspan x="184" dy="42">and migration notes"</tspan>
+  </text>
 
   <rect x="144" y="500" width="420" height="232" rx="24" fill="#091327" stroke="#26364F" stroke-width="2"/>
   <rect x="592" y="500" width="420" height="232" rx="24" fill="#091327" stroke="#26364F" stroke-width="2"/>

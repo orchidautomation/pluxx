@@ -1,6 +1,6 @@
 # Pluxx Queue
 
-Last updated: 2026-04-24
+Last updated: 2026-04-26
 
 ## Doc Links
 
@@ -75,6 +75,8 @@ The core-four compiler sprint is done.
   - Cursor CLI PASS
   - Codex Desktop app PASS
   - OpenCode CLI PASS
+- the repo-local Exa behavioral smoke now also passes on Claude Code after the latest plugin-agent manifest fix:
+  - the published npm package still needs the next release before the public `pluxx test --behavioral` path matches that local state
 - the remaining Exa rerun blocker is now narrower:
   - fresh Cursor CLI reruns currently hit a local macOS keychain/auth issue on this machine, not a plugin-bundle issue
 
@@ -121,6 +123,8 @@ Open work:
     - [docs/core-four-branding-metadata-audit.md](../core-four-branding-metadata-audit.md)
   - the now-closed registry, generator, migration, explainability, and fixture rows for the current audited core four
   - any future host-drift refreshes and public proof-packaging follow-ons
+- use the Exa example as the next import-quality pressure test:
+  - a raw `init --from-mcp`, `autopilot`, or `migrate` run should get closer to the final Exa workflow architecture without depending on as much maintainer hand-shaping
 
 ### 2. Flagship depth example
 
@@ -136,6 +140,10 @@ Open work:
 - keep the new Exa clean-room example in the proof stack as the clearest non-docs showcase of:
   - raw MCP plus official-host workflow shape in
   - branded native core-four bundles out
+- document and close the current Exa import delta:
+  - what a raw MCP import already gets for free
+  - what a host-native Claude-first migration already gets for free
+  - what still required explicit workflow and packaging refinement
 - finish the Exa host-runtime proof block when the local environment permits:
   - Claude CLI connection issue
   - Codex CLI model/account/runtime issue
