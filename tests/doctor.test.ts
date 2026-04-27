@@ -102,9 +102,13 @@ function createConsumerFixture(): string {
   return dir
 }
 
-function createCodexConsumerFixture(): string {
+function createCodexConsumerFixture(options: { includeRuntime?: boolean } = {}): string {
   const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-codex-consumer-'))
   mkdirSync(resolve(dir, '.codex-plugin'), { recursive: true })
+  if (options.includeRuntime) {
+    mkdirSync(resolve(dir, 'mcp-server/dist'), { recursive: true })
+    writeFileSync(resolve(dir, 'mcp-server/dist/index.js'), 'console.log("runtime")\n')
+  }
   writeFileSync(
     resolve(dir, '.codex-plugin/plugin.json'),
     JSON.stringify({
@@ -457,7 +461,20 @@ describe('doctorConsumer', () => {
       expect(report.ok).toBe(true)
       expect(report.checks.some((check) => check.code === 'consumer-platform-detected' && check.level === 'success')).toBe(true)
       expect(report.checks.some((check) => check.code === 'consumer-mcp-stdio' && check.level === 'info')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-mcp-stdio-runtime-missing' && check.level === 'warning')).toBe(true)
       expect(report.checks.some((check) => check.code === 'consumer-mcp-remote-auth-runtime' && check.level === 'info')).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('clears the missing-runtime warning when the bundled stdio files are present', async () => {
+    const dir = createCodexConsumerFixture({ includeRuntime: true })
+
+    try {
+      const report = await doctorConsumer(dir)
+      expect(report.checks.some((check) => check.code === 'consumer-mcp-stdio' && check.level === 'info')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-mcp-stdio-runtime-missing')).toBe(false)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

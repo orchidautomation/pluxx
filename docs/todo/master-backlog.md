@@ -1,6 +1,6 @@
 # Master Backlog
 
-Last updated: 2026-04-26
+Last updated: 2026-04-27
 
 This is the most complete repo-native backlog for Pluxx.
 
@@ -99,6 +99,10 @@ Any person or agent should be able to enter the repo and answer:
   - permission-first agent output
   - legacy agent `tools` translated as compatibility input, not preferred output
   - native `skill` / `task` permission keys treated as real host surfaces
+- [x] Tighten the local stdio MCP import path for the common "existing MCP to Pluxx plugin" workflow:
+  - `init --from-mcp` now infers `passthrough` for project-relative runtimes like `./build/index.js`
+  - `lint` now warns when a local stdio runtime is not bundled into passthrough
+  - `doctor --consumer` now warns when installed `.mcp.json` files reference missing stdio runtime payloads
 - [ ] Continue the post-closure follow-on work from the translation hit list:
   - public proof and packaging polish
   - install/distribution asset polish

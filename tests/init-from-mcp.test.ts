@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, afterEach } from 'bun:test'
-import { existsSync, readFileSync, rmSync } from 'fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
 import { loadConfig } from '../src/config/load'
 import { analyzeMcpQuality, deriveDisplayName, derivePluginName, detectMutatingTools, parseMcpSourceInput, planSkillScaffolds, writeMcpScaffold } from '../src/cli/init-from-mcp'
@@ -517,6 +517,31 @@ describe('init-from-mcp scaffold', () => {
     expect(config).toContain("cursor: {\n      mcpAuth: 'platform'")
     expect(instructionsFile).toContain('platform-managed OAuth')
     expect(metadata.settings.runtimeAuthMode).toBe('platform')
+  })
+
+  it('infers passthrough directories for local stdio runtime paths', async () => {
+    rmSync(TEST_DIR, { recursive: true, force: true })
+    mkdirSync(resolve(TEST_DIR, 'build'), { recursive: true })
+    writeFileSync(resolve(TEST_DIR, 'build/index.js'), 'console.log("stdio runtime")\n')
+
+    await writeMcpScaffold({
+      rootDir: TEST_DIR,
+      pluginName: 'local-runtime',
+      authorName: 'Test Author',
+      displayName: 'Local Runtime',
+      skillGrouping: 'workflow',
+      hookMode: 'safe',
+      targets: ['codex'],
+      source: {
+        transport: 'stdio',
+        command: 'node',
+        args: ['./build/index.js'],
+      },
+      introspection,
+    })
+
+    const config = readFileSync(resolve(TEST_DIR, 'pluxx.config.ts'), 'utf-8')
+    expect(config).toContain(`passthrough: ["./build/"]`)
   })
 
   it('curates single-tool frontmatter descriptions instead of copying raw multiline tool help', async () => {

@@ -1,6 +1,6 @@
 # Pluxx Queue
 
-Last updated: 2026-04-26
+Last updated: 2026-04-27
 
 ## Doc Links
 
@@ -79,6 +79,10 @@ The core-four compiler sprint is done.
   - the public `pluxx test --install --trust --behavioral` path now matches the repo-local Exa proof state
 - the remaining Exa rerun blocker is now narrower:
   - fresh Cursor CLI reruns currently hit a local macOS keychain/auth issue on this machine, not a plugin-bundle issue
+- local stdio MCP import and install diagnostics are now materially stronger:
+  - `init --from-mcp` infers `passthrough` for project-relative runtimes like `./build/index.js`
+  - `lint` warns when a local stdio runtime is not bundled into passthrough
+  - `doctor --consumer` warns when installed `.mcp.json` files reference missing stdio runtime payloads
 
 The public baseline is also real.
 

@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-04-26
+Last updated: 2026-04-27
 
 ## Doc Links
 
@@ -88,6 +88,10 @@ The closure plan is now narrower than it was before:
   - migration normalization proof
   - install-lifecycle explainability proof
 - the remaining closure work is now mainly public proof packaging, install/distribution polish, and future host-refresh maintenance tracked in [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md)
+- local stdio import quality is now stronger for the common "I already have an MCP" path:
+  - `init --from-mcp` auto-recovers `passthrough` for project-relative runtimes such as `./build/index.js`
+  - `lint` catches unbundled stdio runtime payloads earlier
+  - `doctor --consumer` now makes broken installed `.mcp.json` runtime references obvious
 
 ### 2. Flagship reference plugin
 

@@ -1,6 +1,6 @@
 # Start Here
 
-Last updated: 2026-04-26
+Last updated: 2026-04-27
 
 ## Doc Links
 
@@ -177,9 +177,14 @@ The repo already proves a lot.
   - `docs/core-four-translation-hit-list.md`
 - the raw-MCP scaffold intelligence is now more explicit in the product itself:
   - agent/autopilot prompt packs now teach native shaping from raw MCP intent into commands, argument-bearing entrypoints, and specialist agents/subagents instead of stopping at a flat skill dump
+- local stdio MCP imports now recover more of the executable runtime automatically:
+  - `init --from-mcp` infers `passthrough` directories for project-relative stdio runtimes such as `./build/index.js`
+  - `lint` now warns when a local stdio runtime will not be bundled into installed outputs
+  - `doctor --consumer` now warns when an installed bundle's `.mcp.json` points at missing stdio runtime files
 - OpenCode-native agent output is now permission-first:
   - legacy agent `tools` input is translated forward where possible
   - native OpenCode `skill` and `task` permission keys are treated as real first-class surfaces
+  - canonical agents that already carry `permission` frontmatter no longer trigger the old deprecated-tools lint warning just because they retain cross-host `tools` hints
 
 ## What Pluxx Is Not Yet
 

@@ -149,6 +149,47 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'skill-description-length' && issue.platform === 'opencode')).toBe(true)
   })
 
+  it('warns when a local stdio MCP runtime is not bundled through passthrough', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+    mkdirSync(resolve(projectDir, 'build'), { recursive: true })
+    writeFileSync(resolve(projectDir, 'build/index.js'), 'console.log("runtime")\n')
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['codex'],
+        mcp: {
+          localRuntime: {
+            transport: 'stdio',
+            command: 'node',
+            args: ['./build/index.js'],
+          },
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      [
+        '---',
+        'name: my-skill',
+        'description: "A valid skill description"',
+        '---',
+        '',
+        '# My Skill',
+      ].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'mcp-stdio-runtime-unbundled')).toBe(true)
+  })
+
   it('reports skill-description-truncation warning for display max', async () => {
     const projectDir = createTempProject()
     mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
@@ -615,6 +656,50 @@ describe('lintProject', () => {
 
     const result = await lintProject(projectDir)
     expect(result.issues.some(issue => issue.code === 'opencode-agent-tools-deprecated')).toBe(true)
+  })
+
+  it('does not warn on OpenCode agents that already carry canonical permission frontmatter', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+    mkdirSync(resolve(projectDir, 'agents'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        agents: './agents/',
+        targets: ['opencode'],
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A valid skill"', '---', '', '# My Skill'].join('\n'),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'agents/review.md'),
+      [
+        '---',
+        'name: review',
+        'description: "Permission-first review agent"',
+        'mode: subagent',
+        'tools: Read, Grep, Glob',
+        'permission:',
+        '  edit: deny',
+        '  bash: deny',
+        '---',
+        '',
+        '# Review',
+      ].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'opencode-agent-tools-deprecated')).toBe(false)
   })
 
   it('summarizes non-preserve primitive translations for active targets', async () => {

@@ -1,6 +1,6 @@
-import { existsSync } from 'fs'
+import { existsSync, lstatSync } from 'fs'
 import { mkdir } from 'fs/promises'
-import { basename, resolve } from 'path'
+import { basename, dirname, relative, resolve } from 'path'
 import type { HookEntry, McpServer, PluginConfig, TargetPlatform, UserConfigEntry } from '../schema'
 import type {
   IntrospectedMcpPrompt,
@@ -343,6 +343,7 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
   const permissions = options.permissions ?? (options.approveMcpTools
     ? { allow: [`MCP(${serverName}.*)`] }
     : undefined)
+  const passthroughPaths = inferLocalRuntimePassthroughPaths(options.rootDir, options.source)
   const runtimeAuthMode = options.runtimeAuthMode
     ?? (
       options.source.transport !== 'stdio' && options.source.auth?.type === 'platform'
@@ -395,6 +396,7 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
       userConfig,
       hooks: generatedHooks.hookEntries,
       scriptsPath: generatedHooks.scriptsPath,
+      passthroughPaths,
       runtimeAuthMode,
       permissions,
       commandsPath: './commands/',
@@ -894,6 +896,7 @@ export function buildConfigTemplate(input: {
   userConfig?: UserConfigEntry[]
   hooks?: Record<string, HookEntry[]>
   scriptsPath?: string
+  passthroughPaths?: string[]
   runtimeAuthMode?: McpRuntimeAuthMode
   permissions?: PluginConfig['permissions']
   commandsPath?: string
@@ -910,6 +913,9 @@ export function buildConfigTemplate(input: {
     ? `\n  userConfig: ${serializeUserConfig(input.userConfig)},\n`
     : ''
   const scriptsBlock = input.scriptsPath ? `  scripts: ${JSON.stringify(input.scriptsPath)},\n` : ''
+  const passthroughBlock = input.passthroughPaths && input.passthroughPaths.length > 0
+    ? `  passthrough: ${JSON.stringify(input.passthroughPaths)},\n`
+    : ''
   const commandsBlock = input.commandsPath ? `  commands: ${JSON.stringify(input.commandsPath)},\n` : ''
   const hooksBlock = input.hooks ? `\n  hooks: ${serializeHooks(input.hooks)},\n` : ''
   const permissionsBlock = input.permissions ? `\n  permissions: ${serializePermissions(input.permissions)},\n` : ''
@@ -933,6 +939,7 @@ ${commandsBlock}
   instructions: './INSTRUCTIONS.md',
 ${userConfigBlock}
 ${scriptsBlock}
+${passthroughBlock}
 
   mcp: {
 ${mcpBlock}
@@ -948,6 +955,40 @@ ${platformsBlock}
   targets: [${targets}],
 })
 `
+}
+
+function inferLocalRuntimePassthroughPaths(rootDir: string, source: McpServer): string[] {
+  if (source.transport !== 'stdio') return []
+
+  const passthrough = new Set<string>()
+  const candidates = [source.command, ...(source.args ?? [])]
+
+  for (const candidate of candidates) {
+    if (!isLikelyLocalRuntimePath(candidate)) continue
+
+    const resolvedPath = resolve(rootDir, candidate)
+    if (!existsSync(resolvedPath)) continue
+
+    const stats = lstatSync(resolvedPath)
+    const runtimeDir = stats.isDirectory() ? resolvedPath : dirname(resolvedPath)
+    const normalized = normalizePassthroughDir(rootDir, runtimeDir)
+    if (normalized) passthrough.add(normalized)
+  }
+
+  return [...passthrough].sort()
+}
+
+function isLikelyLocalRuntimePath(value: string): boolean {
+  return value.startsWith('./')
+    || value.startsWith('../')
+    || value.startsWith('.\\')
+    || value.startsWith('..\\')
+}
+
+function normalizePassthroughDir(rootDir: string, dirPath: string): string | null {
+  const relativePath = relative(rootDir, dirPath).replace(/\\/g, '/').replace(/\/+$/, '')
+  if (!relativePath || relativePath === '.') return null
+  return `./${relativePath}/`
 }
 
 function buildMcpBlock(serverName: string, source: McpServer): string {

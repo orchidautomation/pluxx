@@ -130,6 +130,8 @@ npx @orchid-labs/pluxx init \
   --hooks safe
 ```
 
+If the stdio command points at a project-relative runtime such as `./build/index.js`, Pluxx now infers the parent runtime directory into `passthrough` automatically. That matters because installed host bundles need both the MCP config and the executable payload, not just the config.
+
 ### 4. Inspect the scaffold
 
 You should now have a source repo that looks roughly like:

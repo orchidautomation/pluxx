@@ -1,7 +1,7 @@
-import { existsSync, readdirSync, readFileSync } from 'fs'
+import { existsSync, lstatSync, readdirSync, readFileSync } from 'fs'
 import { resolve, relative, basename, dirname } from 'path'
 import { loadConfig } from '../config/load'
-import { getConfiguredCompilerBuckets, type PluginConfig, type PluxxCompilerBucket, type TargetPlatform } from '../schema'
+import { getConfiguredCompilerBuckets, type McpServer, type PluginConfig, type PluxxCompilerBucket, type TargetPlatform } from '../schema'
 import { PLATFORM_LIMITS, PLATFORM_LIMIT_POLICIES, getCoreFourPrimitiveCapabilities, getPlatformRules, type CoreFourPlatform, type PrimitiveTranslationMode } from '../validation/platform-rules'
 import { collectPermissionRules, permissionRulesNeedToolLevelDowngrade } from '../permissions'
 import { readCanonicalAgentFiles } from '../agents'
@@ -535,13 +535,16 @@ function lintMcpUrls(config: PluginConfig, issues: LintIssue[]): void {
   }
 }
 
-function lintMcpRuntimeState(config: PluginConfig, issues: LintIssue[]): void {
+function lintMcpRuntimeState(rootDir: string, config: PluginConfig, issues: LintIssue[]): void {
   if (!config.mcp) return
 
   const claudeUsesPlatformAuth = config.targets.includes('claude-code')
     && config.platforms?.['claude-code']?.mcpAuth === 'platform'
   const cursorUsesPlatformAuth = config.targets.includes('cursor')
     && config.platforms?.cursor?.mcpAuth === 'platform'
+  const passthroughDirs = (config.passthrough ?? [])
+    .map((entry) => resolveBundledPassthroughDir(rootDir, entry))
+    .filter((entry): entry is string => Boolean(entry))
 
   for (const [serverName, server] of Object.entries(config.mcp)) {
     if (server.transport === 'stdio') {
@@ -552,6 +555,19 @@ function lintMcpRuntimeState(config: PluginConfig, issues: LintIssue[]): void {
         file: 'pluxx.config.ts',
         platform: 'MCP',
       })
+
+      for (const runtimePath of findLocalStdioRuntimePaths(rootDir, server)) {
+        if (passthroughDirs.some((dir) => runtimePath === dir || runtimePath.startsWith(`${dir}/`))) continue
+
+        const relativeDir = `./${relative(rootDir, runtimePath).replace(/\\/g, '/')}/`
+        pushIssue(issues, {
+          level: 'warning',
+          code: 'mcp-stdio-runtime-unbundled',
+          message: `MCP server "${serverName}" references a project-local stdio runtime under ${relativeDir}, but that directory is not included in passthrough. Installed bundles may ship the MCP config without the executable payload.`,
+          file: 'pluxx.config.ts',
+          platform: 'MCP',
+        })
+      }
     }
 
     const runtimeAuthTargets: string[] = []
@@ -576,6 +592,48 @@ function lintMcpRuntimeState(config: PluginConfig, issues: LintIssue[]): void {
       })
     }
   }
+}
+
+function resolveBundledPassthroughDir(rootDir: string, entry: string): string | null {
+  const resolvedPath = resolve(rootDir, entry)
+  if (!existsSync(resolvedPath)) return null
+  try {
+    const stats = lstatSync(resolvedPath)
+    if (!stats.isDirectory()) return null
+    return resolvedPath.replace(/\/+$/, '')
+  } catch {
+    return null
+  }
+}
+
+function findLocalStdioRuntimePaths(rootDir: string, server: McpServer): string[] {
+  if (server.transport !== 'stdio') return []
+
+  const runtimeDirs = new Set<string>()
+  const candidates = [server.command, ...(server.args ?? [])]
+
+  for (const candidate of candidates) {
+    if (!isLikelyLocalRuntimePath(candidate)) continue
+    const resolvedPath = resolve(rootDir, candidate)
+    if (!existsSync(resolvedPath)) continue
+
+    try {
+      const stats = lstatSync(resolvedPath)
+      const runtimeDir = stats.isDirectory() ? resolvedPath : dirname(resolvedPath)
+      runtimeDirs.add(runtimeDir.replace(/\/+$/, ''))
+    } catch {
+      // ignore unreadable local runtime hints here; doctor/build will surface harder failures
+    }
+  }
+
+  return [...runtimeDirs].sort()
+}
+
+function isLikelyLocalRuntimePath(value: string): boolean {
+  return value.startsWith('./')
+    || value.startsWith('../')
+    || value.startsWith('.\\')
+    || value.startsWith('..\\')
 }
 
 function lintCodexHookCompatibility(config: PluginConfig, issues: LintIssue[]): void {
@@ -863,15 +921,20 @@ function lintOpenCodeAgentFrontmatter(
   const agents = readCanonicalAgentFiles(resolve(dir, config.agents))
   for (const agent of agents) {
     if (!('tools' in agent.frontmatter)) continue
+    if (hasCanonicalAgentPermission(agent.frontmatter.permission)) continue
 
     pushIssue(issues, {
       level: 'warning',
       code: 'opencode-agent-tools-deprecated',
-      message: 'OpenCode agent `tools` is deprecated. Pluxx will translate legacy agent tools into permission-first OpenCode output where possible, but canonical agents should prefer `permission`.',
+      message: 'OpenCode agent `tools` is deprecated. Add canonical `permission` frontmatter so Pluxx can keep the emitted OpenCode agent permission-first even when shared cross-host authoring still carries legacy tool hints.',
       file: relative(dir, agent.filePath).replace(/\\/g, '/'),
       platform: 'OpenCode',
     })
   }
+}
+
+function hasCanonicalAgentPermission(value: unknown): boolean {
+  return !!value && typeof value === 'object' && !Array.isArray(value)
 }
 
 // ── Gotcha #9: Warn if absolute paths used in hooks/MCP instead of ${CLAUDE_PLUGIN_ROOT} ──
@@ -1423,7 +1486,7 @@ export async function lintProject(
 
   // MCP and brand
   lintMcpUrls(lintConfig, issues)
-  lintMcpRuntimeState(lintConfig, issues)
+  lintMcpRuntimeState(dir, lintConfig, issues)
   lintBrandMetadata(lintConfig, issues)
   lintCodexOverrides(lintConfig, issues)
   lintCodexHookCompatibility(lintConfig, issues)

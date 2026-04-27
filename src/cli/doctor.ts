@@ -891,6 +891,18 @@ function checkInstalledMcpConfig(checks: DoctorCheck[], rootDir: string, layout:
         fix: 'If tools fail, verify the bundled command or its runtime dependencies on this machine.',
         path: layout.mcpConfigPath,
       })
+
+      const missingRuntimePaths = findMissingInstalledStdioRuntimePaths(rootDir, stdioEntries)
+      if (missingRuntimePaths.length > 0) {
+        addCheck(checks, {
+          level: 'warning',
+          code: 'consumer-mcp-stdio-runtime-missing',
+          title: 'Bundled stdio MCP runtime files are missing',
+          detail: `This installed MCP config references local runtime path${missingRuntimePaths.length === 1 ? '' : 's'} that do not exist in the bundle: ${missingRuntimePaths.join(', ')}.`,
+          fix: 'Rebuild the plugin with the MCP runtime directory included in passthrough, then reinstall the host bundle.',
+          path: layout.mcpConfigPath,
+        })
+      }
     }
 
     if (remoteEntries.length > 0 && inlineHeaderEntries.length > 0) {
@@ -928,6 +940,35 @@ function checkInstalledMcpConfig(checks: DoctorCheck[], rootDir: string, layout:
       path: layout.mcpConfigPath,
     })
   }
+}
+
+function findMissingInstalledStdioRuntimePaths(
+  rootDir: string,
+  stdioEntries: Array<Record<string, unknown>>,
+): string[] {
+  const missing = new Set<string>()
+
+  for (const server of stdioEntries) {
+    const command = typeof server.command === 'string' ? server.command : undefined
+    const args = Array.isArray(server.args) ? server.args.filter((value): value is string => typeof value === 'string') : []
+
+    for (const candidate of [command, ...args]) {
+      if (!candidate || !isLikelyLocalRuntimePath(candidate)) continue
+      const resolvedPath = resolve(rootDir, candidate)
+      if (!existsSync(resolvedPath)) {
+        missing.add(candidate)
+      }
+    }
+  }
+
+  return [...missing].sort()
+}
+
+function isLikelyLocalRuntimePath(value: string): boolean {
+  return value.startsWith('./')
+    || value.startsWith('../')
+    || value.startsWith('.\\')
+    || value.startsWith('..\\')
 }
 
 function isLikelyOpenCodeInstallPath(rootDir: string): boolean {
