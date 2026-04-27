@@ -151,6 +151,11 @@ Need local installs too?
   pluxx test --install
   pluxx uninstall
 
+Need release installers or a GitHub release?
+  pluxx publish --dry-run
+  pluxx publish --github-release --version <x.y.z>
+  pluxx publish --npm --version <x.y.z>
+
 Need agent refinement?
   pluxx agent prepare [--website <url>] [--docs <url>]
   pluxx agent run taxonomy --runner <runner>

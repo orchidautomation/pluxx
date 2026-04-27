@@ -98,4 +98,29 @@ describe('CLI lifecycle helpers', () => {
     expect(result.command[3]).toBe('@orchid-labs/pluxx@0.1.5')
     expect(stderr).toBe('')
   })
+
+  it('shows publish examples in top-level help', async () => {
+    const proc = spawnCli(['help'])
+    const stdout = await new Response(proc.stdout).text()
+    const stderr = await new Response(proc.stderr).text()
+    const exitCode = await proc.exited
+
+    expect(exitCode).toBe(0)
+    expect(stdout).toContain('pluxx publish --dry-run')
+    expect(stdout).toContain('pluxx publish --github-release --version 1.0.0')
+    expect(stderr).toBe('')
+  })
+
+  it('prints publish help without loading project config', async () => {
+    const proc = spawnCli(['publish', '--help'])
+    const stdout = await new Response(proc.stdout).text()
+    const stderr = await new Response(proc.stderr).text()
+    const exitCode = await proc.exited
+
+    expect(exitCode).toBe(0)
+    expect(stdout).toContain('pluxx publish — package and release a built plugin or CLI')
+    expect(stdout).toContain('pluxx publish --github-release --version 1.0.0')
+    expect(stdout).not.toContain('No pluxx config found')
+    expect(stderr).toBe('')
+  })
 })

@@ -271,6 +271,10 @@ export async function main() {
       await runVerifyInstall()
       break
     case 'publish':
+      if (isHelpRequested(args.slice(1))) {
+        printPublishHelp()
+        break
+      }
       await runPublishCommand()
       break
     case 'uninstall':
@@ -311,6 +315,10 @@ function normalizeTopLevelArgs(input: string[]): string[] {
   }
 
   return input
+}
+
+function isHelpRequested(input: string[]): boolean {
+  return input.includes('--help') || input.includes('-h')
 }
 
 function getCliPackageVersion(): string {
@@ -3352,6 +3360,40 @@ Examples:
   pluxx verify-install --target codex     Verify the installed Codex bundle in its native local path
   pluxx install --dry-run                 Preview local install paths and trust implications
   pluxx install --trust                   Install without hook trust confirmation
+  pluxx publish --dry-run                 Preview npm/GitHub release publish checks
+  pluxx publish --github-release --version 1.0.0  Create release installers and a GitHub release
+  pluxx publish --npm --tag next          Publish the npm package under a non-latest dist-tag
+`)
+}
+
+function printPublishHelp() {
+  console.log(`
+pluxx publish — package and release a built plugin or CLI
+
+Usage:
+  pluxx publish [--npm] [--github-release] [--allow-dirty] [--dry-run] [--json] [--tag latest] [--version x.y.z]
+
+Behavior:
+  - loads the current pluxx.config.* project
+  - plans npm publish and/or GitHub release work
+  - runs clean-working-tree checks unless --allow-dirty is passed
+  - writes release assets such as install scripts and release-manifest.json when applicable
+
+Flags:
+  --npm              Publish to npm using the configured package metadata
+  --github-release   Create or update GitHub release assets for the requested version
+  --version x.y.z    Override the release version for the publish plan
+  --tag <name>       Set the npm dist-tag (default: latest)
+  --allow-dirty      Skip the clean-working-tree check
+  --dry-run          Show the publish plan without writing or uploading
+  --json             Print the publish plan or result as JSON
+  --help, -h         Show this command help
+
+Examples:
+  pluxx publish --dry-run
+  pluxx publish --github-release --version 1.0.0
+  pluxx publish --npm --version 0.1.7
+  pluxx publish --npm --github-release --version 1.0.0
 `)
 }
 
