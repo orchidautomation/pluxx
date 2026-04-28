@@ -124,6 +124,12 @@ Open work:
 
 - keep [docs/start-here.md](../start-here.md), this queue, the master backlog, and Linear aligned
 - tighten the remaining top-level docs framing and entrypoint docs
+- keep the canonical first-run onboarding path aligned across `README.md`, `docs/proof-and-install.md`, and `site/getting-started/getting-started.mdx`:
+  - `init --from-mcp`
+  - `doctor`
+  - `lint`
+  - `build --install`
+  - `verify-install`
 - keep GTM-sensitive material out of the public repo
 - continue reconciling stale planning artifacts that still describe already-shipped work as future work
 - refresh `src/validation/platform-rules.ts`, `docs/compatibility.md`, and `docs/core-four-primitive-matrix.md` from the first-party provider audit:

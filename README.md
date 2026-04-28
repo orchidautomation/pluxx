@@ -92,6 +92,38 @@ Other targets still exist as generated secondary/beta outputs, but the product a
 
 For the detailed compatibility and verification matrix, see [docs/compatibility.md](./docs/compatibility.md).
 
+## 10-Minute Onboarding Path
+
+This is the canonical first-run path for a new user starting from a raw MCP and ending with a verified local install.
+
+```bash
+npx @orchid-labs/pluxx init \
+  --from-mcp https://example.com/mcp \
+  --yes \
+  --name acme \
+  --display-name "Acme" \
+  --author "Acme" \
+  --targets claude-code,cursor,codex,opencode \
+  --grouping workflow \
+  --hooks safe
+
+cd acme
+npx @orchid-labs/pluxx doctor
+npx @orchid-labs/pluxx lint
+npx @orchid-labs/pluxx build --install --trust
+npx @orchid-labs/pluxx verify-install --target codex
+```
+
+Expected checkpoints:
+
+- `init` writes a maintained source project with `pluxx.config.ts`, `INSTRUCTIONS.md`, `skills/`, and `.pluxx/mcp.json`
+- `doctor` exits without errors and calls out any auth, trust, or runtime caveats
+- `lint` exits cleanly
+- `build --install` writes `dist/claude-code`, `dist/cursor`, `dist/codex`, and `dist/opencode`, then installs the local host bundles
+- `verify-install` ends with `pluxx verify-install passed.`
+
+If you want the same flow with troubleshooting and host reload notes, use [Proof and install guide](./docs/proof-and-install.md).
+
 ## Quick Start
 
 ```bash
@@ -100,8 +132,8 @@ npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp --name my-plugin 
 cd my-plugin
 npx @orchid-labs/pluxx doctor
 npx @orchid-labs/pluxx lint
-npx @orchid-labs/pluxx build
-npx @orchid-labs/pluxx test
+npx @orchid-labs/pluxx build --install --trust
+npx @orchid-labs/pluxx verify-install --target codex
 ```
 
 One-shot path:

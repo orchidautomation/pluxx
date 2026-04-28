@@ -13,6 +13,20 @@ This walkthrough covers:
 - sync later when the MCP changes
 - run the same checks in CI
 
+## Canonical First Run
+
+This is the default path a new user should follow first:
+
+```text
+init --from-mcp
+-> doctor
+-> lint
+-> build --install
+-> verify-install
+```
+
+Use one real host for the first pass. The examples below use Codex for install verification, but the same order applies to Claude Code, Cursor, and OpenCode.
+
 ## Current Proof To Inspect First
 
 If you want proof before you want process, look at these first:
@@ -256,12 +270,27 @@ For CI or automation:
 npx @orchid-labs/pluxx doctor --json
 ```
 
-## 5. Lint, Build, Install, Test
+## 5. Lint, Build, Install, Verify
+
+The canonical first-run sequence is:
 
 ```bash
 npx @orchid-labs/pluxx lint
-npx @orchid-labs/pluxx build
-npx @orchid-labs/pluxx install --target claude-code
+npx @orchid-labs/pluxx build --install --trust
+npx @orchid-labs/pluxx verify-install --target codex
+```
+
+Expected checkpoints:
+
+- `lint` exits cleanly
+- `build --install` writes all selected host bundles under `dist/` and links the installed host bundles locally
+- `verify-install` confirms the host-visible installed state instead of trusting `dist/` alone
+
+If the host still does not see the plugin, reload the host and rerun `verify-install`. Use `pluxx doctor --consumer <installed-path>` only when the installed state still looks wrong after reload.
+
+```bash
+npx @orchid-labs/pluxx lint
+npx @orchid-labs/pluxx build --install --trust
 npx @orchid-labs/pluxx verify-install --target claude-code
 npx @orchid-labs/pluxx test
 ```

@@ -74,6 +74,12 @@ This includes:
 - site hero and metadata
 - Linear
 - the audit-to-implementation closure plan in [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md)
+- the canonical first-run onboarding path:
+  - `init --from-mcp`
+  - `doctor`
+  - `lint`
+  - `build --install`
+  - `verify-install`
 
 The closure plan is now narrower than it was before:
 
