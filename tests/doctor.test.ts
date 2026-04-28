@@ -412,6 +412,30 @@ describe('doctorConsumer', () => {
     }
   })
 
+  it('warns when a materialized consumer install contains placeholder-looking secrets', async () => {
+    const dir = createConsumerFixture()
+
+    try {
+      writeFileSync(
+        resolve(dir, '.pluxx-user.json'),
+        JSON.stringify({
+          values: {
+            'fixture-api-key': 'dummy API key',
+          },
+          env: {
+            FIXTURE_API_KEY: 'dummy API key',
+          },
+        }, null, 2),
+      )
+
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-user-config-placeholder-secret' && check.level === 'warning')).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('fails cleanly when consumer mode points at a source project', async () => {
     const dir = createProjectFixture()
 
@@ -460,6 +484,7 @@ describe('doctorConsumer', () => {
       const report = await doctorConsumer(dir)
       expect(report.ok).toBe(true)
       expect(report.checks.some((check) => check.code === 'consumer-platform-detected' && check.level === 'success')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-codex-mcp-bundled-visibility' && check.level === 'info')).toBe(true)
       expect(report.checks.some((check) => check.code === 'consumer-mcp-stdio' && check.level === 'info')).toBe(true)
       expect(report.checks.some((check) => check.code === 'consumer-mcp-stdio-runtime-missing' && check.level === 'warning')).toBe(true)
       expect(report.checks.some((check) => check.code === 'consumer-mcp-remote-auth-runtime' && check.level === 'info')).toBe(true)

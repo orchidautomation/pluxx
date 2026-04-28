@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
-import { mkdirSync, rmSync, writeFileSync } from 'fs'
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { spawnSync } from 'child_process'
 import { resolve } from 'path'
 import type { PluginConfig } from '../src/schema'
@@ -198,5 +198,69 @@ describe('runPublish', () => {
       'release-manifest.json',
       'SHA256SUMS.txt',
     ]))
+  })
+
+  it('generates installers that prompt and materialize user config for consumers', () => {
+    const config: PluginConfig = {
+      name: 'publish-plugin',
+      version: '1.2.3',
+      description: 'A publish test plugin',
+      author: { name: 'Test Author' },
+      license: 'MIT',
+      repository: 'https://github.com/orchidautomation/publish-plugin',
+      skills: './skills/',
+      mcp: {
+        fixture: {
+          transport: 'http',
+          url: 'https://example.com/mcp',
+          auth: {
+            type: 'bearer',
+            envVar: 'TEST_API_KEY',
+          },
+        },
+      },
+      targets: ['codex'],
+      outDir: './dist',
+    }
+    prepareBuiltTarget('codex', {
+      '.codex-plugin/plugin.json': JSON.stringify({ name: 'publish-plugin', version: '1.2.3' }),
+      '.mcp.json': JSON.stringify({ mcpServers: { fixture: { url: 'https://example.com/mcp', bearer_token_env_var: 'TEST_API_KEY' } } }),
+    })
+
+    let installerContent = ''
+    const result = runPublish(config, {
+      rootDir: ROOT,
+      requestedChannels: ['github-release'],
+      runCommand: (command, args, options) => {
+        if (command === 'tar') {
+          const proc = spawnSync(command, args, {
+            cwd: options?.cwd,
+            encoding: 'utf-8',
+          })
+          return {
+            status: proc.status,
+            stdout: proc.stdout ?? '',
+            stderr: proc.stderr ?? '',
+          }
+        }
+
+        if (command === 'git') return { status: 0, stdout: '', stderr: '' }
+        if (command === 'gh' && args[0] === 'auth') return { status: 0, stdout: '', stderr: '' }
+        if (command === 'gh' && args[0] === 'release' && args[1] === 'view') return { status: 1, stdout: '', stderr: 'missing' }
+        if (command === 'gh' && args[0] === 'release' && args[1] === 'create') {
+          const installerPath = args.find((value) => typeof value === 'string' && value.endsWith('/install-codex.sh'))
+          installerContent = readFileSync(installerPath!, 'utf-8')
+          return { status: 0, stdout: 'created', stderr: '' }
+        }
+        return { status: 0, stdout: '', stderr: '' }
+      },
+    })
+
+    expect(result.ok).toBe(true)
+    expect(installerContent).toContain('pluxx_prompt_secret_config "TEST_API_KEY"')
+    expect(installerContent).toContain('Refusing placeholder-looking secret for $env_var')
+    expect(installerContent).toContain("path.join(installDir, '.pluxx-user.json')")
+    expect(installerContent).toContain('server.http_headers')
+    expect(installerContent).toContain('delete server.bearer_token_env_var')
   })
 })

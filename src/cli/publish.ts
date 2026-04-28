@@ -4,6 +4,7 @@ import { resolve } from 'path'
 import { spawnSync } from 'child_process'
 import { tmpdir } from 'os'
 import type { PluginConfig, TargetPlatform } from '../schema'
+import { collectUserConfigEntries, defaultUserConfigEnvVar } from '../user-config'
 
 type PublishChannel = 'npm' | 'github-release'
 type PublishAssetKind = 'archive' | 'installer' | 'manifest' | 'checksum'
@@ -466,6 +467,181 @@ echo "Installed __DISPLAY_NAME__ across ${installerTargets.join(', ')}."
 `.replaceAll('__REPO__', 'REPO_PLACEHOLDER').replaceAll('__DISPLAY_NAME__', 'DISPLAY_PLACEHOLDER')
 }
 
+function renderInstallerUserConfigSnippet(config: PluginConfig, platform: TargetPlatform, installDirVariable: string): string {
+  const entries = collectUserConfigEntries(config, [platform])
+    .map((entry) => ({
+      key: entry.key,
+      title: entry.title,
+      type: entry.type ?? 'string',
+      required: entry.required !== false,
+      envVar: entry.envVar ?? defaultUserConfigEnvVar(entry.key),
+    }))
+
+  if (entries.length === 0) return ''
+
+  const promptLines = entries.map((entry) => {
+    const functionName = entry.type === 'secret' ? 'pluxx_prompt_secret_config' : 'pluxx_prompt_text_config'
+    return `${functionName} ${JSON.stringify(entry.envVar)} ${JSON.stringify(entry.title)} ${entry.required ? '1' : '0'}`
+  })
+
+  return `
+PLUXX_USER_CONFIG_SPEC="$(cat <<'PLUXX_USER_CONFIG_JSON'
+${JSON.stringify(entries)}
+PLUXX_USER_CONFIG_JSON
+)"
+
+pluxx_is_placeholder_secret() {
+  case "$1" in
+    *dummy*|*Dummy*|*DUMMY*|*placeholder*|*Placeholder*|*PLACEHOLDER*|*changeme*|*CHANGE_ME*|*replace*me*|*Replace*Me*|*your*key*|*YOUR*KEY*|*api*key*here*|*API*KEY*HERE*|*token*here*|*TOKEN*HERE*)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+pluxx_prompt_secret_config() {
+  local env_var="$1"
+  local label="$2"
+  local required="$3"
+  local current_value="\${!env_var:-}"
+
+  if [[ -z "$current_value" && "$required" == "1" ]]; then
+    if [[ -t 0 || -r /dev/tty ]]; then
+      read -r -s -p "$label [$env_var]: " current_value </dev/tty
+      echo >/dev/tty
+    else
+      echo "Missing required config: export $env_var before running this installer." >&2
+      exit 1
+    fi
+  fi
+
+  if [[ -n "$current_value" ]] && pluxx_is_placeholder_secret "$current_value"; then
+    echo "Refusing placeholder-looking secret for $env_var. Set a real value and rerun the installer." >&2
+    exit 1
+  fi
+
+  export "$env_var=$current_value"
+}
+
+pluxx_prompt_text_config() {
+  local env_var="$1"
+  local label="$2"
+  local required="$3"
+  local current_value="\${!env_var:-}"
+
+  if [[ -z "$current_value" && "$required" == "1" ]]; then
+    if [[ -t 0 || -r /dev/tty ]]; then
+      read -r -p "$label [$env_var]: " current_value </dev/tty
+    else
+      echo "Missing required config: export $env_var before running this installer." >&2
+      exit 1
+    fi
+  fi
+
+  export "$env_var=$current_value"
+}
+
+${promptLines.join('\n')}
+
+export PLUXX_USER_CONFIG_SPEC
+export PLUXX_INSTALL_DIR="${installDirVariable}"
+
+node <<'NODE'
+const fs = require('fs')
+const path = require('path')
+
+const installDir = process.env.PLUXX_INSTALL_DIR
+const spec = JSON.parse(process.env.PLUXX_USER_CONFIG_SPEC || '[]')
+
+if (installDir && spec.length > 0) {
+  const env = {}
+  const values = {}
+
+  for (const entry of spec) {
+    const value = process.env[entry.envVar]
+    if (value === undefined || value === '') continue
+    values[entry.key] = value
+    env[entry.envVar] = value
+  }
+
+  fs.writeFileSync(
+    path.join(installDir, '.pluxx-user.json'),
+    JSON.stringify({ values, env }, null, 2) + '\\n',
+  )
+
+  const envScriptPath = path.join(installDir, 'scripts/check-env.sh')
+  if (fs.existsSync(envScriptPath)) {
+    fs.writeFileSync(
+      envScriptPath,
+      '#!/usr/bin/env bash\\nset -euo pipefail\\n# pluxx install materialized required config for this local plugin install.\\nexit 0\\n',
+    )
+  }
+
+  const materialize = (value) =>
+    typeof value === 'string'
+      ? value.replace(/\\$\\{([A-Za-z_][A-Za-z0-9_]*)\\}/g, (_match, name) => env[name] || '${' + name + '}')
+      : value
+
+  const materializeRecord = (record) => {
+    if (!record || typeof record !== 'object') return record
+    const next = {}
+    for (const [key, value] of Object.entries(record)) {
+      next[key] = materialize(value)
+    }
+    return next
+  }
+
+  for (const relativePath of ['.mcp.json', 'mcp.json']) {
+    const filepath = path.join(installDir, relativePath)
+    if (!fs.existsSync(filepath)) continue
+
+    const payload = JSON.parse(fs.readFileSync(filepath, 'utf8'))
+    for (const server of Object.values(payload.mcpServers || {})) {
+      if (!server || typeof server !== 'object') continue
+
+      if (server.env) {
+        server.env = materializeRecord(server.env)
+      }
+
+      if (server.bearer_token_env_var && env[server.bearer_token_env_var]) {
+        server.http_headers = {
+          ...(server.http_headers || {}),
+          Authorization: 'Bearer ' + env[server.bearer_token_env_var],
+        }
+        delete server.bearer_token_env_var
+      }
+
+      if (server.env_http_headers && typeof server.env_http_headers === 'object') {
+        server.http_headers = {
+          ...(server.http_headers || {}),
+        }
+        for (const [headerName, envVar] of Object.entries(server.env_http_headers)) {
+          if (env[envVar]) server.http_headers[headerName] = env[envVar]
+        }
+        delete server.env_http_headers
+      }
+
+      if (server.headers) {
+        server.headers = materializeRecord(server.headers)
+      }
+      if (server.http_headers) {
+        server.http_headers = materializeRecord(server.http_headers)
+      }
+    }
+
+    fs.writeFileSync(filepath, JSON.stringify(payload, null, 2) + '\\n')
+  }
+}
+NODE
+`
+}
+
+function hasInstallerUserConfig(config: PluginConfig, platform: TargetPlatform): boolean {
+  return collectUserConfigEntries(config, [platform]).length > 0
+}
+
 function renderInstallClaudeCodeScript(config: PluginConfig): string {
   return `#!/usr/bin/env bash
 set -euo pipefail
@@ -492,6 +668,7 @@ need_cmd tar
 need_cmd mktemp
 need_cmd grep
 need_cmd sed
+${hasInstallerUserConfig(config, 'claude-code') ? 'need_cmd node' : ''}
 
 if [[ "$SKIP_INSTALL" != "1" ]]; then
   need_cmd curl
@@ -528,6 +705,7 @@ DESCRIPTION="$(grep -E '"description"' "$PLUGIN_MANIFEST" | head -n1 | sed -E 's
 mkdir -p "$INSTALL_ROOT/.claude-plugin" "$INSTALL_ROOT/plugins"
 rm -rf "$INSTALL_ROOT/plugins/$PLUGIN_NAME"
 cp -R "$BUNDLE_DIR" "$INSTALL_ROOT/plugins/$PLUGIN_NAME"
+${renderInstallerUserConfigSnippet(config, 'claude-code', '$INSTALL_ROOT/plugins/$PLUGIN_NAME')}
 
 cat > "$INSTALL_ROOT/.claude-plugin/marketplace.json" <<JSON
 {
@@ -592,6 +770,7 @@ need_cmd() {
 need_cmd tar
 need_cmd mktemp
 need_cmd curl
+${hasInstallerUserConfig(config, 'cursor') ? 'need_cmd node' : ''}
 
 TMP_DIR="$(mktemp -d)"
 cleanup() {
@@ -620,6 +799,7 @@ fi
 mkdir -p "$(dirname "$INSTALL_DIR")"
 rm -rf "$INSTALL_DIR"
 cp -R "$BUNDLE_DIR" "$INSTALL_DIR"
+${renderInstallerUserConfigSnippet(config, 'cursor', '$INSTALL_DIR')}
 
 echo "Installed $PLUGIN_NAME to $INSTALL_DIR"
 echo "If Cursor is already open, use Developer: Reload Window or restart Cursor so the plugin is picked up."
@@ -678,6 +858,7 @@ fi
 mkdir -p "$(dirname "$INSTALL_DIR")"
 rm -rf "$INSTALL_DIR"
 cp -R "$BUNDLE_DIR" "$INSTALL_DIR"
+${renderInstallerUserConfigSnippet(config, 'codex', '$INSTALL_DIR')}
 
 mkdir -p "$(dirname "$MARKETPLACE_PATH")"
 
@@ -793,6 +974,7 @@ fi
 mkdir -p "$(dirname "$INSTALL_DIR")" "$SKILLS_ROOT"
 rm -rf "$INSTALL_DIR"
 cp -R "$BUNDLE_DIR" "$INSTALL_DIR"
+${renderInstallerUserConfigSnippet(config, 'opencode', '$INSTALL_DIR')}
 
 export ENTRY_PATH
 export PLUGIN_NAME

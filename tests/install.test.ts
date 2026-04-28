@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
 import { mkdirSync, rmSync, existsSync, lstatSync, readlinkSync, readFileSync } from 'fs'
 import { resolve } from 'path'
-import { ensureHookTrust, getInstallFollowupNotes, installPlugin, listHookCommands, planInstallUserConfig, uninstallPlugin } from '../src/cli/install'
+import { ensureHookTrust, getInstallFollowupNotes, installPlugin, listHookCommands, planInstallUserConfig, resolveInstallUserConfig, uninstallPlugin } from '../src/cli/install'
 import type { PluginConfig, TargetPlatform } from '../src/schema'
 
 const TEST_DIR = resolve(import.meta.dir, '.install-fixture')
@@ -165,7 +165,7 @@ describe('install', () => {
     expect(getInstallFollowupNotes(['claude-code', 'cursor', 'codex', 'opencode'])).toEqual([
       'Claude Code note: if Claude is already open, run /reload-plugins in the session to pick up the new install.',
       'Cursor note: if Cursor is already open, use Developer: Reload Window or restart Cursor to pick up the new install.',
-      'Codex note: if Codex is already open, use Plugins > Refresh if that action is available in your current UI, or restart Codex to pick up the new install.',
+      'Codex note: if Codex is already open, use Plugins > Refresh if that action is available in your current UI, or restart Codex to pick up the new install. Plugin-bundled MCP servers may appear on the plugin detail page without appearing in the global MCP servers settings page.',
       'OpenCode note: if OpenCode is already open, restart or reload it so the plugin is picked up.',
     ])
   })
@@ -310,6 +310,37 @@ describe('install', () => {
     expect(planned[0].field.key).toBe('test-api-key')
     expect(planned[0].envVar).toBe('TEST_API_KEY')
     expect(planned[0].source).toBe('env')
+  })
+
+  it('refuses placeholder-looking secret values during install config resolution', async () => {
+    process.env.TEST_API_KEY = 'dummy API key'
+
+    const config: PluginConfig = {
+      name: 'fixture',
+      version: '0.1.0',
+      description: 'Fixture',
+      author: { name: 'Test Author' },
+      license: 'MIT',
+      skills: './skills/',
+      mcp: {
+        fixture: {
+          transport: 'http',
+          url: 'https://example.com/mcp',
+          auth: {
+            type: 'bearer',
+            envVar: 'TEST_API_KEY',
+            headerName: 'Authorization',
+            headerTemplate: 'Bearer ${value}',
+          },
+        },
+      },
+      targets: ['codex'],
+      outDir: './dist',
+    }
+
+    await expect(resolveInstallUserConfig(config, ['codex'], { isTTY: false }))
+      .rejects
+      .toThrow('Refusing to install placeholder secret')
   })
 
   it('materializes local install config for cursor, codex, and opencode', async () => {

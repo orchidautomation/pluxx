@@ -8,6 +8,7 @@ import {
   buildUserConfigValueMap,
   collectUserConfigEntries,
   defaultUserConfigEnvVar,
+  isPlaceholderSecretValue,
   resolveUserConfigEntriesForTarget,
   type ResolvedUserConfigEntry,
 } from '../user-config'
@@ -127,6 +128,10 @@ export async function resolveInstallUserConfig(
 
   for (const entry of planned) {
     if (entry.value !== undefined) {
+      if (entry.field.type === 'secret' && isPlaceholderSecretValue(entry.value)) {
+        const hint = entry.envVar ? ` Replace ${entry.envVar} with a real secret value before installing.` : ' Provide a real secret value before installing.'
+        throw new Error(`Refusing to install placeholder secret for userConfig "${entry.field.key}".${hint}`)
+      }
       resolved.push({
         field: entry.field,
         value: entry.value,
@@ -466,7 +471,7 @@ export function getInstallFollowupNotes(platforms: TargetPlatform[]): string[] {
     notes.push('Cursor note: if Cursor is already open, use Developer: Reload Window or restart Cursor to pick up the new install.')
   }
   if (platforms.includes('codex')) {
-    notes.push('Codex note: if Codex is already open, use Plugins > Refresh if that action is available in your current UI, or restart Codex to pick up the new install.')
+    notes.push('Codex note: if Codex is already open, use Plugins > Refresh if that action is available in your current UI, or restart Codex to pick up the new install. Plugin-bundled MCP servers may appear on the plugin detail page without appearing in the global MCP servers settings page.')
   }
   if (platforms.includes('opencode')) {
     notes.push('OpenCode note: if OpenCode is already open, restart or reload it so the plugin is picked up.')

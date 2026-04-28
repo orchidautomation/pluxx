@@ -11,6 +11,16 @@ interface DerivedUserConfigEntry extends UserConfigEntry {
 }
 
 const ENV_VAR_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
+const PLACEHOLDER_SECRET_PATTERNS = [
+  /\bdummy\b/i,
+  /\bplaceholder\b/i,
+  /\bexample\b/i,
+  /\bchangeme\b/i,
+  /\breplace[_ -]?me\b/i,
+  /\byour[_ -]?(api[_ -]?)?key\b/i,
+  /\bapi[_ -]?key[_ -]?here\b/i,
+  /\btoken[_ -]?here\b/i,
+]
 
 export function normalizeUserConfigKey(value: string): string {
   return value
@@ -47,6 +57,13 @@ export function extractEnvReference(value: string | undefined): string | undefin
   if (!value) return undefined
   const match = value.match(/^\$\{([A-Za-z_][A-Za-z0-9_]*)\}$/)
   return match?.[1]
+}
+
+export function isPlaceholderSecretValue(value: unknown): boolean {
+  if (typeof value !== 'string') return false
+  const normalized = value.trim()
+  if (normalized === '') return false
+  return PLACEHOLDER_SECRET_PATTERNS.some((pattern) => pattern.test(normalized))
 }
 
 function isRuntimePlatformManaged(config: PluginConfig, target: TargetPlatform, server: McpServer): boolean {

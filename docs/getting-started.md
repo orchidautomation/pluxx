@@ -275,6 +275,17 @@ npx @orchid-labs/pluxx install --dry-run
 
 `pluxx verify-install` checks the actual installed host-visible bundle, not just generated files in `dist/`.
 
+For Codex MCP-backed plugins, do not use the global **MCP servers** settings page as the only source of truth. A plugin-bundled MCP can appear on the plugin detail page without appearing in that global list. If Codex looks stale after install, run:
+
+```bash
+npx @orchid-labs/pluxx verify-install --target codex
+npx @orchid-labs/pluxx doctor --consumer ~/.codex/plugins/<plugin-name>
+```
+
+Then use `Plugins > Refresh` if your Codex UI shows it, or restart Codex.
+
+If the plugin requires an API key, Pluxx materializes that value into the installed bundle during `pluxx install` and in generated `pluxx publish` installer scripts. Published curl installers read the expected env var first and prompt interactively when it is missing. Codex may not expose plugin-owned MCP secrets in the global MCP settings UI, so the intended edit path is to reinstall with the real env var exported or rerun the installer interactively. Pluxx refuses obvious placeholder secrets such as `dummy API key` and `pluxx doctor --consumer` warns if an older install already contains one.
+
 `pluxx test` runs the default verification contract:
 
 - config load / validate

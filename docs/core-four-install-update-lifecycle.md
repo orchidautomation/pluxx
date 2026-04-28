@@ -24,7 +24,7 @@ For the official-doc-backed host capability audit, use [Core-Four Provider Docs 
 |---|---|---|---|---|
 | Claude Code | Plugin marketplace or local install path | rerun install flow or update marketplace source | `/reload-plugins` | Claude has the cleanest documented reload story |
 | Cursor | local plugin dir / local plugin install | replace local bundle or rerun installer | `Developer: Reload Window` or restart Cursor | official docs support reload-window or restart behavior |
-| Codex | local plugin dir plus marketplace catalog entry | replace local bundle or rerun installer | use `Plugins > Refresh` if available in the current UI, otherwise restart Codex | official docs still describe restart-after-update; current desktop UI also exposes a refresh action |
+| Codex | local plugin dir plus marketplace catalog entry | replace local bundle or rerun installer | use `Plugins > Refresh` if available in the current UI, otherwise restart Codex | plugin-bundled MCP servers may show on the plugin detail page without appearing in the global MCP servers page |
 | OpenCode | local plugin dir, entry wrapper, or config-based plugin loading | replace local bundle or update config/plugin reference | restart or reload OpenCode | the supplied docs do not document a dedicated hot-reload plugin command |
 
 ## Important Distinction
@@ -55,13 +55,24 @@ So the most truthful current guidance is:
 - current observed UI: use `Plugins > Refresh` if available
 - safe fallback: restart Codex
 
+Codex plugin-bundled MCP visibility has one extra wrinkle.
+
+When a Pluxx-generated Codex plugin includes `.mcp.json`, Codex may display that MCP server inside the plugin detail page while not listing it in the global **MCP servers** settings page. That does not automatically mean the MCP failed to install. The safer check is:
+
+- run `pluxx verify-install --target codex`
+- inspect the installed bundle with `pluxx doctor --consumer ~/.codex/plugins/<plugin-name>`
+- refresh/restart Codex if the plugin UI still shows stale state
+- confirm tools are visible from the plugin inside chat
+
+If a Codex plugin-owned MCP needs an API key, install-time `userConfig` is the expected Pluxx path. Codex may not provide a global MCP settings form for that plugin-owned secret, so reinstall with the real env var exported or rerun the installer interactively. Generated `pluxx publish` installer scripts should prompt consumers for required secrets, materialize them into the installed bundle, reject obvious placeholder values, and let `doctor --consumer` warn if an older install contains one.
+
 ## What Pluxx Should Emit
 
 Pluxx install and publish surfaces should communicate lifecycle behavior like this:
 
 - Claude Code: `/reload-plugins`
 - Cursor: `Developer: Reload Window` or restart
-- Codex: `Plugins > Refresh` if available, otherwise restart
+- Codex: `Plugins > Refresh` if available, otherwise restart; plugin-bundled MCP may be visible from the plugin detail page rather than the global MCP servers page
 - OpenCode: restart or reload
 
 That is the wording users should see in:

@@ -7,6 +7,7 @@ import { getConfiguredCompilerBuckets, type McpServer, type PluginConfig, type T
 import { PLUXX_COMPILER_INTENT_PATH, readCompilerIntent } from '../compiler-intent'
 import { MCP_SCAFFOLD_METADATA_PATH, type McpScaffoldMetadata } from './init-from-mcp'
 import { buildPrimitiveTranslationSummary, renderPrimitiveTranslationSummary, type PrimitiveTranslationSummary } from './primitive-summary'
+import { isPlaceholderSecretValue } from '../user-config'
 
 export type DoctorLevel = 'error' | 'warning' | 'info' | 'success'
 
@@ -774,6 +775,14 @@ function checkInstalledUserConfig(checks: DoctorCheck[], rootDir: string): void 
     }
     const valueCount = Object.keys(payload.values ?? {}).length
     const envCount = Object.keys(payload.env ?? {}).length
+    const placeholderKeys = [
+      ...Object.entries(payload.values ?? {})
+        .filter(([, value]) => isPlaceholderSecretValue(value))
+        .map(([key]) => key),
+      ...Object.entries(payload.env ?? {})
+        .filter(([, value]) => isPlaceholderSecretValue(value))
+        .map(([key]) => key),
+    ]
     addCheck(checks, {
       level: 'success',
       code: 'consumer-user-config-valid',
@@ -782,6 +791,16 @@ function checkInstalledUserConfig(checks: DoctorCheck[], rootDir: string): void 
       fix: 'No action needed.',
       path: userConfigPath,
     })
+    if (placeholderKeys.length > 0) {
+      addCheck(checks, {
+        level: 'warning',
+        code: 'consumer-user-config-placeholder-secret',
+        title: 'Local install config contains placeholder-looking secret values',
+        detail: `.pluxx-user.json contains placeholder-looking value${placeholderKeys.length === 1 ? '' : 's'} for ${placeholderKeys.join(', ')}.`,
+        fix: 'Reinstall the plugin with real secret values, or edit .pluxx-user.json and refresh/restart the host.',
+        path: userConfigPath,
+      })
+    }
   } catch (error) {
     addCheck(checks, {
       level: 'error',
@@ -872,6 +891,17 @@ function checkInstalledMcpConfig(checks: DoctorCheck[], rootDir: string, layout:
 
     if (servers.length === 0) {
       return
+    }
+
+    if (layout.platform === 'codex') {
+      addCheck(checks, {
+        level: 'info',
+        code: 'consumer-codex-mcp-bundled-visibility',
+        title: 'Codex plugin-bundled MCP visibility clarified',
+        detail: `This Codex plugin bundle includes ${servers.length} MCP server${servers.length === 1 ? '' : 's'} through ${layout.mcpConfigPath}. Codex may show this on the plugin detail page without listing it on the global MCP servers settings page.`,
+        fix: 'Use the plugin detail page, tool availability in chat, and `pluxx verify-install --target codex` as the source of truth for plugin-bundled MCP wiring. If the MCP remains unavailable after install, use Plugins > Refresh if present or restart Codex.',
+        path: layout.mcpConfigPath,
+      })
     }
 
     const remoteEntries = servers.filter((server) => 'url' in server)
