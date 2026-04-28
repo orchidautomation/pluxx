@@ -24,7 +24,7 @@
     "release:check": "npm run build && npm run typecheck && npm test && node scripts/verify-node-package-runtime.mjs && node scripts/run-npm-pack.mjs --dry-run",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "npm run build && npm run typecheck && npm test"
+    "prepublishOnly": "node scripts/ensure-github-release-publish.mjs && npm run build"
   },
   "files": [
     "bin/**/*",

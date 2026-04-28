@@ -11,10 +11,12 @@ When you push a tag like `v0.1.1`, GitHub Actions will:
 1. install Node dependencies
 2. run `npm run release:check`
 3. verify the tag matches `package.json` version
-4. run `npm publish --access public`
+4. run `npm publish --provenance --access public`
 5. create a GitHub release and attach the packed npm tarball
 
 That means GitHub pushes do **not** update npm by themselves. Only a versioned tag release does.
+
+Do not publish this package from a local shell. The package lifecycle now refuses local `npm publish` and only allows the trusted GitHub release workflow on a matching `vX.Y.Z` tag. This keeps npm provenance intact and avoids depending on local npm auth.
 
 ## One-Time Setup
 
@@ -61,6 +63,12 @@ git push origin v0.1.1
 ```
 
 You can use `patch`, `minor`, or `major` depending on the release.
+
+## Runtime Cost Guard
+
+The expensive release gate is `npm run release:check`. It already runs build, typecheck, the full test suite, packaged runtime verification, and a dry-run pack.
+
+`prepublishOnly` is intentionally lightweight. It only checks that publish is happening from the trusted GitHub tag workflow and rebuilds the package before npm upload. It does **not** rerun the full test suite, because the tag workflow has already completed the release gate immediately before publish.
 
 ## Verification
 
