@@ -77,6 +77,12 @@ Any person or agent should be able to enter the repo and answer:
 
 - [~] Keep [start-here.md](../start-here.md), [queue.md](./queue.md), this file, and Linear aligned
 - [~] Keep the README top section, website hero, GitHub About metadata, and docs homepage messaging aligned
+- [~] Keep the canonical first-run onboarding path aligned across the repo front door and docs front door:
+  - `init --from-mcp`
+  - `doctor`
+  - `lint`
+  - `build --install`
+  - `verify-install`
 - [ ] Remove or rewrite any stale docs that still describe already-shipped work as future work
 - [ ] Decide which docs are public product docs vs strategy docs vs internal-only GTM docs
 - [ ] Move account-specific GTM and customer notes out of the public repo

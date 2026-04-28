@@ -17,6 +17,20 @@ If you want proof before process, start with:
 
 If you want the full command-by-command flow, see [Command Decision Tree](/getting-started/command-decision-tree).
 
+## Canonical first run
+
+This is the onboarding path new users should follow first:
+
+```text
+init --from-mcp
+-> doctor
+-> lint
+-> build --install
+-> verify-install
+```
+
+Use one real host for the first install check. The examples below use Codex, but the same order applies to Claude Code, Cursor, and OpenCode.
+
 ## Before you start
 
 Pluxx accepts three MCP source shapes:
@@ -164,6 +178,20 @@ If the generated plugin contains local hook commands, add `--trust`:
 ```bash
 npx @orchid-labs/pluxx build --install --trust
 ```
+
+### Canonical first verification pass
+
+```bash
+npx @orchid-labs/pluxx build --install --trust
+npx @orchid-labs/pluxx verify-install --target codex
+```
+
+Expected checkpoints:
+
+- `build --install` writes `dist/claude-code`, `dist/cursor`, `dist/codex`, and `dist/opencode`, then links the installed host bundles locally
+- `verify-install` ends with `pluxx verify-install passed.`
+
+If the plugin still does not appear, refresh or restart the host, then rerun `verify-install`. Use `pluxx doctor --consumer <installed-path>` when the installed state still looks wrong after reload.
 
 ## 4. Refine taxonomy and instructions with a host coding agent
 

@@ -26,6 +26,77 @@ This is the shortest current repo-native path to:
 - install the released self-hosted plugin in your host of choice
 - run the strongest current demos in the right order
 
+## Canonical 10-Minute First Run
+
+This is the one onboarding path new users should follow first:
+
+`init --from-mcp` -> `doctor` -> `lint` -> `build --install` -> `verify-install`
+
+Use one host for the first verification pass. The example below uses Codex because `verify-install` then checks the real installed bundle in its native host path.
+
+```bash
+npx @orchid-labs/pluxx init \
+  --from-mcp https://example.com/mcp \
+  --yes \
+  --name acme \
+  --display-name "Acme" \
+  --author "Acme" \
+  --targets claude-code,cursor,codex,opencode \
+  --grouping workflow \
+  --hooks safe
+
+cd acme
+npx @orchid-labs/pluxx doctor
+npx @orchid-labs/pluxx lint
+npx @orchid-labs/pluxx build --install --trust
+npx @orchid-labs/pluxx verify-install --target codex
+```
+
+Expected output checkpoints:
+
+- `init`
+  - writes `pluxx.config.ts`, `INSTRUCTIONS.md`, `skills/`, and `.pluxx/mcp.json`
+- `doctor`
+  - should report no errors
+  - may emit warnings for trust, host caveats, or runtime/auth assumptions that still need action
+- `lint`
+  - should exit cleanly
+- `build --install --trust`
+  - should write `dist/claude-code`, `dist/cursor`, `dist/codex`, and `dist/opencode`
+  - should install or relink the local host bundles
+- `verify-install --target codex`
+  - should end with `pluxx verify-install passed.`
+
+Swap `codex` for `claude-code`, `cursor`, or `opencode` if that is your real first host.
+
+## Fast Troubleshooting
+
+- Auth failure during `init`
+  - rerun `init --from-mcp` with explicit auth flags such as `--auth-env ... --auth-type bearer` or `--auth-type header --auth-header ... --auth-template '${value}'`
+  - for OAuth-first MCPs, use `--auth-type platform --runtime-auth platform`, or `--oauth-wrapper` when the handshake needs a local browser-assisted wrapper
+- Runtime path problems on local stdio MCPs
+  - pass the real executable command, not just the package name
+  - if the runtime lives under a local path such as `./build/index.js`, rerun `doctor` and make sure the inferred `passthrough` payload is present
+- Installed plugin does not appear in the host
+  - `build --install` already runs the install step for this first-run path
+  - reload the host after install:
+    - Claude Code: `/reload-plugins`
+    - Cursor: reload the window or restart Cursor
+    - Codex: `Plugins > Refresh` if available, otherwise restart Codex
+    - OpenCode: reload or restart OpenCode
+  - rerun `verify-install --target <host>`
+- Permissions or trust warnings
+  - if the plugin contains local hook commands, install with `--trust`
+  - if the installed state still looks wrong, run `pluxx doctor --consumer <installed-path>`
+
+## Validation Checklist
+
+- Run the canonical path against at least one real remote MCP example.
+- Run it against at least one local stdio MCP example.
+- Confirm the same command order appears in `README.md`, this doc, and the docs site getting-started page.
+- Confirm at least one host install still ends with `pluxx verify-install passed.`
+- Recheck the troubleshooting block after lifecycle or auth behavior changes.
+
 ## The Story In One Screen
 
 ```text

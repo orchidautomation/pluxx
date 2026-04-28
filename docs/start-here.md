@@ -32,6 +32,16 @@ If you want the broadest completeness checklist after reading this, use [docs/to
 
 If you want the shortest public proof and install path after this file, use [docs/proof-and-install.md](./proof-and-install.md).
 
+The canonical first-run onboarding path is now:
+
+- `init --from-mcp`
+- `doctor`
+- `lint`
+- `build --install`
+- `verify-install`
+
+Keep that exact sequence aligned across `README.md`, `docs/proof-and-install.md`, and the docs-site getting-started page.
+
 ## What Pluxx Is
 
 Pluxx turns raw MCPs or strong host-native agent plugins into one maintained source project that can ship native plugin outputs for:
