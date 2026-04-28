@@ -598,8 +598,10 @@ export function hasMeaningfulCustomContent(content: string | undefined): boolean
 
 export function buildSkillContent(skill: PlannedSkill): string {
   const description = buildSkillFrontmatterDescription(skill)
-  const exampleRequests = skill.tools
-    .map((tool) => buildToolExampleRequest(tool))
+  const exampleRequests = [
+    ...buildPromptExampleRequests(skill),
+    ...skill.tools.map((tool) => buildToolExampleRequest(tool)),
+  ]
     .filter((example, index, values) => values.indexOf(example) === index)
 
   const lines = [
@@ -1328,6 +1330,13 @@ export function planSkillScaffolds(
     })
   }
 
+  const promptDefinedSkills = buildPromptDefinedSkills(plannedSkills, tools, prompts)
+  if (promptDefinedSkills.length > 0) {
+    return allocateSkillDirectoryNames(
+      attachRelatedSurfaceSignals(promptDefinedSkills, resources, resourceTemplates, []),
+    )
+  }
+
   return allocateSkillDirectoryNames(
     attachRelatedSurfaceSignals(plannedSkills, resources, resourceTemplates, prompts),
   )
@@ -1592,6 +1601,70 @@ function classifyWorkflowSurface(primaryText: string, secondaryText: string): st
   return bestMatch
 }
 
+function buildPromptDefinedSkills(
+  plannedSkills: PlannedSkill[],
+  tools: IntrospectedMcpTool[],
+  prompts: IntrospectedMcpPrompt[],
+): PlannedSkill[] {
+  if (!shouldSeedPromptDefinedSkills(plannedSkills, tools, prompts)) {
+    return []
+  }
+
+  const seededSkills: PlannedSkill[] = []
+  const seenDirNames = new Set<string>(plannedSkills.map((skill) => skill.dirName))
+
+  for (const prompt of prompts) {
+    const dirName = toKebabCase(prompt.title ?? prompt.name) || 'workflow'
+    if (!dirName || seenDirNames.has(dirName)) continue
+
+    const workflowKey = classifyPromptWorkflow(prompt)
+    const matchedSkill = workflowKey
+      ? plannedSkills.find((skill) => skill.workflowKey === workflowKey)
+      : null
+    const promptTools = matchedSkill?.tools.length
+      ? matchedSkill.tools
+      : tools
+
+    seededSkills.push({
+      dirName,
+      title: prompt.title ?? humanizeName(prompt.name),
+      description: buildPromptSkillDescription(prompt),
+      tools: promptTools.slice().sort((a, b) => a.name.localeCompare(b.name)),
+      resources: [],
+      resourceTemplates: [],
+      prompts: [prompt],
+      workflowKey,
+    })
+    seenDirNames.add(dirName)
+  }
+
+  return seededSkills
+}
+
+function shouldSeedPromptDefinedSkills(
+  plannedSkills: PlannedSkill[],
+  tools: IntrospectedMcpTool[],
+  prompts: IntrospectedMcpPrompt[],
+): boolean {
+  if (prompts.length < 2 || prompts.length > 8) return false
+  if (tools.length === 0 || tools.length > 8) return false
+
+  const genericSkills = plannedSkills.filter((skill) =>
+    skill.workflowKey === 'general-research'
+    || (skill.tools.length === 1 && toKebabCase(skill.tools[0]?.name ?? '') === skill.dirName),
+  )
+  const broadTools = tools.filter((tool) => isBroadWorkflowTool(tool))
+
+  return genericSkills.length === plannedSkills.length
+    || broadTools.length === tools.length
+    || prompts.length > plannedSkills.length + 1
+}
+
+function isBroadWorkflowTool(tool: IntrospectedMcpTool): boolean {
+  const identifier = normalizeWorkflowText(`${tool.name} ${tool.title ?? ''}`)
+  return /\b(search|fetch|query|lookup|look up|find|map|scrape|browse|web|read)\b/.test(identifier)
+}
+
 function normalizeWorkflowText(value: string): string {
   return cleanSingleLineText(normalizeIdentifier(value).toLowerCase())
 }
@@ -1689,6 +1762,13 @@ function attachRelatedSurfaceSignals(
 }
 
 function buildSkillFrontmatterDescription(skill: PlannedSkill): string {
+  if (skill.prompts.length > 0) {
+    const promptDescription = firstSentenceOf(cleanSingleLineText(skill.prompts[0].description))
+    if (promptDescription) {
+      return truncate(promptDescription, 220)
+    }
+  }
+
   if (skill.tools.length === 1) {
     const tool = skill.tools[0]
     const cleanedDescription = cleanSingleLineText(tool.description)
@@ -1720,6 +1800,11 @@ function buildInstructionSkillSummary(skill: PlannedSkill): string {
 }
 
 function inferCommandArgumentHint(skill: PlannedSkill): string {
+  const promptArgumentHints = collectPromptArgumentHints(skill)
+  if (promptArgumentHints.length > 0) {
+    return promptArgumentHints.map((hint) => `[${hint}]`).join(' ')
+  }
+
   const fieldHints = new Set<string>()
 
   for (const tool of skill.tools) {
@@ -1759,6 +1844,13 @@ function buildCommandEntryBlurb(skill: PlannedSkill): string {
 }
 
 function inferSkillIntentPhrase(skill: PlannedSkill): string {
+  if (skill.prompts.length > 0) {
+    const promptIntent = buildPromptIntentPhrase(skill.prompts[0])
+    if (promptIntent) {
+      return promptIntent
+    }
+  }
+
   const toolDescription = skill.tools.length === 1
     ? firstSentenceOf(cleanSingleLineText(skill.tools[0].description))
     : ''
@@ -1791,13 +1883,14 @@ function normalizeSkillIntentPhrase(value: string): string {
 }
 
 function startsWithActionVerb(value: string): boolean {
-  return /^(search|find|look up|get|fetch|create|update|delete|list|query|send|check|compare|build|run|research)\b/i.test(value)
+  return /^(search|find|look up|get|fetch|create|update|delete|list|query|send|check|compare|build|run|research|qualify|review|rewrite|publish|inspect|pull|summarize|draft)\b/i.test(value)
 }
 
 function mapSchemaFieldToArgumentHint(fieldName: string): string {
   const value = fieldName.toLowerCase()
 
   if (value.includes('query') || value.includes('search') || value.includes('keyword')) return 'query'
+  if (value.includes('topic')) return 'topic'
   if (value.includes('company') || value.includes('organization') || value.includes('organisation') || value.includes('account')) return 'company'
   if (value.includes('role') || value.includes('title')) return 'role'
   if (value.includes('domain')) return 'domain'
@@ -1807,6 +1900,61 @@ function mapSchemaFieldToArgumentHint(fieldName: string): string {
   if (value.includes('name')) return 'name'
 
   return value.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'request'
+}
+
+function collectPromptArgumentHints(skill: PlannedSkill): string[] {
+  const fieldHints = new Set<string>()
+
+  for (const prompt of skill.prompts) {
+    const prioritizedArguments = (prompt.arguments ?? []).filter((argument) => argument.required)
+    const candidates = (prioritizedArguments.length > 0 ? prioritizedArguments : (prompt.arguments ?? [])).slice(0, 2)
+
+    for (const argument of candidates) {
+      fieldHints.add(mapSchemaFieldToArgumentHint(argument.name))
+      if (fieldHints.size >= 2) break
+    }
+
+    if (fieldHints.size >= 2) break
+  }
+
+  return [...fieldHints]
+}
+
+function buildPromptSkillDescription(prompt: IntrospectedMcpPrompt): string {
+  const description = firstSentenceOf(cleanSingleLineText(prompt.description))
+  if (description) return description
+  return `Handle ${humanizeName(prompt.title ?? prompt.name).toLowerCase()} workflows.`
+}
+
+function buildPromptIntentPhrase(prompt: IntrospectedMcpPrompt): string {
+  const descriptionIntent = normalizeSkillIntentPhrase(firstSentenceOf(cleanSingleLineText(prompt.description)))
+  if (descriptionIntent) {
+    return startsWithActionVerb(descriptionIntent) ? descriptionIntent : `work on ${descriptionIntent}`
+  }
+
+  return `run ${humanizeName(prompt.title ?? prompt.name).toLowerCase()}`
+}
+
+function buildPromptExampleRequests(skill: PlannedSkill): string[] {
+  return skill.prompts
+    .map((prompt) => buildPromptExampleRequest(prompt))
+    .filter((example, index, values) => values.indexOf(example) === index)
+}
+
+function buildPromptExampleRequest(prompt: IntrospectedMcpPrompt): string {
+  const intent = buildPromptIntentPhrase(prompt)
+  const argumentsList = (prompt.arguments ?? []).filter((argument) => argument.required)
+  const candidates = (argumentsList.length > 0 ? argumentsList : (prompt.arguments ?? [])).slice(0, 2)
+  const context = candidates.map((argument, index) => {
+    const placeholder = `<${argument.name}>`
+    const hint = mapSchemaFieldToArgumentHint(argument.name)
+    if (hint === 'query' || hint === 'topic') return index === 0 ? `on ${placeholder}` : placeholder
+    if (hint === 'company' || hint === 'role') return `for ${placeholder}`
+    if (hint === 'url' || hint === 'domain' || hint === 'email' || hint === 'id') return `using ${placeholder}`
+    return `with ${placeholder}`
+  }).join(' ')
+  const sentence = context ? `${intent} ${context}.` : `${intent}.`
+  return sentence.charAt(0).toUpperCase() + sentence.slice(1)
 }
 
 function summarizeToolForInstructions(tool: IntrospectedMcpTool): string {

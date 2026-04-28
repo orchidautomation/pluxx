@@ -177,6 +177,8 @@ The repo already proves a lot.
   - `docs/core-four-translation-hit-list.md`
 - the raw-MCP scaffold intelligence is now more explicit in the product itself:
   - agent/autopilot prompt packs now teach native shaping from raw MCP intent into commands, argument-bearing entrypoints, and specialist agents/subagents instead of stopping at a flat skill dump
+  - deterministic `init --from-mcp` scaffolds now also promote prompt-defined workflows when a generic MCP exposes richer prompt templates, which gets the first pass closer to Exa/docs-ops style command surfaces before any agent refinement runs
+  - prompt-backed command files now derive argument hints from prompt-template parameters instead of defaulting to generic `[request]` routing
 - local stdio MCP imports now recover more of the executable runtime automatically:
   - `init --from-mcp` infers `passthrough` directories for project-relative stdio runtimes such as `./build/index.js`
   - `lint` now warns when a local stdio runtime will not be bundled into installed outputs

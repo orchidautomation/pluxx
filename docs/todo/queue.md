@@ -136,6 +136,7 @@ Open work:
   - any future host-drift refreshes and public proof-packaging follow-ons
 - use the Exa example as the next import-quality pressure test:
   - a raw `init --from-mcp`, `autopilot`, or `migrate` run should get closer to the final Exa workflow architecture without depending on as much maintainer hand-shaping
+  - prompt-defined workflow seeding is now part of that first-pass recovery path for generic-tool MCPs that expose richer prompt templates
 
 ### 2. Flagship depth example
 
