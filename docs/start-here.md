@@ -1,6 +1,6 @@
 # Start Here
 
-Last updated: 2026-04-27
+Last updated: 2026-04-28
 
 ## Doc Links
 
@@ -211,6 +211,12 @@ The prime-time path is still:
 - OpenCode
 
 Other generators can exist, but they are not the main story.
+
+OpenClaw is now a documented beta-target candidate:
+
+- it looks strong enough to keep in scope as a future standalone native target
+- it is not promoted into the prime-time target set yet
+- see [docs/openclaw-target-evaluation.md](./openclaw-target-evaluation.md)
 
 ## Current Build Priorities
 
