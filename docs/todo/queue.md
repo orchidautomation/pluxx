@@ -83,6 +83,10 @@ The core-four compiler sprint is done.
   - `init --from-mcp` infers `passthrough` for project-relative runtimes like `./build/index.js`
   - `lint` warns when a local stdio runtime is not bundled into passthrough
   - `doctor --consumer` warns when installed `.mcp.json` files reference missing stdio runtime payloads
+- installed MCP discovery is now a first-class import path:
+  - `pluxx discover-mcp` reads Claude Code, Cursor, Codex, and OpenCode config locations
+  - `pluxx init --from-installed-mcp <host:name>` imports a selected discovered server into a Pluxx project
+  - discovered stdio/env auth is normalized without copying literal secret values
 
 The public baseline is also real.
 

@@ -116,7 +116,7 @@ describe('Phase 2 CLI flows', () => {
       const stderr = await new Response(proc.stderr).text()
       const exitCode = await proc.exited
 
-      expect(exitCode).toBe(0)
+      expect(exitCode, stderr).toBe(0)
       expect(stderr).toBe('')
 
       const summary = JSON.parse(stdout) as {
@@ -127,6 +127,71 @@ describe('Phase 2 CLI flows', () => {
       expect(summary.createdFiles).toContain('pluxx.config.ts')
       expect(existsSync(resolve(dir, 'pluxx.config.ts'))).toBe(false)
       expect(existsSync(resolve(dir, 'skills'))).toBe(false)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('can scaffold from an already installed Codex MCP config', async () => {
+    const { dir, statePath, stubServerPath } = createStubServerFixture()
+    mkdirSync(resolve(dir, '.codex'), { recursive: true })
+    writeFileSync(
+      statePath,
+      JSON.stringify({
+        serverInfo: {
+          name: 'installed-stub',
+          title: 'Installed Stub',
+          version: '1.0.0',
+          description: 'A fake installed MCP server.',
+        },
+        instructions: 'Use the installed MCP config.',
+        tools: [
+          {
+            name: 'FindOrganizations',
+            description: 'Search organizations.',
+          },
+        ],
+      }, null, 2),
+    )
+    writeFileSync(resolve(dir, '.codex/config.toml'), `
+[mcp_servers.installed_stub]
+command = "bun"
+args = ["${stubServerPath}", "${statePath}"]
+env = { STUB_API_KEY = "$STUB_API_KEY" }
+`)
+
+    try {
+      const proc = spawnCli([
+        'init',
+        '--from-installed-mcp',
+        'codex:installed_stub',
+        '--host',
+        'codex',
+        '--yes',
+        '--name',
+        'installed-stub',
+        '--author',
+        'Test Author',
+        '--dry-run',
+        '--json',
+      ], dir)
+
+      const stdout = await new Response(proc.stdout).text()
+      const stderr = await new Response(proc.stderr).text()
+      const exitCode = await proc.exited
+
+      expect(exitCode, stderr).toBe(0)
+      expect(stderr).toBe('')
+
+      const summary = JSON.parse(stdout) as {
+        dryRun: boolean
+        source: string
+        createdFiles: string[]
+      }
+      expect(summary.dryRun).toBe(true)
+      expect(summary.source).toContain('codex:installed_stub')
+      expect(summary.createdFiles).toContain('pluxx.config.ts')
+      expect(existsSync(resolve(dir, 'pluxx.config.ts'))).toBe(false)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

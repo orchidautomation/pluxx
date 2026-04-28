@@ -78,6 +78,15 @@ import { buildPrimitiveTranslationSummary, renderPrimitiveTranslationSummary } f
 import { printVerifyInstallResult, verifyInstall } from './verify-install'
 import { runBehavioralSuite } from './behavioral'
 import { planTextFileAction, writeTextFile } from '../text-files'
+import {
+  discoverInstalledMcpServers,
+  formatInstalledMcpSource,
+  INSTALLED_MCP_HOSTS,
+  normalizeInstalledMcpHost,
+  resolveInstalledMcpSelector,
+  type DiscoveredInstalledMcpServer,
+  type InstalledMcpHost,
+} from './discover-installed-mcp'
 
 const CLI_PACKAGE_NAME = '@orchid-labs/pluxx'
 const rawArgs = process.argv.slice(2)
@@ -102,6 +111,7 @@ const ALL_TARGET_PLATFORMS = [
 
 export interface InitFromMcpOptions {
   source?: string
+  installedMcp?: string
   assumeDefaults: boolean
   name?: string
   author?: string
@@ -257,6 +267,9 @@ export async function main() {
       break
     case 'mcp':
       await runMcp()
+      break
+    case 'discover-mcp':
+      await runDiscoverMcp()
       break
     case 'autopilot':
       await runAutopilot()
@@ -1328,6 +1341,7 @@ function formatMcpDiscoverySummary(introspection: IntrospectedMcpServer): string
 export function parseInitFromMcpOptions(rawArgs: string[], initialName?: string, initialSource?: string): InitFromMcpOptions {
   return {
     source: initialSource ?? readOption(rawArgs, '--from-mcp'),
+    installedMcp: readOption(rawArgs, '--from-installed-mcp'),
     assumeDefaults: rawArgs.includes('--yes'),
     name: readOption(rawArgs, '--name') ?? initialName,
     author: readOption(rawArgs, '--author'),
@@ -1363,14 +1377,63 @@ function toTsString(value: string): string {
   return JSON.stringify(value)
 }
 
+function parseInstalledMcpHosts(rawArgs: string[]): InstalledMcpHost[] | undefined {
+  const hostValues = readMultiValueOption(rawArgs, '--host') ?? readMultiValueOption(rawArgs, '--hosts')
+  if (!hostValues) return undefined
+
+  return hostValues
+    .flatMap((value) => value.split(','))
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .map(normalizeInstalledMcpHost)
+}
+
+function resolveInstalledMcpForInit(selector: string, hosts?: InstalledMcpHost[]): DiscoveredInstalledMcpServer {
+  const discovered = discoverInstalledMcpServers({ hosts })
+  return resolveInstalledMcpSelector(selector, discovered)
+}
+
+async function runDiscoverMcp() {
+  const hosts = parseInstalledMcpHosts(args)
+  const discovered = discoverInstalledMcpServers({ hosts })
+
+  if (runtime.jsonOutput) {
+    printJson({
+      count: discovered.length,
+      servers: discovered,
+    })
+    return
+  }
+
+  if (discovered.length === 0) {
+    console.log('No installed MCP servers found.')
+    console.log(`Searched hosts: ${(hosts ?? INSTALLED_MCP_HOSTS).join(', ')}`)
+    return
+  }
+
+  console.log('Installed MCP servers:')
+  for (const server of discovered) {
+    console.log(`  ${server.id}`)
+    console.log(`    source: ${server.sourcePath}`)
+    console.log(`    server: ${formatInstalledMcpSource(server)}`)
+    for (const warning of server.warnings) {
+      console.log(`    warning: ${warning}`)
+    }
+  }
+  console.log('')
+  console.log('Import one:')
+  console.log(`  pluxx init --from-installed-mcp ${discovered[0].id} --yes`)
+}
+
 async function runInit() {
   const positionalName = args[1] && !args[1].startsWith('-') ? args[1] : undefined
   const fromMcpFlag = args.indexOf('--from-mcp')
+  const fromInstalledMcpFlag = args.indexOf('--from-installed-mcp')
   const fromMcpInput = fromMcpFlag !== -1 && args[fromMcpFlag + 1] && !args[fromMcpFlag + 1].startsWith('-')
     ? args[fromMcpFlag + 1]
     : undefined
 
-  if (fromMcpFlag !== -1) {
+  if (fromMcpFlag !== -1 || fromInstalledMcpFlag !== -1) {
     await runInitFromMcp(positionalName, fromMcpInput)
     return
   }
@@ -1536,20 +1599,25 @@ async function runInitFromMcp(initialName?: string, initialSource?: string) {
     : undefined
 
   if (!options.jsonOutput && !runtime.quiet) {
-    clack.intro('pluxx init --from-mcp')
+    clack.intro(options.installedMcp ? 'pluxx init --from-installed-mcp' : 'pluxx init --from-mcp')
   }
 
   try {
     // ── Step 1/4 · Connecting to MCP server ──────────────────────────
 
-    const rawSource = options.source ?? (interactive
+    const installedMcpSource = options.installedMcp
+      ? resolveInstalledMcpForInit(options.installedMcp, parseInstalledMcpHosts(args))
+      : undefined
+    const rawSource = installedMcpSource
+      ? formatInstalledMcpSource(installedMcpSource)
+      : options.source ?? (interactive
       ? await clackText('MCP server URL or local command')
       : '')
     if (!rawSource) {
-      throw new Error('Provide an MCP server URL or local command. Example: pluxx init --from-mcp https://example.com/mcp')
+      throw new Error('Provide an MCP server URL/local command or an installed MCP selector. Example: pluxx init --from-mcp https://example.com/mcp')
     }
 
-    let source = parseMcpSourceInput(rawSource, options.transport)
+    let source = installedMcpSource?.server ?? parseMcpSourceInput(rawSource, options.transport)
     let introspectionSource = source
     const configuredRemoteAuth = source.transport === 'stdio'
       ? undefined
@@ -1754,7 +1822,11 @@ ${formatAuthRequiredMessage('init', retryError, source)}`)
       clack.log.step('Step 2/4 \u00b7 Plugin identity')
     }
 
-    const defaultPluginName = options.name ? toKebabCase(options.name) : derivePluginName(introspection, source)
+    const defaultPluginName = options.name
+      ? toKebabCase(options.name)
+      : installedMcpSource?.serverName
+        ? toKebabCase(installedMcpSource.serverName)
+        : derivePluginName(introspection, source)
     const pluginName = toKebabCase(
       options.name ?? (interactive
         ? await clackText('Plugin name', defaultPluginName)
@@ -1815,6 +1887,7 @@ ${formatAuthRequiredMessage('init', retryError, source)}`)
       source,
       runtimeAuthMode,
       introspection,
+      serverName: installedMcpSource?.serverName,
       displayName,
       description: sourcedContextPack?.docsContext?.shortDescription,
       websiteUrl,
@@ -1921,6 +1994,12 @@ ${formatAuthRequiredMessage('init', retryError, source)}`)
     if (summary.notes.length > 0) {
       for (const n of summary.notes) {
         clack.log.info(n)
+      }
+    }
+
+    if (installedMcpSource && installedMcpSource.warnings.length > 0) {
+      for (const warning of installedMcpSource.warnings) {
+        clack.log.warn(`Installed MCP import: ${warning}`)
       }
     }
 
@@ -3283,9 +3362,10 @@ Usage:
   pluxx agent prepare                     Generate agent context + boundary files for host agents
   pluxx agent prompt <kind>               Generate a prompt pack (taxonomy, instructions, review)
   pluxx agent run <kind> --runner <id>    Execute a prompt pack via Claude, Cursor, Codex, or OpenCode headlessly
+  pluxx discover-mcp [--host <hosts...>] List installed MCP servers from local host configs
   pluxx mcp proxy ...                     Run a local MCP proxy with optional record/replay tapes
   pluxx autopilot --from-mcp ...          Run import + agent refinement + verification in one command
-  pluxx init [name] [--from-mcp <source>] Create a new pluxx.config.ts
+  pluxx init [name] [--from-mcp <source>|--from-installed-mcp <selector>] Create a new pluxx.config.ts
   pluxx sync [--from-mcp <source>]        Refresh MCP-derived scaffold files
   pluxx migrate <path>                    Import an existing plugin into pluxx
   pluxx test [--target <platforms...>] [--install] [--behavioral]    Run config, lint, eval, build, and smoke checks
@@ -3320,6 +3400,9 @@ Examples:
   pluxx init my-plugin                    Scaffold a new plugin config
   pluxx init --from-mcp https://example.com/mcp  Scaffold from a remote MCP server
   pluxx init --from-mcp "npx -y -p @acme/mcp acme-mcp"  Scaffold from a local MCP command
+  pluxx discover-mcp                      List installed MCP servers in Claude, Cursor, Codex, and OpenCode config
+  pluxx discover-mcp --host codex opencode --json
+  pluxx init --from-installed-mcp codex:acme --yes  Scaffold from an already installed MCP config
   pluxx init --from-mcp https://example.com/mcp --yes --name acme --display-name "Acme" --author "Acme" --targets claude-code,codex --grouping workflow --hooks safe --json
   pluxx init --from-mcp https://example.com/mcp --yes --auth-env API_KEY --auth-type header --auth-header X-API-Key --auth-template "\${value}"
   pluxx init --from-mcp https://example.com/mcp --yes --auth-type platform --runtime-auth platform

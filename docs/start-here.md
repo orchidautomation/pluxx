@@ -181,6 +181,10 @@ The repo already proves a lot.
   - `init --from-mcp` infers `passthrough` directories for project-relative stdio runtimes such as `./build/index.js`
   - `lint` now warns when a local stdio runtime will not be bundled into installed outputs
   - `doctor --consumer` now warns when an installed bundle's `.mcp.json` points at missing stdio runtime files
+- installed MCP discovery is now a first-class import path:
+  - `pluxx discover-mcp` lists MCP servers already configured in Claude Code, Cursor, Codex, and OpenCode
+  - `pluxx init --from-installed-mcp <host:name>` turns one discovered server into a Pluxx source project
+  - discovery preserves stdio command/args and env-var auth intent while redacting literal secret values
 - OpenCode-native agent output is now permission-first:
   - legacy agent `tools` input is translated forward where possible
   - native OpenCode `skill` and `task` permission keys are treated as real first-class surfaces

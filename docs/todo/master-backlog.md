@@ -103,6 +103,10 @@ Any person or agent should be able to enter the repo and answer:
   - `init --from-mcp` now infers `passthrough` for project-relative runtimes like `./build/index.js`
   - `lint` now warns when a local stdio runtime is not bundled into passthrough
   - `doctor --consumer` now warns when installed `.mcp.json` files reference missing stdio runtime payloads
+- [x] Add installed MCP discovery for the common "I already configured this MCP in my agent" workflow:
+  - `pluxx discover-mcp` reads Claude Code, Cursor, Codex, and OpenCode config locations
+  - `pluxx init --from-installed-mcp <host:name>` imports a selected discovered server into a Pluxx project
+  - discovered stdio/env auth is normalized without copying literal secret values
 - [ ] Continue the post-closure follow-on work from the translation hit list:
   - public proof and packaging polish
   - install/distribution asset polish

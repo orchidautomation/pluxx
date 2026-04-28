@@ -92,6 +92,10 @@ The closure plan is now narrower than it was before:
   - `init --from-mcp` auto-recovers `passthrough` for project-relative runtimes such as `./build/index.js`
   - `lint` catches unbundled stdio runtime payloads earlier
   - `doctor --consumer` now makes broken installed `.mcp.json` runtime references obvious
+- installed MCP discovery now closes the adjacent "I already configured this MCP in a host" path:
+  - `pluxx discover-mcp` lists configured MCP servers from Claude Code, Cursor, Codex, and OpenCode config locations
+  - `pluxx init --from-installed-mcp <host:name>` imports the selected MCP into a maintained Pluxx source project
+  - literal secret values are not copied into generated project config
 
 ### 2. Flagship reference plugin
 

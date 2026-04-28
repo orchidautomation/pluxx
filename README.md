@@ -130,11 +130,24 @@ For local stdio MCPs, pass the real executable command, not just the npm package
 npx @orchid-labs/pluxx init --from-mcp "npx -y -p @acme/mcp acme-mcp" --yes
 ```
 
+If the MCP is already installed in one of your agents, discover and import it directly:
+
+```bash
+npx @orchid-labs/pluxx discover-mcp
+npx @orchid-labs/pluxx init --from-installed-mcp codex:acme --yes
+```
+
+Discovery reads Claude Code, Cursor, Codex, and OpenCode config locations and avoids copying literal secret values into the generated project.
+
 ## Command Cheat Sheet
 
 ```text
 Need a new project from an MCP?
   pluxx init --from-mcp <source> --yes
+
+Already configured that MCP in Claude, Cursor, Codex, or OpenCode?
+  pluxx discover-mcp
+  pluxx init --from-installed-mcp <host:name> --yes
 
 Need the all-in-one path?
   pluxx autopilot --from-mcp <source> --runner <runner>

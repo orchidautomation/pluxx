@@ -89,8 +89,11 @@ Pluxx accepts three MCP source shapes today:
 - remote HTTP: `npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp`
 - legacy SSE: `npx @orchid-labs/pluxx init --from-mcp https://example.com/sse --transport sse`
 - local stdio: `npx @orchid-labs/pluxx init --from-mcp "npx -y -p @acme/mcp acme-mcp"`
+- already-installed host config: `npx @orchid-labs/pluxx discover-mcp` then `npx @orchid-labs/pluxx init --from-installed-mcp codex:acme --yes`
 
 For local stdio imports, pass the real executable command. Do not assume the npm package name is also the runnable bin name.
+
+For already-installed MCPs, Pluxx reads the common Claude Code, Cursor, Codex, and OpenCode config locations and imports the selected server without copying literal secret values.
 
 Examples:
 
