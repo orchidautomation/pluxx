@@ -575,8 +575,10 @@ Pluxx compiles canonical `permissions.{allow,ask,deny}` into each primary target
 |----------|--------------|-------|
 | Claude Code | generated `hooks/pluxx-permissions.mjs` + `PreToolUse` hook wiring | Fine-grained rule matching via hook decisions |
 | Cursor | generated `hooks/pluxx-permissions.mjs` + `preToolUse`/`beforeShellExecution`/`beforeReadFile`/`beforeMCPExecution` wiring | Fine-grained rule matching via hook decisions |
-| Codex | `.codex/permissions.generated.json` | External enforcement only; mirror rules into Codex policy/hooks |
+| Codex | `.codex/permissions.generated.json` | External enforcement only; mirror rules into Codex policy/hooks. The generated file now includes a suggested `sandbox_mode` plus `approval_policy` template so the mapping is explicit instead of raw-only. |
 | OpenCode | tool-level `config.permission` map in generated wrapper | Selector-level precision is downgraded to tool-level permissions |
+
+For Codex specifically, Pluxx now treats `beforeSubmitPrompt` prompt hooks as a truthful partial portability case: they compile into `UserPromptSubmit` external hook entries whose stdout becomes extra developer context. Other prompt-hook events still remain non-portable there and are called out by lint.
 
 ### Instructions Generation
 

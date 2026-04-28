@@ -1186,11 +1186,16 @@ function lintHookFieldTranslations(config: PluginConfig, issues: LintIssue[]): v
       })
     }
 
-    if (config.targets.includes('codex')) {
+    const codexPromptDrops = Object.entries(config.hooks)
+      .filter(([, entries]) => (entries ?? []).some(entry => entry.type === 'prompt'))
+      .filter(([event]) => mapHookEventToPascalCase(event) !== 'UserPromptSubmit')
+      .map(([event]) => event)
+
+    if (config.targets.includes('codex') && codexPromptDrops.length > 0) {
       pushIssue(issues, {
         level: 'warning',
         code: 'codex-prompt-hook-drop',
-        message: 'Codex currently receives only command-hook companions from Pluxx. Prompt hooks will be dropped from the generated Codex bundle.',
+        message: `Codex prompt-hook translation is currently limited to beforeSubmitPrompt -> UserPromptSubmit. Prompt hooks on ${codexPromptDrops.join(', ')} will still be dropped from the generated Codex companion.`,
         file: 'pluxx.config.ts',
         platform: 'codex',
       })
@@ -1360,7 +1365,7 @@ function lintPermissions(config: PluginConfig, issues: LintIssue[]): void {
     pushIssue(issues, {
       level: 'warning',
       code: 'codex-permissions-external-config',
-      message: 'Codex does not currently support plugin-packaged permission enforcement. Mirror canonical permissions into Codex user/admin config or external hooks for real enforcement (Pluxx emits .codex/permissions.generated.json as a starter mirror).',
+      message: 'Codex does not currently support plugin-packaged permission enforcement. Mirror canonical permissions into Codex user/admin config or external hooks for real enforcement; Pluxx emits .codex/permissions.generated.json with a suggested sandbox_mode plus approval_policy template to make that mapping explicit.',
       file: 'pluxx.config.ts',
       platform: 'Codex',
     })

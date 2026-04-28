@@ -795,6 +795,9 @@ describe('build', () => {
 
     expect(codexPermissions.model).toBe('pluxx.permissions.v1')
     expect(codexPermissions.enforcedByPluginBundle).toBe(false)
+    expect(codexPermissions.guidance.suggestedConfig.sandbox_mode).toBe('workspace-write')
+    expect(codexPermissions.guidance.suggestedConfig.approval_policy.granular.rules).toBe(true)
+    expect(codexPermissions.guidance.selectorMapping.MCP).toContain('mcp_elicitations')
     expect(codexPermissions.rules.some((rule: { raw: string }) => rule.raw === 'Read(src/**)')).toBe(true)
   })
 
@@ -864,7 +867,7 @@ describe('build', () => {
     expect(codexHooks.hooks.PreToolUse?.[0]?.matcher).toBe('Bash')
     expect(codexHooks.hooks.PreToolUse?.[0]?.failClosed).toBe(true)
     expect(codexHooks.hooks.PreToolUse?.[0]?.loop_limit).toBeUndefined()
-    expect(codexHooks.hooks.UserPromptSubmit).toBeUndefined()
+    expect(codexHooks.hooks.UserPromptSubmit?.[0]?.command).toContain('./.codex/hooks/pluxx-user-prompt-submit-1.sh')
 
     expect(opencodeIndex).toContain('"matcher": "Bash"')
     expect(opencodeIndex).toContain('"failClosed": true')
@@ -914,6 +917,7 @@ describe('build', () => {
     expect(codexPermissions.skillPolicies).toHaveLength(1)
     expect(codexPermissions.skillPolicies?.[0]?.skillDir).toBe('hello')
     expect(codexPermissions.skillPolicies?.[0]?.permissions.allow).toEqual(['Read(*)', 'MCP(test-server.greet)'])
+    expect(codexPermissions.guidance.suggestedConfig.approval_policy.granular.skill_approval).toBe(true)
   })
 
   it('writes documented manifest paths for Claude Code, Cursor, and Codex plugin components', async () => {

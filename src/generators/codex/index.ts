@@ -2,12 +2,13 @@ import { existsSync } from 'fs'
 import { relative } from 'path'
 import { Generator } from '../base'
 import type { TargetPlatform } from '../../schema'
-import { collectPermissionRules } from '../../permissions'
+import { collectPermissionRules, type ParsedPermissionRule } from '../../permissions'
 import { readCanonicalAgentFiles } from '../../agents'
 import { readCanonicalCommandFiles } from '../../commands'
 import { buildDelegationBehaviorNotes } from '../../delegation'
 import { mapHookEventToPascalCase } from '../../hook-events'
 import { readTextFile } from '../../text-files'
+import type { CompilerIntentSkillPolicy } from '../../compiler-intent'
 
 const CODEX_SUPPORTED_HOOK_EVENTS = new Set([
   'SessionStart',
@@ -16,6 +17,15 @@ const CODEX_SUPPORTED_HOOK_EVENTS = new Set([
   'UserPromptSubmit',
   'Stop',
 ])
+
+interface GeneratedCodexHookEntry extends Record<string, unknown> {
+  command: string
+  matcher?: string | Record<string, unknown>
+  timeout?: number
+  failClosed?: boolean
+  __scriptRelativePath?: string
+  __scriptContent?: string
+}
 
 export class CodexGenerator extends Generator {
   readonly platform: TargetPlatform = 'codex'
@@ -156,6 +166,7 @@ export class CodexGenerator extends Generator {
       note: skillPolicies.length > 0
         ? 'Codex permissions are configured externally. Use this file as a generated mirror of canonical rules for Codex user/admin policy or hook configuration. skillPolicies preserves migrated skill-scoped intent that cannot yet be enforced directly by the plugin bundle.'
         : 'Codex permissions are configured externally. Use this file as a generated mirror of canonical rules for Codex user/admin policy or hook configuration.',
+      guidance: this.buildPermissionsGuidance(rules, skillPolicies),
       rules,
       ...(skillPolicies.length > 0 ? { skillPolicies } : {}),
     })
@@ -231,19 +242,48 @@ export class CodexGenerator extends Generator {
 
     const hooks: Record<string, Array<Record<string, unknown>>> = {}
     const unsupported: Array<Record<string, string>> = []
+    let promptScriptIndex = 0
 
     for (const [event, entries] of Object.entries(this.config.hooks)) {
       if (!entries || entries.length === 0) continue
 
       const codexEvent = mapHookEventToPascalCase(event)
-      const mappedEntries = entries
-        .filter((entry) => entry.type !== 'prompt' && entry.command)
-        .map((entry) => ({
-          command: entry.command?.replace('${PLUGIN_ROOT}', '.'),
+      const mappedEntries: GeneratedCodexHookEntry[] = entries.flatMap((entry): GeneratedCodexHookEntry[] => {
+        if (entry.type === 'prompt') {
+          if (codexEvent !== 'UserPromptSubmit' || !entry.prompt) {
+            unsupported.push({
+              canonicalEvent: event,
+              codexEvent,
+              reason: codexEvent === 'UserPromptSubmit'
+                ? 'Prompt hook entry is missing its prompt payload.'
+                : 'Codex prompt-hook portability is currently limited to UserPromptSubmit, where stdout becomes extra developer context.',
+            })
+            return []
+          }
+
+          promptScriptIndex += 1
+          const scriptRelativePath = `.codex/hooks/pluxx-user-prompt-submit-${promptScriptIndex}.sh`
+          const promptCommand = `bash ./${scriptRelativePath}`
+          const scriptContent = this.buildUserPromptSubmitHookScript(entry.prompt)
+
+          return [{
+            command: promptCommand,
+            ...(entry.timeout ? { timeout: entry.timeout } : {}),
+            ...(entry.failClosed !== undefined ? { failClosed: entry.failClosed } : {}),
+            __scriptRelativePath: scriptRelativePath,
+            __scriptContent: scriptContent,
+          }]
+        }
+
+        if (!entry.command) return []
+
+        return [{
+          command: entry.command.replace('${PLUGIN_ROOT}', '.'),
           ...(entry.matcher !== undefined ? { matcher: entry.matcher } : {}),
           ...(entry.timeout ? { timeout: entry.timeout } : {}),
           ...(entry.failClosed !== undefined ? { failClosed: entry.failClosed } : {}),
-        }))
+        }]
+      })
 
       if (mappedEntries.length === 0) continue
 
@@ -254,6 +294,16 @@ export class CodexGenerator extends Generator {
           reason: 'Codex currently documents only SessionStart, PreToolUse, PostToolUse, UserPromptSubmit, and Stop for hook configuration.',
         })
         continue
+      }
+
+      for (const entry of mappedEntries) {
+        const scriptRelativePath = typeof entry.__scriptRelativePath === 'string' ? entry.__scriptRelativePath : null
+        const scriptContent = typeof entry.__scriptContent === 'string' ? entry.__scriptContent : null
+        if (scriptRelativePath && scriptContent) {
+          await this.writeFile(scriptRelativePath, scriptContent)
+          delete entry.__scriptRelativePath
+          delete entry.__scriptContent
+        }
       }
 
       hooks[codexEvent] = [
@@ -272,6 +322,62 @@ export class CodexGenerator extends Generator {
       hooks,
       ...(unsupported.length > 0 ? { unsupported } : {}),
     })
+  }
+
+  private buildPermissionsGuidance(
+    rules: ParsedPermissionRule[],
+    skillPolicies: CompilerIntentSkillPolicy[],
+  ): Record<string, unknown> {
+    const supplementalRules = skillPolicies.flatMap((policy) => collectPermissionRules(policy.permissions))
+    const allRules = [...rules, ...supplementalRules]
+    const hasAskRules = allRules.some((rule) => rule.action === 'ask')
+    const hasMcpRules = allRules.some((rule) => rule.kind === 'MCP')
+    const hasSkillIntent = skillPolicies.length > 0 || allRules.some((rule) => rule.kind === 'Skill')
+    const needsWritableWorkspace = allRules.some((rule) => rule.kind === 'Edit' || rule.kind === 'Bash')
+
+    const approvalPolicy = hasAskRules || hasMcpRules || hasSkillIntent
+      ? {
+          granular: {
+            sandbox_approval: needsWritableWorkspace,
+            rules: hasAskRules,
+            mcp_elicitations: hasMcpRules,
+            request_permissions: hasAskRules,
+            skill_approval: hasSkillIntent,
+          },
+        }
+      : needsWritableWorkspace
+        ? 'on-request'
+        : 'never'
+
+    return {
+      suggestedConfig: {
+        sandbox_mode: needsWritableWorkspace ? 'workspace-write' : 'read-only',
+        approval_policy: approvalPolicy,
+      },
+      selectorMapping: {
+        Read: 'Map read selectors into external execpolicy/hook rules; Codex has no plugin-bundled read-policy surface.',
+        Edit: 'Pair external execpolicy/hook rules with a writable sandbox (`sandbox_mode = "workspace-write"`) when edits are meant to be possible.',
+        Bash: 'Pair shell selectors with external execpolicy/hook rules and a writable sandbox when command execution should be possible.',
+        MCP: 'Use external hooks/admin policy; if MCP tools need to prompt the user, allow `approval_policy.granular.mcp_elicitations`.',
+        Skill: 'Use `.codex/agents/*.toml`, external hooks, and `approval_policy.granular.skill_approval` for skill-script prompts.',
+      },
+      notes: [
+        'Codex does not enforce these rules from a plugin bundle. This file is a mirror plus a config template for project/user Codex policy.',
+        hasAskRules
+          ? 'Canonical ask-rules map most directly to Codex execpolicy prompt rules, so the suggested approval_policy keeps `rules` and `request_permissions` interactive.'
+          : 'No canonical ask-rules were defined, so the suggested approval_policy minimizes interactive prompts unless Codex needs them for sandbox or skill flows.',
+      ],
+    }
+  }
+
+  private buildUserPromptSubmitHookScript(prompt: string): string {
+    return [
+      '#!/usr/bin/env bash',
+      'cat <<\'PLUXX_PROMPT\'',
+      prompt,
+      'PLUXX_PROMPT',
+      '',
+    ].join('\n')
   }
 
   private async generateCommandsCompanion(): Promise<void> {

@@ -359,6 +359,41 @@ describe('doctorProject', () => {
     }
   })
 
+  it('explains Codex prompt-hook and permission guidance at project level', async () => {
+    const dir = createProjectFixture()
+    writeFileSync(
+      resolve(dir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'doctor-codex-guidance',
+        version: '0.1.0',
+        description: 'doctor guidance fixture',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['codex'],
+        permissions: {
+          allow: ['Read(src/**)'],
+          ask: ['Bash(git status)'],
+        },
+        hooks: {
+          beforeSubmitPrompt: [
+            {
+              type: 'prompt',
+              prompt: 'Add one last review pass before sending the prompt.',
+            },
+          ],
+        },
+      }, null, 2),
+    )
+
+    try {
+      const report = await doctorProject(dir)
+      expect(report.checks.some((check) => check.code === 'codex-permissions-guidance' && check.level === 'info')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'codex-prompt-hook-translation' && check.level === 'info')).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('prints stable JSON from the CLI', async () => {
     const dir = createProjectFixture()
 
