@@ -1,6 +1,6 @@
 # Master Backlog
 
-Last updated: 2026-04-27
+Last updated: 2026-04-28
 
 This is the most complete repo-native backlog for Pluxx.
 
@@ -81,6 +81,8 @@ Any person or agent should be able to enter the repo and answer:
 - [ ] Decide which docs are public product docs vs strategy docs vs internal-only GTM docs
 - [ ] Move account-specific GTM and customer notes out of the public repo
 - [ ] Define a simple rule for when repo docs should be updated alongside Linear
+- [~] Keep OpenClaw in the documented beta-target lane until native generator, doctor, and smoke proof exist:
+  - [docs/openclaw-target-evaluation.md](../openclaw-target-evaluation.md)
 - [~] Turn the provider and branding audits into an explicit closure tracker for every mapped cross-host feature:
   - [docs/core-four-translation-hit-list.md](../core-four-translation-hit-list.md)
 - [x] Close the last P0 fixture/proof rows from the translation hit list:

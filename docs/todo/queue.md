@@ -1,6 +1,6 @@
 # Pluxx Queue
 
-Last updated: 2026-04-27
+Last updated: 2026-04-28
 
 ## Doc Links
 
@@ -126,6 +126,8 @@ Open work:
 - tighten the remaining top-level docs framing and entrypoint docs
 - keep GTM-sensitive material out of the public repo
 - continue reconciling stale planning artifacts that still describe already-shipped work as future work
+- keep OpenClaw in the documented beta-target lane, not the prime-time target set:
+  - [docs/openclaw-target-evaluation.md](../openclaw-target-evaluation.md)
 - refresh `src/validation/platform-rules.ts`, `docs/compatibility.md`, and `docs/core-four-primitive-matrix.md` from the first-party provider audit:
   - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
 - use [docs/core-four-translation-hit-list.md](../core-four-translation-hit-list.md) as the concrete closure tracker for:

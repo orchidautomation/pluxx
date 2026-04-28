@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-04-27
+Last updated: 2026-04-28
 
 ## Doc Links
 
@@ -96,6 +96,8 @@ The closure plan is now narrower than it was before:
   - `pluxx discover-mcp` lists configured MCP servers from Claude Code, Cursor, Codex, and OpenCode config locations
   - `pluxx init --from-installed-mcp <host:name>` imports the selected MCP into a maintained Pluxx source project
   - literal secret values are not copied into generated project config
+- OpenClaw should stay in scope only as a beta-target lane until a native generator, validator/doctor path, and behavioral smoke proof exist:
+  - [docs/openclaw-target-evaluation.md](./openclaw-target-evaluation.md)
 
 ### 2. Flagship reference plugin
 
