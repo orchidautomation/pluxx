@@ -414,6 +414,67 @@ describe('init-from-mcp scaffold', () => {
     expect(loadedConfig.brand?.displayName).toBe('Sumble MCP')
   })
 
+  it('keeps workflow command surfaces narrower than raw singleton tool wrappers', async () => {
+    await writeMcpScaffold({
+      rootDir: TEST_DIR,
+      pluginName: 'utility-mcp',
+      authorName: 'Test Author',
+      displayName: 'Utility MCP',
+      skillGrouping: 'workflow',
+      hookMode: 'none',
+      targets: ['codex'],
+      source: {
+        transport: 'http',
+        url: 'https://utility.example.com/mcp',
+      },
+      introspection: {
+        ...introspection,
+        resources: [],
+        resourceTemplates: [],
+        prompts: [],
+        tools: [
+          {
+            name: 'get_user',
+            description: 'Fetch one user record by identifier.',
+            inputSchema: {
+              type: 'object',
+              properties: { user_id: { type: 'string' } },
+              required: ['user_id'],
+            },
+          },
+          {
+            name: 'get_team',
+            description: 'Fetch one team record by identifier.',
+            inputSchema: {
+              type: 'object',
+              properties: { team_id: { type: 'string' } },
+              required: ['team_id'],
+            },
+          },
+          {
+            name: 'get_project',
+            description: 'Fetch one project record by identifier.',
+            inputSchema: {
+              type: 'object',
+              properties: { project_id: { type: 'string' } },
+              required: ['project_id'],
+            },
+          },
+        ],
+      },
+    })
+
+    const commands = [
+      'commands/get-user.md',
+      'commands/get-team.md',
+      'commands/get-project.md',
+    ].filter((path) => existsSync(resolve(TEST_DIR, path)))
+    const config = readFileSync(resolve(TEST_DIR, 'pluxx.config.ts'), 'utf-8')
+
+    expect(commands).toHaveLength(1)
+    expect(config).toContain('commands: "./commands/"')
+  })
+
   it('preserves custom remote header auth in the generated config', async () => {
     await writeMcpScaffold({
       rootDir: TEST_DIR,

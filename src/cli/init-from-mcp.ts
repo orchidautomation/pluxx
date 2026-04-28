@@ -235,6 +235,42 @@ const WORKFLOW_SKILL_DEFINITIONS = [
     description: 'Handle broad search and query workflows when there is not a more specific product surface match.',
     match: ['search', 'query', 'lookup', 'look up', 'discover', 'find'],
   },
+  {
+    key: 'web-research',
+    title: 'Web Research',
+    description: 'Search the web, fetch pages, and synthesize public source-backed research.',
+    match: ['web', 'website', 'url', 'page', 'fetch', 'crawl', 'scrape', 'search', 'result', 'source'],
+  },
+  {
+    key: 'source-review',
+    title: 'Source Review',
+    description: 'Audit sources, citations, evidence quality, and duplicate or weak research results.',
+    match: ['source', 'citation', 'evidence', 'audit', 'review', 'quality', 'rank', 'dedupe', 'duplicate'],
+  },
+  {
+    key: 'content-extraction',
+    title: 'Content Extraction',
+    description: 'Extract structured content, entities, and summaries from pages, documents, or search results.',
+    match: ['extract', 'parse', 'content', 'summary', 'summarize', 'document', 'html', 'markdown'],
+  },
+  {
+    key: 'knowledge-search',
+    title: 'Knowledge Search',
+    description: 'Search docs, knowledge bases, papers, repositories, and internal reference material.',
+    match: ['docs', 'documentation', 'knowledge', 'paper', 'papers', 'repo', 'repository', 'api', 'reference'],
+  },
+  {
+    key: 'news-monitoring',
+    title: 'News Monitoring',
+    description: 'Find recent news, launches, announcements, and time-bounded developments.',
+    match: ['news', 'recent', 'latest', 'launch', 'announcement', 'announced', 'date', 'published'],
+  },
+  {
+    key: 'code-research',
+    title: 'Code Research',
+    description: 'Find implementation docs, code examples, API usage, migration notes, and troubleshooting context.',
+    match: ['code', 'sdk', 'api', 'github', 'example', 'migration', 'error', 'troubleshoot', 'implementation'],
+  },
 ] as const
 
 const WORKFLOW_MATCH_MIN_SCORE = 2
@@ -331,6 +367,8 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
     options.persistedSkills,
     options.toolRenames,
   )
+  const skillGrouping = options.skillGrouping ?? 'workflow'
+  const plannedCommands = planCommandScaffolds(plannedSkills, skillGrouping)
   const description = options.description
     ?? deriveScaffoldDescription({
       displayName,
@@ -399,7 +437,7 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
       passthroughPaths,
       runtimeAuthMode,
       permissions,
-      commandsPath: './commands/',
+      commandsPath: plannedCommands.length > 0 ? './commands/' : undefined,
     }),
   )
 
@@ -431,8 +469,6 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
   for (const skill of plannedSkills) {
     const relativeSkillPath = `skills/${skill.dirName}`
     const skillPath = resolve(skillRoot, skill.dirName, 'SKILL.md')
-    const relativeCommandPath = `commands/${skill.dirName}.md`
-    const commandPath = resolve(commandsRoot, `${skill.dirName}.md`)
     await addPlannedFile(
       `${relativeSkillPath}/SKILL.md`,
       wrapManagedMarkdown(
@@ -446,7 +482,11 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
     )
     skillDirectories.push(relativeSkillPath)
     generatedFiles.push(`${relativeSkillPath}/SKILL.md`)
+  }
 
+  for (const skill of plannedCommands) {
+    const relativeCommandPath = `commands/${skill.dirName}.md`
+    const commandPath = resolve(commandsRoot, `${skill.dirName}.md`)
     await addPlannedFile(
       relativeCommandPath,
       buildCommandContent(
@@ -468,7 +508,7 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
     introspection: options.introspection,
     pluginName,
     displayName,
-    skillGrouping: options.skillGrouping ?? 'workflow',
+    skillGrouping,
     requestedHookMode: options.hookMode ?? 'none',
     generatedHookMode: generatedHooks.mode,
     generatedHookEvents: Object.keys(generatedHooks.hookEntries ?? {}),
@@ -747,6 +787,24 @@ export function buildCommandContent(skill: PlannedSkill, existingContent?: strin
       defaultCustomContent: DEFAULT_SKILL_CUSTOM_CONTENT,
     },
   )
+}
+
+function hasStrongCommandShape(skill: PlannedSkill, grouping: McpSkillGrouping): boolean {
+  if (grouping === 'tool') return true
+  if (skill.tools.length > 1) return true
+  if (skill.prompts.length > 0) return true
+  if (skill.resources.length > 0 || skill.resourceTemplates.length > 0) return true
+
+  const requiredFields = skill.tools.flatMap((tool) => getTopLevelSchemaFields(tool.inputSchema).filter((field) => field.required))
+  return requiredFields.length >= 2
+}
+
+function planCommandScaffolds(plannedSkills: PlannedSkill[], grouping: McpSkillGrouping): PlannedSkill[] {
+  const commands = plannedSkills.filter((skill) => hasStrongCommandShape(skill, grouping))
+  if (commands.length > 0) return commands
+
+  // Keep one discoverable entrypoint for tiny MCPs without exposing every raw tool as a command.
+  return plannedSkills.slice(0, 1)
 }
 
 function formatArgumentHintFrontmatter(value: string): string {

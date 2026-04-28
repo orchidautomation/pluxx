@@ -80,6 +80,40 @@ Pluxx does not own:
 6. If your plugin is MCP-backed, repoint sync to the remote endpoint when the backend is deployed.
 7. Keep the plugin repo as your long-term source of truth.
 
+## The 10-Minute MCP Path
+
+If you have a raw MCP and want the shortest real proof, use autopilot to import, refine, build, install one host, and run `verify-install` in one flow:
+
+```bash
+pluxx autopilot \
+  --from-mcp https://example.com/mcp \
+  --runner codex \
+  --mode standard \
+  --install \
+  --install-target codex \
+  --trust
+```
+
+For an authenticated MCP, export the real secret first and declare how the MCP expects it:
+
+```bash
+export ACME_API_KEY='real_key'
+
+pluxx autopilot \
+  --from-mcp https://example.com/mcp \
+  --runner codex \
+  --mode standard \
+  --auth-env ACME_API_KEY \
+  --auth-type bearer \
+  --install \
+  --install-target codex \
+  --trust
+```
+
+Use `--install-target codex` for the first run unless you already know which host you want to prove first. It keeps onboarding focused on one host-visible install instead of asking a new user to debug four hosts at once.
+
+The success output should end with the installed host path, `verify-install` status, and the exact host reload instruction. If the MCP needs an API key, export the real env var before running autopilot; Pluxx rejects obvious placeholder secrets because many hosts do not expose a native settings form for plugin-owned MCP credentials after install.
+
 ## 1. Choose Your Starting Point
 
 ### Path A: Bring An MCP Server
@@ -180,6 +214,20 @@ npx @orchid-labs/pluxx autopilot \
   --grouping workflow \
   --hooks safe
 ```
+
+One-shot autopilot with local install and `verify-install`:
+
+```bash
+npx @orchid-labs/pluxx autopilot \
+  --from-mcp https://example.com/mcp \
+  --runner codex \
+  --mode standard \
+  --install \
+  --install-target codex \
+  --trust
+```
+
+For raw MCPs with many low-level tools, the deterministic scaffold now keeps slash commands narrower than the full tool list. Commands are reserved for workflow-level entrypoints, prompt-backed surfaces, or tools with strong argument shape. Singleton tool wrappers remain available as skills, but Pluxx will warn when a scaffold still looks like command-per-tool output so you know to run taxonomy refinement before publishing.
 
 By default, autopilot summarizes runner outcomes without streaming raw runner logs. Add `--verbose-runner` to stream full headless runner output.
 

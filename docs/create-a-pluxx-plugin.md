@@ -266,6 +266,8 @@ Then pick up the installed bundle in the host app and test real requests:
 - Codex: use `Plugins > Refresh` if available, otherwise restart Codex
 - OpenCode: reload or restart OpenCode
 
+If verification fails, use the fix line printed by `verify-install` first. It distinguishes missing builds, missing installs, stale host-visible bundles, stale Codex cache, and lower-level `doctor --consumer` failures.
+
 For the cleanest repo-native install/demo walkthroughs, use:
 
 - [Proof and install](./proof-and-install.md)
@@ -297,6 +299,38 @@ npx @orchid-labs/pluxx autopilot \
   --display-name "Acme" \
   --author "Acme"
 ```
+
+10-minute local proof:
+
+```bash
+npx @orchid-labs/pluxx autopilot \
+  --from-mcp https://example.com/mcp \
+  --runner codex \
+  --mode standard \
+  --install \
+  --install-target codex \
+  --trust
+```
+
+Authenticated 10-minute local proof:
+
+```bash
+export ACME_API_KEY='real_key'
+
+npx @orchid-labs/pluxx autopilot \
+  --from-mcp https://example.com/mcp \
+  --runner codex \
+  --mode standard \
+  --auth-env ACME_API_KEY \
+  --auth-type bearer \
+  --install \
+  --install-target codex \
+  --trust
+```
+
+Autopilot should finish with installed path, `verify-install` status, and the host reload instruction. If the MCP needs a key, export the real env var first; placeholder secrets are rejected before install because the installer has to materialize plugin-owned MCP credentials for hosts that do not expose them in a global MCP settings UI.
+
+The generated command surface is intentionally smaller than the raw MCP tool list. Workflow grouping keeps singleton tool wrappers as skills unless they have a strong user-facing command shape, and `pluxx eval` warns when a scaffold still looks like command-per-tool output.
 
 Thorough mode:
 

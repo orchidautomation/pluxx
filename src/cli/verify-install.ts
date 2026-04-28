@@ -188,6 +188,36 @@ export function printVerifyInstallResult(result: VerifyInstallResult): void {
     if (check.stale) {
       console.log(`  stale install: ${check.staleReason}`)
     }
+    if (!check.ok) {
+      for (const action of getVerifyInstallRecoveryActions(check)) {
+        console.log(`  fix: ${action}`)
+      }
+    }
   }
   console.log(result.ok ? 'pluxx verify-install passed.' : 'pluxx verify-install failed.')
+}
+
+function getVerifyInstallRecoveryActions(check: VerifyInstallCheck): string[] {
+  const actions: string[] = []
+
+  if (!check.built) {
+    actions.push(`run pluxx build --target ${check.platform}`)
+  }
+
+  if (check.built && !check.installed) {
+    actions.push(`run pluxx install --target ${check.platform}${check.platform === 'claude-code' ? ' and accept/trust any hook prompt if expected' : ''}`)
+  }
+
+  if (check.stale) {
+    actions.push(`rerun pluxx install --target ${check.platform} to replace the stale local install`)
+    if (check.platform === 'codex') {
+      actions.push('in Codex, use Plugins > Refresh if available, or restart Codex so the plugin cache reloads')
+    }
+  }
+
+  if (check.errors > 0 && actions.length === 0) {
+    actions.push(`run pluxx doctor --consumer "${check.consumerPath}" for the detailed host-specific failure`)
+  }
+
+  return actions
 }

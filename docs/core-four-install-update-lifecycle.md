@@ -1,6 +1,6 @@
 # Core-Four Install And Update Lifecycle
 
-Last updated: 2026-04-24
+Last updated: 2026-04-28
 
 This doc explains the practical install, update, and reload behavior for the four primary Pluxx targets:
 
@@ -83,3 +83,21 @@ That is the wording users should see in:
 - walkthroughs and demo assets
 
 The repo now also asserts these follow-up notes directly in install-surface tests, so lifecycle wording is no longer only doc guidance.
+
+## No-Context Install Success Contract
+
+`pluxx install`, `pluxx test --install`, `pluxx autopilot --install`, and generated release installers should leave a user with the same minimum next-step clarity:
+
+- which host bundle was installed
+- where that host-visible bundle lives
+- the exact `pluxx verify-install --target <host>` command to run next
+- the host-specific reload or restart action
+- auth guidance before install, not after the user opens a host UI that may not expose plugin-owned MCP secrets
+
+When verification fails, `pluxx verify-install` should print a concrete recovery action:
+
+- missing build: run `pluxx build --target <host>`
+- missing install: run `pluxx install --target <host>`
+- stale symlink or stale version: rerun install for that host
+- Codex cache mismatch: refresh plugins if available or restart Codex
+- unknown consumer failure: run `pluxx doctor --consumer <installed-path>`

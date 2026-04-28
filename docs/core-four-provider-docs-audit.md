@@ -221,6 +221,7 @@ Current repo gaps:
 
 - the main machine-readable OpenCode mismatch has now been corrected in `src/validation/platform-rules.ts`
 - the OpenCode generator now also prefers permission-first agent output and translates legacy agent `tools` into `permission` where possible
+- lint now only flags OpenCode agent `tools` usage when canonical `permission` frontmatter is missing; permission-first source agents can keep cross-host `tools` hints without triggering a false-positive deprecation warning
 - that permission-first output is now also exercised in a real public subagent-heavy example:
   - `example/exa-plugin`
 - `docs/compatibility.md` now reflects OpenCode as a config/runtime host rather than a `package.json + index.ts` manifest host

@@ -77,6 +77,7 @@ import { printEvalReport, runEvalSuite } from './eval'
 import { buildPrimitiveTranslationSummary, renderPrimitiveTranslationSummary } from './primitive-summary'
 import { printVerifyInstallResult, verifyInstall } from './verify-install'
 import { runBehavioralSuite } from './behavioral'
+import type { BehavioralSuiteResult } from './behavioral'
 import { planTextFileAction, writeTextFile } from '../text-files'
 import {
   discoverInstalledMcpServers,
@@ -216,6 +217,8 @@ interface AutopilotSummary {
   }
   verification?: TestRunResult
   verificationDurationMs?: number
+  install?: InstallActionSummary
+  behavioral?: BehavioralSuiteResult
   runnerLogsStreamed?: boolean
   failureStage?: 'auth' | 'introspection' | 'runner' | 'verification'
   failureMessage?: string
@@ -498,12 +501,16 @@ function countAutopilotSteps(input: {
   instructions: AutopilotPassDecision
   review: AutopilotPassDecision
   verify: boolean
+  install?: boolean
+  behavioral?: boolean
 }): number {
   return 2
     + Number(input.taxonomy.enabled)
     + Number(input.instructions.enabled)
     + Number(input.review.enabled)
     + Number(input.verify)
+    + Number(input.install)
+    + Number(input.behavioral)
 }
 
 function formatAutopilotPassLine(label: string, decision: AutopilotPassDecision): string {
@@ -515,15 +522,18 @@ function summarizeAutopilotWorkload(input: {
   instructions: AutopilotPassDecision
   review: AutopilotPassDecision
   verify: boolean
+  install?: boolean
+  behavioral?: boolean
 }): string {
   const agentPassCount = Number(input.taxonomy.enabled) + Number(input.instructions.enabled) + Number(input.review.enabled)
+  const suffix = `${input.verify ? ' + verification' : ''}${input.install ? ' + install' : ''}${input.behavioral ? ' + behavioral smoke' : ''}`
   if (agentPassCount === 0 && !input.verify) {
-    return 'deterministic scaffold only'
+    return `deterministic scaffold${input.install ? ' + install' : ''}${input.behavioral ? ' + behavioral smoke' : ''}`
   }
   if (agentPassCount === 0) {
-    return 'deterministic scaffold + verification'
+    return `deterministic scaffold${suffix}`
   }
-  return `${agentPassCount} agent pass${agentPassCount === 1 ? '' : 'es'}${input.verify ? ' + verification' : ''}`
+  return `${agentPassCount} agent pass${agentPassCount === 1 ? '' : 'es'}${suffix}`
 }
 
 function formatDuration(durationMs?: number): string | undefined {
@@ -872,6 +882,17 @@ function parseTargetFlagValues(rawArgs: string[]): TargetPlatform[] | undefined 
   const values = readMultiValueOption(rawArgs, '--target')
   if (!values) return undefined
   return parseTargetPlatforms(values.join(','))
+}
+
+function parseInstallTargetFlag(rawArgs: string[], targets: TargetPlatform[]): TargetPlatform[] {
+  const raw = readOption(rawArgs, '--install-target')
+  if (!raw) return [targets[0]]
+  const installTargets = parseTargetPlatforms(raw)
+  const unsupported = installTargets.filter((target) => !targets.includes(target))
+  if (unsupported.length > 0) {
+    throw new Error(`--install-target must be one of the configured autopilot targets: ${targets.join(', ')}`)
+  }
+  return installTargets
 }
 
 function defaultHookMode(source: { auth?: { type: string; envVar?: string }; transport?: string; env?: Record<string, string> }): McpHookMode {
@@ -2340,6 +2361,9 @@ async function runAutopilot() {
   const attach = readOption(args, '--attach')
   const reviewRequested = args.includes('--review')
   const verify = !args.includes('--no-verify')
+  const installRequested = args.includes('--install')
+  const behavioralRequested = args.includes('--behavioral')
+  const behavioralPrompt = readOption(args, '--behavioral-prompt')
   const verboseRunner = args.includes('--verbose-runner')
   const interactive = !runtime.jsonOutput && runtime.isInteractive && !initOptions.assumeDefaults
   let authEnv = initOptions.authEnv
@@ -2349,18 +2373,24 @@ async function runAutopilot() {
   let runtimeAuthMode = resolveRuntimeAuthMode(initOptions.runtimeAuth)
 
   if (!initOptions.source && !interactive) {
-    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--approve-mcp-tools] [--auth-env ENV] [--auth-type bearer|header|platform] [--auth-header NAME] [--auth-template TEMPLATE] [--runtime-auth inline|platform] [--oauth-wrapper] [--website URL] [--docs URL] [--ingest-provider <${AGENT_INGEST_PROVIDERS.join('|')}>] [--context <files...>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
+    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--approve-mcp-tools] [--auth-env ENV] [--auth-type bearer|header|platform] [--auth-header NAME] [--auth-template TEMPLATE] [--runtime-auth inline|platform] [--oauth-wrapper] [--website URL] [--docs URL] [--ingest-provider <${AGENT_INGEST_PROVIDERS.join('|')}>] [--context <files...>] [--review] [--install] [--install-target <platform>] [--trust] [--behavioral] [--behavioral-prompt TEXT] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
     process.exit(1)
   }
 
   if ((!runnerRaw || !AGENT_RUNNERS.includes(runnerRaw as AgentRunner)) && !interactive) {
-    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--approve-mcp-tools] [--auth-env ENV] [--auth-type bearer|header|platform] [--auth-header NAME] [--auth-template TEMPLATE] [--runtime-auth inline|platform] [--oauth-wrapper] [--website URL] [--docs URL] [--ingest-provider <${AGENT_INGEST_PROVIDERS.join('|')}>] [--context <files...>] [--review] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
+    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--approve-mcp-tools] [--auth-env ENV] [--auth-type bearer|header|platform] [--auth-header NAME] [--auth-template TEMPLATE] [--runtime-auth inline|platform] [--oauth-wrapper] [--website URL] [--docs URL] [--ingest-provider <${AGENT_INGEST_PROVIDERS.join('|')}>] [--context <files...>] [--review] [--install] [--install-target <platform>] [--trust] [--behavioral] [--behavioral-prompt TEXT] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
     process.exit(1)
   }
 
   if (modeRaw && !AUTOPILOT_MODES.includes(modeRaw as AutopilotMode)) {
     console.error(`Autopilot mode must be one of: ${AUTOPILOT_MODES.join(', ')}`)
     process.exit(1)
+  }
+  if (installRequested && !verify) {
+    throw new Error('--install requires verification so autopilot can build outputs before installing. Remove --no-verify or omit --install.')
+  }
+  if (behavioralRequested && !installRequested) {
+    throw new Error('--behavioral requires --install so the selected host CLI can see the installed plugin bundle.')
   }
   let tempDir: string | undefined
 
@@ -2590,6 +2620,7 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
       ? await clackText('Platforms (comma-separated)', DEFAULT_INIT_TARGETS.join(','))
       : DEFAULT_INIT_TARGETS.join(','))
     const targets = parseTargetPlatforms(targetsRaw)
+    const installTargets = installRequested ? parseInstallTargetFlag(args, targets) : []
     const grouping = initOptions.grouping
       ? parseChoiceOption(initOptions.grouping, MCP_SKILL_GROUPINGS, 'Skill grouping')
       : interactive
@@ -2631,6 +2662,8 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
       instructions: passDecisions.instructions,
       review: passDecisions.review,
       verify,
+      install: installRequested,
+      behavioral: behavioralRequested,
     })
 
     const workspaceRoot = runtime.dryRun
@@ -2731,6 +2764,14 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
         quality,
         review: passDecisions.review.enabled,
         verify,
+        install: installRequested
+          ? {
+              enabled: true,
+              platforms: installTargets,
+              notes: getInstallFollowupNotes(installTargets),
+              installTargets: [],
+            }
+          : undefined,
         steps: totalSteps,
         init: {
           createdFiles: initCreatedFiles,
@@ -2780,6 +2821,8 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
           instructions: passDecisions.instructions,
           review: passDecisions.review,
           verify,
+          install: installRequested,
+          behavioral: behavioralRequested,
         })}`)
         console.log(`  Quality: ${quality.warnings} warning(s), ${quality.infos} info message(s)`)
         console.log(`  Scaffold create/update: ${[...initCreatedFiles, ...initUpdatedFiles].join(', ') || 'none'}`)
@@ -2799,6 +2842,9 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
           console.log('  Verification: pluxx test')
         } else {
           console.log('  Verification: skipped (--no-verify)')
+        }
+        if (installRequested) {
+          console.log(`  Install: ${installTargets.join(', ')} after verification`)
         }
       }
       return
@@ -2893,24 +2939,39 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
         })()
       : undefined
 
-    const ok = (taxonomyResult?.ok ?? true)
+    const preInstallOk = (taxonomyResult?.ok ?? true)
       && (instructionsResult?.ok ?? true)
       && (reviewResult?.ok ?? true)
       && (verification?.ok ?? true)
+    const installedConfig = installRequested && preInstallOk ? await loadConfig() : undefined
+    const install = installedConfig
+      ? await maybeInstallBuiltOutputs(installedConfig, installTargets, { verifyConsumers: true })
+      : undefined
+    const behavioralResult = install && install.verification?.ok && behavioralRequested
+      ? await runBehavioralSuite(process.cwd(), installedConfig!, installTargets, { promptOverride: behavioralPrompt })
+      : undefined
+
+    const ok = preInstallOk
+      && (install?.verification?.ok ?? true)
+      && (behavioralResult?.ok ?? true)
 
     const failureStage: AutopilotSummary['failureStage'] = taxonomyResult && taxonomyResult.runnerExitCode !== 0
       ? 'runner'
       : instructionsResult && instructionsResult.runnerExitCode !== 0
         ? 'runner'
         : reviewResult && reviewResult.runnerExitCode !== 0
-          ? 'runner'
-          : verification && !verification.ok
+        ? 'runner'
+        : verification && !verification.ok
+          ? 'verification'
+          : install?.verification && !install.verification.ok
             ? 'verification'
+            : behavioralResult && !behavioralResult.ok
+              ? 'verification'
             : undefined
     const failureMessage = failureStage === 'runner'
-      ? 'A headless runner command failed. Re-run with --verbose-runner to stream full runner output.'
-      : failureStage === 'verification'
-        ? 'Verification failed after scaffold/refinement. Run `pluxx test` for details.'
+        ? 'A headless runner command failed. Re-run with --verbose-runner to stream full runner output.'
+        : failureStage === 'verification'
+        ? 'Verification, install, or behavioral smoke failed after scaffold/refinement. Run `pluxx test --install` for details.'
         : undefined
 
     const summary: AutopilotSummary = {
@@ -2974,6 +3035,8 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
       },
       verification,
       verificationDurationMs,
+      install,
+      behavioral: behavioralResult,
       failureStage,
       failureMessage,
     }
@@ -2991,6 +3054,8 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
         instructions: passDecisions.instructions,
         review: passDecisions.review,
         verify,
+        install: installRequested,
+        behavioral: behavioralRequested,
       })}`)
       console.log(`  Quality: ${quality.warnings} warning(s), ${quality.infos} info message(s)`)
       if (!verboseRunner) {
@@ -3013,6 +3078,23 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
       } else {
         console.log('  Verification: skipped (--no-verify)')
       }
+      if (install) {
+        console.log(`  Install: ${install.verification?.ok === false ? 'failed' : 'passed'} for ${install.platforms.join(', ')}`)
+        for (const target of install.installTargets) {
+          console.log(`    ${target.platform}: ${target.consumerPath}`)
+        }
+        if (install.verification) {
+          console.log(`  Verify-install: ${install.verification.ok ? 'passed' : 'failed'}`)
+        }
+        for (const note of install.notes) {
+          console.log(`  ${note}`)
+        }
+      } else if (installRequested) {
+        console.log(`  Install: skipped because verification did not produce a passing build`)
+      }
+      if (behavioralResult) {
+        console.log(`  Behavioral: ${behavioralResult.ok ? 'passed' : 'failed'}`)
+      }
       if (failureStage && failureMessage) {
         console.log(`  Failure stage: ${failureStage}`)
         console.log(`  Failure detail: ${failureMessage}`)
@@ -3021,6 +3103,9 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
       console.log('  1. Review INSTRUCTIONS.md and skills/')
       console.log(`  2. Run: pluxx build${mode === 'quick' && !passDecisions.taxonomy.enabled && !passDecisions.instructions.enabled && !passDecisions.review.enabled ? ' (agent refinement was skipped; only do this if the deterministic scaffold already looks good)' : ''}`)
       console.log(`  3. Run: pluxx install${scaffoldPlan.generatedHookMode === 'safe' ? ' --trust' : ''} --target ${targets[0]}`)
+      if (!installRequested) {
+        console.log(`  Or rerun onboarding: pluxx autopilot --from-mcp "${rawSource}" --runner ${runner} --mode ${mode} --install --install-target ${targets[0]}${scaffoldPlan.generatedHookMode === 'safe' ? ' --trust' : ''}`)
+      }
     }
 
     if (!ok) {
@@ -3385,6 +3470,10 @@ Common flags:
   --mode quick|standard|thorough          Control how much agent refinement autopilot performs
   --approve-mcp-tools                     Preapprove all tools from the imported MCP in canonical permissions
   --ingest-provider auto|local|firecrawl  Choose the docs/website ingestion backend for agent prepare/autopilot
+  --install                               Install autopilot's verified build into one selected host
+  --install-target <platform>             Host to install after autopilot verification; defaults to the first target
+  --trust                                 Trust local hook commands during install/test flows
+  --behavioral                            Run installed headless example-query smoke checks
 
 Targets:
   claude-code, cursor, codex, opencode, github-copilot, openhands,
@@ -3427,6 +3516,8 @@ Examples:
   --attach is only supported for the opencode runner
   pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode quick --yes
   pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode standard --yes --name acme --display-name "Acme"
+  pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode standard --install --install-target codex --trust
+  pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode standard --auth-env API_KEY --auth-type bearer --install --install-target codex --trust
   pluxx autopilot --from-mcp https://example.com/mcp --runner codex --yes --approve-mcp-tools
   pluxx autopilot --from-mcp https://example.com/mcp --runner codex --mode thorough --yes --verbose-runner
   pluxx autopilot --from-mcp https://mcp.linear.app/mcp --runner codex --yes --oauth-wrapper

@@ -562,6 +562,177 @@ describe('autopilot command', () => {
     }
   })
 
+  it('can complete the 10-minute path by installing and verifying one host', async () => {
+    const { dir, statePath, stubServerPath } = createStubServerFixture()
+    const homeDir = resolve(dir, 'home')
+
+    mkdirSync(homeDir, { recursive: true })
+
+    try {
+      const proc = spawnCli([
+        'autopilot',
+        '--from-mcp',
+        `bun ${stubServerPath} ${statePath}`,
+        '--runner',
+        'codex',
+        '--mode',
+        'standard',
+        '--name',
+        'stub-server',
+        '--display-name',
+        'Stub Server',
+        '--author',
+        'Test Author',
+        '--targets',
+        'claude-code,codex',
+        '--install',
+        '--install-target',
+        'codex',
+        '--json',
+      ], dir, {
+        HOME: homeDir,
+      })
+
+      const stdout = await new Response(proc.stdout).text()
+      const stderr = await new Response(proc.stderr).text()
+      const exitCode = await proc.exited
+
+      expect(exitCode).toBe(0)
+      expect(stderr).toBe('')
+
+      const summary = JSON.parse(stdout) as {
+        ok: boolean
+        verification?: { ok: boolean }
+        install?: {
+          platforms: string[]
+          installTargets: Array<{ platform: string; consumerPath: string }>
+          verification?: { ok: boolean; checks: Array<{ platform: string; ok: boolean }> }
+        }
+      }
+
+      expect(summary.ok).toBe(true)
+      expect(summary.verification?.ok).toBe(true)
+      expect(summary.install?.platforms).toEqual(['codex'])
+      expect(summary.install?.verification?.ok).toBe(true)
+      expect(summary.install?.verification?.checks).toEqual([
+        expect.objectContaining({ platform: 'codex', ok: true }),
+      ])
+      expect(summary.install?.installTargets[0].consumerPath).toBe(resolve(homeDir, '.codex/plugins/stub-server'))
+      expect(existsSync(resolve(homeDir, '.codex/plugins/stub-server/.codex-plugin/plugin.json'))).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects autopilot install when verification is disabled', async () => {
+    const { dir, statePath, stubServerPath } = createStubServerFixture()
+
+    try {
+      const proc = spawnCli([
+        'autopilot',
+        '--from-mcp',
+        `bun ${stubServerPath} ${statePath}`,
+        '--runner',
+        'codex',
+        '--name',
+        'stub-server',
+        '--display-name',
+        'Stub Server',
+        '--author',
+        'Test Author',
+        '--install',
+        '--no-verify',
+      ], dir)
+
+      const stdout = await new Response(proc.stdout).text()
+      const stderr = await new Response(proc.stderr).text()
+      const exitCode = await proc.exited
+
+      expect(exitCode).toBe(1)
+      expect(stdout).toBe('')
+      expect(stderr).toContain('--install requires verification')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects autopilot install for hook-bearing scaffolds unless trusted', async () => {
+    const { dir, statePath, stubServerPath } = createStubServerFixture()
+    const homeDir = resolve(dir, 'home')
+
+    mkdirSync(homeDir, { recursive: true })
+
+    try {
+      const proc = spawnCli([
+        'autopilot',
+        '--from-mcp',
+        `bun ${stubServerPath} ${statePath}`,
+        '--runner',
+        'codex',
+        '--name',
+        'stub-server',
+        '--display-name',
+        'Stub Server',
+        '--author',
+        'Test Author',
+        '--hooks',
+        'safe',
+        '--auth-env',
+        'STUB_API_KEY',
+        '--install',
+        '--install-target',
+        'codex',
+      ], dir, {
+        HOME: homeDir,
+        STUB_API_KEY: 'real_key',
+      })
+
+      const stdout = await new Response(proc.stdout).text()
+      const stderr = await new Response(proc.stderr).text()
+      const exitCode = await proc.exited
+
+      expect(exitCode).toBe(1)
+      expect(stdout).toBe('')
+      expect(stderr).toContain('Refusing to install plugin with hooks in non-interactive mode')
+      expect(stderr).toContain('--trust')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects behavioral autopilot smoke without install', async () => {
+    const { dir, statePath, stubServerPath } = createStubServerFixture()
+
+    try {
+      const proc = spawnCli([
+        'autopilot',
+        '--from-mcp',
+        `bun ${stubServerPath} ${statePath}`,
+        '--runner',
+        'codex',
+        '--name',
+        'stub-server',
+        '--display-name',
+        'Stub Server',
+        '--author',
+        'Test Author',
+        '--behavioral',
+        '--behavioral-prompt',
+        'Use Stub Server to find organizations',
+      ], dir)
+
+      const stdout = await new Response(proc.stdout).text()
+      const stderr = await new Response(proc.stderr).text()
+      const exitCode = await proc.exited
+
+      expect(exitCode).toBe(1)
+      expect(stdout).toBe('')
+      expect(stderr).toContain('--behavioral requires --install')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('keeps instructions and review packs aligned with taxonomy changes during autopilot runs', async () => {
     const { dir, statePath, stubServerPath } = createStubServerFixture()
     const binDir = resolve(dir, '.bin')

@@ -129,8 +129,10 @@ export async function resolveInstallUserConfig(
   for (const entry of planned) {
     if (entry.value !== undefined) {
       if (entry.field.type === 'secret' && isPlaceholderSecretValue(entry.value)) {
-        const hint = entry.envVar ? ` Replace ${entry.envVar} with a real secret value before installing.` : ' Provide a real secret value before installing.'
-        throw new Error(`Refusing to install placeholder secret for userConfig "${entry.field.key}".${hint}`)
+        const hint = entry.envVar
+          ? ` Export a real value first: export ${entry.envVar}='your_real_key'. Then rerun pluxx install.`
+          : ' Provide a real secret value before installing.'
+        throw new Error(`Refusing to install placeholder secret for userConfig "${entry.field.key}". Placeholder values like "dummy" are not usable by installed MCP servers.${hint}`)
       }
       resolved.push({
         field: entry.field,
@@ -145,8 +147,10 @@ export async function resolveInstallUserConfig(
     }
 
     if (!isTTY) {
-      const hint = entry.envVar ? ` Export ${entry.envVar} or install interactively.` : ' Re-run interactively to provide it.'
-      throw new Error(`Missing required userConfig "${entry.field.key}".${hint}`)
+      const hint = entry.envVar
+        ? ` Export it before installing: export ${entry.envVar}='your_real_key'. Then rerun pluxx install.`
+        : ' Re-run interactively to provide it.'
+      throw new Error(`Missing required userConfig "${entry.field.key}". Installed plugins cannot prompt for this value later in every host UI.${hint}`)
     }
 
     const promptLabel = entry.field.title || entry.field.key
@@ -242,7 +246,7 @@ export async function ensureHookTrust(options: EnsureHookTrustOptions): Promise<
   const isTTY = options.isTTY ?? process.stdin.isTTY === true
   if (!isTTY) {
     throw new Error(
-      `Refusing to install plugin with hooks in non-interactive mode. Re-run with --trust to continue.`
+      `Refusing to install plugin with local hook commands in non-interactive mode. Review the hook commands above. Re-run with --trust if you trust this plugin author.`
     )
   }
 
@@ -996,7 +1000,11 @@ export async function installPlugin(
   if (installed === 0 && !options.quiet) {
     console.log('Nothing to install. Run `pluxx build` first.')
   } else if (!options.quiet) {
-    console.log(`\nInstalled ${installed} plugin(s). Reload or restart your tools to pick them up.`)
+    console.log(`\nInstalled ${installed} plugin(s).`)
+    console.log('Next checks:')
+    console.log(`  1. Run: pluxx verify-install --target ${filtered.map((target) => target.platform).join(',')}`)
+    console.log('  2. Open the host plugin screen and confirm the plugin appears there.')
+    console.log('  3. Reload or restart the host if it was already open.')
     for (const note of getInstallFollowupNotes(filtered.map((target) => target.platform))) {
       console.log(note)
     }

@@ -77,6 +77,48 @@ This doc uses the shorter `pluxx` form.
 
 ## The Real Order
 
+For the fastest first proof, run the one-shot path:
+
+```bash
+pluxx autopilot \
+  --from-mcp https://mcp.northstar-support.example/mcp \
+  --runner codex \
+  --mode standard \
+  --install \
+  --install-target codex \
+  --trust
+```
+
+For an authenticated MCP:
+
+```bash
+export NORTHSTAR_API_KEY='your_real_key'
+
+pluxx autopilot \
+  --from-mcp https://staging-mcp.northstar-support.example/mcp \
+  --runner codex \
+  --mode standard \
+  --auth-env NORTHSTAR_API_KEY \
+  --auth-type bearer \
+  --install \
+  --install-target codex \
+  --trust
+```
+
+That command is the 10-minute path: import the MCP, refine the scaffold when needed, build, install Codex, and verify that Codex can see the installed bundle.
+
+The command should not end at `dist/`. A successful onboarding run should tell you:
+
+- the source project was generated or refined
+- `pluxx test` passed
+- the selected host bundle was installed
+- `verify-install` passed
+- what to reload or open next in the selected host
+
+If auth is required, export the real key first. Do not use placeholder values like `dummy`; Pluxx rejects those during install so you do not end up with a plugin-owned MCP that appears installed but cannot authenticate inside the host.
+
+The manual lifecycle is still:
+
 ```text
 have a raw MCP
     ->
@@ -107,6 +149,7 @@ That order is the product story in miniature:
 
 - `init --from-mcp` creates the maintained source project
 - `doctor` and `lint` tell you whether the source project is healthy and honest across hosts
+- workflow grouping keeps command surfaces smaller than raw MCP tool lists; singleton raw tools stay as skills unless they deserve user-facing command entrypoints
 - `build` compiles host-native outputs
 - `install` and `verify-install` prove the output is real in an actual host
 - `sync` keeps the source project current later without resetting curated work

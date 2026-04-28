@@ -123,6 +123,40 @@ describe('eval command', () => {
     expect(report.checks.some((check) => check.code === 'command-quality-contract' && check.level === 'success')).toBe(true)
   })
 
+  it('warns when a scaffold is shaped like one command per raw tool', async () => {
+    await writeMcpScaffold({
+      rootDir: TEST_DIR,
+      pluginName: 'raw-tools',
+      authorName: 'Test Author',
+      displayName: 'Raw Tools',
+      targets: ['codex'],
+      source: {
+        transport: 'http',
+        url: 'https://raw-tools.example.com/mcp',
+      },
+      introspection: {
+        ...introspection,
+        resources: [],
+        resourceTemplates: [],
+        prompts: [],
+        tools: [
+          { name: 'alpha_lookup', description: 'Lookup alpha data.', inputSchema: { type: 'object', properties: {} } },
+          { name: 'beta_lookup', description: 'Lookup beta data.', inputSchema: { type: 'object', properties: {} } },
+          { name: 'gamma_lookup', description: 'Lookup gamma data.', inputSchema: { type: 'object', properties: {} } },
+          { name: 'delta_lookup', description: 'Lookup delta data.', inputSchema: { type: 'object', properties: {} } },
+        ],
+      },
+      skillGrouping: 'tool',
+      hookMode: 'none',
+    })
+
+    const report = await runEvalSuite({ rootDir: TEST_DIR })
+
+    expect(report.ok).toBe(true)
+    expect(report.checks.some((check) => check.code === 'scaffold-command-per-tool-shape' && check.level === 'warning')).toBe(true)
+    expect(report.checks.some((check) => check.code === 'scaffold-singleton-heavy-taxonomy' && check.level === 'warning')).toBe(false)
+  })
+
   it('fails when a generated skill loses required related prompt guidance', async () => {
     const skillPath = resolve(TEST_DIR, 'skills/account-research/SKILL.md')
     const mutated = readFileSync(skillPath, 'utf-8').replace('## Related Prompt Templates', '## Prompt Templates')

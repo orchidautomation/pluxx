@@ -200,6 +200,14 @@ function hasManagedCommands(metadata: McpScaffoldMetadata): boolean {
   return metadata.managedFiles.some((file) => file.startsWith('commands/'))
 }
 
+function managedCommandSkillNames(metadata: McpScaffoldMetadata): Set<string> {
+  return new Set(
+    metadata.managedFiles
+      .filter((file) => file.startsWith('commands/') && file.endsWith('.md'))
+      .map((file) => file.replace(/^commands\//, '').replace(/\.md$/, '')),
+  )
+}
+
 function evaluateCommands(rootDir: string, metadata: McpScaffoldMetadata, checks: EvalCheck[]): void {
   if (!hasManagedCommands(metadata)) {
     addCheck(checks, {
@@ -213,8 +221,9 @@ function evaluateCommands(rootDir: string, metadata: McpScaffoldMetadata, checks
   }
 
   const failures: Array<{ path: string, missing: string[] }> = []
+  const commandSkillNames = managedCommandSkillNames(metadata)
 
-  for (const skill of metadata.skills) {
+  for (const skill of metadata.skills.filter((entry) => commandSkillNames.has(entry.dirName))) {
     const relativePath = `commands/${skill.dirName}.md`
     const filePath = resolve(rootDir, relativePath)
 
@@ -269,9 +278,40 @@ function evaluateCommands(rootDir: string, metadata: McpScaffoldMetadata, checks
     level: 'success',
     code: 'command-quality-contract',
     title: 'Command scaffolds expose expected routing guidance and related surfaces',
-    detail: `Checked ${metadata.skills.length} generated command file(s) for argument hints, tool routing, and related discovery surfaces.`,
+    detail: `Checked ${commandSkillNames.size} generated command file(s) for argument hints, tool routing, and related discovery surfaces.`,
     fix: 'No action needed.',
   })
+}
+
+function evaluateScaffoldArchitecture(metadata: McpScaffoldMetadata, checks: EvalCheck[]): void {
+  const commandSkillNames = managedCommandSkillNames(metadata)
+  if (metadata.tools.length === 0 || commandSkillNames.size === 0) return
+
+  const singletonSkills = metadata.skills.filter((skill) => (skill.toolNames?.length ?? 0) === 1)
+  const commandBackedSingletons = singletonSkills.filter((skill) => commandSkillNames.has(skill.dirName))
+  const commandPerTool = commandSkillNames.size >= metadata.tools.length
+    && commandBackedSingletons.length >= Math.ceil(commandSkillNames.size * 0.8)
+
+  if (commandPerTool) {
+    addCheck(checks, {
+      level: 'warning',
+      code: 'scaffold-command-per-tool-shape',
+      title: 'Scaffold looks like command-per-tool output',
+      detail: `This scaffold exposes ${commandSkillNames.size} command(s) for ${metadata.tools.length} MCP tool(s), with most commands wrapping a single tool.`,
+      fix: 'Prefer workflow-level commands and keep singleton raw tool wrappers as skills only unless the tool has a strong user-facing workflow or required arguments.',
+    })
+  }
+
+  const singletonRatio = singletonSkills.length / Math.max(metadata.skills.length, 1)
+  if (metadata.skills.length >= 6 && singletonRatio >= 0.75) {
+    addCheck(checks, {
+      level: 'warning',
+      code: 'scaffold-singleton-heavy-taxonomy',
+      title: 'Scaffold taxonomy is singleton-heavy',
+      detail: `${singletonSkills.length} of ${metadata.skills.length} skill(s) wrap a single MCP tool, which usually means the plugin is still shaped like an API surface rather than user workflows.`,
+      fix: 'Run `pluxx agent run taxonomy` or `pluxx autopilot --mode standard` to merge raw tools into product workflows before shipping.',
+    })
+  }
 }
 
 function evaluateAgentContext(contextContent: string, metadata: McpScaffoldMetadata, checks: EvalCheck[]): void {
@@ -435,6 +475,7 @@ export async function runEvalSuite(options: EvalRunOptions = {}): Promise<EvalRe
       evaluateInstructions(rootDir, metadata, checks)
       evaluateSkills(rootDir, metadata, checks)
       evaluateCommands(rootDir, metadata, checks)
+      evaluateScaffoldArchitecture(metadata, checks)
     }
 
     evaluateAgentContext(contextContent, metadata, checks)

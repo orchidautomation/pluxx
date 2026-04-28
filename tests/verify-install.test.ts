@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { mkdirSync, rmSync, symlinkSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
 import { installPlugin } from '../src/cli/install'
-import { verifyInstall } from '../src/cli/verify-install'
+import { printVerifyInstallResult, verifyInstall } from '../src/cli/verify-install'
 import type { PluginConfig } from '../src/schema'
 
 const ROOT = resolve(import.meta.dir, '.verify-install-fixture')
@@ -167,5 +167,35 @@ describe('verifyInstall', () => {
     })
     expect(result.checks[0].staleReason).toContain('Codex active cache appears stale')
     expect(result.checks[0].errors).toBeGreaterThan(0)
+  })
+
+  it('prints concrete recovery actions for failed verification', async () => {
+    mkdirSync(resolve(DIST_DIR, 'codex/.codex-plugin'), { recursive: true })
+    writeFileSync(
+      resolve(DIST_DIR, 'codex/.codex-plugin/plugin.json'),
+      JSON.stringify({
+        name: 'verify-plugin',
+        version: '0.1.0',
+      }),
+    )
+
+    const result = await verifyInstall(makeConfig(), {
+      rootDir: ROOT,
+      targets: ['codex'],
+    })
+    const logs: string[] = []
+    const originalLog = console.log
+    console.log = (message?: unknown) => {
+      logs.push(String(message ?? ''))
+    }
+
+    try {
+      printVerifyInstallResult(result)
+    } finally {
+      console.log = originalLog
+    }
+
+    expect(logs.join('\n')).toContain('fix: run pluxx install --target codex')
+    expect(logs.join('\n')).toContain('pluxx verify-install failed.')
   })
 })
