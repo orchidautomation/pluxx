@@ -1393,12 +1393,45 @@ describe('lintProject', () => {
 
     const result = await lintProject(projectDir)
     expect(result.issues.some(issue => issue.code === 'claude-prompt-hook-degrade')).toBe(true)
-    expect(result.issues.some(issue => issue.code === 'codex-prompt-hook-drop')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'codex-prompt-hook-drop')).toBe(false)
     expect(result.issues.some(issue => issue.code === 'opencode-prompt-hook-drop')).toBe(true)
     expect(result.issues.some(issue => issue.code === 'claude-hook-failclosed-degrade')).toBe(true)
     expect(result.issues.some(issue => issue.code === 'codex-hook-loop-limit-drop')).toBe(true)
     expect(result.issues.some(issue => issue.code === 'opencode-hook-loop-limit-drop')).toBe(true)
     expect(result.issues.some(issue => issue.code === 'codex-skill-frontmatter-translation')).toBe(true)
     expect(result.issues.some(issue => issue.code === 'opencode-skill-frontmatter-translation')).toBe(true)
+  })
+
+  it('warns when Codex prompt hooks target unsupported events', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/prompt-skill'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'codex-prompt-fixture',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        hooks: {
+          sessionStart: [
+            {
+              type: 'prompt',
+              prompt: 'Say hello before the session starts.',
+            },
+          ],
+        },
+        targets: ['codex'],
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/prompt-skill/SKILL.md'),
+      ['---', 'name: prompt-skill', 'description: "A skill"', '---', '', '# Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'codex-prompt-hook-drop')).toBe(true)
   })
 })

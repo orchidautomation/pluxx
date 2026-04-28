@@ -7,6 +7,7 @@ import { getConfiguredCompilerBuckets, type McpServer, type PluginConfig, type T
 import { PLUXX_COMPILER_INTENT_PATH, readCompilerIntent } from '../compiler-intent'
 import { MCP_SCAFFOLD_METADATA_PATH, type McpScaffoldMetadata } from './init-from-mcp'
 import { buildPrimitiveTranslationSummary, renderPrimitiveTranslationSummary, type PrimitiveTranslationSummary } from './primitive-summary'
+import { mapHookEventToPascalCase } from '../hook-events'
 
 export type DoctorLevel = 'error' | 'warning' | 'info' | 'success'
 
@@ -441,6 +442,53 @@ function checkHookTrust(checks: DoctorCheck[], config: PluginConfig): void {
     fix: 'Review the commands carefully. Users will need to opt in with pluxx install --trust.',
     path: 'pluxx.config.ts',
   })
+}
+
+function checkCodexTranslationGuidance(checks: DoctorCheck[], config: PluginConfig): void {
+  if (!config.targets.includes('codex')) return
+
+  if (config.permissions) {
+    addCheck(checks, {
+      level: 'info',
+      code: 'codex-permissions-guidance',
+      title: 'Codex permission policy remains external',
+      detail: 'Codex permission enforcement still lives outside the plugin bundle. Pluxx will generate .codex/permissions.generated.json with a suggested sandbox_mode and approval_policy template so the mapping is reviewable before install.',
+      fix: 'After build, review .codex/permissions.generated.json and mirror the suggested policy into project or user Codex config as needed.',
+      path: 'pluxx.config.ts',
+    })
+  }
+
+  const promptEvents = Object.entries(config.hooks ?? {})
+    .filter(([, entries]) => (entries ?? []).some((entry) => entry.type === 'prompt'))
+    .map(([event]) => event)
+  if (promptEvents.length === 0) return
+
+  const portableEvents = promptEvents.filter((event) => mapHookEventToPascalCase(event) === 'UserPromptSubmit')
+  const droppedEvents = promptEvents.filter((event) => mapHookEventToPascalCase(event) !== 'UserPromptSubmit')
+
+  if (portableEvents.length > 0) {
+    addCheck(checks, {
+      level: 'info',
+      code: 'codex-prompt-hook-translation',
+      title: 'Codex prompt-hook translation is partial',
+      detail: `Pluxx can translate prompt hooks on ${portableEvents.join(', ')} into Codex UserPromptSubmit developer-context hooks, but other prompt-hook events still do not have a truthful Codex output.`,
+      fix: droppedEvents.length > 0
+        ? `Keep non-UserPromptSubmit prompt hooks host-specific or remodel them as command hooks for Codex (${droppedEvents.join(', ')} will still drop).`
+        : 'Verify the generated .codex/hooks.generated.json mirror if this prompt context is critical.',
+      path: 'pluxx.config.ts',
+    })
+  }
+
+  if (portableEvents.length === 0 && droppedEvents.length > 0) {
+    addCheck(checks, {
+      level: 'warning',
+      code: 'codex-prompt-hook-drop',
+      title: 'Codex prompt-hook coverage is incomplete',
+      detail: `Prompt hooks on ${droppedEvents.join(', ')} do not currently have a truthful Codex translation.`,
+      fix: 'Keep those prompt hooks host-specific or remodel them as command hooks for Codex.',
+      path: 'pluxx.config.ts',
+    })
+  }
 }
 
 function isSafeManagedPath(path: string): boolean {
@@ -1235,6 +1283,7 @@ export async function doctorProject(rootDir: string = process.cwd()): Promise<Do
   checkScaffoldMetadata(checks, rootDir, config)
   checkCompilerIntent(checks, rootDir)
   checkHookTrust(checks, config)
+  checkCodexTranslationGuidance(checks, config)
 
   for (const target of config.targets) {
     const limits = PLATFORM_LIMITS[target]
