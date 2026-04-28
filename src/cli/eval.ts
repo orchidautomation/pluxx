@@ -246,6 +246,17 @@ function evaluateCommands(rootDir: string, metadata: McpScaffoldMetadata, checks
       })
     }
 
+    if ((skill.promptNames?.length ?? 0) > 0 && content.includes('argument-hint: [request]')) {
+      addCheck(checks, {
+        level: 'warning',
+        code: 'command-generic-prompt-arguments',
+        title: 'Prompt-backed command still uses a generic argument hint',
+        detail: `${relativePath} has related prompt templates but still advertises the generic \`[request]\` argument hint.`,
+        fix: 'Derive argument hints from prompt-template arguments or refine the scaffold so the command exposes the intended workflow parameters.',
+        path: relativePath,
+      })
+    }
+
     if (missing.length > 0) {
       failures.push({ path: relativePath, missing })
     }

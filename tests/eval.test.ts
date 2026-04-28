@@ -134,6 +134,17 @@ describe('eval command', () => {
     expect(report.checks.some((check) => check.code === 'skill-quality-contract' && check.path === 'skills/account-research/SKILL.md')).toBe(true)
   })
 
+  it('warns when a prompt-backed command falls back to a generic argument hint', async () => {
+    const commandPath = resolve(TEST_DIR, 'commands/account-research.md')
+    const mutated = readFileSync(commandPath, 'utf-8').replace('argument-hint: [company]', 'argument-hint: [request]')
+    writeFileSync(commandPath, mutated)
+
+    const report = await runEvalSuite({ rootDir: TEST_DIR })
+
+    expect(report.ok).toBe(true)
+    expect(report.checks.some((check) => check.code === 'command-generic-prompt-arguments' && check.level === 'warning')).toBe(true)
+  })
+
   it('causes pluxx test to fail when eval errors are present', async () => {
     const skillPath = resolve(TEST_DIR, 'skills/account-research/SKILL.md')
     const mutated = readFileSync(skillPath, 'utf-8').replace('## Related Prompt Templates', '## Prompt Templates')

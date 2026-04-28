@@ -212,6 +212,90 @@ describe('init-from-mcp scaffold', () => {
     expect(skills.every((skill) => skill.tools.length === 1)).toBe(true)
   })
 
+  it('promotes prompt-defined workflows when a generic MCP exposes richer prompt templates', () => {
+    const genericResearchTools: IntrospectedMcpServer['tools'] = [
+      {
+        name: 'web_search_exa',
+        description: 'Search the web for relevant sources.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            query: { type: 'string' },
+          },
+          required: ['query'],
+        },
+      },
+      {
+        name: 'web_fetch_exa',
+        description: 'Fetch a page by URL.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            url: { type: 'string' },
+          },
+          required: ['url'],
+        },
+      },
+      {
+        name: 'web_search_advanced_exa',
+        description: 'Run a more advanced web query.',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            query: { type: 'string' },
+          },
+          required: ['query'],
+        },
+      },
+    ]
+
+    const promptDefinedSkills = planSkillScaffolds(
+      genericResearchTools,
+      'workflow',
+      [],
+      [],
+      [
+        {
+          name: 'deep-research',
+          description: 'Run deep research across multiple sources and return a synthesized brief.',
+          arguments: [
+            { name: 'query', required: true },
+          ],
+        },
+        {
+          name: 'company-research',
+          description: 'Research a target company and summarize the most decision-useful findings.',
+          arguments: [
+            { name: 'company_name', required: true },
+          ],
+        },
+        {
+          name: 'news-brief',
+          description: 'Create a short news brief on a company or topic.',
+          arguments: [
+            { name: 'topic', required: true },
+          ],
+        },
+      ],
+    )
+
+    expect(promptDefinedSkills.map((skill) => skill.dirName)).toEqual([
+      'deep-research',
+      'company-research',
+      'news-brief',
+    ])
+    expect(promptDefinedSkills[0].tools.map((tool) => tool.name)).toEqual([
+      'web_search_advanced_exa',
+      'web_search_exa',
+    ])
+    expect(promptDefinedSkills[1].tools.map((tool) => tool.name)).toEqual([
+      'web_fetch_exa',
+      'web_search_advanced_exa',
+      'web_search_exa',
+    ])
+    expect(promptDefinedSkills[0].prompts.map((prompt) => prompt.name)).toEqual(['deep-research'])
+  })
+
   it('avoids weak lexical workflow buckets for admin and activity-heavy MCP tools', () => {
     const skills = planSkillScaffolds([
       {
@@ -377,8 +461,8 @@ describe('init-from-mcp scaffold', () => {
     expect(organizationSkill).toContain('"Find organizations matching <query>."')
     expect(organizationSkill.startsWith('---\n')).toBe(true)
     expect(organizationSkill).toContain('\n<!-- pluxx:generated:start -->\n# Find Organizations')
-    expect(organizationCommand).toContain('argument-hint: [query]')
-    expect(organizationCommand).toContain('Use this command when the user asks to search organizations by company attributes and signals.')
+    expect(organizationCommand).toContain('argument-hint: [company]')
+    expect(organizationCommand).toContain('Use this command when the user asks to qualify a target account before outreach.')
     expect(organizationCommand).toContain('Primary tools:')
     expect(organizationCommand).toContain('Related resources:')
     expect(organizationCommand).toContain('`organization-resource`')
@@ -764,6 +848,73 @@ describe('init-from-mcp scaffold', () => {
     expect(createInboxSkill).toContain('"Create a new inbox with <name>."')
     expect(findSendMessageSkill).toContain('"Find messages using <inboxId>."')
     expect(findSendMessageSkill).not.toContain('"Find send message using <inboxId>."')
+  })
+
+  it('uses prompt templates to seed stronger command arguments and example requests', async () => {
+    await writeMcpScaffold({
+      rootDir: TEST_DIR,
+      pluginName: 'exa-research',
+      authorName: 'Exa',
+      displayName: 'Exa Research',
+      skillGrouping: 'workflow',
+      hookMode: 'none',
+      targets: ['codex'],
+      source: {
+        transport: 'http',
+        url: 'https://mcp.exa.ai/mcp',
+      },
+      introspection: {
+        ...introspection,
+        tools: [
+          {
+            name: 'web_search_exa',
+            description: 'Search the web for relevant sources.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                query: { type: 'string' },
+              },
+              required: ['query'],
+            },
+          },
+          {
+            name: 'web_fetch_exa',
+            description: 'Fetch a page by URL.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                url: { type: 'string' },
+              },
+              required: ['url'],
+            },
+          },
+        ],
+        prompts: [
+          {
+            name: 'deep-research',
+            description: 'Run deep research across multiple sources and return a synthesized brief.',
+            arguments: [
+              { name: 'query', required: true },
+            ],
+          },
+          {
+            name: 'company-research',
+            description: 'Research a target company and summarize the most decision-useful findings.',
+            arguments: [
+              { name: 'company_name', required: true },
+            ],
+          },
+        ],
+      },
+    })
+
+    const deepResearchCommand = readFileSync(resolve(TEST_DIR, 'commands/deep-research.md'), 'utf-8')
+    const companyResearchSkill = readFileSync(resolve(TEST_DIR, 'skills/company-research/SKILL.md'), 'utf-8')
+
+    expect(deepResearchCommand).toContain('argument-hint: [query]')
+    expect(deepResearchCommand).toContain('Use this command when the user asks to run deep research across multiple sources and return a synthesized brief.')
+    expect(companyResearchSkill).toContain('"Research a target company and summarize the most decision-useful findings for <company_name>."')
+    expect(companyResearchSkill).toContain('## Related Prompt Templates')
   })
 
   it('generates mutation confirmation hooks when safe mode detects mutating tools', async () => {

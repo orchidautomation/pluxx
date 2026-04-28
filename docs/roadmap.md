@@ -141,6 +141,7 @@ The current status is stronger than a pure scaffold:
 - the Exa example also sharpened the import-quality question:
   - a raw import or migration can already get to a credible starting point
   - the next product leverage is making that first pass recover more of the final workflow architecture and packaging quality automatically
+  - deterministic scaffold generation now recovers more of that shape when prompt templates expose stronger workflow entrypoints than the raw tool inventory alone
 - the next proof steps are capturing at least one polished in-app walkthrough beyond Codex, then running a real authenticated publish plus rollback against a safe private target
 
 This is the strongest next proof surface for:
