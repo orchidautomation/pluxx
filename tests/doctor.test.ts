@@ -61,12 +61,14 @@ function createProjectFixture(): string {
 function createConsumerFixture(): string {
   const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-consumer-'))
   mkdirSync(resolve(dir, '.cursor-plugin'), { recursive: true })
+  mkdirSync(resolve(dir, 'skills/hello'), { recursive: true })
   mkdirSync(resolve(dir, 'scripts'), { recursive: true })
   writeFileSync(
     resolve(dir, '.cursor-plugin/plugin.json'),
     JSON.stringify({
       name: 'consumer-fixture',
       version: '0.1.0',
+      skills: './skills/',
       mcpServers: './mcp.json',
     }, null, 2),
   )
@@ -96,15 +98,58 @@ function createConsumerFixture(): string {
     }, null, 2),
   )
   writeFileSync(
+    resolve(dir, 'skills/hello/SKILL.md'),
+    '# Hello\n',
+  )
+  writeFileSync(
     resolve(dir, 'scripts/check-env.sh'),
     '#!/usr/bin/env bash\nset -euo pipefail\n# pluxx install materialized required config for this local plugin install.\nexit 0\n',
   )
   return dir
 }
 
+function createBrokenClaudeConsumerFixture(): string {
+  const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-claude-consumer-'))
+  mkdirSync(resolve(dir, '.claude-plugin'), { recursive: true })
+  mkdirSync(resolve(dir, 'skills/research'), { recursive: true })
+  mkdirSync(resolve(dir, 'hooks'), { recursive: true })
+
+  writeFileSync(
+    resolve(dir, '.claude-plugin/plugin.json'),
+    JSON.stringify({
+      name: 'claude-consumer-fixture',
+      version: '0.1.0',
+      commands: './commands/',
+      skills: './skills/',
+      hooks: './hooks/hooks.json',
+    }, null, 2),
+  )
+  writeFileSync(resolve(dir, 'skills/research/SKILL.md'), '# Research\n')
+  writeFileSync(
+    resolve(dir, 'hooks/hooks.json'),
+    JSON.stringify({
+      hooks: {
+        SessionStart: [
+          {
+            hooks: [
+              {
+                type: 'command',
+                command: 'bash "${CLAUDE_PLUGIN_ROOT}/scripts/session-start.sh"',
+              },
+            ],
+          },
+        ],
+      },
+    }, null, 2),
+  )
+
+  return dir
+}
+
 function createCodexConsumerFixture(options: { includeRuntime?: boolean } = {}): string {
   const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-codex-consumer-'))
   mkdirSync(resolve(dir, '.codex-plugin'), { recursive: true })
+  mkdirSync(resolve(dir, 'skills/hello'), { recursive: true })
   if (options.includeRuntime) {
     mkdirSync(resolve(dir, 'mcp-server/dist'), { recursive: true })
     writeFileSync(resolve(dir, 'mcp-server/dist/index.js'), 'console.log("runtime")\n')
@@ -135,6 +180,7 @@ function createCodexConsumerFixture(options: { includeRuntime?: boolean } = {}):
       },
     }, null, 2),
   )
+  writeFileSync(resolve(dir, 'skills/hello/SKILL.md'), '# Hello\n')
   return dir
 }
 
@@ -404,6 +450,7 @@ describe('doctorConsumer', () => {
       expect(report.ok).toBe(true)
       expect(report.checks.some((check) => check.code === 'consumer-platform-detected' && check.level === 'success')).toBe(true)
       expect(report.checks.some((check) => check.code === 'consumer-manifest-valid' && check.level === 'success')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-bundle-integrity-valid' && check.level === 'success')).toBe(true)
       expect(report.checks.some((check) => check.code === 'consumer-user-config-valid' && check.level === 'success')).toBe(true)
       expect(report.checks.some((check) => check.code === 'consumer-env-script-materialized' && check.level === 'success')).toBe(true)
       expect(report.checks.some((check) => check.code === 'consumer-mcp-inline-auth' && check.level === 'success')).toBe(true)
@@ -443,6 +490,18 @@ describe('doctorConsumer', () => {
       const report = await doctorConsumer(dir)
       expect(report.ok).toBe(false)
       expect(report.checks.some((check) => check.code === 'consumer-source-project' && check.level === 'error')).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('fails when an installed Claude bundle is missing manifest or hook-referenced files', async () => {
+    const dir = createBrokenClaudeConsumerFixture()
+
+    try {
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(false)
+      expect(report.checks.some((check) => check.code === 'consumer-bundle-integrity-invalid' && check.level === 'error')).toBe(true)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

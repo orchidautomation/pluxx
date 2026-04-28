@@ -204,6 +204,9 @@ describe('install', () => {
 
   it('uses Claude native install flow via a generated local marketplace', async () => {
     mkdirSync(resolve(DIST_DIR, 'claude-code/.claude-plugin'), { recursive: true })
+    mkdirSync(resolve(DIST_DIR, 'claude-code/commands'), { recursive: true })
+    mkdirSync(resolve(DIST_DIR, 'claude-code/skills/research'), { recursive: true })
+    mkdirSync(resolve(DIST_DIR, 'claude-code/scripts'), { recursive: true })
     await Bun.write(
       resolve(DIST_DIR, 'claude-code/.claude-plugin/plugin.json'),
       JSON.stringify({
@@ -212,6 +215,29 @@ describe('install', () => {
         description: 'Megamind plugin',
         author: { name: 'Test Author' },
         license: 'MIT',
+        commands: './commands/',
+        skills: './skills/',
+        hooks: './hooks/hooks.json',
+      }),
+    )
+    await Bun.write(resolve(DIST_DIR, 'claude-code/commands/pulse.md'), '# pulse\n')
+    await Bun.write(resolve(DIST_DIR, 'claude-code/skills/research/SKILL.md'), '# Research\n')
+    await Bun.write(resolve(DIST_DIR, 'claude-code/scripts/session-start.sh'), '#!/usr/bin/env bash\nexit 0\n')
+    await Bun.write(
+      resolve(DIST_DIR, 'claude-code/hooks/hooks.json'),
+      JSON.stringify({
+        hooks: {
+          SessionStart: [
+            {
+              hooks: [
+                {
+                  type: 'command',
+                  command: 'bash "${CLAUDE_PLUGIN_ROOT}/scripts/session-start.sh"',
+                },
+              ],
+            },
+          ],
+        },
       }),
     )
 
@@ -229,7 +255,10 @@ describe('install', () => {
     const marketplaceRoot = resolve(HOME_DIR, '.claude/plugins/data/pluxx-local-megamind')
     const marketplaceManifest = resolve(marketplaceRoot, '.claude-plugin/marketplace.json')
     expect(existsSync(marketplaceManifest)).toBe(true)
-    expect(lstatSync(resolve(marketplaceRoot, 'plugins/megamind')).isSymbolicLink()).toBe(true)
+    expect(lstatSync(resolve(marketplaceRoot, 'plugins/megamind')).isSymbolicLink()).toBe(false)
+    expect(existsSync(resolve(marketplaceRoot, 'plugins/megamind/commands/pulse.md'))).toBe(true)
+    expect(existsSync(resolve(marketplaceRoot, 'plugins/megamind/skills/research/SKILL.md'))).toBe(true)
+    expect(existsSync(resolve(marketplaceRoot, 'plugins/megamind/scripts/session-start.sh'))).toBe(true)
 
     expect(calls).toEqual([
       { command: 'claude', args: ['plugin', 'marketplace', 'list', '--json'] },

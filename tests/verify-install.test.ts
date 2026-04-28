@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
-import { mkdirSync, rmSync, symlinkSync, writeFileSync } from 'fs'
+import { cpSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
 import { installPlugin } from '../src/cli/install'
 import { printVerifyInstallResult, verifyInstall } from '../src/cli/verify-install'
@@ -19,6 +19,19 @@ function makeConfig(): PluginConfig {
     skills: './skills/',
     instructions: './INSTRUCTIONS.md',
     targets: ['codex'],
+    outDir: './dist',
+  }
+}
+
+function makeClaudeConfig(): PluginConfig {
+  return {
+    name: 'verify-plugin',
+    version: '0.1.0',
+    description: 'A verify test plugin',
+    author: { name: 'Test Author' },
+    license: 'MIT',
+    skills: './skills/',
+    targets: ['claude-code'],
     outDir: './dist',
   }
 }
@@ -197,5 +210,69 @@ describe('verifyInstall', () => {
 
     expect(logs.join('\n')).toContain('fix: run pluxx install --target codex')
     expect(logs.join('\n')).toContain('pluxx verify-install failed.')
+  })
+
+  it('checks the actual Claude install path instead of the local marketplace staging bundle', async () => {
+    mkdirSync(resolve(DIST_DIR, 'claude-code/.claude-plugin'), { recursive: true })
+    mkdirSync(resolve(DIST_DIR, 'claude-code/commands'), { recursive: true })
+    mkdirSync(resolve(DIST_DIR, 'claude-code/skills/research'), { recursive: true })
+    mkdirSync(resolve(DIST_DIR, 'claude-code/scripts'), { recursive: true })
+    mkdirSync(resolve(DIST_DIR, 'claude-code/hooks'), { recursive: true })
+
+    writeFileSync(
+      resolve(DIST_DIR, 'claude-code/.claude-plugin/plugin.json'),
+      JSON.stringify({
+        name: 'verify-plugin',
+        version: '0.1.0',
+        commands: './commands/',
+        skills: './skills/',
+        hooks: './hooks/hooks.json',
+      }),
+    )
+    writeFileSync(resolve(DIST_DIR, 'claude-code/commands/pulse.md'), '# pulse\n')
+    writeFileSync(resolve(DIST_DIR, 'claude-code/skills/research/SKILL.md'), '# Research\n')
+    writeFileSync(resolve(DIST_DIR, 'claude-code/scripts/session-start.sh'), '#!/usr/bin/env bash\nexit 0\n')
+    writeFileSync(
+      resolve(DIST_DIR, 'claude-code/hooks/hooks.json'),
+      JSON.stringify({
+        hooks: {
+          SessionStart: [
+            {
+              hooks: [
+                {
+                  type: 'command',
+                  command: 'bash "${CLAUDE_PLUGIN_ROOT}/scripts/session-start.sh"',
+                },
+              ],
+            },
+          ],
+        },
+      }),
+    )
+
+    const marketplaceBundle = resolve(HOME_DIR, '.claude/plugins/data/pluxx-local-verify-plugin/plugins/verify-plugin')
+    mkdirSync(resolve(marketplaceBundle, '.claude-plugin'), { recursive: true })
+    cpSync(resolve(DIST_DIR, 'claude-code'), marketplaceBundle, { recursive: true })
+
+    const installedBundle = resolve(HOME_DIR, '.claude/plugins/verify-plugin')
+    cpSync(resolve(DIST_DIR, 'claude-code'), installedBundle, { recursive: true })
+    rmSync(resolve(installedBundle, 'commands'), { recursive: true, force: true })
+
+    const result = await verifyInstall(makeClaudeConfig(), {
+      rootDir: ROOT,
+      targets: ['claude-code'],
+    })
+
+    expect(result.ok).toBe(false)
+    expect(result.checks).toHaveLength(1)
+    expect(result.checks[0]).toMatchObject({
+      platform: 'claude-code',
+      built: true,
+      installed: true,
+      ok: false,
+    })
+    expect(result.checks[0].installPath).toBe(installedBundle)
+    expect(result.checks[0].consumerPath).toBe(installedBundle)
+    expect(result.checks[0].errors).toBeGreaterThan(0)
   })
 })
