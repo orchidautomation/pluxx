@@ -1,7 +1,7 @@
 import { accessSync, constants, existsSync, lstatSync, readFileSync, readdirSync } from 'fs'
 import { basename, dirname, resolve } from 'path'
 import { CONFIG_FILES, loadConfig } from '../config/load'
-import { listHookCommands } from './install'
+import { findInstalledBundleIntegrityIssues, listHookCommands } from './install'
 import { PLATFORM_LIMITS, getCoreFourPrimitiveCapabilities, type CoreFourPlatform, type PrimitiveTranslationMode } from '../validation/platform-rules'
 import { getConfiguredCompilerBuckets, type McpServer, type PluginConfig, type TargetPlatform } from '../schema'
 import { PLUXX_COMPILER_INTENT_PATH, readCompilerIntent } from '../compiler-intent'
@@ -972,6 +972,42 @@ function checkInstalledMcpConfig(checks: DoctorCheck[], rootDir: string, layout:
   }
 }
 
+function checkInstalledBundleIntegrity(checks: DoctorCheck[], rootDir: string, layout: ConsumerBundleLayout): void {
+  const issues = findInstalledBundleIntegrityIssues(rootDir, layout.platform)
+  const details: string[] = []
+
+  if (issues.manifestIssue) {
+    details.push(issues.manifestIssue)
+  }
+  if (issues.missingManifestPaths.length > 0) {
+    details.push(`manifest references missing path${issues.missingManifestPaths.length === 1 ? '' : 's'}: ${issues.missingManifestPaths.join(', ')}`)
+  }
+  if (issues.missingHookTargets.length > 0) {
+    details.push(`hook commands reference missing bundle target${issues.missingHookTargets.length === 1 ? '' : 's'}: ${issues.missingHookTargets.join(', ')}`)
+  }
+
+  if (details.length === 0) {
+    addCheck(checks, {
+      level: 'success',
+      code: 'consumer-bundle-integrity-valid',
+      title: 'Installed bundle references resolve inside the plugin',
+      detail: 'Every manifest-declared path and bundle-relative hook target exists in this installed bundle.',
+      fix: 'No action needed.',
+      path: layout.manifestPath,
+    })
+    return
+  }
+
+  addCheck(checks, {
+    level: 'error',
+    code: 'consumer-bundle-integrity-invalid',
+    title: 'Installed bundle is missing referenced files',
+    detail: details.join('; '),
+    fix: 'Reinstall the plugin or rebuild the bundle so every manifest path and hook target exists in the installed plugin.',
+    path: layout.manifestPath,
+  })
+}
+
 function findMissingInstalledStdioRuntimePaths(
   rootDir: string,
   stdioEntries: Array<Record<string, unknown>>,
@@ -1193,6 +1229,7 @@ export async function doctorConsumer(rootDir: string = process.cwd()): Promise<D
   })
 
   checkConsumerManifest(checks, rootDir, layout)
+  checkInstalledBundleIntegrity(checks, rootDir, layout)
   checkInstalledUserConfig(checks, rootDir)
   checkInstalledEnvValidation(checks, rootDir)
   checkInstalledMcpConfig(checks, rootDir, layout)

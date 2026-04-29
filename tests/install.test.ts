@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
-import { mkdirSync, rmSync, existsSync, lstatSync, readlinkSync, readFileSync } from 'fs'
+import { mkdirSync, rmSync, existsSync, lstatSync, readlinkSync, readFileSync, writeFileSync, cpSync } from 'fs'
 import { resolve } from 'path'
 import { ensureHookTrust, getInstallFollowupNotes, installPlugin, listHookCommands, planInstallUserConfig, resolveInstallUserConfig, uninstallPlugin } from '../src/cli/install'
 import type { PluginConfig, TargetPlatform } from '../src/schema'
@@ -204,6 +204,10 @@ describe('install', () => {
 
   it('uses Claude native install flow via a generated local marketplace', async () => {
     mkdirSync(resolve(DIST_DIR, 'claude-code/.claude-plugin'), { recursive: true })
+    mkdirSync(resolve(DIST_DIR, 'claude-code/commands'), { recursive: true })
+    mkdirSync(resolve(DIST_DIR, 'claude-code/skills/research'), { recursive: true })
+    mkdirSync(resolve(DIST_DIR, 'claude-code/scripts'), { recursive: true })
+    mkdirSync(resolve(DIST_DIR, 'claude-code/hooks'), { recursive: true })
     await Bun.write(
       resolve(DIST_DIR, 'claude-code/.claude-plugin/plugin.json'),
       JSON.stringify({
@@ -212,6 +216,29 @@ describe('install', () => {
         description: 'Megamind plugin',
         author: { name: 'Test Author' },
         license: 'MIT',
+        commands: './commands/',
+        skills: './skills/',
+        hooks: './hooks/hooks.json',
+      }),
+    )
+    await Bun.write(resolve(DIST_DIR, 'claude-code/commands/pulse.md'), '# pulse\n')
+    await Bun.write(resolve(DIST_DIR, 'claude-code/skills/research/SKILL.md'), '# Research\n')
+    await Bun.write(resolve(DIST_DIR, 'claude-code/scripts/session-start.sh'), '#!/usr/bin/env bash\nexit 0\n')
+    await Bun.write(
+      resolve(DIST_DIR, 'claude-code/hooks/hooks.json'),
+      JSON.stringify({
+        hooks: {
+          SessionStart: [
+            {
+              hooks: [
+                {
+                  type: 'command',
+                  command: 'bash "${CLAUDE_PLUGIN_ROOT}/scripts/session-start.sh"',
+                },
+              ],
+            },
+          ],
+        },
       }),
     )
 
@@ -221,6 +248,13 @@ describe('install', () => {
       if (args.join(' ') === 'plugin marketplace list --json') {
         return { status: 0, stdout: '[]', stderr: '' }
       }
+      if (args.join(' ') === 'plugin install megamind@pluxx-local-megamind --scope user') {
+        cpSync(
+          resolve(HOME_DIR, '.claude/plugins/data/pluxx-local-megamind/plugins/megamind'),
+          resolve(HOME_DIR, '.claude/plugins/megamind'),
+          { recursive: true },
+        )
+      }
       return { status: 0, stdout: '', stderr: '' }
     }
 
@@ -229,7 +263,11 @@ describe('install', () => {
     const marketplaceRoot = resolve(HOME_DIR, '.claude/plugins/data/pluxx-local-megamind')
     const marketplaceManifest = resolve(marketplaceRoot, '.claude-plugin/marketplace.json')
     expect(existsSync(marketplaceManifest)).toBe(true)
-    expect(lstatSync(resolve(marketplaceRoot, 'plugins/megamind')).isSymbolicLink()).toBe(true)
+    expect(lstatSync(resolve(marketplaceRoot, 'plugins/megamind')).isSymbolicLink()).toBe(false)
+    expect(existsSync(resolve(marketplaceRoot, 'plugins/megamind/commands/pulse.md'))).toBe(true)
+    expect(existsSync(resolve(marketplaceRoot, 'plugins/megamind/skills/research/SKILL.md'))).toBe(true)
+    expect(existsSync(resolve(marketplaceRoot, 'plugins/megamind/scripts/session-start.sh'))).toBe(true)
+    expect(existsSync(resolve(HOME_DIR, '.claude/plugins/megamind/.claude-plugin/plugin.json'))).toBe(true)
 
     expect(calls).toEqual([
       { command: 'claude', args: ['plugin', 'marketplace', 'list', '--json'] },
@@ -237,6 +275,52 @@ describe('install', () => {
       { command: 'claude', args: ['plugin', 'uninstall', 'megamind@pluxx-local-megamind'] },
       { command: 'claude', args: ['plugin', 'install', 'megamind@pluxx-local-megamind', '--scope', 'user'] },
     ])
+  })
+
+  it('fails Claude native install when the host never materializes the installed bundle', async () => {
+    mkdirSync(resolve(DIST_DIR, 'claude-code/.claude-plugin'), { recursive: true })
+    await Bun.write(
+      resolve(DIST_DIR, 'claude-code/.claude-plugin/plugin.json'),
+      JSON.stringify({
+        name: 'megamind',
+        version: '1.2.3',
+      }),
+    )
+
+    const runCommand = (_command: string, args: string[]) => {
+      if (args.join(' ') === 'plugin marketplace list --json') {
+        return { status: 0, stdout: '[]', stderr: '' }
+      }
+      return { status: 0, stdout: '', stderr: '' }
+    }
+
+    await expect(installPlugin(DIST_DIR, 'megamind', ['claude-code'], { runCommand }))
+      .rejects.toThrow('Installed Claude plugin bundle is incomplete: missing plugin manifest at .claude-plugin/plugin.json')
+  })
+
+  it('fails Claude native install when the host writes an unreadable installed manifest', async () => {
+    mkdirSync(resolve(DIST_DIR, 'claude-code/.claude-plugin'), { recursive: true })
+    await Bun.write(
+      resolve(DIST_DIR, 'claude-code/.claude-plugin/plugin.json'),
+      JSON.stringify({
+        name: 'megamind',
+        version: '1.2.3',
+      }),
+    )
+
+    const runCommand = (_command: string, args: string[]) => {
+      if (args.join(' ') === 'plugin marketplace list --json') {
+        return { status: 0, stdout: '[]', stderr: '' }
+      }
+      if (args.join(' ') === 'plugin install megamind@pluxx-local-megamind --scope user') {
+        mkdirSync(resolve(HOME_DIR, '.claude/plugins/megamind/.claude-plugin'), { recursive: true })
+        writeFileSync(resolve(HOME_DIR, '.claude/plugins/megamind/.claude-plugin/plugin.json'), '{broken')
+      }
+      return { status: 0, stdout: '', stderr: '' }
+    }
+
+    await expect(installPlugin(DIST_DIR, 'megamind', ['claude-code'], { runCommand }))
+      .rejects.toThrow('Installed Claude plugin bundle is incomplete: plugin manifest at .claude-plugin/plugin.json is not parseable')
   })
 
   it('uninstalls Claude native installs and removes the generated local marketplace', async () => {
@@ -257,6 +341,13 @@ describe('install', () => {
       installCalls.push({ command, args })
       if (args.join(' ') === 'plugin marketplace list --json') {
         return { status: 0, stdout: '[]', stderr: '' }
+      }
+      if (args.join(' ') === 'plugin install megamind@pluxx-local-megamind --scope user') {
+        cpSync(
+          resolve(HOME_DIR, '.claude/plugins/data/pluxx-local-megamind/plugins/megamind'),
+          resolve(HOME_DIR, '.claude/plugins/megamind'),
+          { recursive: true },
+        )
       }
       return { status: 0, stdout: '', stderr: '' }
     }

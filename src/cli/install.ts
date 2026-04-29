@@ -25,6 +25,12 @@ export interface PlannedInstallTarget extends InstallTarget {
   existing: boolean
 }
 
+interface BundleIntegrityIssues {
+  manifestIssue?: string
+  missingManifestPaths: string[]
+  missingHookTargets: string[]
+}
+
 interface CommandResult {
   status: number | null
   stdout: string
@@ -766,11 +772,191 @@ function getClaudeMarketplaceRoot(pluginName: string): string {
 }
 
 export function resolveInstalledConsumerPath(target: PlannedInstallTarget, pluginName: string): string {
-  if (target.platform === 'claude-code') {
-    return resolve(getClaudeMarketplaceRoot(pluginName), 'plugins', pluginName)
+  if (target.platform === 'claude-code' && pluginName !== '') {
+    return target.pluginDir
   }
 
   return target.pluginDir
+}
+
+function manifestPathForPlatform(platform: TargetPlatform): string | undefined {
+  switch (platform) {
+    case 'claude-code':
+      return '.claude-plugin/plugin.json'
+    case 'cursor':
+      return '.cursor-plugin/plugin.json'
+    case 'codex':
+      return '.codex-plugin/plugin.json'
+    case 'opencode':
+      return 'package.json'
+    default:
+      return undefined
+  }
+}
+
+function isRelativeBundlePath(value: string): boolean {
+  return value.startsWith('./')
+    || value.startsWith('../')
+    || value.startsWith('.\\')
+    || value.startsWith('..\\')
+}
+
+function resolveBundleReference(rootDir: string, value: string): string | undefined {
+  if (isRelativeBundlePath(value)) {
+    return resolve(rootDir, value)
+  }
+
+  const pluginRootMatch = value.match(/^\$\{(?:CLAUDE_PLUGIN_ROOT|CURSOR_PLUGIN_ROOT|PLUGIN_ROOT)\}[\\/](.+)$/)
+  if (pluginRootMatch) {
+    return resolve(rootDir, pluginRootMatch[1])
+  }
+
+  return undefined
+}
+
+function readBundleManifestReferences(manifest: Record<string, unknown>): string[] {
+  const references: string[] = []
+
+  for (const key of ['commands', 'skills', 'hooks', 'mcpServers']) {
+    const value = manifest[key]
+    if (typeof value === 'string') {
+      references.push(value)
+    }
+  }
+
+  const agents = manifest.agents
+  if (typeof agents === 'string') {
+    references.push(agents)
+  } else if (Array.isArray(agents)) {
+    for (const entry of agents) {
+      if (typeof entry === 'string') {
+        references.push(entry)
+      }
+    }
+  }
+
+  return references
+}
+
+function collectHookCommandStrings(value: unknown, commands: string[]): void {
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      collectHookCommandStrings(entry, commands)
+    }
+    return
+  }
+
+  if (!value || typeof value !== 'object') return
+
+  for (const [key, child] of Object.entries(value)) {
+    if (key === 'command' && typeof child === 'string') {
+      commands.push(child)
+      continue
+    }
+    collectHookCommandStrings(child, commands)
+  }
+}
+
+function extractBundleCommandTargets(command: string): string[] {
+  const matches = command.match(/\$\{(?:CLAUDE_PLUGIN_ROOT|CURSOR_PLUGIN_ROOT|PLUGIN_ROOT)\}[\\/][^\s"'`;$|&<>]+|\.\.?[\\/][^\s"'`;$|&<>]+/g)
+  return matches ?? []
+}
+
+export function findInstalledBundleIntegrityIssues(rootDir: string, platform: TargetPlatform): BundleIntegrityIssues {
+  const manifestPath = manifestPathForPlatform(platform)
+  if (!manifestPath) {
+    return {
+      missingManifestPaths: [],
+      missingHookTargets: [],
+    }
+  }
+
+  const manifestFile = resolve(rootDir, manifestPath)
+  if (!existsSync(manifestFile)) {
+    return {
+      manifestIssue: `missing plugin manifest at ${manifestPath}`,
+      missingManifestPaths: [],
+      missingHookTargets: [],
+    }
+  }
+
+  let manifest: Record<string, unknown>
+  try {
+    manifest = JSON.parse(readFileSync(manifestFile, 'utf-8')) as Record<string, unknown>
+  } catch (error) {
+    return {
+      manifestIssue: `plugin manifest at ${manifestPath} is not parseable: ${error instanceof Error ? error.message : String(error)}`,
+      missingManifestPaths: [],
+      missingHookTargets: [],
+    }
+  }
+
+  const missingManifestPaths = readBundleManifestReferences(manifest)
+    .filter((value) => {
+      const resolved = resolveBundleReference(rootDir, value)
+      return resolved !== undefined && !existsSync(resolved)
+    })
+    .sort()
+
+  const hooksReference = typeof manifest.hooks === 'string' ? manifest.hooks : undefined
+  if (!hooksReference) {
+    return {
+      missingManifestPaths,
+      missingHookTargets: [],
+    }
+  }
+
+  const hooksPath = resolveBundleReference(rootDir, hooksReference)
+  if (!hooksPath || !existsSync(hooksPath)) {
+    return {
+      missingManifestPaths,
+      missingHookTargets: [],
+    }
+  }
+
+  try {
+    const hooks = JSON.parse(readFileSync(hooksPath, 'utf-8')) as Record<string, unknown>
+    const commands: string[] = []
+    collectHookCommandStrings(hooks, commands)
+
+    const missingHookTargets = [...new Set(
+      commands
+        .flatMap(extractBundleCommandTargets)
+        .filter((value) => {
+          const resolved = resolveBundleReference(rootDir, value)
+          return resolved !== undefined && !existsSync(resolved)
+        }),
+    )].sort()
+
+    return {
+      missingManifestPaths,
+      missingHookTargets,
+    }
+  } catch {
+    return {
+      missingManifestPaths,
+      missingHookTargets: [],
+    }
+  }
+}
+
+function assertInstalledBundleIntegrity(rootDir: string, platform: TargetPlatform, label: string): void {
+  const issues = findInstalledBundleIntegrityIssues(rootDir, platform)
+  const details: string[] = []
+
+  if (issues.manifestIssue) {
+    details.push(issues.manifestIssue)
+  }
+  if (issues.missingManifestPaths.length > 0) {
+    details.push(`manifest paths missing: ${issues.missingManifestPaths.join(', ')}`)
+  }
+  if (issues.missingHookTargets.length > 0) {
+    details.push(`hook targets missing: ${issues.missingHookTargets.join(', ')}`)
+  }
+
+  if (details.length > 0) {
+    throw new Error(`${label} is incomplete: ${details.join('; ')}`)
+  }
 }
 
 function ensureClaudeMarketplace(
@@ -800,12 +986,11 @@ function ensureClaudeMarketplace(
   rmSync(marketplaceRoot, { recursive: true, force: true })
   mkdirSync(marketplaceManifestDir, { recursive: true })
   mkdirSync(resolve(marketplaceRoot, 'plugins'), { recursive: true })
+  cpSync(sourceDir, marketplacePluginDir, { recursive: true })
   if (materialized && materialized.entries.length > 0) {
-    cpSync(sourceDir, marketplacePluginDir, { recursive: true })
     materializeInstalledPlugin(marketplacePluginDir, 'claude-code', materialized.config, materialized.entries)
-  } else {
-    symlinkSync(sourceDir, marketplacePluginDir)
   }
+  assertInstalledBundleIntegrity(marketplacePluginDir, 'claude-code', 'Claude marketplace bundle')
 
   writeFileSync(
     resolve(marketplaceManifestDir, 'marketplace.json'),
@@ -881,6 +1066,8 @@ function installClaudePlugin(
   if (install.status !== 0) {
     throw new Error(`Failed to install Claude plugin: ${install.stderr || install.stdout}`)
   }
+
+  assertInstalledBundleIntegrity(target.pluginDir, 'claude-code', 'Installed Claude plugin bundle')
 }
 
 function uninstallClaudePlugin(
