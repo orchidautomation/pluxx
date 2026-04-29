@@ -374,18 +374,26 @@ pre {
 .command-chip {
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
   margin-top: 28px;
   padding: 10px 16px;
-  border-radius: 999px;
+  border-radius: 16px;
   border: 1px solid var(--line-strong);
   background: rgba(225, 215, 255, 0.03);
   color: var(--ink-soft);
   font-family: var(--font-mono), monospace;
   font-size: 0.8rem;
   max-width: 100%;
-  overflow-x: auto;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.command-chip code,
+.footer-command {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .command-label {
@@ -706,7 +714,14 @@ pre {
 
 .matrix-wrap {
   position: relative;
-  margin: 0 -10px;
+}
+
+.matrix-desktop {
+  display: block;
+}
+
+.matrix-mobile {
+  display: none;
 }
 
 .matrix-table {
@@ -1399,8 +1414,7 @@ pre {
   color: var(--ink-soft);
   font-family: var(--font-mono), monospace;
   font-size: 0.8rem;
-  white-space: nowrap;
-  overflow-x: auto;
+  width: 100%;
 }
 
 .footer-row {
@@ -1614,6 +1628,10 @@ pre {
     width: 100%;
   }
 
+  .command-chip {
+    align-items: flex-start;
+  }
+
   .button {
     flex: 1 1 auto;
     min-width: 0;
@@ -1676,10 +1694,77 @@ pre {
     padding: 28px;
   }
 
+  .cta-actions .button {
+    align-self: stretch;
+  }
+
   .footer-row {
     flex-direction: column;
     align-items: flex-start;
     gap: 8px;
     text-align: left;
+  }
+}
+
+@media (max-width: 900px) {
+  .matrix-desktop {
+    display: none;
+  }
+
+  .matrix-mobile {
+    display: grid;
+    gap: 12px;
+  }
+
+  .matrix-mobile-card {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: rgba(225, 215, 255, 0.02);
+    padding: 16px;
+  }
+
+  .matrix-mobile-card h3 {
+    margin: 0 0 10px;
+    font-family: var(--font-display), serif;
+    font-size: 1.05rem;
+    font-weight: 400;
+    color: var(--ink);
+  }
+
+  .matrix-mobile-card dl {
+    margin: 0;
+  }
+
+  .matrix-mobile-row {
+    display: grid;
+    grid-template-columns: minmax(100px, 0.9fr) minmax(0, 1.1fr);
+    gap: 10px;
+    padding: 8px 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .matrix-mobile-row:first-child {
+    border-top: none;
+    padding-top: 0;
+  }
+
+  .matrix-mobile-row:last-child {
+    padding-bottom: 0;
+  }
+
+  .matrix-mobile-row dt {
+    margin: 0;
+    color: var(--muted-strong);
+    font-family: var(--font-mono), monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .matrix-mobile-row dd {
+    margin: 0;
+    color: var(--ink-soft);
+    font-size: 0.84rem;
+    line-height: 1.5;
   }
 }
