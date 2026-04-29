@@ -146,6 +146,10 @@ Open work:
 - [x] Add a second clean-room public example that proves subagent-heavy research architecture and richer brand metadata from one maintained source project:
   - `example/exa-plugin`
   - `docs/exa-research-example.md`
+- [x] Add a third first-class workflow example for a higher-value GTM motion:
+  - `example/closed-won-outbound`
+  - `docs/closed-won-outbound-example.md`
+  - current claim is source-project truth plus explicit adapter boundaries, not live provider proof yet
 - [~] Extend the Exa example from pure mechanical proof into real multi-host workflow proof:
   - Claude Code app PASS
   - Cursor CLI PASS
@@ -159,6 +163,10 @@ Open work:
   - raw `init --from-mcp`
   - `autopilot`
   - `migrate` from a mature Claude-first plugin
+- [ ] Turn the closed-won outbound example from source-project proof into runtime-backed proof:
+  - bind real adapters behind `crm.*`, `lead.*`, `research.*`, `pipeline.*`, and `runtime.*`
+  - capture one campaign-tagged handoff artifact
+  - run the install/verify flow once the backing endpoints exist
 - [ ] Reduce the remaining Exa delta between:
   - a credible imported or migrated starting point
   - and the final polished source project with specialist-agent taxonomy, richer packaging, and public install surfaces

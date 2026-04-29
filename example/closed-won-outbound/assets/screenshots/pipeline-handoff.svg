@@ -1,0 +1,21 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1280" height="720" rx="40" fill="#F0FDFA"/>
+  <rect x="84" y="96" width="336" height="520" rx="28" fill="#CCFBF1"/>
+  <rect x="472" y="96" width="336" height="520" rx="28" fill="#99F6E4"/>
+  <rect x="860" y="96" width="336" height="520" rx="28" fill="#0F766E"/>
+  <text x="120" y="156" fill="#134E4A" font-size="34" font-family="monospace">dedupe</text>
+  <text x="120" y="202" fill="#115E59" font-size="24" font-family="monospace">existing pipeline</text>
+  <text x="120" y="242" fill="#115E59" font-size="24" font-family="monospace">ownership checks</text>
+  <text x="508" y="156" fill="#134E4A" font-size="34" font-family="monospace">enrich</text>
+  <text x="508" y="202" fill="#115E59" font-size="24" font-family="monospace">company + contact</text>
+  <text x="508" y="242" fill="#115E59" font-size="24" font-family="monospace">confidence flags</text>
+  <text x="896" y="156" fill="#F0FDFA" font-size="34" font-family="monospace">handoff</text>
+  <text x="896" y="202" fill="#CCFBF1" font-size="24" font-family="monospace">campaign tag</text>
+  <text x="896" y="242" fill="#CCFBF1" font-size="24" font-family="monospace">SDR-ready queue</text>
+  <path d="M420 356H472" stroke="#115E59" stroke-width="14" stroke-linecap="round"/>
+  <path d="M808 356H860" stroke="#115E59" stroke-width="14" stroke-linecap="round"/>
+  <text x="892" y="420" fill="#F0FDFA" font-size="24" font-family="monospace">accounts</text>
+  <text x="892" y="456" fill="#F0FDFA" font-size="24" font-family="monospace">contacts</text>
+  <text x="892" y="492" fill="#F0FDFA" font-size="24" font-family="monospace">source notes</text>
+  <text x="892" y="528" fill="#F0FDFA" font-size="24" font-family="monospace">exclusions</text>
+</svg>

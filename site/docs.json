@@ -82,6 +82,7 @@
         "pages": [
           "examples/docs-ops-flagship",
           "examples/exa-research-example",
+          "examples/closed-won-outbound-example",
           "examples/sumble-proof-run",
           "examples/self-hosting-pluxx",
           "examples/firecrawl-sumble-playkit"

@@ -62,10 +62,13 @@ If you want the shortest credible answer to "is this real yet?", use this order:
 6. [Exa Research Example](./exa-research-example.md)
    What it proves: Exa-style research workflows can ship natively across Claude Code, Cursor, Codex, and OpenCode from one maintained source project, while keeping bundled MCP wiring, specialist agents, and host-native install surfaces.
 
-7. [Docs-ingestion scaffold before/after demo](./strategy/docs-ingestion-scaffold-before-after.md)
+7. [Closed-Won Outbound Example](./closed-won-outbound-example.md)
+   What it proves: Pluxx can express a higher-value GTM workflow as a first-class source project with explicit native-vs-adapter boundaries, even before the backing provider stack is fully wired for live proof.
+
+8. [Docs-ingestion scaffold before/after demo](./strategy/docs-ingestion-scaffold-before-after.md)
    What it proves: Firecrawl-backed sourced context changes the real generated scaffold, not just an eval row.
 
-8. [Core-four provider docs audit](./core-four-provider-docs-audit.md)
+9. [Core-four provider docs audit](./core-four-provider-docs-audit.md)
    What it proves: the compatibility story is grounded in first-party provider docs, not hand-waving.
 
 ## Public Proof Panels
@@ -78,6 +81,7 @@ If you need the public story in the fewest moving parts, use these four proof pa
 | Flagship read-only workflow | [docs-ops-core-four-proof](./docs-ops-core-four-proof.md) | the flagship example is real across the official CLIs, not just one host |
 | Flagship authenticated publish split | [docs-ops-authenticated-publish-path](./docs-ops-authenticated-publish-path.md) | read-only Orchid access is not being mislabeled as a publish path |
 | Exa distribution proof | [exa-research-example](./exa-research-example.md) | Exa-style research workflows can ship natively across the core four from one maintained source project |
+| Closed-won GTM workflow example | [closed-won-outbound-example](./closed-won-outbound-example.md) | Pluxx can express a real closed-won expansion motion as a first-class source project and make adapter gaps explicit |
 | Docs-ingestion improvement | [docs-ingestion scaffold before/after](./strategy/docs-ingestion-scaffold-before-after.md) | sourced product/docs context materially improves the generated scaffold |
 
 ## Install The Released Pluxx Plugin
@@ -208,13 +212,16 @@ Use this when you want a clean founder demo, customer walkthrough, or investor p
 6. Show [Exa Research Example](./exa-research-example.md)
    Frame: Pluxx can take a Claude-first research-operator shape with specialist agents, rich branding, and command surfaces and compile it across the core four from one source.
 
-7. Show the [Accordion before/after output](../example/docs-ops/demo-rewrites/orchid-components-accordion.after.md)
+7. Show [Closed-Won Outbound Example](./closed-won-outbound-example.md)
+   Frame: the same source-project primitives can express a higher-value GTM workflow with explicit adapter boundaries instead of pretending everything is already live.
+
+8. Show the [Accordion before/after output](../example/docs-ops/demo-rewrites/orchid-components-accordion.after.md)
    Frame: the product changes user-visible output, not only internals.
 
-8. Show [Docs-ingestion scaffold before/after demo](./strategy/docs-ingestion-scaffold-before-after.md)
+9. Show [Docs-ingestion scaffold before/after demo](./strategy/docs-ingestion-scaffold-before-after.md)
    Frame: sourced product/docs context materially improves the scaffold.
 
-9. Close with [Core-four provider docs audit](./core-four-provider-docs-audit.md)
+10. Close with [Core-four provider docs audit](./core-four-provider-docs-audit.md)
    Frame: the compatibility story is truthful and provider-backed.
 
 ## What This Page Does Not Claim
