@@ -161,6 +161,14 @@ The repo already proves a lot.
   - a real Claude agent translation bug was exposed and fixed while making the example install cleanly
 - the Exa example also clarified a still-open product gap:
   - raw `init --from-mcp`, `autopilot`, and `migrate` can already produce a credible starting point, but the final Exa-quality workflow taxonomy, specialist-agent graph, and install/polish layer still benefited from explicit refinement
+- a third first-class example now exists for a higher-value GTM workflow:
+  - `example/closed-won-outbound`
+- that closed-won example turns `closed-won -> lookalikes -> personas -> dedupe -> enrich -> CRM upsert` into one maintained source project with commands, skills, agents, and multi-MCP wiring:
+  - `docs/closed-won-outbound-example.md`
+- the current claim for that example is intentionally narrower than the Docs Ops and Exa proof blocks:
+  - source-project shape is real today
+  - native-vs-adapter boundaries are explicit
+  - live provider-backed end-to-end proof is still the next step
 - docs/website ingestion has a provider model and writes deterministic artifacts:
   - `.pluxx/sources.json`
   - `.pluxx/docs-context.json`

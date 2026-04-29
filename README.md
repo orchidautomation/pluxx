@@ -28,6 +28,8 @@ If you want the fastest way to see what is already real, start with these:
   - the flagship example now separates Orchid's public read-only MCP proof from the private write/publish contract, and the install/runtime gate is mechanically proven
 - [Exa Research Example](./docs/exa-research-example.md)
   - a clean-room Exa-style research operator pack built from one maintained source project, with specialist agents, rich brand metadata, real build/install/verify proof across the core four, and live workflow proof in Claude Code, Codex Desktop, Cursor CLI, and OpenCode CLI
+- [Closed-Won Outbound Example](./docs/closed-won-outbound-example.md)
+  - a first-class source project for `closed-won -> lookalikes -> personas -> dedupe -> enrich -> CRM upsert`, with explicit native-vs-adapter boundaries; source-project real today, live provider proof still pending
 - [Orchid Accordion before/after rewrite](./example/docs-ops/demo-rewrites/orchid-components-accordion.after.md)
   - concrete output from the flagship docs workflow example
 - [Core-four provider docs audit](./docs/core-four-provider-docs-audit.md)

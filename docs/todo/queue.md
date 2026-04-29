@@ -87,6 +87,14 @@ The core-four compiler sprint is done.
   - `pluxx discover-mcp` reads Claude Code, Cursor, Codex, and OpenCode config locations
   - `pluxx init --from-installed-mcp <host:name>` imports a selected discovered server into a Pluxx project
   - discovered stdio/env auth is normalized without copying literal secret values
+- a third first-class example now exists for a real GTM motion:
+  - `example/closed-won-outbound`
+- that example turns `closed-won -> lookalikes -> personas -> dedupe -> enrich -> CRM upsert` into one maintained source project with commands, skills, agents, and multi-MCP grouping:
+  - `docs/closed-won-outbound-example.md`
+- the closed-won example is intentionally honest about proof state:
+  - source-project shape is real
+  - native-vs-adapter boundaries are explicit
+  - live provider-backed workflow proof is still open
 
 The public baseline is also real.
 

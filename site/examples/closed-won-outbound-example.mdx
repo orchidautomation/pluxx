@@ -1,0 +1,101 @@
+---
+title: Closed-Won Outbound Example
+---
+
+This is the cleanest public page for the closed-won outbound workflow example.
+
+Use it when you want the shortest answer to:
+
+- can Pluxx express a real GTM workflow, not just a docs or research plugin
+- can one maintained source project model a multi-stage outbound motion
+- does the example stay honest about native surfaces versus adapter gaps
+
+## What this example is
+
+The source project in [`example/closed-won-outbound`](https://github.com/orchidautomation/pluxx/tree/main/example/closed-won-outbound) models a concrete workflow:
+
+- closed-won deals
+- best-customer cohort selection
+- lookalike companies
+- persona mapping
+- CRM dedupe
+- enrichment
+- campaign-tagged pipeline handoff
+
+It is a first-class Pluxx source project with:
+
+- commands
+- skills
+- specialist agents
+- multi-MCP wiring
+- hooks
+- permissions
+- brand metadata
+
+## What it proves
+
+This example proves that Pluxx can express a higher-value operator workflow as one maintained source project even when the backing runtime is split across multiple adapter groups.
+
+The runtime grouping is modeled as:
+
+- `crm.*`
+- `lead.*`
+- `research.*`
+- `pipeline.*`
+- `runtime.*`
+
+That is important because a real outbound workflow is not one API call or one MCP server.
+
+## What it does not claim yet
+
+This page is intentionally honest.
+
+It does not claim that this repo already contains live provider-backed end-to-end proof for this workflow.
+
+Today, the source project is real and buildable.
+
+The current MCP URLs are still placeholder adapter surfaces, which means the remaining work is:
+
+- bind those groups to real adapters
+- run the install and verification flow
+- capture one live handoff artifact
+
+## Native today vs adapter required
+
+Native in Pluxx today:
+
+- source project structure
+- commands, skills, and agents
+- hooks and setup checks
+- multi-MCP wiring
+- permissions and auth prompts
+- bundle generation
+
+Adapter required for live proof:
+
+- CRM closed-won pull and dedupe
+- lookalike discovery
+- persona discovery and enrichment
+- final outbound upsert and handoff
+
+## Why this example matters
+
+The existing public examples already cover:
+
+- rich docs workflows
+- clean-room research architecture
+
+This example adds a more revenue-shaped motion.
+
+That makes the Pluxx story stronger because it shows the same primitives can be repurposed for business workflows with:
+
+- more state
+- more system boundaries
+- more explicit operator handoff
+
+## Best next pages
+
+- [Docs Ops Flagship Proof](/examples/docs-ops-flagship)
+- [Exa Research Example](/examples/exa-research-example)
+- [Self-hosting Pluxx plugin](/examples/self-hosting-pluxx)
+- [Local core-four proof](/workflows/local-core-four-proof)

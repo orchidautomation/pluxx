@@ -143,6 +143,12 @@ The current status is stronger than a pure scaffold:
 - the Exa example also sharpened the import-quality question:
   - a raw import or migration can already get to a credible starting point
   - the next product leverage is making that first pass recover more of the final workflow architecture and packaging quality automatically
+- a third first-class example now exists for a different proof shape again:
+  - `example/closed-won-outbound`
+  - `docs/closed-won-outbound-example.md`
+- that example proves we can model a higher-value GTM workflow from one maintained source project while keeping native-vs-adapter boundaries explicit
+- the next step for that lane is not more workflow design:
+  - it is binding real adapters behind `crm.*`, `lead.*`, `research.*`, `pipeline.*`, and `runtime.*` so the source-project proof can become runtime-backed proof
 - the next proof steps are capturing at least one polished in-app walkthrough beyond Codex, then running a real authenticated publish plus rollback against a safe private target
 
 This is the strongest next proof surface for:

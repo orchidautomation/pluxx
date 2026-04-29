@@ -33,6 +33,7 @@ The first pass of that packaging now exists at:
 - [Proof and install guide](./proof-and-install.md)
 - [Docs Ops authenticated publish path](./docs-ops-authenticated-publish-path.md)
 - [Exa Research Example](./exa-research-example.md)
+- [Closed-Won Outbound Example](./closed-won-outbound-example.md)
 
 ## Proof That Already Exists
 
@@ -145,6 +146,24 @@ Best public use:
 - MCP-vendor outreach
 - “raw MCP is not enough” narrative
 - proof that Pluxx can port subagent-heavy architecture without copying private plugin internals
+
+### 3c. Closed-won outbound workflow example
+
+Primary doc:
+
+- [Closed-Won Outbound Example](./closed-won-outbound-example.md)
+
+What it proves:
+
+- Pluxx can express a higher-value GTM workflow as one maintained source project
+- the workflow can be modeled with commands, skills, specialist agents, and multi-MCP grouping
+- native product surfaces versus thin adapter dependencies can be stated explicitly instead of hidden
+
+Best public use:
+
+- GTM workflow narrative
+- “real business workflow, not only scaffolding mechanics” story
+- bridge to future adapter-backed live proof
 
 ### 4. Host-truth audit
 

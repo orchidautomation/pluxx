@@ -1,0 +1,18 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1280" height="720" rx="40" fill="#042F2E"/>
+  <rect x="64" y="76" width="320" height="220" rx="24" fill="#134E4A"/>
+  <rect x="480" y="76" width="320" height="220" rx="24" fill="#115E59"/>
+  <rect x="896" y="76" width="320" height="220" rx="24" fill="#0F766E"/>
+  <text x="96" y="128" fill="#CCFBF1" font-size="36" font-family="monospace">closed-won</text>
+  <text x="96" y="174" fill="#99F6E4" font-size="24" font-family="monospace">best customers</text>
+  <text x="512" y="128" fill="#CCFBF1" font-size="36" font-family="monospace">lookalikes</text>
+  <text x="512" y="174" fill="#99F6E4" font-size="24" font-family="monospace">similar accounts</text>
+  <text x="928" y="128" fill="#F0FDFA" font-size="36" font-family="monospace">personas</text>
+  <text x="928" y="174" fill="#CCFBF1" font-size="24" font-family="monospace">buying committee</text>
+  <path d="M384 186H464" stroke="#99F6E4" stroke-width="14" stroke-linecap="round"/>
+  <path d="M800 186H880" stroke="#99F6E4" stroke-width="14" stroke-linecap="round"/>
+  <rect x="160" y="404" width="960" height="196" rx="28" fill="#F0FDFA"/>
+  <text x="208" y="470" fill="#134E4A" font-size="40" font-family="monospace">Workflow intent</text>
+  <text x="208" y="526" fill="#115E59" font-size="28" font-family="monospace">seed cohort -&gt; similarity logic -&gt; persona fit</text>
+  <text x="208" y="570" fill="#115E59" font-size="28" font-family="monospace">before dedupe, enrichment, and handoff</text>
+</svg>
