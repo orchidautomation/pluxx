@@ -19,12 +19,13 @@ export default definePlugin({
   },
 
   skills: './skills/',
+  scripts: './scripts/',
 
   mcp: {
     prospeo: {
       transport: 'stdio',
-      command: 'node',
-      args: ['${PLUGIN_ROOT}/server/dist/index.js'],
+      command: 'npx',
+      args: ['-y', '@prospeo/prospeo-mcp-server'],
       env: {
         PROSPEO_API_KEY: '${PROSPEO_API_KEY}',
       },

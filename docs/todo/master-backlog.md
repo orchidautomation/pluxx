@@ -1,6 +1,6 @@
 # Master Backlog
 
-Last updated: 2026-04-28
+Last updated: 2026-04-30
 
 This is the most complete repo-native backlog for Pluxx.
 
@@ -76,6 +76,7 @@ Any person or agent should be able to enter the repo and answer:
 ### 1. Product clarity and front-door coherence
 
 - [~] Keep [start-here.md](../start-here.md), [queue.md](./queue.md), this file, and Linear aligned
+- [~] Close the remaining ticket-state drift where shipped work can still appear as backlog in Linear
 - [~] Keep the README top section, website hero, GitHub About metadata, and docs homepage messaging aligned
 - [ ] Remove or rewrite any stale docs that still describe already-shipped work as future work
 - [ ] Decide which docs are public product docs vs strategy docs vs internal-only GTM docs
@@ -269,9 +270,13 @@ Open work:
 
 ### 7. Next release readiness
 
-- [ ] Validate the current self-hosting flow end to end
-- [ ] Run tests and release smoke before the next cut
-- [ ] Ship the next npm version once the story, plugin, and proof surfaces feel coherent together
+- [x] Validate the current self-hosting flow end to end
+- [x] Run tests, release smoke, and the packaged-runtime release gate before the next cut
+- [x] Restore example parity for `examples/prospeo-mcp` so release smoke and the real package agree again
+- [ ] Bump `package.json` to the next version
+- [ ] Commit and push the release-prep fixes to `main`
+- [ ] Push the matching `vX.Y.Z` tag so the GitHub Actions release workflow publishes to npm
+- [ ] Verify the published npm version and GitHub release artifacts after the workflow completes
 
 ## Next
 

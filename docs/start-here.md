@@ -1,6 +1,6 @@
 # Start Here
 
-Last updated: 2026-04-28
+Last updated: 2026-04-30
 
 ## Doc Links
 
@@ -185,6 +185,12 @@ The repo already proves a lot.
   - `pluxx discover-mcp` lists MCP servers already configured in Claude Code, Cursor, Codex, and OpenCode
   - `pluxx init --from-installed-mcp <host:name>` turns one discovered server into a Pluxx source project
   - discovery preserves stdio command/args and env-var auth intent while redacting literal secret values
+- example and packaged-runtime parity is current again:
+  - `examples/prospeo-mcp` now bundles its `scripts/` payload into built outputs
+  - the example now points at the official `@prospeo/prospeo-mcp-server` package instead of a stale repo-local runtime path
+- the current release gate is green again as of 2026-04-30:
+  - `npm test`
+  - `npm run release:check`
 - OpenCode-native agent output is now permission-first:
   - legacy agent `tools` input is translated forward where possible
   - native OpenCode `skill` and `task` permission keys are treated as real first-class surfaces
@@ -232,6 +238,7 @@ That includes:
 - cleaner public framing
 - fewer stale planning artifacts
 - truthful public metadata and links
+- close any remaining Linear drift where already-shipped work is still sitting in backlog or unlabeled release-readiness state
 - first-party provider docs reflected accurately in the compatibility story
 - the remaining delta between:
   - a credible imported or migrated source project
@@ -339,7 +346,15 @@ Run two lanes in parallel:
 
 ### 6. Next Release
 
-Cut the next npm release after the story, examples, and plugin surfaces are coherent enough to ship together.
+The code and packaged tarball are now mechanically ready for the next cut.
+
+The remaining release checklist is:
+
+- bump `package.json` from `0.1.7` to the next version
+- commit the release-prep fixes and doc/source-of-truth sync
+- push `main`
+- push the matching `vX.Y.Z` tag so GitHub Actions publishes to npm
+- verify the npm package version, GitHub release, and attached tarball after the workflow completes
 
 ## Working Rules
 

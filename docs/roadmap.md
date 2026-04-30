@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-04-28
+Last updated: 2026-04-30
 
 ## Doc Links
 
@@ -96,6 +96,11 @@ The closure plan is now narrower than it was before:
   - `pluxx discover-mcp` lists configured MCP servers from Claude Code, Cursor, Codex, and OpenCode config locations
   - `pluxx init --from-installed-mcp <host:name>` imports the selected MCP into a maintained Pluxx source project
   - literal secret values are not copied into generated project config
+- example and packaged-runtime parity are back in sync:
+  - `examples/prospeo-mcp` now bundles its `scripts/` payload and points at the official `@prospeo/prospeo-mcp-server` package
+- the release gate is green again as of 2026-04-30:
+  - `npm test`
+  - `npm run release:check`
 - OpenClaw should stay in scope only as a beta-target lane until a native generator, validator/doctor path, and behavioral smoke proof exist:
   - [docs/openclaw-target-evaluation.md](./openclaw-target-evaluation.md)
 
@@ -204,7 +209,14 @@ This is for learning and proof, not for prematurely building the full trust laye
 
 ### 6. Next release
 
-Ship the next npm cut after the story, plugin, and proof surfaces are coherent enough to ship together.
+The next npm cut is now primarily an operations step rather than a code-confidence step.
+
+The remaining release checklist is:
+
+- bump `package.json` to the next version
+- commit and push the release-prep fixes and source-of-truth updates
+- push the matching `vX.Y.Z` tag to trigger the GitHub Actions publish workflow
+- verify the npm package version, GitHub release, and attached tarball after the workflow completes
 
 ## What This Roadmap Is Optimizing For
 

@@ -252,7 +252,7 @@ export async function ensureHookTrust(options: EnsureHookTrustOptions): Promise<
   const isTTY = options.isTTY ?? process.stdin.isTTY === true
   if (!isTTY) {
     throw new Error(
-      `Refusing to install plugin with local hook commands in non-interactive mode. Review the hook commands above. Re-run with --trust if you trust this plugin author.`
+      `Refusing to install plugin with hooks in non-interactive mode. Review the hook commands above. Re-run with --trust if you trust this plugin author.`
     )
   }
 

@@ -1,6 +1,6 @@
 # Pluxx Queue
 
-Last updated: 2026-04-28
+Last updated: 2026-04-30
 
 ## Doc Links
 
@@ -87,6 +87,12 @@ The core-four compiler sprint is done.
   - `pluxx discover-mcp` reads Claude Code, Cursor, Codex, and OpenCode config locations
   - `pluxx init --from-installed-mcp <host:name>` imports a selected discovered server into a Pluxx project
   - discovered stdio/env auth is normalized without copying literal secret values
+- example and packaged-runtime parity is current again:
+  - `examples/prospeo-mcp` now includes its `scripts/` payload in built/installable outputs
+  - the example now targets the official `@prospeo/prospeo-mcp-server` package instead of a stale repo-local runtime path
+- the repo release gate is green again as of 2026-04-30:
+  - `npm test`
+  - `npm run release:check`
 
 The public baseline is also real.
 
@@ -126,6 +132,7 @@ Open work:
 - tighten the remaining top-level docs framing and entrypoint docs
 - keep GTM-sensitive material out of the public repo
 - continue reconciling stale planning artifacts that still describe already-shipped work as future work
+- close the remaining Linear drift where shipped work like installed-MCP discovery is still marked as backlog
 - keep OpenClaw in the documented beta-target lane, not the prime-time target set:
   - [docs/openclaw-target-evaluation.md](../openclaw-target-evaluation.md)
 - refresh `src/validation/platform-rules.ts`, `docs/compatibility.md`, and `docs/core-four-primitive-matrix.md` from the first-party provider audit:
@@ -257,13 +264,18 @@ Open work:
 
 Goal:
 
-- publish the next npm cut after the story, examples, and plugin surfaces are coherent enough to ship together
+- cut the next npm release now that the code path and packaged tarball both pass the release gate
 
 Open work:
 
-- validate the current self-hosting/plugin flow
-- run tests and release smoke
-- cut the next npm version after the clarity/docs/plugin polish lands
+- [x] validate the current self-hosting/plugin flow
+- [x] run tests and release smoke
+- [x] restore example/release-smoke parity for `examples/prospeo-mcp`
+- [x] rerun the full release gate, including tarball install and `npm exec`
+- [ ] bump `package.json` to the next version
+- [ ] commit and push the release-prep fixes on `main`
+- [ ] push the matching `vX.Y.Z` tag to trigger the GitHub Actions npm publish
+- [ ] verify the npm version, GitHub release, and tarball artifact after the workflow completes
 
 ## Explicitly Deferred
 
