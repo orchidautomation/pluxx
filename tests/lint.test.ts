@@ -35,6 +35,8 @@ describe('lintProject', () => {
         brand: {
           displayName: 'Valid Plugin',
           color: '#12AB34',
+          icon: './assets/icon.svg',
+          screenshots: ['./assets/screenshots/overview.svg'],
           defaultPrompts: ['Prompt 1', 'Prompt 2'],
         },
         mcp: {
@@ -220,6 +222,95 @@ describe('lintProject', () => {
 
     const result = await lintProject(projectDir)
     expect(result.issues.some(issue => issue.code === 'installer-owned-check-env-runtime')).toBe(true)
+  })
+
+  it('warns when Codex target is missing richer branding metadata', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['codex'],
+        brand: {
+          displayName: 'Test Plugin',
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A valid skill description"', '---', '', '# My Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'codex-branding-metadata-missing' && issue.platform === 'Codex')).toBe(true)
+  })
+
+  it('warns when Cursor target is missing brand.icon', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['cursor'],
+        brand: {
+          displayName: 'Test Plugin',
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A valid skill description"', '---', '', '# My Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'cursor-branding-metadata-missing' && issue.platform === 'Cursor')).toBe(true)
+  })
+
+  it('does not warn when Codex branding is satisfied through brand fields or interface overrides', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['codex'],
+        platforms: {
+          codex: {
+            interface: {
+              composerIcon: './assets/icon.svg',
+              screenshots: ['./assets/screenshots/overview.svg'],
+            },
+          },
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A valid skill description"', '---', '', '# My Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'codex-branding-metadata-missing')).toBe(false)
   })
 
   it('does not warn for the direct install-time check-env hook scaffold', async () => {

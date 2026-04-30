@@ -6,6 +6,7 @@ import { PLATFORM_LIMITS, PLATFORM_LIMIT_POLICIES, getCoreFourPrimitiveCapabilit
 import { collectPermissionRules, permissionRulesNeedToolLevelDowngrade } from '../permissions'
 import { readCanonicalAgentFiles } from '../agents'
 import { buildPrimitiveTranslationSummary, renderPrimitiveTranslationSummary, type PrimitiveTranslationSummary } from './primitive-summary'
+import { getBrandingCompletenessWarnings } from '../branding-completeness'
 import {
   CURSOR_LOOP_LIMIT_HOOK_EVENTS,
   CURSOR_SUPPORTED_HOOK_EVENTS,
@@ -343,9 +344,7 @@ function lintSkillFile(
 }
 
 function lintBrandMetadata(config: PluginConfig, issues: LintIssue[]): void {
-  if (!config.brand) return
-
-  if (config.brand.color && !HEX_COLOR_REGEX.test(config.brand.color)) {
+  if (config.brand?.color && !HEX_COLOR_REGEX.test(config.brand.color)) {
     pushIssue(issues, {
       level: 'error',
       code: 'brand-color-hex',
@@ -355,7 +354,7 @@ function lintBrandMetadata(config: PluginConfig, issues: LintIssue[]): void {
     })
   }
 
-  if (config.brand.defaultPrompts) {
+  if (config.brand?.defaultPrompts) {
     if (config.brand.defaultPrompts.length > MAX_CODEX_DEFAULT_PROMPTS) {
       pushIssue(issues, {
         level: 'error',
@@ -377,6 +376,16 @@ function lintBrandMetadata(config: PluginConfig, issues: LintIssue[]): void {
         })
       }
     }
+  }
+
+  for (const warning of getBrandingCompletenessWarnings(config)) {
+    pushIssue(issues, {
+      level: 'warning',
+      code: warning.code,
+      message: warning.message,
+      file: 'pluxx.config.ts',
+      platform: warning.platform,
+    })
   }
 }
 

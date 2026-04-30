@@ -109,6 +109,9 @@ Any person or agent should be able to enter the repo and answer:
   - Claude-generated local stdio MCP output now anchors project-local runtime paths under `${CLAUDE_PLUGIN_ROOT}` instead of assuming plugin-root cwd
   - `lint` now warns when MCP startup or custom runtime hooks depend on installer-owned `scripts/check-env.sh`
   - docs now capture the portable `load-env.sh` / `bootstrap-runtime.sh` / `start-mcp.sh` pattern for native Node runtime dependencies
+- [x] Surface host-visible branding gaps earlier in author workflows:
+  - `lint` now warns when Cursor or Codex can render richer branding but the plugin is missing `brand.icon` and/or `brand.screenshots`
+  - `doctor` now surfaces the same source-project warning before a plugin is treated as finished
 - [x] Add installed MCP discovery for the common "I already configured this MCP in my agent" workflow:
   - `pluxx discover-mcp` reads Claude Code, Cursor, Codex, and OpenCode config locations
   - `pluxx init --from-installed-mcp <host:name>` imports a selected discovered server into a Pluxx project
