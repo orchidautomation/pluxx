@@ -12,6 +12,7 @@ import {
   resolveUserConfigEntriesForTarget,
   type ResolvedUserConfigEntry,
 } from '../user-config'
+import { normalizePluginOwnedStdioPathForPlatform } from '../mcp-stdio-paths'
 
 interface InstallTarget {
   platform: TargetPlatform
@@ -656,8 +657,8 @@ function patchInstalledMcpConfig(
     for (const [name, server] of Object.entries(config.mcp)) {
       if (server.transport === 'stdio') {
         mcpServers[name] = {
-          command: server.command,
-          args: server.args ?? [],
+          command: normalizePluginOwnedStdioPathForPlatform(server.command, platform),
+          args: (server.args ?? []).map((value) => normalizePluginOwnedStdioPathForPlatform(value, platform)),
           env: materializeEnvRecord(server.env, env),
         }
         continue
@@ -694,8 +695,8 @@ function patchInstalledMcpConfig(
     for (const [name, server] of Object.entries(config.mcp)) {
       if (server.transport === 'stdio') {
         mcpServers[name] = {
-          command: server.command,
-          args: server.args ?? [],
+          command: normalizePluginOwnedStdioPathForPlatform(server.command, platform),
+          args: (server.args ?? []).map((value) => normalizePluginOwnedStdioPathForPlatform(value, platform)),
           env: materializeEnvRecord(server.env, env),
         }
         continue

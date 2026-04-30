@@ -94,6 +94,9 @@ The closure plan is now narrower than it was before:
   - `doctor --consumer` now makes broken installed `.mcp.json` runtime references obvious
   - Claude-generated local stdio MCP output now anchors project-local runtime paths under `${CLAUDE_PLUGIN_ROOT}` instead of assuming plugin-root cwd
   - `lint` now warns when MCP startup or custom runtime hooks depend on installer-owned `scripts/check-env.sh`
+  - build output and install-time MCP materialization now share the same stdio path normalization, so host-specific root vars no longer leak between Claude, Cursor, and Codex bundles
+  - `lint` now warns when global stdio MCP config uses host-specific root vars such as `${CLAUDE_PLUGIN_ROOT}`
+  - `doctor --consumer` now warns when an installed bundle still carries the wrong host root contract in stdio MCP config
   - the recommended native-runtime pattern now explicitly splits `load-env.sh`, `bootstrap-runtime.sh`, and `start-mcp.sh`
 - host-visible branding completeness is now surfaced earlier:
   - `lint` warns when Cursor or Codex can render richer branding but the plugin is missing `brand.icon` and/or `brand.screenshots`

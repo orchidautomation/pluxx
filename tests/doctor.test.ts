@@ -587,6 +587,31 @@ describe('doctorConsumer', () => {
     }
   })
 
+  it('warns when an installed non-Claude bundle still contains another host root variable', async () => {
+    const dir = createCodexConsumerFixture({ includeRuntime: true })
+    writeFileSync(
+      resolve(dir, '.mcp.json'),
+      JSON.stringify({
+        mcpServers: {
+          localFixture: {
+            command: 'bash',
+            args: ['${CLAUDE_PLUGIN_ROOT}/scripts/start-mcp.sh'],
+            env: {
+              LOCAL_FIXTURE_TOKEN: '${LOCAL_FIXTURE_TOKEN}',
+            },
+          },
+        },
+      }, null, 2),
+    )
+
+    try {
+      const report = await doctorConsumer(dir)
+      expect(report.checks.some((check) => check.code === 'consumer-mcp-stdio-host-root-leak' && check.level === 'warning')).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('validates OpenCode host-visible wrapper and exported skills for installed bundles', async () => {
     const dir = createOpenCodeConsumerFixture()
 

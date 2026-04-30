@@ -6,6 +6,7 @@ import { mapHookEventToPascalCase } from '../../hook-events'
 import { buildGeneratedPermissionHookScript } from '../../permissions'
 import { readTextFile } from '../../text-files'
 import { readCanonicalAgentFiles } from '../../agents'
+import { normalizePluginOwnedStdioPathForPlatform } from '../../mcp-stdio-paths'
 
 export interface ClaudeFamilyOptions {
   manifestPath: string
@@ -44,21 +45,6 @@ export async function generateClaudeFamilyOutputs(args: {
 
 function shellSingleQuote(value: string): string {
   return `'${value.replace(/'/g, `'\"'\"'`)}'`
-}
-
-function rewriteClaudePluginRootReference(value: string): string {
-  const normalized = value.replace(/\\/g, '/')
-  if (normalized.startsWith('${CLAUDE_PLUGIN_ROOT}/')) return normalized
-  if (normalized.startsWith('${PLUGIN_ROOT}/')) {
-    return normalized.replace('${PLUGIN_ROOT}', '${CLAUDE_PLUGIN_ROOT}')
-  }
-  if (normalized.startsWith('./')) {
-    return `\${CLAUDE_PLUGIN_ROOT}/${normalized.slice(2)}`
-  }
-  if (normalized.startsWith('../')) {
-    return `\${CLAUDE_PLUGIN_ROOT}/${normalized}`
-  }
-  return value
 }
 
 function buildClaudeHookCommandWrapperScript(command: string): string {
@@ -164,16 +150,9 @@ async function writeMcpConfig(
 
   for (const [name, server] of Object.entries(config.mcp)) {
     if (server.transport === 'stdio' && server.command) {
-      const command = platform === 'claude-code'
-        ? rewriteClaudePluginRootReference(server.command)
-        : server.command
-      const args = platform === 'claude-code'
-        ? (server.args ?? []).map(rewriteClaudePluginRootReference)
-        : (server.args ?? [])
-
       mcpServers[name] = {
-        command,
-        args,
+        command: normalizePluginOwnedStdioPathForPlatform(server.command, platform),
+        args: (server.args ?? []).map((value) => normalizePluginOwnedStdioPathForPlatform(value, platform)),
         env: server.env ?? {},
       }
     } else {

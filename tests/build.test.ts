@@ -634,6 +634,59 @@ describe('build', () => {
     expect(opencodeIndex).not.toContain('"type": "platform"')
   })
 
+  it('normalizes host-specific stdio root vars back to the target-local contract during build', async () => {
+    const runtimeConfig: PluginConfig = {
+      ...testConfig,
+      name: 'runtime-normalization-fixture',
+      mcp: {
+        'local-server': {
+          transport: 'stdio',
+          command: 'bash',
+          args: ['${CLAUDE_PLUGIN_ROOT}/scripts/start-mcp.sh'],
+          env: {
+            LOCAL_FIXTURE_TOKEN: '${LOCAL_FIXTURE_TOKEN}',
+          },
+        },
+      },
+      targets: ['claude-code', 'cursor', 'codex'],
+      outDir: './runtime-normalization-dist',
+    }
+
+    await build(runtimeConfig, TEST_DIR)
+
+    const claudeMcp = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'runtime-normalization-dist/claude-code/.mcp.json'), 'utf-8')
+    )
+    const cursorMcp = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'runtime-normalization-dist/cursor/mcp.json'), 'utf-8')
+    )
+    const codexMcp = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'runtime-normalization-dist/codex/.mcp.json'), 'utf-8')
+    )
+
+    expect(claudeMcp.mcpServers['local-server']).toEqual({
+      command: 'bash',
+      args: ['${CLAUDE_PLUGIN_ROOT}/scripts/start-mcp.sh'],
+      env: {
+        LOCAL_FIXTURE_TOKEN: '${LOCAL_FIXTURE_TOKEN}',
+      },
+    })
+    expect(cursorMcp.mcpServers['local-server']).toEqual({
+      command: 'bash',
+      args: ['./scripts/start-mcp.sh'],
+      env: {
+        LOCAL_FIXTURE_TOKEN: '${LOCAL_FIXTURE_TOKEN}',
+      },
+    })
+    expect(codexMcp.mcpServers['local-server']).toEqual({
+      command: 'bash',
+      args: ['./scripts/start-mcp.sh'],
+      env: {
+        LOCAL_FIXTURE_TOKEN: '${LOCAL_FIXTURE_TOKEN}',
+      },
+    })
+  })
+
   it('generates Codex manifest with interface metadata', async () => {
     const manifest = JSON.parse(
       readFileSync(resolve(OUT_DIR, 'codex/.codex-plugin/plugin.json'), 'utf-8')

@@ -12,6 +12,7 @@ import {
   CURSOR_SUPPORTED_HOOK_EVENTS,
   mapHookEventToPascalCase,
 } from '../hook-events'
+import { findHostPluginRootVars } from '../mcp-stdio-paths'
 
 const AGENT_SKILLS_RULES = { name: { pattern: /^[a-z0-9-]+$/, maxLength: 64 }, description: { maxLength: 1024 } }
 const CLAUDE_CODE_RULES = { description: { maxDisplayLength: 250 } }
@@ -690,6 +691,29 @@ function lintInstallerOwnedRuntimeScripts(config: PluginConfig, issues: LintIssu
         message: `Hook "${eventName}" references scripts/check-env.sh as part of a broader runtime command. Treat that script as installer-owned and install-time only, because local installs may rewrite it into a no-op after required config is materialized.`,
         file: 'pluxx.config.ts',
         platform: 'Runtime',
+      })
+    }
+  }
+}
+
+function lintGlobalMcpHostRootVariables(config: PluginConfig, issues: LintIssue[]): void {
+  if (!config.mcp) return
+
+  for (const [serverName, server] of Object.entries(config.mcp)) {
+    if (server.transport !== 'stdio') continue
+
+    const values = [server.command, ...(server.args ?? [])]
+    for (const [index, value] of values.entries()) {
+      const hostSpecificVars = findHostPluginRootVars(value).filter((pluginRootVar) => pluginRootVar !== 'PLUGIN_ROOT')
+      if (hostSpecificVars.length === 0) continue
+
+      const location = index === 0 ? 'command' : `args[${index - 1}]`
+      pushIssue(issues, {
+        level: 'warning',
+        code: 'mcp-stdio-host-root-var',
+        message: `MCP server "${serverName}" uses host-specific plugin root variable ${hostSpecificVars.map((pluginRootVar) => `\${${pluginRootVar}}`).join(', ')} in ${location}. Author global stdio MCP paths as \`./...\` or \`\${PLUGIN_ROOT}/...\` so Pluxx can normalize them per host during build and install.`,
+        file: 'pluxx.config.ts',
+        platform: 'MCP',
       })
     }
   }
@@ -1547,6 +1571,7 @@ export async function lintProject(
   lintMcpUrls(lintConfig, issues)
   lintMcpRuntimeState(dir, lintConfig, issues)
   lintInstallerOwnedRuntimeScripts(lintConfig, issues)
+  lintGlobalMcpHostRootVariables(lintConfig, issues)
   lintBrandMetadata(lintConfig, issues)
   lintCodexOverrides(lintConfig, issues)
   lintCodexHookCompatibility(lintConfig, issues)

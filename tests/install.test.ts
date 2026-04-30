@@ -515,4 +515,73 @@ describe('install', () => {
     expect(readFileSync(resolve(opencodeSkill, 'SKILL.md'), 'utf-8')).toContain('name: megamind/client-intel')
     expect(readFileSync(resolve(cursorInstall, 'scripts/check-env.sh'), 'utf-8')).toContain('materialized required config')
   })
+
+  it('normalizes plugin-owned stdio MCP paths consistently during local install materialization', async () => {
+    mkdirSync(resolve(DIST_DIR, 'cursor/scripts'), { recursive: true })
+    mkdirSync(resolve(DIST_DIR, 'codex/scripts'), { recursive: true })
+
+    await Bun.write(resolve(DIST_DIR, 'cursor/mcp.json'), JSON.stringify({ mcpServers: {} }, null, 2))
+    await Bun.write(resolve(DIST_DIR, 'codex/.mcp.json'), JSON.stringify({ mcpServers: {} }, null, 2))
+    await Bun.write(resolve(DIST_DIR, 'cursor/scripts/start-mcp.sh'), '#!/usr/bin/env bash\nexit 0\n')
+    await Bun.write(resolve(DIST_DIR, 'codex/scripts/start-mcp.sh'), '#!/usr/bin/env bash\nexit 0\n')
+
+    const config: PluginConfig = {
+      name: 'megamind',
+      version: '1.0.0',
+      description: 'Fixture plugin',
+      author: { name: 'Test Author' },
+      license: 'MIT',
+      skills: './skills/',
+      mcp: {
+        sendlens: {
+          transport: 'stdio',
+          command: 'bash',
+          args: ['${CLAUDE_PLUGIN_ROOT}/scripts/start-mcp.sh'],
+          env: {
+            SENDLENS_TOKEN: '${SENDLENS_TOKEN}',
+          },
+        },
+      },
+      targets: ['cursor', 'codex'],
+      outDir: './dist',
+    }
+
+    await installPlugin(DIST_DIR, 'megamind', ['cursor', 'codex'], {
+      config,
+      resolvedUserConfig: [{
+        field: {
+          key: 'sendlens-token',
+          title: 'SendLens Token',
+          description: 'Fixture token',
+          type: 'secret',
+          required: true,
+          envVar: 'SENDLENS_TOKEN',
+        },
+        value: 'shh-secret',
+        envVar: 'SENDLENS_TOKEN',
+      }],
+      useNativeClaudeInstall: false,
+      quiet: true,
+    })
+
+    const cursorInstall = resolve(HOME_DIR, INSTALL_PATHS.cursor)
+    const codexInstall = resolve(HOME_DIR, INSTALL_PATHS.codex)
+    const cursorMcp = JSON.parse(readFileSync(resolve(cursorInstall, 'mcp.json'), 'utf-8'))
+    const codexMcp = JSON.parse(readFileSync(resolve(codexInstall, '.mcp.json'), 'utf-8'))
+
+    expect(cursorMcp.mcpServers.sendlens).toEqual({
+      command: 'bash',
+      args: ['./scripts/start-mcp.sh'],
+      env: {
+        SENDLENS_TOKEN: 'shh-secret',
+      },
+    })
+    expect(codexMcp.mcpServers.sendlens).toEqual({
+      command: 'bash',
+      args: ['./scripts/start-mcp.sh'],
+      env: {
+        SENDLENS_TOKEN: 'shh-secret',
+      },
+    })
+  })
 })

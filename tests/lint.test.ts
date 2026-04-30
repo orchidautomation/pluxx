@@ -224,6 +224,38 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'installer-owned-check-env-runtime')).toBe(true)
   })
 
+  it('warns when global stdio MCP config uses host-specific plugin root vars', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['claude-code', 'cursor', 'codex'],
+        mcp: {
+          sendlens: {
+            transport: 'stdio',
+            command: 'bash',
+            args: ['${CLAUDE_PLUGIN_ROOT}/scripts/start-mcp.sh'],
+          },
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A valid skill description"', '---', '', '# My Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'mcp-stdio-host-root-var')).toBe(true)
+  })
+
   it('warns when Codex target is missing richer branding metadata', async () => {
     const projectDir = createTempProject()
     mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
