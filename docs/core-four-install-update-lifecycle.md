@@ -1,6 +1,6 @@
 # Core-Four Install And Update Lifecycle
 
-Last updated: 2026-04-28
+Last updated: 2026-04-30
 
 This doc explains the practical install, update, and reload behavior for the four primary Pluxx targets:
 
@@ -65,6 +65,51 @@ When a Pluxx-generated Codex plugin includes `.mcp.json`, Codex may display that
 - confirm tools are visible from the plugin inside chat
 
 If a Codex plugin-owned MCP needs an API key, install-time `userConfig` is the expected Pluxx path. Codex may not provide a global MCP settings form for that plugin-owned secret, so reinstall with the real env var exported or rerun the installer interactively. Generated `pluxx publish` installer scripts should prompt consumers for required secrets, materialize them into the installed bundle, reject obvious placeholder values, and let `doctor --consumer` warn if an older install contains one.
+
+## Installer-Owned Runtime Scripts
+
+Some files are intentionally installer-owned after a local install.
+
+The most important current example is:
+
+- `scripts/check-env.sh`
+
+When Pluxx materializes required `userConfig` into an installed local bundle, install rewrites `scripts/check-env.sh` into a no-op marker file.
+
+That means plugin runtime must not depend on sourcing or chaining through `scripts/check-env.sh` for critical startup behavior.
+
+Treat it as:
+
+- install-time validation only
+- mutable after install
+- unsafe as a runtime dependency for MCP startup or richer startup hooks
+
+This now exists as an explicit product contract because SendLens failed in Claude after install when runtime startup still sourced `check-env.sh` even though install had already rewritten it.
+
+## Claude Local Stdio Runtime Contract
+
+Claude Code should not be treated as guaranteeing plugin-root cwd for stdio MCP launch.
+
+For project-local Claude stdio runtimes, the generated `.mcp.json` should anchor runtime paths under `${CLAUDE_PLUGIN_ROOT}` instead of assuming relative `./...` paths will resolve from the plugin root after install.
+
+The practical rule is:
+
+- relative source paths in a Pluxx project are fine
+- generated Claude bundle output should be plugin-root anchored for local stdio runtime paths
+- plugin authors should reason about installed Claude runtime using `${CLAUDE_PLUGIN_ROOT}`, not cwd assumptions
+
+## Portable Native Runtime Pattern
+
+If a plugin needs native Node dependencies such as `@duckdb/node-api`, do not assume a CI-built `node_modules` tree is portable across user machines.
+
+The safer pattern is:
+
+- `load-env.sh` for runtime env loading
+- `bootstrap-runtime.sh` for first-run local native dependency install
+- `start-mcp.sh` as the MCP entrypoint
+- no runtime dependence on installer-mutated `check-env.sh`
+
+This is the pattern that stabilized SendLens on macOS after the earlier Linux-built `node_modules` release failed to run with DuckDB native bindings.
 
 ## What Pluxx Should Emit
 

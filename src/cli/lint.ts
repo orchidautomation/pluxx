@@ -82,6 +82,12 @@ const MAX_SKILL_NAME = AGENT_SKILLS_RULES.name.maxLength
 const MAX_CODEX_DEFAULT_PROMPTS = CODEX_RULES.interface.maxDefaultPrompts
 const MAX_CODEX_PROMPT_LENGTH = CODEX_RULES.interface.maxDefaultPromptLength
 const HEX_COLOR_REGEX = CODEX_RULES.interface.brandColorPattern
+const DIRECT_INSTALL_VALIDATION_HOOKS = new Set([
+  'bash "${PLUGIN_ROOT}/scripts/check-env.sh"',
+  'bash "${CLAUDE_PLUGIN_ROOT}/scripts/check-env.sh"',
+  'bash "${CURSOR_PLUGIN_ROOT}/scripts/check-env.sh"',
+  'bash "./scripts/check-env.sh"',
+])
 
 function pushIssue(issues: LintIssue[], issue: LintIssue): void {
   issues.push(issue)
@@ -634,6 +640,50 @@ function isLikelyLocalRuntimePath(value: string): boolean {
     || value.startsWith('../')
     || value.startsWith('.\\')
     || value.startsWith('..\\')
+}
+
+function referencesInstallerOwnedCheckEnv(command: string): boolean {
+  return command.includes('check-env.sh')
+}
+
+function lintInstallerOwnedRuntimeScripts(config: PluginConfig, issues: LintIssue[]): void {
+  if (config.mcp) {
+    for (const [serverName, server] of Object.entries(config.mcp)) {
+      if (server.transport !== 'stdio') continue
+
+      const runtimeTokens = [server.command, ...(server.args ?? [])]
+      if (!runtimeTokens.some((token) => referencesInstallerOwnedCheckEnv(token))) continue
+
+      pushIssue(issues, {
+        level: 'warning',
+        code: 'installer-owned-check-env-runtime',
+        message: `MCP server "${serverName}" references scripts/check-env.sh in its runtime command or args. Pluxx install rewrites that file into a no-op after userConfig materialization, so runtime startup must not depend on it. Use separate runtime scripts such as load-env.sh, bootstrap-runtime.sh, and start-mcp.sh instead.`,
+        file: 'pluxx.config.ts',
+        platform: 'Runtime',
+      })
+    }
+  }
+
+  if (!config.hooks) return
+
+  for (const [eventName, hookEntries] of Object.entries(config.hooks)) {
+    if (!Array.isArray(hookEntries)) continue
+
+    for (const entry of hookEntries) {
+      if (!entry || typeof entry !== 'object') continue
+      const command = (entry as Record<string, unknown>).command
+      if (typeof command !== 'string' || !referencesInstallerOwnedCheckEnv(command)) continue
+      if (DIRECT_INSTALL_VALIDATION_HOOKS.has(command.trim())) continue
+
+      pushIssue(issues, {
+        level: 'warning',
+        code: 'installer-owned-check-env-hook',
+        message: `Hook "${eventName}" references scripts/check-env.sh as part of a broader runtime command. Treat that script as installer-owned and install-time only, because local installs may rewrite it into a no-op after required config is materialized.`,
+        file: 'pluxx.config.ts',
+        platform: 'Runtime',
+      })
+    }
+  }
 }
 
 function lintCodexHookCompatibility(config: PluginConfig, issues: LintIssue[]): void {
@@ -1487,6 +1537,7 @@ export async function lintProject(
   // MCP and brand
   lintMcpUrls(lintConfig, issues)
   lintMcpRuntimeState(dir, lintConfig, issues)
+  lintInstallerOwnedRuntimeScripts(lintConfig, issues)
   lintBrandMetadata(lintConfig, issues)
   lintCodexOverrides(lintConfig, issues)
   lintCodexHookCompatibility(lintConfig, issues)

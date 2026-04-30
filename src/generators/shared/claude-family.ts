@@ -46,6 +46,21 @@ function shellSingleQuote(value: string): string {
   return `'${value.replace(/'/g, `'\"'\"'`)}'`
 }
 
+function rewriteClaudePluginRootReference(value: string): string {
+  const normalized = value.replace(/\\/g, '/')
+  if (normalized.startsWith('${CLAUDE_PLUGIN_ROOT}/')) return normalized
+  if (normalized.startsWith('${PLUGIN_ROOT}/')) {
+    return normalized.replace('${PLUGIN_ROOT}', '${CLAUDE_PLUGIN_ROOT}')
+  }
+  if (normalized.startsWith('./')) {
+    return `\${CLAUDE_PLUGIN_ROOT}/${normalized.slice(2)}`
+  }
+  if (normalized.startsWith('../')) {
+    return `\${CLAUDE_PLUGIN_ROOT}/${normalized}`
+  }
+  return value
+}
+
 function buildClaudeHookCommandWrapperScript(command: string): string {
   const serializedCommand = shellSingleQuote(command)
   const exportLoader = [
@@ -149,9 +164,16 @@ async function writeMcpConfig(
 
   for (const [name, server] of Object.entries(config.mcp)) {
     if (server.transport === 'stdio' && server.command) {
+      const command = platform === 'claude-code'
+        ? rewriteClaudePluginRootReference(server.command)
+        : server.command
+      const args = platform === 'claude-code'
+        ? (server.args ?? []).map(rewriteClaudePluginRootReference)
+        : (server.args ?? [])
+
       mcpServers[name] = {
-        command: server.command,
-        args: server.args ?? [],
+        command,
+        args,
         env: server.env ?? {},
       }
     } else {

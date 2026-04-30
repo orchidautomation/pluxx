@@ -190,6 +190,69 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'mcp-stdio-runtime-unbundled')).toBe(true)
   })
 
+  it('warns when stdio runtime startup depends on installer-owned check-env.sh', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['claude-code'],
+        mcp: {
+          localRuntime: {
+            transport: 'stdio',
+            command: 'bash',
+            args: ['./scripts/check-env.sh'],
+          },
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A valid skill description"', '---', '', '# My Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'installer-owned-check-env-runtime')).toBe(true)
+  })
+
+  it('does not warn for the direct install-time check-env hook scaffold', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['claude-code'],
+        hooks: {
+          sessionStart: [{
+            type: 'command',
+            command: 'bash "${PLUGIN_ROOT}/scripts/check-env.sh"',
+          }],
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A valid skill description"', '---', '', '# My Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'installer-owned-check-env-hook')).toBe(false)
+  })
+
   it('reports skill-description-truncation warning for display max', async () => {
     const projectDir = createTempProject()
     mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })

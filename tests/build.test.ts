@@ -605,7 +605,7 @@ describe('build', () => {
 
     expect(claudeMcp.mcpServers['local-server']).toEqual({
       command: 'node',
-      args: ['./mcp-server/dist/index.js', '--stdio'],
+      args: ['${CLAUDE_PLUGIN_ROOT}/mcp-server/dist/index.js', '--stdio'],
       env: {
         LOCAL_FIXTURE_TOKEN: '${LOCAL_FIXTURE_TOKEN}',
       },
