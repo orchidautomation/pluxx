@@ -42,6 +42,54 @@ export async function generateClaudeFamilyOutputs(args: {
   ])
 }
 
+function shellSingleQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\"'\"'`)}'`
+}
+
+function buildClaudeHookCommandWrapperScript(command: string): string {
+  const serializedCommand = shellSingleQuote(command)
+  const exportLoader = [
+    'import { readFileSync } from "node:fs"',
+    '',
+    'const filepath = process.argv[1]',
+    'if (!filepath) process.exit(0)',
+    'const payload = JSON.parse(readFileSync(filepath, "utf8"))',
+    'const env = payload && typeof payload === "object" && payload.env && typeof payload.env === "object"',
+    '  ? payload.env',
+    '  : {}',
+    '',
+    'for (const [key, value] of Object.entries(env)) {',
+    '  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) continue',
+    '  console.log(`export ${key}=${JSON.stringify(String(value ?? ""))}`)',
+    '}',
+  ].join('\n')
+
+  return [
+    '#!/usr/bin/env bash',
+    'set -euo pipefail',
+    '',
+    'PLUXX_PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"',
+    'PLUXX_USER_CONFIG_PATH="$PLUXX_PLUGIN_ROOT/.pluxx-user.json"',
+    '',
+    'if [ -f "$PLUXX_USER_CONFIG_PATH" ]; then',
+    '  while IFS= read -r pluxx_export; do',
+    '    if [ -n "$pluxx_export" ]; then',
+    '      eval "$pluxx_export"',
+    '      if [ -n "${CLAUDE_ENV_FILE:-}" ]; then',
+    '        printf \'%s\\n\' "$pluxx_export" >> "$CLAUDE_ENV_FILE"',
+    '      fi',
+    '    fi',
+    '  done < <(',
+    `    node --input-type=module -e ${shellSingleQuote(exportLoader)} "$PLUXX_USER_CONFIG_PATH"`,
+    '  )',
+    'fi',
+    '',
+    `PLUXX_HOOK_COMMAND=${serializedCommand}`,
+    'eval "$PLUXX_HOOK_COMMAND"',
+    '',
+  ].join('\n')
+}
+
 async function writeManifest(
   config: PluginConfig,
   rootDir: string,
@@ -146,7 +194,9 @@ async function writeHooks(
   const mapEventName = options.mapEventName ?? defaultMapEventName
   const usesPlatformManagedAuth = platform === 'claude-code'
     && config.platforms?.['claude-code']?.mcpAuth === 'platform'
+  const shouldWrapClaudeHookCommands = platform === 'claude-code'
   const permissionScript = buildGeneratedPermissionHookScript(config.permissions)
+  let generatedClaudeHookCommandCount = 0
 
   if (permissionScript) {
     await writeFile('hooks/pluxx-permissions.mjs', permissionScript)
@@ -184,12 +234,24 @@ async function writeHooks(
 
     hooks[mappedEvent] = [
       ...(hooks[mappedEvent] ?? []),
-      ...commandEntries.map(entry => ({
-      ...(entry.matcher !== undefined ? { matcher: entry.matcher } : {}),
-      hooks: [{
-        type: 'command',
-        command: entry.command!.replace('${PLUGIN_ROOT}', `\${${options.pluginRootVar}}`),
-      }],
+      ...await Promise.all(commandEntries.map(async (entry) => {
+        const command = entry.command!.replace('${PLUGIN_ROOT}', `\${${options.pluginRootVar}}`)
+        const finalCommand = shouldWrapClaudeHookCommands
+          ? await (async () => {
+            generatedClaudeHookCommandCount += 1
+            const relativePath = `hooks/pluxx-hook-command-${generatedClaudeHookCommandCount}.sh`
+            await writeFile(relativePath, buildClaudeHookCommandWrapperScript(command))
+            return `bash "\${${options.pluginRootVar}}/${relativePath}"`
+          })()
+          : command
+
+        return {
+          ...(entry.matcher !== undefined ? { matcher: entry.matcher } : {}),
+          hooks: [{
+            type: 'command',
+            command: finalCommand,
+          }],
+        }
       })),
     ]
   }

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
-import { mkdirSync, rmSync, existsSync, readFileSync } from 'fs'
+import { mkdirSync, rmSync, existsSync, readFileSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
+import { spawnSync } from 'child_process'
 import { build } from '../src/generators'
 import type { PluginConfig } from '../src/schema'
 
@@ -416,6 +417,85 @@ describe('build', () => {
     expect(cursorHooks.hooks.sessionStart).toBeUndefined()
     expect(claudeHooks.hooks.UserPromptSubmit).toBeDefined()
     expect(cursorHooks.hooks.beforeSubmitPrompt).toBeDefined()
+  })
+
+  it('wraps Claude hook commands so installed userConfig env reaches SessionStart hooks and child processes', async () => {
+    const hookEnvConfig: PluginConfig = {
+      ...testConfig,
+      name: 'hook-env-plugin',
+      version: '1.1.0',
+      userConfig: [
+        {
+          key: 'sendlens-instantly-api-key',
+          title: 'SendLens Instantly API Key',
+          description: 'API key used by the startup refresh flow.',
+          type: 'secret',
+          required: true,
+          envVar: 'SENDLENS_INSTANTLY_API_KEY',
+        },
+      ],
+      hooks: {
+        sessionStart: [{
+          command: 'node "${PLUGIN_ROOT}/scripts/print-hook-env.mjs"',
+        }],
+      },
+      outDir: './hook-env-dist',
+    }
+
+    await Bun.write(
+      resolve(TEST_DIR, 'scripts/print-hook-env.mjs'),
+      [
+        'if (!process.env.SENDLENS_INSTANTLY_API_KEY) {',
+        '  console.error("missing env")',
+        '  process.exit(1)',
+        '}',
+        'console.log(process.env.SENDLENS_INSTANTLY_API_KEY)',
+      ].join('\n'),
+    )
+
+    await build(hookEnvConfig, TEST_DIR)
+
+    const claudeHooks = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'hook-env-dist/claude-code/hooks/hooks.json'), 'utf-8'),
+    )
+    expect(claudeHooks.hooks.SessionStart[0].hooks[0].command).toBe(
+      'bash "${CLAUDE_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.sh"',
+    )
+
+    const wrapperPath = resolve(TEST_DIR, 'hook-env-dist/claude-code/hooks/pluxx-hook-command-1.sh')
+    const wrapper = readFileSync(wrapperPath, 'utf-8')
+    expect(wrapper).toContain('.pluxx-user.json')
+    expect(wrapper).toContain('CLAUDE_ENV_FILE')
+    expect(wrapper).toContain('print-hook-env.mjs')
+
+    writeFileSync(
+      resolve(TEST_DIR, 'hook-env-dist/claude-code/.pluxx-user.json'),
+      JSON.stringify({
+        values: {
+          'sendlens-instantly-api-key': 'secret-token',
+        },
+        env: {
+          SENDLENS_INSTANTLY_API_KEY: 'secret-token',
+        },
+      }, null, 2),
+    )
+    writeFileSync(resolve(TEST_DIR, 'hook-env-dist/claude-code/.claude-env.sh'), '')
+
+    const run = spawnSync('bash', [wrapperPath], {
+      cwd: resolve(TEST_DIR, 'hook-env-dist/claude-code'),
+      encoding: 'utf-8',
+      env: {
+        ...process.env,
+        CLAUDE_PLUGIN_ROOT: resolve(TEST_DIR, 'hook-env-dist/claude-code'),
+        CLAUDE_ENV_FILE: resolve(TEST_DIR, 'hook-env-dist/claude-code/.claude-env.sh'),
+      },
+    })
+
+    expect(run.status).toBe(0)
+    expect(run.stdout.trim()).toBe('secret-token')
+    expect(readFileSync(resolve(TEST_DIR, 'hook-env-dist/claude-code/.claude-env.sh'), 'utf-8')).toContain(
+      'export SENDLENS_INSTANTLY_API_KEY="secret-token"',
+    )
   })
 
   it('carries a rich Claude-style skill fixture and supporting files into all core-four outputs', async () => {
@@ -1058,9 +1138,12 @@ describe('build', () => {
     ).toEqual([...linearMatchers])
     expect(
       claudeHooks.hooks.PreToolUse.every((group: { hooks: Array<{ command: string }> }) =>
-        group.hooks[0]?.command.includes('${CLAUDE_PLUGIN_ROOT}/scripts/confirm-mutation.sh')
+        group.hooks[0]?.command.startsWith('bash "${CLAUDE_PLUGIN_ROOT}/hooks/pluxx-hook-command-')
       )
     ).toBe(true)
+    expect(
+      readFileSync(resolve(TEST_DIR, 'matcher-dist/claude-code/hooks/pluxx-hook-command-1.sh'), 'utf-8')
+    ).toContain('${CLAUDE_PLUGIN_ROOT}/scripts/confirm-mutation.sh')
 
     expect(cursorHooks.hooks.preToolUse).toHaveLength(linearMatchers.length)
     expect(
