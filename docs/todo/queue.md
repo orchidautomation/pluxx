@@ -83,6 +83,9 @@ The core-four compiler sprint is done.
   - `init --from-mcp` infers `passthrough` for project-relative runtimes like `./build/index.js`
   - `lint` warns when a local stdio runtime is not bundled into passthrough
   - `doctor --consumer` warns when installed `.mcp.json` files reference missing stdio runtime payloads
+  - Claude-generated local stdio MCP output now anchors project-local runtime paths under `${CLAUDE_PLUGIN_ROOT}`
+  - `lint` warns when MCP startup or custom runtime hooks depend on installer-owned `scripts/check-env.sh`
+  - the install/runtime docs now recommend the `load-env.sh` + `bootstrap-runtime.sh` + `start-mcp.sh` split pattern for native Node deps
 - installed MCP discovery is now a first-class import path:
   - `pluxx discover-mcp` reads Claude Code, Cursor, Codex, and OpenCode config locations
   - `pluxx init --from-installed-mcp <host:name>` imports a selected discovered server into a Pluxx project

@@ -92,6 +92,9 @@ The closure plan is now narrower than it was before:
   - `init --from-mcp` auto-recovers `passthrough` for project-relative runtimes such as `./build/index.js`
   - `lint` catches unbundled stdio runtime payloads earlier
   - `doctor --consumer` now makes broken installed `.mcp.json` runtime references obvious
+  - Claude-generated local stdio MCP output now anchors project-local runtime paths under `${CLAUDE_PLUGIN_ROOT}` instead of assuming plugin-root cwd
+  - `lint` now warns when MCP startup or custom runtime hooks depend on installer-owned `scripts/check-env.sh`
+  - the recommended native-runtime pattern now explicitly splits `load-env.sh`, `bootstrap-runtime.sh`, and `start-mcp.sh`
 - installed MCP discovery now closes the adjacent "I already configured this MCP in a host" path:
   - `pluxx discover-mcp` lists configured MCP servers from Claude Code, Cursor, Codex, and OpenCode config locations
   - `pluxx init --from-installed-mcp <host:name>` imports the selected MCP into a maintained Pluxx source project

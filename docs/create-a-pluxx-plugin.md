@@ -132,6 +132,8 @@ npx @orchid-labs/pluxx init \
 
 If the stdio command points at a project-relative runtime such as `./build/index.js`, Pluxx now infers the parent runtime directory into `passthrough` automatically. That matters because installed host bundles need both the MCP config and the executable payload, not just the config.
 
+For Claude Code specifically, generated local stdio MCP bundle output should treat plugin-root anchoring as the runtime contract. In practice, installed Claude bundles should use `${CLAUDE_PLUGIN_ROOT}` for project-local stdio runtime paths rather than assuming Claude will launch the MCP with plugin-root cwd.
+
 ### 4. Inspect the scaffold
 
 You should now have a source repo that looks roughly like:
@@ -232,6 +234,25 @@ Important:
 - the editable source of truth is the root project
 - `dist/` is generated output
 - do not hand-edit `dist/` unless you are debugging a generator
+
+### Runtime Pattern For Native Node Dependencies
+
+If your plugin needs platform-native Node dependencies such as `@duckdb/node-api`, do not rely on shipping one prebuilt `node_modules` tree from CI and assuming it will run everywhere.
+
+Use a split runtime pattern instead:
+
+- `load-env.sh`
+- `bootstrap-runtime.sh`
+- `start-mcp.sh`
+
+Recommended contract:
+
+- `load-env.sh` loads runtime env and plugin-owned secrets
+- `bootstrap-runtime.sh` installs or repairs native runtime dependencies locally on first run
+- `start-mcp.sh` is the MCP entrypoint that launches the real server
+- `scripts/check-env.sh` remains install-time validation only and must not be part of the runtime startup chain
+
+This is the portable pattern that resolved SendLens after the original release shipped Linux-built `node_modules` that were not portable to macOS DuckDB bindings.
 
 ### 9. Install and test one host first
 
