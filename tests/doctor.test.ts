@@ -402,6 +402,32 @@ describe('doctorProject', () => {
     }
   })
 
+  it('warns when host-supported branding metadata is absent', async () => {
+    const dir = createProjectFixture()
+    writeFileSync(
+      resolve(dir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'doctor-fixture',
+        version: '0.1.0',
+        description: 'Doctor fixture',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['cursor', 'codex'],
+        brand: {
+          displayName: 'Doctor Fixture',
+        },
+      }, null, 2),
+    )
+
+    try {
+      const report = await doctorProject(dir)
+      expect(report.checks.some((check) => check.code === 'cursor-branding-metadata-missing' && check.level === 'warning')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'codex-branding-metadata-missing' && check.level === 'warning')).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('prints stable JSON from the CLI', async () => {
     const dir = createProjectFixture()
 

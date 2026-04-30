@@ -8,6 +8,7 @@ import { PLUXX_COMPILER_INTENT_PATH, readCompilerIntent } from '../compiler-inte
 import { MCP_SCAFFOLD_METADATA_PATH, type McpScaffoldMetadata } from './init-from-mcp'
 import { buildPrimitiveTranslationSummary, renderPrimitiveTranslationSummary, type PrimitiveTranslationSummary } from './primitive-summary'
 import { isPlaceholderSecretValue } from '../user-config'
+import { getBrandingCompletenessWarnings } from '../branding-completeness'
 
 export type DoctorLevel = 'error' | 'warning' | 'info' | 'success'
 
@@ -442,6 +443,19 @@ function checkHookTrust(checks: DoctorCheck[], config: PluginConfig): void {
     fix: 'Review the commands carefully. Users will need to opt in with pluxx install --trust.',
     path: 'pluxx.config.ts',
   })
+}
+
+function checkBrandMetadataCompleteness(checks: DoctorCheck[], config: PluginConfig): void {
+  for (const warning of getBrandingCompletenessWarnings(config)) {
+    addCheck(checks, {
+      level: 'warning',
+      code: warning.code,
+      title: warning.title,
+      detail: warning.message,
+      fix: warning.fix,
+      path: 'pluxx.config.ts',
+    })
+  }
 }
 
 function isSafeManagedPath(path: string): boolean {
@@ -1302,6 +1316,7 @@ export async function doctorProject(rootDir: string = process.cwd()): Promise<Do
   checkScaffoldMetadata(checks, rootDir, config)
   checkCompilerIntent(checks, rootDir)
   checkHookTrust(checks, config)
+  checkBrandMetadataCompleteness(checks, config)
 
   for (const target of config.targets) {
     const limits = PLATFORM_LIMITS[target]

@@ -86,6 +86,9 @@ The core-four compiler sprint is done.
   - Claude-generated local stdio MCP output now anchors project-local runtime paths under `${CLAUDE_PLUGIN_ROOT}`
   - `lint` warns when MCP startup or custom runtime hooks depend on installer-owned `scripts/check-env.sh`
   - the install/runtime docs now recommend the `load-env.sh` + `bootstrap-runtime.sh` + `start-mcp.sh` split pattern for native Node deps
+- host-visible branding completeness is now surfaced earlier:
+  - `lint` warns when Cursor or Codex can render richer branding but the plugin is missing `brand.icon` and/or `brand.screenshots`
+  - `doctor` now surfaces the same source-project warning before a plugin is treated as finished
 - installed MCP discovery is now a first-class import path:
   - `pluxx discover-mcp` reads Claude Code, Cursor, Codex, and OpenCode config locations
   - `pluxx init --from-installed-mcp <host:name>` imports a selected discovered server into a Pluxx project
