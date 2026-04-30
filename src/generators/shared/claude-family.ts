@@ -51,6 +51,8 @@ function buildClaudeHookCommandWrapperScript(command: string): string {
   const exportLoader = [
     'import { readFileSync } from "node:fs"',
     '',
+    'const shellSingleQuote = (input) => `\'${String(input ?? "").replace(/\'/g, `\'"\'"\'`)}\'`',
+    '',
     'const filepath = process.argv[1]',
     'if (!filepath) process.exit(0)',
     'const payload = JSON.parse(readFileSync(filepath, "utf8"))',
@@ -60,7 +62,7 @@ function buildClaudeHookCommandWrapperScript(command: string): string {
     '',
     'for (const [key, value] of Object.entries(env)) {',
     '  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) continue',
-    '  console.log(`export ${key}=${JSON.stringify(String(value ?? ""))}`)',
+    '  process.stdout.write(`export ${key}=${shellSingleQuote(value)}\\0`)',
     '}',
   ].join('\n')
 
@@ -72,11 +74,11 @@ function buildClaudeHookCommandWrapperScript(command: string): string {
     'PLUXX_USER_CONFIG_PATH="$PLUXX_PLUGIN_ROOT/.pluxx-user.json"',
     '',
     'if [ -f "$PLUXX_USER_CONFIG_PATH" ]; then',
-    '  while IFS= read -r pluxx_export; do',
+    '  while IFS= read -r -d \'\' pluxx_export; do',
     '    if [ -n "$pluxx_export" ]; then',
     '      eval "$pluxx_export"',
     '      if [ -n "${CLAUDE_ENV_FILE:-}" ]; then',
-    '        printf \'%s\\n\' "$pluxx_export" >> "$CLAUDE_ENV_FILE"',
+        '        printf \'%s\\n\' "$pluxx_export" >> "$CLAUDE_ENV_FILE"',
     '      fi',
     '    fi',
     '  done < <(',

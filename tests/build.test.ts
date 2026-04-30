@@ -420,6 +420,7 @@ describe('build', () => {
   })
 
   it('wraps Claude hook commands so installed userConfig env reaches SessionStart hooks and child processes', async () => {
+    const multilineSecret = 'secret-token\nline-two'
     const hookEnvConfig: PluginConfig = {
       ...testConfig,
       name: 'hook-env-plugin',
@@ -449,7 +450,7 @@ describe('build', () => {
         '  console.error("missing env")',
         '  process.exit(1)',
         '}',
-        'console.log(process.env.SENDLENS_INSTANTLY_API_KEY)',
+        'process.stdout.write(JSON.stringify(process.env.SENDLENS_INSTANTLY_API_KEY))',
       ].join('\n'),
     )
 
@@ -472,10 +473,10 @@ describe('build', () => {
       resolve(TEST_DIR, 'hook-env-dist/claude-code/.pluxx-user.json'),
       JSON.stringify({
         values: {
-          'sendlens-instantly-api-key': 'secret-token',
+          'sendlens-instantly-api-key': multilineSecret,
         },
         env: {
-          SENDLENS_INSTANTLY_API_KEY: 'secret-token',
+          SENDLENS_INSTANTLY_API_KEY: multilineSecret,
         },
       }, null, 2),
     )
@@ -492,10 +493,23 @@ describe('build', () => {
     })
 
     expect(run.status).toBe(0)
-    expect(run.stdout.trim()).toBe('secret-token')
-    expect(readFileSync(resolve(TEST_DIR, 'hook-env-dist/claude-code/.claude-env.sh'), 'utf-8')).toContain(
-      'export SENDLENS_INSTANTLY_API_KEY="secret-token"',
-    )
+    expect(run.stdout).toBe(JSON.stringify(multilineSecret))
+
+    const sourcedEnv = spawnSync('bash', [
+      '-lc',
+      'source "$1" && node -e \'process.stdout.write(JSON.stringify(process.env.SENDLENS_INSTANTLY_API_KEY ?? ""))\'',
+      'pluxx-env-check',
+      resolve(TEST_DIR, 'hook-env-dist/claude-code/.claude-env.sh'),
+    ], {
+      cwd: resolve(TEST_DIR, 'hook-env-dist/claude-code'),
+      encoding: 'utf-8',
+      env: {
+        ...process.env,
+      },
+    })
+
+    expect(sourcedEnv.status).toBe(0)
+    expect(sourcedEnv.stdout).toBe(JSON.stringify(multilineSecret))
   })
 
   it('carries a rich Claude-style skill fixture and supporting files into all core-four outputs', async () => {
