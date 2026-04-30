@@ -85,6 +85,9 @@ The core-four compiler sprint is done.
   - `doctor --consumer` warns when installed `.mcp.json` files reference missing stdio runtime payloads
   - Claude-generated local stdio MCP output now anchors project-local runtime paths under `${CLAUDE_PLUGIN_ROOT}`
   - `lint` warns when MCP startup or custom runtime hooks depend on installer-owned `scripts/check-env.sh`
+  - build output and install-time MCP materialization now share the same stdio path normalization, so host-specific root vars no longer leak between Claude, Cursor, and Codex bundles
+  - `lint` now warns when global stdio MCP config uses host-specific root vars such as `${CLAUDE_PLUGIN_ROOT}`
+  - `doctor --consumer` now warns when an installed bundle still carries the wrong host root contract in stdio MCP config
   - the install/runtime docs now recommend the `load-env.sh` + `bootstrap-runtime.sh` + `start-mcp.sh` split pattern for native Node deps
 - host-visible branding completeness is now surfaced earlier:
   - `lint` warns when Cursor or Codex can render richer branding but the plugin is missing `brand.icon` and/or `brand.screenshots`

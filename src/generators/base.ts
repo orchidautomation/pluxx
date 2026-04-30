@@ -3,6 +3,7 @@ import { mkdirSync, existsSync, cpSync } from 'fs'
 import type { PluginConfig, TargetPlatform, McpServer } from '../schema'
 import { readCompilerIntent, type CompilerIntentFile } from '../compiler-intent'
 import { writeTextFile } from '../text-files'
+import { normalizePluginOwnedStdioPathForPlatform } from '../mcp-stdio-paths'
 
 type McpRemoteServer = Exclude<McpServer, { transport: 'stdio' }>
 
@@ -126,8 +127,8 @@ export abstract class Generator {
     for (const [name, server] of Object.entries(this.config.mcp)) {
       if (server.transport === 'stdio') {
         mcpServers[name] = {
-          command: server.command,
-          args: server.args ?? [],
+          command: normalizePluginOwnedStdioPathForPlatform(server.command, this.platform),
+          args: (server.args ?? []).map((value) => normalizePluginOwnedStdioPathForPlatform(value, this.platform)),
           env: server.env ?? {},
         }
         continue

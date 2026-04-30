@@ -9,6 +9,7 @@ import { MCP_SCAFFOLD_METADATA_PATH, type McpScaffoldMetadata } from './init-fro
 import { buildPrimitiveTranslationSummary, renderPrimitiveTranslationSummary, type PrimitiveTranslationSummary } from './primitive-summary'
 import { isPlaceholderSecretValue } from '../user-config'
 import { getBrandingCompletenessWarnings } from '../branding-completeness'
+import { findLeakedPluginRootVars } from '../mcp-stdio-paths'
 
 export type DoctorLevel = 'error' | 'warning' | 'info' | 'success'
 
@@ -944,6 +945,26 @@ function checkInstalledMcpConfig(checks: DoctorCheck[], rootDir: string, layout:
           title: 'Bundled stdio MCP runtime files are missing',
           detail: `This installed MCP config references local runtime path${missingRuntimePaths.length === 1 ? '' : 's'} that do not exist in the bundle: ${missingRuntimePaths.join(', ')}.`,
           fix: 'Rebuild the plugin with the MCP runtime directory included in passthrough, then reinstall the host bundle.',
+          path: layout.mcpConfigPath,
+        })
+      }
+
+      const leakedPluginRootVars = [...new Set(
+        stdioEntries.flatMap((server) => {
+          const values = [
+            typeof server.command === 'string' ? server.command : '',
+            ...(Array.isArray(server.args) ? server.args.filter((value): value is string => typeof value === 'string') : []),
+          ]
+          return findLeakedPluginRootVars(layout.platform, values)
+        }),
+      )].sort()
+      if (leakedPluginRootVars.length > 0) {
+        addCheck(checks, {
+          level: 'warning',
+          code: 'consumer-mcp-stdio-host-root-leak',
+          title: 'Installed stdio MCP config contains the wrong host root contract',
+          detail: `This installed ${layout.platform} MCP config still contains plugin root variable${leakedPluginRootVars.length === 1 ? '' : 's'} that do not belong in this host bundle: ${leakedPluginRootVars.map((pluginRootVar) => `\${${pluginRootVar}}`).join(', ')}.`,
+          fix: 'Author global stdio MCP paths as `./...` or `${PLUGIN_ROOT}/...`, then rebuild and reinstall so Pluxx can normalize the correct host-specific path.',
           path: layout.mcpConfigPath,
         })
       }
