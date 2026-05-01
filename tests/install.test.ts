@@ -578,7 +578,7 @@ describe('install', () => {
     })
     expect(codexMcp.mcpServers.sendlens).toEqual({
       command: 'bash',
-      args: ['./scripts/start-mcp.sh'],
+      args: [resolve(codexInstall, 'scripts/start-mcp.sh')],
       env: {
         SENDLENS_TOKEN: 'shh-secret',
       },
