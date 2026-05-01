@@ -1,6 +1,6 @@
 # Pluxx Queue
 
-Last updated: 2026-04-30
+Last updated: 2026-05-01
 
 ## Doc Links
 
@@ -89,6 +89,16 @@ The core-four compiler sprint is done.
   - `lint` now warns when global stdio MCP config uses host-specific root vars such as `${CLAUDE_PLUGIN_ROOT}`
   - `doctor --consumer` now warns when an installed bundle still carries the wrong host root contract in stdio MCP config
   - the install/runtime docs now recommend the `load-env.sh` + `bootstrap-runtime.sh` + `start-mcp.sh` split pattern for native Node deps
+  - source-project runtime payload checks now treat `scripts/`, `assets/`, and `passthrough` as one bundled runtime surface when validating local stdio startup paths
+  - `doctor --consumer` now reports which known runtime script-role files are present in an installed bundle
+  - `install`, `doctor --consumer`, and `verify-install` now fail bundles whose actual stdio entry scripts still chain runtime startup through installer-owned `scripts/check-env.sh`
+- runtime readiness is now a real shared runtime surface:
+  - source config can declare refresh dependencies plus gate polling/timeout policy once
+  - Claude Code, Cursor, and OpenCode now emit generated readiness behavior from that shared primitive
+  - Codex now emits `.codex/readiness.generated.json` plus hook guidance instead of pretending bundle-enforced parity
+  - `lint` and `doctor` now explain Codex external wiring and best-effort prompt-entry degradation for named skill/command targets
+  - `runtime` is now also modeled more explicitly inside the compiler as MCP/auth, readiness, and payload support rather than one undifferentiated internal bucket
+  - readiness translation notes for Codex external wiring and best-effort named prompt targeting now come from one shared registry used by generators, `lint`, and `doctor`
 - host-visible branding completeness is now surfaced earlier:
   - `lint` warns when Cursor or Codex can render richer branding but the plugin is missing `brand.icon` and/or `brand.screenshots`
   - `doctor` now surfaces the same source-project warning before a plugin is treated as finished
@@ -152,8 +162,24 @@ Open work:
     - [docs/core-four-branding-metadata-audit.md](../core-four-branding-metadata-audit.md)
   - the now-closed registry, generator, migration, explainability, and fixture rows for the current audited core four
   - any future host-drift refreshes and public proof-packaging follow-ons
+- use [docs/primitive-compiler-hardening-architecture.md](../primitive-compiler-hardening-architecture.md) as the current execution spec for:
+  - IR boundary work
+  - shared registry rollout
+  - runtime/distribution internal seam hardening
+- treat the current compiler-hardening state as:
+  - runtime/distribution internal seams are materially stronger
+  - readiness translation is already shared through one registry
+  - runtime script-role and installed-runtime enforcement are materially stronger
+  - hook translation now has a first shared registry slice for event support and field-preservation truth
+  - commands IR now preserves `argument-hint` through Codex, OpenCode, and Agent Mode instead of dropping it downstream
 - use the Exa example as the next import-quality pressure test:
   - a raw `init --from-mcp`, `autopilot`, or `migrate` run should get closer to the final Exa workflow architecture without depending on as much maintainer hand-shaping
+- close the now-clearer translation follow-ons behind the shipped readiness/runtime work:
+  - finish the deeper hook-registry rollout so generator routing and docs rows read registry-backed truth instead of parallel tables
+  - add the first shared `skills` parser/spec and replace duplicated skill parsing in lint, Agent Mode, migrate, and Claude rewrites
+  - continue the `commands` IR pass beyond `argument-hint` so richer argument/routing metadata stops degrading early
+  - reduce lossy import paths in `migrate` and installed-MCP discovery, especially around richer hook fields and auth reconstruction
+  - make installed hook env parity a portable runtime contract outside the Claude-specific wrapper path
 
 ### 2. Flagship depth example
 

@@ -1,6 +1,6 @@
 # Master Backlog
 
-Last updated: 2026-04-30
+Last updated: 2026-05-01
 
 This is the most complete repo-native backlog for Pluxx.
 
@@ -86,6 +86,12 @@ Any person or agent should be able to enter the repo and answer:
   - [docs/openclaw-target-evaluation.md](../openclaw-target-evaluation.md)
 - [~] Turn the provider and branding audits into an explicit closure tracker for every mapped cross-host feature:
   - [docs/core-four-translation-hit-list.md](../core-four-translation-hit-list.md)
+- [~] Use [docs/primitive-compiler-hardening-architecture.md](../primitive-compiler-hardening-architecture.md) as the current execution spec for:
+  - canonical IR boundary work
+  - shared translation registry rollout
+  - runtime/distribution internal seam hardening
+  - first hook-registry slice is now in place for event support and field-preservation truth
+  - first commands IR follow-on is now in place for `argument-hint` preservation
 - [x] Close the last P0 fixture/proof rows from the translation hit list:
   - row-level translation docs are now in:
     - [docs/core-four-primitive-matrix.md](../core-four-primitive-matrix.md)
@@ -112,6 +118,16 @@ Any person or agent should be able to enter the repo and answer:
   - `lint` now warns when global stdio MCP config uses host-specific root vars such as `${CLAUDE_PLUGIN_ROOT}`
   - `doctor --consumer` now warns when an installed bundle still carries the wrong host root contract in stdio MCP config
   - docs now capture the portable `load-env.sh` / `bootstrap-runtime.sh` / `start-mcp.sh` pattern for native Node runtime dependencies
+  - source-project runtime payload checks now treat `scripts/`, `assets/`, and `passthrough` as one bundled runtime surface when validating local stdio startup paths
+  - `doctor --consumer` now reports which known runtime script-role files are present in an installed bundle
+  - `install`, `doctor --consumer`, and `verify-install` now fail bundles whose actual stdio entry scripts still chain runtime startup through installer-owned `scripts/check-env.sh`
+- [x] Make runtime readiness a first-class runtime primitive instead of manual per-host hook glue:
+  - source config now models refresh dependencies and gate policy once
+  - Claude Code, Cursor, and OpenCode now emit generated readiness behavior from that shared primitive
+  - Codex now emits `.codex/readiness.generated.json` plus external hook guidance rather than pretending bundle-enforced parity
+  - `lint` and `doctor` now explain Codex external wiring and best-effort prompt-entry degradation for named skill/command readiness targets
+  - the compiler now also treats `runtime` more explicitly as internal MCP/auth, readiness, and payload subcontracts
+  - the readiness translation notes shared by generators, `lint`, and `doctor` are now centralized instead of repeated as drift-prone parallel strings
 - [x] Surface host-visible branding gaps earlier in author workflows:
   - `lint` now warns when Cursor or Codex can render richer branding but the plugin is missing `brand.icon` and/or `brand.screenshots`
   - `doctor` now surfaces the same source-project warning before a plugin is treated as finished
@@ -123,6 +139,12 @@ Any person or agent should be able to enter the repo and answer:
   - public proof and packaging polish
   - install/distribution asset polish
   - future host-drift refreshes
+- [ ] Consolidate the remaining translation papercuts that the readiness work made more obvious:
+  - finish the deeper hook-registry rollout so generator routing and docs rows read registry-backed truth
+  - add the first shared `skills` parser/spec and replace duplicated skill parsing in lint, Agent Mode, migrate, and Claude rewrites
+  - continue the `commands` IR pass beyond `argument-hint` preservation into richer argument/routing metadata
+  - reduce lossy import paths in `migrate` and installed-MCP discovery
+  - make installed hook env parity a portable runtime contract outside the Claude-only wrapper path
 
 ### 2. Flagship reference plugin
 

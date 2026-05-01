@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-04-30
+Last updated: 2026-05-01
 
 ## Doc Links
 
@@ -98,6 +98,16 @@ The closure plan is now narrower than it was before:
   - `lint` now warns when global stdio MCP config uses host-specific root vars such as `${CLAUDE_PLUGIN_ROOT}`
   - `doctor --consumer` now warns when an installed bundle still carries the wrong host root contract in stdio MCP config
   - the recommended native-runtime pattern now explicitly splits `load-env.sh`, `bootstrap-runtime.sh`, and `start-mcp.sh`
+  - source-project runtime payload checks now treat `scripts/`, `assets/`, and `passthrough` as one bundled runtime surface when validating local stdio startup paths
+  - `doctor --consumer` now reports which known runtime script-role files are present in an installed bundle
+  - `install`, `doctor --consumer`, and `verify-install` now fail bundles whose actual stdio entry scripts still chain runtime startup through installer-owned `scripts/check-env.sh`
+- runtime readiness is now a real compiler-owned runtime surface:
+  - source config can declare refresh dependencies, gate polling, and timeout policy once
+  - Claude Code, Cursor, and OpenCode now emit generated readiness behavior from that shared primitive
+  - Codex now emits `.codex/readiness.generated.json` plus explicit external hook guidance instead of pretending bundle-enforced parity
+  - `lint` and `doctor` now explain Codex external wiring and best-effort prompt-entry degradation for named skill/command readiness targets
+  - the compiler now also treats `runtime` more explicitly as internal MCP/auth, readiness, and payload subcontracts
+  - the readiness translation notes shared by generators, `lint`, and `doctor` now come from one registry instead of parallel drift-prone wording
 - host-visible branding completeness is now surfaced earlier:
   - `lint` warns when Cursor or Codex can render richer branding but the plugin is missing `brand.icon` and/or `brand.screenshots`
   - `doctor` surfaces the same source-project warning before a plugin is treated as finished
@@ -105,6 +115,14 @@ The closure plan is now narrower than it was before:
   - `pluxx discover-mcp` lists configured MCP servers from Claude Code, Cursor, Codex, and OpenCode config locations
   - `pluxx init --from-installed-mcp <host:name>` imports the selected MCP into a maintained Pluxx source project
   - literal secret values are not copied into generated project config
+- the next translation follow-ons are now clearer and narrower:
+  - finish the deeper hook-registry rollout so generator routing and docs rows read registry-backed truth
+  - add the first shared `skills` parser/spec and replace duplicated skill parsing in lint, Agent Mode, migrate, and Claude rewrites
+  - continue the `commands` IR pass beyond `argument-hint` preservation into richer argument/routing metadata
+  - reduce lossy import paths in `migrate` and installed-MCP discovery
+  - turn installed hook env parity into a portable runtime contract outside the Claude-only wrapper path
+- the current execution spec for that compiler-hardening tranche now lives in:
+  - [docs/primitive-compiler-hardening-architecture.md](./primitive-compiler-hardening-architecture.md)
 - example and packaged-runtime parity are back in sync:
   - `examples/prospeo-mcp` now bundles its `scripts/` payload and points at the official `@prospeo/prospeo-mcp-server` package
 - the release gate is green again as of 2026-04-30:
