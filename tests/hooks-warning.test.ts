@@ -44,7 +44,6 @@ describe('warnDroppedHookFields', () => {
 
   it('continues warning about matcher for platforms that drop it', () => {
     const platforms: TargetPlatform[] = [
-      'codex',
       'gemini-cli',
       'amp',
     ]

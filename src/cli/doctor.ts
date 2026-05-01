@@ -10,6 +10,20 @@ import { buildPrimitiveTranslationSummary, renderPrimitiveTranslationSummary, ty
 import { isPlaceholderSecretValue } from '../user-config'
 import { getBrandingCompletenessWarnings } from '../branding-completeness'
 import { findLeakedPluginRootVars } from '../mcp-stdio-paths'
+import { getRuntimeReadinessPlan } from '../readiness'
+import {
+  getConsumerEnvScriptActiveDetail,
+  getConsumerEnvScriptMissingDetail,
+  getConsumerRuntimeScriptRolesDetail,
+  getRuntimeScriptRoleForPath,
+  INSTALLER_OWNED_CHECK_ENV_PATH,
+  type RuntimeScriptRole,
+} from '../runtime-script-contract'
+import {
+  getRuntimeReadinessCapability,
+  getRuntimeReadinessExternalConfigNote,
+  getRuntimeReadinessNamedPromptTargetNote,
+} from '../runtime-readiness-registry'
 
 export type DoctorLevel = 'error' | 'warning' | 'info' | 'success'
 
@@ -270,6 +284,45 @@ function checkPrimitiveTranslations(checks: DoctorCheck[], config: PluginConfig)
         path: 'pluxx.config.ts',
       })
     }
+  }
+}
+
+function checkRuntimeReadiness(checks: DoctorCheck[], config: PluginConfig): void {
+  const readinessPlan = getRuntimeReadinessPlan(config.readiness)
+  if (!readinessPlan.hasReadiness || !config.readiness) return
+  const codexReadinessCapability = config.targets.includes('codex')
+    ? getRuntimeReadinessCapability('codex')
+    : null
+
+  addCheck(checks, {
+    level: 'success',
+    code: 'runtime-readiness-configured',
+    title: 'Runtime readiness primitive configured',
+    detail: `Configured readiness dependencies: ${readinessPlan.dependencyIds.join(', ')}.`,
+    fix: 'No action needed.',
+    path: 'pluxx.config.ts',
+  })
+
+  if (readinessPlan.hasNamedPromptTargets) {
+    addCheck(checks, {
+      level: 'warning',
+      code: 'runtime-readiness-prompt-scope',
+      title: 'Named prompt-surface readiness is best-effort',
+      detail: getRuntimeReadinessNamedPromptTargetNote(),
+      fix: 'Prefer broad workflow-entry gating when exact per-command or per-skill interception matters.',
+      path: 'pluxx.config.ts',
+    })
+  }
+
+  if (codexReadinessCapability && !codexReadinessCapability.bundleEnforced) {
+    addCheck(checks, {
+      level: 'warning',
+      code: 'runtime-readiness-codex-external',
+      title: 'Codex readiness needs external hook wiring',
+      detail: getRuntimeReadinessExternalConfigNote(),
+      fix: `Apply ${codexReadinessCapability.companionArtifacts.join(' and ')} when wiring the installed Codex bundle.`,
+      path: 'pluxx.config.ts',
+    })
   }
 }
 
@@ -829,14 +882,14 @@ function checkInstalledUserConfig(checks: DoctorCheck[], rootDir: string): void 
 }
 
 function checkInstalledEnvValidation(checks: DoctorCheck[], rootDir: string): void {
-  const envScriptPath = 'scripts/check-env.sh'
+  const envScriptPath = INSTALLER_OWNED_CHECK_ENV_PATH
   const resolvedPath = resolve(rootDir, envScriptPath)
   if (!existsSync(resolvedPath)) {
     addCheck(checks, {
       level: 'info',
       code: 'consumer-env-script-missing',
       title: 'No install-time env validation script found',
-      detail: 'This bundle does not ship a scripts/check-env.sh file.',
+      detail: getConsumerEnvScriptMissingDetail(),
       fix: 'No action needed unless this plugin is expected to validate runtime secrets on install.',
       path: envScriptPath,
     })
@@ -860,9 +913,34 @@ function checkInstalledEnvValidation(checks: DoctorCheck[], rootDir: string): vo
     level: 'warning',
     code: 'consumer-env-script-active',
     title: 'Install-time env validation is still active',
-    detail: 'This bundle still runs scripts/check-env.sh, which usually means required config was not materialized into the installed plugin.',
+    detail: getConsumerEnvScriptActiveDetail(),
     fix: 'If authenticated tools fail, reinstall the plugin and provide the requested userConfig values or required env vars.',
     path: envScriptPath,
+  })
+}
+
+function checkInstalledRuntimeScriptRoles(checks: DoctorCheck[], rootDir: string): void {
+  const roleFiles = [
+    'scripts/check-env.sh',
+    'scripts/load-env.sh',
+    'scripts/bootstrap-runtime.sh',
+    'scripts/start-mcp.sh',
+  ]
+
+  const presentRoles = roleFiles
+    .filter((relativePath) => existsSync(resolve(rootDir, relativePath)))
+    .map((relativePath) => getRuntimeScriptRoleForPath(relativePath))
+    .filter((role): role is RuntimeScriptRole => role !== null)
+
+  if (presentRoles.length === 0) return
+
+  addCheck(checks, {
+    level: 'info',
+    code: 'consumer-runtime-script-roles',
+    title: 'Known runtime script-role files detected',
+    detail: getConsumerRuntimeScriptRolesDetail(presentRoles),
+    fix: 'No action needed unless the runtime startup chain is unexpectedly missing a script you rely on.',
+    path: 'scripts/',
   })
 }
 
@@ -1019,6 +1097,9 @@ function checkInstalledBundleIntegrity(checks: DoctorCheck[], rootDir: string, l
   }
   if (issues.missingHookTargets.length > 0) {
     details.push(`hook commands reference missing bundle target${issues.missingHookTargets.length === 1 ? '' : 's'}: ${issues.missingHookTargets.join(', ')}`)
+  }
+  if (issues.invalidRuntimeScripts.length > 0) {
+    details.push(`runtime startup still depends on installer-owned validation: ${issues.invalidRuntimeScripts.join(', ')}`)
   }
 
   if (details.length === 0) {
@@ -1267,6 +1348,7 @@ export async function doctorConsumer(rootDir: string = process.cwd()): Promise<D
   checkInstalledBundleIntegrity(checks, rootDir, layout)
   checkInstalledUserConfig(checks, rootDir)
   checkInstalledEnvValidation(checks, rootDir)
+  checkInstalledRuntimeScriptRoles(checks, rootDir)
   checkInstalledMcpConfig(checks, rootDir, layout)
   if (layout.platform === 'opencode') {
     checkInstalledOpenCodeHostBridge(checks, rootDir)
@@ -1332,6 +1414,7 @@ export async function doctorProject(rootDir: string = process.cwd()): Promise<Do
   checkReadablePath(checks, rootDir, 'Assets', config.assets, false)
   checkTargetPlatforms(checks, config)
   checkPrimitiveTranslations(checks, config)
+  checkRuntimeReadiness(checks, config)
   checkMcpConfig(checks, config)
   checkUserConfig(checks, config)
   checkScaffoldMetadata(checks, rootDir, config)

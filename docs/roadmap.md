@@ -12,6 +12,7 @@ Last updated: 2026-05-01
   - [docs/todo/success-checklist.md](./todo/success-checklist.md)
   - [docs/oss-wedge-and-trust-layer.md](./oss-wedge-and-trust-layer.md)
   - [docs/flagship-docs-ops-plugin.md](./flagship-docs-ops-plugin.md)
+  - [docs/platform-change-ops-reference-plugin.md](./platform-change-ops-reference-plugin.md)
   - [docs/docs-ops-core-four-proof.md](./docs-ops-core-four-proof.md)
   - [docs/exa-research-example.md](./exa-research-example.md)
   - [docs/pluxx-plugin-surface-audit.md](./pluxx-plugin-surface-audit.md)
@@ -117,7 +118,7 @@ The closure plan is now narrower than it was before:
   - literal secret values are not copied into generated project config
 - the next translation follow-ons are now clearer and narrower:
   - finish the deeper hook-registry rollout so generator routing and docs rows read registry-backed truth
-  - add the first shared `skills` parser/spec and replace duplicated skill parsing in lint, Agent Mode, migrate, and Claude rewrites
+  - continue the new shared `skills` parser into a richer canonical skill spec and translation-aware metadata layer
   - continue the `commands` IR pass beyond `argument-hint` preservation into richer argument/routing metadata
   - reduce lossy import paths in `migrate` and installed-MCP discovery
   - turn installed hook env parity into a portable runtime contract outside the Claude-only wrapper path
@@ -162,6 +163,17 @@ The current status is stronger than a pure scaffold:
 - a second public example now also exists for a different shape of product:
   - `example/exa-plugin`
   - `docs/exa-research-example.md`
+- a third maintained example now exists as the maximal enterprise stress fixture:
+  - `example/platform-change-ops`
+  - `docs/platform-change-ops-reference-plugin.md`
+- that Platform Change Ops example intentionally combines:
+  - remote MCPs
+  - local stdio runtime packaging
+  - runtime readiness
+  - risky-action hooks
+  - canonical permissions
+  - delegated agents
+  - rich install/distribution metadata
 - that Exa example proves a clean-room subagent-heavy research operator pack with richer brand metadata from one maintained source project across the core four
 - that Exa example now also has real workflow proof in:
   - Claude Code app
@@ -184,6 +196,11 @@ This is the strongest next proof surface for:
 - demos
 - regression fixtures
 - outbound proof
+
+It is now split into two reference tracks:
+
+- `docs-ops` for the flagship public proof and live workflow story
+- `platform-change-ops` for the maximal enterprise all-primitive stress fixture
 
 ### 3. Docs and website ingestion proof
 

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720">
+  <rect width="1200" height="720" fill="#F7F7F2"/>
+  <rect x="60" y="70" width="1080" height="580" rx="28" fill="#FFFFFF" stroke="#E3E3D8"/>
+  <text x="100" y="140" font-family="Georgia, serif" font-size="40" fill="#0F4C5C">Risk And Policy Review</text>
+  <rect x="100" y="210" width="420" height="320" rx="22" fill="#F3F7F6"/>
+  <rect x="580" y="210" width="480" height="320" rx="22" fill="#0F4C5C"/>
+  <text x="140" y="270" font-family="Arial, sans-serif" font-size="30" fill="#0F4C5C">Inputs</text>
+  <text x="140" y="320" font-family="Arial, sans-serif" font-size="22" fill="#395B63">policy cache</text>
+  <text x="140" y="360" font-family="Arial, sans-serif" font-size="22" fill="#395B63">health snapshot</text>
+  <text x="140" y="400" font-family="Arial, sans-serif" font-size="22" fill="#395B63">change ticket</text>
+  <text x="140" y="440" font-family="Arial, sans-serif" font-size="22" fill="#395B63">release PR + runbooks</text>
+  <text x="620" y="270" font-family="Arial, sans-serif" font-size="30" fill="#F7F7F2">Outputs</text>
+  <text x="620" y="320" font-family="Arial, sans-serif" font-size="22" fill="#D8ECE8">risk summary</text>
+  <text x="620" y="360" font-family="Arial, sans-serif" font-size="22" fill="#D8ECE8">missing approvals</text>
+  <text x="620" y="400" font-family="Arial, sans-serif" font-size="22" fill="#D8ECE8">safe next action</text>
+  <text x="620" y="440" font-family="Arial, sans-serif" font-size="22" fill="#D8ECE8">stakeholder-ready update</text>
+</svg>

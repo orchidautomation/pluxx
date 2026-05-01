@@ -945,6 +945,90 @@ describe('build', () => {
     expect(codexPermissions.rules.some((rule: { raw: string }) => rule.raw === 'Read(src/**)')).toBe(true)
   })
 
+  it('generates runtime readiness outputs across Claude Code, Cursor, Codex, and OpenCode', async () => {
+    const readinessConfig: PluginConfig = {
+      ...testConfig,
+      name: 'readiness-plugin',
+      hooks: undefined,
+      readiness: {
+        dependencies: [
+          {
+            id: 'runtime-cache',
+            path: './runtime/status.json',
+            statusField: 'status',
+            readyValues: ['ready'],
+            pendingValues: ['pending'],
+            failedValues: ['failed'],
+            refresh: {
+              command: '${PLUGIN_ROOT}/scripts/refresh-runtime.sh',
+            },
+          },
+        ],
+        gates: [
+          {
+            dependency: 'runtime-cache',
+            applyTo: ['mcp-tools'],
+            tools: ['test-server.search'],
+            timeoutMs: 2000,
+            pollMs: 100,
+            onTimeout: 'fail',
+          },
+          {
+            dependency: 'runtime-cache',
+            applyTo: ['skills', 'commands'],
+            skills: ['deep-research'],
+            commands: ['research'],
+            timeoutMs: 2000,
+            pollMs: 100,
+            onTimeout: 'warn',
+          },
+        ],
+      },
+      targets: ['claude-code', 'cursor', 'codex', 'opencode'],
+      outDir: './readiness-dist',
+    }
+
+    await build(readinessConfig, TEST_DIR)
+
+    const claudeHooks = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'readiness-dist/claude-code/hooks/hooks.json'), 'utf-8')
+    )
+    const cursorHooks = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'readiness-dist/cursor/hooks/hooks.json'), 'utf-8')
+    )
+    const codexHooks = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'readiness-dist/codex/.codex/hooks.generated.json'), 'utf-8')
+    )
+    const codexReadiness = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'readiness-dist/codex/.codex/readiness.generated.json'), 'utf-8')
+    )
+    const opencodeIndex = readFileSync(resolve(TEST_DIR, 'readiness-dist/opencode/index.ts'), 'utf-8')
+
+    expect(existsSync(resolve(TEST_DIR, 'readiness-dist/claude-code/hooks/pluxx-readiness.mjs'))).toBe(true)
+    expect(claudeHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toContain('pluxx-readiness.mjs session-start')
+    expect(claudeHooks.hooks.PreToolUse?.[0]?.matcher).toBe('MCP')
+    expect(claudeHooks.hooks.PreToolUse?.[0]?.hooks?.[0]?.command).toContain('pluxx-readiness.mjs mcp-gate')
+    expect(claudeHooks.hooks.UserPromptSubmit?.[0]?.hooks?.[0]?.command).toContain('pluxx-readiness.mjs prompt-gate')
+
+    expect(existsSync(resolve(TEST_DIR, 'readiness-dist/cursor/hooks/pluxx-readiness.mjs'))).toBe(true)
+    expect(cursorHooks.hooks.sessionStart?.[0]?.command).toBe('node ./hooks/pluxx-readiness.mjs session-start')
+    expect(cursorHooks.hooks.beforeMCPExecution?.[0]?.command).toBe('node ./hooks/pluxx-readiness.mjs mcp-gate')
+    expect(cursorHooks.hooks.beforeSubmitPrompt?.[0]?.command).toBe('node ./hooks/pluxx-readiness.mjs prompt-gate')
+
+    expect(existsSync(resolve(TEST_DIR, 'readiness-dist/codex/.codex/pluxx-readiness.mjs'))).toBe(true)
+    expect(codexHooks.hooks.SessionStart?.[0]?.command).toBe('node ./.codex/pluxx-readiness.mjs session-start')
+    expect(codexHooks.hooks.PreToolUse?.[0]?.matcher).toBe('MCP')
+    expect(codexHooks.hooks.UserPromptSubmit?.[0]?.command).toBe('node ./.codex/pluxx-readiness.mjs prompt-gate')
+    expect(codexReadiness.model).toBe('pluxx.readiness.v1')
+    expect(codexReadiness.translatedHooks.mcpGate).toBe('node ./.codex/pluxx-readiness.mjs mcp-gate')
+
+    expect(existsSync(resolve(TEST_DIR, 'readiness-dist/opencode/runtime/pluxx-readiness.mjs'))).toBe(true)
+    expect(opencodeIndex).toContain('const READINESS_SCRIPT = "runtime/pluxx-readiness.mjs"')
+    expect(opencodeIndex).toContain('await runReadiness("mcp-gate"')
+    expect(opencodeIndex).toContain('await runReadiness("prompt-gate"')
+    expect(opencodeIndex).toContain('await runReadiness("session-start"')
+  })
+
   it('generates a Codex hook companion with mapped native event names', async () => {
     const codexHooks = JSON.parse(
       readFileSync(resolve(OUT_DIR, 'codex/.codex/hooks.generated.json'), 'utf-8')
@@ -1157,13 +1241,15 @@ describe('build', () => {
       readFileSync(resolve(OUT_DIR, 'codex/.codex/commands.generated.json'), 'utf-8')
     ) as {
       model: string
-      commands: Array<{ id: string; title: string }>
+      commands: Array<{ id: string; title: string; argumentHint?: string }>
     }
 
     expect(codexAgentsMd).toContain('## Command Routing')
     expect(codexAgentsMd).toContain('`/pulse`')
+    expect(codexAgentsMd).toContain('(arguments: [company] [region])')
     expect(codexCommands.model).toBe('pluxx.commands.v1')
     expect(codexCommands.commands[0]?.id).toBe('pulse')
+    expect(codexCommands.commands.find((command) => command.id === 'research')?.argumentHint).toBe('[company] [region]')
   })
 
   it('preserves Linear-style preToolUse matchers in Claude Code and Cursor outputs', async () => {

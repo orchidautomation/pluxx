@@ -12,6 +12,7 @@ import {
   type CompilerIntentFile,
   type CompilerIntentSkillPolicy,
 } from '../compiler-intent'
+import { parseSkillMarkdown, readCanonicalSkillFiles, serializeSkillMarkdown } from '../skills'
 import { writeTextFile } from '../text-files'
 
 type DetectedPlatform = 'claude-code' | 'cursor' | 'codex' | 'opencode'
@@ -429,81 +430,6 @@ function titleCaseFromDirName(value: string): string {
     .join(' ')
 }
 
-function firstHeading(content: string): string | undefined {
-  for (const line of content.split(/\r?\n/)) {
-    const trimmed = line.trim()
-    const match = trimmed.match(/^#\s+(.+)$/)
-    if (match) {
-      return match[1].trim()
-    }
-  }
-  return undefined
-}
-
-function extractFrontmatterField(content: string, key: 'name' | 'description'): string | undefined {
-  const lines = content.split(/\r?\n/)
-  if (lines[0]?.trim() !== '---') return undefined
-
-  let endIndex = -1
-  for (let i = 1; i < lines.length; i += 1) {
-    if (lines[i].trim() === '---') {
-      endIndex = i
-      break
-    }
-  }
-
-  if (endIndex === -1) return undefined
-
-  for (const line of lines.slice(1, endIndex)) {
-    const match = line.match(new RegExp(`^${key}:\\s*(.*)$`))
-    if (!match) continue
-    return match[1].trim().replace(/^['"]|['"]$/g, '')
-  }
-
-  return undefined
-}
-
-function extractAllowedTools(content: string): string[] {
-  const lines = content.split(/\r?\n/)
-  if (lines[0]?.trim() !== '---') return []
-
-  let endIndex = -1
-  for (let i = 1; i < lines.length; i += 1) {
-    if (lines[i].trim() === '---') {
-      endIndex = i
-      break
-    }
-  }
-
-  if (endIndex === -1) return []
-
-  for (let i = 1; i < endIndex; i += 1) {
-    const match = lines[i].match(/^allowed-tools:\s*(.*)$/)
-    if (!match) continue
-
-    const inlineValue = match[1].trim()
-    if (inlineValue) {
-      const raw = inlineValue.startsWith('[') && inlineValue.endsWith(']')
-        ? inlineValue.slice(1, -1)
-        : inlineValue
-      return raw
-        .split(',')
-        .map((part) => part.trim().replace(/^['"]|['"]$/g, ''))
-        .filter(Boolean)
-    }
-
-    const tools: string[] = []
-    for (let j = i + 1; j < endIndex; j += 1) {
-      const itemMatch = lines[j].match(/^\s*-\s+(.+)$/)
-      if (!itemMatch) break
-      tools.push(itemMatch[1].trim().replace(/^['"]|['"]$/g, ''))
-    }
-    return tools
-  }
-
-  return []
-}
-
 function normalizeMigratedAllowedTool(rawTool: string): string | undefined {
   const trimmed = rawTool.trim()
   if (!trimmed) return undefined
@@ -548,8 +474,8 @@ function inferPermissionsFromMigratedSkills(pluginDir: string, sourcePaths: Cano
     const skillPath = resolve(skillsDir, entry.name, 'SKILL.md')
     if (!existsSync(skillPath)) continue
 
-    const content = readFileSync(skillPath, 'utf-8')
-    const inferredRules = extractAllowedTools(content)
+    const skill = parseSkillMarkdown(readFileSync(skillPath, 'utf-8'))
+    const inferredRules = skill.allowedTools
       .map(normalizeMigratedAllowedTool)
       .filter((rule): rule is string => Boolean(rule))
 
@@ -561,10 +487,10 @@ function inferPermissionsFromMigratedSkills(pluginDir: string, sourcePaths: Cano
 
     skillPolicies.push({
       skillDir: entry.name,
-      title: extractFrontmatterField(content, 'name')
-        ?? firstHeading(content)
+      title: skill.name
+        ?? skill.firstHeading
         ?? titleCaseFromDirName(entry.name),
-      description: extractFrontmatterField(content, 'description'),
+      description: skill.description,
       source: {
         kind: 'claude-allowed-tools',
         platform: 'claude-code',
@@ -596,27 +522,11 @@ function readMigratedSkills(pluginDir: string, sourcePaths: CanonicalSourcePaths
 
   if (sourcePaths.skills) {
     const skillsDir = resolve(pluginDir, stripRelativePrefix(sourcePaths.skills))
-    const entries = readdirSync(skillsDir, { withFileTypes: true })
-
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue
-      const dirName = entry.name
-      const skillPath = resolve(skillsDir, dirName, 'SKILL.md')
-      let title = titleCaseFromDirName(dirName)
-      let description: string | undefined
-
-      if (existsSync(skillPath)) {
-        const content = readFileSync(skillPath, 'utf-8')
-        title = extractFrontmatterField(content, 'name')
-          ?? firstHeading(content)
-          ?? title
-        description = extractFrontmatterField(content, 'description')
-      }
-
+    for (const skill of readCanonicalSkillFiles(skillsDir)) {
       skills.push({
-        dirName,
-        title,
-        description,
+        dirName: skill.dirName,
+        title: skill.name ?? skill.firstHeading ?? titleCaseFromDirName(skill.dirName),
+        description: skill.description,
         toolNames: [],
       })
     }
@@ -630,10 +540,11 @@ function readMigratedSkills(pluginDir: string, sourcePaths: CanonicalSourcePaths
       if (!entry.isFile() || !entry.name.endsWith('.md')) continue
       const dirName = toKebabCase(entry.name.replace(/\.md$/, '')) || 'command'
       const content = readFileSync(resolve(commandsDir, entry.name), 'utf-8')
+      const parsed = parseSkillMarkdown(content)
       skills.push({
         dirName,
-        title: firstHeading(content) ?? titleCaseFromDirName(dirName),
-        description: extractFrontmatterField(content, 'description'),
+        title: parsed.firstHeading ?? titleCaseFromDirName(dirName),
+        description: parsed.description,
         toolNames: [],
       })
     }
@@ -657,37 +568,18 @@ function sanitizeMigratedSkillFrontmatter(outputDir: string): void {
     const skillPath = resolve(skillsDir, entry.name, 'SKILL.md')
     if (!existsSync(skillPath)) continue
 
-    const content = readFileSync(skillPath, 'utf-8')
-    const lines = content.split(/\r?\n/)
-    if (lines[0]?.trim() !== '---') continue
+    const parsed = parseSkillMarkdown(readFileSync(skillPath, 'utf-8'))
+    if (!parsed.hasValidFrontmatter) continue
 
-    let endIndex = -1
-    for (let i = 1; i < lines.length; i += 1) {
-      if (lines[i].trim() === '---') {
-        endIndex = i
-        break
-      }
-    }
-
-    if (endIndex === -1) continue
-
-    const frontmatter = lines.slice(1, endIndex)
-    const sanitized = frontmatter.filter((line) => {
+    const sanitized = parsed.frontmatterLines.filter((line) => {
       const match = /^([A-Za-z0-9_-]+)\s*:/.exec(line.trim())
       if (!match) return true
       return !HOST_NATIVE_SKILL_FRONTMATTER_KEYS.has(match[1])
     })
 
-    if (sanitized.length === frontmatter.length) continue
+    if (sanitized.length === parsed.frontmatterLines.length) continue
 
-    const rewritten = [
-      '---',
-      ...sanitized,
-      '---',
-      ...lines.slice(endIndex + 1),
-    ].join('\n')
-
-    writeFileSync(skillPath, rewritten, 'utf-8')
+    writeFileSync(skillPath, serializeSkillMarkdown(sanitized, parsed.body), 'utf-8')
   }
 }
 
@@ -821,7 +713,7 @@ function normalizeMigratedOpenCodeAgentFile(agentPath: string): boolean {
     additions.push(`name: ${JSON.stringify(fileStem)}`)
   }
   if (!hasTopLevelFrontmatterKey(parsed.frontmatterLines, 'description')) {
-    const inferredDescription = firstHeading(parsed.body) ?? fallbackDescription
+    const inferredDescription = parseSkillMarkdown(parsed.body).firstHeading ?? fallbackDescription
     additions.push(`description: ${JSON.stringify(inferredDescription)}`)
   }
 

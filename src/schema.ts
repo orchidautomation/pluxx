@@ -125,6 +125,109 @@ export const HooksSchema = z.object({
   afterTabFileEdit: z.array(HookEntrySchema).optional(),
 }).catchall(z.array(HookEntrySchema))
 
+// ── Runtime Readiness ────────────────────────────────────────────
+
+export const RuntimeReadinessRefreshSchema = z.object({
+  command: z.string(),
+  timeoutMs: z.number().int().positive().default(10000),
+  detached: z.boolean().default(true),
+})
+
+export const RuntimeReadinessDependencySchema = z.object({
+  id: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use lowercase kebab-case for readiness dependency ids'),
+  kind: z.enum(['status-file']).default('status-file'),
+  path: z.string(),
+  format: z.enum(['json']).default('json'),
+  statusField: z.string().default('status'),
+  readyValues: z.array(z.string()).default(['succeeded']),
+  pendingValues: z.array(z.string()).default(['running']),
+  failedValues: z.array(z.string()).default(['failed']),
+  refresh: RuntimeReadinessRefreshSchema,
+  description: z.string().optional(),
+}).superRefine((dependency, ctx) => {
+  const ready = new Set(dependency.readyValues)
+  const pending = new Set(dependency.pendingValues)
+  const failed = new Set(dependency.failedValues)
+  const overlap = [
+    ...ready,
+    ...pending,
+  ].filter((value, index, values) =>
+    values.indexOf(value) === index
+    && ((ready.has(value) ? 1 : 0) + (pending.has(value) ? 1 : 0) + (failed.has(value) ? 1 : 0) > 1),
+  )
+  if (overlap.length > 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['readyValues'],
+      message: `Readiness dependency values must not overlap across ready/pending/failed buckets: ${overlap.join(', ')}`,
+    })
+  }
+})
+
+export const RuntimeReadinessGateSchema = z.object({
+  dependency: z.string(),
+  applyTo: z.array(z.enum(['mcp-tools', 'skills', 'commands'])).nonempty().default(['mcp-tools']),
+  tools: z.array(z.string()).nonempty().optional(),
+  skills: z.array(z.string()).nonempty().optional(),
+  commands: z.array(z.string()).nonempty().optional(),
+  timeoutMs: z.number().int().positive().default(15000),
+  pollMs: z.number().int().positive().default(500),
+  onTimeout: z.enum(['continue', 'warn', 'fail']).default('warn'),
+  message: z.string().optional(),
+}).superRefine((gate, ctx) => {
+  if (gate.tools && !gate.applyTo.includes('mcp-tools')) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['tools'],
+      message: 'Runtime readiness gate.tools requires applyTo to include "mcp-tools".',
+    })
+  }
+
+  if (gate.skills && !gate.applyTo.includes('skills')) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['skills'],
+      message: 'Runtime readiness gate.skills requires applyTo to include "skills".',
+    })
+  }
+
+  if (gate.commands && !gate.applyTo.includes('commands')) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['commands'],
+      message: 'Runtime readiness gate.commands requires applyTo to include "commands".',
+    })
+  }
+})
+
+export const RuntimeReadinessSchema = z.object({
+  dependencies: z.array(RuntimeReadinessDependencySchema).default([]),
+  gates: z.array(RuntimeReadinessGateSchema).default([]),
+}).superRefine((config, ctx) => {
+  const seenDependencyIds = new Set<string>()
+  for (const [index, dependency] of config.dependencies.entries()) {
+    if (seenDependencyIds.has(dependency.id)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['dependencies', index, 'id'],
+        message: `Runtime readiness dependency id "${dependency.id}" is duplicated.`,
+      })
+    }
+    seenDependencyIds.add(dependency.id)
+  }
+
+  const dependencyIds = new Set(config.dependencies.map(dependency => dependency.id))
+  for (const [index, gate] of config.gates.entries()) {
+    if (!dependencyIds.has(gate.dependency)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['gates', index, 'dependency'],
+        message: `Runtime readiness gate references unknown dependency "${gate.dependency}".`,
+      })
+    }
+  }
+})
+
 // ── Brand / Interface ────────────────────────────────────────────
 
 export const BrandSchema = z.object({
@@ -283,6 +386,9 @@ export const PluginConfigSchema = z.object({
   // MCP servers
   mcp: z.record(z.string(), McpServerSchema).optional(),
 
+  // Runtime readiness gates
+  readiness: RuntimeReadinessSchema.optional(),
+
   // Hooks
   hooks: HooksSchema.optional(),
 
@@ -309,6 +415,10 @@ export type PluginConfig = z.infer<typeof PluginConfigSchema>
 export type McpServer = z.infer<typeof McpServerSchema>
 export type McpAuth = z.infer<typeof McpAuthSchema>
 export type HookEntry = z.infer<typeof HookEntrySchema>
+export type RuntimeReadinessRefresh = z.infer<typeof RuntimeReadinessRefreshSchema>
+export type RuntimeReadinessDependency = z.infer<typeof RuntimeReadinessDependencySchema>
+export type RuntimeReadinessGate = z.infer<typeof RuntimeReadinessGateSchema>
+export type RuntimeReadiness = z.infer<typeof RuntimeReadinessSchema>
 export type Brand = z.infer<typeof BrandSchema>
 export type UserConfigEntry = z.infer<typeof UserConfigEntrySchema>
 export type PermissionRule = z.infer<typeof PermissionRuleSchema>
@@ -354,6 +464,25 @@ export interface PluginPermissionsBucket {
 
 export interface PluginRuntimeBucket {
   mcp?: Record<string, McpServer>
+  readiness?: RuntimeReadiness
+  scriptsPath?: string
+  assetsPath?: string
+  passthroughPaths: string[]
+  mcpSurface: PluginRuntimeMcpSubprimitive
+  readinessSurface: PluginRuntimeReadinessSubprimitive
+  payloadSurface: PluginRuntimePayloadSubprimitive
+}
+
+export interface PluginRuntimeMcpSubprimitive {
+  servers?: Record<string, McpServer>
+  hasRuntimeAuth: boolean
+}
+
+export interface PluginRuntimeReadinessSubprimitive {
+  config?: RuntimeReadiness
+}
+
+export interface PluginRuntimePayloadSubprimitive {
   scriptsPath?: string
   assetsPath?: string
   passthroughPaths: string[]
@@ -363,6 +492,23 @@ export interface PluginDistributionBucket {
   identity: Pick<PluginConfig, 'name' | 'version' | 'description' | 'author' | 'repository' | 'license' | 'keywords'>
   brand?: Brand
   userConfig: UserConfigEntry[]
+  targets: TargetPlatform[]
+  outDir: string
+  brandingSurface: PluginDistributionBrandingSubprimitive
+  installSurface: PluginDistributionInstallSubprimitive
+  outputSurface: PluginDistributionOutputSubprimitive
+}
+
+export interface PluginDistributionBrandingSubprimitive {
+  identity: Pick<PluginConfig, 'name' | 'version' | 'description' | 'author' | 'repository' | 'license' | 'keywords'>
+  brand?: Brand
+}
+
+export interface PluginDistributionInstallSubprimitive {
+  userConfig: UserConfigEntry[]
+}
+
+export interface PluginDistributionOutputSubprimitive {
   targets: TargetPlatform[]
   outDir: string
 }
@@ -379,6 +525,38 @@ export interface PluginCompilerBuckets {
 }
 
 export function getPluginCompilerBuckets(config: PluginConfig): PluginCompilerBuckets {
+  const runtimeMcpSurface: PluginRuntimeMcpSubprimitive = {
+    servers: config.mcp,
+    hasRuntimeAuth: Object.values(config.mcp ?? {}).some((server) => server.auth?.type !== 'none' && server.auth !== undefined),
+  }
+  const runtimeReadinessSurface: PluginRuntimeReadinessSubprimitive = {
+    config: config.readiness,
+  }
+  const runtimePayloadSurface: PluginRuntimePayloadSubprimitive = {
+    scriptsPath: config.scripts,
+    assetsPath: config.assets,
+    passthroughPaths: config.passthrough ?? [],
+  }
+  const distributionBrandingSurface: PluginDistributionBrandingSubprimitive = {
+    identity: {
+      name: config.name,
+      version: config.version,
+      description: config.description,
+      author: config.author,
+      repository: config.repository,
+      license: config.license,
+      keywords: config.keywords,
+    },
+    brand: config.brand,
+  }
+  const distributionInstallSurface: PluginDistributionInstallSubprimitive = {
+    userConfig: config.userConfig ?? [],
+  }
+  const distributionOutputSurface: PluginDistributionOutputSubprimitive = {
+    targets: config.targets,
+    outDir: config.outDir,
+  }
+
   return {
     instructions: {
       path: config.instructions,
@@ -399,25 +577,24 @@ export function getPluginCompilerBuckets(config: PluginConfig): PluginCompilerBu
       rules: config.permissions,
     },
     runtime: {
-      mcp: config.mcp,
-      scriptsPath: config.scripts,
-      assetsPath: config.assets,
-      passthroughPaths: config.passthrough ?? [],
+      mcp: runtimeMcpSurface.servers,
+      readiness: runtimeReadinessSurface.config,
+      scriptsPath: runtimePayloadSurface.scriptsPath,
+      assetsPath: runtimePayloadSurface.assetsPath,
+      passthroughPaths: runtimePayloadSurface.passthroughPaths,
+      mcpSurface: runtimeMcpSurface,
+      readinessSurface: runtimeReadinessSurface,
+      payloadSurface: runtimePayloadSurface,
     },
     distribution: {
-      identity: {
-        name: config.name,
-        version: config.version,
-        description: config.description,
-        author: config.author,
-        repository: config.repository,
-        license: config.license,
-        keywords: config.keywords,
-      },
-      brand: config.brand,
-      userConfig: config.userConfig ?? [],
-      targets: config.targets,
-      outDir: config.outDir,
+      identity: distributionBrandingSurface.identity,
+      brand: distributionBrandingSurface.brand,
+      userConfig: distributionInstallSurface.userConfig,
+      targets: distributionOutputSurface.targets,
+      outDir: distributionOutputSurface.outDir,
+      brandingSurface: distributionBrandingSurface,
+      installSurface: distributionInstallSurface,
+      outputSurface: distributionOutputSurface,
     },
   }
 }
@@ -442,6 +619,9 @@ export function getConfiguredCompilerBuckets(config: PluginConfig): PluxxCompile
 
   const hasRuntime = Boolean(
     (buckets.runtime.mcp && Object.keys(buckets.runtime.mcp).length > 0)
+    || (buckets.runtime.readiness
+      && (buckets.runtime.readiness.dependencies.length > 0
+        || buckets.runtime.readiness.gates.length > 0))
     || buckets.runtime.scriptsPath
     || buckets.runtime.assetsPath
     || buckets.runtime.passthroughPaths.length > 0,

@@ -1,4 +1,5 @@
 import type { PluxxCompilerBucket, TargetPlatform } from '../schema'
+import { getRuntimeReadinessExternalConfigNote } from '../runtime-readiness-registry'
 
 type RuleLevel = 'required' | 'supported' | 'fallback' | 'optional' | 'unknown'
 
@@ -891,7 +892,7 @@ export const CORE_FOUR_PRIMITIVE_CAPABILITIES: Record<CoreFourPlatform, CoreFour
       runtime: {
         mode: 'preserve',
         nativeSurfaces: ['.mcp.json', '.app.json', '.codex/config.toml', 'scripts/', 'assets/'],
-        notes: 'Bundle-local MCP config exists, but active MCP state also lives in config.toml.',
+        notes: `Bundle-local MCP config exists, but active MCP state also lives in config.toml. ${getRuntimeReadinessExternalConfigNote()}`,
       },
       distribution: {
         mode: 'preserve',

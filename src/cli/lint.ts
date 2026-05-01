@@ -1,26 +1,36 @@
 import { existsSync, lstatSync, readdirSync, readFileSync } from 'fs'
 import { resolve, relative, basename, dirname } from 'path'
 import { loadConfig } from '../config/load'
-import { getConfiguredCompilerBuckets, type McpServer, type PluginConfig, type PluxxCompilerBucket, type TargetPlatform } from '../schema'
+import { getConfiguredCompilerBuckets, getPluginCompilerBuckets, type McpServer, type PluginConfig, type PluxxCompilerBucket, type TargetPlatform } from '../schema'
 import { PLATFORM_LIMITS, PLATFORM_LIMIT_POLICIES, getCoreFourPrimitiveCapabilities, getPlatformRules, type CoreFourPlatform, type PrimitiveTranslationMode } from '../validation/platform-rules'
 import { collectPermissionRules, permissionRulesNeedToolLevelDowngrade } from '../permissions'
+import { getRuntimeReadinessPlan } from '../readiness'
+import { readSkillMarkdownFile, walkSkillFiles, type ParsedSkillMarkdown } from '../skills'
+import {
+  getRuntimeReadinessCapability,
+  getRuntimeReadinessExternalConfigNote,
+  getRuntimeReadinessNamedPromptTargetNote,
+} from '../runtime-readiness-registry'
 import { readCanonicalAgentFiles } from '../agents'
 import { buildPrimitiveTranslationSummary, renderPrimitiveTranslationSummary, type PrimitiveTranslationSummary } from './primitive-summary'
 import { getBrandingCompletenessWarnings } from '../branding-completeness'
 import {
-  CURSOR_LOOP_LIMIT_HOOK_EVENTS,
   CURSOR_SUPPORTED_HOOK_EVENTS,
   mapHookEventToPascalCase,
 } from '../hook-events'
 import { findHostPluginRootVars } from '../mcp-stdio-paths'
-
+import { getHookFieldSupportedEvents, getSupportedHookEvents, getUnsupportedHookEventReason, isHookEventSupported } from '../hook-translation-registry'
+import {
+  getInstallerOwnedCheckEnvHookMessage,
+  getInstallerOwnedCheckEnvRuntimeMessage,
+  referencesInstallerOwnedCheckEnv,
+} from '../runtime-script-contract'
 const AGENT_SKILLS_RULES = { name: { pattern: /^[a-z0-9-]+$/, maxLength: 64 }, description: { maxLength: 1024 } }
 const CLAUDE_CODE_RULES = { description: { maxDisplayLength: 250 } }
 const CODEX_RULES = {
   interface: { maxDefaultPrompts: 3, maxDefaultPromptLength: 128, brandColorPattern: /^#[0-9a-fA-F]{6}$/, knownCapabilities: ['Interactive', 'Write', 'Read'] as const },
   manifestPaths: { requiredPrefix: './' },
   mcp: { serverNamePattern: /^[a-z0-9_-]+$/ },
-  hooks: { supportedEvents: ['SessionStart', 'PreToolUse', 'PostToolUse', 'UserPromptSubmit', 'Stop'] as const },
   agents: { maxThreadsMin: 1, maxDepthMin: 1 },
   settings: { validKeys: ['agent'] as const },
 }
@@ -55,15 +65,8 @@ interface LintIssue {
   platform?: string
 }
 
-interface FrontmatterField {
-  key: string
-  value: string
-  rawValue: string
-  quoted: boolean
-}
-
 interface ParsedFrontmatterFile {
-  parsed: { fields: Map<string, FrontmatterField>; valid: boolean }
+  parsed: ParsedSkillMarkdown
 }
 
 export interface LintResult {
@@ -96,73 +99,7 @@ function pushIssue(issues: LintIssue[], issue: LintIssue): void {
 }
 
 function collectSkillFiles(dir: string): string[] {
-  if (!existsSync(dir)) return []
-
-  const files: string[] = []
-  const entries = readdirSync(dir, { withFileTypes: true })
-
-  for (const entry of entries) {
-    const fullPath = resolve(dir, entry.name)
-    if (entry.isDirectory()) {
-      files.push(...collectSkillFiles(fullPath))
-      continue
-    }
-    if (entry.isFile() && entry.name === 'SKILL.md') {
-      files.push(fullPath)
-    }
-  }
-
-  return files
-}
-
-function unquote(value: string): { value: string; quoted: boolean } {
-  const trimmed = value.trim()
-  if (trimmed.length >= 2) {
-    if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
-      return { value: trimmed.slice(1, -1), quoted: true }
-    }
-  }
-  return { value: trimmed, quoted: false }
-}
-
-function parseFrontmatter(content: string): { fields: Map<string, FrontmatterField>; valid: boolean } {
-  const lines = content.split(/\r?\n/)
-  if (lines[0]?.trim() !== '---') {
-    return { fields: new Map(), valid: false }
-  }
-
-  let endIndex = -1
-  for (let i = 1; i < lines.length; i += 1) {
-    if (lines[i].trim() === '---') {
-      endIndex = i
-      break
-    }
-  }
-
-  if (endIndex === -1) {
-    return { fields: new Map(), valid: false }
-  }
-
-  const fields = new Map<string, FrontmatterField>()
-  for (const line of lines.slice(1, endIndex)) {
-    const trimmed = line.trim()
-    if (!trimmed || trimmed.startsWith('#')) continue
-
-    const match = trimmed.match(/^([A-Za-z0-9_-]+)\s*:\s*(.*)$/)
-    if (!match) continue
-
-    const key = match[1]
-    const rawValue = match[2]
-    const parsed = unquote(rawValue)
-    fields.set(key, {
-      key,
-      value: parsed.value,
-      rawValue: rawValue.trim(),
-      quoted: parsed.quoted,
-    })
-  }
-
-  return { fields, valid: true }
+  return walkSkillFiles(dir)
 }
 
 function getParsedFrontmatterFile(filePath: string, cache: Map<string, ParsedFrontmatterFile>): ParsedFrontmatterFile {
@@ -170,7 +107,7 @@ function getParsedFrontmatterFile(filePath: string, cache: Map<string, ParsedFro
   if (cached) return cached
 
   const entry = {
-    parsed: parseFrontmatter(readFileSync(filePath, 'utf-8')),
+    parsed: readSkillMarkdownFile(filePath),
   }
   cache.set(filePath, entry)
   return entry
@@ -213,7 +150,7 @@ function lintSkillFile(
 ): void {
   const { parsed } = getParsedFrontmatterFile(skillFile, frontmatterCache)
 
-  if (!parsed.valid) {
+  if (!parsed.hasValidFrontmatter) {
     pushIssue(issues, {
       level: 'error',
       code: 'skill-frontmatter',
@@ -224,8 +161,8 @@ function lintSkillFile(
     return
   }
 
-  const nameField = parsed.fields.get('name')
-  const descriptionField = parsed.fields.get('description')
+  const nameField = parsed.frontmatterFields.get('name')
+  const descriptionField = parsed.frontmatterFields.get('description')
 
   if (!nameField?.value) {
     pushIssue(issues, {
@@ -558,9 +495,7 @@ function lintMcpRuntimeState(rootDir: string, config: PluginConfig, issues: Lint
     && config.platforms?.['claude-code']?.mcpAuth === 'platform'
   const cursorUsesPlatformAuth = config.targets.includes('cursor')
     && config.platforms?.cursor?.mcpAuth === 'platform'
-  const passthroughDirs = (config.passthrough ?? [])
-    .map((entry) => resolveBundledPassthroughDir(rootDir, entry))
-    .filter((entry): entry is string => Boolean(entry))
+  const bundledRuntimeDirs = getBundledRuntimePayloadDirs(rootDir, config)
 
   for (const [serverName, server] of Object.entries(config.mcp)) {
     if (server.transport === 'stdio') {
@@ -573,13 +508,13 @@ function lintMcpRuntimeState(rootDir: string, config: PluginConfig, issues: Lint
       })
 
       for (const runtimePath of findLocalStdioRuntimePaths(rootDir, server)) {
-        if (passthroughDirs.some((dir) => runtimePath === dir || runtimePath.startsWith(`${dir}/`))) continue
+        if (bundledRuntimeDirs.some((dir) => runtimePath === dir || runtimePath.startsWith(`${dir}/`))) continue
 
         const relativeDir = `./${relative(rootDir, runtimePath).replace(/\\/g, '/')}/`
         pushIssue(issues, {
           level: 'warning',
           code: 'mcp-stdio-runtime-unbundled',
-          message: `MCP server "${serverName}" references a project-local stdio runtime under ${relativeDir}, but that directory is not included in passthrough. Installed bundles may ship the MCP config without the executable payload.`,
+          message: `MCP server "${serverName}" references a project-local stdio runtime under ${relativeDir}, but that directory is not included in the bundled runtime payload (` + '`scripts` / `assets` / `passthrough`' + `). Installed bundles may ship the MCP config without the executable payload.`,
           file: 'pluxx.config.ts',
           platform: 'MCP',
         })
@@ -608,6 +543,18 @@ function lintMcpRuntimeState(rootDir: string, config: PluginConfig, issues: Lint
       })
     }
   }
+}
+
+function getBundledRuntimePayloadDirs(rootDir: string, config: PluginConfig): string[] {
+  const { payloadSurface } = getPluginCompilerBuckets(config).runtime
+  return [
+    payloadSurface.scriptsPath,
+    payloadSurface.assetsPath,
+    ...payloadSurface.passthroughPaths,
+  ]
+    .filter((entry): entry is string => typeof entry === 'string' && entry.length > 0)
+    .map((entry) => resolveBundledPassthroughDir(rootDir, entry))
+    .filter((entry): entry is string => Boolean(entry))
 }
 
 function resolveBundledPassthroughDir(rootDir: string, entry: string): string | null {
@@ -652,10 +599,6 @@ function isLikelyLocalRuntimePath(value: string): boolean {
     || value.startsWith('..\\')
 }
 
-function referencesInstallerOwnedCheckEnv(command: string): boolean {
-  return command.includes('check-env.sh')
-}
-
 function lintInstallerOwnedRuntimeScripts(config: PluginConfig, issues: LintIssue[]): void {
   if (config.mcp) {
     for (const [serverName, server] of Object.entries(config.mcp)) {
@@ -667,7 +610,7 @@ function lintInstallerOwnedRuntimeScripts(config: PluginConfig, issues: LintIssu
       pushIssue(issues, {
         level: 'warning',
         code: 'installer-owned-check-env-runtime',
-        message: `MCP server "${serverName}" references scripts/check-env.sh in its runtime command or args. Pluxx install rewrites that file into a no-op after userConfig materialization, so runtime startup must not depend on it. Use separate runtime scripts such as load-env.sh, bootstrap-runtime.sh, and start-mcp.sh instead.`,
+        message: getInstallerOwnedCheckEnvRuntimeMessage(serverName),
         file: 'pluxx.config.ts',
         platform: 'Runtime',
       })
@@ -688,7 +631,7 @@ function lintInstallerOwnedRuntimeScripts(config: PluginConfig, issues: LintIssu
       pushIssue(issues, {
         level: 'warning',
         code: 'installer-owned-check-env-hook',
-        message: `Hook "${eventName}" references scripts/check-env.sh as part of a broader runtime command. Treat that script as installer-owned and install-time only, because local installs may rewrite it into a no-op after required config is materialized.`,
+        message: getInstallerOwnedCheckEnvHookMessage(eventName),
         file: 'pluxx.config.ts',
         platform: 'Runtime',
       })
@@ -724,11 +667,11 @@ function lintCodexHookCompatibility(config: PluginConfig, issues: LintIssue[]): 
 
   for (const hookEvent of Object.keys(config.hooks)) {
     const mappedEvent = mapHookEventToPascalCase(hookEvent)
-    if (!CODEX_RULES.hooks.supportedEvents.includes(mappedEvent as typeof CODEX_RULES.hooks.supportedEvents[number])) {
+    if (!isHookEventSupported('codex', mappedEvent)) {
       pushIssue(issues, {
         level: 'warning',
         code: 'codex-hook-event-unsupported',
-        message: `Codex hooks only support ${CODEX_RULES.hooks.supportedEvents.join(', ')}; "${hookEvent}" maps to "${mappedEvent}", which is not supported.`,
+        message: `${getUnsupportedHookEventReason('codex') ?? `Codex hooks only support ${getSupportedHookEvents('codex').join(', ')}`}; "${hookEvent}" maps to "${mappedEvent}", which is not supported.`,
         file: 'pluxx.config.ts',
         platform: 'Codex',
       })
@@ -940,10 +883,10 @@ function lintAgentFrontmatter(
 ): void {
   for (const file of agentFiles) {
     const { parsed } = getParsedFrontmatterFile(file, frontmatterCache)
-    if (!parsed.valid) continue
+    if (!parsed.hasValidFrontmatter) continue
 
     for (const forbidden of AGENT_FORBIDDEN_FRONTMATTER) {
-      if (parsed.fields.has(forbidden)) {
+      if (parsed.frontmatterFields.has(forbidden)) {
         pushIssue(issues, {
           level: 'warning',
           code: 'agent-forbidden-frontmatter',
@@ -979,9 +922,9 @@ function lintAgentIsolation(
 ): void {
   for (const file of agentFiles) {
     const { parsed } = getParsedFrontmatterFile(file, frontmatterCache)
-    if (!parsed.valid) continue
+    if (!parsed.hasValidFrontmatter) continue
 
-    const isolation = parsed.fields.get('isolation')
+    const isolation = parsed.frontmatterFields.get('isolation')
     if (isolation && isolation.value !== 'worktree') {
       pushIssue(issues, {
         level: 'error',
@@ -1160,6 +1103,57 @@ function lintCodexHooksExternalConfig(config: PluginConfig, issues: LintIssue[])
   })
 }
 
+function lintRuntimeReadiness(config: PluginConfig, issues: LintIssue[]): void {
+  const readinessPlan = getRuntimeReadinessPlan(config.readiness)
+  if (!readinessPlan.hasReadiness || !config.readiness) return
+  const codexReadinessCapability = config.targets.includes('codex')
+    ? getRuntimeReadinessCapability('codex')
+    : null
+
+  const hasMcpGate = config.readiness.gates.some((gate) => gate.applyTo.includes('mcp-tools'))
+  const hasCommandGate = config.readiness.gates.some((gate) => gate.applyTo.includes('commands'))
+
+  if (hasMcpGate && (!config.mcp || Object.keys(config.mcp).length === 0)) {
+    pushIssue(issues, {
+      level: 'warning',
+      code: 'readiness-mcp-target-without-mcp',
+      message: 'Runtime readiness targets `mcp-tools`, but this plugin does not configure any MCP servers.',
+      file: 'pluxx.config.ts',
+      platform: 'Runtime',
+    })
+  }
+
+  if (hasCommandGate && !config.commands) {
+    pushIssue(issues, {
+      level: 'warning',
+      code: 'readiness-commands-target-without-commands',
+      message: 'Runtime readiness targets `commands`, but this plugin does not define a commands directory.',
+      file: 'pluxx.config.ts',
+      platform: 'Runtime',
+    })
+  }
+
+  if (readinessPlan.hasNamedPromptTargets) {
+    pushIssue(issues, {
+      level: 'warning',
+      code: 'readiness-prompt-target-best-effort',
+      message: getRuntimeReadinessNamedPromptTargetNote(),
+      file: 'pluxx.config.ts',
+      platform: 'Runtime',
+    })
+  }
+
+  if (codexReadinessCapability && !codexReadinessCapability.bundleEnforced) {
+    pushIssue(issues, {
+      level: 'warning',
+      code: 'codex-readiness-external-config',
+      message: `${getRuntimeReadinessExternalConfigNote()} Pluxx emits ${codexReadinessCapability.companionArtifacts.join(' plus ')}, but you still need to wire those commands into Codex hook config itself.`,
+      file: 'pluxx.config.ts',
+      platform: 'Codex',
+    })
+  }
+}
+
 // ── Cursor-specific hook + frontmatter checks (fixes failing test) ──
 function lintCursorHooks(config: PluginConfig, issues: LintIssue[]): void {
   if (!config.targets.includes('cursor') || !config.hooks) return
@@ -1180,11 +1174,12 @@ function lintCursorHooks(config: PluginConfig, issues: LintIssue[]): void {
       if (!entry || typeof entry !== 'object') continue
       const rec = entry as Record<string, unknown>
 
-      if (rec.loop_limit !== undefined && !(CURSOR_LOOP_LIMIT_HOOK_EVENTS as readonly string[]).includes(hookEvent)) {
+      const cursorLoopLimitEvents = getHookFieldSupportedEvents('cursor', 'loop_limit')
+      if (rec.loop_limit !== undefined && !cursorLoopLimitEvents.includes(hookEvent)) {
         pushIssue(issues, {
           level: 'warning',
           code: 'cursor-hook-loop-limit-unsupported-event',
-          message: `Hook "${hookEvent}" has loop_limit but Cursor only supports loop_limit on ${CURSOR_LOOP_LIMIT_HOOK_EVENTS.join(', ')}.`,
+          message: `Hook "${hookEvent}" has loop_limit but Cursor only supports loop_limit on ${cursorLoopLimitEvents.join(', ')}.`,
           file: 'pluxx.config.ts',
           platform: 'Cursor',
         })
@@ -1211,9 +1206,9 @@ function lintCursorSkillFrontmatter(
 
   for (const skillFile of skillFiles) {
     const { parsed } = getParsedFrontmatterFile(skillFile, frontmatterCache)
-    if (!parsed.valid) continue
+    if (!parsed.hasValidFrontmatter) continue
 
-    for (const [key] of parsed.fields) {
+    for (const [key] of parsed.frontmatterFields) {
       for (const [target, supported] of supportedByTarget.entries()) {
         if (supported.has(key)) continue
 
@@ -1358,8 +1353,8 @@ function lintSkillListingBudgets(
     let total = 0
     for (const skillFile of skillFiles) {
       const { parsed } = getParsedFrontmatterFile(skillFile, frontmatterCache)
-      if (!parsed.valid) continue
-      const description = parsed.fields.get('description')?.value
+      if (!parsed.hasValidFrontmatter) continue
+      const description = parsed.frontmatterFields.get('description')?.value
       if (description) total += description.length
     }
 
@@ -1577,6 +1572,7 @@ export async function lintProject(
   lintCodexHookCompatibility(lintConfig, issues)
   lintCodexAgentsConfig(lintConfig, issues)
   lintCodexHooksExternalConfig(lintConfig, issues)
+  lintRuntimeReadiness(lintConfig, issues)
   lintPermissions(lintConfig, issues)
   lintPrimitiveTranslations(lintConfig, issues)
   lintHookFieldTranslations(lintConfig, issues)

@@ -3,19 +3,18 @@ import { relative } from 'path'
 import { Generator } from '../base'
 import type { TargetPlatform } from '../../schema'
 import { collectPermissionRules } from '../../permissions'
+import { buildGeneratedReadinessScript, getRuntimeReadinessPlan } from '../../readiness'
+import {
+  getEnabledRuntimeReadinessBindings,
+  getRuntimeReadinessCapability,
+  getRuntimeReadinessExternalConfigNote,
+} from '../../runtime-readiness-registry'
 import { readCanonicalAgentFiles } from '../../agents'
 import { readCanonicalCommandFiles } from '../../commands'
 import { buildDelegationBehaviorNotes } from '../../delegation'
 import { mapHookEventToPascalCase } from '../../hook-events'
+import { getSupportedHookEvents, getUnsupportedHookEventReason, isHookEventSupported } from '../../hook-translation-registry'
 import { readTextFile } from '../../text-files'
-
-const CODEX_SUPPORTED_HOOK_EVENTS = new Set([
-  'SessionStart',
-  'PreToolUse',
-  'PostToolUse',
-  'UserPromptSubmit',
-  'Stop',
-])
 
 export class CodexGenerator extends Generator {
   readonly platform: TargetPlatform = 'codex'
@@ -62,6 +61,7 @@ export class CodexGenerator extends Generator {
       this.generateAgentsMd(),
       this.generateNativeAgents(),
       this.generateHooksCompanion(),
+      this.generateReadinessCompanion(),
       this.generateCommandsCompanion(),
       this.generatePermissionsCompanion(),
     ])
@@ -227,12 +227,28 @@ export class CodexGenerator extends Generator {
   }
 
   private async generateHooksCompanion(): Promise<void> {
-    if (!this.config.hooks) return
+    const readinessPlan = getRuntimeReadinessPlan(this.config.readiness)
+    const readinessCapability = getRuntimeReadinessCapability('codex')
+    if (!this.config.hooks && !readinessPlan.hasReadiness) return
 
     const hooks: Record<string, Array<Record<string, unknown>>> = {}
     const unsupported: Array<Record<string, string>> = []
 
-    for (const [event, entries] of Object.entries(this.config.hooks)) {
+    if (readinessPlan.hasReadiness && this.config.readiness) {
+      await this.writeFile('.codex/pluxx-readiness.mjs', buildGeneratedReadinessScript(this.config.readiness))
+
+      for (const binding of getEnabledRuntimeReadinessBindings(readinessCapability, readinessPlan)) {
+        hooks[binding.event] = [
+          ...(hooks[binding.event] ?? []),
+          {
+            command: binding.command,
+            ...(binding.matcher ? { matcher: binding.matcher } : {}),
+          },
+        ]
+      }
+    }
+
+    for (const [event, entries] of Object.entries(this.config.hooks ?? {})) {
       if (!entries || entries.length === 0) continue
 
       const codexEvent = mapHookEventToPascalCase(event)
@@ -247,11 +263,12 @@ export class CodexGenerator extends Generator {
 
       if (mappedEntries.length === 0) continue
 
-      if (!CODEX_SUPPORTED_HOOK_EVENTS.has(codexEvent)) {
+      if (!isHookEventSupported('codex', codexEvent)) {
         unsupported.push({
           canonicalEvent: event,
           codexEvent,
-          reason: 'Codex currently documents only SessionStart, PreToolUse, PostToolUse, UserPromptSubmit, and Stop for hook configuration.',
+          reason: getUnsupportedHookEventReason('codex')
+            ?? `Codex currently documents only ${getSupportedHookEvents('codex').join(', ')} for hook configuration.`,
         })
         continue
       }
@@ -274,6 +291,40 @@ export class CodexGenerator extends Generator {
     })
   }
 
+  private async generateReadinessCompanion(): Promise<void> {
+    const readinessPlan = getRuntimeReadinessPlan(this.config.readiness)
+    const readinessCapability = getRuntimeReadinessCapability('codex')
+    if (!readinessPlan.hasReadiness || !this.config.readiness) return
+
+    const translatedHooks = Object.fromEntries(
+      getEnabledRuntimeReadinessBindings(readinessCapability, readinessPlan).map((binding) => [
+        binding.gate === 'session-start'
+          ? 'sessionStart'
+          : binding.gate === 'mcp-gate'
+            ? 'mcpGate'
+            : 'promptGate',
+        binding.command,
+      ]),
+    ) as {
+      sessionStart?: string
+      mcpGate?: string
+      promptGate?: string
+    }
+
+    await this.writeJson('.codex/readiness.generated.json', {
+      model: 'pluxx.readiness.v1',
+      enforcedByPluginBundle: readinessCapability.bundleEnforced,
+      note: `${getRuntimeReadinessExternalConfigNote()} Use this file together with .codex/hooks.generated.json when wiring readiness into Codex hook config.`,
+      dependencies: this.config.readiness.dependencies,
+      gates: this.config.readiness.gates,
+      translatedHooks: {
+        sessionStart: translatedHooks.sessionStart ?? null,
+        mcpGate: translatedHooks.mcpGate ?? null,
+        promptGate: translatedHooks.promptGate ?? null,
+      },
+    })
+  }
+
   private async generateCommandsCompanion(): Promise<void> {
     if (!this.config.commands) return
 
@@ -289,6 +340,7 @@ export class CodexGenerator extends Generator {
         id: command.commandId,
         title: command.title,
         ...(command.description ? { description: command.description } : {}),
+        ...(command.argumentHint ? { argumentHint: command.argumentHint } : {}),
         template: command.body,
       })),
     })
@@ -306,7 +358,7 @@ export class CodexGenerator extends Generator {
       '',
       'This plugin defines canonical command entrypoints. Codex does not package them as native slash commands today, so route those requests through the matching workflow directly.',
       '',
-      ...commands.map((command) => `- \`/${command.commandId}\` - ${command.description ?? command.title}`),
+      ...commands.map((command) => `- \`/${command.commandId}\` - ${command.description ?? command.title}${command.argumentHint ? ` (arguments: ${command.argumentHint})` : ''}`),
     ]
 
     return lines.join('\n')

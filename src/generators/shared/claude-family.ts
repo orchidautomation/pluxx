@@ -4,6 +4,8 @@ import { warnDroppedHookFields } from '../hooks-warning'
 import type { PluginConfig, TargetPlatform } from '../../schema'
 import { mapHookEventToPascalCase } from '../../hook-events'
 import { buildGeneratedPermissionHookScript } from '../../permissions'
+import { buildGeneratedReadinessScript, getRuntimeReadinessPlan } from '../../readiness'
+import { getEnabledRuntimeReadinessBindings, getRuntimeReadinessCapability } from '../../runtime-readiness-registry'
 import { readTextFile } from '../../text-files'
 import { readCanonicalAgentFiles } from '../../agents'
 import { normalizePluginOwnedStdioPathForPlatform } from '../../mcp-stdio-paths'
@@ -198,17 +200,61 @@ async function writeHooks(
   const usesPlatformManagedAuth = platform === 'claude-code'
     && config.platforms?.['claude-code']?.mcpAuth === 'platform'
   const shouldWrapClaudeHookCommands = platform === 'claude-code'
+  const readinessPlan = getRuntimeReadinessPlan(config.readiness)
+  const readinessCapability = getRuntimeReadinessCapability('claude-code', options.pluginRootVar)
   const permissionScript = buildGeneratedPermissionHookScript(config.permissions)
   let generatedClaudeHookCommandCount = 0
 
+  if (readinessPlan.hasReadiness && config.readiness) {
+    await writeFile('hooks/pluxx-readiness.mjs', buildGeneratedReadinessScript(config.readiness))
+
+    for (const binding of getEnabledRuntimeReadinessBindings(readinessCapability, readinessPlan)) {
+      if (binding.event === 'SessionStart') {
+        hooks.SessionStart = [{
+          hooks: [{
+            type: 'command',
+            command: binding.command,
+          }],
+        }]
+        continue
+      }
+
+      if (binding.event === 'PreToolUse') {
+        hooks.PreToolUse = [
+          ...(hooks.PreToolUse ?? []),
+          {
+            ...(binding.matcher ? { matcher: binding.matcher } : {}),
+            hooks: [{
+              type: 'command',
+              command: binding.command,
+            }],
+          },
+        ]
+        continue
+      }
+
+      if (binding.event === 'UserPromptSubmit') {
+        hooks.UserPromptSubmit = [{
+          hooks: [{
+            type: 'command',
+            command: binding.command,
+          }],
+        }]
+      }
+    }
+  }
+
   if (permissionScript) {
     await writeFile('hooks/pluxx-permissions.mjs', permissionScript)
-    hooks.PreToolUse = [{
-      hooks: [{
-        type: 'command',
-        command: `node \${${options.pluginRootVar}}/hooks/pluxx-permissions.mjs claude-pretool`,
-      }],
-    }]
+    hooks.PreToolUse = [
+      ...(hooks.PreToolUse ?? []),
+      {
+        hooks: [{
+          type: 'command',
+          command: `node \${${options.pluginRootVar}}/hooks/pluxx-permissions.mjs claude-pretool`,
+        }],
+      },
+    ]
   }
 
   if (!config.hooks) {

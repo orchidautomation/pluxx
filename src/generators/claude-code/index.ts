@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { basename, join } from 'path'
 import { type AgentFrontmatterMap, readCanonicalAgentFiles } from '../../agents'
 import { buildDelegationBehaviorNotes } from '../../delegation'
+import { parseSkillMarkdown, readCanonicalSkillFiles, serializeSkillMarkdown } from '../../skills'
 
 export class ClaudeCodeGenerator extends Generator {
   readonly platform: TargetPlatform = 'claude-code'
@@ -163,15 +164,10 @@ export class ClaudeCodeGenerator extends Generator {
     const commandNames = collectTopLevelCommandNames(commandsSrc)
     const collidingSkills: Array<{ dirName: string; effectiveName: string }> = []
 
-    for (const entry of readdirSync(skillsSrc, { withFileTypes: true })) {
-      if (!entry.isDirectory()) continue
-      const skillFile = join(skillsSrc, entry.name, 'SKILL.md')
-      if (!existsSync(skillFile)) continue
-
-      const content = readFileSync(skillFile, 'utf-8')
-      const effectiveName = getEffectiveSkillName(content, entry.name)
+    for (const skill of readCanonicalSkillFiles(skillsSrc)) {
+      const effectiveName = skill.name ?? skill.dirName
       if (commandNames.has(effectiveName)) {
-        collidingSkills.push({ dirName: entry.name, effectiveName })
+        collidingSkills.push({ dirName: skill.dirName, effectiveName })
       }
     }
 
@@ -190,15 +186,10 @@ export class ClaudeCodeGenerator extends Generator {
 
     const wrappedSkills: Array<{ dirName: string; effectiveName: string }> = []
 
-    for (const entry of readdirSync(skillsSrc, { withFileTypes: true })) {
-      if (!entry.isDirectory()) continue
-      const skillFile = join(skillsSrc, entry.name, 'SKILL.md')
-      if (!existsSync(skillFile)) continue
-
-      const content = readFileSync(skillFile, 'utf-8')
-      const effectiveName = getEffectiveSkillName(content, entry.name)
+    for (const skill of readCanonicalSkillFiles(skillsSrc)) {
+      const effectiveName = skill.name ?? skill.dirName
       if (referencedSkills.has(effectiveName)) {
-        wrappedSkills.push({ dirName: entry.name, effectiveName })
+        wrappedSkills.push({ dirName: skill.dirName, effectiveName })
       }
     }
 
@@ -230,20 +221,6 @@ function collectWrappedSkillNames(commandsRoot: string): Set<string> {
   return wrappedSkills
 }
 
-function getEffectiveSkillName(content: string, fallback: string): string {
-  const frontmatter = extractFrontmatterLines(content)
-  if (!frontmatter) return fallback
-
-  for (const line of frontmatter) {
-    const match = /^name:\s*(.+)\s*$/i.exec(line.trim())
-    if (match?.[1]) {
-      return stripYamlScalar(match[1]) || fallback
-    }
-  }
-
-  return fallback
-}
-
 function buildHiddenSkillName(name: string): string {
   const maxBaseLength = 64 - '-skill'.length
   const trimmed = name.length > maxBaseLength ? name.slice(0, maxBaseLength) : name
@@ -254,8 +231,8 @@ function rewriteClaudeSkillVisibility(
   content: string,
   options: { nameOverride?: string; userInvocable?: boolean },
 ): string {
-  const frontmatter = extractFrontmatterLines(content)
-  if (!frontmatter) {
+  const parsed = parseSkillMarkdown(content)
+  if (!parsed.hasValidFrontmatter) {
     const generatedFrontmatter = ['---']
     if (options.nameOverride) generatedFrontmatter.push(`name: ${options.nameOverride}`)
     if (options.userInvocable === false) generatedFrontmatter.push('user-invocable: false')
@@ -267,7 +244,7 @@ function rewriteClaudeSkillVisibility(
     ].join('\n')
   }
 
-  const rewritten = [...frontmatter]
+  const rewritten = [...parsed.frontmatterLines]
   let sawName = false
   let sawUserInvocable = false
 
@@ -287,40 +264,7 @@ function rewriteClaudeSkillVisibility(
   if (options.nameOverride && !sawName) rewritten.push(`name: ${options.nameOverride}`)
   if (options.userInvocable === false && !sawUserInvocable) rewritten.push('user-invocable: false')
 
-  const lines = content.split('\n')
-  const endIndex = findFrontmatterEndIndex(lines)
-  const body = endIndex === -1 ? content : lines.slice(endIndex + 1).join('\n')
-  return ['---', ...rewritten, '---', body ? `\n${body.replace(/^\n/, '')}` : ''].join('\n')
-}
-
-function extractFrontmatterLines(content: string): string[] | null {
-  const lines = content.split('\n')
-  const endIndex = findFrontmatterEndIndex(lines)
-  if (endIndex === -1) return null
-  return lines.slice(1, endIndex)
-}
-
-function findFrontmatterEndIndex(lines: string[]): number {
-  if (lines[0]?.trim() !== '---') return -1
-
-  for (let index = 1; index < lines.length; index += 1) {
-    if (lines[index].trim() === '---') {
-      return index
-    }
-  }
-
-  return -1
-}
-
-function stripYamlScalar(value: string): string {
-  const trimmed = value.trim()
-  if (
-    (trimmed.startsWith('"') && trimmed.endsWith('"'))
-    || (trimmed.startsWith("'") && trimmed.endsWith("'"))
-  ) {
-    return trimmed.slice(1, -1).trim()
-  }
-  return trimmed
+  return serializeSkillMarkdown(rewritten, parsed.body)
 }
 
 function buildClaudeDisallowedTools(frontmatter: AgentFrontmatterMap): string[] {

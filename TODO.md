@@ -17,9 +17,9 @@ Edit the canonical files in `docs/todo/` first.
 - finish the shared hook translation registry beyond the first read-only slice:
   - move deeper generator routing truth into the registry
   - stop hand-maintaining hook translation rows in docs
-- take the next highest-leverage primitive seam:
-  - shared `skills` parser/spec
-  - replace duplicated skill parsing in lint, agent mode, migrate, and Claude rewrites
+- continue the new shared `skills` parser into a richer canonical skill spec:
+  - carry more translation-aware metadata than the current line-oriented reader
+  - reduce remaining skill-frontmatter loss and ad hoc serialization
 - continue `commands` IR beyond `argument-hint` preservation:
   - richer argument/example/routing metadata
   - less lossy Codex/OpenCode degradation
@@ -36,6 +36,7 @@ Edit the canonical files in `docs/todo/` first.
 ### 3. Flagship and proof
 
 - keep pushing the `docs-ops` flagship example as the richest native reference plugin
+- keep pushing `platform-change-ops` as the maximal enterprise all-primitive stress fixture
 - close the Exa import delta:
   - get raw `init --from-mcp`, `autopilot`, and `migrate` closer to the final polished workflow shape
 - capture at least one polished in-app walkthrough outside Codex

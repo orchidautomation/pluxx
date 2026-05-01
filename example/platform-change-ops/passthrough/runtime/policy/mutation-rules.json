@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "denyByDefault": true,
+  "requiresApprovalFor": [
+    "merge_pull_request",
+    "post_message",
+    "open_change_window"
+  ]
+}

@@ -584,4 +584,36 @@ describe('install', () => {
       },
     })
   })
+
+  it('fails install when a bundled stdio runtime script still chains through installer-owned check-env.sh', async () => {
+    mkdirSync(resolve(DIST_DIR, 'codex/.codex-plugin'), { recursive: true })
+    mkdirSync(resolve(DIST_DIR, 'codex/scripts'), { recursive: true })
+
+    await Bun.write(
+      resolve(DIST_DIR, 'codex/.codex-plugin/plugin.json'),
+      JSON.stringify({
+        name: 'megamind',
+        version: '1.0.0',
+        skills: './skills/',
+        mcpServers: './.mcp.json',
+      }, null, 2),
+    )
+    await Bun.write(
+      resolve(DIST_DIR, 'codex/.mcp.json'),
+      JSON.stringify({
+        mcpServers: {
+          sendlens: {
+            command: 'bash',
+            args: ['./scripts/start-mcp.sh'],
+          },
+        },
+      }, null, 2),
+    )
+    await Bun.write(resolve(DIST_DIR, 'codex/scripts/check-env.sh'), '#!/usr/bin/env bash\nexit 0\n')
+    await Bun.write(resolve(DIST_DIR, 'codex/scripts/start-mcp.sh'), '#!/usr/bin/env bash\nbash "./scripts/check-env.sh"\n')
+
+    await expect(installPlugin(DIST_DIR, 'megamind', ['codex'], { useNativeClaudeInstall: false }))
+      .rejects
+      .toThrow('runtime script issues: runtime script scripts/start-mcp.sh for MCP server "sendlens" still references installer-owned scripts/check-env.sh')
+  })
 })

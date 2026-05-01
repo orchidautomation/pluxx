@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "defaultMode": "strict",
+  "environments": {
+    "production": "strict",
+    "staging": "warn"
+  }
+}

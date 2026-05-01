@@ -4,7 +4,9 @@ import type { TargetPlatform } from '../../schema'
 import { buildGeneratedPermissionHookScript } from '../../permissions'
 import { type AgentFrontmatterMap, readCanonicalAgentFiles } from '../../agents'
 import { buildDelegationBehaviorNotes } from '../../delegation'
-import { CURSOR_LOOP_LIMIT_HOOK_EVENTS } from '../../hook-events'
+import { getHookFieldSupportedEvents } from '../../hook-translation-registry'
+import { buildGeneratedReadinessScript, getRuntimeReadinessPlan } from '../../readiness'
+import { getEnabledRuntimeReadinessBindings, getRuntimeReadinessCapability } from '../../runtime-readiness-registry'
 import { readTextFile } from '../../text-files'
 
 export class CursorGenerator extends Generator {
@@ -53,26 +55,53 @@ export class CursorGenerator extends Generator {
 
   private async generateHooks(): Promise<void> {
     const permissionScript = buildGeneratedPermissionHookScript(this.config.permissions)
-    if (!this.config.hooks && !permissionScript) return
+    const readinessPlan = getRuntimeReadinessPlan(this.config.readiness)
+    const readinessCapability = getRuntimeReadinessCapability('cursor')
+    if (!this.config.hooks && !permissionScript && !readinessPlan.hasReadiness) return
     const usesPlatformManagedAuth = this.config.platforms?.cursor?.mcpAuth === 'platform'
 
     // Cursor hooks format matches the canonical format closely
     const hooks: Record<string, unknown[]> = {}
 
+    if (readinessPlan.hasReadiness && this.config.readiness) {
+      await this.writeFile('hooks/pluxx-readiness.mjs', buildGeneratedReadinessScript(this.config.readiness))
+
+      for (const binding of getEnabledRuntimeReadinessBindings(readinessCapability, readinessPlan)) {
+        hooks[binding.event] = [
+          ...(hooks[binding.event] ?? []),
+          {
+            command: binding.command,
+          },
+        ]
+      }
+    }
+
     if (permissionScript) {
       await this.writeFile('hooks/pluxx-permissions.mjs', permissionScript)
-      hooks.preToolUse = [{
-        command: 'node ./hooks/pluxx-permissions.mjs cursor-pretool',
-      }]
-      hooks.beforeShellExecution = [{
-        command: 'node ./hooks/pluxx-permissions.mjs cursor-shell',
-      }]
-      hooks.beforeReadFile = [{
-        command: 'node ./hooks/pluxx-permissions.mjs cursor-read',
-      }]
-      hooks.beforeMCPExecution = [{
-        command: 'node ./hooks/pluxx-permissions.mjs cursor-mcp',
-      }]
+      hooks.preToolUse = [
+        ...(hooks.preToolUse ?? []),
+        {
+          command: 'node ./hooks/pluxx-permissions.mjs cursor-pretool',
+        },
+      ]
+      hooks.beforeShellExecution = [
+        ...(hooks.beforeShellExecution ?? []),
+        {
+          command: 'node ./hooks/pluxx-permissions.mjs cursor-shell',
+        },
+      ]
+      hooks.beforeReadFile = [
+        ...(hooks.beforeReadFile ?? []),
+        {
+          command: 'node ./hooks/pluxx-permissions.mjs cursor-read',
+        },
+      ]
+      hooks.beforeMCPExecution = [
+        ...(hooks.beforeMCPExecution ?? []),
+        {
+          command: 'node ./hooks/pluxx-permissions.mjs cursor-mcp',
+        },
+      ]
     }
 
     if (!this.config.hooks) {
@@ -109,10 +138,7 @@ export class CursorGenerator extends Generator {
         if (entry.timeout) hookDef.timeout = entry.timeout
         if (entry.matcher) hookDef.matcher = entry.matcher
         if (entry.failClosed) hookDef.failClosed = entry.failClosed
-        if (
-          entry.loop_limit !== undefined
-          && (CURSOR_LOOP_LIMIT_HOOK_EVENTS as readonly string[]).includes(event)
-        ) {
+        if (entry.loop_limit !== undefined && getHookFieldSupportedEvents('cursor', 'loop_limit').includes(event)) {
           hookDef.loop_limit = entry.loop_limit
         }
         return hookDef

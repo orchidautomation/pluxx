@@ -7,6 +7,7 @@ export interface ParsedCommandMarkdownFile {
   commandId: string
   title: string
   description?: string
+  argumentHint?: string
   agent?: string
   subtask?: boolean
   model?: string
@@ -144,6 +145,7 @@ export function readCanonicalCommandFiles(commandsDir: string | undefined): Pars
         commandId,
         title,
         description: parseCommandFrontmatterDescription(frontmatterLines),
+        argumentHint: parseCommandFrontmatterString(frontmatterLines, 'argument-hint'),
         agent: parseCommandFrontmatterString(frontmatterLines, 'agent'),
         subtask: parseCommandFrontmatterBoolean(frontmatterLines, 'subtask'),
         model: parseCommandFrontmatterString(frontmatterLines, 'model'),

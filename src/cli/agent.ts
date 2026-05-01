@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'fs'
+import { existsSync, readdirSync, readFileSync } from 'fs'
 import { chmod, copyFile, mkdir, mkdtemp, readFile, rm } from 'fs/promises'
 import { homedir, tmpdir } from 'os'
 import { relative, resolve } from 'path'
@@ -6,6 +6,7 @@ import { spawn } from 'child_process'
 import { planTextFileAction, readTextFile, writeTextFile } from '../text-files'
 import { loadConfig } from '../config/load'
 import { readCanonicalCommandFiles } from '../commands'
+import { readCanonicalSkillFiles as readCanonicalSkillMarkdownFiles } from '../skills'
 import { lintProject, type LintResult } from './lint'
 import { runTestSuite, type TestRunResult } from './test'
 import {
@@ -253,6 +254,7 @@ interface AgentProjectCommand {
   path: string
   title: string
   description?: string
+  argumentHint?: string
 }
 
 interface AgentProjectModel {
@@ -666,6 +668,7 @@ function loadManualAgentProjectModel(rootDir: string, config: PluginConfig): Age
     path: normalizeRelativePath(relative(rootDir, command.filePath)),
     title: command.title,
     description: command.description,
+    argumentHint: command.argumentHint,
   }))
 
   return {
@@ -763,7 +766,7 @@ function buildAgentContext(
     lines.push('## Commands')
     lines.push('')
     for (const command of project.commands) {
-      lines.push(`- \`${command.path}\`: ${command.description ?? command.title}`)
+      lines.push(`- \`${command.path}\`: ${command.description ?? command.title}${command.argumentHint ? ` (arguments: ${command.argumentHint})` : ''}`)
     }
     lines.push('')
   }
@@ -2658,107 +2661,13 @@ function normalizeRelativePath(path: string): string {
 }
 
 function readCanonicalSkillFiles(rootDir: string, skillsDir: string | undefined): AgentProjectSkill[] {
-  if (!skillsDir || !existsSync(skillsDir)) return []
-
-  return walkSkillMarkdownFiles(skillsDir)
-    .sort((a, b) => a.localeCompare(b))
-    .map((filePath) => {
-      const content = readFileSync(filePath, 'utf-8')
-      const { frontmatterLines, body } = splitSkillMarkdownFrontmatter(content)
-      const dirName = normalizeRelativePath(relative(skillsDir, filePath).replace(/\/SKILL\.md$/i, ''))
-      const title = firstMarkdownHeading(body) ?? dirName
-
-      return {
-        dirName,
-        title,
-        description: parseYamlDescription(frontmatterLines),
-        toolNames: [],
-        path: normalizeRelativePath(relative(rootDir, filePath)),
-      }
-    })
-}
-
-function walkSkillMarkdownFiles(dir: string): string[] {
-  const entries = readdirSync(dir)
-  const files: string[] = []
-
-  for (const entry of entries) {
-    const fullPath = resolve(dir, entry)
-    const stat = statSync(fullPath)
-    if (stat.isDirectory()) {
-      files.push(...walkSkillMarkdownFiles(fullPath))
-      continue
-    }
-    if (stat.isFile() && entry === 'SKILL.md') {
-      files.push(fullPath)
-    }
-  }
-
-  return files
-}
-
-function splitSkillMarkdownFrontmatter(content: string): {
-  frontmatterLines: string[]
-  body: string
-} {
-  const lines = content.split(/\r?\n/)
-  if (lines[0]?.trim() !== '---') {
-    return {
-      frontmatterLines: [],
-      body: content,
-    }
-  }
-
-  let endIndex = -1
-  for (let i = 1; i < lines.length; i += 1) {
-    if (lines[i].trim() === '---') {
-      endIndex = i
-      break
-    }
-  }
-
-  if (endIndex === -1) {
-    return {
-      frontmatterLines: [],
-      body: content,
-    }
-  }
-
-  return {
-    frontmatterLines: lines.slice(1, endIndex),
-    body: lines.slice(endIndex + 1).join('\n'),
-  }
-}
-
-function parseYamlDescription(frontmatterLines: string[]): string | undefined {
-  for (const line of frontmatterLines) {
-    const match = /^description:\s*(.+)\s*$/i.exec(line.trim())
-    if (match?.[1]) {
-      return stripYamlScalar(match[1])
-    }
-  }
-
-  return undefined
-}
-
-function firstMarkdownHeading(content: string): string | undefined {
-  const lines = content.split(/\r?\n/)
-  for (const line of lines) {
-    const match = line.match(/^#\s+(.*)$/)
-    if (match?.[1]?.trim()) return match[1].trim()
-  }
-  return undefined
-}
-
-function stripYamlScalar(value: string): string {
-  const trimmed = value.trim()
-  if (
-    (trimmed.startsWith('"') && trimmed.endsWith('"'))
-    || (trimmed.startsWith("'") && trimmed.endsWith("'"))
-  ) {
-    return trimmed.slice(1, -1).trim()
-  }
-  return trimmed
+  return readCanonicalSkillMarkdownFiles(skillsDir).map((skill) => ({
+    dirName: normalizeRelativePath(skill.dirName),
+    title: skill.firstHeading ?? skill.name ?? skill.dirName,
+    description: skill.description,
+    toolNames: [],
+    path: normalizeRelativePath(relative(rootDir, skill.filePath)),
+  }))
 }
 
 function summarizeDiscoveryDescription(description: string | undefined, trailing?: string): string {

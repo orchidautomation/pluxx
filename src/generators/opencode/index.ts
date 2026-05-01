@@ -3,6 +3,8 @@ import { basename, extname, relative, resolve } from 'path'
 import { Generator } from '../base'
 import type { HookEntry, TargetPlatform } from '../../schema'
 import { buildOpenCodePermissionMap } from '../../permissions'
+import { buildGeneratedReadinessScript, getRuntimeReadinessPlan } from '../../readiness'
+import { getRuntimeReadinessCapability } from '../../runtime-readiness-registry'
 import { type AgentFrontmatterMap, type AgentFrontmatterValue, readCanonicalAgentFiles } from '../../agents'
 import { readCanonicalCommandFiles } from '../../commands'
 
@@ -50,6 +52,7 @@ export class OpenCodeGenerator extends Generator {
     await Promise.all([
       this.generatePackageJson(),
       this.generatePluginWrapper(),
+      this.generateReadinessRuntime(),
     ])
 
     this.copySkills()
@@ -92,6 +95,8 @@ export class OpenCodeGenerator extends Generator {
     const commandDefinitions = this.getOpenCodeCommandDefinitions()
     const agentDefinitions = this.getOpenCodeAgentDefinitions()
     const hookPlan = this.getOpenCodeHookPlan()
+    const readinessPlan = getRuntimeReadinessPlan(this.config.readiness)
+    const readinessCapability = getRuntimeReadinessCapability('opencode')
     const instructions = this.getInstructionsContent()
     const permissionMap = buildOpenCodePermissionMap(this.config.permissions)
 
@@ -128,6 +133,8 @@ export class OpenCodeGenerator extends Generator {
       `const INSTRUCTIONS = ${JSON.stringify(instructions)}`,
       '',
       `const PERMISSIONS = ${JSON.stringify(permissionMap, null, 2)}`,
+      '',
+      `const READINESS_SCRIPT = ${JSON.stringify(readinessPlan.hasReadiness ? readinessCapability.scriptPath : null)}`,
       '',
       `const isMcpTool = (tool: string): boolean =>`,
       `  tool === "mcp" || tool.startsWith("mcp.") || tool.startsWith("mcp_")`,
@@ -249,6 +256,20 @@ export class OpenCodeGenerator extends Generator {
       `    }`,
       `  }`,
       '',
+      `  const shellSingleQuote = (input: string): string => \`'\${String(input ?? "").replace(/'/g, \`'"'"'\`)}'\``,
+      '',
+      `  const runReadiness = async (mode: string, event: Record<string, unknown>): Promise<void> => {`,
+      `    if (!READINESS_SCRIPT) return`,
+      `    const payload = Buffer.from(JSON.stringify(event ?? {}), "utf-8").toString("base64")`,
+      `    const scriptPath = resolve(directory, READINESS_SCRIPT)`,
+      `    const command = [`,
+      `      \`PLUXX_PLUGIN_ROOT=\${shellSingleQuote(directory)}\`,`,
+      `      \`PLUXX_READINESS_PAYLOAD=\${shellSingleQuote(payload)}\`,`,
+      `      \`node \${shellSingleQuote(scriptPath)} \${shellSingleQuote(mode)}\`,`,
+      `    ].join(" ")`,
+      `    await $\`bash -lc \${command}\``,
+      `  }`,
+      '',
       `  return {`,
       `    config: async (config) => {`,
       `      if (Object.keys(MCP_DEFINITIONS).length > 0) {`,
@@ -281,6 +302,9 @@ export class OpenCodeGenerator extends Generator {
       `    },`,
       '',
       `    "tool.execute.before": async (input, output) => {`,
+      `      if (isMcpTool(input.tool)) {`,
+      `        await runReadiness("mcp-gate", { ...input, tool_name: input.tool })`,
+      `      }`,
       `      await runHooks(TOOL_BEFORE_HOOKS.all, { hookType: "tool.execute.before", tool: input.tool })`,
       `      if (input.tool === "read") {`,
       `        await runHooks(TOOL_BEFORE_HOOKS.read, { hookType: "tool.execute.before", tool: input.tool })`,
@@ -305,6 +329,7 @@ export class OpenCodeGenerator extends Generator {
       `    },`,
       '',
       `    "chat.message": async (input, output) => {`,
+      `      await runReadiness("prompt-gate", input ?? {})`,
       `      await runHooks(CHAT_MESSAGE_HOOKS, { hookType: "chat.message", sessionID: input.sessionID })`,
       `    },`,
       '',
@@ -320,6 +345,7 @@ export class OpenCodeGenerator extends Generator {
       '',
       `    event: async ({ event }) => {`,
       `      if (event.type === "session.created") {`,
+      `        await runReadiness("session-start", event)`,
     ]
 
     for (const envVar of envVars) {
@@ -343,6 +369,11 @@ export class OpenCodeGenerator extends Generator {
     lines.push('')
 
     await this.writeFile('index.ts', lines.join('\n'))
+  }
+
+  private async generateReadinessRuntime(): Promise<void> {
+    if (!this.config.readiness) return
+    await this.writeFile('runtime/pluxx-readiness.mjs', buildGeneratedReadinessScript(this.config.readiness))
   }
 
   private getRequiredEnvVars(): string[] {
@@ -381,6 +412,7 @@ export class OpenCodeGenerator extends Generator {
   private getOpenCodeCommandDefinitions(): Record<string, {
     template: string
     description?: string
+    argumentHint?: string
     agent?: string
     subtask?: boolean
     model?: string
@@ -392,6 +424,7 @@ export class OpenCodeGenerator extends Generator {
     const output: Record<string, {
       template: string
       description?: string
+      argumentHint?: string
       agent?: string
       subtask?: boolean
       model?: string
@@ -401,6 +434,7 @@ export class OpenCodeGenerator extends Generator {
       output[command.commandId] = {
         template: command.body,
         ...(command.description ? { description: command.description } : {}),
+        ...(command.argumentHint ? { argumentHint: command.argumentHint } : {}),
         ...(command.agent ? { agent: command.agent } : {}),
         ...(typeof command.subtask === 'boolean' ? { subtask: command.subtask } : {}),
         ...(command.model ? { model: command.model } : {}),

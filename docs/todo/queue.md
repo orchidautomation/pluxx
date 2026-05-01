@@ -12,6 +12,7 @@ Last updated: 2026-05-01
   - [docs/roadmap.md](../roadmap.md)
   - [docs/oss-wedge-and-trust-layer.md](../oss-wedge-and-trust-layer.md)
   - [docs/flagship-docs-ops-plugin.md](../flagship-docs-ops-plugin.md)
+  - [docs/platform-change-ops-reference-plugin.md](../platform-change-ops-reference-plugin.md)
   - [docs/docs-ops-core-four-proof.md](../docs-ops-core-four-proof.md)
   - [docs/exa-research-example.md](../exa-research-example.md)
   - [docs/pluxx-plugin-surface-audit.md](../pluxx-plugin-surface-audit.md)
@@ -166,6 +167,8 @@ Open work:
   - IR boundary work
   - shared registry rollout
   - runtime/distribution internal seam hardening
+- shared skill parsing is now materially less duplicated:
+  - `src/skills.ts` is the common reader for lint, Agent Mode, migrate, and Claude skill rewrites
 - treat the current compiler-hardening state as:
   - runtime/distribution internal seams are materially stronger
   - readiness translation is already shared through one registry
@@ -176,7 +179,7 @@ Open work:
   - a raw `init --from-mcp`, `autopilot`, or `migrate` run should get closer to the final Exa workflow architecture without depending on as much maintainer hand-shaping
 - close the now-clearer translation follow-ons behind the shipped readiness/runtime work:
   - finish the deeper hook-registry rollout so generator routing and docs rows read registry-backed truth instead of parallel tables
-  - add the first shared `skills` parser/spec and replace duplicated skill parsing in lint, Agent Mode, migrate, and Claude rewrites
+  - continue the `skills` follow-on from the new shared parser into a richer canonical skill spec instead of a line-oriented reader only
   - continue the `commands` IR pass beyond `argument-hint` so richer argument/routing metadata stops degrading early
   - reduce lossy import paths in `migrate` and installed-MCP discovery, especially around richer hook fields and auth reconstruction
   - make installed hook env parity a portable runtime contract outside the Claude-specific wrapper path
@@ -192,6 +195,15 @@ Open work:
 - keep building the chosen flagship example:
   - a Docsalot-style `docs-ops` plugin from one maintained source project
 - use [docs/flagship-docs-ops-plugin.md](../flagship-docs-ops-plugin.md) as the concrete build spec
+- a second flagship-adjacent all-primitive reference example now exists:
+  - `example/platform-change-ops`
+  - [docs/platform-change-ops-reference-plugin.md](../platform-change-ops-reference-plugin.md)
+- use that Platform Change Ops example as the enterprise stress fixture for:
+  - runtime readiness
+  - local stdio runtime packaging
+  - risky-action hook translation
+  - permission translation
+  - install/distribution truth under a warning-heavy preserve / translate / degrade mix
 - keep the new Exa clean-room example in the proof stack as the clearest non-docs showcase of:
   - raw MCP plus official-host workflow shape in
   - branded native core-four bundles out

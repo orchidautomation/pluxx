@@ -1,0 +1,21 @@
+{
+  "cases": [
+    {
+      "name": "risk-review",
+      "targets": {
+        "claude-code": {
+          "prompt": "/platform-change-ops:review-risk-and-policy CHG-4312"
+        },
+        "cursor": {
+          "prompt": "/review-risk-and-policy CHG-4312"
+        },
+        "codex": {
+          "prompt": "Use Platform Change Ops to review change CHG-4312, explain the missing evidence, and draft the next safe operator step."
+        },
+        "opencode": {
+          "prompt": "/review-risk-and-policy CHG-4312"
+        }
+      }
+    }
+  ]
+}

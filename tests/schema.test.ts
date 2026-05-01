@@ -206,6 +206,86 @@ describe('HookEntrySchema hook type validation', () => {
       }).success
     ).toBe(false)
   })
+
+  it('supports runtime readiness with refresh commands and gate scoping', () => {
+    const config = PluginConfigSchema.parse({
+      name: 'readiness-plugin',
+      description: 'Readiness fixture',
+      author: {
+        name: 'Orchid Labs',
+      },
+      skills: './skills/',
+      readiness: {
+        dependencies: [
+          {
+            id: 'runtime-cache',
+            path: './runtime/status.json',
+            statusField: 'status',
+            readyValues: ['ready'],
+            pendingValues: ['pending'],
+            failedValues: ['failed'],
+            refresh: {
+              command: '${PLUGIN_ROOT}/scripts/refresh-runtime.sh',
+            },
+          },
+        ],
+        gates: [
+          {
+            dependency: 'runtime-cache',
+            applyTo: ['mcp-tools', 'commands'],
+            tools: ['fixture.search'],
+            commands: ['research'],
+            timeoutMs: 2000,
+            pollMs: 100,
+            onTimeout: 'warn',
+          },
+        ],
+      },
+    })
+
+    expect(config.readiness?.dependencies[0]?.refresh.command).toBe('${PLUGIN_ROOT}/scripts/refresh-runtime.sh')
+    expect(config.readiness?.gates[0]?.commands).toEqual(['research'])
+  })
+
+  it('rejects invalid runtime readiness selector wiring and duplicate dependencies', () => {
+    const parsed = PluginConfigSchema.safeParse({
+      name: 'readiness-plugin',
+      description: 'Readiness fixture',
+      author: {
+        name: 'Orchid Labs',
+      },
+      skills: './skills/',
+      readiness: {
+        dependencies: [
+          {
+            id: 'runtime-cache',
+            path: './runtime/status.json',
+            refresh: {
+              command: 'echo refresh',
+            },
+          },
+          {
+            id: 'runtime-cache',
+            path: './runtime/other-status.json',
+            refresh: {
+              command: 'echo refresh',
+            },
+          },
+        ],
+        gates: [
+          {
+            dependency: 'runtime-cache',
+            applyTo: ['skills'],
+            tools: ['fixture.search'],
+          },
+        ],
+      },
+    })
+
+    expect(parsed.success).toBe(false)
+    expect(parsed.error?.issues.some((issue) => issue.message.includes('duplicated'))).toBe(true)
+    expect(parsed.error?.issues.some((issue) => issue.message.includes('requires applyTo to include "mcp-tools"'))).toBe(true)
+  })
 })
 
 describe('Plugin compiler bucket mapping', () => {
@@ -259,10 +339,17 @@ describe('Plugin compiler bucket mapping', () => {
     expect(buckets.runtime.assetsPath).toBe('./assets/')
     expect(buckets.runtime.passthroughPaths).toEqual(['./mcp-server/'])
     expect(Object.keys(buckets.runtime.mcp ?? {})).toEqual(['leadkit'])
+    expect(Object.keys(buckets.runtime.mcpSurface.servers ?? {})).toEqual(['leadkit'])
+    expect(buckets.runtime.mcpSurface.hasRuntimeAuth).toBe(false)
+    expect(buckets.runtime.readinessSurface.config).toBeUndefined()
+    expect(buckets.runtime.payloadSurface.passthroughPaths).toEqual(['./mcp-server/'])
     expect(buckets.permissions.rules?.allow).toEqual(['Read(src/**)'])
     expect(buckets.distribution.targets).toEqual(['claude-code', 'cursor', 'codex', 'opencode'])
     expect(buckets.distribution.identity.name).toBe('leadkit')
     expect(buckets.distribution.userConfig).toEqual([])
+    expect(buckets.distribution.brandingSurface.identity.name).toBe('leadkit')
+    expect(buckets.distribution.installSurface.userConfig).toEqual([])
+    expect(buckets.distribution.outputSurface.targets).toEqual(['claude-code', 'cursor', 'codex', 'opencode'])
   })
 
   it('derives the active compiler buckets from config', () => {

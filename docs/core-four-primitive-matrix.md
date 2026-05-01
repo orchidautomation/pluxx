@@ -27,7 +27,7 @@ These are the eight buckets Pluxx should compile from:
 | `agents` | specialist or delegated execution surfaces |
 | `hooks` | deterministic lifecycle automation |
 | `permissions` | portable `allow` / `ask` / `deny` intent |
-| `runtime` | MCP, runtime auth, local runtimes, passthrough dirs, helper scripts |
+| `runtime` | MCP, runtime auth, runtime readiness, local runtimes, passthrough dirs, helper scripts |
 | `distribution` | user config, brand, packaging, install, publish, and install-surface metadata |
 
 `taxonomy` remains an internal compiler input. It drives how skills, commands, instructions, and agents are rendered, but it is not itself a host-facing extension primitive.
@@ -43,16 +43,28 @@ interface PluxxPrimitiveModel {
   hooks?: HookSpec[]
   permissions?: PermissionSpec[]
   runtime?: {
-    mcp?: McpSpec
-    auth?: RuntimeAuthSpec[]
-    passthrough?: string[]
-    scripts?: string[]
-    assets?: string[]
+    mcp?: {
+      servers?: McpSpec
+      auth?: RuntimeAuthSpec[]
+    }
+    readiness?: RuntimeReadinessSpec[]
+    payload?: {
+      passthrough?: string[]
+      scripts?: string[]
+      assets?: string[]
+    }
   }
   distribution?: {
-    userConfig?: UserConfigSpec[]
-    brand?: BrandSpec
-    install?: InstallSurfaceSpec
+    identity?: IdentitySpec
+    branding?: BrandSpec
+    install?: {
+      userConfig?: UserConfigSpec[]
+      surface?: InstallSurfaceSpec
+    }
+    output?: {
+      targets?: TargetPlatform[]
+      outDir?: string
+    }
     publish?: PublishSurfaceSpec
   }
   taxonomy: TaxonomySpec
@@ -60,6 +72,11 @@ interface PluxxPrimitiveModel {
 ```
 
 This is a compiler-facing model. It is not a claim that each host has one identical manifest or one identical config file.
+
+The important compiler nuance is that two of these public buckets already need finer internal seams:
+
+- `runtime` should be reasoned about as MCP/auth, readiness, and generic bundled payload support
+- `distribution` should be reasoned about as identity/branding, install-time config surface, and build/output surface
 
 ## Mapping Rules
 
@@ -71,7 +88,7 @@ This is a compiler-facing model. It is not a claim that each host has one identi
 | `agents` | plugin `agents/` with rich frontmatter and isolation settings, but explicit plugin-agent limits | plugin agents plus Cursor subagents | custom agents in `.codex/agents/*.toml` and subagent workflows | primary agents and subagents with model and permission-first config | Treat agents as specialist execution surfaces. Compile one specialist concept into each host's native agent or subagent format, even when the storage location differs. |
 | `hooks` | `hooks/hooks.json`, inline plugin hooks, settings hooks, and skill or agent frontmatter hooks | `hooks/hooks.json` plus project and user hook locations | `.codex/hooks.json` or `~/.codex/hooks.json`, guarded by the `codex_hooks` feature flag | JS or TS plugin event handlers | Normalize hook intent and compile per host. Do not assume event names or return contracts are portable 1:1. |
 | `permissions` | tool scoping and approval controls live in Claude-specific agent, hook, and runtime surfaces | hook allow or deny decisions, CLI permission config, and subagent tool access | approvals, sandbox policy, hook matchers, and custom-agent config | first-class permission config plus per-agent overrides, keyed by tool name and patterns | Keep `allow` / `ask` / `deny` as the canonical authoring model. When one host lacks a per-skill field, move the policy to its native agent, hook, or runtime control plane. |
-| `runtime` | `.mcp.json` or inline MCP config, plus plugin support files | `mcp.json`, host `mcp.json` config, plugin support files, and richer auth surfaces | `.mcp.json` in plugins plus active MCP state in `config.toml`, with optional `.app.json` | config-driven MCP plus JS or TS plugin runtime | Runtime owns MCP, auth, env wiring, helper code, local runtimes, and passthrough dirs. Compile into bundle-local files when possible and external host config when required. |
+| `runtime` | `.mcp.json` or inline MCP config, plus plugin support files | `mcp.json`, host `mcp.json` config, plugin support files, and richer auth surfaces | `.mcp.json` in plugins plus active MCP state in `config.toml`, with optional `.app.json` | config-driven MCP plus JS or TS plugin runtime | Runtime owns MCP, auth, readiness/env wiring, helper code, local runtimes, and passthrough dirs. Compile into bundle-local files when possible and external host config when required. |
 | `distribution` | `.claude-plugin/plugin.json`, marketplaces, install scopes, user configuration, reload surface | `.cursor-plugin/plugin.json`, marketplace metadata, publish surface, local install path, reload-window flow | `.codex-plugin/plugin.json`, marketplace catalogs, cache install path, interface metadata, restart-after-update flow | npm or local JS plugin distribution plus config-based loading rather than one shared manifest | Distribution owns `userConfig`, brand, legal links, icons, screenshots, install metadata, and publish metadata. Emit rich manifest fields where supported and install shims where they are not. |
 
 ## Practical Consequences
@@ -219,6 +236,7 @@ This is intentionally closure-oriented:
 | Bearer token auth | `preserve -> inline env-backed headers or platform-managed auth` | `preserve -> inline headers or platform-managed auth` | `translate -> bearer_token_env_var when Codex can express it` | `translate -> runtime builds Authorization header from env/user config` | Bearer-token MCP auth is a strong portable case today. |
 | Custom header auth | `preserve -> inline headers` | `preserve -> inline headers` | `translate/degrade -> env_http_headers or static http_headers when Codex can express them exactly; otherwise warn and omit` | `translate -> runtime header materialization` | Custom headers are portable, but Codex cannot express every templated variant exactly. |
 | Platform-managed OAuth/auth | `preserve -> platform-managed auth when configured` | `preserve -> platform-managed auth when configured` | `degrade -> external host config/runtime still required` | `degrade -> external host config/runtime still required` | OAuth-ready plugins are Claude/Cursor-first in current Pluxx outputs. |
+| Runtime readiness dependency, session-start refresh, and gate polling | `translate -> generated SessionStart / PreToolUse / UserPromptSubmit hooks plus helper runtime script` | `translate -> generated sessionStart / beforeMCPExecution / beforeSubmitPrompt hooks plus helper runtime script` | `degrade -> .codex/readiness.generated.json plus .codex/hooks.generated.json external hook guidance` | `translate -> runtime/pluxx-readiness.mjs plus event-handler calls from plugin code` | Runtime readiness is operational intent, not manual per-host hook glue. Codex still needs external hook wiring today, and named skill/command scoping currently degrades to prompt-entry gating with best-effort matching. |
 | Helper scripts, assets, passthrough runtime dirs | `preserve -> scripts/, assets/, passthrough` | `preserve -> scripts/, assets/, passthrough` | `preserve -> scripts/, assets/, passthrough` | `preserve -> scripts/, assets/, passthrough plus runtime wrapper` | Shared support files remain portable even when the runtime host is code-first. |
 
 ### Distribution

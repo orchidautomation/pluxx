@@ -1,6 +1,10 @@
 export {
   PluginConfigSchema,
   type PluginConfig,
+  type RuntimeReadiness,
+  type RuntimeReadinessDependency,
+  type RuntimeReadinessGate,
+  type RuntimeReadinessRefresh,
   type TargetPlatform,
   type UserConfigEntry,
   type PermissionRule,
@@ -35,13 +39,40 @@ export {
   type PluginCommandsBucket,
   type PluginAgentsBucket,
   type PluginDistributionBucket,
+  type PluginDistributionBrandingSubprimitive,
+  type PluginDistributionInstallSubprimitive,
+  type PluginDistributionOutputSubprimitive,
   type PluginHooksBucket,
   type PluginInstructionsBucket,
   type PluginPermissionsBucket,
+  type PluginRuntimeMcpSubprimitive,
+  type PluginRuntimePayloadSubprimitive,
+  type PluginRuntimeReadinessSubprimitive,
   type PluginRuntimeBucket,
   type PluginSkillsBucket,
 } from './schema'
 export { getPlatformCompatibilityMatrix, renderCompatibilityMatrixMarkdown, type PlatformCompatibilityRow } from './compatibility/matrix'
+export {
+  getEnabledRuntimeReadinessBindings,
+  getRuntimeReadinessCapability,
+  getRuntimeReadinessExternalConfigNote,
+  getRuntimeReadinessNamedPromptTargetNote,
+  type RuntimeReadinessBinding,
+  type RuntimeReadinessCapability,
+  type RuntimeReadinessDeliveryMode,
+  type RuntimeReadinessGateKind,
+  type RuntimeReadinessScopeMode,
+} from './runtime-readiness-registry'
+export {
+  INSTALLER_OWNED_CHECK_ENV_PATH,
+  PORTABLE_RUNTIME_SCRIPT_ROLES,
+  getConsumerEnvScriptActiveDetail,
+  getConsumerEnvScriptMissingDetail,
+  getInstallerOwnedCheckEnvHookMessage,
+  getInstallerOwnedCheckEnvRuntimeMessage,
+  getPortableRuntimeScriptRoleGuidance,
+  referencesInstallerOwnedCheckEnv,
+} from './runtime-script-contract'
 export {
   buildGeneratedPermissionHookScript,
   buildOpenCodePermissionMap,

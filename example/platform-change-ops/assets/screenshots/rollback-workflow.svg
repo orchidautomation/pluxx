@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720">
+  <rect width="1200" height="720" fill="#FAF3EF"/>
+  <rect x="60" y="70" width="1080" height="580" rx="28" fill="#FFFFFF" stroke="#E8D9CF"/>
+  <text x="100" y="140" font-family="Georgia, serif" font-size="40" fill="#0F4C5C">Rollback Workflow</text>
+  <circle cx="240" cy="360" r="110" fill="#FDE6D8"/>
+  <circle cx="600" cy="360" r="110" fill="#E8F3F1"/>
+  <circle cx="960" cy="360" r="110" fill="#FFF4D6"/>
+  <text x="175" y="350" font-family="Arial, sans-serif" font-size="26" fill="#0F4C5C">detect</text>
+  <text x="540" y="350" font-family="Arial, sans-serif" font-size="26" fill="#0F4C5C">plan</text>
+  <text x="895" y="350" font-family="Arial, sans-serif" font-size="26" fill="#0F4C5C">announce</text>
+  <path d="M350 360h130M710 360h130" stroke="#0F4C5C" stroke-width="10" stroke-linecap="round"/>
+</svg>

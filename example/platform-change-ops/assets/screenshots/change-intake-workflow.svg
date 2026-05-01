@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720">
+  <rect width="1200" height="720" fill="#F3F7F6"/>
+  <rect x="60" y="70" width="1080" height="580" rx="28" fill="#FFFFFF" stroke="#D7E4E1"/>
+  <text x="100" y="140" font-family="Georgia, serif" font-size="40" fill="#0F4C5C">Change Intake Workflow</text>
+  <rect x="100" y="190" width="260" height="140" rx="18" fill="#E8F3F1"/>
+  <rect x="470" y="190" width="260" height="140" rx="18" fill="#E5EEF7"/>
+  <rect x="840" y="190" width="260" height="140" rx="18" fill="#FFF4D6"/>
+  <text x="130" y="245" font-family="Arial, sans-serif" font-size="28" fill="#0F4C5C">1. Intake ticket</text>
+  <text x="130" y="285" font-family="Arial, sans-serif" font-size="22" fill="#395B63">Linear + GitHub + runbooks</text>
+  <text x="500" y="245" font-family="Arial, sans-serif" font-size="28" fill="#0F4C5C">2. Inspect blast radius</text>
+  <text x="500" y="285" font-family="Arial, sans-serif" font-size="22" fill="#395B63">health, deps, incidents, docs</text>
+  <text x="870" y="245" font-family="Arial, sans-serif" font-size="28" fill="#0F4C5C">3. Route next step</text>
+  <text x="870" y="285" font-family="Arial, sans-serif" font-size="22" fill="#395B63">plan, execute, announce, rollback</text>
+  <path d="M360 260h110M730 260h110" stroke="#0F4C5C" stroke-width="10" stroke-linecap="round"/>
+</svg>

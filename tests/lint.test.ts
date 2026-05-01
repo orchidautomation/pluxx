@@ -256,6 +256,41 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'mcp-stdio-host-root-var')).toBe(true)
   })
 
+  it('does not warn for project-local stdio runtime shipped through scripts payload', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+    mkdirSync(resolve(projectDir, 'scripts'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        scripts: './scripts/',
+        targets: ['claude-code', 'cursor', 'codex'],
+        mcp: {
+          sendlens: {
+            transport: 'stdio',
+            command: 'bash',
+            args: ['./scripts/start-mcp.sh'],
+          },
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(resolve(projectDir, 'scripts/start-mcp.sh'), '#!/usr/bin/env bash\nexit 0\n')
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A valid skill description"', '---', '', '# My Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'mcp-stdio-runtime-unbundled')).toBe(false)
+  })
+
   it('warns when Codex target is missing richer branding metadata', async () => {
     const projectDir = createTempProject()
     mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
@@ -1465,6 +1500,53 @@ describe('lintProject', () => {
 
     const result = await lintProject(projectDir)
     expect(result.issues.some(issue => issue.code === 'codex-hook-event-unsupported')).toBe(false)
+  })
+
+  it('warns when runtime readiness depends on external Codex wiring or best-effort prompt scoping', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['codex'],
+        readiness: {
+          dependencies: [
+            {
+              id: 'runtime-cache',
+              path: './runtime/status.json',
+              refresh: {
+                command: '${PLUGIN_ROOT}/scripts/refresh-runtime.sh',
+              },
+            },
+          ],
+          gates: [
+            {
+              dependency: 'runtime-cache',
+              applyTo: ['mcp-tools', 'skills', 'commands'],
+              skills: ['my-skill'],
+              commands: ['review'],
+            },
+          ],
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A skill"', '---', '', '# Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'readiness-mcp-target-without-mcp')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'readiness-commands-target-without-commands')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'readiness-prompt-target-best-effort')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'codex-readiness-external-config')).toBe(true)
   })
 
   it('reports unknown cursor hook, unsupported loop_limit, and unsupported skill frontmatter fields', async () => {

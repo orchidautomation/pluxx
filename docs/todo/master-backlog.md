@@ -25,6 +25,7 @@ This is not the same thing as the short queue.
   - [docs/roadmap.md](../roadmap.md)
   - [docs/oss-wedge-and-trust-layer.md](../oss-wedge-and-trust-layer.md)
   - [docs/flagship-docs-ops-plugin.md](../flagship-docs-ops-plugin.md)
+  - [docs/platform-change-ops-reference-plugin.md](../platform-change-ops-reference-plugin.md)
   - [docs/docs-ops-core-four-proof.md](../docs-ops-core-four-proof.md)
   - [docs/exa-research-example.md](../exa-research-example.md)
   - [docs/pluxx-plugin-surface-audit.md](../pluxx-plugin-surface-audit.md)
@@ -92,6 +93,7 @@ Any person or agent should be able to enter the repo and answer:
   - runtime/distribution internal seam hardening
   - first hook-registry slice is now in place for event support and field-preservation truth
   - first commands IR follow-on is now in place for `argument-hint` preservation
+  - first shared skill-parser slice is now in place through `src/skills.ts`
 - [x] Close the last P0 fixture/proof rows from the translation hit list:
   - row-level translation docs are now in:
     - [docs/core-four-primitive-matrix.md](../core-four-primitive-matrix.md)
@@ -141,7 +143,7 @@ Any person or agent should be able to enter the repo and answer:
   - future host-drift refreshes
 - [ ] Consolidate the remaining translation papercuts that the readiness work made more obvious:
   - finish the deeper hook-registry rollout so generator routing and docs rows read registry-backed truth
-  - add the first shared `skills` parser/spec and replace duplicated skill parsing in lint, Agent Mode, migrate, and Claude rewrites
+  - continue the new shared `skills` parser into a richer canonical skill spec and translation-aware metadata layer
   - continue the `commands` IR pass beyond `argument-hint` preservation into richer argument/routing metadata
   - reduce lossy import paths in `migrate` and installed-MCP discovery
   - make installed hook env parity a portable runtime contract outside the Claude-only wrapper path
@@ -157,6 +159,10 @@ Open work:
 - [~] Build the chosen flagship example from a single maintained source project:
   - Docsalot-style `docs-ops`
 - [ ] Use [docs/flagship-docs-ops-plugin.md](../flagship-docs-ops-plugin.md) as the concrete build spec
+- [x] Add a maximal enterprise all-primitive reference example as a maintained source project:
+  - `example/platform-change-ops`
+  - [docs/platform-change-ops-reference-plugin.md](../platform-change-ops-reference-plugin.md)
+- [ ] Turn `platform-change-ops` into a full public proof stack instead of only a maintained stress fixture
 - [~] Keep the scaffold and live read-only Orchid proof in place:
   - `example/docs-ops`
   - `example/docs-ops/ORCHID-READONLY-DEMO.md`

@@ -143,13 +143,25 @@ function createBrokenClaudeConsumerFixture(): string {
   return dir
 }
 
-function createCodexConsumerFixture(options: { includeRuntime?: boolean } = {}): string {
+function createCodexConsumerFixture(options: {
+  includeRuntime?: boolean
+  useScriptEntrypoint?: boolean
+  scriptChainsCheckEnv?: boolean
+} = {}): string {
   const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-codex-consumer-'))
   mkdirSync(resolve(dir, '.codex-plugin'), { recursive: true })
   mkdirSync(resolve(dir, 'skills/hello'), { recursive: true })
   if (options.includeRuntime) {
+    mkdirSync(resolve(dir, 'scripts'), { recursive: true })
     mkdirSync(resolve(dir, 'mcp-server/dist'), { recursive: true })
     writeFileSync(resolve(dir, 'mcp-server/dist/index.js'), 'console.log("runtime")\n')
+    writeFileSync(
+      resolve(dir, 'scripts/start-mcp.sh'),
+      options.scriptChainsCheckEnv
+        ? '#!/usr/bin/env bash\nbash "./scripts/check-env.sh"\nexit 0\n'
+        : '#!/usr/bin/env bash\nexit 0\n',
+    )
+    writeFileSync(resolve(dir, 'scripts/check-env.sh'), '#!/usr/bin/env bash\nexit 0\n')
   }
   writeFileSync(
     resolve(dir, '.codex-plugin/plugin.json'),
@@ -168,8 +180,10 @@ function createCodexConsumerFixture(options: { includeRuntime?: boolean } = {}):
           url: 'https://example.com/mcp',
         },
         localFixture: {
-          command: 'node',
-          args: ['./mcp-server/dist/index.js', '--stdio'],
+          command: options.useScriptEntrypoint ? 'bash' : 'node',
+          args: options.useScriptEntrypoint
+            ? ['./scripts/start-mcp.sh']
+            : ['./mcp-server/dist/index.js', '--stdio'],
           env: {
             LOCAL_FIXTURE_TOKEN: '${LOCAL_FIXTURE_TOKEN}',
           },
@@ -260,6 +274,50 @@ describe('doctorProject', () => {
       expect(report.checks.some((check) => check.code === 'user-config-declared' && check.level === 'info')).toBe(true)
       expect(report.checks.some((check) => check.code === 'primitive-preserve' && check.level === 'success')).toBe(true)
       expect(report.checks.some((check) => check.code === 'primitive-translate' && check.level === 'info' && check.title.includes('distribution') && check.title.includes('claude-code'))).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('explains runtime readiness translation and Codex external wiring', async () => {
+    const dir = createProjectFixture()
+    writeFileSync(
+      resolve(dir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'doctor-fixture',
+        version: '0.1.0',
+        description: 'Doctor fixture',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        commands: './commands/',
+        targets: ['codex', 'opencode'],
+        readiness: {
+          dependencies: [
+            {
+              id: 'runtime-cache',
+              path: './runtime/status.json',
+              refresh: {
+                command: '${PLUGIN_ROOT}/scripts/refresh-runtime.sh',
+              },
+            },
+          ],
+          gates: [
+            {
+              dependency: 'runtime-cache',
+              applyTo: ['skills', 'commands'],
+              skills: ['hello'],
+              commands: ['review'],
+            },
+          ],
+        },
+      }, null, 2),
+    )
+
+    try {
+      const report = await doctorProject(dir)
+      expect(report.checks.some((check) => check.code === 'runtime-readiness-configured' && check.level === 'success')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'runtime-readiness-prompt-scope' && check.level === 'warning')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'runtime-readiness-codex-external' && check.level === 'warning')).toBe(true)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
@@ -582,6 +640,7 @@ describe('doctorConsumer', () => {
       const report = await doctorConsumer(dir)
       expect(report.checks.some((check) => check.code === 'consumer-mcp-stdio' && check.level === 'info')).toBe(true)
       expect(report.checks.some((check) => check.code === 'consumer-mcp-stdio-runtime-missing')).toBe(false)
+      expect(report.checks.some((check) => check.code === 'consumer-runtime-script-roles' && check.level === 'info')).toBe(true)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
@@ -607,6 +666,22 @@ describe('doctorConsumer', () => {
     try {
       const report = await doctorConsumer(dir)
       expect(report.checks.some((check) => check.code === 'consumer-mcp-stdio-host-root-leak' && check.level === 'warning')).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('fails when an installed stdio runtime script still chains through check-env.sh', async () => {
+    const dir = createCodexConsumerFixture({
+      includeRuntime: true,
+      useScriptEntrypoint: true,
+      scriptChainsCheckEnv: true,
+    })
+
+    try {
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(false)
+      expect(report.checks.some((check) => check.code === 'consumer-bundle-integrity-invalid' && check.level === 'error')).toBe(true)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

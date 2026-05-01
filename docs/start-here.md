@@ -12,6 +12,7 @@ Last updated: 2026-04-30
   - [docs/roadmap.md](./roadmap.md)
   - [docs/oss-wedge-and-trust-layer.md](./oss-wedge-and-trust-layer.md)
   - [docs/flagship-docs-ops-plugin.md](./flagship-docs-ops-plugin.md)
+  - [docs/platform-change-ops-reference-plugin.md](./platform-change-ops-reference-plugin.md)
   - [docs/docs-ops-core-four-proof.md](./docs-ops-core-four-proof.md)
   - [docs/docs-ops-authenticated-publish-path.md](./docs-ops-authenticated-publish-path.md)
   - [docs/exa-research-example.md](./exa-research-example.md)
@@ -161,6 +162,18 @@ The repo already proves a lot.
   - a real Claude agent translation bug was exposed and fixed while making the example install cleanly
 - the Exa example also clarified a still-open product gap:
   - raw `init --from-mcp`, `autopilot`, and `migrate` can already produce a credible starting point, but the final Exa-quality workflow taxonomy, specialist-agent graph, and install/polish layer still benefited from explicit refinement
+- a third maintained example now exists as the repo's maximal enterprise reference plugin:
+  - `example/platform-change-ops`
+  - `docs/platform-change-ops-reference-plugin.md`
+- that Platform Change Ops example intentionally combines:
+  - multiple remote MCP servers
+  - a bundled local stdio runtime
+  - runtime readiness
+  - risky-action hooks
+  - canonical permissions
+  - delegated agents
+  - rich install/distribution metadata
+- the new shared `src/skills.ts` parser is now the common skill reader for lint, Agent Mode, migrate, and Claude skill rewrites instead of four separate ad hoc parsers
 - docs/website ingestion has a provider model and writes deterministic artifacts:
   - `.pluxx/sources.json`
   - `.pluxx/docs-context.json`
@@ -187,6 +200,16 @@ The repo already proves a lot.
   - `lint` now warns when global stdio MCP config uses host-specific root vars such as `${CLAUDE_PLUGIN_ROOT}` instead of a cross-host source expression
   - `doctor --consumer` now warns when an installed bundle still contains the wrong host root contract in stdio MCP config
   - the docs now capture a portable native-runtime pattern for plugins that need first-run local bootstrap scripts such as `load-env.sh`, `bootstrap-runtime.sh`, and `start-mcp.sh`
+  - source-project runtime payload checks now treat `scripts/`, `assets/`, and `passthrough` as one bundled runtime surface when validating local stdio startup paths
+  - `doctor --consumer` now reports which known runtime script-role files are present in an installed bundle
+  - `install`, `doctor --consumer`, and `verify-install` now fail bundles whose actual stdio entry scripts still chain runtime startup through installer-owned `scripts/check-env.sh`
+- runtime readiness is now a first-class runtime primitive:
+  - plugin authors can declare background refresh dependencies and gate policies once in source config
+  - Claude Code, Cursor, and OpenCode now generate host-native readiness behavior from that shared primitive
+  - Codex now gets explicit generated readiness guidance through `.codex/readiness.generated.json` plus `.codex/hooks.generated.json`
+  - `lint` and `doctor` now explain where readiness is preserved vs degraded, especially for Codex external wiring and named skill/command prompt-entry scoping
+  - the compiler now also treats `runtime` more explicitly as internal MCP/auth, readiness, and payload subcontracts rather than one undifferentiated blob
+  - the readiness translation notes used by Codex output, `lint`, and `doctor` now come from one shared registry instead of parallel hand-written strings
 - host-visible branding completeness is now surfaced earlier:
   - `lint` warns when Cursor or Codex can render richer branding but the plugin is missing `brand.icon` and/or `brand.screenshots`
   - `doctor` now surfaces the same source-project warning before a plugin is treated as finished
@@ -252,6 +275,10 @@ That includes:
 - the remaining delta between:
   - a credible imported or migrated source project
   - and the final polished Exa-style workflow pack
+- the remaining translation papercuts that are now narrower and more obvious:
+  - duplicated hook/runtime translation truth that should move into one shared registry
+  - lossy import paths in `migrate` and installed-MCP discovery
+  - general installed hook-env parity outside the special Claude wrapper path
 - every mapped cross-host delta documented as preserve/translate/degrade/drop with a concrete closure path:
   - row-level translation docs now live in:
     - `docs/core-four-primitive-matrix.md`
@@ -269,7 +296,7 @@ That includes:
 
 Build one maximal reference plugin that proves Pluxx handles richer host surfaces, not just basic `SKILL.md` scaffolds.
 
-The chosen first flagship example is:
+The chosen first flagship example is still:
 
 - a Docsalot-style `docs-ops` plugin built from one maintained source project
 
@@ -283,6 +310,12 @@ This should exercise advanced features like:
 - richer agent/subagent patterns where the host allows them
 
 See [docs/flagship-docs-ops-plugin.md](./flagship-docs-ops-plugin.md).
+
+The strongest enterprise all-primitive reference example is now:
+
+- `example/platform-change-ops`
+
+See [docs/platform-change-ops-reference-plugin.md](./platform-change-ops-reference-plugin.md).
 
 The read-only Orchid Docsalot proof is documented in:
 

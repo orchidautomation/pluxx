@@ -30,6 +30,7 @@ interface BundleIntegrityIssues {
   manifestIssue?: string
   missingManifestPaths: string[]
   missingHookTargets: string[]
+  invalidRuntimeScripts: string[]
 }
 
 interface CommandResult {
@@ -869,6 +870,7 @@ export function findInstalledBundleIntegrityIssues(rootDir: string, platform: Ta
     return {
       missingManifestPaths: [],
       missingHookTargets: [],
+      invalidRuntimeScripts: [],
     }
   }
 
@@ -878,6 +880,7 @@ export function findInstalledBundleIntegrityIssues(rootDir: string, platform: Ta
       manifestIssue: `missing plugin manifest at ${manifestPath}`,
       missingManifestPaths: [],
       missingHookTargets: [],
+      invalidRuntimeScripts: [],
     }
   }
 
@@ -889,6 +892,7 @@ export function findInstalledBundleIntegrityIssues(rootDir: string, platform: Ta
       manifestIssue: `plugin manifest at ${manifestPath} is not parseable: ${error instanceof Error ? error.message : String(error)}`,
       missingManifestPaths: [],
       missingHookTargets: [],
+      invalidRuntimeScripts: [],
     }
   }
 
@@ -904,6 +908,7 @@ export function findInstalledBundleIntegrityIssues(rootDir: string, platform: Ta
     return {
       missingManifestPaths,
       missingHookTargets: [],
+      invalidRuntimeScripts: findInstalledRuntimeScriptIssues(rootDir, manifest),
     }
   }
 
@@ -912,6 +917,7 @@ export function findInstalledBundleIntegrityIssues(rootDir: string, platform: Ta
     return {
       missingManifestPaths,
       missingHookTargets: [],
+      invalidRuntimeScripts: findInstalledRuntimeScriptIssues(rootDir, manifest),
     }
   }
 
@@ -932,12 +938,55 @@ export function findInstalledBundleIntegrityIssues(rootDir: string, platform: Ta
     return {
       missingManifestPaths,
       missingHookTargets,
+      invalidRuntimeScripts: findInstalledRuntimeScriptIssues(rootDir, manifest),
     }
   } catch {
     return {
       missingManifestPaths,
       missingHookTargets: [],
+      invalidRuntimeScripts: findInstalledRuntimeScriptIssues(rootDir, manifest),
     }
+  }
+}
+
+function findInstalledRuntimeScriptIssues(rootDir: string, manifest: Record<string, unknown>): string[] {
+  const mcpReference = typeof manifest.mcpServers === 'string' ? manifest.mcpServers : undefined
+  if (!mcpReference) return []
+
+  const mcpPath = resolveBundleReference(rootDir, mcpReference)
+  if (!mcpPath || !existsSync(mcpPath)) return []
+
+  try {
+    const parsed = JSON.parse(readFileSync(mcpPath, 'utf-8')) as { mcpServers?: Record<string, unknown> }
+    const issues = new Set<string>()
+
+    for (const [serverName, server] of Object.entries(parsed.mcpServers ?? {})) {
+      if (!server || typeof server !== 'object') continue
+      const serverRecord = server as Record<string, unknown>
+      const args = Array.isArray(serverRecord.args)
+        ? serverRecord.args.filter((value): value is string => typeof value === 'string')
+        : []
+
+      const commandTargets = [
+        typeof serverRecord.command === 'string' ? serverRecord.command : '',
+        ...args,
+      ].flatMap(extractBundleCommandTargets)
+
+      for (const target of commandTargets) {
+        const resolved = resolveBundleReference(rootDir, target)
+        if (!resolved || !existsSync(resolved) || !resolved.endsWith('.sh')) continue
+
+        const content = readFileSync(resolved, 'utf-8')
+        if (!content.includes('check-env.sh')) continue
+
+        const relativePath = resolved.startsWith(`${rootDir}/`) ? resolved.slice(rootDir.length + 1) : resolved
+        issues.add(`runtime script ${relativePath} for MCP server "${serverName}" still references installer-owned scripts/check-env.sh`)
+      }
+    }
+
+    return [...issues].sort()
+  } catch {
+    return []
   }
 }
 
@@ -953,6 +1002,9 @@ function assertInstalledBundleIntegrity(rootDir: string, platform: TargetPlatfor
   }
   if (issues.missingHookTargets.length > 0) {
     details.push(`hook targets missing: ${issues.missingHookTargets.join(', ')}`)
+  }
+  if (issues.invalidRuntimeScripts.length > 0) {
+    details.push(`runtime script issues: ${issues.invalidRuntimeScripts.join(', ')}`)
   }
 
   if (details.length > 0) {
@@ -1175,6 +1227,10 @@ export async function installPlugin(
       materializeInstalledPlugin(target.pluginDir, target.platform, options.config!, targetConfigEntries)
     } else {
       createSymlinkInstall(target)
+    }
+    const manifestPath = manifestPathForPlatform(target.platform)
+    if (manifestPath && existsSync(resolve(target.pluginDir, manifestPath))) {
+      assertInstalledBundleIntegrity(target.pluginDir, target.platform, `Installed ${target.platform} plugin bundle`)
     }
     if (target.platform === 'codex') {
       ensureCodexMarketplace(pluginName)

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Platform Change Ops">
+  <rect width="256" height="256" rx="48" fill="#0F4C5C"/>
+  <path d="M54 72h148v24H54zM54 116h92v24H54zM54 160h64v24H54z" fill="#E8F3F1"/>
+  <path d="M173 110l29 18v37l-29 18-29-18v-37z" fill="#FFB703"/>
+  <path d="M173 127l12 7v15l-12 7-12-7v-15z" fill="#0F4C5C"/>
+</svg>
