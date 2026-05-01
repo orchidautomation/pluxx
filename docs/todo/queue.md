@@ -204,6 +204,10 @@ Open work:
   - risky-action hook translation
   - permission translation
   - install/distribution truth under a warning-heavy preserve / translate / degrade mix
+- that Platform Change Ops example now also installs and passes `verify-install` across Claude Code, Cursor, Codex, and OpenCode from the source project
+- the Claude native install path proof is now aligned with real host behavior:
+  - installed bundles live under `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>`
+  - `install` and `verify-install` now validate that real cache path instead of assuming `~/.claude/plugins/<name>`
 - keep the new Exa clean-room example in the proof stack as the clearest non-docs showcase of:
   - raw MCP plus official-host workflow shape in
   - branded native core-four bundles out

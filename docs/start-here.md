@@ -173,6 +173,8 @@ The repo already proves a lot.
   - canonical permissions
   - delegated agents
   - rich install/distribution metadata
+- that Platform Change Ops example has now also been installed and `verify-install` checked from the source project across Claude Code, Cursor, Codex, and OpenCode
+- native Claude install verification now follows Claude's real cache install path (`~/.claude/plugins/cache/<marketplace>/<plugin>/<version>`) instead of the old direct plugin-directory assumption
 - the new shared `src/skills.ts` parser is now the common skill reader for lint, Agent Mode, migrate, and Claude skill rewrites instead of four separate ad hoc parsers
 - docs/website ingestion has a provider model and writes deterministic artifacts:
   - `.pluxx/sources.json`

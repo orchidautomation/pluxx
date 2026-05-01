@@ -254,7 +254,8 @@ describe('verifyInstall', () => {
     mkdirSync(resolve(marketplaceBundle, '.claude-plugin'), { recursive: true })
     cpSync(resolve(DIST_DIR, 'claude-code'), marketplaceBundle, { recursive: true })
 
-    const installedBundle = resolve(HOME_DIR, '.claude/plugins/verify-plugin')
+    const installedBundle = resolve(HOME_DIR, '.claude/plugins/cache/pluxx-local-verify-plugin/verify-plugin/0.1.0')
+    mkdirSync(resolve(HOME_DIR, '.claude/plugins/cache/pluxx-local-verify-plugin/verify-plugin'), { recursive: true })
     cpSync(resolve(DIST_DIR, 'claude-code'), installedBundle, { recursive: true })
     rmSync(resolve(installedBundle, 'commands'), { recursive: true, force: true })
 

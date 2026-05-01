@@ -249,9 +249,10 @@ describe('install', () => {
         return { status: 0, stdout: '[]', stderr: '' }
       }
       if (args.join(' ') === 'plugin install megamind@pluxx-local-megamind --scope user') {
+        mkdirSync(resolve(HOME_DIR, '.claude/plugins/cache/pluxx-local-megamind/megamind'), { recursive: true })
         cpSync(
           resolve(HOME_DIR, '.claude/plugins/data/pluxx-local-megamind/plugins/megamind'),
-          resolve(HOME_DIR, '.claude/plugins/megamind'),
+          resolve(HOME_DIR, '.claude/plugins/cache/pluxx-local-megamind/megamind/1.2.3'),
           { recursive: true },
         )
       }
@@ -262,12 +263,13 @@ describe('install', () => {
 
     const marketplaceRoot = resolve(HOME_DIR, '.claude/plugins/data/pluxx-local-megamind')
     const marketplaceManifest = resolve(marketplaceRoot, '.claude-plugin/marketplace.json')
+    const installedBundle = resolve(HOME_DIR, '.claude/plugins/cache/pluxx-local-megamind/megamind/1.2.3')
     expect(existsSync(marketplaceManifest)).toBe(true)
     expect(lstatSync(resolve(marketplaceRoot, 'plugins/megamind')).isSymbolicLink()).toBe(false)
     expect(existsSync(resolve(marketplaceRoot, 'plugins/megamind/commands/pulse.md'))).toBe(true)
     expect(existsSync(resolve(marketplaceRoot, 'plugins/megamind/skills/research/SKILL.md'))).toBe(true)
     expect(existsSync(resolve(marketplaceRoot, 'plugins/megamind/scripts/session-start.sh'))).toBe(true)
-    expect(existsSync(resolve(HOME_DIR, '.claude/plugins/megamind/.claude-plugin/plugin.json'))).toBe(true)
+    expect(existsSync(resolve(installedBundle, '.claude-plugin/plugin.json'))).toBe(true)
 
     expect(calls).toEqual([
       { command: 'claude', args: ['plugin', 'marketplace', 'list', '--json'] },
@@ -313,8 +315,8 @@ describe('install', () => {
         return { status: 0, stdout: '[]', stderr: '' }
       }
       if (args.join(' ') === 'plugin install megamind@pluxx-local-megamind --scope user') {
-        mkdirSync(resolve(HOME_DIR, '.claude/plugins/megamind/.claude-plugin'), { recursive: true })
-        writeFileSync(resolve(HOME_DIR, '.claude/plugins/megamind/.claude-plugin/plugin.json'), '{broken')
+        mkdirSync(resolve(HOME_DIR, '.claude/plugins/cache/pluxx-local-megamind/megamind/1.2.3/.claude-plugin'), { recursive: true })
+        writeFileSync(resolve(HOME_DIR, '.claude/plugins/cache/pluxx-local-megamind/megamind/1.2.3/.claude-plugin/plugin.json'), '{broken')
       }
       return { status: 0, stdout: '', stderr: '' }
     }
@@ -343,9 +345,10 @@ describe('install', () => {
         return { status: 0, stdout: '[]', stderr: '' }
       }
       if (args.join(' ') === 'plugin install megamind@pluxx-local-megamind --scope user') {
+        mkdirSync(resolve(HOME_DIR, '.claude/plugins/cache/pluxx-local-megamind/megamind'), { recursive: true })
         cpSync(
           resolve(HOME_DIR, '.claude/plugins/data/pluxx-local-megamind/plugins/megamind'),
-          resolve(HOME_DIR, '.claude/plugins/megamind'),
+          resolve(HOME_DIR, '.claude/plugins/cache/pluxx-local-megamind/megamind/1.2.3'),
           { recursive: true },
         )
       }

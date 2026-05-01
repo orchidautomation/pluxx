@@ -174,6 +174,8 @@ The current status is stronger than a pure scaffold:
   - canonical permissions
   - delegated agents
   - rich install/distribution metadata
+- that Platform Change Ops example now also installs and passes `verify-install` across Claude Code, Cursor, Codex, and OpenCode from the source project
+- Claude native installed-state verification now resolves the real cache bundle path (`~/.claude/plugins/cache/<marketplace>/<plugin>/<version>`) instead of the older direct plugin-directory assumption
 - that Exa example proves a clean-room subagent-heavy research operator pack with richer brand metadata from one maintained source project across the core four
 - that Exa example now also has real workflow proof in:
   - Claude Code app

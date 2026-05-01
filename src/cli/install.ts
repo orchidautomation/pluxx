@@ -773,9 +773,46 @@ function getClaudeMarketplaceRoot(pluginName: string): string {
   return resolve(home, '.claude/plugins/data', getClaudeMarketplaceName(pluginName))
 }
 
+function readBundleManifestVersion(rootDir: string, platform: TargetPlatform): string | undefined {
+  const manifestPath = manifestPathForPlatform(platform)
+  if (!manifestPath) return undefined
+
+  const filepath = resolve(rootDir, manifestPath)
+  if (!existsSync(filepath)) return undefined
+
+  try {
+    const manifest = JSON.parse(readFileSync(filepath, 'utf-8')) as { version?: unknown }
+    return typeof manifest.version === 'string' ? manifest.version : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function resolveClaudeInstalledCachePath(pluginName: string, version: string | undefined): string | undefined {
+  if (!version) return undefined
+
+  const home = process.env.HOME ?? '~'
+  return resolve(home, '.claude/plugins/cache', getClaudeMarketplaceName(pluginName), pluginName, version)
+}
+
+function resolveExpectedInstalledConsumerPath(target: PlannedInstallTarget, pluginName: string): string {
+  if (target.platform === 'claude-code' && pluginName !== '') {
+    const cachePath = resolveClaudeInstalledCachePath(
+      pluginName,
+      readBundleManifestVersion(target.sourceDir, 'claude-code'),
+    )
+    if (cachePath) return cachePath
+  }
+
+  return target.pluginDir
+}
+
 export function resolveInstalledConsumerPath(target: PlannedInstallTarget, pluginName: string): string {
   if (target.platform === 'claude-code' && pluginName !== '') {
-    return target.pluginDir
+    const expectedPath = resolveExpectedInstalledConsumerPath(target, pluginName)
+    if (existsSync(expectedPath)) return expectedPath
+    if (existsSync(target.pluginDir)) return target.pluginDir
+    return expectedPath
   }
 
   return target.pluginDir
@@ -1120,7 +1157,11 @@ function installClaudePlugin(
     throw new Error(`Failed to install Claude plugin: ${install.stderr || install.stdout}`)
   }
 
-  assertInstalledBundleIntegrity(target.pluginDir, 'claude-code', 'Installed Claude plugin bundle')
+  assertInstalledBundleIntegrity(
+    resolveExpectedInstalledConsumerPath(target, pluginName),
+    'claude-code',
+    'Installed Claude plugin bundle',
+  )
 }
 
 function uninstallClaudePlugin(

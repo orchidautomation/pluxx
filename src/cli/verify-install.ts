@@ -37,7 +37,7 @@ function buildCheckFromReport(
   const stale = staleReason !== undefined
   return {
     platform: target.platform,
-    installPath: target.pluginDir,
+    installPath: consumerPath,
     consumerPath,
     built: target.built,
     installed: existsSync(consumerPath),
