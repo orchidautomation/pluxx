@@ -200,12 +200,14 @@ The repo already proves a lot.
   - `lint` now warns if MCP startup or custom runtime hooks depend on installer-owned `scripts/check-env.sh`, which local install may rewrite into a no-op after config materialization
   - build output and install-time MCP materialization now share the same stdio path normalization, so host-specific root vars no longer leak from Claude-style source config into Cursor or Codex bundles
   - Codex local installs now rewrite plugin-owned stdio MCP command/arg paths to absolute installed plugin paths, so installed MCP launch no longer depends on workspace cwd
-  - `lint` now warns when global stdio MCP config uses host-specific root vars such as `${CLAUDE_PLUGIN_ROOT}` instead of a cross-host source expression
-  - `doctor --consumer` now warns when an installed bundle still contains the wrong host root contract in stdio MCP config
-  - the docs now capture a portable native-runtime pattern for plugins that need first-run local bootstrap scripts such as `load-env.sh`, `bootstrap-runtime.sh`, and `start-mcp.sh`
-  - source-project runtime payload checks now treat `scripts/`, `assets/`, and `passthrough` as one bundled runtime surface when validating local stdio startup paths
-  - `doctor --consumer` now reports which known runtime script-role files are present in an installed bundle
-  - `install`, `doctor --consumer`, and `verify-install` now fail bundles whose actual stdio entry scripts still chain runtime startup through installer-owned `scripts/check-env.sh`
+- `lint` now warns when global stdio MCP config uses host-specific root vars such as `${CLAUDE_PLUGIN_ROOT}` instead of a cross-host source expression
+- `doctor --consumer` now warns when an installed bundle still contains the wrong host root contract in stdio MCP config
+- the docs now capture a portable native-runtime pattern for plugins that need first-run local bootstrap scripts such as `load-env.sh`, `bootstrap-runtime.sh`, and `start-mcp.sh`
+- source-project runtime payload checks now treat `scripts/`, `assets/`, and `passthrough` as one bundled runtime surface when validating local stdio startup paths
+- `doctor --consumer` now reports which known runtime script-role files are present in an installed bundle
+- `install`, `doctor --consumer`, and `verify-install` now fail bundles whose actual stdio entry scripts still chain runtime startup through installer-owned `scripts/check-env.sh`
+- `doctor --consumer` and `verify-install` now also smoke-launch installed stdio MCP commands, so bundles no longer pass on file shape alone when the installed runtime exits immediately
+- the `platform-change-ops` local MCP fixture is now a real long-lived stdio runtime with the advertised tools instead of a one-line process that exits on start
 - runtime readiness is now a first-class runtime primitive:
   - plugin authors can declare background refresh dependencies and gate policies once in source config
   - Claude Code, Cursor, and OpenCode now generate host-native readiness behavior from that shared primitive

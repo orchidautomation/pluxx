@@ -117,6 +117,7 @@ This is now also a compiler-owned contract, not only doc guidance:
 - source-project runtime payload checks now treat bundled `scripts/`, `assets/`, and `passthrough` payload as one runtime surface when validating local stdio MCP startup paths
 - `doctor --consumer` now also reports which known runtime script-role files are actually present in an installed bundle
 - `install`, `doctor --consumer`, and `verify-install` now fail installed bundles whose real stdio entry scripts still chain runtime startup back through installer-owned `scripts/check-env.sh`
+- `doctor --consumer` and `verify-install` now also smoke-launch installed stdio MCP commands, so an installed bundle fails if its runtime exits immediately instead of only checking file presence
 
 This is the pattern that stabilized SendLens on macOS after the earlier Linux-built `node_modules` release failed to run with DuckDB native bindings.
 

@@ -1,3 +1,4 @@
+import { spawn } from 'child_process'
 import { accessSync, constants, existsSync, lstatSync, readFileSync, readdirSync } from 'fs'
 import { basename, dirname, resolve } from 'path'
 import { CONFIG_FILES, loadConfig } from '../config/load'
@@ -64,6 +65,7 @@ const LOW_INFO_DESCRIPTION_PATTERNS = [
 ]
 const MATERIALIZED_ENV_MARKER = 'materialized required config'
 const MIN_NODE_MAJOR = 18
+const STDIO_LAUNCH_SMOKE_TIMEOUT_MS = 1200
 
 const PRIMITIVE_MODE_LEVEL: Record<PrimitiveTranslationMode, DoctorLevel> = {
   preserve: 'success',
@@ -79,6 +81,22 @@ interface ConsumerBundleLayout {
   platform: ConsumerPlatform
   manifestPath: string
   mcpConfigPath?: string
+}
+
+interface InstalledStdioLaunchResult {
+  serverName: string
+  command: string
+  ok: boolean
+  detail: string
+}
+
+function renderInstalledPluginRoot(value: string, rootDir: string): string {
+  return value
+    .replaceAll('${PLUGIN_ROOT}', rootDir)
+    .replaceAll('${CLAUDE_PLUGIN_ROOT}', rootDir)
+    .replaceAll('${CURSOR_PLUGIN_ROOT}', rootDir)
+    .replaceAll('${CODEX_PLUGIN_ROOT}', rootDir)
+    .replaceAll('${OPENCODE_PLUGIN_ROOT}', rootDir)
 }
 
 type ConsumerLayoutDetection =
@@ -944,7 +962,7 @@ function checkInstalledRuntimeScriptRoles(checks: DoctorCheck[], rootDir: string
   })
 }
 
-function checkInstalledMcpConfig(checks: DoctorCheck[], rootDir: string, layout: ConsumerBundleLayout): void {
+async function checkInstalledMcpConfig(checks: DoctorCheck[], rootDir: string, layout: ConsumerBundleLayout): Promise<void> {
   if (!layout.mcpConfigPath) {
     addCheck(checks, {
       level: 'info',
@@ -997,8 +1015,9 @@ function checkInstalledMcpConfig(checks: DoctorCheck[], rootDir: string, layout:
       })
     }
 
-    const remoteEntries = servers.filter((server) => 'url' in server)
-    const stdioEntries = servers.filter((server) => 'command' in server)
+    const namedServers = Object.entries(payload.mcpServers ?? {}).map(([name, server]) => ({ name, ...server }))
+    const remoteEntries = namedServers.filter((server) => 'url' in server)
+    const stdioEntries = namedServers.filter((server) => 'command' in server)
     const inlineHeaderEntries = servers.filter((server) => {
       if ('headers' in server && server.headers && typeof server.headers === 'object') return true
       if ('http_headers' in server && server.http_headers && typeof server.http_headers === 'object') return true
@@ -1029,9 +1048,13 @@ function checkInstalledMcpConfig(checks: DoctorCheck[], rootDir: string, layout:
 
       const leakedPluginRootVars = [...new Set(
         stdioEntries.flatMap((server) => {
+          const serverRecord = server as Record<string, unknown>
+          const serverArgs = Array.isArray(serverRecord.args)
+            ? serverRecord.args.filter((value): value is string => typeof value === 'string')
+            : []
           const values = [
             typeof server.command === 'string' ? server.command : '',
-            ...(Array.isArray(server.args) ? server.args.filter((value): value is string => typeof value === 'string') : []),
+            ...serverArgs,
           ]
           return findLeakedPluginRootVars(layout.platform, values)
         }),
@@ -1043,6 +1066,22 @@ function checkInstalledMcpConfig(checks: DoctorCheck[], rootDir: string, layout:
           title: 'Installed stdio MCP config contains the wrong host root contract',
           detail: `This installed ${layout.platform} MCP config still contains plugin root variable${leakedPluginRootVars.length === 1 ? '' : 's'} that do not belong in this host bundle: ${leakedPluginRootVars.map((pluginRootVar) => `\${${pluginRootVar}}`).join(', ')}.`,
           fix: 'Author global stdio MCP paths as `./...` or `${PLUGIN_ROOT}/...`, then rebuild and reinstall so Pluxx can normalize the correct host-specific path.',
+          path: layout.mcpConfigPath,
+        })
+      }
+
+      const launchResults = await smokeCheckInstalledStdioServers(rootDir, stdioEntries)
+      for (const result of launchResults) {
+        addCheck(checks, {
+          level: result.ok ? 'success' : 'error',
+          code: result.ok ? 'consumer-mcp-stdio-launch-valid' : 'consumer-mcp-stdio-launch-failed',
+          title: result.ok
+            ? `Installed stdio MCP server launches for ${result.serverName}`
+            : `Installed stdio MCP server failed to stay up for ${result.serverName}`,
+          detail: `${result.command || '(empty command)'} — ${result.detail}`,
+          fix: result.ok
+            ? 'No action needed.'
+            : 'Launch the installed command directly from the plugin directory, fix any missing runtime files/dependencies, then reinstall and rerun pluxx verify-install.',
           path: layout.mcpConfigPath,
         })
       }
@@ -1144,6 +1183,110 @@ function findMissingInstalledStdioRuntimePaths(
   }
 
   return [...missing].sort()
+}
+
+async function smokeCheckInstalledStdioServers(
+  rootDir: string,
+  stdioEntries: Array<Record<string, unknown>>,
+): Promise<InstalledStdioLaunchResult[]> {
+  const results: InstalledStdioLaunchResult[] = []
+
+  for (const server of stdioEntries) {
+    const serverName = typeof server.name === 'string' ? server.name : 'unknown'
+    const command = typeof server.command === 'string' ? renderInstalledPluginRoot(server.command, rootDir) : ''
+    const args = Array.isArray(server.args)
+      ? server.args
+          .filter((value): value is string => typeof value === 'string')
+          .map((value) => renderInstalledPluginRoot(value, rootDir))
+      : []
+    const envRecord = server.env && typeof server.env === 'object'
+      ? Object.fromEntries(
+          Object.entries(server.env as Record<string, unknown>)
+            .filter((entry): entry is [string, string] => typeof entry[1] === 'string')
+            .map(([key, value]) => [key, renderInstalledPluginRoot(value, rootDir)]),
+        )
+      : {}
+
+    if (command.trim().length === 0) {
+      results.push({
+        serverName,
+        command: '',
+        ok: false,
+        detail: 'stdio command is empty',
+      })
+      continue
+    }
+
+    const renderedCommand = [command, ...args].join(' ')
+    const stdoutChunks: Buffer[] = []
+    const stderrChunks: Buffer[] = []
+
+    const child = spawn(command, args, {
+      cwd: rootDir,
+      env: {
+        ...process.env,
+        ...envRecord,
+      },
+      stdio: ['pipe', 'pipe', 'pipe'],
+    })
+
+    child.stdout?.on('data', (chunk) => {
+      if (stdoutChunks.reduce((sum, entry) => sum + entry.length, 0) < 4096) {
+        stdoutChunks.push(Buffer.from(chunk))
+      }
+    })
+    child.stderr?.on('data', (chunk) => {
+      if (stderrChunks.reduce((sum, entry) => sum + entry.length, 0) < 4096) {
+        stderrChunks.push(Buffer.from(chunk))
+      }
+    })
+
+    const exitResult = await new Promise<InstalledStdioLaunchResult>((resolveResult) => {
+      let settled = false
+      const settle = (result: InstalledStdioLaunchResult) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timeout)
+        resolveResult(result)
+      }
+
+      const timeout = setTimeout(() => {
+        child.stdin?.end()
+        child.kill('SIGTERM')
+        settle({
+          serverName,
+          command: renderedCommand,
+          ok: true,
+          detail: `process stayed alive for ${STDIO_LAUNCH_SMOKE_TIMEOUT_MS}ms before teardown`,
+        })
+      }, STDIO_LAUNCH_SMOKE_TIMEOUT_MS)
+
+      child.once('error', (error) => {
+        settle({
+          serverName,
+          command: renderedCommand,
+          ok: false,
+          detail: `failed to spawn: ${error.message}`,
+        })
+      })
+
+      child.once('exit', (code, signal) => {
+        const stdout = Buffer.concat(stdoutChunks).toString('utf-8').trim()
+        const stderr = Buffer.concat(stderrChunks).toString('utf-8').trim()
+        const output = [stderr, stdout].filter(Boolean).join(' | ')
+        settle({
+          serverName,
+          command: renderedCommand,
+          ok: false,
+          detail: `process exited before ready window (code=${code ?? 'null'}, signal=${signal ?? 'null'})${output ? `: ${output}` : ''}`,
+        })
+      })
+    })
+
+    results.push(exitResult)
+  }
+
+  return results
 }
 
 function isLikelyLocalRuntimePath(value: string): boolean {
@@ -1349,7 +1492,7 @@ export async function doctorConsumer(rootDir: string = process.cwd()): Promise<D
   checkInstalledUserConfig(checks, rootDir)
   checkInstalledEnvValidation(checks, rootDir)
   checkInstalledRuntimeScriptRoles(checks, rootDir)
-  checkInstalledMcpConfig(checks, rootDir, layout)
+  await checkInstalledMcpConfig(checks, rootDir, layout)
   if (layout.platform === 'opencode') {
     checkInstalledOpenCodeHostBridge(checks, rootDir)
     checkInstalledOpenCodeSkills(checks, rootDir)

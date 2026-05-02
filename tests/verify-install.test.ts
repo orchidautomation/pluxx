@@ -23,6 +23,26 @@ function makeConfig(): PluginConfig {
   }
 }
 
+function makeCodexRuntimeConfig(): PluginConfig {
+  return {
+    name: 'verify-plugin',
+    version: '0.1.0',
+    description: 'A verify test plugin',
+    author: { name: 'Test Author' },
+    license: 'MIT',
+    skills: './skills/',
+    targets: ['codex'],
+    outDir: './dist',
+    mcp: {
+      fixture: {
+        transport: 'stdio',
+        command: 'node',
+        args: ['./mcp-server/dist/index.js', '--stdio'],
+      },
+    },
+  }
+}
+
 function makeClaudeConfig(): PluginConfig {
   return {
     name: 'verify-plugin',
@@ -210,6 +230,50 @@ describe('verifyInstall', () => {
 
     expect(logs.join('\n')).toContain('fix: run pluxx install --target codex')
     expect(logs.join('\n')).toContain('pluxx verify-install failed.')
+  })
+
+  it('fails when an installed stdio MCP runtime exits immediately', async () => {
+    mkdirSync(resolve(DIST_DIR, 'codex/.codex-plugin'), { recursive: true })
+    mkdirSync(resolve(DIST_DIR, 'codex/skills/hello'), { recursive: true })
+    mkdirSync(resolve(DIST_DIR, 'codex/mcp-server/dist'), { recursive: true })
+    writeFileSync(
+      resolve(DIST_DIR, 'codex/.codex-plugin/plugin.json'),
+      JSON.stringify({
+        name: 'verify-plugin',
+        version: '0.1.0',
+        skills: './skills/',
+        mcpServers: './.mcp.json',
+      }),
+    )
+    writeFileSync(resolve(DIST_DIR, 'codex/skills/hello/SKILL.md'), '# Hello\n')
+    writeFileSync(
+      resolve(DIST_DIR, 'codex/.mcp.json'),
+      JSON.stringify({
+        mcpServers: {
+          fixture: {
+            command: 'node',
+            args: ['./mcp-server/dist/index.js', '--stdio'],
+          },
+        },
+      }),
+    )
+    writeFileSync(resolve(DIST_DIR, 'codex/mcp-server/dist/index.js'), 'process.exit(0)\n')
+
+    await installPlugin(DIST_DIR, 'verify-plugin', ['codex'], { quiet: true, useNativeClaudeInstall: false })
+
+    const result = await verifyInstall(makeCodexRuntimeConfig(), {
+      rootDir: ROOT,
+      targets: ['codex'],
+    })
+
+    expect(result.ok).toBe(false)
+    expect(result.checks[0]).toMatchObject({
+      platform: 'codex',
+      built: true,
+      installed: true,
+      ok: false,
+    })
+    expect(result.checks[0].errors).toBeGreaterThan(0)
   })
 
   it('checks the actual Claude install path instead of the local marketplace staging bundle', async () => {

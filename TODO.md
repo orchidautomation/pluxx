@@ -38,6 +38,7 @@ Edit the canonical files in `docs/todo/` first.
 - keep pushing the `docs-ops` flagship example as the richest native reference plugin
 - keep pushing `platform-change-ops` as the maximal enterprise all-primitive stress fixture
   - core-four installed-state proof is now green, including the real Claude cache install path
+  - installed stdio proof now includes real launch smoke, not only bundle-shape checks
   - the remaining gap is turning it from a maintained stress fixture into a fuller public proof stack
 - close the Exa import delta:
   - get raw `init --from-mcp`, `autopilot`, and `migrate` closer to the final polished workflow shape

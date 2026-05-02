@@ -1,6 +1,6 @@
 # Platform Change Ops Reference Plugin
 
-Last updated: 2026-05-01
+Last updated: 2026-05-02
 
 ## Doc Links
 
@@ -83,6 +83,8 @@ It already proves:
 - shared-skill-parser-backed source reading can support a richer example set
 - runtime readiness is no longer fixture-only in the repo examples
 - local stdio runtime packaging can coexist with policy hooks, delegated agents, and install-time config
+- the bundled local MCP is now a real long-lived stdio runtime with `readiness_status`, `open_change_window`, and `record_audit_event`
+- installed-state proof now survives stricter `doctor --consumer` / `verify-install` launch smoke instead of only static file checks
 - the warning-heavy preserve / translate / degrade story can be exposed intentionally instead of hiding in synthetic tests
 
 It does not yet prove:

@@ -166,6 +166,7 @@ Open work:
 - [~] Turn `platform-change-ops` into a full public proof stack instead of only a maintained stress fixture
   - it now installs and passes `verify-install` across Claude Code, Cursor, Codex, and OpenCode from the maintained source project
   - Claude native installed-state proof now follows the host's real cache layout instead of the old direct plugin-directory assumption
+  - installed stdio MCP proof is now behavioral enough to smoke-launch the bundled runtime, not just validate files on disk
 - [~] Keep the scaffold and live read-only Orchid proof in place:
   - `example/docs-ops`
   - `example/docs-ops/ORCHID-READONLY-DEMO.md`

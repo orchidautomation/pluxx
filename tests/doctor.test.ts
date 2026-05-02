@@ -147,6 +147,7 @@ function createCodexConsumerFixture(options: {
   includeRuntime?: boolean
   useScriptEntrypoint?: boolean
   scriptChainsCheckEnv?: boolean
+  immediateExit?: boolean
 } = {}): string {
   const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-codex-consumer-'))
   mkdirSync(resolve(dir, '.codex-plugin'), { recursive: true })
@@ -154,12 +155,19 @@ function createCodexConsumerFixture(options: {
   if (options.includeRuntime) {
     mkdirSync(resolve(dir, 'scripts'), { recursive: true })
     mkdirSync(resolve(dir, 'mcp-server/dist'), { recursive: true })
-    writeFileSync(resolve(dir, 'mcp-server/dist/index.js'), 'console.log("runtime")\n')
+    writeFileSync(
+      resolve(dir, 'mcp-server/dist/index.js'),
+      options.immediateExit
+        ? 'process.exit(0)\n'
+        : 'setInterval(() => {}, 10_000)\n',
+    )
     writeFileSync(
       resolve(dir, 'scripts/start-mcp.sh'),
       options.scriptChainsCheckEnv
         ? '#!/usr/bin/env bash\nbash "./scripts/check-env.sh"\nexit 0\n'
-        : '#!/usr/bin/env bash\nexit 0\n',
+        : options.immediateExit
+          ? '#!/usr/bin/env bash\nexit 0\n'
+          : '#!/usr/bin/env bash\nsleep 10\n',
     )
     writeFileSync(resolve(dir, 'scripts/check-env.sh'), '#!/usr/bin/env bash\nexit 0\n')
   }
@@ -622,11 +630,12 @@ describe('doctorConsumer', () => {
 
     try {
       const report = await doctorConsumer(dir)
-      expect(report.ok).toBe(true)
+      expect(report.ok).toBe(false)
       expect(report.checks.some((check) => check.code === 'consumer-platform-detected' && check.level === 'success')).toBe(true)
       expect(report.checks.some((check) => check.code === 'consumer-codex-mcp-bundled-visibility' && check.level === 'info')).toBe(true)
       expect(report.checks.some((check) => check.code === 'consumer-mcp-stdio' && check.level === 'info')).toBe(true)
       expect(report.checks.some((check) => check.code === 'consumer-mcp-stdio-runtime-missing' && check.level === 'warning')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-mcp-stdio-launch-failed' && check.level === 'error')).toBe(true)
       expect(report.checks.some((check) => check.code === 'consumer-mcp-remote-auth-runtime' && check.level === 'info')).toBe(true)
     } finally {
       rmSync(dir, { recursive: true, force: true })
@@ -640,7 +649,20 @@ describe('doctorConsumer', () => {
       const report = await doctorConsumer(dir)
       expect(report.checks.some((check) => check.code === 'consumer-mcp-stdio' && check.level === 'info')).toBe(true)
       expect(report.checks.some((check) => check.code === 'consumer-mcp-stdio-runtime-missing')).toBe(false)
+      expect(report.checks.some((check) => check.code === 'consumer-mcp-stdio-launch-valid' && check.level === 'success')).toBe(true)
       expect(report.checks.some((check) => check.code === 'consumer-runtime-script-roles' && check.level === 'info')).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('fails when an installed stdio MCP runtime exits immediately', async () => {
+    const dir = createCodexConsumerFixture({ includeRuntime: true, immediateExit: true })
+
+    try {
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(false)
+      expect(report.checks.some((check) => check.code === 'consumer-mcp-stdio-launch-failed' && check.level === 'error')).toBe(true)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

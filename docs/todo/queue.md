@@ -209,6 +209,9 @@ Open work:
 - the Claude native install path proof is now aligned with real host behavior:
   - installed bundles live under `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>`
   - `install` and `verify-install` now validate that real cache path instead of assuming `~/.claude/plugins/<name>`
+- installed stdio MCP proof is stricter now:
+  - `doctor --consumer` and `verify-install` smoke-launch the installed stdio command instead of only validating bundle shape
+  - `platform-change-ops` now backs that proof with a real long-lived local stdio runtime
 - keep the new Exa clean-room example in the proof stack as the clearest non-docs showcase of:
   - raw MCP plus official-host workflow shape in
   - branded native core-four bundles out
