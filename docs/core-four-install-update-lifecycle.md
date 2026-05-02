@@ -113,6 +113,7 @@ This is now also a compiler-owned contract, not only doc guidance:
 
 - `lint` and `doctor` read from one shared runtime-script contract for the installer-owned `check-env.sh` rule
 - the recommended portable runtime role split is centralized alongside that rule so follow-on runtime validation work can reuse it instead of restating it
+- Codex local installs now rewrite plugin-owned stdio MCP command/arg paths to absolute installed plugin paths so installed MCP launch does not depend on the active workspace cwd
 - source-project runtime payload checks now treat bundled `scripts/`, `assets/`, and `passthrough` payload as one runtime surface when validating local stdio MCP startup paths
 - `doctor --consumer` now also reports which known runtime script-role files are actually present in an installed bundle
 - `install`, `doctor --consumer`, and `verify-install` now fail installed bundles whose real stdio entry scripts still chain runtime startup back through installer-owned `scripts/check-env.sh`

@@ -581,10 +581,66 @@ describe('install', () => {
     })
     expect(codexMcp.mcpServers.sendlens).toEqual({
       command: 'bash',
-      args: ['./scripts/start-mcp.sh'],
+      args: [resolve(codexInstall, 'scripts/start-mcp.sh')],
       env: {
         SENDLENS_TOKEN: 'shh-secret',
       },
+    })
+  })
+
+  it('materializes plugin-owned Codex stdio MCP paths even without install-time user config', async () => {
+    mkdirSync(resolve(DIST_DIR, 'codex/.codex-plugin'), { recursive: true })
+    mkdirSync(resolve(DIST_DIR, 'codex/scripts'), { recursive: true })
+    mkdirSync(resolve(DIST_DIR, 'codex/skills/research'), { recursive: true })
+
+    await Bun.write(
+      resolve(DIST_DIR, 'codex/.codex-plugin/plugin.json'),
+      JSON.stringify({
+        name: 'megamind',
+        version: '1.0.0',
+        skills: './skills/',
+        mcpServers: './.mcp.json',
+      }, null, 2),
+    )
+    await Bun.write(
+      resolve(DIST_DIR, 'codex/.mcp.json'),
+      JSON.stringify({ mcpServers: {} }, null, 2),
+    )
+    await Bun.write(resolve(DIST_DIR, 'codex/scripts/start-mcp.sh'), '#!/usr/bin/env bash\nexit 0\n')
+    await Bun.write(resolve(DIST_DIR, 'codex/skills/research/SKILL.md'), '# Research\n')
+
+    const config: PluginConfig = {
+      name: 'megamind',
+      version: '1.0.0',
+      description: 'Fixture plugin',
+      author: { name: 'Test Author' },
+      license: 'MIT',
+      skills: './skills/',
+      mcp: {
+        sendlens: {
+          transport: 'stdio',
+          command: 'bash',
+          args: ['./scripts/start-mcp.sh'],
+        },
+      },
+      targets: ['codex'],
+      outDir: './dist',
+    }
+
+    await installPlugin(DIST_DIR, 'megamind', ['codex'], {
+      config,
+      quiet: true,
+      useNativeClaudeInstall: false,
+    })
+
+    const codexInstall = resolve(HOME_DIR, INSTALL_PATHS.codex)
+    const codexMcp = JSON.parse(readFileSync(resolve(codexInstall, '.mcp.json'), 'utf-8'))
+
+    expect(lstatSync(codexInstall).isSymbolicLink()).toBe(false)
+    expect(codexMcp.mcpServers.sendlens).toEqual({
+      command: 'bash',
+      args: [resolve(codexInstall, 'scripts/start-mcp.sh')],
+      env: {},
     })
   })
 

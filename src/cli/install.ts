@@ -12,7 +12,10 @@ import {
   resolveUserConfigEntriesForTarget,
   type ResolvedUserConfigEntry,
 } from '../user-config'
-import { normalizePluginOwnedStdioPathForPlatform } from '../mcp-stdio-paths'
+import {
+  materializeInstalledPluginOwnedStdioPathForPlatform,
+  normalizePluginOwnedStdioPathForPlatform,
+} from '../mcp-stdio-paths'
 
 interface InstallTarget {
   platform: TargetPlatform
@@ -658,8 +661,8 @@ function patchInstalledMcpConfig(
     for (const [name, server] of Object.entries(config.mcp)) {
       if (server.transport === 'stdio') {
         mcpServers[name] = {
-          command: normalizePluginOwnedStdioPathForPlatform(server.command, platform),
-          args: (server.args ?? []).map((value) => normalizePluginOwnedStdioPathForPlatform(value, platform)),
+          command: materializeInstalledPluginOwnedStdioPathForPlatform(server.command, platform, pluginDir),
+          args: (server.args ?? []).map((value) => materializeInstalledPluginOwnedStdioPathForPlatform(value, platform, pluginDir)),
           env: materializeEnvRecord(server.env, env),
         }
         continue
@@ -696,8 +699,8 @@ function patchInstalledMcpConfig(
     for (const [name, server] of Object.entries(config.mcp)) {
       if (server.transport === 'stdio') {
         mcpServers[name] = {
-          command: normalizePluginOwnedStdioPathForPlatform(server.command, platform),
-          args: (server.args ?? []).map((value) => normalizePluginOwnedStdioPathForPlatform(value, platform)),
+          command: materializeInstalledPluginOwnedStdioPathForPlatform(server.command, platform, pluginDir),
+          args: (server.args ?? []).map((value) => materializeInstalledPluginOwnedStdioPathForPlatform(value, platform, pluginDir)),
           env: materializeEnvRecord(server.env, env),
         }
         continue
@@ -757,11 +760,28 @@ function materializeInstalledPlugin(
   config: PluginConfig,
   entries: ResolvedUserConfigEntry[],
 ): void {
-  if (entries.length === 0) return
-
-  writeInstalledUserConfig(pluginDir, entries)
-  disableInstalledEnvValidation(pluginDir, entries)
+  if (entries.length > 0) {
+    writeInstalledUserConfig(pluginDir, entries)
+    disableInstalledEnvValidation(pluginDir, entries)
+  }
   patchInstalledMcpConfig(pluginDir, platform, config, entries)
+}
+
+function codexInstallNeedsCopiedMaterialization(config?: PluginConfig): boolean {
+  if (!config?.mcp) return false
+
+  for (const server of Object.values(config.mcp)) {
+    if (server.transport !== 'stdio') continue
+
+    if (
+      materializeInstalledPluginOwnedStdioPathForPlatform(server.command, 'codex', '/tmp/pluxx-codex-install-check') !== server.command
+      || (server.args ?? []).some((value) => materializeInstalledPluginOwnedStdioPathForPlatform(value, 'codex', '/tmp/pluxx-codex-install-check') !== value)
+    ) {
+      return true
+    }
+  }
+
+  return false
 }
 
 function getClaudeMarketplaceName(pluginName: string): string {
@@ -1243,6 +1263,7 @@ export async function installPlugin(
       ? resolveUserConfigEntriesForTarget(options.resolvedUserConfig, target.platform)
       : []
     const shouldMaterialize = targetConfigEntries.length > 0 && options.config
+    const shouldMaterializeCodexInstall = target.platform === 'codex' && codexInstallNeedsCopiedMaterialization(options.config)
 
     if (target.platform === 'claude-code' && useNativeClaudeInstall) {
       installClaudePlugin(
@@ -1263,7 +1284,7 @@ export async function installPlugin(
     } else if (target.platform === 'opencode') {
       createOpenCodeSymlinkInstall(target, pluginName)
       verifyOpenCodeInstall(target.pluginDir, pluginName)
-    } else if (shouldMaterialize) {
+    } else if (shouldMaterialize || shouldMaterializeCodexInstall) {
       createCopiedInstall(target)
       materializeInstalledPlugin(target.pluginDir, target.platform, options.config!, targetConfigEntries)
     } else {
