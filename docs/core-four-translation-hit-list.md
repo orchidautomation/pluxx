@@ -191,7 +191,7 @@ We already know skills are the most portable layer. The remaining work is docume
 - [x] Add one fixture with meaningful hook intent and assert:
   - Claude preserve/translate path
   - Cursor hook JSON path
-  - Codex external hook guidance/degrade path
+  - Codex bundled hook parity and remaining feature-flag caveats
   - OpenCode runtime handler path
 - [x] Make lint/build surface hook degradation explicitly instead of burying it in warnings
 

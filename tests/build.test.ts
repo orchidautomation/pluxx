@@ -285,7 +285,7 @@ describe('build', () => {
     expect(existsSync(resolve(OUT_DIR, 'codex/.codex-plugin/plugin.json'))).toBe(true)
     expect(existsSync(resolve(OUT_DIR, 'codex/.mcp.json'))).toBe(true)
     expect(existsSync(resolve(OUT_DIR, 'codex/hooks.json'))).toBe(false)
-    expect(existsSync(resolve(OUT_DIR, 'codex/.codex/hooks.generated.json'))).toBe(true)
+    expect(existsSync(resolve(OUT_DIR, 'codex/hooks/hooks.json'))).toBe(true)
     expect(existsSync(resolve(OUT_DIR, 'codex/.codex/commands.generated.json'))).toBe(true)
     expect(existsSync(resolve(OUT_DIR, 'codex/commands/pulse.md'))).toBe(false)
     expect(existsSync(resolve(OUT_DIR, 'codex/mcp-server/dist/index.js'))).toBe(true)
@@ -785,7 +785,7 @@ describe('build', () => {
     expect(cursorAgent).toContain('Cursor translation note: only delegate further subtasks when the work clearly benefits from another specialist.')
   })
 
-  it('compiles a native Codex fixture with interface metadata, .app.json, hooks guidance, and agent metadata', async () => {
+  it('compiles a native Codex fixture with interface metadata, bundled hooks, and agent metadata', async () => {
     const codexManifest = JSON.parse(
       readFileSync(resolve(OUT_DIR, 'codex/.codex-plugin/plugin.json'), 'utf-8')
     )
@@ -793,7 +793,7 @@ describe('build', () => {
       readFileSync(resolve(OUT_DIR, 'codex/.app.json'), 'utf-8')
     )
     const codexHooks = JSON.parse(
-      readFileSync(resolve(OUT_DIR, 'codex/.codex/hooks.generated.json'), 'utf-8')
+      readFileSync(resolve(OUT_DIR, 'codex/hooks/hooks.json'), 'utf-8')
     )
     const codexCommands = JSON.parse(
       readFileSync(resolve(OUT_DIR, 'codex/.codex/commands.generated.json'), 'utf-8')
@@ -808,7 +808,8 @@ describe('build', () => {
         openComposer: true,
       },
     })
-    expect(codexHooks.hooks.SessionStart?.[0]?.command).toContain('./scripts/validate.sh')
+    expect(codexManifest.hooks).toBe('./hooks/hooks.json')
+    expect(codexHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toContain('./scripts/validate.sh')
     expect(codexCommands.commands[0]?.id).toBe('pulse')
     expect(codexAgent).toContain('name = "escalation"')
     expect(codexAgent).toContain('description = "Escalation specialist."')
@@ -876,13 +877,14 @@ describe('build', () => {
     expect(JSON.stringify(agentDefinitions['legacy-review'])).not.toContain('"tools"')
   })
 
-  it('writes documented hook outputs and omits undocumented Codex hook bundles', async () => {
+  it('writes documented hook outputs and omits stale legacy Codex hook artifacts', async () => {
     const claudeHooks = JSON.parse(
       readFileSync(resolve(OUT_DIR, 'claude-code/hooks/hooks.json'), 'utf-8')
     )
 
     expect(claudeHooks.hooks.UserPromptSubmit).toBeDefined()
     expect(existsSync(resolve(OUT_DIR, 'codex/hooks.json'))).toBe(false)
+    expect(existsSync(resolve(OUT_DIR, 'codex/.codex/hooks.generated.json'))).toBe(false)
   })
 
   it('generates runtime permission outputs for Claude Code, Cursor, OpenCode, and Codex external config', async () => {
@@ -997,7 +999,7 @@ describe('build', () => {
       readFileSync(resolve(TEST_DIR, 'readiness-dist/cursor/hooks/hooks.json'), 'utf-8')
     )
     const codexHooks = JSON.parse(
-      readFileSync(resolve(TEST_DIR, 'readiness-dist/codex/.codex/hooks.generated.json'), 'utf-8')
+      readFileSync(resolve(TEST_DIR, 'readiness-dist/codex/hooks/hooks.json'), 'utf-8')
     )
     const codexReadiness = JSON.parse(
       readFileSync(resolve(TEST_DIR, 'readiness-dist/codex/.codex/readiness.generated.json'), 'utf-8')
@@ -1015,12 +1017,12 @@ describe('build', () => {
     expect(cursorHooks.hooks.beforeMCPExecution?.[0]?.command).toBe('node ./hooks/pluxx-readiness.mjs mcp-gate')
     expect(cursorHooks.hooks.beforeSubmitPrompt?.[0]?.command).toBe('node ./hooks/pluxx-readiness.mjs prompt-gate')
 
-    expect(existsSync(resolve(TEST_DIR, 'readiness-dist/codex/.codex/pluxx-readiness.mjs'))).toBe(true)
-    expect(codexHooks.hooks.SessionStart?.[0]?.command).toBe('node ./.codex/pluxx-readiness.mjs session-start')
+    expect(existsSync(resolve(TEST_DIR, 'readiness-dist/codex/hooks/pluxx-readiness.mjs'))).toBe(true)
+    expect(codexHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toBe('node ./hooks/pluxx-readiness.mjs session-start')
     expect(codexHooks.hooks.PreToolUse?.[0]?.matcher).toBe('MCP')
-    expect(codexHooks.hooks.UserPromptSubmit?.[0]?.command).toBe('node ./.codex/pluxx-readiness.mjs prompt-gate')
+    expect(codexHooks.hooks.UserPromptSubmit?.[0]?.hooks?.[0]?.command).toBe('node ./hooks/pluxx-readiness.mjs prompt-gate')
     expect(codexReadiness.model).toBe('pluxx.readiness.v1')
-    expect(codexReadiness.translatedHooks.mcpGate).toBe('node ./.codex/pluxx-readiness.mjs mcp-gate')
+    expect(codexReadiness.translatedHooks.mcpGate).toBe('node ./hooks/pluxx-readiness.mjs mcp-gate')
 
     expect(existsSync(resolve(TEST_DIR, 'readiness-dist/opencode/runtime/pluxx-readiness.mjs'))).toBe(true)
     expect(opencodeIndex).toContain('const READINESS_SCRIPT = "runtime/pluxx-readiness.mjs"')
@@ -1029,17 +1031,15 @@ describe('build', () => {
     expect(opencodeIndex).toContain('await runReadiness("session-start"')
   })
 
-  it('generates a Codex hook companion with mapped native event names', async () => {
+  it('generates bundled Codex hooks with mapped native event names', async () => {
     const codexHooks = JSON.parse(
-      readFileSync(resolve(OUT_DIR, 'codex/.codex/hooks.generated.json'), 'utf-8')
+      readFileSync(resolve(OUT_DIR, 'codex/hooks/hooks.json'), 'utf-8')
     ) as {
-      model: string
-      hooks: Record<string, Array<{ command: string }>>
+      hooks: Record<string, Array<{ hooks: Array<{ command: string }> }>>
     }
 
-    expect(codexHooks.model).toBe('pluxx.codex-hooks.v1')
-    expect(codexHooks.hooks.SessionStart?.[0]?.command).toContain('./scripts/validate.sh')
-    expect(codexHooks.hooks.UserPromptSubmit?.[0]?.command).toContain('./scripts/check-prompt.sh')
+    expect(codexHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toContain('./scripts/validate.sh')
+    expect(codexHooks.hooks.UserPromptSubmit?.[0]?.hooks?.[0]?.command).toContain('./scripts/check-prompt.sh')
   })
 
   it('preserves hook fields only where the target can honestly carry them', async () => {
@@ -1076,7 +1076,7 @@ describe('build', () => {
       readFileSync(resolve(TEST_DIR, 'hook-translation-dist/cursor/hooks/hooks.json'), 'utf-8')
     )
     const codexHooks = JSON.parse(
-      readFileSync(resolve(TEST_DIR, 'hook-translation-dist/codex/.codex/hooks.generated.json'), 'utf-8')
+      readFileSync(resolve(TEST_DIR, 'hook-translation-dist/codex/hooks/hooks.json'), 'utf-8')
     )
     const opencodeIndex = readFileSync(resolve(TEST_DIR, 'hook-translation-dist/opencode/index.ts'), 'utf-8')
 
@@ -1093,8 +1093,8 @@ describe('build', () => {
     expect(cursorHooks.hooks.stop?.[0]?.loop_limit).toBe(3)
 
     expect(codexHooks.hooks.PreToolUse?.[0]?.matcher).toBe('Bash')
-    expect(codexHooks.hooks.PreToolUse?.[0]?.failClosed).toBe(true)
-    expect(codexHooks.hooks.PreToolUse?.[0]?.loop_limit).toBeUndefined()
+    expect(codexHooks.hooks.PreToolUse?.[0]?.hooks?.[0]?.failClosed).toBe(true)
+    expect(codexHooks.hooks.PreToolUse?.[0]?.hooks?.[0]?.loop_limit).toBeUndefined()
     expect(codexHooks.hooks.UserPromptSubmit).toBeUndefined()
 
     expect(opencodeIndex).toContain('"matcher": "Bash"')
@@ -1176,7 +1176,7 @@ describe('build', () => {
 
     expect(codexManifest.skills).toBe('./skills/')
     expect(codexManifest.mcpServers).toBe('./.mcp.json')
-    expect(codexManifest.hooks).toBeUndefined()
+    expect(codexManifest.hooks).toBe('./hooks/hooks.json')
   })
 
   it('translates canonical agents into Claude-native agent files', async () => {

@@ -32,8 +32,8 @@ const HOOK_PLATFORM_REGISTRY: Partial<Record<TargetPlatform, HookPlatformRegistr
     },
   },
   codex: {
-    supportedEvents: ['SessionStart', 'PreToolUse', 'PostToolUse', 'UserPromptSubmit', 'Stop'],
-    unsupportedEventReason: 'Codex currently documents only SessionStart, PreToolUse, PostToolUse, UserPromptSubmit, and Stop for hook configuration.',
+    supportedEvents: ['SessionStart', 'PreToolUse', 'PermissionRequest', 'PostToolUse', 'UserPromptSubmit', 'Stop'],
+    unsupportedEventReason: 'Codex currently documents only SessionStart, PreToolUse, PermissionRequest, PostToolUse, UserPromptSubmit, and Stop for hook configuration.',
     fields: {
       prompt: { mode: 'drop' },
       matcher: { mode: 'preserve' },

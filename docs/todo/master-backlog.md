@@ -127,7 +127,7 @@ Any person or agent should be able to enter the repo and answer:
 - [x] Make runtime readiness a first-class runtime primitive instead of manual per-host hook glue:
   - source config now models refresh dependencies and gate policy once
   - Claude Code, Cursor, and OpenCode now emit generated readiness behavior from that shared primitive
-  - Codex now emits `.codex/readiness.generated.json` plus external hook guidance rather than pretending bundle-enforced parity
+  - Codex now emits bundled lifecycle readiness hooks plus `.codex/readiness.generated.json`, while still being honest about the `codex_hooks` runtime requirement and best-effort prompt-entry targeting
   - `lint` and `doctor` now explain Codex external wiring and best-effort prompt-entry degradation for named skill/command readiness targets
   - the compiler now also treats `runtime` more explicitly as internal MCP/auth, readiness, and payload subcontracts
   - the readiness translation notes shared by generators, `lint`, and `doctor` are now centralized instead of repeated as drift-prone parallel strings

@@ -74,6 +74,7 @@ export class CodexGenerator extends Generator {
   }
 
   private async generateManifest(): Promise<void> {
+    const readinessPlan = getRuntimeReadinessPlan(this.config.readiness)
     const manifest: Record<string, unknown> = {
       name: this.config.name,
       version: this.config.version,
@@ -88,6 +89,7 @@ export class CodexGenerator extends Generator {
 
     manifest.skills = './skills/'
     if (this.config.mcp) manifest.mcpServers = './.mcp.json'
+    if (this.config.hooks || readinessPlan.hasReadiness) manifest.hooks = './hooks/hooks.json'
 
     // Codex supports rich interface metadata
     if (this.config.brand) {
@@ -232,17 +234,19 @@ export class CodexGenerator extends Generator {
     if (!this.config.hooks && !readinessPlan.hasReadiness) return
 
     const hooks: Record<string, Array<Record<string, unknown>>> = {}
-    const unsupported: Array<Record<string, string>> = []
 
     if (readinessPlan.hasReadiness && this.config.readiness) {
-      await this.writeFile('.codex/pluxx-readiness.mjs', buildGeneratedReadinessScript(this.config.readiness))
+      await this.writeFile('hooks/pluxx-readiness.mjs', buildGeneratedReadinessScript(this.config.readiness))
 
       for (const binding of getEnabledRuntimeReadinessBindings(readinessCapability, readinessPlan)) {
         hooks[binding.event] = [
           ...(hooks[binding.event] ?? []),
           {
-            command: binding.command,
             ...(binding.matcher ? { matcher: binding.matcher } : {}),
+            hooks: [{
+              type: 'command',
+              command: binding.command,
+            }],
           },
         ]
       }
@@ -255,21 +259,23 @@ export class CodexGenerator extends Generator {
       const mappedEntries = entries
         .filter((entry) => entry.type !== 'prompt' && entry.command)
         .map((entry) => ({
-          command: entry.command?.replace('${PLUGIN_ROOT}', '.'),
           ...(entry.matcher !== undefined ? { matcher: entry.matcher } : {}),
-          ...(entry.timeout ? { timeout: entry.timeout } : {}),
-          ...(entry.failClosed !== undefined ? { failClosed: entry.failClosed } : {}),
+          hooks: [{
+            type: 'command',
+            command: entry.command?.replace('${PLUGIN_ROOT}', '.'),
+            ...(entry.timeout ? { timeout: entry.timeout } : {}),
+            ...(entry.failClosed !== undefined ? { failClosed: entry.failClosed } : {}),
+          }],
         }))
 
       if (mappedEntries.length === 0) continue
 
       if (!isHookEventSupported('codex', codexEvent)) {
-        unsupported.push({
-          canonicalEvent: event,
-          codexEvent,
-          reason: getUnsupportedHookEventReason('codex')
-            ?? `Codex currently documents only ${getSupportedHookEvents('codex').join(', ')} for hook configuration.`,
-        })
+        console.warn(
+          `[pluxx] codex generator skipped unsupported hook event "${event}" (${codexEvent}). `
+          + (getUnsupportedHookEventReason('codex')
+            ?? `Codex currently documents only ${getSupportedHookEvents('codex').join(', ')} for hook configuration.`)
+        )
         continue
       }
 
@@ -279,16 +285,9 @@ export class CodexGenerator extends Generator {
       ]
     }
 
-    if (Object.keys(hooks).length === 0 && unsupported.length === 0) return
+    if (Object.keys(hooks).length === 0) return
 
-    await this.writeJson('.codex/hooks.generated.json', {
-      model: 'pluxx.codex-hooks.v1',
-      enforcedByPluginBundle: false,
-      featureFlag: 'codex_hooks',
-      note: 'Codex hook configuration lives outside the plugin bundle. Use this file as a generated mirror for <repo>/.codex/hooks.json or ~/.codex/hooks.json and enable codex_hooks in Codex.',
-      hooks,
-      ...(unsupported.length > 0 ? { unsupported } : {}),
-    })
+    await this.writeJson('hooks/hooks.json', { hooks })
   }
 
   private async generateReadinessCompanion(): Promise<void> {
@@ -314,7 +313,7 @@ export class CodexGenerator extends Generator {
     await this.writeJson('.codex/readiness.generated.json', {
       model: 'pluxx.readiness.v1',
       enforcedByPluginBundle: readinessCapability.bundleEnforced,
-      note: `${getRuntimeReadinessExternalConfigNote()} Use this file together with .codex/hooks.generated.json when wiring readiness into Codex hook config.`,
+      note: `${getRuntimeReadinessExternalConfigNote()} Pluxx also emits the corresponding plugin-bundled lifecycle config at hooks/hooks.json.`,
       dependencies: this.config.readiness.dependencies,
       gates: this.config.readiness.gates,
       translatedHooks: {
