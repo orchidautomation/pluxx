@@ -254,6 +254,7 @@ function parseMcp(pluginDir: string, detection: DetectionResult): ParsedMcp {
 const HOOK_EVENT_MAP: Record<string, string> = {
   SessionStart: 'sessionStart',
   SessionEnd: 'sessionEnd',
+  PermissionRequest: 'permissionRequest',
   PreToolUse: 'preToolUse',
   PostToolUse: 'postToolUse',
   BeforeShellExecution: 'beforeShellExecution',
@@ -267,6 +268,7 @@ const HOOK_EVENT_MAP: Record<string, string> = {
   // Also handle already-normalized names
   sessionStart: 'sessionStart',
   sessionEnd: 'sessionEnd',
+  permissionRequest: 'permissionRequest',
   preToolUse: 'preToolUse',
   postToolUse: 'postToolUse',
 }
@@ -310,6 +312,7 @@ function parseHooks(pluginDir: string, detection: DetectionResult): ParsedHooks 
               if (hook.command) {
                 hookEntries.push({
                   command: hook.command,
+                  ...(entry.matcher && { matcher: entry.matcher }),
                   ...(hook.timeout && { timeout: hook.timeout }),
                 })
               }

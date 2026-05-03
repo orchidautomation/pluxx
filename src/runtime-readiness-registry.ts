@@ -41,7 +41,7 @@ export function getEnabledRuntimeReadinessBindings(
 }
 
 const NAMED_PROMPT_TARGET_NOTE = 'Named `skills` / `commands` readiness targets currently translate through prompt-entry gating with best-effort matching because the core four do not share one exact per-skill or per-command runtime interception surface.'
-const CODEX_EXTERNAL_NOTE = 'Codex readiness currently translates into generated hook/config guidance rather than an enforced plugin-bundled runtime surface.'
+const CODEX_EXTERNAL_NOTE = 'Codex readiness can be bundled through plugin lifecycle hooks, but it still depends on the `codex_hooks` runtime feature flag.'
 
 export function getRuntimeReadinessNamedPromptTargetNote(): string {
   return NAMED_PROMPT_TARGET_NOTE
@@ -112,27 +112,27 @@ export function getRuntimeReadinessCapability(
     case 'codex':
       return {
         platform,
-        delivery: 'generated-guidance',
+        delivery: 'bundled-hooks',
         bundleEnforced: false,
         namedPromptTargetScope: 'best-effort',
-        scriptPath: '.codex/pluxx-readiness.mjs',
-        companionArtifacts: ['.codex/readiness.generated.json', '.codex/hooks.generated.json'],
+        scriptPath: 'hooks/pluxx-readiness.mjs',
+        companionArtifacts: ['.codex/readiness.generated.json'],
         bindings: [
           {
             gate: 'session-start',
             event: 'SessionStart',
-            command: 'node ./.codex/pluxx-readiness.mjs session-start',
+            command: 'node ./hooks/pluxx-readiness.mjs session-start',
           },
           {
             gate: 'mcp-gate',
             event: 'PreToolUse',
             matcher: 'MCP',
-            command: 'node ./.codex/pluxx-readiness.mjs mcp-gate',
+            command: 'node ./hooks/pluxx-readiness.mjs mcp-gate',
           },
           {
             gate: 'prompt-gate',
             event: 'UserPromptSubmit',
-            command: 'node ./.codex/pluxx-readiness.mjs prompt-gate',
+            command: 'node ./hooks/pluxx-readiness.mjs prompt-gate',
           },
         ],
         notes: CODEX_EXTERNAL_NOTE,

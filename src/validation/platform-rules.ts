@@ -443,9 +443,9 @@ export const PLATFORM_VALIDATION_RULES: Record<ResearchTarget, PlatformRules> = 
     },
     hooks: {
       supported: true,
-      files: ['.codex/hooks.json', '~/.codex/hooks.json'],
+      files: ['hooks/hooks.json', '.codex-plugin/plugin.json', '.codex/hooks.json', '~/.codex/hooks.json'],
       eventNames: ['SessionStart', 'PreToolUse', 'PermissionRequest', 'PostToolUse', 'UserPromptSubmit', 'Stop'],
-      notes: 'Codex documents hooks in project/user config, guarded by the codex_hooks feature flag; the current plugin build guide does not document plugin-packaged hooks.',
+      notes: 'Codex documents plugin-bundled lifecycle config under hooks/hooks.json as well as project/user config, all guarded by the codex_hooks feature flag.',
     },
     instructions: {
       files: ['AGENTS.md', 'AGENTS.override.md'],
@@ -880,9 +880,9 @@ export const CORE_FOUR_PRIMITIVE_CAPABILITIES: Record<CoreFourPlatform, CoreFour
         notes: 'Codex custom agents and subagents are real native surfaces, but they are not packaged the same way as Claude or Cursor plugin agents.',
       },
       hooks: {
-        mode: 'translate',
-        nativeSurfaces: ['.codex/hooks.json', '~/.codex/hooks.json'],
-        notes: 'Hooks are native, but they currently live next to config layers rather than inside the documented plugin bundle structure.',
+        mode: 'preserve',
+        nativeSurfaces: ['hooks/hooks.json', '.codex-plugin/plugin.json', '.codex/hooks.json', '~/.codex/hooks.json'],
+        notes: 'Codex now documents both plugin-bundled lifecycle config and project/user hook config, with runtime support still gated by codex_hooks.',
       },
       permissions: {
         mode: 'translate',

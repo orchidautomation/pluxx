@@ -105,7 +105,7 @@ node ../../bin/pluxx.js verify-install --target opencode
 Those warnings are the honest cross-host translation story, not a failure:
 
 - Cursor weakens richer skill frontmatter such as `arguments`, `context`, `agent`, and `allowed-tools`
-- Codex keeps hook intent but emits it as external hook guidance instead of a fully bundled native hook surface
+- Codex now keeps hook intent in a bundled native `hooks/hooks.json` surface, while still depending on the `codex_hooks` runtime flag
 
 `build` succeeded for:
 

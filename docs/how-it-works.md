@@ -7,11 +7,11 @@ Every AI coding tool has its own plugin format. If you want your tool inside Cla
 ```
 Claude Code wants: optional .claude-plugin/plugin.json + .mcp.json or inline MCP config + CLAUDE.md + hooks/hooks.json or inline/settings hooks
 Cursor wants:      .cursor-plugin/plugin.json + mcp.json + AGENTS.md + rules/ + hooks/hooks.json (+ host-level .cursor/* config)
-Codex wants:       .codex-plugin/plugin.json + skills/ + optional .mcp.json / .app.json + AGENTS.md / AGENTS.override.md + external hooks in .codex/hooks.json
+Codex wants:       .codex-plugin/plugin.json + skills/ + optional .mcp.json / .app.json + AGENTS.md / AGENTS.override.md + hooks/hooks.json or project/user hook config
 OpenCode wants:    opencode.json + a code-first JS/TS plugin module + .opencode/plugins/ or ~/.config/opencode/plugins/ + AGENTS.md / CLAUDE.md fallback + config-driven MCP/permissions
 ```
 
-Each platform also has its own validation and lifecycle behavior. Some of that is official-doc-backed, some of it is conservative Pluxx compatibility policy, and all of it is easy to get wrong by hand. Claude has `/reload-plugins`, Cursor has reload-window behavior, Codex separates plugin bundle updates from skill discovery, and OpenCode is much more config/runtime-driven than a manifest-only host.
+Each platform also has its own validation and lifecycle behavior. Some of that is official-doc-backed, some of it is conservative Pluxx compatibility policy, and all of it is easy to get wrong by hand. Claude has `/reload-plugins`, Cursor has reload-window behavior, Codex still gates lifecycle hooks behind `codex_hooks`, and OpenCode is much more config/runtime-driven than a manifest-only host.
 
 ## The Solution
 

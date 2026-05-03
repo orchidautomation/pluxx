@@ -211,7 +211,7 @@ The repo already proves a lot.
 - runtime readiness is now a first-class runtime primitive:
   - plugin authors can declare background refresh dependencies and gate policies once in source config
   - Claude Code, Cursor, and OpenCode now generate host-native readiness behavior from that shared primitive
-  - Codex now gets explicit generated readiness guidance through `.codex/readiness.generated.json` plus `.codex/hooks.generated.json`
+  - Codex now gets bundled lifecycle readiness hooks through `hooks/hooks.json`, with `.codex/readiness.generated.json` still explaining the translated readiness contract and `codex_hooks` requirement
   - `lint` and `doctor` now explain where readiness is preserved vs degraded, especially for Codex external wiring and named skill/command prompt-entry scoping
   - the compiler now also treats `runtime` more explicitly as internal MCP/auth, readiness, and payload subcontracts rather than one undifferentiated blob
   - the readiness translation notes used by Codex output, `lint`, and `doctor` now come from one shared registry instead of parallel hand-written strings

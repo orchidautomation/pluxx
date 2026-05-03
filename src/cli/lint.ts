@@ -1081,7 +1081,7 @@ function lintCodexAgentsConfig(config: PluginConfig, issues: LintIssue[]): void 
   }
 }
 
-// ── Gotcha #18: Codex hooks live in Codex config, not plugin bundles ──
+// ── Gotcha #18: Codex hook bundles still depend on the runtime feature flag ──
 function lintCodexHooksExternalConfig(config: PluginConfig, issues: LintIssue[]): void {
   if (!isCodexTargetEnabled(config) || !config.hooks) return
   if (Object.keys(config.hooks).length === 0) return
@@ -1090,14 +1090,12 @@ function lintCodexHooksExternalConfig(config: PluginConfig, issues: LintIssue[])
   const features = codexOverrides ? asRecord(codexOverrides.features) : null
   const hasPluxxCodexHooksFlag = features && features.codex_hooks === true
 
-  const featureNote = hasPluxxCodexHooksFlag
-    ? 'Pluxx will generate `.codex/hooks.generated.json` as a mirror, but you still need to wire the hooks into Codex itself.'
-    : 'Pluxx will generate `.codex/hooks.generated.json` as a mirror, but you still need to copy or adapt it into `~/.codex/hooks.json` or `<repo>/.codex/hooks.json` and enable `codex_hooks = true` in Codex itself.'
+  if (hasPluxxCodexHooksFlag) return
 
   pushIssue(issues, {
     level: 'warning',
     code: 'codex-hooks-external-config',
-    message: `Codex plugin docs currently separate hook configuration from plugin packaging, so Pluxx emits hook guidance as external Codex config rather than as a plugin-bundled hook surface. ${featureNote}`,
+    message: 'Pluxx will bundle Codex lifecycle hooks into `hooks/hooks.json`, but Codex still requires `codex_hooks = true` in runtime config before those hooks will run.',
     file: 'pluxx.config.ts',
     platform: 'Codex',
   })

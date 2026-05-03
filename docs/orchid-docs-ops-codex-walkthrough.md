@@ -121,7 +121,7 @@ dist/codex/
 │   └── plugin.json
 ├── .codex/
 │   ├── commands.generated.json
-│   └── hooks.generated.json
+│   └── hooks/
 ├── .mcp.json
 ├── AGENTS.md
 ├── skills/
@@ -135,7 +135,7 @@ What that means:
   - native Codex plugin metadata
 - `.codex/commands.generated.json`
   - generated Codex command wiring
-- `.codex/hooks.generated.json`
+- `hooks/hooks.json`
   - the translated Codex hook guidance surface
 - `.mcp.json`
   - the host-visible MCP server wiring for the plugin
@@ -209,7 +209,7 @@ What this told us:
 
 - there were `0` errors
 - richer Claude skill frontmatter degrades in Cursor in expected ways
-- Codex hook behavior is translated into external hook guidance rather than a perfect 1:1 host-native hook surface
+- Codex hook behavior now lands in bundled `hooks/hooks.json`, with the remaining caveat that runtime support still depends on `codex_hooks`
 
 This is important because Pluxx should be truthful, not magical.
 

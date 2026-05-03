@@ -105,6 +105,7 @@ export const HookEntrySchema = z.object({
 export const HooksSchema = z.object({
   sessionStart: z.array(HookEntrySchema).optional(),
   sessionEnd: z.array(HookEntrySchema).optional(),
+  permissionRequest: z.array(HookEntrySchema).optional(),
   preToolUse: z.array(HookEntrySchema).optional(),
   postToolUse: z.array(HookEntrySchema).optional(),
   postToolUseFailure: z.array(HookEntrySchema).optional(),
