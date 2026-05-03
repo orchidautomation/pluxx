@@ -13,6 +13,25 @@ That split is intentional. Pluxx owns import, validation, packaging, installatio
 
 These commands do not invoke Claude Code, Codex, Cursor, or OpenCode.
 
+### `pluxx --version`
+
+Print the installed CLI version.
+
+```bash
+pluxx --version
+```
+
+### `pluxx upgrade [--version ...]`
+
+Upgrade the global npm install used by `pluxx` on your `PATH`.
+
+```bash
+pluxx upgrade
+pluxx upgrade --version x.y.z
+```
+
+Repo-local `node ../../bin/pluxx.js ...` and `npx @orchid-labs/pluxx ...` are separate entrypoints.
+
 ### `pluxx init --from-mcp ...`
 
 Scaffold a Pluxx source project from a live MCP server or local stdio command.
@@ -51,6 +70,27 @@ npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp --approve-mcp-too
 That flag writes canonical permission intent into `pluxx.config.ts`:
 
 - `permissions.allow = ["MCP(<server>.*)"]`
+
+### `pluxx discover-mcp`
+
+List MCP servers already configured in supported local host configs.
+
+```bash
+npx @orchid-labs/pluxx discover-mcp
+npx @orchid-labs/pluxx discover-mcp --host codex opencode --json
+```
+
+Discovery covers Claude Code, Cursor, Codex, and OpenCode. Use it when a working MCP already exists in a host and you want to turn that setup into a maintained Pluxx source project.
+
+### `pluxx init --from-installed-mcp <host:name>`
+
+Scaffold from one discovered installed MCP server.
+
+```bash
+npx @orchid-labs/pluxx init --from-installed-mcp codex:acme --yes
+```
+
+The import preserves source shape and env references without copying literal secret values from host config.
 
 ### `pluxx sync [--from-mcp ...]`
 
@@ -142,6 +182,12 @@ If a host still looks wrong after install, follow it with:
 npx @orchid-labs/pluxx doctor --consumer <installed-path>
 ```
 
+Use `--behavioral` with `--install --trust` when the project includes an installed-host example-query smoke set:
+
+```bash
+npx @orchid-labs/pluxx test --install --trust --behavioral
+```
+
 ### `pluxx install --target ...`
 
 Install built bundles into local host tooling for testing.
@@ -149,6 +195,22 @@ Install built bundles into local host tooling for testing.
 ```bash
 npx @orchid-labs/pluxx install --target claude-code,codex
 ```
+
+If the plugin contains local hooks, pass `--trust` after reviewing them:
+
+```bash
+npx @orchid-labs/pluxx install --target codex --trust
+```
+
+### `pluxx verify-install --target ...`
+
+Inspect installed host-visible plugin state.
+
+```bash
+npx @orchid-labs/pluxx verify-install --target codex
+```
+
+`verify-install` checks installed paths, stale cache/version problems, consumer-side bundle shape, and installed stdio MCP runtime launch behavior.
 
 ### `pluxx migrate <path>`
 
@@ -256,6 +318,18 @@ Use `--mode quick|standard|thorough` to control how much semantic refinement aut
 
 `pluxx autopilot` accepts the same `--ingest-provider auto|local|firecrawl` flag and passes it through to the shared docs-ingestion layer used by Agent Mode.
 
+Autopilot can also build, install one selected host, and run installed-state verification in the same flow:
+
+```bash
+npx @orchid-labs/pluxx autopilot \
+  --from-mcp https://example.com/mcp \
+  --runner codex \
+  --mode standard \
+  --install \
+  --install-target codex \
+  --trust
+```
+
 If you want autopilot to seed a fully preapproved MCP permission policy in the generated source project:
 
 ```bash
@@ -282,6 +356,7 @@ The host agent is not used for:
 - evaluation
 - bundle generation
 - install
+- installed-state verification
 - proxy record/replay
 - migration
 - consumer-side doctor checks

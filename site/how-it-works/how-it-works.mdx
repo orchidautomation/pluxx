@@ -25,16 +25,15 @@ The product now has two intentional layers:
 Pluxx is intentionally the plugin authoring/distribution layer, not the MCP hosting layer. You still deploy and operate your MCP backend service.
 
 See [Agent Mode](/how-it-works/agent-mode) for the semantic-authoring layer.
-See [Architecture](/how-it-works/architecture) for the system view and [Customer Journey](/workflows/import-from-mcp) for the end-to-end user path.
-See [Practical handbook](/getting-started/practical-handbook) for the operational command-by-command workflow.
+See [Command Decision Tree](/getting-started/command-decision-tree) for the shortest command path.
 See [Core primitives](/overview/core-primitives) for the tightened product scope.
 
 If you want proof before theory, start with:
 
-- [Local core-four proof](/workflows/local-core-four-proof)
+- [Which Example Should I Use?](/examples/which-example)
 - [Docs Ops Flagship Proof](/examples/docs-ops-flagship)
 - [Exa Research Example](/examples/exa-research-example)
-- [Self-hosting Pluxx Plugin](/examples/self-hosting-pluxx)
+- [Platform Change Ops Reference](/examples/platform-change-ops)
 
 ## What Pluxx Treats As Core
 
@@ -414,16 +413,17 @@ export default definePlugin({
 ```bash
 $ npx @orchid-labs/pluxx build
 
-Building for: claude-code, cursor, codex, opencode, github-copilot, openhands, warp
+Building for: claude-code, cursor, codex, opencode
 
   dist/claude-code/    .claude-plugin/plugin.json, .mcp.json, CLAUDE.md, hooks/hooks.json
   dist/cursor/         .cursor-plugin/plugin.json, mcp.json, hooks/hooks.json, rules/
   dist/codex/          .codex-plugin/plugin.json, .mcp.json, AGENTS.md, interface metadata
   dist/opencode/       package.json, index.ts wrapper
-  ...
 
-Done! 85 files generated across 11 platforms.
+Done! Output in dist/
 ```
+
+The prime-time target set is still Claude Code, Cursor, Codex, and OpenCode. Additional generators exist, but the release-smoke proof is centered on the core four.
 
 ### Step 3: Lint
 
@@ -479,6 +479,14 @@ $ npx @orchid-labs/pluxx install --target claude-code
 Installed 1 plugin(s). Reload or restart your tools to pick them up.
 Claude Code note: if Claude is already open, run /reload-plugins in the session to pick up the new install.
 ```
+
+After install, verify the host-visible state instead of trusting `dist/` alone:
+
+```bash
+$ npx @orchid-labs/pluxx verify-install --target claude-code
+```
+
+`verify-install` checks installed paths, stale cache/version issues, consumer-side bundle shape, and installed stdio MCP runtime launch behavior.
 
 ### Step 6: Sync later
 
@@ -569,7 +577,7 @@ Your single `INSTRUCTIONS.md` becomes the right file for each platform:
 | Cline | `.clinerules` |
 | AMP | `AGENT.md` |
 
-### 47 Lint Checks
+### Validation And Install Checks
 
 pluxx catches platform-specific gotchas before you ship:
 
@@ -580,20 +588,24 @@ pluxx catches platform-specific gotchas before you ship:
 - Claude Code hook events must be PascalCase (26 valid events)
 - Manifest paths must start with `./` and cannot contain `../`
 - Plugin directories must be at root, not inside `.claude-plugin/`
-- And 40 more checks across all 11 platforms
+- local stdio MCP bundles must carry the runtime payloads their installed config references
+- installed stdio MCP commands must survive smoke-launch checks during `doctor --consumer` and `verify-install`
+- Cursor and Codex warn earlier when richer listing metadata could be rendered but `brand.icon` or `brand.screenshots` are missing
 
 ## The Next Product Delta
 
-The most important remaining gaps from the tightened extension-systems review are:
+The core-four compiler sprint has moved past the old "define the buckets" phase.
 
-1. `userConfig`
-2. `permissions`
-3. build-time target cap validation
-4. publish / marketplace generation
-5. deeper MCP protocol support beyond `tools/list`
-6. portable agent / subagent delegation
+The current follow-on work is narrower:
 
-That is the real delta from the current strong engine to the mature cross-host plugin product.
+1. finish the deeper hook-registry rollout so generator routing and docs rows use one registry-backed truth
+2. continue the shared `skills` parser into a richer canonical skill spec
+3. extend command IR beyond `argument-hint` into richer argument and routing metadata
+4. reduce lossy import paths in `migrate` and installed-MCP discovery
+5. make installed hook env parity portable outside the Claude-specific wrapper path
+6. keep public proof packaging aligned with the `docs-ops`, `exa-plugin`, self-hosted Pluxx, and `platform-change-ops` examples
+
+The later trust/distribution layer remains strategically interesting, but it is not the current build center.
 
 ## Supported Platforms
 

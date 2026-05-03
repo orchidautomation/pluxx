@@ -1,168 +1,48 @@
-# Command Decision Tree
+---
+title: Command Decision Tree
+---
 
-This page shows the practical Pluxx command flow from first import to local install, validation, agent refinement, and later maintenance.
+Use this page to choose the next command without reading the whole CLI reference.
 
-Legend:
+## Pick your path
 
-- `[D]` = deterministic command, no host coding agent invoked
-- `[A]` = agent-invoking command, uses Claude Code, Cursor, Codex, or OpenCode
+| Situation | Run this | Why |
+|---|---|---|
+| You have a raw MCP URL or stdio command | `pluxx init --from-mcp <source> --yes` | Creates the first source project without invoking a host agent |
+| You already configured the MCP in Claude Code, Cursor, Codex, or OpenCode | `pluxx discover-mcp` then `pluxx init --from-installed-mcp <host:name> --yes` | Imports the existing MCP shape without copying literal secret values |
+| You want import, refinement, build, install, and verification in one flow | `pluxx autopilot --from-mcp <source> --runner codex --mode standard --install --install-target codex --trust` | Fastest end-to-end proof in one selected host |
+| You already have a Pluxx project and the MCP changed | `pluxx sync --from-mcp <source>` | Refreshes generated MCP-derived content while preserving custom sections |
+| You already have a host-native plugin | `pluxx migrate <path>` | Converts an existing plugin into a Pluxx source project |
 
-## Full tree
+## Normal manual flow
 
-```text
-START
-|
-+-- Do you already have a Pluxx project?
-|   |
-|   +-- NO
-|   |   |
-|   |   +-- Starting from a live MCP?
-|   |   |   |
-|   |   |   +-- YES
-|   |   |   |   |
-|   |   |   |   +-- Want just the scaffold first? [D]
-|   |   |   |   |   `-- pluxx init --from-mcp <source> --yes --targets claude-code,cursor,codex,opencode [--approve-mcp-tools]
-|   |   |   |   |
-|   |   |   |   `-- Want scaffold + agent refinement in one shot? [A]
-|   |   |   |       `-- pluxx autopilot --from-mcp <source> --runner <claude|codex|cursor|opencode> [--approve-mcp-tools]
-|   |   |   |
-|   |   |   `-- NO
-|   |   |       |
-|   |   |       +-- Starting from scratch? [D]
-|   |   |       |   `-- pluxx init
-|   |   |       |
-|   |   |       `-- Already have a host-native plugin? [D]
-|   |   |           `-- pluxx migrate <path>
-|   |   |
-|   |   `-- After init or migrate:
-|   |       |
-|   |       +-- Inspect source project health [D]
-|   |       |   `-- pluxx doctor
-|   |       |
-|   |       +-- Check source and platform rules [D]
-|   |       |   `-- pluxx lint
-|   |       |
-|   |       +-- Check scaffold quality [D]
-|   |       |   `-- pluxx eval
-|   |       |
-|   |       +-- Generate host bundles [D]
-|   |       |   `-- pluxx build
-|   |       |
-|   |       `-- Run full verification [D]
-|   |           `-- pluxx test
-|   |
-|   `-- YES
-|       |
-|       +-- Need to inspect the source project? [D]
-|       |   `-- pluxx doctor
-|       |
-|       +-- Need to refresh from the MCP? [D]
-|       |   `-- pluxx sync
-|       |
-|       +-- Need to rebuild bundles? [D]
-|       |   `-- pluxx build
-|       |
-|       +-- Need to re-run verification? [D]
-|       |   `-- pluxx test
-|       |
-|       `-- Need semantic refinement? [A]
-|           |
-|           +-- Prepare context first [D]
-|           |   `-- pluxx agent prepare [--website <url>] [--docs <url>] [--context <file...>]
-|           |
-|           +-- Refine taxonomy [A]
-|           |   `-- pluxx agent run taxonomy --runner <runner>
-|           |
-|           +-- Rewrite instructions [A]
-|           |   `-- pluxx agent run instructions --runner <runner>
-|           |
-|           `-- Review the scaffold [A]
-|               `-- pluxx agent run review --runner <runner>
-|
-+-- Want one command for import + optional refinement + verification? [A]
-|   |
-|   `-- pluxx autopilot --from-mcp <source> --runner <runner>
-|       |
-|       +-- quick
-|       +-- standard
-|       `-- thorough
-|
-+-- Want local installs into host CLIs?
-|   |
-|   +-- Install after build [D]
-|   |   `-- pluxx install
-|   |
-|   +-- Install while building [D]
-|   |   `-- pluxx build --install
-|   |
-|   +-- Install while testing [D]
-|   |   `-- pluxx test --install
-|   |
-|   +-- Need to inspect the installed bundle after install? [D]
-|   |   `-- pluxx doctor --consumer <installed-path>
-|   |
-|   +-- Hooks run local shell commands?
-|   |   |
-|   |   `-- add --trust
-|   |       +-- pluxx install --trust
-|   |       +-- pluxx build --install --trust
-|   |       `-- pluxx test --install --trust
-|   |
-|   `-- Remove local installs [D]
-|       `-- pluxx uninstall
-|
-+-- Need to inspect the shipped or installed bundle itself? [D]
-|   |
-|   `-- pluxx doctor --consumer <bundle-or-install-path>
-|
-+-- Need deterministic MCP debugging or replay? [D]
-|   |
-|   +-- Record a live MCP session
-|   |   `-- pluxx mcp proxy --from-mcp <source> --record tape.json
-|   |
-|   `-- Replay it later
-|       `-- pluxx mcp proxy --replay tape.json
-|
-`-- Ready to publish?
-    |
-    +-- pluxx doctor
-    +-- pluxx lint
-    +-- pluxx eval
-    +-- pluxx build
-    `-- pluxx test
-```
-
-## Most common flow
-
-The normal deterministic path is:
+Use this when you want to inspect each stage:
 
 ```bash
-npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp --name acme --yes
+npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp --yes --name acme
 cd acme
 npx @orchid-labs/pluxx doctor
 npx @orchid-labs/pluxx lint
 npx @orchid-labs/pluxx eval
-npx @orchid-labs/pluxx build
 npx @orchid-labs/pluxx test
 ```
 
-If you want local installs too:
+Add local install proof:
 
 ```bash
 npx @orchid-labs/pluxx test --install
+npx @orchid-labs/pluxx verify-install --target codex
 ```
 
-That is now the preferred local proof command because it installs and verifies installed consumer bundle state in one pass.
-
-If the generated plugin includes local hook commands:
+If the plugin contains local hook commands, review them first, then pass `--trust`:
 
 ```bash
 npx @orchid-labs/pluxx test --install --trust
 ```
 
-## Agent path
+## When to use Agent Mode
 
-Use the agent layer only when the scaffold is structurally correct but still needs better taxonomy, naming, routing guidance, or examples.
+Use Agent Mode only after the deterministic scaffold is valid but still reads too generic, too lexical, or too tool-shaped.
 
 ```bash
 npx @orchid-labs/pluxx agent prepare \
@@ -171,29 +51,22 @@ npx @orchid-labs/pluxx agent prepare \
 
 npx @orchid-labs/pluxx agent run taxonomy --runner codex
 npx @orchid-labs/pluxx agent run instructions --runner codex
+```
+
+Use `review` when you want critique before shipping:
+
+```bash
 npx @orchid-labs/pluxx agent run review --runner codex --no-verify
 ```
 
-These are the agent-invoking commands:
+## What each check answers
 
-- `pluxx autopilot`
-- `pluxx agent prepare`
-- `pluxx agent run taxonomy`
-- `pluxx agent run instructions`
-- `pluxx agent run review`
+| Command | Question it answers |
+|---|---|
+| `doctor` | Is the source project structurally healthy? |
+| `lint` | Will platform-specific rules reject this? |
+| `eval` | Is the scaffold coherent enough to publish or refine? |
+| `test` | Do config, lint, build, and smoke checks pass together? |
+| `verify-install` | Does the host-visible installed bundle actually exist and work? |
 
-Everything else in the normal maintenance loop is deterministic.
-
-## Runner note
-
-Pluxx inherits local model defaults unless you pass `--model`.
-
-Example:
-
-```bash
-npx @orchid-labs/pluxx agent run review --runner cursor --model auto
-```
-
-That is especially useful on Cursor free plans, where headless mode may require `auto` instead of a named default model.
-
-For plugin visibility, treat the Cursor **app** as the verification surface. Cursor CLI is useful for headless agent passes, not as the strongest proof that an installed plugin is visible to users.
+For every flag and edge case, use [CLI Reference](/reference/cli-reference).

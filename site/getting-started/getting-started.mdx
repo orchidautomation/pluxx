@@ -1,284 +1,107 @@
-# Getting Started
+---
+title: Quickstart
+---
 
-This guide walks through the normal Pluxx flow:
+This is the shortest useful path from an MCP to a verified local plugin.
 
-1. import an MCP into a source project
-2. validate the deterministic scaffold
-3. optionally refine taxonomy and instructions with a host coding agent
-4. build and install host bundles
-5. sync later when the MCP changes
+## 1. Create a source project
 
-If you want proof before process, start with:
-
-- [Docs Ops Flagship Proof](/examples/docs-ops-flagship)
-- [Exa Research Example](/examples/exa-research-example)
-- [Self-hosting Pluxx Plugin](/examples/self-hosting-pluxx)
-- [Local Core-Four Proof](/workflows/local-core-four-proof)
-
-If you want the full command-by-command flow, see [Command Decision Tree](/getting-started/command-decision-tree).
-
-## Before you start
-
-Pluxx accepts three MCP source shapes:
-
-- remote HTTP: `npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp`
-- legacy SSE: `npx @orchid-labs/pluxx init --from-mcp https://example.com/sse --transport sse`
-- local stdio: `npx @orchid-labs/pluxx init --from-mcp "npx -y -p @acme/mcp acme-mcp"`
-
-For local stdio imports, pass the real executable command. Do not assume the npm package name is also the runnable bin name.
-
-Examples:
-
-- installed locally: `npx @orchid-labs/pluxx init --from-mcp "./node_modules/.bin/acme-mcp" --yes`
-- one-shot via npm: `npx @orchid-labs/pluxx init --from-mcp "npx -y -p @acme/mcp acme-mcp" --yes`
-
-The default target set is:
-
-- Claude Code
-- Cursor
-- Codex
-- OpenCode
-
-## 1. Import a plugin source project
-
-The normal starting point is `init`.
-
-Interactive:
+For a remote MCP:
 
 ```bash
-npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp
+npx @orchid-labs/pluxx init --from-mcp https://example.com/mcp --yes --name acme
+cd acme
 ```
 
-Headless:
+For a local stdio MCP:
 
 ```bash
-npx @orchid-labs/pluxx init \
-  --from-mcp https://example.com/mcp \
-  --yes \
-  --name acme \
-  --display-name "Acme" \
-  --author "Acme" \
-  --targets claude-code,cursor,codex,opencode \
-  --grouping workflow \
-  --hooks safe
+npx @orchid-labs/pluxx init --from-mcp "npx -y -p @acme/mcp acme-mcp" --yes --name acme
+cd acme
 ```
 
-Use `--dry-run --json` to preview the scaffold without writing files:
+For an MCP already configured in a host:
 
 ```bash
-npx @orchid-labs/pluxx init \
-  --from-mcp https://example.com/mcp \
-  --yes \
-  --dry-run \
-  --json
+npx @orchid-labs/pluxx discover-mcp
+npx @orchid-labs/pluxx init --from-installed-mcp codex:acme --yes
 ```
 
-### Auth examples
-
-Bearer auth:
+For an existing host-native plugin:
 
 ```bash
-npx @orchid-labs/pluxx init \
-  --from-mcp https://mcp.sumble.com \
-  --yes \
-  --auth-env SUMBLE_API_KEY \
-  --auth-type bearer
+npx @orchid-labs/pluxx migrate ./existing-plugin
 ```
 
-Custom header auth:
-
-```bash
-npx @orchid-labs/pluxx init \
-  --from-mcp https://mcp.playkit.sh/mcp \
-  --yes \
-  --auth-env PLAYKIT_API_KEY \
-  --auth-type header \
-  --auth-header X-API-Key \
-  --auth-template '${value}'
-```
-
-OAuth-first MCPs can also be scaffolded. If the provider requires an OAuth-managed runtime shape, use the platform-auth path:
-
-```bash
-npx @orchid-labs/pluxx init \
-  --from-mcp https://example.com/mcp \
-  --yes \
-  --auth-type platform \
-  --runtime-auth platform
-```
-
-If the provider requires browser-interactive OAuth during handshake, use `--oauth-wrapper` so Pluxx introspects through the local wrapper path and still keeps the remote MCP as the source of truth.
-
-## 2. Understand what gets generated
-
-Pluxx writes a maintained source project:
-
-- `pluxx.config.ts`
-- `INSTRUCTIONS.md`
-- `skills/<name>/SKILL.md`
-- `commands/<name>.md`
-- optional `scripts/` for generated hooks
-- `.pluxx/mcp.json`
-- `.pluxx/taxonomy.json`
-
-Generated Markdown files use managed boundaries so later syncs can refresh generated sections without discarding preserved custom sections.
-
-## 3. Validate the deterministic scaffold
-
-Before you involve an agent, run the deterministic checks:
+## 2. Check the project
 
 ```bash
 npx @orchid-labs/pluxx doctor
 npx @orchid-labs/pluxx lint
 npx @orchid-labs/pluxx eval
-npx @orchid-labs/pluxx build
 npx @orchid-labs/pluxx test
 ```
 
-What each command does:
+What these answer:
 
-- `doctor` checks config, paths, runtime availability, transport/auth shape, and install caveats
-- `lint` checks source-project and platform rules
-- `eval` checks scaffold and prompt-pack quality
-- `build` writes host bundles under `dist/`
-- `test` runs the default verification contract across the built outputs
+| Command | Question |
+|---|---|
+| `doctor` | Is the project structurally healthy? |
+| `lint` | Will host rules reject anything? |
+| `eval` | Is the scaffold coherent enough to trust? |
+| `test` | Do config, lint, build, and smoke checks pass together? |
 
-These commands do not invoke Claude Code, Codex, Cursor, or OpenCode.
-
-### Build and install in one step
-
-If you want local bundle output and local installs together:
+## 3. Install and verify one host
 
 ```bash
-npx @orchid-labs/pluxx build --install
+npx @orchid-labs/pluxx test --install --trust
+npx @orchid-labs/pluxx verify-install --target codex
 ```
 
-Or:
+Use `--trust` only after reviewing generated hook scripts.
 
-```bash
-npx @orchid-labs/pluxx test --install
-```
+`verify-install` checks the host-visible installed bundle, not just files under `dist/`.
 
-If the generated plugin contains local hook commands, add `--trust`:
+## 4. Refine only when needed
 
-```bash
-npx @orchid-labs/pluxx build --install --trust
-```
-
-## 4. Refine taxonomy and instructions with a host coding agent
-
-Agent Mode is optional. Use it when the scaffold is structurally correct but needs better naming, routing guidance, or review.
-
-Prepare the context pack:
+If the scaffold is valid but too generic, run Agent Mode:
 
 ```bash
 npx @orchid-labs/pluxx agent prepare \
   --docs https://docs.example.com/overview \
   --website https://example.com
-```
 
-Run a refinement pass:
-
-```bash
 npx @orchid-labs/pluxx agent run taxonomy --runner codex
 npx @orchid-labs/pluxx agent run instructions --runner codex
 ```
 
-Run a review pass:
+Agent Mode is for taxonomy cleanup, instruction rewriting, and review. It is not required for import, lint, build, install, test, or migration.
 
-```bash
-npx @orchid-labs/pluxx agent run review --runner opencode --no-verify
-```
+## One-command path
 
-The agent layer is only used for:
-
-- taxonomy refinement
-- instruction rewriting
-- review passes
-
-It is not used for:
-
-- import
-- lint
-- eval
-- build
-- install
-- test
-- migrate
-- consumer doctor
-- MCP proxy record/replay
-
-## 5. Use autopilot when you want one coordinated flow
-
-`autopilot` combines import, optional semantic refinement, and final verification.
-
-Example:
+Use autopilot when you want import, optional refinement, verification, install, and installed-state proof in one flow:
 
 ```bash
 npx @orchid-labs/pluxx autopilot \
   --from-mcp https://example.com/mcp \
   --runner codex \
-  --name acme \
-  --display-name "Acme" \
-  --author "Acme" \
-  --grouping workflow \
-  --hooks safe
+  --mode standard \
+  --install \
+  --install-target codex \
+  --trust
 ```
 
-Add richer context when the MCP metadata is thin:
-
-```bash
-npx @orchid-labs/pluxx autopilot \
-  --from-mcp https://example.com/mcp \
-  --runner claude \
-  --docs https://docs.example.com/overview \
-  --website https://example.com \
-  --review
-```
-
-See [Autopilot](/workflows/autopilot) for the exact behavior.
-
-## 6. Extra deterministic commands worth knowing
-
-Import an existing host-native plugin:
-
-```bash
-npx @orchid-labs/pluxx migrate ./path/to/existing-plugin
-```
-
-Inspect a built or installed bundle from the consumer side:
-
-```bash
-npx @orchid-labs/pluxx doctor --consumer dist/claude-code
-```
-
-Record and replay an MCP session:
-
-```bash
-npx @orchid-labs/pluxx mcp proxy --from-mcp https://example.com/mcp --record tape.json
-npx @orchid-labs/pluxx mcp proxy --replay tape.json
-```
-
-## 7. Sync later
+## Sync later
 
 When the MCP changes:
 
 ```bash
-npx @orchid-labs/pluxx sync
+npx @orchid-labs/pluxx sync --from-mcp https://example.com/mcp
 ```
 
-If the source moved:
+## Next
 
-```bash
-npx @orchid-labs/pluxx sync --from-mcp https://mcp.example.com/mcp
-```
-
-Preview sync changes:
-
-```bash
-npx @orchid-labs/pluxx sync --dry-run --json
-```
-
-## Real example
-
-For a complete remote-MCP example with real auth, workflow grouping, build output, and verification, see [Sumble Example](/examples/sumble-proof-run).
+- [Command Decision Tree](/getting-started/command-decision-tree): choose the next command.
+- [Import From MCP](/workflows/import-from-mcp): handle auth and source shapes.
+- [Which Example Should I Use?](/examples/which-example): pick one concrete proof.
+- [CLI Reference](/reference/cli-reference): look up flags.
