@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it } from 'bun:test'
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { spawnSync } from 'child_process'
 import { resolve } from 'path'
+import { tmpdir } from 'os'
 import type { PluginConfig } from '../src/schema'
 import { planPublish, runPublish } from '../src/cli/publish'
 
@@ -30,6 +31,58 @@ function prepareBuiltTarget(platform: string, extraFiles: Record<string, string>
     mkdirSync(resolve(fullPath, '..'), { recursive: true })
     writeFileSync(fullPath, content)
   }
+}
+
+function captureInstallerScript(config: PluginConfig): string {
+  let installerContent = ''
+  const result = runPublish(config, {
+    rootDir: ROOT,
+    requestedChannels: ['github-release'],
+    runCommand: (command, args, options) => {
+      if (command === 'tar') {
+        const proc = spawnSync(command, args, {
+          cwd: options?.cwd,
+          encoding: 'utf-8',
+        })
+        return {
+          status: proc.status,
+          stdout: proc.stdout ?? '',
+          stderr: proc.stderr ?? '',
+        }
+      }
+
+      if (command === 'git') return { status: 0, stdout: '', stderr: '' }
+      if (command === 'gh' && args[0] === 'auth') return { status: 0, stdout: '', stderr: '' }
+      if (command === 'gh' && args[0] === 'release' && args[1] === 'view') return { status: 1, stdout: '', stderr: 'missing' }
+      if (command === 'gh' && args[0] === 'release' && args[1] === 'create') {
+        const installerPath = args.find((value) => typeof value === 'string' && value.endsWith('/install-codex.sh'))
+        installerContent = readFileSync(installerPath!, 'utf-8')
+        return { status: 0, stdout: 'created', stderr: '' }
+      }
+      return { status: 0, stdout: '', stderr: '' }
+    },
+  })
+
+  expect(result.ok).toBe(true)
+  return installerContent
+}
+
+function createBundleArchive(platform: string, extraFiles: Record<string, string>): string {
+  const bundleRoot = mkdtempSync(resolve(tmpdir(), 'pluxx-publish-bundle-'))
+  const archiveRoot = mkdtempSync(resolve(tmpdir(), 'pluxx-publish-archive-'))
+  const bundleDir = resolve(bundleRoot, platform)
+  mkdirSync(bundleDir, { recursive: true })
+
+  for (const [relativePath, content] of Object.entries(extraFiles)) {
+    const fullPath = resolve(bundleDir, relativePath)
+    mkdirSync(resolve(fullPath, '..'), { recursive: true })
+    writeFileSync(fullPath, content)
+  }
+
+  const archivePath = resolve(archiveRoot, `${platform}.tar.gz`)
+  const proc = spawnSync('tar', ['-czf', archivePath, '-C', bundleRoot, platform], { encoding: 'utf-8' })
+  expect(proc.status).toBe(0)
+  return archivePath
 }
 
 afterEach(() => {
@@ -227,40 +280,95 @@ describe('runPublish', () => {
       '.mcp.json': JSON.stringify({ mcpServers: { fixture: { url: 'https://example.com/mcp', bearer_token_env_var: 'TEST_API_KEY' } } }),
     })
 
-    let installerContent = ''
-    const result = runPublish(config, {
-      rootDir: ROOT,
-      requestedChannels: ['github-release'],
-      runCommand: (command, args, options) => {
-        if (command === 'tar') {
-          const proc = spawnSync(command, args, {
-            cwd: options?.cwd,
-            encoding: 'utf-8',
-          })
-          return {
-            status: proc.status,
-            stdout: proc.stdout ?? '',
-            stderr: proc.stderr ?? '',
-          }
-        }
-
-        if (command === 'git') return { status: 0, stdout: '', stderr: '' }
-        if (command === 'gh' && args[0] === 'auth') return { status: 0, stdout: '', stderr: '' }
-        if (command === 'gh' && args[0] === 'release' && args[1] === 'view') return { status: 1, stdout: '', stderr: 'missing' }
-        if (command === 'gh' && args[0] === 'release' && args[1] === 'create') {
-          const installerPath = args.find((value) => typeof value === 'string' && value.endsWith('/install-codex.sh'))
-          installerContent = readFileSync(installerPath!, 'utf-8')
-          return { status: 0, stdout: 'created', stderr: '' }
-        }
-        return { status: 0, stdout: '', stderr: '' }
-      },
-    })
-
-    expect(result.ok).toBe(true)
+    const installerContent = captureInstallerScript(config)
     expect(installerContent).toContain('pluxx_prompt_secret_config "TEST_API_KEY"')
     expect(installerContent).toContain('Refusing placeholder-looking secret for $env_var')
     expect(installerContent).toContain("path.join(installDir, '.pluxx-user.json')")
     expect(installerContent).toContain('server.http_headers')
     expect(installerContent).toContain('delete server.bearer_token_env_var')
+  })
+
+  it('runs runtime bootstrap before Codex installer success when the bundle includes it', () => {
+    const config: PluginConfig = {
+      name: 'publish-plugin',
+      version: '1.2.3',
+      description: 'A publish test plugin',
+      author: { name: 'Test Author' },
+      license: 'MIT',
+      repository: 'https://github.com/orchidautomation/publish-plugin',
+      skills: './skills/',
+      targets: ['codex'],
+      outDir: './dist',
+    }
+    prepareBuiltTarget('codex', {
+      '.codex-plugin/plugin.json': JSON.stringify({ name: 'publish-plugin', version: '1.2.3' }),
+    })
+
+    const installerPath = resolve(ROOT, 'install-codex.sh')
+    writeFileSync(installerPath, captureInstallerScript(config))
+
+    const bundlePath = createBundleArchive('codex', {
+      '.codex-plugin/plugin.json': JSON.stringify({ name: 'publish-plugin', version: '1.2.3' }),
+      'scripts/bootstrap-runtime.sh': '#!/usr/bin/env bash\nset -euo pipefail\nmkdir -p "$PWD/node_modules"\nprintf "ready\\n" > "$PWD/node_modules/bootstrap.txt"\n',
+    })
+    const installDir = resolve(ROOT, 'installed-codex-plugin')
+    const marketplacePath = resolve(ROOT, 'marketplace.json')
+
+    const proc = spawnSync('bash', [installerPath], {
+      cwd: ROOT,
+      encoding: 'utf-8',
+      env: {
+        ...process.env,
+        PLUXX_CODEX_BUNDLE_PATH: bundlePath,
+        PLUXX_CODEX_INSTALL_DIR: installDir,
+        PLUXX_CODEX_MARKETPLACE_PATH: marketplacePath,
+      },
+    })
+
+    expect(proc.status).toBe(0)
+    expect(proc.stdout).toContain('Preparing local runtime dependencies for publish-plugin. This may take a moment...')
+    expect(readFileSync(resolve(installDir, 'node_modules/bootstrap.txt'), 'utf-8')).toBe('ready\n')
+  })
+
+  it('fails the Codex installer when runtime bootstrap fails', () => {
+    const config: PluginConfig = {
+      name: 'publish-plugin',
+      version: '1.2.3',
+      description: 'A publish test plugin',
+      author: { name: 'Test Author' },
+      license: 'MIT',
+      repository: 'https://github.com/orchidautomation/publish-plugin',
+      skills: './skills/',
+      targets: ['codex'],
+      outDir: './dist',
+    }
+    prepareBuiltTarget('codex', {
+      '.codex-plugin/plugin.json': JSON.stringify({ name: 'publish-plugin', version: '1.2.3' }),
+    })
+
+    const installerPath = resolve(ROOT, 'install-codex.sh')
+    writeFileSync(installerPath, captureInstallerScript(config))
+
+    const bundlePath = createBundleArchive('codex', {
+      '.codex-plugin/plugin.json': JSON.stringify({ name: 'publish-plugin', version: '1.2.3' }),
+      'scripts/bootstrap-runtime.sh': '#!/usr/bin/env bash\nset -euo pipefail\necho "bootstrap failed" >&2\nexit 23\n',
+    })
+    const installDir = resolve(ROOT, 'installed-codex-plugin')
+    const marketplacePath = resolve(ROOT, 'marketplace.json')
+
+    const proc = spawnSync('bash', [installerPath], {
+      cwd: ROOT,
+      encoding: 'utf-8',
+      env: {
+        ...process.env,
+        PLUXX_CODEX_BUNDLE_PATH: bundlePath,
+        PLUXX_CODEX_INSTALL_DIR: installDir,
+        PLUXX_CODEX_MARKETPLACE_PATH: marketplacePath,
+      },
+    })
+
+    expect(proc.status).toBe(23)
+    expect(proc.stderr).toContain('bootstrap failed')
+    expect(proc.stdout).not.toContain('Installed publish-plugin to')
   })
 })
