@@ -116,7 +116,7 @@ export function getRuntimeReadinessCapability(
         bundleEnforced: false,
         namedPromptTargetScope: 'best-effort',
         scriptPath: '.codex/pluxx-readiness.mjs',
-        companionArtifacts: ['.codex/readiness.generated.json', '.codex/hooks.generated.json'],
+        companionArtifacts: ['.codex/readiness.generated.json', 'hooks/hooks.json', '.codex/hooks.generated.json'],
         bindings: [
           {
             gate: 'session-start',

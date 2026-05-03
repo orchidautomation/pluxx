@@ -7,7 +7,7 @@ Every AI coding tool has its own plugin format. If you want your tool inside Cla
 ```
 Claude Code wants: optional .claude-plugin/plugin.json + .mcp.json or inline MCP config + CLAUDE.md + hooks/hooks.json or inline/settings hooks
 Cursor wants:      .cursor-plugin/plugin.json + mcp.json + AGENTS.md + rules/ + hooks/hooks.json (+ host-level .cursor/* config)
-Codex wants:       .codex-plugin/plugin.json + skills/ + optional .mcp.json / .app.json + AGENTS.md / AGENTS.override.md + external hooks in .codex/hooks.json
+Codex wants:       .codex-plugin/plugin.json + skills/ + optional .mcp.json / .app.json + AGENTS.md / AGENTS.override.md + bundled hooks/hooks.json (with .codex/hooks.json still relevant as a documented config path and feature-gate caveat)
 OpenCode wants:    opencode.json + a code-first JS/TS plugin module + .opencode/plugins/ or ~/.config/opencode/plugins/ + AGENTS.md / CLAUDE.md fallback + config-driven MCP/permissions
 ```
 
@@ -559,9 +559,9 @@ You write one auth config. pluxx generates the correct format for each platform:
 
 ### Hook Event Translation
 
-Pluxx maps canonical hook names for plugin-packaged hook targets and validates Codex compatibility for external Codex hook config.
+Pluxx maps canonical hook names for plugin-packaged hook targets and validates Codex compatibility for bundled Codex hook config.
 
-| Your config | Claude Code | Cursor | Codex external config |
+| Your config | Claude Code | Cursor | Codex bundled hooks |
 |-------------|-------------|--------|------------------------|
 | `sessionStart` | `SessionStart` | `sessionStart` | `SessionStart` |
 | `preToolUse` | `PreToolUse` | `preToolUse` | `PreToolUse` |

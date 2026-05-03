@@ -97,8 +97,8 @@ The core-four compiler sprint is done.
 - runtime readiness is now a real shared runtime surface:
   - source config can declare refresh dependencies plus gate polling/timeout policy once
   - Claude Code, Cursor, and OpenCode now emit generated readiness behavior from that shared primitive
-  - Codex now emits `.codex/readiness.generated.json` plus hook guidance instead of pretending bundle-enforced parity
-  - `lint` and `doctor` now explain Codex external wiring and best-effort prompt-entry degradation for named skill/command targets
+  - Codex now bundles translated hooks at `hooks/hooks.json` and keeps `.codex/readiness.generated.json` plus `.codex/hooks.generated.json` as companion/debug outputs
+  - `lint` and `doctor` now explain the remaining Codex feature-gate and best-effort prompt-entry degradation for named skill/command targets
   - `runtime` is now also modeled more explicitly inside the compiler as MCP/auth, readiness, and payload support rather than one undifferentiated internal bucket
   - readiness translation notes for Codex external wiring and best-effort named prompt targeting now come from one shared registry used by generators, `lint`, and `doctor`
 - host-visible branding completeness is now surfaced earlier:

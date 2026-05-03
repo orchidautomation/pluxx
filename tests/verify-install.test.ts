@@ -276,6 +276,53 @@ describe('verifyInstall', () => {
     expect(result.checks[0].errors).toBeGreaterThan(0)
   })
 
+  it('passes for an installed codex bundle with plugin-bundled hooks', async () => {
+    mkdirSync(resolve(DIST_DIR, 'codex/.codex-plugin'), { recursive: true })
+    mkdirSync(resolve(DIST_DIR, 'codex/skills/hello'), { recursive: true })
+    mkdirSync(resolve(DIST_DIR, 'codex/hooks'), { recursive: true })
+    mkdirSync(resolve(DIST_DIR, 'codex/scripts'), { recursive: true })
+    writeFileSync(
+      resolve(DIST_DIR, 'codex/.codex-plugin/plugin.json'),
+      JSON.stringify({
+        name: 'verify-plugin',
+        version: '0.1.0',
+        skills: './skills/',
+        hooks: './hooks/hooks.json',
+      }),
+    )
+    writeFileSync(resolve(DIST_DIR, 'codex/skills/hello/SKILL.md'), '# Hello\n')
+    writeFileSync(resolve(DIST_DIR, 'codex/scripts/session-start.sh'), '#!/usr/bin/env bash\nexit 0\n')
+    writeFileSync(
+      resolve(DIST_DIR, 'codex/hooks/hooks.json'),
+      JSON.stringify({
+        version: 1,
+        hooks: {
+          SessionStart: [
+            {
+              command: 'bash ./scripts/session-start.sh',
+            },
+          ],
+        },
+      }),
+    )
+
+    await installPlugin(DIST_DIR, 'verify-plugin', ['codex'], { quiet: true, useNativeClaudeInstall: false })
+
+    const result = await verifyInstall(makeConfig(), {
+      rootDir: ROOT,
+      targets: ['codex'],
+    })
+
+    expect(result.ok).toBe(true)
+    expect(result.checks[0]).toMatchObject({
+      platform: 'codex',
+      built: true,
+      installed: true,
+      ok: true,
+      errors: 0,
+    })
+  })
+
   it('checks the actual Claude install path instead of the local marketplace staging bundle', async () => {
     mkdirSync(resolve(DIST_DIR, 'claude-code/.claude-plugin'), { recursive: true })
     mkdirSync(resolve(DIST_DIR, 'claude-code/commands'), { recursive: true })

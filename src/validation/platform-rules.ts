@@ -443,9 +443,9 @@ export const PLATFORM_VALIDATION_RULES: Record<ResearchTarget, PlatformRules> = 
     },
     hooks: {
       supported: true,
-      files: ['.codex/hooks.json', '~/.codex/hooks.json'],
+      files: ['hooks/hooks.json', '.codex/hooks.json', '~/.codex/hooks.json'],
       eventNames: ['SessionStart', 'PreToolUse', 'PermissionRequest', 'PostToolUse', 'UserPromptSubmit', 'Stop'],
-      notes: 'Codex documents hooks in project/user config, guarded by the codex_hooks feature flag; the current plugin build guide does not document plugin-packaged hooks.',
+      notes: 'Codex documents hooks in project/user config, guarded by the codex_hooks feature flag; Pluxx also bundles translated hooks at hooks/hooks.json for plugin installs.',
     },
     instructions: {
       files: ['AGENTS.md', 'AGENTS.override.md'],
@@ -881,8 +881,8 @@ export const CORE_FOUR_PRIMITIVE_CAPABILITIES: Record<CoreFourPlatform, CoreFour
       },
       hooks: {
         mode: 'translate',
-        nativeSurfaces: ['.codex/hooks.json', '~/.codex/hooks.json'],
-        notes: 'Hooks are native, but they currently live next to config layers rather than inside the documented plugin bundle structure.',
+        nativeSurfaces: ['hooks/hooks.json', '.codex/hooks.json', '~/.codex/hooks.json'],
+        notes: 'Hooks are native. Pluxx bundles translated Codex hooks in the plugin and still tracks the project/user config paths plus the codex_hooks feature-gate caveat.',
       },
       permissions: {
         mode: 'translate',

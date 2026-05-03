@@ -178,7 +178,7 @@ Confirmed by official docs:
 - plugin skills are bundled under `skills/`
 - non-plugin skills are discovered through `.agents/skills` directories
 - `agents/openai.yaml` is optional metadata for plugin skills
-- hook config exists at project and user paths and is gated by the `codex_hooks` feature flag
+- hook config exists at project and user paths and is gated by the `codex_hooks` feature flag; Pluxx now also bundles translated Codex hooks at `hooks/hooks.json` for plugin installs
 - Codex documents `stdio` and streamable HTTP MCP transports
 - Codex documents bearer-token and OAuth MCP auth
 - `.app.json` is a real optional plugin surface

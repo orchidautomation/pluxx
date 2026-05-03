@@ -88,6 +88,9 @@ export class CodexGenerator extends Generator {
 
     manifest.skills = './skills/'
     if (this.config.mcp) manifest.mcpServers = './.mcp.json'
+    if (this.config.hooks || getRuntimeReadinessPlan(this.config.readiness).hasReadiness) {
+      manifest.hooks = './hooks/hooks.json'
+    }
 
     // Codex supports rich interface metadata
     if (this.config.brand) {
@@ -281,11 +284,16 @@ export class CodexGenerator extends Generator {
 
     if (Object.keys(hooks).length === 0 && unsupported.length === 0) return
 
+    await this.writeJson('hooks/hooks.json', {
+      version: 1,
+      hooks,
+    })
+
     await this.writeJson('.codex/hooks.generated.json', {
       model: 'pluxx.codex-hooks.v1',
-      enforcedByPluginBundle: false,
+      enforcedByPluginBundle: true,
       featureFlag: 'codex_hooks',
-      note: 'Codex hook configuration lives outside the plugin bundle. Use this file as a generated mirror for <repo>/.codex/hooks.json or ~/.codex/hooks.json and enable codex_hooks in Codex.',
+      note: 'Codex hook configuration is bundled at hooks/hooks.json in the plugin. This companion mirror preserves the translated native event names and highlights any dropped events or fields; enable codex_hooks in Codex if your runtime still requires that feature gate.',
       hooks,
       ...(unsupported.length > 0 ? { unsupported } : {}),
     })
@@ -314,7 +322,7 @@ export class CodexGenerator extends Generator {
     await this.writeJson('.codex/readiness.generated.json', {
       model: 'pluxx.readiness.v1',
       enforcedByPluginBundle: readinessCapability.bundleEnforced,
-      note: `${getRuntimeReadinessExternalConfigNote()} Use this file together with .codex/hooks.generated.json when wiring readiness into Codex hook config.`,
+      note: `${getRuntimeReadinessExternalConfigNote()} Use this file together with hooks/hooks.json (and .codex/hooks.generated.json when debugging translated event names) when wiring readiness into Codex hook config.`,
       dependencies: this.config.readiness.dependencies,
       gates: this.config.readiness.gates,
       translatedHooks: {

@@ -106,8 +106,8 @@ The closure plan is now narrower than it was before:
 - runtime readiness is now a real compiler-owned runtime surface:
   - source config can declare refresh dependencies, gate polling, and timeout policy once
   - Claude Code, Cursor, and OpenCode now emit generated readiness behavior from that shared primitive
-  - Codex now emits `.codex/readiness.generated.json` plus explicit external hook guidance instead of pretending bundle-enforced parity
-  - `lint` and `doctor` now explain Codex external wiring and best-effort prompt-entry degradation for named skill/command readiness targets
+  - Codex now bundles translated hooks at `hooks/hooks.json` and keeps `.codex/readiness.generated.json` plus `.codex/hooks.generated.json` companions for explanation/debugging
+  - `lint` and `doctor` now explain the remaining Codex feature-gate and best-effort prompt-entry degradation for named skill/command readiness targets
   - the compiler now also treats `runtime` more explicitly as internal MCP/auth, readiness, and payload subcontracts
   - the readiness translation notes shared by generators, `lint`, and `doctor` now come from one registry instead of parallel drift-prone wording
 - host-visible branding completeness is now surfaced earlier:
