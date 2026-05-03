@@ -224,7 +224,12 @@ describe('runPublish', () => {
     }
     prepareBuiltTarget('codex', {
       '.codex-plugin/plugin.json': JSON.stringify({ name: 'publish-plugin', version: '1.2.3' }),
-      '.mcp.json': JSON.stringify({ mcpServers: { fixture: { url: 'https://example.com/mcp', bearer_token_env_var: 'TEST_API_KEY' } } }),
+      '.mcp.json': JSON.stringify({
+        mcpServers: {
+          fixture: { url: 'https://example.com/mcp', bearer_token_env_var: 'TEST_API_KEY' },
+          local: { command: 'bash', args: ['./scripts/start-mcp.sh'] },
+        },
+      }),
       'scripts/bootstrap-runtime.sh': '#!/usr/bin/env bash\nexit 0\n',
     })
 
@@ -265,6 +270,8 @@ describe('runPublish', () => {
     expect(installerContent).toContain('delete server.bearer_token_env_var')
     expect(installerContent).toContain('Preparing local plugin runtime dependencies...')
     expect(installerContent).toContain('bash "$INSTALL_DIR/scripts/bootstrap-runtime.sh"')
+    expect(installerContent).toContain('materializeInstalledStdioPath')
+    expect(installerContent).toContain("path.resolve(installDir, normalized)")
     expect(installerContent.indexOf('PLUXX_USER_CONFIG_SPEC')).toBeLessThan(
       installerContent.indexOf('Preparing local plugin runtime dependencies...'),
     )

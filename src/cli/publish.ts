@@ -642,6 +642,68 @@ function hasInstallerUserConfig(config: PluginConfig, platform: TargetPlatform):
   return collectUserConfigEntries(config, [platform]).length > 0
 }
 
+function renderInstallerMcpPathMaterializationSnippet(platform: TargetPlatform, installDirVariable: string): string {
+  if (platform !== 'codex') return ''
+
+  return `
+export PLUXX_INSTALL_DIR="${installDirVariable}"
+
+node <<'NODE'
+const fs = require('fs')
+const path = require('path')
+
+const installDir = process.env.PLUXX_INSTALL_DIR
+
+if (installDir) {
+  const materializeInstalledStdioPath = (value) => {
+    if (typeof value !== 'string') return value
+
+    const normalized = value.replace(/\\\\/g, '/')
+    const rootRef = normalized.match(/^\\$\\{(?:CLAUDE_PLUGIN_ROOT|CURSOR_PLUGIN_ROOT|PLUGIN_ROOT)\\}[\\\\/](.+)$/)
+
+    if (rootRef) {
+      return path.resolve(installDir, rootRef[1])
+    }
+
+    if (normalized.startsWith('./') || normalized.startsWith('../')) {
+      return path.resolve(installDir, normalized)
+    }
+
+    return value
+  }
+
+  for (const relativePath of ['.mcp.json', 'mcp.json']) {
+    const filepath = path.join(installDir, relativePath)
+    if (!fs.existsSync(filepath)) continue
+
+    const payload = JSON.parse(fs.readFileSync(filepath, 'utf8'))
+    let changed = false
+
+    for (const server of Object.values(payload.mcpServers || {})) {
+      if (!server || typeof server !== 'object') continue
+
+      if (typeof server.command === 'string') {
+        const nextCommand = materializeInstalledStdioPath(server.command)
+        changed ||= nextCommand !== server.command
+        server.command = nextCommand
+      }
+
+      if (Array.isArray(server.args)) {
+        const nextArgs = server.args.map(materializeInstalledStdioPath)
+        changed ||= nextArgs.some((value, index) => value !== server.args[index])
+        server.args = nextArgs
+      }
+    }
+
+    if (changed) {
+      fs.writeFileSync(filepath, JSON.stringify(payload, null, 2) + '\\n')
+    }
+  }
+}
+NODE
+`
+}
+
 function renderInstallerRuntimeBootstrapSnippet(installDirVariable: string): string {
   return `
 if [[ -f "${installDirVariable}/scripts/bootstrap-runtime.sh" ]]; then
@@ -715,6 +777,7 @@ mkdir -p "$INSTALL_ROOT/.claude-plugin" "$INSTALL_ROOT/plugins"
 rm -rf "$INSTALL_ROOT/plugins/$PLUGIN_NAME"
 cp -R "$BUNDLE_DIR" "$INSTALL_ROOT/plugins/$PLUGIN_NAME"
 ${renderInstallerUserConfigSnippet(config, 'claude-code', '$INSTALL_ROOT/plugins/$PLUGIN_NAME')}
+${renderInstallerMcpPathMaterializationSnippet('claude-code', '$INSTALL_ROOT/plugins/$PLUGIN_NAME')}
 ${renderInstallerRuntimeBootstrapSnippet('$INSTALL_ROOT/plugins/$PLUGIN_NAME')}
 
 cat > "$INSTALL_ROOT/.claude-plugin/marketplace.json" <<JSON
@@ -810,6 +873,7 @@ mkdir -p "$(dirname "$INSTALL_DIR")"
 rm -rf "$INSTALL_DIR"
 cp -R "$BUNDLE_DIR" "$INSTALL_DIR"
 ${renderInstallerUserConfigSnippet(config, 'cursor', '$INSTALL_DIR')}
+${renderInstallerMcpPathMaterializationSnippet('cursor', '$INSTALL_DIR')}
 ${renderInstallerRuntimeBootstrapSnippet('$INSTALL_DIR')}
 
 echo "Installed $PLUGIN_NAME to $INSTALL_DIR"
@@ -870,6 +934,7 @@ mkdir -p "$(dirname "$INSTALL_DIR")"
 rm -rf "$INSTALL_DIR"
 cp -R "$BUNDLE_DIR" "$INSTALL_DIR"
 ${renderInstallerUserConfigSnippet(config, 'codex', '$INSTALL_DIR')}
+${renderInstallerMcpPathMaterializationSnippet('codex', '$INSTALL_DIR')}
 ${renderInstallerRuntimeBootstrapSnippet('$INSTALL_DIR')}
 
 mkdir -p "$(dirname "$MARKETPLACE_PATH")"
@@ -987,6 +1052,7 @@ mkdir -p "$(dirname "$INSTALL_DIR")" "$SKILLS_ROOT"
 rm -rf "$INSTALL_DIR"
 cp -R "$BUNDLE_DIR" "$INSTALL_DIR"
 ${renderInstallerUserConfigSnippet(config, 'opencode', '$INSTALL_DIR')}
+${renderInstallerMcpPathMaterializationSnippet('opencode', '$INSTALL_DIR')}
 ${renderInstallerRuntimeBootstrapSnippet('$INSTALL_DIR')}
 
 export ENTRY_PATH
