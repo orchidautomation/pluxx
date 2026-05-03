@@ -642,6 +642,19 @@ function hasInstallerUserConfig(config: PluginConfig, platform: TargetPlatform):
   return collectUserConfigEntries(config, [platform]).length > 0
 }
 
+function renderInstallerRuntimeBootstrapSnippet(installDirVar: string): string {
+  return `
+BOOTSTRAP_RUNTIME_SCRIPT="${installDirVar}/scripts/bootstrap-runtime.sh"
+if [[ -f "$BOOTSTRAP_RUNTIME_SCRIPT" ]]; then
+  echo "Preparing local runtime dependencies for $PLUGIN_NAME. This may take a moment..."
+  (
+    cd "${installDirVar}"
+    bash "./scripts/bootstrap-runtime.sh"
+  )
+fi
+`
+}
+
 function renderInstallClaudeCodeScript(config: PluginConfig): string {
   return `#!/usr/bin/env bash
 set -euo pipefail
@@ -706,6 +719,7 @@ mkdir -p "$INSTALL_ROOT/.claude-plugin" "$INSTALL_ROOT/plugins"
 rm -rf "$INSTALL_ROOT/plugins/$PLUGIN_NAME"
 cp -R "$BUNDLE_DIR" "$INSTALL_ROOT/plugins/$PLUGIN_NAME"
 ${renderInstallerUserConfigSnippet(config, 'claude-code', '$INSTALL_ROOT/plugins/$PLUGIN_NAME')}
+${renderInstallerRuntimeBootstrapSnippet('$INSTALL_ROOT/plugins/$PLUGIN_NAME')}
 
 cat > "$INSTALL_ROOT/.claude-plugin/marketplace.json" <<JSON
 {
@@ -800,6 +814,7 @@ mkdir -p "$(dirname "$INSTALL_DIR")"
 rm -rf "$INSTALL_DIR"
 cp -R "$BUNDLE_DIR" "$INSTALL_DIR"
 ${renderInstallerUserConfigSnippet(config, 'cursor', '$INSTALL_DIR')}
+${renderInstallerRuntimeBootstrapSnippet('$INSTALL_DIR')}
 
 echo "Installed $PLUGIN_NAME to $INSTALL_DIR"
 echo "If Cursor is already open, use Developer: Reload Window or restart Cursor so the plugin is picked up."
@@ -859,6 +874,7 @@ mkdir -p "$(dirname "$INSTALL_DIR")"
 rm -rf "$INSTALL_DIR"
 cp -R "$BUNDLE_DIR" "$INSTALL_DIR"
 ${renderInstallerUserConfigSnippet(config, 'codex', '$INSTALL_DIR')}
+${renderInstallerRuntimeBootstrapSnippet('$INSTALL_DIR')}
 
 mkdir -p "$(dirname "$MARKETPLACE_PATH")"
 
@@ -975,6 +991,7 @@ mkdir -p "$(dirname "$INSTALL_DIR")" "$SKILLS_ROOT"
 rm -rf "$INSTALL_DIR"
 cp -R "$BUNDLE_DIR" "$INSTALL_DIR"
 ${renderInstallerUserConfigSnippet(config, 'opencode', '$INSTALL_DIR')}
+${renderInstallerRuntimeBootstrapSnippet('$INSTALL_DIR')}
 
 export ENTRY_PATH
 export PLUGIN_NAME
