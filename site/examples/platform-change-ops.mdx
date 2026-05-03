@@ -1,0 +1,66 @@
+---
+title: Platform Change Ops Reference
+---
+
+This is the maximal enterprise reference plugin in the Pluxx repo.
+
+Use it when you want the shortest answer to:
+
+- can one Pluxx source project combine most compiler primitives at once
+- does local stdio runtime packaging work with hooks, permissions, agents, and readiness
+- does installed-state verification catch runtime behavior instead of only file shape
+
+## What this example pressures
+
+The source project in [`example/platform-change-ops`](https://github.com/orchidautomation/pluxx/tree/main/example/platform-change-ops) intentionally combines:
+
+- instructions
+- skills
+- commands
+- specialist agents
+- matcher-based hooks
+- canonical permissions
+- runtime readiness
+- local stdio MCP packaging
+- install and listing metadata
+
+The domain is internal platform / DevEx change operations: intake, blast-radius inspection, external impact research, policy review, release gating, rollout comms, rollback planning, and installed-state verification.
+
+## Why it exists
+
+`docs-ops` proves live workflow depth. `exa-plugin` proves branded research workflows and specialist agents. `sumble-plugin` and `prospeo-mcp` pressured real MCP/auth/runtime cases.
+
+`platform-change-ops` exists to combine those pressures in one maintained source project, so the compiler has a demanding all-primitive fixture instead of only isolated examples.
+
+## Current proof state
+
+The example now builds, installs, and passes `verify-install` across:
+
+- Claude Code
+- Cursor
+- Codex
+- OpenCode
+
+It includes a bundled local stdio MCP runtime with real long-lived tools:
+
+- `readiness_status`
+- `open_change_window`
+- `record_audit_event`
+
+That matters because `doctor --consumer` and `verify-install` now smoke-launch installed stdio MCP commands. The example has to work as an installed runtime, not just as generated files.
+
+## What is still not claimed
+
+This is not yet a polished public demo at the same level as the Docs Ops or Exa pages.
+
+It does not yet prove:
+
+- a real authenticated mutation target
+- a live publish plus rollback against a safe private endpoint
+- a customer-ready walkthrough asset
+
+## Best next pages
+
+- [Docs Ops Flagship Proof](/examples/docs-ops-flagship)
+- [Exa Research Example](/examples/exa-research-example)
+- [Local core-four proof](/workflows/local-core-four-proof)

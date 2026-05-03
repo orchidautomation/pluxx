@@ -1,0 +1,48 @@
+---
+title: Which Example Should I Use?
+---
+
+Start with the smallest example that matches your question.
+
+## The short answer
+
+| If you want to prove... | Start here | Why |
+|---|---|---|
+| A real docs workflow across the core four | [Docs Ops Flagship Proof](/examples/docs-ops-flagship) | Best public proof that one source project builds, installs, verifies, and runs useful read-only workflows in Claude Code, Cursor, Codex, and OpenCode |
+| A branded research plugin with specialist agents | [Exa Research Example](/examples/exa-research-example) | Best example for commands, agents, auth/setup guidance, brand metadata, and real host workflows |
+| A demanding enterprise plugin shape | [Platform Change Ops Reference](/examples/platform-change-ops) | Best stress fixture for runtime readiness, local stdio MCP packaging, hooks, permissions, and installed-runtime verification |
+
+Most readers should only read one of those three.
+
+## Use Docs Ops when
+
+- you want the clearest public proof page
+- your plugin rewrites, reviews, or improves docs/content
+- you care about install and `verify-install` proof across Claude Code, Cursor, Codex, and OpenCode
+- you want to see read-only access separated from a private publish lane
+
+## Use Exa when
+
+- your product already has an MCP
+- you want richer workflow packaging around research or search
+- you care about specialist agents and explicit commands
+- you want a public example that is not a docs workflow
+
+## Use Platform Change Ops when
+
+- your plugin has more enterprise/runtime complexity
+- you need local stdio runtime packaging
+- you need readiness gates, hooks, permissions, and specialist agents together
+- you want to pressure-test Pluxx itself, not just copy a minimal product example
+
+## Long-tail examples
+
+These are still useful, but they should not be the first pages most people read:
+
+- [Self-hosting Pluxx Plugin](/examples/self-hosting-pluxx): use when you want to see Pluxx package itself.
+- [Sumble Example](/examples/sumble-proof-run): use when you want a live commercial MCP example with bearer auth.
+- [Firecrawl, Sumble, and PlayKit-style Examples](/examples/firecrawl-sumble-playkit): use when you need import patterns for large tool surfaces or custom header auth.
+
+## Command path
+
+After choosing an example, use [Command Decision Tree](/getting-started/command-decision-tree) for the shortest command sequence.

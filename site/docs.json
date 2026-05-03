@@ -15,54 +15,41 @@
   "navigation": {
     "groups": [
       {
-        "group": "Overview",
+        "group": "Start",
+        "pages": [
+          "overview/start-here",
+          "getting-started/getting-started",
+          "getting-started/command-decision-tree"
+        ]
+      },
+      {
+        "group": "Build",
+        "pages": [
+          "workflows/import-from-mcp",
+          "workflows/autopilot",
+          "workflows/sync-mcp",
+          "getting-started/create-a-pluxx-plugin"
+        ]
+      },
+      {
+        "group": "Learn",
         "pages": [
           "overview/why-pluxx",
           "overview/what-pluxx-is",
           "overview/core-primitives",
-          "overview/core-four-primitive-matrix",
-          "overview/core-four-branding-metadata-audit",
-          "overview/what-pluxx-does-not-model-yet"
-        ]
-      },
-      {
-        "group": "Getting Started",
-        "pages": [
-          "getting-started/getting-started",
-          "getting-started/command-decision-tree",
-          "getting-started/create-a-pluxx-plugin",
-          "getting-started/use-pluxx-in-host-agents",
-          "getting-started/practical-handbook"
-        ]
-      },
-      {
-        "group": "How It Works",
-        "pages": [
           "how-it-works/how-it-works",
-          "how-it-works/architecture",
           "how-it-works/agent-mode",
-          "how-it-works/compatibility-limits"
+          "how-it-works/compatibility-limits",
+          "workflows/local-core-four-proof"
         ]
       },
       {
-        "group": "Workflows",
+        "group": "Examples",
         "pages": [
-          "workflows/import-from-mcp",
-          "workflows/local-core-four-proof",
-          "workflows/refine-taxonomy",
-          "workflows/rewrite-instructions",
-          "workflows/review-scaffold",
-          "workflows/sync-mcp",
-          "workflows/autopilot"
-        ]
-      },
-      {
-        "group": "Platform Guides",
-        "pages": [
-          "platform-guides/claude-code",
-          "platform-guides/cursor",
-          "platform-guides/codex",
-          "platform-guides/opencode"
+          "examples/which-example",
+          "examples/docs-ops-flagship",
+          "examples/exa-research-example",
+          "examples/platform-change-ops"
         ]
       },
       {
@@ -72,26 +59,7 @@
           "reference/pluxx-config",
           "reference/auth-runtime-auth",
           "reference/hooks-commands-agents",
-          "reference/validation-and-size-limits",
-          "reference/privacy-policy",
-          "reference/terms-of-service"
-        ]
-      },
-      {
-        "group": "Examples",
-        "pages": [
-          "examples/docs-ops-flagship",
-          "examples/exa-research-example",
-          "examples/sumble-proof-run",
-          "examples/self-hosting-pluxx",
-          "examples/firecrawl-sumble-playkit"
-        ]
-      },
-      {
-        "group": "Roadmap / Boundaries",
-        "pages": [
-          "roadmap-boundaries/core-vs-deferred-primitives",
-          "roadmap-boundaries/compatibility-caveats"
+          "reference/validation-and-size-limits"
         ]
       }
     ]

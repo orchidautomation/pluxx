@@ -7,6 +7,7 @@ This workflow creates the deterministic first scaffold from a raw MCP source.
 Use it when you want to:
 
 - inspect a live MCP surface
+- import an MCP that is already configured in a local host
 - generate a Pluxx source project
 - validate the baseline before any agent-driven refinement
 
@@ -63,6 +64,15 @@ Legacy SSE MCP:
 npx @orchid-labs/pluxx init --from-mcp https://example.com/sse --transport sse --yes
 ```
 
+Already-installed MCP config:
+
+```bash
+npx @orchid-labs/pluxx discover-mcp
+npx @orchid-labs/pluxx init --from-installed-mcp codex:acme --yes
+```
+
+`discover-mcp` reads common Claude Code, Cursor, Codex, and OpenCode config locations. The import normalizes env/auth references without copying literal secret values into the generated project.
+
 ## What gets generated
 
 The first pass creates a maintained source project, typically including:
@@ -80,6 +90,8 @@ my-plugin/
 ```
 
 Keep editing the source project. Treat `dist/` as generated output after `pluxx build`.
+
+For local stdio MCPs, the current import and validation path also checks whether project-relative runtime files are bundled. Pluxx can infer `passthrough` for common project-relative runtime paths, warns when installed `.mcp.json` files would point at missing payloads, and smoke-launches installed stdio MCP commands during consumer-side verification.
 
 ## Auth examples
 

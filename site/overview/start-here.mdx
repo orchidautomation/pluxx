@@ -1,0 +1,107 @@
+---
+title: Start Here
+---
+
+Pluxx turns one plugin source project into native plugin bundles for Claude Code, Cursor, Codex, and OpenCode.
+
+## What Pluxx does
+
+Pluxx takes either:
+
+- a raw MCP server
+- an MCP already configured in a host
+- an existing host-native plugin
+- a hand-authored Pluxx source project
+
+and produces:
+
+- one maintained source project
+- validation and install checks
+- native host bundles under `dist/`
+- local installs that can be verified with `pluxx verify-install`
+
+The point is not to make every host identical. The point is to preserve plugin intent once and compile the strongest honest native version for each host.
+
+## Problems Pluxx solves
+
+| Problem | What Pluxx does |
+|---|---|
+| One MCP is not a good plugin experience by itself | Adds skills, commands, instructions, setup guidance, hooks, permissions, and packaging around the MCP |
+| Four hosts have four plugin formats | Compiles one source project into Claude Code, Cursor, Codex, and OpenCode outputs |
+| Auth and local runtime wiring drift across hosts | Models import auth, runtime auth, user config, local stdio runtimes, and installed-runtime checks explicitly |
+| One strong Claude or Cursor plugin is hard to port | `pluxx migrate <path>` imports it into a cross-host source project |
+| Generated files can look valid but fail after install | `pluxx test --install` and `pluxx verify-install` inspect the host-visible installed bundle |
+| Raw tool lists become noisy plugins | Agent Mode and taxonomy refinement turn low-level tools into workflow-shaped skills and commands |
+
+## The core 8 primitives
+
+These are the compiler buckets Pluxx preserves and translates:
+
+| Primitive | What it means |
+|---|---|
+| `instructions` | Shared host guidance: `CLAUDE.md`, `AGENTS.md`, Cursor rules, OpenCode instructions |
+| `skills` | The main workflow units users and agents should discover |
+| `commands` | Explicit native entrypoints where the host supports them |
+| `agents` | Specialist or delegated execution surfaces |
+| `hooks` | Deterministic lifecycle automation and policy checks |
+| `permissions` | Portable `allow` / `ask` / `deny` intent |
+| `runtime` | MCP config, auth, local stdio runtimes, scripts, passthrough files |
+| `distribution` | `userConfig`, brand metadata, icons, screenshots, install and publish metadata |
+
+`taxonomy` is internal glue. It helps Pluxx derive useful skills, commands, instructions, and agents, but it is not a host-facing primitive.
+
+## Which path should I use?
+
+| Starting point | Command |
+|---|---|
+| Raw remote MCP | `pluxx init --from-mcp https://example.com/mcp --yes` |
+| Local stdio MCP | `pluxx init --from-mcp "npx -y -p @acme/mcp acme-mcp" --yes` |
+| MCP already configured in a host | `pluxx discover-mcp` then `pluxx init --from-installed-mcp codex:acme --yes` |
+| Existing host-native plugin | `pluxx migrate ./existing-plugin` |
+| One-shot proof | `pluxx autopilot --from-mcp <source> --runner codex --mode standard --install --install-target codex --trust` |
+
+After any import or migration:
+
+```bash
+pluxx doctor
+pluxx lint
+pluxx eval
+pluxx test
+```
+
+For local install proof:
+
+```bash
+pluxx test --install --trust
+pluxx verify-install --target codex
+```
+
+## How to navigate the codebase
+
+| Area | Where to look |
+|---|---|
+| CLI command routing | `src/cli/index.ts` |
+| MCP import | `src/cli/init-from-mcp.ts`, `src/mcp/introspect.ts` |
+| Installed MCP discovery | `src/cli/discover-installed-mcp.ts` |
+| Migration | `src/cli/migrate.ts` |
+| Agent Mode and autopilot context | `src/cli/agent.ts` |
+| Build generators | `src/generators/*/index.ts` |
+| Shared Claude-family generation | `src/generators/shared/claude-family.ts` |
+| Config schema | `src/schema.ts`, `src/config/load.ts`, `src/config/define.ts` |
+| Lint and validation rules | `src/cli/lint.ts`, `src/validation/platform-rules.ts` |
+| Install and verify-install | `src/cli/install.ts`, `src/cli/verify-install.ts` |
+| Runtime readiness | `src/readiness.ts`, `src/runtime-readiness-registry.ts` |
+| Hook translation | `src/hook-events.ts`, `src/hook-translation-registry.ts` |
+| Permissions | `src/permissions.ts` |
+| Shared skill parsing | `src/skills.ts` |
+| Examples | `example/docs-ops`, `example/exa-plugin`, `example/platform-change-ops`, `example/pluxx` |
+| Mintlify docs | `site/` |
+| Repo planning docs | `docs/start-here.md`, `docs/todo/queue.md`, `docs/todo/master-backlog.md`, `docs/roadmap.md` |
+
+## What to read next
+
+- [Getting Started](/getting-started/getting-started): build your first source project.
+- [Command Decision Tree](/getting-started/command-decision-tree): choose the next command.
+- [Which Example Should I Use?](/examples/which-example): pick one concrete proof example.
+- [Core Primitives](/overview/core-primitives): see the fuller primitive model.
+- [CLI Reference](/reference/cli-reference): look up flags and edge cases.

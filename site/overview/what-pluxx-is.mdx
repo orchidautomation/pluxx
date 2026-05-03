@@ -2,11 +2,13 @@
 title: What Pluxx Is
 ---
 
-Pluxx is the cross-host compiler for MCP-backed plugins.
+Pluxx is the cross-host compiler for MCP-backed and host-native agent plugins.
 
 It gives you one maintained source project, normalizes the plugin primitives that drift across hosts, and compiles native outputs for Claude Code, Cursor, Codex, and OpenCode.
 
-You can start from a raw MCP with `pluxx init --from-mcp ...` or import an existing host-native plugin with `pluxx migrate <path>`.
+You can start from a raw MCP with `pluxx init --from-mcp ...`, import an MCP that is already configured in a local host with `pluxx discover-mcp` and `pluxx init --from-installed-mcp ...`, or import an existing host-native plugin with `pluxx migrate <path>`.
+
+For the shortest product, primitive, migration, and codebase map, read [Start Here](/overview/start-here).
 
 ## The source project
 
@@ -47,6 +49,8 @@ Pluxx has two command layers.
 These commands do not invoke Claude Code, Codex, Cursor, or OpenCode:
 
 - `pluxx init --from-mcp ...`
+- `pluxx discover-mcp`
+- `pluxx init --from-installed-mcp ...`
 - `pluxx sync`
 - `pluxx doctor`
 - `pluxx doctor --consumer <bundle>`
@@ -55,11 +59,14 @@ These commands do not invoke Claude Code, Codex, Cursor, or OpenCode:
 - `pluxx build`
 - `pluxx test`
 - `pluxx install`
+- `pluxx verify-install`
 - `pluxx migrate <path>`
 - `pluxx mcp proxy --record ...`
 - `pluxx mcp proxy --replay ...`
+- `pluxx --version`
+- `pluxx upgrade`
 
-This layer handles import, file generation, validation, build, install, migration, and deterministic MCP replay.
+This layer handles import, file generation, validation, build, install, installed-state verification, migration, lifecycle ergonomics, and deterministic MCP replay.
 
 ### Agent layer
 
@@ -79,6 +86,26 @@ This layer is for semantic refinement:
 Pluxx keeps ownership of structure and packaging. The host agent only works inside the refinement boundary Pluxx prepares.
 
 ## What the main commands are for
+
+### `pluxx discover-mcp` and `pluxx init --from-installed-mcp ...`
+
+Use installed MCP discovery when the MCP already exists in a local host config and you want Pluxx to turn that setup into a maintained source project.
+
+Example user story:
+
+> I already configured an MCP in Codex or Claude Code. I want to import that server without copying secrets by hand.
+
+`discover-mcp` reads common Claude Code, Cursor, Codex, and OpenCode MCP config locations. `init --from-installed-mcp <host:name>` imports the selected server and normalizes auth without copying literal secret values.
+
+### `pluxx verify-install`
+
+Use `verify-install` after local install when you need to know whether the host-visible bundle is actually present and shaped correctly.
+
+Example user story:
+
+> The build passed, but I need to know whether Codex or Claude Code will see the installed plugin I just generated.
+
+`verify-install` checks installed paths, stale cache/version problems, installed bundle shape, and consumer-side runtime checks. For installed stdio MCP bundles, it also smoke-launches the installed command instead of passing on file shape alone.
 
 ### `pluxx eval`
 
@@ -131,6 +158,15 @@ npx @orchid-labs/pluxx lint
 npx @orchid-labs/pluxx eval
 npx @orchid-labs/pluxx build
 npx @orchid-labs/pluxx test
+npx @orchid-labs/pluxx install --target codex
+npx @orchid-labs/pluxx verify-install --target codex
+```
+
+If the MCP is already installed in a host:
+
+```bash
+npx @orchid-labs/pluxx discover-mcp
+npx @orchid-labs/pluxx init --from-installed-mcp codex:acme --yes
 ```
 
 If the scaffold needs better naming or instructions:
