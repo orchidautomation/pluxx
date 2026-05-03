@@ -225,6 +225,7 @@ describe('runPublish', () => {
     prepareBuiltTarget('codex', {
       '.codex-plugin/plugin.json': JSON.stringify({ name: 'publish-plugin', version: '1.2.3' }),
       '.mcp.json': JSON.stringify({ mcpServers: { fixture: { url: 'https://example.com/mcp', bearer_token_env_var: 'TEST_API_KEY' } } }),
+      'scripts/bootstrap-runtime.sh': '#!/usr/bin/env bash\nexit 0\n',
     })
 
     let installerContent = ''
@@ -262,5 +263,13 @@ describe('runPublish', () => {
     expect(installerContent).toContain("path.join(installDir, '.pluxx-user.json')")
     expect(installerContent).toContain('server.http_headers')
     expect(installerContent).toContain('delete server.bearer_token_env_var')
+    expect(installerContent).toContain('Preparing local plugin runtime dependencies...')
+    expect(installerContent).toContain('bash "$INSTALL_DIR/scripts/bootstrap-runtime.sh"')
+    expect(installerContent.indexOf('PLUXX_USER_CONFIG_SPEC')).toBeLessThan(
+      installerContent.indexOf('Preparing local plugin runtime dependencies...'),
+    )
+    expect(installerContent.indexOf('Preparing local plugin runtime dependencies...')).toBeLessThan(
+      installerContent.indexOf('Updated Codex marketplace catalog'),
+    )
   })
 })
