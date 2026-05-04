@@ -22,6 +22,10 @@ const CODEX_COMMAND_FIELD_DESCRIPTORS: CommandFieldDescriptor[] = [
 
 export const CODEX_COMMAND_GUIDANCE_SURFACES = ['skills/', 'AGENTS.md', '.codex/commands.generated.json'] as const
 
+export function getCodexCommandGuidanceNote(): string {
+  return 'Codex does not currently document plugin-packaged slash-command parity. Pluxx keeps canonical command intent through AGENTS.md routing guidance and `.codex/commands.generated.json`.'
+}
+
 export function getTranslatedCommandFields(
   platform: CommandTranslationPlatform,
   metadata: CanonicalCommandMetadata,
@@ -39,7 +43,7 @@ export function getCommandTranslationMessage(
   if (degradedFields.length === 0) return undefined
 
   if (platform === 'codex') {
-    return `Command fields ${degradedFields.map((field) => `"${field}"`).join(', ')} are not native Codex plugin slash-command fields today. Pluxx keeps that workflow intent through AGENTS.md routing guidance and \`.codex/commands.generated.json\`, but Codex still lacks documented plugin-packaged slash-command parity.`
+    return `Command fields ${degradedFields.map((field) => `"${field}"`).join(', ')} are not native Codex plugin slash-command fields today. ${getCodexCommandGuidanceNote()}`
   }
 
   return undefined

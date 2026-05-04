@@ -1820,6 +1820,12 @@ describe('lintProject', () => {
               loop_limit: 2,
             },
           ],
+          notification: [
+            {
+              type: 'http',
+              url: 'https://example.com/hooks/notify',
+            },
+          ],
         },
         targets: ['claude-code', 'codex', 'opencode'],
       }, null, 2),
@@ -1855,6 +1861,8 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'claude-prompt-hook-degrade')).toBe(true)
     expect(result.issues.some(issue => issue.code === 'codex-prompt-hook-drop')).toBe(true)
     expect(result.issues.some(issue => issue.code === 'opencode-prompt-hook-drop')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'codex-hook-type-drop' && issue.message.includes('http hooks'))).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'opencode-hook-type-drop' && issue.message.includes('http hooks'))).toBe(true)
     expect(result.issues.some(issue => issue.code === 'claude-hook-failclosed-degrade')).toBe(true)
     expect(result.issues.some(issue => issue.code === 'codex-hook-loop-limit-drop')).toBe(true)
     expect(result.issues.some(issue => issue.code === 'opencode-hook-loop-limit-drop')).toBe(true)

@@ -334,6 +334,7 @@ async function setupCodexNativeAgentSource() {
       'description = "Handle complex: research tasks."',
       'model = "gpt-5.4"',
       'model_reasoning_effort = "high"',
+      'sandbox_mode = "workspace-write"',
       'developer_instructions = """',
       'Use the MCP for account intelligence.',
       'Return only the synthesized result.',
@@ -670,6 +671,7 @@ describe('migrate', () => {
     expect(migratedAgent).toContain('description: "Handle complex: research tasks."')
     expect(migratedAgent).toContain('model: "gpt-5.4"')
     expect(migratedAgent).toContain('model_reasoning_effort: "high"')
+    expect(migratedAgent).toContain('sandbox_mode: "workspace-write"')
     expect(migratedAgent).toContain('Use the MCP for account intelligence.')
   })
 
@@ -741,6 +743,7 @@ describe('migrate', () => {
     expect(codexAgent).toContain('name = "sales-research"')
     expect(codexAgent).toContain('model = "gpt-5.4"')
     expect(codexAgent).toContain('model_reasoning_effort = "high"')
+    expect(codexAgent).toContain('sandbox_mode = "workspace-write"')
     expect(codexAgent).toContain('Use the MCP for account intelligence.')
     expect(opencodeIndex).toContain('"sales-research"')
     expect(opencodeIndex).toContain('"description": "Handle complex: research tasks."')

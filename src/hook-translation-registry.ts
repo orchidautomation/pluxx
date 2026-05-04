@@ -1,6 +1,8 @@
 import type { TargetPlatform } from './schema'
+import { CURSOR_SUPPORTED_HOOK_EVENTS } from './hook-events'
 
 export type HookFieldName = 'prompt' | 'matcher' | 'failClosed' | 'loop_limit'
+export type HookEntryType = 'command' | 'http' | 'mcp_tool' | 'prompt' | 'agent'
 export type HookFieldTranslationMode = 'preserve' | 'drop'
 
 interface HookTranslationIssueDescriptor {
@@ -16,11 +18,13 @@ interface HookFieldCapability {
 interface HookPlatformRegistry {
   supportedEvents?: readonly string[]
   unsupportedEventReason?: string
+  supportedTypes?: readonly HookEntryType[]
   fields: Record<HookFieldName, HookFieldCapability>
 }
 
 const HOOK_PLATFORM_REGISTRY: Partial<Record<TargetPlatform, HookPlatformRegistry>> = {
   'claude-code': {
+    supportedTypes: ['command', 'http', 'mcp_tool', 'prompt', 'agent'],
     fields: {
       prompt: {
         mode: 'preserve',
@@ -44,6 +48,9 @@ const HOOK_PLATFORM_REGISTRY: Partial<Record<TargetPlatform, HookPlatformRegistr
     },
   },
   cursor: {
+    supportedTypes: ['command', 'prompt'],
+    supportedEvents: CURSOR_SUPPORTED_HOOK_EVENTS,
+    unsupportedEventReason: `Cursor currently documents only ${CURSOR_SUPPORTED_HOOK_EVENTS.join(', ')} for hook configuration.`,
     fields: {
       prompt: { mode: 'preserve' },
       matcher: { mode: 'preserve' },
@@ -52,6 +59,7 @@ const HOOK_PLATFORM_REGISTRY: Partial<Record<TargetPlatform, HookPlatformRegistr
     },
   },
   codex: {
+    supportedTypes: ['command'],
     supportedEvents: ['SessionStart', 'PreToolUse', 'PermissionRequest', 'PostToolUse', 'UserPromptSubmit', 'Stop'],
     unsupportedEventReason: 'Codex currently documents only SessionStart, PreToolUse, PermissionRequest, PostToolUse, UserPromptSubmit, and Stop for hook configuration.',
     fields: {
@@ -62,6 +70,7 @@ const HOOK_PLATFORM_REGISTRY: Partial<Record<TargetPlatform, HookPlatformRegistr
     },
   },
   opencode: {
+    supportedTypes: ['command'],
     fields: {
       prompt: { mode: 'drop' },
       matcher: { mode: 'preserve' },
@@ -131,6 +140,10 @@ export function getSupportedHookEvents(platform: TargetPlatform): readonly strin
   return HOOK_PLATFORM_REGISTRY[platform]?.supportedEvents ?? []
 }
 
+export function getSupportedHookTypes(platform: TargetPlatform): readonly HookEntryType[] {
+  return HOOK_PLATFORM_REGISTRY[platform]?.supportedTypes ?? []
+}
+
 export function getUnsupportedHookEventReason(platform: TargetPlatform): string | null {
   return HOOK_PLATFORM_REGISTRY[platform]?.unsupportedEventReason ?? null
 }
@@ -139,6 +152,12 @@ export function isHookEventSupported(platform: TargetPlatform, event: string): b
   const supportedEvents = getSupportedHookEvents(platform)
   if (supportedEvents.length === 0) return true
   return supportedEvents.includes(event)
+}
+
+export function isHookTypeSupported(platform: TargetPlatform, type: HookEntryType): boolean {
+  const supportedTypes = getSupportedHookTypes(platform)
+  if (supportedTypes.length === 0) return true
+  return supportedTypes.includes(type)
 }
 
 export function getHookFieldCapability(
@@ -167,6 +186,34 @@ export function getHookFieldSupportedEvents(
   field: HookFieldName,
 ): readonly string[] {
   return getHookFieldCapability(platform, field).supportedEvents ?? []
+}
+
+export function getHookTypeTranslationIssue(
+  platform: TargetPlatform,
+  type: Exclude<HookEntryType, 'command'>,
+): HookTranslationIssueDescriptor | null {
+  if (platform === 'cursor') {
+    return {
+      code: 'cursor-hook-type-unsupported',
+      message: `Cursor does not document hook type "${type}". Pluxx currently preserves only command and prompt hooks on the Cursor hook surface.`,
+    }
+  }
+
+  if (platform === 'codex') {
+    return {
+      code: 'codex-hook-type-drop',
+      message: `Codex currently bundles only command-hook entries from Pluxx. ${type} hooks will be dropped from the generated Codex bundle.`,
+    }
+  }
+
+  if (platform === 'opencode') {
+    return {
+      code: 'opencode-hook-type-drop',
+      message: `The current OpenCode runtime wrapper only emits command hooks. ${type} hooks will be dropped from the generated OpenCode plugin.`,
+    }
+  }
+
+  return null
 }
 
 export function getPromptHookTranslationIssue(

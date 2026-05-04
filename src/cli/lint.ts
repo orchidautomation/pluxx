@@ -3,7 +3,11 @@ import { resolve, relative, basename, dirname } from 'path'
 import { loadConfig } from '../config/load'
 import { getConfiguredCompilerBuckets, getPluginCompilerBuckets, type McpServer, type PluginConfig, type PluxxCompilerBucket, type TargetPlatform } from '../schema'
 import { PLATFORM_LIMITS, PLATFORM_LIMIT_POLICIES, getCoreFourPrimitiveCapabilities, getPlatformRules, type CoreFourPlatform, type PrimitiveTranslationMode } from '../validation/platform-rules'
-import { getCommandTranslationMessage, getTranslatedCommandFields } from '../command-translation-registry'
+import {
+  getCodexCommandGuidanceNote,
+  getCommandTranslationMessage,
+  getTranslatedCommandFields,
+} from '../command-translation-registry'
 import { collectPermissionRules, permissionRulesNeedToolLevelDowngrade } from '../permissions'
 import { getRuntimeReadinessPlan } from '../readiness'
 import { readSkillMarkdownFile, walkSkillFiles, type ParsedSkillMarkdown } from '../skills'
@@ -17,17 +21,18 @@ import { getCanonicalAgentMetadata, readCanonicalAgentFiles } from '../agents'
 import { buildPrimitiveTranslationSummary, renderPrimitiveTranslationSummary, type PrimitiveTranslationSummary } from './primitive-summary'
 import { getBrandingCompletenessWarnings } from '../branding-completeness'
 import {
-  CURSOR_SUPPORTED_HOOK_EVENTS,
   mapHookEventToPascalCase,
 } from '../hook-events'
 import { findHostPluginRootVars } from '../mcp-stdio-paths'
 import {
   getHookFieldSupportedEvents,
   getHookFieldTranslationIssue,
+  getHookTypeTranslationIssue,
   getPromptHookTranslationIssue,
   getSupportedHookEvents,
   getUnsupportedHookEventReason,
   isHookEventSupported,
+  isHookTypeSupported,
 } from '../hook-translation-registry'
 import { readInstructionsContentSync, resolveInstructionsPath } from '../instructions'
 import { getSkillFrontmatterTranslationIssue } from '../skill-translation-registry'
@@ -1261,13 +1266,17 @@ function lintRuntimeReadiness(config: PluginConfig, issues: LintIssue[]): void {
 // ── Cursor-specific hook + frontmatter checks (fixes failing test) ──
 function lintCursorHooks(config: PluginConfig, issues: LintIssue[]): void {
   if (!config.targets.includes('cursor') || !config.hooks) return
+  const supportedCursorEvents = getSupportedHookEvents('cursor')
+  const unsupportedCursorEventReason = getUnsupportedHookEventReason('cursor')
 
   for (const [hookEvent, hookEntries] of Object.entries(config.hooks)) {
-    if (!(CURSOR_SUPPORTED_HOOK_EVENTS as readonly string[]).includes(hookEvent)) {
+    if (!isHookEventSupported('cursor', hookEvent)) {
       pushIssue(issues, {
         level: 'warning',
         code: 'cursor-hook-event-unknown',
-        message: `Cursor does not support hook event "${hookEvent}". Supported: ${CURSOR_SUPPORTED_HOOK_EVENTS.join(', ')}`,
+        message: unsupportedCursorEventReason
+          ? `Cursor does not support hook event "${hookEvent}". ${unsupportedCursorEventReason}`
+          : `Cursor does not support hook event "${hookEvent}". Supported: ${supportedCursorEvents.join(', ')}`,
         file: 'pluxx.config.ts',
         platform: 'Cursor',
       })
@@ -1278,11 +1287,13 @@ function lintCursorHooks(config: PluginConfig, issues: LintIssue[]): void {
       if (!entry || typeof entry !== 'object') continue
       const rec = entry as Record<string, unknown>
 
-      if (rec.type && rec.type !== 'command' && rec.type !== 'prompt') {
+      if (typeof rec.type === 'string' && !isHookTypeSupported('cursor', rec.type as 'command' | 'http' | 'mcp_tool' | 'prompt' | 'agent')) {
+        const issue = getHookTypeTranslationIssue('cursor', rec.type as 'http' | 'mcp_tool' | 'prompt' | 'agent')
         pushIssue(issues, {
           level: 'warning',
-          code: 'cursor-hook-type-unsupported',
-          message: `Cursor does not document hook type "${String(rec.type)}". Pluxx currently preserves only command and prompt hooks on the Cursor hook surface.`,
+          code: issue?.code ?? 'cursor-hook-type-unsupported',
+          message: issue?.message
+            ?? `Cursor does not document hook type "${String(rec.type)}". Pluxx currently preserves only command and prompt hooks on the Cursor hook surface.`,
           file: 'pluxx.config.ts',
           platform: 'Cursor',
         })
@@ -1451,13 +1462,43 @@ function lintHookFieldTranslations(config: PluginConfig, issues: LintIssue[]): v
   }
 }
 
+function lintHookTypeTranslations(config: PluginConfig, issues: LintIssue[]): void {
+  if (!config.hooks) return
+
+  const seen = new Set<string>()
+
+  for (const entries of Object.values(config.hooks)) {
+    for (const entry of entries ?? []) {
+      if (!entry.type || entry.type === 'command') continue
+
+      for (const target of ['codex', 'opencode'] as const) {
+        if (!config.targets.includes(target) || isHookTypeSupported(target, entry.type)) continue
+
+        const key = `${target}:${entry.type}`
+        if (seen.has(key)) continue
+        seen.add(key)
+
+        const issue = getHookTypeTranslationIssue(target, entry.type)
+        if (!issue) continue
+
+        pushIssue(issues, {
+          level: 'warning',
+          file: 'pluxx.config.ts',
+          platform: target,
+          ...issue,
+        })
+      }
+    }
+  }
+}
+
 function lintCodexCommandGuidance(config: PluginConfig, issues: LintIssue[]): void {
   if (!config.targets.includes('codex') || !config.commands) return
 
   pushIssue(issues, {
     level: 'warning',
     code: 'codex-commands-routing-guidance',
-    message: 'Codex does not currently document plugin-packaged slash-command parity. Pluxx will degrade commands into skills plus AGENTS.md and `.codex/commands.generated.json` routing guidance.',
+    message: `${getCodexCommandGuidanceNote()} Pluxx will degrade commands into skills plus those routing surfaces today.`,
     file: 'pluxx.config.ts',
     platform: 'codex',
   })
@@ -1717,6 +1758,7 @@ export async function lintProject(
   lintPermissions(lintConfig, issues)
   lintPrimitiveTranslations(lintConfig, issues)
   lintHookFieldTranslations(lintConfig, issues)
+  lintHookTypeTranslations(lintConfig, issues)
   lintCodexCommandGuidance(lintConfig, issues)
 
   // Cursor-specific checks

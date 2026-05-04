@@ -667,6 +667,7 @@ interface ParsedCodexAgent {
   description?: string
   model?: string
   effort?: string
+  sandboxMode?: string
   developerInstructions?: string
 }
 
@@ -686,6 +687,7 @@ function parseCodexAgentToml(content: string): ParsedCodexAgent {
     description: readTomlScalarValue(content, 'description'),
     model: readTomlScalarValue(content, 'model'),
     effort: readTomlScalarValue(content, 'model_reasoning_effort'),
+    sandboxMode: readTomlScalarValue(content, 'sandbox_mode'),
     developerInstructions: readTomlMultilineValue(content, 'developer_instructions'),
   }
 }
@@ -707,6 +709,7 @@ function renderMigratedAgentMarkdown(fileStem: string, parsed: ParsedCodexAgent)
     ...(parsed.description ? [`description: ${JSON.stringify(parsed.description)}`] : []),
     ...(parsed.model ? [`model: ${JSON.stringify(parsed.model)}`] : []),
     ...(parsed.effort ? [`model_reasoning_effort: ${JSON.stringify(parsed.effort)}`] : []),
+    ...(parsed.sandboxMode ? [`sandbox_mode: ${JSON.stringify(parsed.sandboxMode)}`] : []),
     '---',
     '',
     `# ${title}`,

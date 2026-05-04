@@ -12,10 +12,16 @@ import {
 } from '../../runtime-readiness-registry'
 import { getCanonicalAgentMetadata, readCanonicalAgentFiles } from '../../agents'
 import { getCanonicalCommandMetadata, readCanonicalCommandFiles } from '../../commands'
-import { buildCodexCommandRoutingEntry } from '../../command-translation-registry'
+import { buildCodexCommandRoutingEntry, getCodexCommandGuidanceNote } from '../../command-translation-registry'
 import { buildDelegationBehaviorNotes } from '../../delegation'
 import { mapHookEventToPascalCase } from '../../hook-events'
-import { getSupportedHookEvents, getUnsupportedHookEventReason, isHookEventSupported } from '../../hook-translation-registry'
+import {
+  getHookTypeTranslationIssue,
+  getSupportedHookEvents,
+  getUnsupportedHookEventReason,
+  isHookEventSupported,
+  isHookTypeSupported,
+} from '../../hook-translation-registry'
 import { buildHookCommandWrapperScript } from '../../hook-command-env'
 
 export class CodexGenerator extends Generator {
@@ -259,7 +265,19 @@ export class CodexGenerator extends Generator {
       const codexEvent = mapHookEventToPascalCase(event)
       const mappedEntries: Array<Record<string, unknown>> = []
       for (const entry of entries) {
-        if (entry.type === 'prompt' || !entry.command) continue
+        const entryType = entry.type ?? 'command'
+        if (!isHookTypeSupported('codex', entryType)) {
+          const issue = entryType === 'command' ? null : getHookTypeTranslationIssue('codex', entryType)
+          unsupported.push({
+            canonicalEvent: event,
+            codexEvent,
+            type: entryType,
+            reason: issue?.message ?? `Codex currently bundles only command-hook entries from Pluxx. ${entryType} hooks will be dropped from the generated Codex bundle.`,
+          })
+          continue
+        }
+
+        if (!entry.command) continue
 
         nextWrapperIndex += 1
         const relativePath = `hooks/pluxx-hook-command-${nextWrapperIndex}.sh`
@@ -355,7 +373,7 @@ export class CodexGenerator extends Generator {
     await this.writeJson('.codex/commands.generated.json', {
       model: 'pluxx.commands.v1',
       nativeSurface: 'degraded-to-guidance',
-      note: 'Codex does not currently document plugin-packaged slash commands. Use these canonical command entries as workflow routing guidance alongside AGENTS.md.',
+      note: `${getCodexCommandGuidanceNote()} Use these canonical command entries as workflow routing guidance alongside AGENTS.md.`,
       commands: commands.map((command) => {
         const metadata = getCanonicalCommandMetadata(command)
         return {

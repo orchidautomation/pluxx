@@ -846,6 +846,40 @@ describe('build', () => {
     expect(cursorAgent).toContain('Cursor translation note: only delegate further subtasks when the work clearly benefits from another specialist.')
   })
 
+  it('drops unsupported Cursor hook events from generated hook bundles', async () => {
+    const rootDir = resolve(TEST_DIR, 'cursor-unsupported-hooks')
+    const outDir = resolve(rootDir, 'dist')
+    rmSync(rootDir, { recursive: true, force: true })
+    mkdirSync(resolve(rootDir, 'skills/basic'), { recursive: true })
+    mkdirSync(resolve(rootDir, 'scripts'), { recursive: true })
+    writeFileSync(resolve(rootDir, 'skills/basic/SKILL.md'), '---\nname: basic\ndescription: Basic skill\n---\n\nBasic skill body.\n')
+    writeFileSync(resolve(rootDir, 'scripts/check.sh'), '#!/usr/bin/env bash\nexit 0\n')
+
+    const config: PluginConfig = {
+      name: 'cursor-unsupported-hooks',
+      version: '1.0.0',
+      description: 'Cursor unsupported hook fixture',
+      author: { name: 'Test Author' },
+      skills: './skills/',
+      hooks: {
+        preToolUse: [{ command: '${PLUGIN_ROOT}/scripts/check.sh' }],
+        unknownEvent: [{ command: '${PLUGIN_ROOT}/scripts/check.sh' }],
+      },
+      scripts: './scripts/',
+      targets: ['cursor'],
+      outDir: './dist',
+    }
+
+    await build(config, rootDir)
+
+    const cursorHooks = JSON.parse(
+      readFileSync(resolve(outDir, 'cursor/hooks/hooks.json'), 'utf-8')
+    )
+
+    expect(cursorHooks.hooks.preToolUse?.[0]?.command).toBe('bash ./hooks/pluxx-hook-command-1.sh')
+    expect(cursorHooks.hooks.unknownEvent).toBeUndefined()
+  })
+
   it('compiles a native Codex fixture with interface metadata, bundled hooks, companion guidance, and agent metadata', async () => {
     const codexManifest = JSON.parse(
       readFileSync(resolve(OUT_DIR, 'codex/.codex-plugin/plugin.json'), 'utf-8')
@@ -1158,6 +1192,11 @@ describe('build', () => {
           command: '${PLUGIN_ROOT}/scripts/confirm-mutation.sh',
           loop_limit: 3,
         }],
+        notification: [{
+          type: 'http',
+          url: 'https://example.com/hooks/notify',
+          headers: { Authorization: 'Bearer $HOOK_TOKEN' },
+        }],
       },
       targets: ['claude-code', 'cursor', 'codex', 'opencode'],
       outDir: './hook-translation-dist',
@@ -1204,10 +1243,20 @@ describe('build', () => {
     expect(codexHooks.hooks.PermissionRequest?.[0]?.failClosed).toBe(true)
     expect(codexHooks.hooks.PreToolUse?.[0]?.loop_limit).toBeUndefined()
     expect(codexHooks.hooks.UserPromptSubmit).toBeUndefined()
+    expect(codexHooks.unsupported).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          canonicalEvent: 'notification',
+          codexEvent: 'Notification',
+          type: 'http',
+        }),
+      ]),
+    )
 
     expect(opencodeIndex).toContain('"matcher": "Bash"')
     expect(opencodeIndex).toContain('"failClosed": true')
     expect(opencodeIndex).not.toContain('Confirm before sending the prompt.')
+    expect(opencodeIndex).not.toContain('https://example.com/hooks/notify')
     expect(opencodeIndex).not.toContain('"loop_limit": 3')
   })
 

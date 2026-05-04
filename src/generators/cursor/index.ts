@@ -5,7 +5,12 @@ import { buildGeneratedPermissionHookScript } from '../../permissions'
 import { readInstructionsContent } from '../../instructions'
 import { getCanonicalAgentMetadata, type AgentFrontmatterMap, readCanonicalAgentFiles } from '../../agents'
 import { buildDelegationBehaviorNotes } from '../../delegation'
-import { getHookFieldSupportedEvents } from '../../hook-translation-registry'
+import {
+  getHookFieldSupportedEvents,
+  getSupportedHookEvents,
+  getUnsupportedHookEventReason,
+  isHookEventSupported,
+} from '../../hook-translation-registry'
 import { buildGeneratedReadinessScript, getRuntimeReadinessPlan } from '../../readiness'
 import { getEnabledRuntimeReadinessBindings, getRuntimeReadinessCapability } from '../../runtime-readiness-registry'
 import { buildHookCommandWrapperScript } from '../../hook-command-env'
@@ -113,6 +118,13 @@ export class CursorGenerator extends Generator {
 
     for (const [event, entries] of Object.entries(this.config.hooks)) {
       if (!entries) continue
+      if (!isHookEventSupported('cursor', event)) {
+        console.warn(
+          `[pluxx] cursor generator dropped unsupported hook event "${event}". ${getUnsupportedHookEventReason('cursor') ?? `Supported: ${getSupportedHookEvents('cursor').join(', ')}`}`
+        )
+        continue
+      }
+
       const filteredEntries = entries.filter((entry) => {
         if (
           usesPlatformManagedAuth
