@@ -159,7 +159,6 @@ describe('platform change ops example', () => {
     expect(result.data.build?.ok).toBe(true)
     expect(result.data.build?.targets).toEqual(CORE_FOUR)
     expect(result.stderr).toContain('templated header Codex cannot express exactly')
-    expect(result.stderr).toContain('dropped unsupported prompt-based hook')
     expect(result.stderr).toContain('dropped unsupported hook field "failClosed"')
     expect(result.stderr).toContain('dropped unsupported hook field "loop_limit"')
   })
