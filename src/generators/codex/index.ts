@@ -361,10 +361,16 @@ export class CodexGenerator extends Generator {
           id: metadata.commandId,
           title: metadata.title,
           ...(metadata.description ? { description: metadata.description } : {}),
+          ...(metadata.whenToUse ? { whenToUse: metadata.whenToUse } : {}),
           ...(metadata.argumentHint ? { argumentHint: metadata.argumentHint } : {}),
+          ...(metadata.arguments.length > 0 ? { arguments: metadata.arguments } : {}),
+          ...(metadata.examples.length > 0 ? { examples: metadata.examples } : {}),
+          ...(metadata.skill ? { skill: metadata.skill } : {}),
+          ...(metadata.skills.length > 0 ? { skills: metadata.skills } : {}),
           ...(metadata.agent ? { agent: metadata.agent } : {}),
           ...(typeof metadata.subtask === 'boolean' ? { subtask: metadata.subtask } : {}),
           ...(metadata.model ? { model: metadata.model } : {}),
+          ...(metadata.context ? { context: metadata.context } : {}),
           template: metadata.template,
         }
       }),
@@ -385,7 +391,12 @@ export class CodexGenerator extends Generator {
       '',
       ...commands.map((command) => {
         const metadata = getCanonicalCommandMetadata(command)
-        return `- \`/${metadata.commandId}\` - ${metadata.description ?? metadata.title}${metadata.argumentHint ? ` (arguments: ${metadata.argumentHint})` : ''}`
+        const routingBits = [
+          metadata.argumentHint ? `arguments: ${metadata.argumentHint}` : null,
+          metadata.skill ? `skill: ${metadata.skill}` : null,
+          metadata.agent ? `agent: ${metadata.agent}` : null,
+        ].filter(Boolean)
+        return `- \`/${metadata.commandId}\` - ${metadata.description ?? metadata.title}${routingBits.length > 0 ? ` (${routingBits.join('; ')})` : ''}`
       }),
     ]
 

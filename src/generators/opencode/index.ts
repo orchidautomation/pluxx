@@ -423,10 +423,16 @@ export class OpenCodeGenerator extends Generator {
   private getOpenCodeCommandDefinitions(): Record<string, {
     template: string
     description?: string
+    whenToUse?: string
     argumentHint?: string
+    arguments?: string[]
+    examples?: string[]
+    skill?: string
+    skills?: string[]
     agent?: string
     subtask?: boolean
     model?: string
+    context?: string
   }> {
     if (!this.config.commands) return {}
 
@@ -435,10 +441,16 @@ export class OpenCodeGenerator extends Generator {
     const output: Record<string, {
       template: string
       description?: string
+      whenToUse?: string
       argumentHint?: string
+      arguments?: string[]
+      examples?: string[]
+      skill?: string
+      skills?: string[]
       agent?: string
       subtask?: boolean
       model?: string
+      context?: string
     }> = {}
 
     for (const command of commands) {
@@ -446,10 +458,16 @@ export class OpenCodeGenerator extends Generator {
       output[metadata.commandId] = {
         template: metadata.template,
         ...(metadata.description ? { description: metadata.description } : {}),
+        ...(metadata.whenToUse ? { whenToUse: metadata.whenToUse } : {}),
         ...(metadata.argumentHint ? { argumentHint: metadata.argumentHint } : {}),
+        ...(metadata.arguments.length > 0 ? { arguments: metadata.arguments } : {}),
+        ...(metadata.examples.length > 0 ? { examples: metadata.examples } : {}),
+        ...(metadata.skill ? { skill: metadata.skill } : {}),
+        ...(metadata.skills.length > 0 ? { skills: metadata.skills } : {}),
         ...(metadata.agent ? { agent: metadata.agent } : {}),
         ...(typeof metadata.subtask === 'boolean' ? { subtask: metadata.subtask } : {}),
         ...(metadata.model ? { model: metadata.model } : {}),
+        ...(metadata.context ? { context: metadata.context } : {}),
       }
     }
 

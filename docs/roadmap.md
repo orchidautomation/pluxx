@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-05-01
+Last updated: 2026-05-04
 
 ## Doc Links
 
@@ -120,10 +120,15 @@ The closure plan is now narrower than it was before:
   - literal secret values are not copied into generated project config
 - the next translation follow-ons are now clearer and narrower:
   - finish the deeper hook-registry rollout so generator routing and docs rows read registry-backed truth
-  - continue the new shared `skills` parser into a richer canonical skill spec and translation-aware metadata layer
-  - continue the `commands` IR pass beyond `argument-hint` preservation into richer argument/routing metadata
+  - keep pushing the richer `skills` metadata layer into more generator, proof, and translation-registry consumers
+  - keep pushing the richer `commands` IR into more native host emission and registry-backed explainability
   - reduce lossy import paths in `migrate` and installed-MCP discovery
   - continue the runtime registry rollout now that installed hook env parity also translates across Cursor, Codex, and OpenCode
+- the command/skill authoring seam is materially stronger than it was:
+  - `src/commands.ts` now preserves `when_to_use`, argument arrays, examples, explicit skill routing, agent routing, and context hints
+  - Codex and OpenCode command companions now carry that richer metadata instead of flattening commands back to `argument-hint` plus template only
+  - `src/skills.ts` now exposes canonical support-file metadata for `examples/`, helper `scripts/`, and neighboring references
+  - Agent Mode manual-project context now consumes those richer command and skill seams directly
 - the current execution spec for that compiler-hardening tranche now lives in:
   - [docs/primitive-compiler-hardening-architecture.md](./primitive-compiler-hardening-architecture.md)
 - the sharper initiative TODO for finishing the author-once gap now lives in:

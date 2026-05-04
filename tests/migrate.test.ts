@@ -482,7 +482,7 @@ describe('migrate', () => {
     }
     expect(compilerIntent.skillPolicies).toHaveLength(1)
     expect(compilerIntent.skillPolicies[0]?.skillDir).toBe('prospect-research')
-    expect(compilerIntent.skillPolicies[0]?.title).toBe('prospect-research')
+    expect(compilerIntent.skillPolicies[0]?.title).toBe('Prospect Research')
     expect(compilerIntent.skillPolicies[0]?.sourceFrontmatter).toMatchObject({
       when_to_use: 'Use when outbound needs account context.',
       'argument-hint': '[company]',

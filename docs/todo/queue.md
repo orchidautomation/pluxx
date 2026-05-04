@@ -1,6 +1,6 @@
 # Pluxx Queue
 
-Last updated: 2026-05-01
+Last updated: 2026-05-04
 
 ## Doc Links
 
@@ -183,13 +183,14 @@ Open work:
   - readiness translation is already shared through one registry
   - runtime script-role and installed-runtime enforcement are materially stronger
   - hook translation now has a first shared registry slice for event support and field-preservation truth
-  - commands IR now preserves `argument-hint` through Codex, OpenCode, and Agent Mode instead of dropping it downstream
+  - commands IR now preserves `argument-hint`, `when_to_use`, argument arrays, examples, explicit skill routing, agent routing, and context hints through Codex, OpenCode, and Agent Mode instead of flattening commands back into prose-only guidance
+  - canonical skill metadata now includes adjacent support-file awareness for `examples/`, helper `scripts/`, and neighboring references instead of treating skills as frontmatter plus opaque body only
 - use the Exa example as the next import-quality pressure test:
   - a raw `init --from-mcp`, `autopilot`, or `migrate` run should get closer to the final Exa workflow architecture without depending on as much maintainer hand-shaping
 - close the now-clearer translation follow-ons behind the shipped readiness/runtime work:
   - finish the deeper hook-registry rollout so generator routing and docs rows read registry-backed truth instead of parallel tables
-  - continue the `skills` follow-on from the new shared parser into a richer canonical skill spec instead of a line-oriented reader only
-  - continue the `commands` IR pass beyond `argument-hint` so richer argument/routing metadata stops degrading early
+  - keep pushing the richer `skills` metadata layer into more generator, proof, and translation-registry consumers instead of leaving support-file understanding mostly in Agent Mode and migrate
+  - keep pushing the richer `commands` IR into more native host emission and registry-backed explainability instead of mostly Codex/OpenCode companion and context surfaces
   - reduce lossy import paths in `migrate` and installed-MCP discovery, especially around richer hook fields and auth reconstruction
   - continue the runtime registry rollout now that installed hook env parity also translates across Cursor, Codex, and OpenCode instead of living only in the Claude-specific wrapper path
 

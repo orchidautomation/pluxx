@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { basename, join } from 'path'
 import { getCanonicalAgentMetadata, type AgentFrontmatterMap, readCanonicalAgentFiles } from '../../agents'
 import { buildDelegationBehaviorNotes } from '../../delegation'
+import { getCanonicalCommandMetadata, readCanonicalCommandFiles } from '../../commands'
 import { parseSkillMarkdown, readCanonicalSkillFiles, serializeSkillMarkdown } from '../../skills'
 
 export class ClaudeCodeGenerator extends Generator {
@@ -198,12 +199,9 @@ function collectTopLevelCommandNames(commandsRoot: string): Set<string> {
 
 function collectWrappedSkillNames(commandsRoot: string): Set<string> {
   const wrappedSkills = new Set<string>()
-  for (const entry of readdirSync(commandsRoot, { withFileTypes: true })) {
-    if (!entry.isFile() || !entry.name.toLowerCase().endsWith('.md')) continue
-
-    const content = readFileSync(join(commandsRoot, entry.name), 'utf-8')
-    for (const match of content.matchAll(/Use the `([^`]+)` skill\./g)) {
-      const skillName = match[1]?.trim()
+  for (const command of readCanonicalCommandFiles(commandsRoot)) {
+    const metadata = getCanonicalCommandMetadata(command)
+    for (const skillName of metadata.skills) {
       if (skillName) wrappedSkills.add(skillName)
     }
   }

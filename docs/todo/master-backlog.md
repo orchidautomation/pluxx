@@ -1,6 +1,6 @@
 # Master Backlog
 
-Last updated: 2026-05-01
+Last updated: 2026-05-04
 
 This is the most complete repo-native backlog for Pluxx.
 
@@ -93,8 +93,8 @@ Any person or agent should be able to enter the repo and answer:
   - shared translation registry rollout
   - runtime/distribution internal seam hardening
   - first hook-registry slice is now in place for event support and field-preservation truth
-  - first commands IR follow-on is now in place for `argument-hint` preservation
-  - first shared skill-parser slice is now in place through `src/skills.ts`
+  - commands IR now preserves `argument-hint`, `when_to_use`, argument arrays, examples, explicit skill routing, agent routing, and context hints through Codex, OpenCode, and Agent Mode
+  - the shared `src/skills.ts` seam now also emits canonical support-file metadata for `examples/`, helper `scripts/`, and neighboring references
 - [~] Use [author-once-hardening.md](./author-once-hardening.md) as the initiative-level TODO for closing the remaining gap between:
   - the author-once vision
   - the currently shipped compiler, proof, and onboarding reality
@@ -152,8 +152,8 @@ Any person or agent should be able to enter the repo and answer:
   - future host-drift refreshes
 - [ ] Consolidate the remaining translation papercuts that the readiness work made more obvious:
   - finish the deeper hook-registry rollout so generator routing and docs rows read registry-backed truth
-  - continue the new shared `skills` parser into a richer canonical skill spec and translation-aware metadata layer
-  - continue the `commands` IR pass beyond `argument-hint` preservation into richer argument/routing metadata
+  - keep pushing the richer `skills` metadata layer into more generator, proof, and translation-registry consumers
+  - keep pushing the richer `commands` IR into more native host emission and registry-backed explainability
   - reduce lossy import paths in `migrate` and installed-MCP discovery
   - continue the runtime registry rollout now that installed hook env parity also translates across Cursor, Codex, and OpenCode
 

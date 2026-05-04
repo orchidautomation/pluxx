@@ -5,8 +5,8 @@ import { relative, resolve } from 'path'
 import { spawn } from 'child_process'
 import { planTextFileAction, readTextFile, writeTextFile } from '../text-files'
 import { loadConfig } from '../config/load'
-import { readCanonicalCommandFiles } from '../commands'
-import { readCanonicalSkillFiles as readCanonicalSkillMarkdownFiles } from '../skills'
+import { getCanonicalCommandMetadata, readCanonicalCommandFiles } from '../commands'
+import { getCanonicalSkillMetadata, readCanonicalSkillFiles as readCanonicalSkillMarkdownFiles } from '../skills'
 import { lintProject, type LintResult } from './lint'
 import { runTestSuite, type TestRunResult } from './test'
 import {
@@ -245,6 +245,7 @@ interface AgentProjectSkill {
   description?: string
   toolNames: string[]
   path: string
+  supportPaths?: string[]
   resourceUris?: string[]
   resourceTemplateUris?: string[]
   promptNames?: string[]
@@ -254,7 +255,13 @@ interface AgentProjectCommand {
   path: string
   title: string
   description?: string
+  whenToUse?: string
   argumentHint?: string
+  arguments?: string[]
+  examples?: string[]
+  skill?: string
+  skills?: string[]
+  agent?: string
 }
 
 interface AgentProjectModel {
@@ -664,12 +671,21 @@ function loadManualAgentProjectModel(rootDir: string, config: PluginConfig): Age
   const skillsDir = config.skills ? resolve(rootDir, config.skills) : undefined
   const commandsDir = config.commands ? resolve(rootDir, config.commands) : undefined
   const skills = readCanonicalSkillFiles(rootDir, skillsDir)
-  const commands = readCanonicalCommandFiles(commandsDir).map((command) => ({
-    path: normalizeRelativePath(relative(rootDir, command.filePath)),
-    title: command.title,
-    description: command.description,
-    argumentHint: command.argumentHint,
-  }))
+  const commands = readCanonicalCommandFiles(commandsDir).map((command) => {
+    const metadata = getCanonicalCommandMetadata(command)
+    return {
+      path: normalizeRelativePath(relative(rootDir, command.filePath)),
+      title: metadata.title,
+      description: metadata.description,
+      whenToUse: metadata.whenToUse,
+      argumentHint: metadata.argumentHint,
+      ...(metadata.arguments.length > 0 ? { arguments: metadata.arguments } : {}),
+      ...(metadata.examples.length > 0 ? { examples: metadata.examples } : {}),
+      ...(metadata.skill ? { skill: metadata.skill } : {}),
+      ...(metadata.skills.length > 0 ? { skills: metadata.skills } : {}),
+      ...(metadata.agent ? { agent: metadata.agent } : {}),
+    }
+  })
 
   return {
     sourceKind: 'manual',
@@ -753,6 +769,9 @@ function buildAgentContext(
     if (skill.description) {
       lines.push(`- Description: ${skill.description}`)
     }
+    if ((skill.supportPaths?.length ?? 0) > 0) {
+      lines.push(`- Related files: ${skill.supportPaths?.map((path) => `\`${path}\``).join(', ')}`)
+    }
     if (relatedResourceLabels.length > 0) {
       lines.push(`- Related resources: ${relatedResourceLabels.join(', ')}`)
     }
@@ -766,7 +785,18 @@ function buildAgentContext(
     lines.push('## Commands')
     lines.push('')
     for (const command of project.commands) {
-      lines.push(`- \`${command.path}\`: ${command.description ?? command.title}${command.argumentHint ? ` (arguments: ${command.argumentHint})` : ''}`)
+      const details = [
+        command.argumentHint ? `arguments: ${command.argumentHint}` : null,
+        command.skill ? `skill: ${command.skill}` : null,
+        command.agent ? `agent: ${command.agent}` : null,
+      ].filter(Boolean)
+      lines.push(`- \`${command.path}\`: ${command.description ?? command.title}${details.length > 0 ? ` (${details.join('; ')})` : ''}`)
+      if (command.whenToUse) {
+        lines.push(`  - When to use: ${command.whenToUse}`)
+      }
+      if ((command.examples?.length ?? 0) > 0) {
+        lines.push(`  - Examples: ${command.examples?.map((example) => `\`${example}\``).join(', ')}`)
+      }
     }
     lines.push('')
   }
@@ -2661,13 +2691,17 @@ function normalizeRelativePath(path: string): string {
 }
 
 function readCanonicalSkillFiles(rootDir: string, skillsDir: string | undefined): AgentProjectSkill[] {
-  return readCanonicalSkillMarkdownFiles(skillsDir).map((skill) => ({
-    dirName: normalizeRelativePath(skill.dirName),
-    title: skill.firstHeading ?? skill.name ?? skill.dirName,
-    description: skill.description,
-    toolNames: [],
-    path: normalizeRelativePath(relative(rootDir, skill.filePath)),
-  }))
+  return readCanonicalSkillMarkdownFiles(skillsDir).map((skill) => {
+    const metadata = getCanonicalSkillMetadata(skill)
+    return {
+      dirName: normalizeRelativePath(skill.dirName),
+      title: metadata.title,
+      description: metadata.description,
+      toolNames: [],
+      path: normalizeRelativePath(relative(rootDir, skill.filePath)),
+      ...(metadata.supportPaths.length > 0 ? { supportPaths: metadata.supportPaths } : {}),
+    }
+  })
 }
 
 function summarizeDiscoveryDescription(description: string | undefined, trailing?: string): string {

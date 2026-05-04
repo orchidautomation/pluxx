@@ -1,5 +1,13 @@
-import { describe, expect, it } from 'bun:test'
-import { parseSkillMarkdown } from '../src/skills'
+import { afterEach, describe, expect, it } from 'bun:test'
+import { mkdirSync, rmSync, writeFileSync } from 'fs'
+import { resolve } from 'path'
+import { getCanonicalSkillMetadata, parseSkillMarkdown, readCanonicalSkillFiles } from '../src/skills'
+
+const TEST_DIR = resolve(import.meta.dir, '.skills-metadata')
+
+afterEach(() => {
+  rmSync(TEST_DIR, { recursive: true, force: true })
+})
 
 describe('skills parser', () => {
   it('parses scalar frontmatter, allowed-tools, and first heading from skill markdown', () => {
@@ -73,5 +81,37 @@ describe('skills parser', () => {
     expect(parsed.hooks).toEqual({ sessionStart: [{ type: 'command', command: 'bash scripts/assist.sh' }] })
     expect(parsed.paths).toEqual(['src/**', 'docs/**'])
     expect(parsed.shell).toBe('bash')
+  })
+
+  it('collects related files and helper scripts into canonical skill metadata', () => {
+    mkdirSync(resolve(TEST_DIR, 'deep-research/examples'), { recursive: true })
+    mkdirSync(resolve(TEST_DIR, 'deep-research/scripts'), { recursive: true })
+    writeFileSync(
+      resolve(TEST_DIR, 'deep-research/SKILL.md'),
+      [
+        '---',
+        'name: deep-research',
+        'description: Investigate a company carefully.',
+        '---',
+        '',
+        '# Deep Research',
+      ].join('\n'),
+    )
+    writeFileSync(resolve(TEST_DIR, 'deep-research/reference.md'), '# Reference\n')
+    writeFileSync(resolve(TEST_DIR, 'deep-research/examples/sample.md'), '# Example\n')
+    writeFileSync(resolve(TEST_DIR, 'deep-research/scripts/assist.sh'), '#!/usr/bin/env bash\n')
+
+    const skill = readCanonicalSkillFiles(TEST_DIR)[0]
+    const metadata = getCanonicalSkillMetadata(skill)
+
+    expect(metadata.title).toBe('Deep Research')
+    expect(metadata.supportPaths).toEqual([
+      'examples/sample.md',
+      'reference.md',
+      'scripts/assist.sh',
+    ])
+    expect(metadata.examplePaths).toEqual(['examples/sample.md'])
+    expect(metadata.helperScripts).toEqual(['scripts/assist.sh'])
+    expect(metadata.referencePaths).toEqual(['reference.md'])
   })
 })

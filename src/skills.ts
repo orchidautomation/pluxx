@@ -37,6 +37,30 @@ export interface ParsedSkillMarkdownFile extends ParsedSkillMarkdown {
   dirName: string
 }
 
+export interface CanonicalSkillMetadata {
+  dirName: string
+  title: string
+  description?: string
+  whenToUse?: string
+  argumentHint?: string
+  arguments: string[]
+  disableModelInvocation?: boolean
+  userInvocable?: boolean
+  allowedTools: string[]
+  model?: string
+  effort?: string
+  context?: string
+  agent?: string
+  hooks?: unknown
+  paths: string[]
+  shell?: string
+  body: string
+  supportPaths: string[]
+  helperScripts: string[]
+  examplePaths: string[]
+  referencePaths: string[]
+}
+
 function unquote(value: string): { value: string; quoted: boolean } {
   const trimmed = value.trim()
   if (trimmed.length >= 2) {
@@ -268,4 +292,54 @@ export function readCanonicalSkillFiles(skillsDir: string | undefined): ParsedSk
 
 export function serializeSkillMarkdown(frontmatterLines: string[], body: string): string {
   return ['---', ...frontmatterLines, '---', body ? `\n${body.replace(/^\n/, '')}` : ''].join('\n')
+}
+
+function walkSupportFiles(dir: string): string[] {
+  const entries = readdirSync(dir, { withFileTypes: true })
+  const files: string[] = []
+
+  for (const entry of entries) {
+    const fullPath = resolve(dir, entry.name)
+    if (entry.isDirectory()) {
+      files.push(...walkSupportFiles(fullPath))
+      continue
+    }
+    if (entry.isFile()) {
+      files.push(fullPath)
+    }
+  }
+
+  return files
+}
+
+export function getCanonicalSkillMetadata(skill: ParsedSkillMarkdownFile): CanonicalSkillMetadata {
+  const skillDir = resolve(skill.filePath, '..')
+  const supportPaths = walkSupportFiles(skillDir)
+    .filter((fullPath) => fullPath !== skill.filePath)
+    .map((fullPath) => relative(skillDir, fullPath).replace(/\\/g, '/'))
+    .sort((a, b) => a.localeCompare(b))
+
+  return {
+    dirName: skill.dirName,
+    title: skill.firstHeading ?? skill.name ?? skill.dirName,
+    ...(skill.description ? { description: skill.description } : {}),
+    ...(skill.whenToUse ? { whenToUse: skill.whenToUse } : {}),
+    ...(skill.argumentHint ? { argumentHint: skill.argumentHint } : {}),
+    arguments: [...skill.arguments],
+    ...(typeof skill.disableModelInvocation === 'boolean' ? { disableModelInvocation: skill.disableModelInvocation } : {}),
+    ...(typeof skill.userInvocable === 'boolean' ? { userInvocable: skill.userInvocable } : {}),
+    allowedTools: [...skill.allowedTools],
+    ...(skill.model ? { model: skill.model } : {}),
+    ...(skill.effort ? { effort: skill.effort } : {}),
+    ...(skill.context ? { context: skill.context } : {}),
+    ...(skill.agent ? { agent: skill.agent } : {}),
+    ...(skill.hooks !== undefined ? { hooks: skill.hooks } : {}),
+    paths: [...skill.paths],
+    ...(skill.shell ? { shell: skill.shell } : {}),
+    body: skill.body,
+    supportPaths,
+    helperScripts: supportPaths.filter((path) => path.startsWith('scripts/')),
+    examplePaths: supportPaths.filter((path) => path.startsWith('examples/')),
+    referencePaths: supportPaths.filter((path) => !path.startsWith('examples/') && !path.startsWith('scripts/')),
+  }
 }

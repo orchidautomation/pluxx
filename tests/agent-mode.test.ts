@@ -124,7 +124,8 @@ afterEach(() => {
 })
 
 function writeManualPluginFixture(rootDir: string): void {
-  mkdirSync(resolve(rootDir, 'skills/manual-review'), { recursive: true })
+  mkdirSync(resolve(rootDir, 'skills/manual-review/examples'), { recursive: true })
+  mkdirSync(resolve(rootDir, 'skills/manual-review/scripts'), { recursive: true })
   mkdirSync(resolve(rootDir, 'commands'), { recursive: true })
 
   writeFileSync(
@@ -170,12 +171,20 @@ function writeManualPluginFixture(rootDir: string): void {
       'Use this skill to review the plugin before shipping.',
     ].join('\n'),
   )
+  writeFileSync(resolve(rootDir, 'skills/manual-review/examples/sample.md'), '# Sample\n')
+  writeFileSync(resolve(rootDir, 'skills/manual-review/scripts/check.sh'), '#!/usr/bin/env bash\n')
 
   writeFileSync(
     resolve(rootDir, 'commands/review.md'),
     [
       '---',
       'description: Review the plugin listing surface.',
+      'when_to_use: Use when the maintainer wants a findings-first release readout.',
+      'argument-hint: [focus optional]',
+      'examples:',
+      '  - /review marketplace copy',
+      'skill: manual-review',
+      'agent: reviewer',
       '---',
       '',
       '# Review',
@@ -241,6 +250,19 @@ describe('agent mode', () => {
     expect(planFile.files.editable.some((file) => file.path === 'INSTRUCTIONS.md')).toBe(true)
     expect(planFile.files.protected).toContain('dist/')
     expect(planFile.successCriteria.length).toBeGreaterThan(0)
+  })
+
+  it('includes richer manual skill and command metadata in manual-project agent context', async () => {
+    const plan = await planAgentPrepare(MANUAL_DIR)
+    await applyAgentPreparePlan(MANUAL_DIR, plan)
+
+    const context = readFileSync(resolve(MANUAL_DIR, AGENT_CONTEXT_PATH), 'utf-8')
+
+    expect(context).toContain('### `manual-review`')
+    expect(context).toContain('- Related files: `examples/sample.md`, `scripts/check.sh`')
+    expect(context).toContain('`commands/review.md`: Review the plugin listing surface. (arguments: [focus optional]; skill: manual-review; agent: reviewer)')
+    expect(context).toContain('When to use: Use when the maintainer wants a findings-first release readout.')
+    expect(context).toContain('Examples: `/review marketplace copy`')
   })
 
   it('supports CLI dry-run and JSON output without writing files', async () => {

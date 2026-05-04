@@ -12,7 +12,7 @@ import {
   type CompilerIntentFile,
   type CompilerIntentSkillPolicy,
 } from '../compiler-intent'
-import { parseSkillMarkdown, readCanonicalSkillFiles, serializeSkillMarkdown } from '../skills'
+import { getCanonicalSkillMetadata, parseSkillMarkdown, readCanonicalSkillFiles, serializeSkillMarkdown } from '../skills'
 import { writeTextFile } from '../text-files'
 
 type DetectedPlatform = 'claude-code' | 'cursor' | 'codex' | 'opencode'
@@ -474,7 +474,12 @@ function inferPermissionsFromMigratedSkills(pluginDir: string, sourcePaths: Cano
     const skillPath = resolve(skillsDir, entry.name, 'SKILL.md')
     if (!existsSync(skillPath)) continue
 
-    const skill = parseSkillMarkdown(readFileSync(skillPath, 'utf-8'))
+    const skill = getCanonicalSkillMetadata({
+      filePath: skillPath,
+      relativeDir: entry.name,
+      dirName: entry.name,
+      ...parseSkillMarkdown(readFileSync(skillPath, 'utf-8')),
+    })
     const inferredRules = skill.allowedTools
       .map(normalizeMigratedAllowedTool)
       .filter((rule): rule is string => Boolean(rule))
@@ -501,9 +506,7 @@ function inferPermissionsFromMigratedSkills(pluginDir: string, sourcePaths: Cano
 
     skillPolicies.push({
       skillDir: entry.name,
-      title: skill.name
-        ?? skill.firstHeading
-        ?? titleCaseFromDirName(entry.name),
+      title: skill.title,
       description: skill.description,
       ...(Object.keys(sourceFrontmatter).length > 0 ? { sourceFrontmatter } : {}),
       source: {
@@ -539,10 +542,11 @@ function readMigratedSkills(pluginDir: string, sourcePaths: CanonicalSourcePaths
   if (sourcePaths.skills) {
     const skillsDir = resolve(pluginDir, stripRelativePrefix(sourcePaths.skills))
     for (const skill of readCanonicalSkillFiles(skillsDir)) {
+      const metadata = getCanonicalSkillMetadata(skill)
       skills.push({
         dirName: skill.dirName,
-        title: skill.name ?? skill.firstHeading ?? titleCaseFromDirName(skill.dirName),
-        description: skill.description,
+        title: metadata.title,
+        description: metadata.description,
         toolNames: [],
       })
     }

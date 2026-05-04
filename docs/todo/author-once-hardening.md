@@ -1,6 +1,6 @@
 # Author-Once Hardening
 
-Last updated: 2026-05-03
+Last updated: 2026-05-04
 
 ## Doc Links
 
@@ -84,7 +84,8 @@ Goal:
 TODO:
 
 - deepen `skills` from a shared parser into a richer canonical skill spec
-- deepen `commands` beyond `argument-hint` into argument shape, examples, routing, and workflow relationships
+- keep pushing the richer shared `skills` metadata layer into more generator, proof, and translation-registry consumers
+- keep pushing `commands` beyond `argument-hint` into stronger native host emission and registry-backed explainability now that argument shape, examples, routing, and workflow relationships survive the canonical parser
 - finish the deeper hook registry rollout so event truth, field preservation, and degradation rules are not duplicated
 - keep `agents` centered on canonical delegation intent, tuning hints, isolation posture, and permission intent
 - continue splitting `runtime` internally into MCP/auth, readiness, and payload support
@@ -246,15 +247,15 @@ Acceptance criteria:
 
 ### Skills
 
-- evolve `src/skills.ts` into a richer canonical skill model
+- keep evolving `src/skills.ts` as the richer canonical skill model
 - preserve identity, invocation hints, related files, scripts, context, agent ties, and richer supporting metadata
 - reduce line-oriented markdown assumptions where hosts expose more structure
 - make build, lint, migrate, and proof consume the same skill truth
 
 ### Commands
 
-- model arguments, examples, routing, command-to-skill relationships, and command-to-agent relationships more explicitly
-- improve Codex and OpenCode native command emission from that richer model
+- keep the richer argument, example, routing, command-to-skill, and command-to-agent model authoritative
+- improve native host emission and explainability from that richer model
 - keep degraded command companions honest where a host lacks a native analog
 - prove argument-bearing commands across the core four
 

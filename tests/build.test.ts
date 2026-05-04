@@ -157,9 +157,16 @@ beforeAll(async () => {
     [
       '---',
       'description: Run the deep research wrapper',
+      'when_to_use: Use when the user wants a routed investigation entrypoint.',
       'argument-hint: [company] [region]',
+      'arguments: [company, region]',
+      'examples:',
+      '  - /research acme us',
+      '  - /research acme eu',
+      'skill: deep-research',
       'agent: escalation',
       'subtask: true',
+      'context: fork',
       '---',
       '',
       'Use the `deep-research` skill.',
@@ -911,8 +918,15 @@ describe('build', () => {
     expect(opencodeSkill).toContain('`@escalation`')
     expect(commandDefinitions.research).toMatchObject({
       description: 'Run the deep research wrapper',
+      whenToUse: 'Use when the user wants a routed investigation entrypoint.',
+      argumentHint: '[company] [region]',
+      arguments: ['company', 'region'],
+      examples: ['/research acme us', '/research acme eu'],
+      skill: 'deep-research',
+      skills: ['deep-research'],
       agent: 'escalation',
       subtask: true,
+      context: 'fork',
     })
     expect(agentDefinitions['legacy-review']).toEqual({
       description: 'Legacy review agent.',
@@ -1440,17 +1454,33 @@ describe('build', () => {
       readFileSync(resolve(OUT_DIR, 'codex/.codex/commands.generated.json'), 'utf-8')
     ) as {
       model: string
-      commands: Array<{ id: string; title: string; argumentHint?: string; agent?: string; subtask?: boolean }>
+      commands: Array<{
+        id: string
+        title: string
+        argumentHint?: string
+        arguments?: string[]
+        examples?: string[]
+        skill?: string
+        agent?: string
+        subtask?: boolean
+        whenToUse?: string
+        context?: string
+      }>
     }
 
     expect(codexAgentsMd).toContain('## Command Routing')
     expect(codexAgentsMd).toContain('`/pulse`')
-    expect(codexAgentsMd).toContain('(arguments: [company] [region])')
+    expect(codexAgentsMd).toContain('(arguments: [company] [region]; skill: deep-research; agent: escalation)')
     expect(codexCommands.model).toBe('pluxx.commands.v1')
     expect(codexCommands.commands[0]?.id).toBe('pulse')
     expect(codexCommands.commands.find((command) => command.id === 'research')?.argumentHint).toBe('[company] [region]')
+    expect(codexCommands.commands.find((command) => command.id === 'research')?.arguments).toEqual(['company', 'region'])
+    expect(codexCommands.commands.find((command) => command.id === 'research')?.examples).toEqual(['/research acme us', '/research acme eu'])
+    expect(codexCommands.commands.find((command) => command.id === 'research')?.skill).toBe('deep-research')
     expect(codexCommands.commands.find((command) => command.id === 'research')?.agent).toBe('escalation')
     expect(codexCommands.commands.find((command) => command.id === 'research')?.subtask).toBe(true)
+    expect(codexCommands.commands.find((command) => command.id === 'research')?.whenToUse).toBe('Use when the user wants a routed investigation entrypoint.')
+    expect(codexCommands.commands.find((command) => command.id === 'research')?.context).toBe('fork')
   })
 
   it('preserves Linear-style preToolUse matchers in Claude Code and Cursor outputs', async () => {

@@ -1,6 +1,6 @@
 # Primitive Compiler Hardening Architecture
 
-Last updated: 2026-05-01
+Last updated: 2026-05-04
 
 ## Doc Links
 
@@ -94,9 +94,10 @@ Compiler consumers:
 
 Current state:
 
-- the first shared skill-parser slice now exists in `src/skills.ts`
-- lint, Agent Mode, migrate, and Claude skill rewrites now read the same line-oriented `SKILL.md` parser instead of each carrying their own splitter and scalar readers
-- the next follow-on is a richer canonical skill spec, not another parser copy
+- the shared skill-parser slice now exists in `src/skills.ts`
+- lint, Agent Mode, migrate, and Claude skill rewrites now read the same `SKILL.md` parser instead of each carrying their own splitter and scalar readers
+- canonical skill metadata now also carries adjacent support-file awareness for `examples/`, helper `scripts/`, and neighboring references
+- the next follow-on is pushing that richer skill metadata into more generator, proof, and registry consumers, not adding another parser copy
 
 ### Commands
 
@@ -118,6 +119,13 @@ Compiler consumers:
 - Codex degradation/companion output
 - migrate
 - lint/build summaries
+
+Current state:
+
+- the shared command seam now preserves `when_to_use`, argument arrays, examples, explicit skill routing, agent routing, and context hints in addition to `argument-hint`
+- Codex and OpenCode command companions now carry that richer metadata instead of flattening commands back into template-only guidance
+- Agent Mode manual-project context now reads the same command-routing metadata the generators consume
+- the next follow-on is stronger native host emission and registry-backed explainability, not another ad hoc command parser
 
 ### Agents
 
