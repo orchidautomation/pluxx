@@ -2,7 +2,7 @@ import { existsSync } from 'fs'
 import { Generator } from '../base'
 import type { TargetPlatform } from '../../schema'
 import { buildGeneratedPermissionHookScript } from '../../permissions'
-import { type AgentFrontmatterMap, readCanonicalAgentFiles } from '../../agents'
+import { getCanonicalAgentMetadata, type AgentFrontmatterMap, readCanonicalAgentFiles } from '../../agents'
 import { buildDelegationBehaviorNotes } from '../../delegation'
 import { getHookFieldSupportedEvents } from '../../hook-translation-registry'
 import { buildGeneratedReadinessScript, getRuntimeReadinessPlan } from '../../readiness'
@@ -200,14 +200,15 @@ export class CursorGenerator extends Generator {
     if (agents.length === 0) return
 
     for (const agent of agents) {
+      const metadata = getCanonicalAgentMetadata(agent)
       const frontmatter = [
         '---',
-        `name: ${JSON.stringify(agent.name)}`,
-        `description: ${JSON.stringify(agent.description ?? `${agent.name} specialist.`)}`,
+        `name: ${JSON.stringify(metadata.name)}`,
+        `description: ${JSON.stringify(metadata.description)}`,
       ]
 
-      if (typeof agent.frontmatter.model === 'string' && agent.frontmatter.model) {
-        frontmatter.push(`model: ${JSON.stringify(agent.frontmatter.model)}`)
+      if (metadata.model) {
+        frontmatter.push(`model: ${JSON.stringify(metadata.model)}`)
       }
 
       frontmatter.push('---')

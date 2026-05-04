@@ -5,7 +5,7 @@ import type { HookEntry, TargetPlatform } from '../../schema'
 import { buildOpenCodePermissionMap } from '../../permissions'
 import { buildGeneratedReadinessScript, getRuntimeReadinessPlan } from '../../readiness'
 import { getRuntimeReadinessCapability } from '../../runtime-readiness-registry'
-import { type AgentFrontmatterMap, type AgentFrontmatterValue, readCanonicalAgentFiles } from '../../agents'
+import { getCanonicalAgentMetadata, type AgentFrontmatterMap, type AgentFrontmatterValue, readCanonicalAgentFiles } from '../../agents'
 import { readCanonicalCommandFiles } from '../../commands'
 
 type GeneratedHook = {
@@ -452,43 +452,38 @@ export class OpenCodeGenerator extends Generator {
     const output: Record<string, Record<string, unknown>> = {}
 
     for (const agent of agents) {
+      const metadata = getCanonicalAgentMetadata(agent)
       const definition: Record<string, unknown> = {
-        description: agent.description ?? `${agent.name} specialist.`,
+        description: metadata.description,
       }
 
-      if (agent.body) {
-        definition.prompt = agent.body
+      if (metadata.body) {
+        definition.prompt = metadata.body
       }
 
-      if (typeof agent.frontmatter.mode === 'string' && agent.frontmatter.mode) {
-        definition.mode = agent.frontmatter.mode
+      if (metadata.mode) {
+        definition.mode = metadata.mode
       }
-      if (typeof agent.frontmatter.model === 'string' && agent.frontmatter.model) {
-        definition.model = agent.frontmatter.model
+      if (metadata.model) {
+        definition.model = metadata.model
       }
-      if (typeof agent.frontmatter.temperature === 'number') {
-        definition.temperature = agent.frontmatter.temperature
+      if (typeof metadata.temperature === 'number') {
+        definition.temperature = metadata.temperature
       }
-      if (typeof agent.frontmatter.steps === 'number') {
-        definition.steps = agent.frontmatter.steps
+      if (typeof metadata.steps === 'number') {
+        definition.steps = metadata.steps
       }
-      if (typeof agent.frontmatter.maxSteps === 'number' && definition.steps === undefined) {
-        definition.steps = agent.frontmatter.maxSteps
+      if (typeof metadata.disabled === 'boolean') {
+        definition.disable = metadata.disabled
       }
-      if (typeof agent.frontmatter.disable === 'boolean') {
-        definition.disable = agent.frontmatter.disable
+      if (metadata.hidden) {
+        definition.hidden = metadata.hidden
       }
-      if (typeof agent.frontmatter.hidden === 'boolean') {
-        definition.hidden = agent.frontmatter.hidden
+      if (metadata.color) {
+        definition.color = metadata.color
       }
-      if (typeof agent.frontmatter.color === 'string' && agent.frontmatter.color) {
-        definition.color = agent.frontmatter.color
-      }
-      if (typeof agent.frontmatter.topP === 'number') {
-        definition.topP = agent.frontmatter.topP
-      }
-      if (typeof agent.frontmatter.top_p === 'number' && definition.topP === undefined) {
-        definition.topP = agent.frontmatter.top_p
+      if (typeof metadata.topP === 'number') {
+        definition.topP = metadata.topP
       }
       const legacyToolTranslation = translateLegacyOpenCodeTools(agent.frontmatter.tools)
       const permission = mergeOpenCodeMaps(
@@ -503,7 +498,7 @@ export class OpenCodeGenerator extends Generator {
         definition.tools = tools
       }
 
-      output[agent.name] = definition
+      output[metadata.name] = definition
     }
 
     return output

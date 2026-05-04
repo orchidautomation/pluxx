@@ -3,7 +3,7 @@ import { generateClaudeFamilyOutputs } from '../shared/claude-family'
 import type { TargetPlatform } from '../../schema'
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'fs'
 import { basename, join } from 'path'
-import { type AgentFrontmatterMap, readCanonicalAgentFiles } from '../../agents'
+import { getCanonicalAgentMetadata, type AgentFrontmatterMap, readCanonicalAgentFiles } from '../../agents'
 import { buildDelegationBehaviorNotes } from '../../delegation'
 import { parseSkillMarkdown, readCanonicalSkillFiles, serializeSkillMarkdown } from '../../skills'
 
@@ -79,34 +79,23 @@ export class ClaudeCodeGenerator extends Generator {
     mkdirSync(join(this.outDir, 'agents'), { recursive: true })
 
     for (const agent of agents) {
+      const metadata = getCanonicalAgentMetadata(agent)
       const frontmatter = [
         '---',
-        `name: ${JSON.stringify(agent.name)}`,
-        `description: ${JSON.stringify(agent.description ?? `${agent.name} specialist.`)}`,
+        `name: ${JSON.stringify(metadata.name)}`,
+        `description: ${JSON.stringify(metadata.description)}`,
       ]
 
-      if (typeof agent.frontmatter.model === 'string' && agent.frontmatter.model) {
-        frontmatter.push(`model: ${JSON.stringify(agent.frontmatter.model)}`)
+      if (metadata.model) {
+        frontmatter.push(`model: ${JSON.stringify(metadata.model)}`)
       }
 
-      const effort = typeof agent.frontmatter.model_reasoning_effort === 'string' && agent.frontmatter.model_reasoning_effort
-        ? agent.frontmatter.model_reasoning_effort
-        : typeof agent.frontmatter.effort === 'string' && agent.frontmatter.effort
-          ? agent.frontmatter.effort
-          : undefined
-      if (effort) {
-        frontmatter.push(`effort: ${JSON.stringify(effort)}`)
+      if (metadata.modelReasoningEffort) {
+        frontmatter.push(`effort: ${JSON.stringify(metadata.modelReasoningEffort)}`)
       }
 
-      const maxTurns = typeof agent.frontmatter.maxTurns === 'number'
-        ? agent.frontmatter.maxTurns
-        : typeof agent.frontmatter.steps === 'number'
-          ? agent.frontmatter.steps
-          : typeof agent.frontmatter.maxSteps === 'number'
-            ? agent.frontmatter.maxSteps
-            : undefined
-      if (typeof maxTurns === 'number') {
-        frontmatter.push(`maxTurns: ${maxTurns}`)
+      if (typeof metadata.steps === 'number') {
+        frontmatter.push(`maxTurns: ${metadata.steps}`)
       }
 
       const claudeTools = selectClaudeToolsField(agent.frontmatter)
@@ -119,20 +108,20 @@ export class ClaudeCodeGenerator extends Generator {
         frontmatter.push(`disallowedTools: ${disallowedTools.join(', ')}`)
       }
 
-      if (typeof agent.frontmatter.skills === 'string' && agent.frontmatter.skills.trim()) {
-        frontmatter.push(`skills: ${agent.frontmatter.skills}`)
+      if (metadata.skills) {
+        frontmatter.push(`skills: ${metadata.skills}`)
       }
-      if (typeof agent.frontmatter.memory === 'string' && agent.frontmatter.memory.trim()) {
-        frontmatter.push(`memory: ${JSON.stringify(agent.frontmatter.memory)}`)
+      if (metadata.memory) {
+        frontmatter.push(`memory: ${JSON.stringify(metadata.memory)}`)
       }
-      if (typeof agent.frontmatter.background === 'boolean') {
-        frontmatter.push(`background: ${agent.frontmatter.background}`)
+      if (typeof metadata.background === 'boolean') {
+        frontmatter.push(`background: ${metadata.background}`)
       }
-      if (typeof agent.frontmatter.isolation === 'string' && agent.frontmatter.isolation.trim()) {
-        frontmatter.push(`isolation: ${JSON.stringify(agent.frontmatter.isolation)}`)
+      if (metadata.isolation) {
+        frontmatter.push(`isolation: ${JSON.stringify(metadata.isolation)}`)
       }
-      if (typeof agent.frontmatter.color === 'string' && agent.frontmatter.color.trim()) {
-        frontmatter.push(`color: ${JSON.stringify(agent.frontmatter.color)}`)
+      if (metadata.color) {
+        frontmatter.push(`color: ${JSON.stringify(metadata.color)}`)
       }
 
       frontmatter.push('---')
@@ -146,7 +135,7 @@ export class ClaudeCodeGenerator extends Generator {
               '',
             ]
           : []),
-        agent.body,
+        metadata.body,
       ].filter(Boolean)
 
       const outputPath = join(this.outDir, 'agents', `${agent.fileStem}.md`)

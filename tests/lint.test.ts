@@ -1298,6 +1298,50 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'agent-isolation-invalid')).toBe(true)
   })
 
+  it('warns when agent fields degrade on Cursor and Codex', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+    mkdirSync(resolve(projectDir, 'agents'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        agents: './agents/',
+        targets: ['cursor', 'codex'],
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A skill"', '---', '', '# Skill'].join('\n'),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'agents/review.md'),
+      [
+        '---',
+        'name: review',
+        'description: "Review agent"',
+        'hidden: true',
+        'memory: "project"',
+        'permission:',
+        '  edit: deny',
+        '---',
+        '',
+        '# Review',
+      ].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'cursor-agent-translation')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'codex-agent-translation')).toBe(true)
+  })
+
   // ── Gotcha #9: Warn on absolute paths in hooks ──
   it('warns when hooks use absolute paths', async () => {
     const projectDir = createTempProject()

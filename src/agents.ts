@@ -16,6 +16,28 @@ export interface ParsedAgentMarkdownFile {
   frontmatter: AgentFrontmatterMap
 }
 
+export interface CanonicalAgentMetadata {
+  name: string
+  description: string
+  body: string
+  mode?: string
+  hidden: boolean
+  model?: string
+  modelReasoningEffort?: string
+  sandboxMode?: string
+  temperature?: number
+  steps?: number
+  disabled?: boolean
+  color?: string
+  topP?: number
+  skills?: string
+  memory?: string
+  background?: boolean
+  isolation?: string
+  permission?: AgentFrontmatterMap
+  tools?: AgentFrontmatterValue
+}
+
 function firstHeading(content: string): string | undefined {
   const lines = content.split(/\r?\n/)
   for (const line of lines) {
@@ -156,4 +178,46 @@ export function readCanonicalAgentFiles(agentsDir: string | undefined): ParsedAg
   return walkMarkdownFiles(agentsDir)
     .sort((a, b) => a.localeCompare(b))
     .map(parseCanonicalAgentFile)
+}
+
+export function getCanonicalAgentMetadata(agent: ParsedAgentMarkdownFile): CanonicalAgentMetadata {
+  const frontmatter = agent.frontmatter
+  return {
+    name: agent.name,
+    description: agent.description ?? `${agent.name} specialist.`,
+    body: agent.body,
+    mode: asString(frontmatter.mode),
+    hidden: frontmatter.hidden === true,
+    model: asString(frontmatter.model),
+    modelReasoningEffort: asString(frontmatter.model_reasoning_effort) ?? asString(frontmatter.effort),
+    sandboxMode: asString(frontmatter.sandbox_mode),
+    temperature: asNumber(frontmatter.temperature),
+    steps: asNumber(frontmatter.steps) ?? asNumber(frontmatter.maxSteps),
+    disabled: asBoolean(frontmatter.disable),
+    color: asString(frontmatter.color),
+    topP: asNumber(frontmatter.topP) ?? asNumber(frontmatter.top_p),
+    skills: asString(frontmatter.skills),
+    memory: asString(frontmatter.memory),
+    background: asBoolean(frontmatter.background),
+    isolation: asString(frontmatter.isolation),
+    permission: asMap(frontmatter.permission),
+    tools: frontmatter.tools,
+  }
+}
+
+function asString(value: unknown): string | undefined {
+  return typeof value === 'string' && value ? value : undefined
+}
+
+function asNumber(value: unknown): number | undefined {
+  return typeof value === 'number' ? value : undefined
+}
+
+function asBoolean(value: unknown): boolean | undefined {
+  return typeof value === 'boolean' ? value : undefined
+}
+
+function asMap(value: unknown): AgentFrontmatterMap | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  return value as AgentFrontmatterMap
 }

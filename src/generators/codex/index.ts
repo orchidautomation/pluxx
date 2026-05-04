@@ -9,7 +9,7 @@ import {
   getRuntimeReadinessCapability,
   getRuntimeReadinessExternalConfigNote,
 } from '../../runtime-readiness-registry'
-import { readCanonicalAgentFiles } from '../../agents'
+import { getCanonicalAgentMetadata, readCanonicalAgentFiles } from '../../agents'
 import { readCanonicalCommandFiles } from '../../commands'
 import { buildDelegationBehaviorNotes } from '../../delegation'
 import { mapHookEventToPascalCase } from '../../hook-events'
@@ -191,20 +191,21 @@ export class CodexGenerator extends Generator {
     if (agents.length === 0) return
 
     for (const agent of agents) {
+      const metadata = getCanonicalAgentMetadata(agent)
       const relativePath = relative(agentsDir, agent.filePath).replace(/\\/g, '/').replace(/\.md$/i, '.toml')
       const lines = [
-        `name = ${JSON.stringify(agent.name)}`,
-        `description = ${JSON.stringify(agent.description ?? `${agent.name} specialist.`)}`,
+        `name = ${JSON.stringify(metadata.name)}`,
+        `description = ${JSON.stringify(metadata.description)}`,
       ]
 
-      if (typeof agent.frontmatter.model === 'string' && agent.frontmatter.model) {
-        lines.push(`model = ${JSON.stringify(agent.frontmatter.model)}`)
+      if (metadata.model) {
+        lines.push(`model = ${JSON.stringify(metadata.model)}`)
       }
-      if (typeof agent.frontmatter.model_reasoning_effort === 'string' && agent.frontmatter.model_reasoning_effort) {
-        lines.push(`model_reasoning_effort = ${JSON.stringify(agent.frontmatter.model_reasoning_effort)}`)
+      if (metadata.modelReasoningEffort) {
+        lines.push(`model_reasoning_effort = ${JSON.stringify(metadata.modelReasoningEffort)}`)
       }
-      if (typeof agent.frontmatter.sandbox_mode === 'string' && agent.frontmatter.sandbox_mode) {
-        lines.push(`sandbox_mode = ${JSON.stringify(agent.frontmatter.sandbox_mode)}`)
+      if (metadata.sandboxMode) {
+        lines.push(`sandbox_mode = ${JSON.stringify(metadata.sandboxMode)}`)
       }
       const delegationNotes = buildDelegationBehaviorNotes(agent.frontmatter)
       const developerInstructions = [
@@ -215,7 +216,7 @@ export class CodexGenerator extends Generator {
               '',
             ]
           : []),
-        agent.body,
+        metadata.body,
       ].filter(Boolean).join('\n')
 
       if (developerInstructions) {

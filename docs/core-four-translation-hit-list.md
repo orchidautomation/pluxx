@@ -180,6 +180,8 @@ We already know skills are the most portable layer. The remaining work is docume
   - source host specialist intent
   - successful translation into the other three hosts
 - [x] Make migration tests prove we normalize agent intent semantically, not syntactically
+- [x] Add a shared canonical agent metadata seam so Claude, Cursor, Codex, and OpenCode stop re-parsing frontmatter aliases differently
+- [x] Make lint explicitly call out agent fields that still degrade on Cursor and Codex instead of hiding that loss inside generated prose notes
 
 ### 6. Close the hooks translation matrix
 

@@ -11,7 +11,7 @@ import {
   getRuntimeReadinessExternalConfigNote,
   getRuntimeReadinessNamedPromptTargetNote,
 } from '../runtime-readiness-registry'
-import { readCanonicalAgentFiles } from '../agents'
+import { getCanonicalAgentMetadata, readCanonicalAgentFiles } from '../agents'
 import { buildPrimitiveTranslationSummary, renderPrimitiveTranslationSummary, type PrimitiveTranslationSummary } from './primitive-summary'
 import { getBrandingCompletenessWarnings } from '../branding-completeness'
 import {
@@ -964,6 +964,64 @@ function hasCanonicalAgentPermission(value: unknown): boolean {
   return !!value && typeof value === 'object' && !Array.isArray(value)
 }
 
+function lintAgentTranslationExplainability(
+  dir: string,
+  config: PluginConfig,
+  issues: LintIssue[],
+): void {
+  if (!config.agents) return
+
+  const agents = readCanonicalAgentFiles(resolve(dir, config.agents))
+  for (const agent of agents) {
+    const metadata = getCanonicalAgentMetadata(agent)
+    const relativePath = relative(dir, agent.filePath).replace(/\\/g, '/')
+
+    if (config.targets.includes('cursor')) {
+      const cursorDegradedFields: string[] = []
+      if (metadata.hidden) cursorDegradedFields.push('hidden')
+      if (metadata.modelReasoningEffort) cursorDegradedFields.push('model_reasoning_effort')
+      if (metadata.sandboxMode) cursorDegradedFields.push('sandbox_mode')
+      if (metadata.permission) cursorDegradedFields.push('permission')
+      if (metadata.tools !== undefined) cursorDegradedFields.push('tools')
+      if (metadata.memory) cursorDegradedFields.push('memory')
+      if (typeof metadata.background === 'boolean') cursorDegradedFields.push('background')
+      if (metadata.isolation) cursorDegradedFields.push('isolation')
+
+      if (cursorDegradedFields.length > 0) {
+        pushIssue(issues, {
+          level: 'warning',
+          code: 'cursor-agent-translation',
+          message: `Agent fields ${cursorDegradedFields.map((field) => `"${field}"`).join(', ')} are not preserved as first-class Cursor agent frontmatter today. Pluxx translates that intent through subagent framing and generated notes instead.`,
+          file: relativePath,
+          platform: 'Cursor',
+        })
+      }
+    }
+
+    if (config.targets.includes('codex')) {
+      const codexDegradedFields: string[] = []
+      if (metadata.hidden) codexDegradedFields.push('hidden')
+      if (metadata.permission) codexDegradedFields.push('permission')
+      if (metadata.tools !== undefined) codexDegradedFields.push('tools')
+      if (metadata.skills) codexDegradedFields.push('skills')
+      if (metadata.memory) codexDegradedFields.push('memory')
+      if (typeof metadata.background === 'boolean') codexDegradedFields.push('background')
+      if (metadata.isolation) codexDegradedFields.push('isolation')
+      if (metadata.color) codexDegradedFields.push('color')
+
+      if (codexDegradedFields.length > 0) {
+        pushIssue(issues, {
+          level: 'warning',
+          code: 'codex-agent-translation',
+          message: `Agent fields ${codexDegradedFields.map((field) => `"${field}"`).join(', ')} are not native Codex TOML fields today. Pluxx keeps the specialist behavior, but translates that intent through developer instructions and companion surfaces instead.`,
+          file: relativePath,
+          platform: 'Codex',
+        })
+      }
+    }
+  }
+}
+
 // ── Gotcha #9: Warn if absolute paths used in hooks/MCP instead of ${CLAUDE_PLUGIN_ROOT} ──
 function lintAbsolutePaths(config: PluginConfig, issues: LintIssue[]): void {
   const absolutePathPattern = /^\/[a-zA-Z]|^[A-Z]:\\/
@@ -1560,6 +1618,7 @@ export async function lintProject(
   lintAgentFrontmatter(agentFiles, issues, frontmatterCache)
   lintAgentIsolation(agentFiles, issues, frontmatterCache)
   lintOpenCodeAgentFrontmatter(dir, { ...lintConfig, agents: lintConfig.agents ?? './agents/' }, issues)
+  lintAgentTranslationExplainability(dir, { ...lintConfig, agents: lintConfig.agents ?? './agents/' }, issues)
 
   // MCP and brand
   lintMcpUrls(lintConfig, issues)

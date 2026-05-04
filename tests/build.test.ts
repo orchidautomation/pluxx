@@ -1198,6 +1198,58 @@ describe('build', () => {
     })
   })
 
+  it('normalizes shared agent metadata aliases before rebuilding host-native outputs', async () => {
+    const agentConfig: PluginConfig = {
+      ...testConfig,
+      name: 'agent-metadata-aliases',
+      agents: './agents/',
+      targets: ['claude-code', 'codex', 'opencode'],
+      outDir: './agent-metadata-aliases-dist',
+    }
+
+    mkdirSync(resolve(TEST_DIR, 'agents'), { recursive: true })
+    await Bun.write(
+      resolve(TEST_DIR, 'agents/alias-agent.md'),
+      [
+        '---',
+        'name: alias-agent',
+        'description: "Alias normalization specialist."',
+        'model: "gpt-5.4"',
+        'effort: "high"',
+        'maxSteps: 7',
+        'top_p: 0.35',
+        '---',
+        '',
+        '# Alias Agent',
+        '',
+        'Validate that shared agent metadata aliases normalize cleanly.',
+        '',
+      ].join('\n'),
+    )
+
+    await build(agentConfig, TEST_DIR)
+
+    const claudeAgent = readFileSync(
+      resolve(TEST_DIR, 'agent-metadata-aliases-dist/claude-code/agents/alias-agent.md'),
+      'utf-8',
+    )
+    const codexAgent = readFileSync(
+      resolve(TEST_DIR, 'agent-metadata-aliases-dist/codex/.codex/agents/alias-agent.toml'),
+      'utf-8',
+    )
+    const opencodeIndex = readFileSync(
+      resolve(TEST_DIR, 'agent-metadata-aliases-dist/opencode/index.ts'),
+      'utf-8',
+    )
+
+    expect(claudeAgent).toContain('effort: "high"')
+    expect(claudeAgent).toContain('maxTurns: 7')
+    expect(codexAgent).toContain('model_reasoning_effort = "high"')
+    expect(opencodeIndex).toContain('"alias-agent"')
+    expect(opencodeIndex).toContain('"steps": 7')
+    expect(opencodeIndex).toContain('"topP": 0.35')
+  })
+
   it('carries compiler-intent skill policies into the Codex permissions companion when present', async () => {
     mkdirSync(resolve(TEST_DIR, '.pluxx'), { recursive: true })
     await Bun.write(
