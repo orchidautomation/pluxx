@@ -292,7 +292,7 @@ type ResearchTarget = Extract<
 export const PLATFORM_VALIDATION_RULES: Record<ResearchTarget, PlatformRules> = {
   'claude-code': {
     platform: 'claude-code',
-    summary: 'Claude Code plugins use an optional manifest at .claude-plugin/plugin.json with auto-discovery for skills, commands, agents, hooks, MCP, marketplaces, and output styles.',
+    summary: 'Claude Code plugins use an optional manifest at .claude-plugin/plugin.json with auto-discovery for skills, commands, agents, hooks, MCP, marketplaces, output styles, and adjacent plugin assets like LSP, monitors, and themes.',
     limits: PLATFORM_LIMITS['claude-code'],
     limitPolicies: PLATFORM_LIMIT_POLICIES['claude-code'],
     skillDiscoveryDirs: [
@@ -331,13 +331,13 @@ export const PLATFORM_VALIDATION_RULES: Record<ResearchTarget, PlatformRules> = 
     hooks: {
       supported: true,
       files: ['hooks/hooks.json', '.claude-plugin/plugin.json', '~/.claude/settings.json', '.claude/settings.json', '.claude/settings.local.json'],
-      eventNames: ['SessionStart', 'PreToolUse', 'PostToolUse', 'PermissionRequest', 'TaskCreated', 'TaskCompleted', 'Stop', 'Notification', 'ConfigChange'],
-      notes: 'Hook configs can be stored in hooks/hooks.json, inlined in plugin.json, added in settings files, or scoped through skill and agent frontmatter.',
+      eventNames: ['SessionStart', 'Setup', 'UserPromptSubmit', 'UserPromptExpansion', 'PreToolUse', 'PermissionRequest', 'PermissionDenied', 'PostToolUse', 'PostToolUseFailure', 'PostToolBatch', 'Notification', 'SubagentStart', 'SubagentStop', 'TaskCreated', 'TaskCompleted', 'Stop', 'StopFailure', 'TeammateIdle', 'InstructionsLoaded', 'ConfigChange', 'CwdChanged', 'FileChanged', 'WorktreeCreate', 'WorktreeRemove', 'PreCompact', 'PostCompact', 'Elicitation', 'ElicitationResult', 'SessionEnd'],
+      notes: 'Hook configs can be stored in hooks/hooks.json, inlined in plugin.json, added in settings files, or scoped through skill and agent frontmatter. Claude also documents a broader lifecycle event set than the older simplified Pluxx model.',
     },
     instructions: {
       files: ['CLAUDE.md'],
       format: 'markdown',
-      notes: 'Claude keeps persistent instructions in CLAUDE.md and pushes longer procedures into skills.',
+      notes: 'Claude keeps persistent instructions in CLAUDE.md and pushes longer procedures into skills. Related enforcement and distribution config also depends on managed, user, project, and local settings scopes.',
     },
     sources: [
       { label: 'Claude Code MCP docs', url: 'https://code.claude.com/docs/en/mcp' },
@@ -351,6 +351,9 @@ export const PLATFORM_VALIDATION_RULES: Record<ResearchTarget, PlatformRules> = 
       { label: 'Claude Code plugins reference', url: 'https://code.claude.com/docs/en/plugins-reference' },
       { label: 'Claude Code hooks guide', url: 'https://code.claude.com/docs/en/hooks-guide' },
       { label: 'Claude Code hooks docs', url: 'https://code.claude.com/docs/en/hooks' },
+      { label: 'Claude Code settings docs', url: 'https://code.claude.com/docs/en/settings' },
+      { label: 'Claude Code permissions docs', url: 'https://code.claude.com/docs/en/permissions' },
+      { label: 'Claude Code memory docs', url: 'https://code.claude.com/docs/en/memory' },
       { label: 'Claude Code skills docs', url: 'https://code.claude.com/docs/en/skills' },
       { label: 'Claude Code sub-agents docs', url: 'https://code.claude.com/docs/en/sub-agents' },
       { label: 'Claude Code env vars docs', url: 'https://code.claude.com/docs/en/env-vars' },
@@ -389,13 +392,13 @@ export const PLATFORM_VALIDATION_RULES: Record<ResearchTarget, PlatformRules> = 
     hooks: {
       supported: true,
       files: ['hooks/hooks.json', '.cursor/hooks.json', '~/.cursor/hooks.json'],
-      eventNames: ['sessionStart', 'preToolUse', 'postToolUse', 'subagentStart', 'subagentStop', 'beforeShellExecution', 'afterShellExecution'],
-      notes: 'Cursor plugin hooks live under hooks/hooks.json; project and user hooks also exist separately and reload on save.',
+      eventNames: ['sessionStart', 'sessionEnd', 'preToolUse', 'postToolUse', 'postToolUseFailure', 'subagentStart', 'subagentStop', 'beforeShellExecution', 'afterShellExecution', 'beforeMCPExecution', 'afterMCPExecution', 'beforeReadFile', 'afterFileEdit', 'beforeSubmitPrompt', 'preCompact', 'stop', 'afterAgentResponse', 'afterAgentThought', 'beforeTabFileRead', 'afterTabFileEdit'],
+      notes: 'Cursor plugin hooks live under hooks/hooks.json; project and user hooks also exist separately and reload on save. The official event surface spans both Agent and Tab flows.',
     },
     instructions: {
       files: ['rules/', 'AGENTS.md'],
       format: 'mdc + markdown',
-      notes: 'rules/ is the plugin-native instruction surface. AGENTS.md remains useful as shared repo guidance. Cursor subagents use markdown files under .cursor/agents or ~/.cursor/agents (with .claude/.codex compatibility paths).',
+      notes: 'rules/ is the plugin-native instruction surface. AGENTS.md remains useful as shared repo guidance. Cursor subagents use markdown files under .cursor/agents or ~/.cursor/agents (with .claude/.codex compatibility paths). Cursor rules do not apply to Tab.',
     },
     sources: [
       { label: 'Cursor plugins overview', url: 'https://cursor.com/docs/plugins' },
@@ -415,7 +418,7 @@ export const PLATFORM_VALIDATION_RULES: Record<ResearchTarget, PlatformRules> = 
   },
   'codex': {
     platform: 'codex',
-    summary: 'Codex plugins use .codex-plugin/plugin.json with skills, optional .mcp.json and .app.json, marketplace catalogs, cache installs, AGENTS.md instructions, and separate hook configuration.',
+    summary: 'Codex plugins use .codex-plugin/plugin.json with skills, optional .mcp.json and .app.json, marketplace catalogs, cache installs, AGENTS.md instructions, and native bundled hook support plus broader project or user hook config.',
     limits: PLATFORM_LIMITS['codex'],
     limitPolicies: PLATFORM_LIMIT_POLICIES['codex'],
     skillDiscoveryDirs: [
@@ -445,7 +448,7 @@ export const PLATFORM_VALIDATION_RULES: Record<ResearchTarget, PlatformRules> = 
       supported: true,
       files: ['hooks/hooks.json', '.codex/hooks.json', '~/.codex/hooks.json'],
       eventNames: ['SessionStart', 'PreToolUse', 'PermissionRequest', 'PostToolUse', 'UserPromptSubmit', 'Stop'],
-      notes: 'Codex documents hooks in project/user config, guarded by the codex_hooks feature flag; Pluxx also bundles translated hooks at hooks/hooks.json for plugin installs.',
+      notes: 'Codex documents hooks in project and user config, and the hooks docs still mention the codex_hooks feature flag/runtime caveat. The official hooks docs also cover plugin-bundled hooks, which Pluxx now emits at hooks/hooks.json.',
     },
     instructions: {
       files: ['AGENTS.md', 'AGENTS.override.md'],
@@ -463,6 +466,9 @@ export const PLATFORM_VALIDATION_RULES: Record<ResearchTarget, PlatformRules> = 
       { label: 'Codex hooks docs', url: 'https://developers.openai.com/codex/hooks' },
       { label: 'Codex skills docs', url: 'https://developers.openai.com/codex/skills' },
       { label: 'Codex MCP docs', url: 'https://developers.openai.com/codex/mcp' },
+      { label: 'Codex basic config docs', url: 'https://developers.openai.com/codex/config-basic' },
+      { label: 'Codex agent approvals and security docs', url: 'https://developers.openai.com/codex/agent-approvals-security' },
+      { label: 'Codex app commands docs', url: 'https://developers.openai.com/codex/app/commands' },
       { label: 'Codex AGENTS.md guide', url: 'https://developers.openai.com/codex/guides/agents-md' },
       { label: 'Codex subagents docs', url: 'https://developers.openai.com/codex/subagents' },
       { label: 'Codex subagents concept docs', url: 'https://developers.openai.com/codex/concepts/subagents' },
@@ -473,7 +479,7 @@ export const PLATFORM_VALIDATION_RULES: Record<ResearchTarget, PlatformRules> = 
   },
   'opencode': {
     platform: 'opencode',
-    summary: 'OpenCode plugins are code-first JS or TS modules loaded from local plugin dirs or npm references in config, with native skills, commands, agents, MCP, and permission surfaces.',
+    summary: 'OpenCode plugins are code-first JS or TS modules loaded from local plugin dirs or npm references in config, with native skills, commands, agents, MCP, permission, custom-tool, and plugin-event surfaces.',
     limits: PLATFORM_LIMITS['opencode'],
     limitPolicies: PLATFORM_LIMIT_POLICIES['opencode'],
     skillDiscoveryDirs: [
@@ -503,13 +509,13 @@ export const PLATFORM_VALIDATION_RULES: Record<ResearchTarget, PlatformRules> = 
     hooks: {
       supported: true,
       files: ['plugin module (index.ts/index.js)'],
-      eventNames: [],
-      notes: 'OpenCode hooks are plugin event handlers implemented in code, not a separate hooks.json file.',
+      eventNames: ['command.executed', 'file.edited', 'file.watcher.updated', 'installation.updated', 'lsp.client.diagnostics', 'lsp.updated', 'message.part.removed', 'message.part.updated', 'message.removed', 'message.updated', 'permission.asked', 'permission.replied', 'server.connected', 'session.created', 'session.compacted', 'session.deleted', 'session.diff', 'session.error', 'session.idle', 'session.status', 'session.updated', 'todo.updated', 'shell.env', 'tool.execute.before', 'tool.execute.after', 'tui.prompt.append', 'tui.command.execute', 'tui.toast.show', 'experimental.session.compacting'],
+      notes: 'OpenCode hooks are plugin event handlers implemented in code, not a separate hooks.json file. The official surface is an event bus rather than a small lifecycle-hook JSON schema.',
     },
     instructions: {
       files: ['AGENTS.md', 'CLAUDE.md', 'opencode.json'],
       format: 'markdown + json + code',
-      notes: 'OpenCode supports AGENTS.md, CLAUDE.md fallback, config instructions, and plugin runtime instruction injection.',
+      notes: 'OpenCode supports AGENTS.md, CLAUDE.md fallback, config instructions, and plugin runtime instruction injection. Config layering also includes remote config, managed config files, and macOS managed preferences.',
     },
     sources: [
       { label: 'OpenCode SDK docs', url: 'https://opencode.ai/docs/sdk/' },

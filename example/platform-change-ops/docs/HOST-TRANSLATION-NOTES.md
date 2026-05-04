@@ -6,7 +6,7 @@ This example is intentionally richer than any one host can preserve 1:1.
 
 - best native surface for hook richness and skill frontmatter
 - strongest place to preserve matcher-based pre-tool and post-tool policy hooks
-- prompt hooks still degrade in the current generator
+- preserves prompt hooks on Claude-supported lifecycle events
 
 ## Cursor
 
@@ -17,8 +17,9 @@ This example is intentionally richer than any one host can preserve 1:1.
 ## Codex
 
 - commands degrade into generated routing guidance and companion files
-- hooks degrade into `.codex/hooks.generated.json`
-- readiness degrades into `.codex/readiness.generated.json` plus external wiring guidance
+- bundles translated hooks at `hooks/hooks.json`
+- keeps `.codex/hooks.generated.json` as a companion/debug mirror
+- readiness keeps `.codex/readiness.generated.json` guidance because some runtimes still gate hook activation behind `codex_hooks`
 
 ## OpenCode
 

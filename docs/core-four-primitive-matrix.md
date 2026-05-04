@@ -82,14 +82,14 @@ The important compiler nuance is that two of these public buckets already need f
 
 | Bucket | Claude Code | Cursor | Codex | OpenCode | Pluxx mapping rule |
 |---|---|---|---|---|---|
-| `instructions` | `CLAUDE.md` plus plugin-level guidance surfaces | `rules/` plus `AGENTS.md` support | `AGENTS.md`, `AGENTS.override.md`, and config fallback instruction files | `AGENTS.md`, `CLAUDE.md` fallback, and config-driven instruction files | Keep one instruction source of truth and compile it into the host-native guidance surface rather than duplicating prose by hand. |
+| `instructions` | `CLAUDE.md` plus plugin-level guidance surfaces | `rules/` plus `AGENTS.md` support | `AGENTS.md`, `AGENTS.override.md`, and config fallback instruction files | `AGENTS.md`, `CLAUDE.md` fallback, and config-driven instruction files | Keep one instruction source of truth and compile it into the host-native guidance surface rather than duplicating prose by hand. Also keep host-specific caveats explicit, like Cursor rules not affecting Tab. |
 | `skills` | `skills/<skill>/SKILL.md` with the richest documented frontmatter | `skills/<skill>/SKILL.md` with a narrower documented frontmatter set and compatibility dirs | `skills/<skill>/SKILL.md`, optionally bundled through plugins or discovered through `.agents/skills` | `skills/<skill>/SKILL.md` plus compatibility dirs inside host config space | Skills stay the semantic center. Preserve shared metadata and strip or downgrade host-only frontmatter during migration and build. |
 | `commands` | native `commands/` markdown command files, with increasing convergence toward skills | native command and slash-command surfaces | no documented plugin-packaged command directory today | native command system through markdown or config definitions | Treat commands as first-class where the host exposes them. For Codex, degrade commands into skills and instruction routing instead of pretending parity exists. |
-| `agents` | plugin `agents/` with rich frontmatter and isolation settings, but explicit plugin-agent limits | plugin agents plus Cursor subagents | custom agents in `.codex/agents/*.toml` and subagent workflows | primary agents and subagents with model and permission-first config | Treat agents as specialist execution surfaces. Compile one specialist concept into each host's native agent or subagent format, even when the storage location differs. |
+| `agents` | plugin `agents/` with rich frontmatter and isolation settings, but explicit plugin-agent limits | plugin agents plus Cursor subagents | custom agents in `.codex/agents/*.toml` and subagent workflows | primary agents and subagents with model and permission-first config | Treat agents as specialist execution surfaces. Compile one specialist concept into each host's native agent or subagent format, even when the storage location differs. Do not assume the same knobs survive everywhere. |
 | `hooks` | `hooks/hooks.json`, inline plugin hooks, settings hooks, and skill or agent frontmatter hooks | `hooks/hooks.json` plus project and user hook locations | `hooks/hooks.json` in the plugin bundle, with `.codex/hooks.json` and `~/.codex/hooks.json` still documented plus the `codex_hooks` feature-flag caveat | JS or TS plugin event handlers | Normalize hook intent and compile per host. Do not assume event names or return contracts are portable 1:1. |
 | `permissions` | tool scoping and approval controls live in Claude-specific agent, hook, and runtime surfaces | hook allow or deny decisions, CLI permission config, and subagent tool access | approvals, sandbox policy, hook matchers, and custom-agent config | first-class permission config plus per-agent overrides, keyed by tool name and patterns | Keep `allow` / `ask` / `deny` as the canonical authoring model. When one host lacks a per-skill field, move the policy to its native agent, hook, or runtime control plane. |
 | `runtime` | `.mcp.json` or inline MCP config, plus plugin support files | `mcp.json`, host `mcp.json` config, plugin support files, and richer auth surfaces | `.mcp.json` in plugins plus active MCP state in `config.toml`, with optional `.app.json` | config-driven MCP plus JS or TS plugin runtime | Runtime owns MCP, auth, readiness/env wiring, helper code, local runtimes, and passthrough dirs. Compile into bundle-local files when possible and external host config when required. |
-| `distribution` | `.claude-plugin/plugin.json`, marketplaces, install scopes, user configuration, reload surface | `.cursor-plugin/plugin.json`, marketplace metadata, publish surface, local install path, reload-window flow | `.codex-plugin/plugin.json`, marketplace catalogs, cache install path, interface metadata, restart-after-update flow | npm or local JS plugin distribution plus config-based loading rather than one shared manifest | Distribution owns `userConfig`, brand, legal links, icons, screenshots, install metadata, and publish metadata. Emit rich manifest fields where supported and install shims where they are not. |
+| `distribution` | `.claude-plugin/plugin.json`, marketplaces, install scopes, user configuration, reload surface, and adjacent plugin assets like themes/monitors/LSP/output styles | `.cursor-plugin/plugin.json`, marketplace metadata, publish surface, local install path, reload-window flow | `.codex-plugin/plugin.json`, marketplace catalogs, cache install path, interface metadata, restart-after-update flow | npm or local JS plugin distribution plus config-based loading rather than one shared manifest | Distribution owns `userConfig`, brand, legal links, icons, screenshots, install metadata, and publish metadata. Emit rich manifest fields where supported and install shims where they are not. |
 
 ## Practical Consequences
 
@@ -127,8 +127,8 @@ If you are trying to predict what Pluxx will actually do to your project, use th
 ### Hooks
 
 - Claude Code: preserve or translate hook intent into plugin hooks, settings hooks, or skill/agent frontmatter hooks
-- Cursor: translate hook intent into Cursor hook JSON plus documented event names
-- Codex: degrade plugin-bundled hook intent into external `.codex/hooks.json` or `~/.codex/hooks.json` guidance because the current plugin build guide does not document bundled hooks
+- Cursor: translate hook intent into Cursor hook JSON plus documented Agent and Tab event names
+- Codex: translate hook intent into bundled `hooks/hooks.json`, while still documenting `.codex/hooks.json` and `~/.codex/hooks.json` as broader host config surfaces
 - OpenCode: translate hook intent into runtime JS or TS plugin handlers
 
 ### Runtime And MCP
@@ -206,18 +206,18 @@ This is intentionally closure-oriented:
 | Specialist prompt/body | `preserve -> agents/*.md` | `translate -> agents/*.md with Cursor-native framing` | `translate -> .codex/agents/*.toml developer_instructions` | `preserve -> agents/*.md or config agent definitions` | Specialist behavior survives, but the storage format differs substantially. |
 | Agent identity: `name`, `description` | `preserve -> frontmatter` | `preserve -> frontmatter` | `translate -> TOML fields` | `preserve -> config definition fields` | Agent names and descriptions remain visible across all four. |
 | Model and execution tuning: `model`, `model_reasoning_effort`, `sandbox_mode` | `preserve -> frontmatter` | `translate -> only a subset currently lands natively` | `translate -> TOML fields where Codex documents them` | `translate -> model lands natively; some tuning remains host-specific` | Tuning survives best in Codex and Claude today; some fields still need host-specific narrowing elsewhere. |
-| Delegation posture: `mode`, `hidden`, nested permission/tool policy | `preserve -> frontmatter` | `degrade -> turned into translation notes and subagent-oriented framing` | `degrade -> turned into TOML plus generated delegation notes` | `preserve/translate -> config-native agent fields such as mode, hidden, permission; legacy tools only as backwards-compat input` | Subagent intent survives semantically, but not every host exposes the same knobs directly. |
+| Delegation posture: `mode`, `hidden`, nested permission/tool policy | `preserve -> frontmatter` | `degrade -> turned into translation notes and subagent-oriented framing` | `degrade -> turned into TOML plus generated delegation notes` | `preserve/translate -> config-native agent fields such as mode, hidden, permission; legacy tools only as backwards-compat input` | Subagent intent survives semantically, but not every host exposes the same knobs directly. Cursor is also more dynamic here than older Pluxx docs implied because child subagents are real. |
 
 ### Hooks
 
 | Hook row | Claude Code | Cursor | Codex | OpenCode | User-visible effect |
 |---|---|---|---|---|---|
 | Command-based lifecycle hooks on common events | `preserve -> hooks/hooks.json, manifest hooks, settings hooks, frontmatter hooks` | `preserve -> hooks/hooks.json plus project/user hook files` | `translate -> bundled hooks/hooks.json plus .codex/hooks.generated.json companion guidance` | `translate -> JS/TS runtime event handlers` | Hook automation is real across the four. Codex now bundles the translated hook contract, while OpenCode still relocates it into runtime code. |
-| Prompt-based hooks | `degrade -> host can support more, but current generator drops prompt hooks with warnings` | `preserve -> hooks/hooks.json prompt entries` | `drop -> current generator does not emit prompt hooks` | `drop -> current runtime wrapper only emits command hooks today` | Prompt-driven hook automation is not yet a portable Pluxx surface. |
+| Prompt-based hooks | `preserve -> Claude-supported lifecycle events keep prompt hooks in hooks/hooks.json` | `preserve -> hooks/hooks.json prompt entries` | `drop -> current generator does not emit prompt hooks` | `drop -> current runtime wrapper only emits command hooks today` | Prompt-driven hook automation is partially portable today: Claude and Cursor preserve it, Codex and OpenCode still do not. |
 | Hook `matcher` field | `preserve -> hook entries` | `preserve -> hook entries` | `translate -> matcher survives in .codex/hooks.generated.json companion` | `translate -> matcher survives in runtime hook definitions` | Matching logic is portable enough to keep, even when the storage layer changes. |
 | Hook `failClosed` | `degrade -> current Claude-family generator drops it` | `preserve -> hook entries` | `translate -> .codex/hooks.generated.json companion` | `translate -> runtime hook definitions` | Strict failure behavior is not yet consistent in Claude outputs. |
 | Hook `loop_limit` | `degrade -> dropped today` | `preserve -> supported on documented Cursor events` | `drop -> not carried into Codex hook output` | `drop -> not carried into OpenCode runtime output` | Recursive hook protection is currently Cursor-first in Pluxx. |
-| Event fidelity | `preserve -> richest event spread of the four` | `preserve -> documented Cursor hook events` | `degrade -> only the supported Codex event subset is emitted` | `translate -> canonical events mapped into runtime event names` | Hook intent is portable, but event names and supported event counts are not. |
+| Event fidelity | `preserve -> richest event spread of the four` | `preserve -> documented Cursor Agent and Tab hook events` | `degrade -> only the supported Codex event subset is emitted` | `translate -> canonical events mapped into runtime event names` | Hook intent is portable, but event names and supported event counts are not. |
 
 ### Permissions
 
@@ -243,7 +243,7 @@ This is intentionally closure-oriented:
 
 | Distribution row | Claude Code | Cursor | Codex | OpenCode | User-visible effect |
 |---|---|---|---|---|---|
-| Plugin entry and package identity | `translate -> optional .claude-plugin/plugin.json plus marketplace install` | `preserve -> required .cursor-plugin/plugin.json` | `preserve -> required .codex-plugin/plugin.json` | `translate -> package.json plus JS/TS plugin entrypoint and config loading` | Plugin identity exists everywhere, but OpenCode is runtime/package-first and Claude can auto-discover more without a required manifest. |
+| Plugin entry and package identity | `translate -> optional .claude-plugin/plugin.json plus marketplace install` | `preserve -> required .cursor-plugin/plugin.json` | `preserve -> required .codex-plugin/plugin.json` | `translate -> package.json plus JS/TS plugin entrypoint and config loading` | Plugin identity exists everywhere, but OpenCode is runtime/package-first and Claude can auto-discover more without a required manifest. Claude also has adjacent plugin-owned assets that do not fit one narrow manifest-only mental model. |
 | Brand/listing metadata | `drop -> no shared manifest-backed brand contract today` | `translate -> homepage/logo only` | `preserve -> rich interface block` | `drop -> no shared manifest-backed brand contract today` | Rich listing polish is Codex-first today. Use [Core-Four Branding Metadata Audit](./core-four-branding-metadata-audit.md) for the row-level brand field map. |
 | Install, update, and reload surface | `preserve -> marketplace/local install plus /reload-plugins` | `preserve -> local install plus reload-window/restart` | `preserve -> bundle install plus marketplace catalog and refresh/restart behavior` | `translate -> local dir/config install plus reload/restart` | Distribution truth includes lifecycle behavior, not just which files get emitted. |
 | Marketplace and catalog registration | `preserve -> plugin marketplace support` | `preserve -> marketplace metadata and local marketplace path` | `preserve -> repo/home marketplace catalogs` | `degrade -> config/package distribution rather than a marketplace-first flow` | Discovery and updates are not one universal runtime pattern across the four. |
@@ -257,6 +257,8 @@ This is intentionally closure-oriented:
 - [Create plugins](https://code.claude.com/docs/en/plugins)
 - [Plugins reference](https://code.claude.com/docs/en/plugins-reference)
 - [Hooks](https://code.claude.com/docs/en/hooks)
+- [Settings](https://code.claude.com/docs/en/settings)
+- [Permissions](https://code.claude.com/docs/en/permissions)
 - [Create custom subagents](https://code.claude.com/docs/en/sub-agents)
 - [How Claude Code works](https://code.claude.com/docs/en/how-claude-code-works)
 
@@ -280,6 +282,8 @@ This is intentionally closure-oriented:
 - [Subagents](https://developers.openai.com/codex/subagents)
 - [Hooks](https://developers.openai.com/codex/hooks)
 - [Model Context Protocol](https://developers.openai.com/codex/mcp)
+- [Basic config](https://developers.openai.com/codex/config-basic)
+- [Agent approvals and security](https://developers.openai.com/codex/agent-approvals-security)
 - [Custom instructions with AGENTS.md](https://developers.openai.com/codex/guides/agents-md)
 - [Advanced config](https://developers.openai.com/codex/config-advanced)
 
@@ -292,6 +296,7 @@ This is intentionally closure-oriented:
 - [Skills](https://opencode.ai/docs/skills/)
 - [Commands](https://opencode.ai/docs/commands/)
 - [Agents](https://opencode.ai/docs/agents/)
+- [MCP servers](https://opencode.ai/docs/mcp-servers/)
 - [Permissions](https://opencode.ai/docs/permissions/)
 - [Rules](https://opencode.ai/docs/rules/)
 

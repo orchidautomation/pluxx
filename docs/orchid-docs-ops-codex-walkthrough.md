@@ -209,7 +209,7 @@ What this told us:
 
 - there were `0` errors
 - richer Claude skill frontmatter degrades in Cursor in expected ways
-- Codex hook behavior is translated into external hook guidance rather than a perfect 1:1 host-native hook surface
+- Codex hook behavior is bundled into `hooks/hooks.json`, with `.codex/hooks.generated.json` retained as a companion/debug mirror
 
 This is important because Pluxx should be truthful, not magical.
 

@@ -36,8 +36,9 @@ const CODEX_RULES = {
 }
 
 const CLAUDE_CODE_HOOK_EVENTS = [
-  'SessionStart', 'PreToolUse', 'PostToolUse', 'UserPromptSubmit',
+  'SessionStart', 'Setup', 'PreToolUse', 'PostToolUse', 'UserPromptSubmit', 'UserPromptExpansion',
   'PermissionRequest', 'PermissionDenied', 'PostToolUseFailure',
+  'PostToolBatch',
   'Notification', 'SubagentStart', 'SubagentStop',
   'TaskCreated', 'TaskCompleted', 'Stop', 'StopFailure',
   'TeammateIdle', 'InstructionsLoaded', 'ConfigChange', 'CwdChanged',
@@ -45,7 +46,7 @@ const CLAUDE_CODE_HOOK_EVENTS = [
   'PreCompact', 'PostCompact', 'Elicitation', 'ElicitationResult', 'SessionEnd',
 ] as const
 
-const CLAUDE_CODE_HOOK_TYPES = ['command', 'http', 'prompt', 'agent'] as const
+const CLAUDE_CODE_HOOK_TYPES = ['command', 'http', 'mcp_tool', 'prompt', 'agent'] as const
 
 const AGENT_FORBIDDEN_FRONTMATTER = ['hooks', 'mcpServers', 'permissionMode'] as const
 

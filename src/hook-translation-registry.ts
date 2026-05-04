@@ -17,7 +17,22 @@ interface HookPlatformRegistry {
 const HOOK_PLATFORM_REGISTRY: Partial<Record<TargetPlatform, HookPlatformRegistry>> = {
   'claude-code': {
     fields: {
-      prompt: { mode: 'drop' },
+      prompt: {
+        mode: 'preserve',
+        supportedEvents: [
+          'PermissionRequest',
+          'PostToolBatch',
+          'PostToolUse',
+          'PostToolUseFailure',
+          'PreToolUse',
+          'Stop',
+          'SubagentStop',
+          'TaskCompleted',
+          'TaskCreated',
+          'UserPromptExpansion',
+          'UserPromptSubmit',
+        ],
+      },
       matcher: { mode: 'preserve' },
       failClosed: { mode: 'drop' },
       loop_limit: { mode: 'drop' },
@@ -32,8 +47,8 @@ const HOOK_PLATFORM_REGISTRY: Partial<Record<TargetPlatform, HookPlatformRegistr
     },
   },
   codex: {
-    supportedEvents: ['SessionStart', 'PreToolUse', 'PostToolUse', 'UserPromptSubmit', 'Stop'],
-    unsupportedEventReason: 'Codex currently documents only SessionStart, PreToolUse, PostToolUse, UserPromptSubmit, and Stop for hook configuration.',
+    supportedEvents: ['SessionStart', 'PreToolUse', 'PermissionRequest', 'PostToolUse', 'UserPromptSubmit', 'Stop'],
+    unsupportedEventReason: 'Codex currently documents only SessionStart, PreToolUse, PermissionRequest, PostToolUse, UserPromptSubmit, and Stop for hook configuration.',
     fields: {
       prompt: { mode: 'drop' },
       matcher: { mode: 'preserve' },

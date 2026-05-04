@@ -1202,6 +1202,37 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'hook-event-unknown')).toBe(true)
   })
 
+  it('accepts refreshed Claude hook events and richer hook types', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['claude-code'],
+        hooks: {
+          setup: [{ type: 'mcp_tool', server: 'memory', tool: 'load_context' }],
+          userPromptExpansion: [{ type: 'agent', prompt: 'Check whether this command should expand.' }],
+          postToolBatch: [{ type: 'http', url: 'https://example.com/hooks/post-tool-batch' }],
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A skill"', '---', '', '# Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'hook-event-unknown')).toBe(false)
+    expect(result.issues.some(issue => issue.code === 'hook-type-invalid')).toBe(false)
+  })
+
   // ── Gotcha #7: Agent forbidden frontmatter ──
   it('warns when agent files use forbidden frontmatter fields', async () => {
     const projectDir = createTempProject()

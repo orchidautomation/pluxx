@@ -11,7 +11,7 @@ export function warnDroppedHookFields(
   const hasFailClosed = entries.some(entry => entry.failClosed !== undefined)
   const hasLoopLimit = entries.some(entry => entry.loop_limit !== undefined)
 
-  if (hasPromptHooks) {
+  if (hasPromptHooks && !isHookFieldPreserved(platform, 'prompt', event)) {
     console.warn(
       `[pluxx] ${platform} generator dropped unsupported prompt-based hook for event "${event}".`
     )

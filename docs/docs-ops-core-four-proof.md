@@ -105,7 +105,7 @@ node ../../bin/pluxx.js verify-install --target opencode
 Those warnings are the honest cross-host translation story, not a failure:
 
 - Cursor weakens richer skill frontmatter such as `arguments`, `context`, `agent`, and `allowed-tools`
-- Codex keeps hook intent but emits it as external hook guidance instead of a fully bundled native hook surface
+- Codex now bundles translated hooks at `hooks/hooks.json` and keeps `.codex/hooks.generated.json` as a companion/debug mirror
 
 `build` succeeded for:
 
@@ -183,7 +183,7 @@ It now has real read-only inspect and rewrite proof through the official CLI/hea
   - [docs/docs-ops-authenticated-publish-path.md](./docs-ops-authenticated-publish-path.md)
 - the current degrade story is visible in practice:
   - Cursor weakens some richer skill semantics
-  - Codex separates hook packaging from the installed plugin bundle
+  - Codex bundles hooks in the installed plugin and still keeps companion/debug mirrors for runtime caveats
 - the flagship lane is now past the basic “does this even install outside Codex?” stage
 
 ## Observed Preserve / Translate / Degrade Snapshot

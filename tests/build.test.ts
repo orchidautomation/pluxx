@@ -1078,6 +1078,11 @@ describe('build', () => {
           failClosed: true,
           loop_limit: 2,
         }],
+        permissionRequest: [{
+          command: '${PLUGIN_ROOT}/scripts/confirm-mutation.sh',
+          matcher: 'Edit',
+          failClosed: true,
+        }],
         stop: [{
           command: '${PLUGIN_ROOT}/scripts/confirm-mutation.sh',
           loop_limit: 3,
@@ -1103,7 +1108,9 @@ describe('build', () => {
     )
     const opencodeIndex = readFileSync(resolve(TEST_DIR, 'hook-translation-dist/opencode/index.ts'), 'utf-8')
 
-    expect(claudeHooks.hooks.UserPromptSubmit).toBeUndefined()
+    expect(claudeHooks.hooks.UserPromptSubmit?.[0]?.hooks?.[0]?.type).toBe('prompt')
+    expect(claudeHooks.hooks.UserPromptSubmit?.[0]?.hooks?.[0]?.prompt).toContain('Confirm before sending the prompt')
+    expect(claudeHooks.hooks.UserPromptSubmit?.[0]?.hooks?.[0]?.model).toBe('gpt-5')
     expect(claudeHooks.hooks.PreToolUse?.[0]?.matcher).toBe('Bash')
     expect(claudeHooks.hooks.PreToolUse?.[0]?.failClosed).toBeUndefined()
     expect(claudeHooks.hooks.Stop?.[0]?.loop_limit).toBeUndefined()
@@ -1117,9 +1124,13 @@ describe('build', () => {
 
     expect(codexBundledHooks.hooks.PreToolUse?.[0]?.matcher).toBe('Bash')
     expect(codexBundledHooks.hooks.PreToolUse?.[0]?.failClosed).toBe(true)
+    expect(codexBundledHooks.hooks.PermissionRequest?.[0]?.matcher).toBe('Edit')
+    expect(codexBundledHooks.hooks.PermissionRequest?.[0]?.failClosed).toBe(true)
     expect(codexBundledHooks.hooks.UserPromptSubmit).toBeUndefined()
     expect(codexHooks.hooks.PreToolUse?.[0]?.matcher).toBe('Bash')
     expect(codexHooks.hooks.PreToolUse?.[0]?.failClosed).toBe(true)
+    expect(codexHooks.hooks.PermissionRequest?.[0]?.matcher).toBe('Edit')
+    expect(codexHooks.hooks.PermissionRequest?.[0]?.failClosed).toBe(true)
     expect(codexHooks.hooks.PreToolUse?.[0]?.loop_limit).toBeUndefined()
     expect(codexHooks.hooks.UserPromptSubmit).toBeUndefined()
 
@@ -1127,6 +1138,64 @@ describe('build', () => {
     expect(opencodeIndex).toContain('"failClosed": true')
     expect(opencodeIndex).not.toContain('Confirm before sending the prompt.')
     expect(opencodeIndex).not.toContain('"loop_limit": 3')
+  })
+
+  it('preserves richer Claude-native hook handler types', async () => {
+    const hookConfig: PluginConfig = {
+      ...testConfig,
+      name: 'claude-rich-hook-types',
+      hooks: {
+        postToolUse: [{
+          type: 'http',
+          url: 'https://example.com/hooks/post-tool',
+          headers: { Authorization: 'Bearer $HOOK_TOKEN' },
+          allowedEnvVars: ['HOOK_TOKEN'],
+          timeout: 30,
+        }],
+        taskCompleted: [{
+          type: 'agent',
+          prompt: 'Verify that the task is actually complete before allowing Claude to stop.',
+          model: 'claude-3-5-haiku',
+        }],
+        sessionStart: [{
+          type: 'mcp_tool',
+          server: 'memory',
+          tool: 'load_context',
+          input: {
+            session: '${session_id}',
+          },
+        }],
+      },
+      targets: ['claude-code'],
+      outDir: './claude-rich-hook-types-dist',
+    }
+
+    await build(hookConfig, TEST_DIR)
+
+    const claudeHooks = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'claude-rich-hook-types-dist/claude-code/hooks/hooks.json'), 'utf-8')
+    )
+
+    expect(claudeHooks.hooks.PostToolUse?.[0]?.hooks?.[0]).toEqual({
+      type: 'http',
+      url: 'https://example.com/hooks/post-tool',
+      timeout: 30,
+      headers: { Authorization: 'Bearer $HOOK_TOKEN' },
+      allowedEnvVars: ['HOOK_TOKEN'],
+    })
+    expect(claudeHooks.hooks.TaskCompleted?.[0]?.hooks?.[0]).toEqual({
+      type: 'agent',
+      prompt: 'Verify that the task is actually complete before allowing Claude to stop.',
+      model: 'claude-3-5-haiku',
+    })
+    expect(claudeHooks.hooks.SessionStart?.[0]?.hooks?.[0]).toEqual({
+      type: 'mcp_tool',
+      server: 'memory',
+      tool: 'load_context',
+      input: {
+        session: '${session_id}',
+      },
+    })
   })
 
   it('carries compiler-intent skill policies into the Codex permissions companion when present', async () => {

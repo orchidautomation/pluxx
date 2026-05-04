@@ -1,6 +1,6 @@
 # Core-Four Provider Docs Audit
 
-Last updated: 2026-04-24
+Last updated: 2026-05-03
 
 ## Doc Links
 
@@ -19,7 +19,7 @@ Last updated: 2026-04-24
   - [docs/todo/queue.md](./todo/queue.md)
   - [docs/roadmap.md](./roadmap.md)
 
-This doc records the April 2026 first-party provider-doc audit across:
+This doc records the May 2026 first-party provider-doc audit refresh across:
 
 - Claude Code
 - Cursor
@@ -46,10 +46,10 @@ The current Pluxx model is directionally right, but not fully current.
 
 The biggest corrections are:
 
-- OpenCode is much more code-first and config-driven than our current rules claim
-- Claude Code is richer than our current rules reflect, especially around frontmatter, manifest capabilities, hooks, MCP auth, and install/update surfaces
-- Codex is mostly right, but we still over-compress the update story and under-model hooks, transport wording, and instruction fallbacks
-- Cursor is the closest, but we still under-model hook events, MCP auth details, and the difference between plugin-bundled surfaces and broader host config surfaces
+- OpenCode is not just "code-first"; it is also a real config platform with native commands, agents, permissions, remote config, managed config, and plugin event hooks that sit outside a manifest-only mental model
+- Claude Code is richer than our current rules reflect, especially around plugin component breadth, hook events, settings scopes, plugin-agent restrictions, and distribution surfaces like themes, monitors, LSP, marketplaces, and output styles
+- Codex is no longer just an external-hook guidance story; official docs now explicitly cover plugin-bundled hooks, richer config layering, app surfaces, and shared CLI or IDE MCP behavior
+- Cursor is still close to our current model, but we were under-modeling the hook event surface, the Agent-vs-Tab rule split, child subagents, and broader host config outside the plugin bundle
 
 If we want the compatibility story to stay truthful, the next updates should land in this order:
 
@@ -93,11 +93,11 @@ Use [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md
 | Manifest / plugin entry | Optional `.claude-plugin/plugin.json`; plugin can also auto-discover surfaces without a manifest | Required `.cursor-plugin/plugin.json`; marketplace metadata in `.cursor-plugin/marketplace.json` | Required `.codex-plugin/plugin.json`; marketplaces live in repo or home catalogs | Code-first JS or TS plugin module model; local dirs and npm-distributed plugins via config |
 | Skills | Plugin skills at `skills/<name>/SKILL.md`; commands merged into skills; richest frontmatter of the four | Skills under `.cursor/skills/`, `~/.cursor/skills/`, `.agents/skills/`, `~/.agents/skills/`, plus compatibility dirs | Plugin-bundled `skills/`; non-plugin discovery through `.agents/skills` hierarchy; optional `agents/openai.yaml` metadata | Skills under `.opencode/skills/`, `~/.config/opencode/skills/`, plus `.claude/skills/` and `.agents/skills/` compatibility |
 | Commands | Native command surface still exists, but skills are now the primary model | Slash-command surface is real; plugin-bundled command assumptions need more care than our current docs use | No documented plugin-packaged custom command directory equivalent; commands still degrade to skills plus routing | Native command system via markdown files or config-defined commands |
-| Agents / subagents | Plugin `agents/` supported, but plugin subagents have explicit limitations | Native subagents and compatibility dirs exist; agent surface is real | Project and user agents in `.codex/agents/` and `~/.codex/agents/` | Agents are first-class through dirs and config |
-| Hooks | `hooks/hooks.json`, inline manifest hooks, settings hooks, and skill or agent frontmatter hooks | Project and user `hooks.json`; plugin hooks also exist; official events are documented and reload on save | `.codex/hooks.json` and `~/.codex/hooks.json`; feature-flag-gated; restart or runtime support matters | Hooks are plugin runtime event handlers in JS or TS, not a standalone JSON file convention |
+| Agents / subagents | Plugin `agents/` supported, but plugin subagents explicitly do not support `hooks`, `mcpServers`, or `permissionMode` | Native subagents and compatibility dirs exist; subagents can spawn child subagents and inherit MCP tools | Project and user agents in `.codex/agents/` and `~/.codex/agents/`; app and CLI docs both expose subagent workflows | Agents are first-class through dirs and config, with primary and subagent modes plus permission-first control |
+| Hooks | `hooks/hooks.json`, inline manifest hooks, settings hooks, and skill or agent frontmatter hooks; official event list is much broader than the old simplified model | Project and user `hooks.json`; plugin hooks also exist; official Agent and Tab events are documented and reload on save | `hooks/hooks.json` in plugin bundles plus `.codex/hooks.json` and `~/.codex/hooks.json`; official docs cover plugin-bundled hooks and a narrower event set | Hooks are plugin runtime event handlers in JS or TS, not a standalone JSON file convention |
 | MCP | `.mcp.json` or inline manifest config; transports include `stdio`, `http`, `sse`; auth is richer than our current model | `.cursor/mcp.json` and `~/.cursor/mcp.json`; `stdio`, `sse`, `streamable http`; OAuth and static OAuth creds supported | `.codex/config.toml` and `.mcp.json`; `stdio` and streamable HTTP; bearer and OAuth auth; plugins can bundle `.mcp.json` | Config-native MCP under `opencode.json`; local and remote servers; auth and OAuth supported |
-| Instructions / rules | `CLAUDE.md`; larger procedures should move into skills | `.cursor/rules/` plus `AGENTS.md` support | `AGENTS.md`, `AGENTS.override.md`, model instruction overrides, and fallback filenames | `AGENTS.md`, `CLAUDE.md` fallback, config `instructions`, and host config files |
-| Install / update / reload | Marketplace and local install surfaces exist; `/reload-plugins` is documented | Install/update is reload-window or restart oriented | Update local bundle or marketplace entry, then restart Codex; no documented `/reload-plugins` equivalent | Startup config load model; no equivalent documented hot-reload install flow in the supplied docs |
+| Instructions / rules | `CLAUDE.md`; larger procedures should move into skills; settings scopes affect where related config is enforced | `.cursor/rules/` plus `AGENTS.md` support; rules do not apply to Cursor Tab; nested `AGENTS.md` is supported | `AGENTS.md`, `AGENTS.override.md`, model instruction overrides, and fallback filenames | `AGENTS.md`, `CLAUDE.md` fallback, config `instructions`, and host config files |
+| Install / update / reload | Marketplace and local install surfaces exist; `/reload-plugins` is documented | Install/update is reload-window or restart oriented | Update local bundle or marketplace entry, then restart or refresh Codex; MCP config is shared between CLI and IDE extension | Startup config load model; desktop app and CLI share the same config-oriented story rather than a marketplace-first reload flow |
 
 ## Provider Findings
 
@@ -106,6 +106,7 @@ Use [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md
 Confirmed by official docs:
 
 - `.claude-plugin/plugin.json` is optional, not required
+- plugin components extend beyond the older "skills + hooks + MCP" simplification and include commands, agents, LSP servers, monitors, themes, and output styles
 - plugin skills live at `skills/<skill-name>/SKILL.md`
 - plugin skills can use richer Claude-only frontmatter fields such as:
   - `when_to_use`
@@ -121,15 +122,19 @@ Confirmed by official docs:
   - `paths`
   - `shell`
 - hooks can live in `hooks/hooks.json`, in plugin manifest config, in settings files, and in skill or agent frontmatter
+- official plugin hook events are much broader than the older simplified list and include events like `InstructionsLoaded`, `CwdChanged`, `FileChanged`, `WorktreeCreate`, `WorktreeRemove`, `PreCompact`, `PostCompact`, `Elicitation`, `ElicitationResult`, and `SessionEnd`
 - plugin subagents exist, but do not inherit every capability from the main plugin surface
+- plugin subagents explicitly do not support `hooks`, `mcpServers`, or `permissionMode`
 - MCP can be declared in `.mcp.json` or inline in plugin config
 - auth is broader than simple headers and env interpolation
 - install, update, and reload are explicit product surfaces, including `/reload-plugins`
+- settings scopes matter: managed, user, project, and local settings affect which plugin, hook, and MCP surfaces are active
 
 Current repo gaps:
 
 - the main machine-readable Claude frontmatter, hook-surface, and MCP-auth gaps have now been corrected in `src/validation/platform-rules.ts`
 - canonical Pluxx agents now also translate into Claude-native agent markdown and manifest entries instead of being copied through too raw
+- Claude distribution is still easy to accidentally compress back down to "manifest plus skills plus hooks plus MCP" even though the official plugin surface is broader
 - `docs/compatibility.md` and `docs/core-four-primitive-matrix.md` still need to stay aligned with that richer Claude shape when future provider changes land
 - downstream maintainer docs can still drift back toward the older “one manifest, one hook file, one MCP file” simplification if they are not kept current
 
@@ -146,19 +151,22 @@ Confirmed by official docs:
 - `.cursor-plugin/plugin.json` is the plugin manifest
 - `.cursor-plugin/marketplace.json` is a real packaging surface
 - hooks live in project and user `hooks.json` files and reload on save
-- official hook events are documented
+- official hook events are documented across both Agent and Tab flows
 - skills are discovered from Cursor dirs, `.agents/skills`, and compatibility dirs
 - skills support supporting files and scripts
 - subagents are real and support compatibility with `.claude/agents/` and `.codex/agents/`
+- subagents can create child subagents
 - MCP config lives in project and user `mcp.json`
 - Cursor documents `stdio`, `sse`, and streamable HTTP MCP transports
 - OAuth and static OAuth credentials are documented
 - install/update behavior is tied to restart or reload-window flows
 - ACP and headless CLI surfaces are part of the real host environment
+- `AGENTS.md` and nested `AGENTS.md` are real rule inputs, but rules do not apply to Cursor Tab
 
 Current repo gaps:
 
 - the main machine-readable Cursor transport, hook-event, and auth gaps have now been corrected in `src/validation/platform-rules.ts`
+- we still need to avoid collapsing Cursor's hook story into just "tool hooks"; the official event list is significantly broader
 - some wording in `docs/core-four-primitive-matrix.md` is stronger than the supplied docs justify for exact plugin command and agent storage paths
 - `docs/compatibility.md` is directionally right but too compressed for lifecycle and auth nuance
 
@@ -184,10 +192,13 @@ Confirmed by official docs:
 - `.app.json` is a real optional plugin surface
 - instructions include `AGENTS.md`, `AGENTS.override.md`, model instruction overrides, and fallback filenames
 - plugin updates are picked up by updating the bundle and restarting Codex
+- MCP configuration is officially shared between the CLI and IDE extension
+- the hooks page documents plugin-bundled hooks explicitly, not just external `.codex/hooks.json`
 
 Current repo gaps:
 
 - the main machine-readable Codex transport and hook-event gaps have now been corrected in `src/validation/platform-rules.ts`
+- some top-level prose still drifted toward the older "external hooks only" description even after the generator and row-level matrix moved to bundled Codex hooks
 - several conservative Codex listing limits are now encoded as Pluxx advisory heuristics rather than official-doc-backed hard facts:
   - `skillDescriptionMax: 1024`
   - `skillNameMustMatchDir: true`
@@ -216,6 +227,9 @@ Confirmed by official docs:
 - agent `tools` is deprecated in favor of `permission`, though still supported for backwards compatibility
 - instructions can come from `AGENTS.md`, `CLAUDE.md`, and config `instructions`
 - hooks are runtime plugin event handlers, not a standalone `hooks.json` convention
+- plugins can also add custom tools and respond to a much broader event bus than the older Pluxx docs implied
+- config precedence is richer than our old simplification: remote config, global config, custom config, project config, `.opencode` dirs, inline config, managed files, and macOS managed preferences are all documented
+- default-agent behavior is documented across TUI, CLI, desktop app, and GitHub Action
 
 Current repo gaps:
 
@@ -227,6 +241,7 @@ Current repo gaps:
 - `docs/compatibility.md` now reflects OpenCode as a config/runtime host rather than a `package.json + index.ts` manifest host
 - the remaining risk is downstream docs and examples slipping back into manifest-host framing or deprecated legacy-tool framing instead of code-first, permission-first runtime-host framing
 - current skill discovery dirs and instruction surfaces need to stay current as OpenCode evolves
+- current maintainer docs still need to remember that OpenCode's plugin surface is not just "hooks in code"; it is also commands, agents, permissions, remote config, managed config, and custom tools
 
 Concrete files to update:
 

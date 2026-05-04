@@ -199,10 +199,54 @@ describe('HookEntrySchema hook type validation', () => {
     ).toBe(true)
   })
 
+  it('supports http, mcp_tool, and agent hooks', () => {
+    expect(
+      HookEntrySchema.safeParse({
+        type: 'http',
+        url: 'https://example.com/hooks/pre-tool',
+      }).success
+    ).toBe(true)
+
+    expect(
+      HookEntrySchema.safeParse({
+        type: 'mcp_tool',
+        server: 'memory',
+        tool: 'search',
+      }).success
+    ).toBe(true)
+
+    expect(
+      HookEntrySchema.safeParse({
+        type: 'agent',
+        prompt: 'Double-check that the task is truly complete.',
+      }).success
+    ).toBe(true)
+  })
+
   it('requires prompt for prompt hooks', () => {
     expect(
       HookEntrySchema.safeParse({
         type: 'prompt',
+      }).success
+    ).toBe(false)
+  })
+
+  it('requires type-specific fields for http, mcp_tool, and agent hooks', () => {
+    expect(
+      HookEntrySchema.safeParse({
+        type: 'http',
+      }).success
+    ).toBe(false)
+
+    expect(
+      HookEntrySchema.safeParse({
+        type: 'mcp_tool',
+      }).success
+    ).toBe(false)
+
+    expect(
+      HookEntrySchema.safeParse({
+        type: 'agent',
       }).success
     ).toBe(false)
   })

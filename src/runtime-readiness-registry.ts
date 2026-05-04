@@ -41,7 +41,7 @@ export function getEnabledRuntimeReadinessBindings(
 }
 
 const NAMED_PROMPT_TARGET_NOTE = 'Named `skills` / `commands` readiness targets currently translate through prompt-entry gating with best-effort matching because the core four do not share one exact per-skill or per-command runtime interception surface.'
-const CODEX_EXTERNAL_NOTE = 'Codex readiness currently translates into generated hook/config guidance rather than an enforced plugin-bundled runtime surface.'
+const CODEX_EXTERNAL_NOTE = 'Codex readiness now bundles translated hooks in the plugin, but Pluxx still emits `.codex/readiness.generated.json` and `.codex/hooks.generated.json` companion guidance because some Codex runtimes still gate hook activation behind `codex_hooks`.'
 
 export function getRuntimeReadinessNamedPromptTargetNote(): string {
   return NAMED_PROMPT_TARGET_NOTE

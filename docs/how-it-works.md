@@ -628,7 +628,7 @@ The generated source of truth for support status and verification coverage is [d
 |----------|:--------:|:------:|:---:|:-----:|:-----:|
 | Claude Code | `.claude-plugin/` | Yes | Yes | Yes | CLAUDE.md |
 | Cursor | `.cursor-plugin/` | Yes | Yes | Yes | .mdc + AGENTS.md |
-| Codex | `.codex-plugin/` | Yes | Yes | External (`.codex/hooks.json`) | AGENTS.md |
+| Codex | `.codex-plugin/` | Yes | Yes | Yes (`hooks/hooks.json`, with `.codex/hooks.json` still a documented host config path) | AGENTS.md |
 | OpenCode | JS/TS module | Yes | Yes | Yes | AGENTS.md |
 | GitHub Copilot | `.claude-plugin/` | Yes | Yes | Yes | AGENTS.md |
 | OpenHands | `.plugin/` | Yes | Yes | Yes | AGENTS.md |

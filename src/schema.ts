@@ -76,10 +76,20 @@ export const McpServerSchema = z.preprocess(
 // ── Hooks ────────────────────────────────────────────────────────
 
 export const HookEntrySchema = z.object({
-  type: z.enum(['command', 'prompt']).default('command'),
+  type: z.enum(['command', 'http', 'mcp_tool', 'prompt', 'agent']).default('command'),
   command: z.string().optional(),
   prompt: z.string().optional(),
   model: z.string().optional(),
+  url: z.string().url().optional(),
+  headers: z.record(z.string(), z.string()).optional(),
+  allowedEnvVars: z.array(z.string()).optional(),
+  server: z.string().optional(),
+  tool: z.string().optional(),
+  input: z.record(z.string(), z.unknown()).optional(),
+  if: z.string().optional(),
+  async: z.boolean().optional(),
+  asyncRewake: z.boolean().optional(),
+  shell: z.enum(['bash', 'powershell']).optional(),
   timeout: z.number().optional(),
   matcher: z.union([z.string(), z.record(z.string(), z.unknown())]).optional(),
   failClosed: z.boolean().optional(),
@@ -93,11 +103,36 @@ export const HookEntrySchema = z.object({
     })
   }
 
-  if (entry.type === 'prompt' && !entry.prompt) {
+  if (entry.type === 'http' && !entry.url) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['url'],
+      message: 'HTTP hooks require a url.',
+    })
+  }
+
+  if (entry.type === 'mcp_tool') {
+    if (!entry.server) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['server'],
+        message: 'MCP tool hooks require a server.',
+      })
+    }
+    if (!entry.tool) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['tool'],
+        message: 'MCP tool hooks require a tool.',
+      })
+    }
+  }
+
+  if ((entry.type === 'prompt' || entry.type === 'agent') && !entry.prompt) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['prompt'],
-      message: 'Prompt hooks require a prompt.',
+      message: `${entry.type === 'agent' ? 'Agent' : 'Prompt'} hooks require a prompt.`,
     })
   }
 })

@@ -1,8 +1,9 @@
 import { existsSync } from 'fs'
 import { resolve } from 'path'
 import { warnDroppedHookFields } from '../hooks-warning'
-import type { PluginConfig, TargetPlatform } from '../../schema'
+import type { HookEntry, PluginConfig, TargetPlatform } from '../../schema'
 import { mapHookEventToPascalCase } from '../../hook-events'
+import { isHookFieldPreserved } from '../../hook-translation-registry'
 import { buildGeneratedPermissionHookScript } from '../../permissions'
 import { buildGeneratedReadinessScript, getRuntimeReadinessPlan } from '../../readiness'
 import { getEnabledRuntimeReadinessBindings, getRuntimeReadinessCapability } from '../../runtime-readiness-registry'
@@ -267,45 +268,134 @@ async function writeHooks(
   for (const [event, entries] of Object.entries(config.hooks)) {
     if (!entries) continue
 
-    warnDroppedHookFields(platform, event, entries)
     const mappedEvent = mapEventName(event)
-    const commandEntries = entries.filter((entry) => {
-      if (entry.type === 'prompt' || !entry.command) return false
-      if (
-        usesPlatformManagedAuth
-        && entry.command.includes('check-env.sh')
-      ) {
-        return false
-      }
-      return true
-    })
-    if (commandEntries.length === 0) continue
+    warnDroppedHookFields(platform, mappedEvent, entries)
+    const translatedEntries = (
+      await Promise.all(entries.map(async (entry) =>
+        mapClaudeHookEntry({
+          entry,
+          mappedEvent,
+          options,
+          shouldWrapClaudeHookCommands,
+          usesPlatformManagedAuth,
+          writeFile,
+          nextWrapperIndex: () => {
+            generatedClaudeHookCommandCount += 1
+            return generatedClaudeHookCommandCount
+          },
+        })))
+    ).filter((entry): entry is Record<string, unknown> => entry !== null)
+    if (translatedEntries.length === 0) continue
 
     hooks[mappedEvent] = [
       ...(hooks[mappedEvent] ?? []),
-      ...await Promise.all(commandEntries.map(async (entry) => {
-        const command = entry.command!.replace('${PLUGIN_ROOT}', `\${${options.pluginRootVar}}`)
-        const finalCommand = shouldWrapClaudeHookCommands
-          ? await (async () => {
-            generatedClaudeHookCommandCount += 1
-            const relativePath = `hooks/pluxx-hook-command-${generatedClaudeHookCommandCount}.sh`
-            await writeFile(relativePath, buildClaudeHookCommandWrapperScript(command))
-            return `bash "\${${options.pluginRootVar}}/${relativePath}"`
-          })()
-          : command
-
-        return {
-          ...(entry.matcher !== undefined ? { matcher: entry.matcher } : {}),
-          hooks: [{
-            type: 'command',
-            command: finalCommand,
-          }],
-        }
-      })),
+      ...translatedEntries,
     ]
   }
 
   await writeJson('hooks/hooks.json', { hooks })
+}
+
+async function mapClaudeHookEntry(args: {
+  entry: HookEntry
+  mappedEvent: string
+  options: ClaudeFamilyOptions
+  shouldWrapClaudeHookCommands: boolean
+  usesPlatformManagedAuth: boolean
+  writeFile: (relativePath: string, content: string) => Promise<void>
+  nextWrapperIndex: () => number
+}): Promise<Record<string, unknown> | null> {
+  const {
+    entry,
+    mappedEvent,
+    options,
+    shouldWrapClaudeHookCommands,
+    usesPlatformManagedAuth,
+    writeFile,
+    nextWrapperIndex,
+  } = args
+
+  const entryType = entry.type ?? 'command'
+
+  if (
+    entryType === 'prompt'
+    && !isHookFieldPreserved('claude-code', 'prompt', mappedEvent)
+  ) {
+    return null
+  }
+
+  if (entryType === 'command') {
+    if (!entry.command) return null
+    if (usesPlatformManagedAuth && entry.command.includes('check-env.sh')) {
+      return null
+    }
+
+    const command = entry.command.replace('${PLUGIN_ROOT}', `\${${options.pluginRootVar}}`)
+    const finalCommand = shouldWrapClaudeHookCommands
+      ? await (async () => {
+        const relativePath = `hooks/pluxx-hook-command-${nextWrapperIndex()}.sh`
+        await writeFile(relativePath, buildClaudeHookCommandWrapperScript(command))
+        return `bash "\${${options.pluginRootVar}}/${relativePath}"`
+      })()
+      : command
+
+    return {
+      ...(entry.matcher !== undefined ? { matcher: entry.matcher } : {}),
+      hooks: [{
+        type: 'command',
+        command: finalCommand,
+        ...(entry.if !== undefined ? { if: entry.if } : {}),
+        ...(entry.timeout !== undefined ? { timeout: entry.timeout } : {}),
+        ...(entry.async !== undefined ? { async: entry.async } : {}),
+        ...(entry.asyncRewake !== undefined ? { asyncRewake: entry.asyncRewake } : {}),
+        ...(entry.shell !== undefined ? { shell: entry.shell } : {}),
+      }],
+    }
+  }
+
+  if (entryType === 'http') {
+    if (!entry.url) return null
+    return {
+      ...(entry.matcher !== undefined ? { matcher: entry.matcher } : {}),
+      hooks: [{
+        type: 'http',
+        url: entry.url,
+        ...(entry.if !== undefined ? { if: entry.if } : {}),
+        ...(entry.timeout !== undefined ? { timeout: entry.timeout } : {}),
+        ...(entry.headers !== undefined ? { headers: entry.headers } : {}),
+        ...(entry.allowedEnvVars !== undefined ? { allowedEnvVars: entry.allowedEnvVars } : {}),
+      }],
+    }
+  }
+
+  if (entryType === 'mcp_tool') {
+    if (!entry.server || !entry.tool) return null
+    return {
+      ...(entry.matcher !== undefined ? { matcher: entry.matcher } : {}),
+      hooks: [{
+        type: 'mcp_tool',
+        server: entry.server,
+        tool: entry.tool,
+        ...(entry.if !== undefined ? { if: entry.if } : {}),
+        ...(entry.input !== undefined ? { input: entry.input } : {}),
+      }],
+    }
+  }
+
+  if (entryType === 'prompt' || entryType === 'agent') {
+    if (!entry.prompt) return null
+    return {
+      ...(entry.matcher !== undefined ? { matcher: entry.matcher } : {}),
+      hooks: [{
+        type: entryType,
+        prompt: entry.prompt,
+        ...(entry.if !== undefined ? { if: entry.if } : {}),
+        ...(entry.model !== undefined ? { model: entry.model } : {}),
+      }],
+    }
+  }
+
+  return null
 }
 
 async function writeInstructions(
