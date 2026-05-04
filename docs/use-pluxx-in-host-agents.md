@@ -35,7 +35,7 @@ Pluxx is the plugin-authoring substrate underneath it.
 
 ## The Main Pluxx Workflows
 
-The recommended Pluxx skill pack is organized around sixteen jobs:
+The recommended Pluxx skill pack is organized around seventeen jobs:
 
 - `pluxx-import-mcp`
 - `pluxx-bootstrap-runtime`
@@ -46,6 +46,7 @@ The recommended Pluxx skill pack is organized around sixteen jobs:
 - `pluxx-refine-taxonomy`
 - `pluxx-rewrite-instructions`
 - `pluxx-review-scaffold`
+- `pluxx-translate-hosts`
 - `pluxx-build-install`
 - `pluxx-prove-plugin`
 - `pluxx-verify-install`
@@ -65,13 +66,14 @@ Those correspond to:
 7. improve the skill taxonomy
 8. rewrite the shared instructions
 9. review the scaffold critically
-10. build native outputs and optionally install them
-11. run the guided proof journey
-12. verify that the installed host bundle is actually healthy
-13. troubleshoot a local install that still looks wrong in the host
-14. refresh the scaffold when the MCP changes
-15. run the one-shot import/refine/verify path
-16. package the plugin for release distribution
+10. review preserve/translate/degrade/drop truth across the core four
+11. build native outputs and optionally install them
+12. run the guided proof journey
+13. verify that the installed host bundle is actually healthy
+14. troubleshoot a local install that still looks wrong in the host
+15. refresh the scaffold when the MCP changes
+16. run the one-shot import/refine/verify path
+17. package the plugin for release distribution
 
 The self-hosting plugin also exposes matching explicit commands in hosts that support plugin commands:
 
@@ -90,6 +92,7 @@ The self-hosting plugin also exposes matching explicit commands in hosts that su
 - `/pluxx:review-scaffold`
 - `/pluxx:sync-mcp`
 - `/pluxx:troubleshoot-install`
+- `/pluxx:translate-hosts`
 - `/pluxx:verify-install`
 
 Use commands when you want a direct host-native entrypoint in Claude Code, Cursor, or OpenCode. In Codex, use `@pluxx` and the skill list instead; `/` is reserved for native Codex commands. Use skills when you want the host agent to choose the right Pluxx workflow automatically.

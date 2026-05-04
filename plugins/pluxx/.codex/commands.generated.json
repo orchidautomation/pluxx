@@ -95,6 +95,13 @@
       "template": "Use the Pluxx MCP sync workflow.\n\nArguments: $ARGUMENTS\n\n## What To Do\n\n1. Use the `pluxx-sync-mcp` skill.\n2. If an override MCP source is provided, use it; otherwise sync from the scaffold's current MCP config.\n3. Preview first with `pluxx sync --dry-run --json` when the impact is unclear.\n4. Run the real sync when safe.\n5. Summarize:\n   - updated files\n   - preserved files\n   - removed files\n   - any follow-up taxonomy or instructions work\n6. Re-run:\n   - `pluxx doctor`\n   - `pluxx lint`\n   - `pluxx test`\n\nExplain what changed, what stayed preserved, and whether more semantic cleanup is needed afterward."
     },
     {
+      "id": "translate-hosts",
+      "title": "translate-hosts",
+      "description": "Review preserve, translate, degrade, and drop behavior across the core four",
+      "argumentHint": "[surface or target optional]",
+      "template": "Use the Pluxx host translation workflow.\n\nArguments: $ARGUMENTS\n\n## What To Do\n\n1. Use the `pluxx-translate-hosts` skill.\n2. Treat the argument as a surface or target focus when present.\n3. Review only as deeply as needed for the user’s goal:\n   - skills\n   - commands\n   - agents\n   - hooks\n   - permissions\n   - runtime\n   - distribution\n4. Return the preserve/translate/degrade/drop truth and the highest-value source-shape fix."
+    },
+    {
       "id": "troubleshoot-install",
       "title": "troubleshoot-install",
       "description": "Diagnose why a locally installed plugin still is not visible or healthy in the host",

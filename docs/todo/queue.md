@@ -304,6 +304,9 @@ Open work:
   - `/pluxx:refine-plugin`
   - `pluxx-prove-plugin`
   - `/pluxx:prove-plugin`
+- the self-hosted plugin now also has a dedicated host-translation review path for preserve / translate / degrade / drop truth:
+  - `pluxx-translate-hosts`
+  - `/pluxx:translate-hosts`
 - the self-hosted plugin now also has an explicit install-troubleshooting workflow instead of leaving `doctor --consumer` only as a secondary hint:
   - `pluxx-troubleshoot-install`
   - `/pluxx:troubleshoot-install`

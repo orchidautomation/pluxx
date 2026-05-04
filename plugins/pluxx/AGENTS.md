@@ -45,6 +45,9 @@ The normal workflow is:
 - `pluxx-review-scaffold`
   Use when the user wants findings before shipping, not blind rewrites.
 
+- `pluxx-translate-hosts`
+  Use when the user wants preserve/translate/degrade/drop truth across Claude Code, Cursor, Codex, and OpenCode.
+
 - `pluxx-build-install`
   Use when the user wants to build installable plugins and optionally install one or more targets locally.
 
@@ -94,6 +97,9 @@ The normal workflow is:
 
 - `/pluxx:review-scaffold`
   Explicit entrypoint for findings-first review before shipping.
+
+- `/pluxx:translate-hosts`
+  Explicit entrypoint for host-by-host translation review across the core four.
 
 - `/pluxx:build-install`
   Explicit entrypoint for building the requested target bundles and optionally installing them locally for testing.
@@ -153,6 +159,7 @@ If the user wants the smoother reusable path, help them bootstrap or upgrade the
 - Before telling the user a local install is healthy, prefer `pluxx verify-install`.
 - When a local install still looks wrong after verification, prefer the explicit troubleshooting path instead of guessing.
 - When the user wants “make this feel real” or “prove this actually works,” prefer the guided `pluxx-refine-plugin` or `pluxx-prove-plugin` paths over making them pick several adjacent micro-workflows.
+- When the user asks what really survives across hosts, route through `pluxx-translate-hosts` instead of hand-waving about compatibility.
 - Findings come before summaries when the user asks for a review.
 - When starting from a raw MCP, do not stop at a lowest-common-denominator skill dump. Shape the scaffold into the strongest native mix of skills, commands, argument-bearing entrypoints, and specialist agents/subagents that the discovered workflows justify.
 
@@ -176,6 +183,7 @@ A good Pluxx result should leave the user with:
 - `pluxx-refine-plugin` is the guided refinement journey over the lower-level prepare/taxonomy/instructions/review workflows.
 - `pluxx migrate` is the bridge when the user already invested heavily in one host.
 - `pluxx-prove-plugin` is the guided proof journey over validate/build/install/verify/troubleshoot flows.
+- `pluxx-translate-hosts` is the guided preserve/translate/degrade/drop review path for the core four.
 - `pluxx verify-install` is the install-state proof after local install.
 - `pluxx-troubleshoot-install` is the operator path when install-state proof alone is not enough.
 - `pluxx publish` is the packaging and release path after the scaffold is healthy.
@@ -198,6 +206,7 @@ This plugin defines canonical command entrypoints. Codex does not package them a
 - `/review-scaffold` - Review a Pluxx scaffold critically before shipping (arguments: [focus optional])
 - `/rewrite-instructions` - Rewrite INSTRUCTIONS.md so a Pluxx scaffold explains itself clearly (arguments: [website-docs-or-context optional])
 - `/sync-mcp` - Refresh an existing Pluxx scaffold from its MCP source (arguments: [override-mcp-source optional])
+- `/translate-hosts` - Review preserve, translate, degrade, and drop behavior across the core four (arguments: [surface or target optional])
 - `/troubleshoot-install` - Diagnose why a locally installed plugin still is not visible or healthy in the host (arguments: [targets or installed-path optional])
 - `/validate-scaffold` - Run deterministic health and quality checks on the current Pluxx scaffold (arguments: [targets optional])
 - `/verify-install` - Verify that an installed host bundle is actually visible and healthy (arguments: [targets optional])

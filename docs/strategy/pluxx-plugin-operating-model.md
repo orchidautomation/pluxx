@@ -256,7 +256,18 @@ CLI it orchestrates:
 - `pluxx doctor --consumer ...`
 - `pluxx test --install --trust --behavioral --target ...`
 
-### 16. `pluxx-publish-plugin`
+### 16. `pluxx-translate-hosts`
+
+Job:
+
+- explain preserve, translate, degrade, and drop behavior across the core four
+
+CLI it orchestrates:
+
+- `pluxx lint`
+- `pluxx build --target claude-code cursor codex opencode`
+
+### 17. `pluxx-publish-plugin`
 
 Job:
 
@@ -287,6 +298,7 @@ Expose namespaced explicit commands:
 - `/pluxx:review-scaffold`
 - `/pluxx:sync-mcp`
 - `/pluxx:troubleshoot-install`
+- `/pluxx:translate-hosts`
 - `/pluxx:verify-install`
 
 ### Cursor
@@ -308,6 +320,7 @@ Expose the same explicit command set where plugin commands are supported:
 - `/pluxx:review-scaffold`
 - `/pluxx:sync-mcp`
 - `/pluxx:troubleshoot-install`
+- `/pluxx:translate-hosts`
 - `/pluxx:verify-install`
 
 ### OpenCode
@@ -329,6 +342,7 @@ Expose the same workflow command set in OpenCode’s native command surface:
 - `/pluxx:review-scaffold`
 - `/pluxx:sync-mcp`
 - `/pluxx:troubleshoot-install`
+- `/pluxx:translate-hosts`
 - `/pluxx:verify-install`
 
 ### Codex
@@ -353,6 +367,7 @@ Equivalent operator surface:
 - `pluxx-prove-plugin`
 - `pluxx-publish-plugin`
 - `pluxx-refine-plugin`
+- `pluxx-translate-hosts`
 - `pluxx-validate-scaffold`
 - `pluxx-refine-taxonomy`
 - `pluxx-rewrite-instructions`

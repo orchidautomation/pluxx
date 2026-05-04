@@ -277,6 +277,9 @@ Open work:
   - `/pluxx:refine-plugin`
   - `pluxx-prove-plugin`
   - `/pluxx:prove-plugin`
+- [x] Promote host-translation review to a first-class self-hosted plugin workflow:
+  - `pluxx-translate-hosts`
+  - `/pluxx:translate-hosts`
 - [x] Promote installed-bundle troubleshooting to a first-class self-hosted plugin workflow:
   - `pluxx-troubleshoot-install`
   - `/pluxx:troubleshoot-install`

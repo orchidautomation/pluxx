@@ -94,7 +94,7 @@ That local plugin is useful, but it is not the canonical source project.
 
 ## What The Plugin Contains Today
 
-The self-hosted plugin now exposes sixteen core workflows:
+The self-hosted plugin now exposes seventeen core workflows:
 
 1. `pluxx-import-mcp`
 2. `pluxx-bootstrap-runtime`
@@ -105,13 +105,14 @@ The self-hosted plugin now exposes sixteen core workflows:
 7. `pluxx-refine-taxonomy`
 8. `pluxx-rewrite-instructions`
 9. `pluxx-review-scaffold`
-10. `pluxx-build-install`
-11. `pluxx-prove-plugin`
-12. `pluxx-verify-install`
-13. `pluxx-troubleshoot-install`
-14. `pluxx-sync-mcp`
-15. `pluxx-autopilot`
-16. `pluxx-publish-plugin`
+10. `pluxx-translate-hosts`
+11. `pluxx-build-install`
+12. `pluxx-prove-plugin`
+13. `pluxx-verify-install`
+14. `pluxx-troubleshoot-install`
+15. `pluxx-sync-mcp`
+16. `pluxx-autopilot`
+17. `pluxx-publish-plugin`
 
 In Codex, those are primarily exposed as:
 
@@ -136,6 +137,7 @@ In hosts with command surfaces, the canonical source project also defines matchi
 - `/pluxx:review-scaffold`
 - `/pluxx:sync-mcp`
 - `/pluxx:troubleshoot-install`
+- `/pluxx:translate-hosts`
 - `/pluxx:verify-install`
 
 ## How The Current Plugin Actually Works
@@ -199,6 +201,7 @@ This is the important table.
 | `agent prepare` + instructions pass | Yes | Yes | Covered by `pluxx-rewrite-instructions` |
 | review pass | Yes | Yes | Covered by `pluxx-review-scaffold` |
 | guided refinement journey | Yes | Yes | Covered by `pluxx-refine-plugin` across context, taxonomy, instruction, review, and translation-adjacent work |
+| host translation review | Yes | Yes | Covered by `pluxx-translate-hosts` for preserve / translate / degrade / drop truth across the core four |
 | `build` + `install` | Yes | Yes | Covered by `pluxx-build-install` |
 | guided proof journey | Yes | Yes | Covered by `pluxx-prove-plugin` across structural, install, and behavioral proof layers |
 | `verify-install` | Yes | Yes | Covered by `pluxx-verify-install` |
@@ -226,6 +229,7 @@ That means the plugin surface now covers the full modern Pluxx lifecycle plus th
 - refine
 - rewrite
 - review
+- translate hosts
 - build
 - install
 - prove plugin

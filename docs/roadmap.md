@@ -253,6 +253,9 @@ The next plugin-specific work is:
   - `/pluxx:refine-plugin`
   - `pluxx-prove-plugin`
   - `/pluxx:prove-plugin`
+- the self-hosted plugin now also has a dedicated host-translation review path:
+  - `pluxx-translate-hosts`
+  - `/pluxx:translate-hosts`
 - the self-hosted plugin now has an explicit installed-bundle troubleshooting path:
   - `pluxx-troubleshoot-install`
   - `/pluxx:troubleshoot-install`
