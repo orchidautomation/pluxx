@@ -186,6 +186,10 @@ Open work:
   - hook translation explainability is now less stale:
     - Claude prompt-hook lint warnings are event-aware and only fire for unsupported Claude lifecycle events instead of claiming all prompt hooks degrade
     - prompt/failClosed/loop_limit lint messaging now routes through `src/hook-translation-registry.ts` instead of parallel hard-coded strings
+  - `migrate` now preserves richer hook intent on the first canonical pass:
+    - prompt, http, and `mcp_tool` hook entries survive migrate instead of collapsing to command-only records
+    - direct and Claude-nested hook forms now keep matcher, model, failClosed, loop_limit, async, asyncRewake, shell, headers, allowedEnvVars, and input payloads
+    - `UserPromptSubmit` now normalizes back to canonical `beforeSubmitPrompt`
   - commands IR now preserves `argument-hint`, `when_to_use`, argument arrays, examples, explicit skill routing, agent routing, and context hints through Codex, OpenCode, and Agent Mode instead of flattening commands back into prose-only guidance
   - `init --from-mcp` now emits `when_to_use`, canonical `arguments`, and explicit `skill` routing into generated command frontmatter instead of stopping at `argument-hint`
   - canonical skill metadata now includes adjacent support-file awareness for `examples/`, helper `scripts/`, and neighboring references instead of treating skills as frontmatter plus opaque body only

@@ -6,7 +6,7 @@ import {
   type McpScaffoldMetadata,
   type PersistedSkill,
 } from './init-from-mcp'
-import type { McpServer } from '../schema'
+import type { HookEntry, McpServer } from '../schema'
 import {
   PLUXX_COMPILER_INTENT_PATH,
   type CompilerIntentFile,
@@ -49,11 +49,7 @@ interface ParsedMcp {
 }
 
 interface ParsedHooks {
-  [event: string]: Array<{
-    command: string
-    timeout?: number
-    matcher?: string
-  }>
+  [event: string]: HookEntry[]
 }
 
 interface CanonicalSourcePaths {
@@ -256,6 +252,7 @@ const HOOK_EVENT_MAP: Record<string, string> = {
   SessionEnd: 'sessionEnd',
   PreToolUse: 'preToolUse',
   PostToolUse: 'postToolUse',
+  UserPromptSubmit: 'beforeSubmitPrompt',
   BeforeShellExecution: 'beforeShellExecution',
   AfterShellExecution: 'afterShellExecution',
   BeforeMCPExecution: 'beforeMCPExecution',
@@ -307,21 +304,16 @@ function parseHooks(pluginDir: string, detection: DetectionResult): ParsedHooks 
           // Claude Code format: { hooks: [{ type: 'command', command: '...' }] }
           if (entry.hooks && Array.isArray(entry.hooks)) {
             for (const hook of entry.hooks) {
-              if (hook.command) {
-                hookEntries.push({
-                  command: hook.command,
-                  ...(hook.timeout && { timeout: hook.timeout }),
-                })
-              }
+              const parsedHook = parseMigratedHookEntry(hook, entry.matcher)
+              if (parsedHook) hookEntries.push(parsedHook)
             }
           }
-          // Direct format: { command: '...' }
-          else if (entry.command) {
-            hookEntries.push({
-              command: entry.command,
-              ...(entry.timeout && { timeout: entry.timeout }),
-              ...(entry.matcher && { matcher: entry.matcher }),
-            })
+          // Direct format: { command: '...' } or other HookEntry-shaped records.
+          else {
+            const parsedHook = parseMigratedHookEntry(entry)
+            if (parsedHook) {
+              hookEntries.push(parsedHook)
+            }
           }
         }
 
@@ -337,6 +329,73 @@ function parseHooks(pluginDir: string, detection: DetectionResult): ParsedHooks 
   }
 
   return {}
+}
+
+function parseMigratedHookEntry(raw: unknown, fallbackMatcher?: unknown): HookEntry | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+
+  const candidate = raw as Record<string, unknown>
+  const inferredType = candidate.type
+  const type: HookEntry['type']
+    = inferredType === 'command'
+      || inferredType === 'http'
+      || inferredType === 'mcp_tool'
+      || inferredType === 'prompt'
+      || inferredType === 'agent'
+      ? inferredType
+      : typeof candidate.prompt === 'string'
+        ? 'prompt'
+        : typeof candidate.url === 'string'
+          ? 'http'
+          : typeof candidate.server === 'string' || typeof candidate.tool === 'string'
+            ? 'mcp_tool'
+            : 'command'
+
+  const entry: HookEntry = { type }
+
+  if (typeof candidate.command === 'string') entry.command = candidate.command
+  if (typeof candidate.prompt === 'string') entry.prompt = candidate.prompt
+  if (typeof candidate.model === 'string') entry.model = candidate.model
+  if (typeof candidate.url === 'string') entry.url = candidate.url
+  if (candidate.headers && typeof candidate.headers === 'object' && !Array.isArray(candidate.headers)) {
+    entry.headers = Object.fromEntries(
+      Object.entries(candidate.headers as Record<string, unknown>)
+        .filter(([, value]) => typeof value === 'string')
+        .map(([key, value]) => [key, value as string]),
+    )
+  }
+  if (Array.isArray(candidate.allowedEnvVars) && candidate.allowedEnvVars.every(value => typeof value === 'string')) {
+    entry.allowedEnvVars = candidate.allowedEnvVars as string[]
+  }
+  if (typeof candidate.server === 'string') entry.server = candidate.server
+  if (typeof candidate.tool === 'string') entry.tool = candidate.tool
+  if (candidate.input && typeof candidate.input === 'object' && !Array.isArray(candidate.input)) {
+    entry.input = candidate.input as Record<string, unknown>
+  }
+  if (typeof candidate.if === 'string') entry.if = candidate.if
+  if (typeof candidate.async === 'boolean') entry.async = candidate.async
+  if (typeof candidate.asyncRewake === 'boolean') entry.asyncRewake = candidate.asyncRewake
+  if (candidate.shell === 'bash') entry.shell = 'bash'
+  if (typeof candidate.timeout === 'number') entry.timeout = candidate.timeout
+
+  const matcher = candidate.matcher ?? fallbackMatcher
+  if (typeof matcher === 'string') {
+    entry.matcher = matcher
+  } else if (matcher && typeof matcher === 'object' && !Array.isArray(matcher)) {
+    entry.matcher = matcher as Record<string, unknown>
+  }
+
+  if (typeof candidate.failClosed === 'boolean') entry.failClosed = candidate.failClosed
+  if (typeof candidate.loop_limit === 'number' || candidate.loop_limit === null) {
+    entry.loop_limit = candidate.loop_limit
+  }
+
+  if (type === 'command' && !entry.command) return null
+  if (type === 'http' && !entry.url) return null
+  if (type === 'mcp_tool' && (!entry.server || !entry.tool)) return null
+  if ((type === 'prompt' || type === 'agent') && !entry.prompt) return null
+
+  return entry
 }
 
 // ── Instructions Detection ──────────────────────────────────────
@@ -1109,9 +1168,25 @@ function generateConfigTs(result: MigrateResult): string {
       const entries = result.hooks[event]
       lines.push(`    ${event}: [`)
       for (const entry of entries) {
-        const parts: string[] = [`command: ${quote(entry.command)}`]
-        if (entry.timeout) parts.push(`timeout: ${entry.timeout}`)
-        if (entry.matcher) parts.push(`matcher: ${quote(entry.matcher)}`)
+        const parts: string[] = []
+        if (entry.type && entry.type !== 'command') parts.push(`type: ${renderTsValue(entry.type)}`)
+        if (entry.command) parts.push(`command: ${renderTsValue(entry.command)}`)
+        if (entry.prompt) parts.push(`prompt: ${renderTsValue(entry.prompt)}`)
+        if (entry.model) parts.push(`model: ${renderTsValue(entry.model)}`)
+        if (entry.url) parts.push(`url: ${renderTsValue(entry.url)}`)
+        if (entry.headers) parts.push(`headers: ${renderTsValue(entry.headers)}`)
+        if (entry.allowedEnvVars) parts.push(`allowedEnvVars: ${renderTsValue(entry.allowedEnvVars)}`)
+        if (entry.server) parts.push(`server: ${renderTsValue(entry.server)}`)
+        if (entry.tool) parts.push(`tool: ${renderTsValue(entry.tool)}`)
+        if (entry.input) parts.push(`input: ${renderTsValue(entry.input)}`)
+        if (entry.if) parts.push(`if: ${renderTsValue(entry.if)}`)
+        if (entry.async !== undefined) parts.push(`async: ${renderTsValue(entry.async)}`)
+        if (entry.asyncRewake !== undefined) parts.push(`asyncRewake: ${renderTsValue(entry.asyncRewake)}`)
+        if (entry.shell) parts.push(`shell: ${renderTsValue(entry.shell)}`)
+        if (entry.timeout !== undefined) parts.push(`timeout: ${renderTsValue(entry.timeout)}`)
+        if (entry.matcher !== undefined) parts.push(`matcher: ${renderTsValue(entry.matcher)}`)
+        if (entry.failClosed !== undefined) parts.push(`failClosed: ${renderTsValue(entry.failClosed)}`)
+        if (entry.loop_limit !== undefined) parts.push(`loop_limit: ${renderTsValue(entry.loop_limit)}`)
         lines.push(`      { ${parts.join(', ')} },`)
       }
       lines.push('    ],')
@@ -1131,6 +1206,11 @@ function generateConfigTs(result: MigrateResult): string {
 function quote(s: string): string {
   // Use single quotes, escape single quotes inside
   return `'${s.replace(/'/g, "\\'")}'`
+}
+
+function renderTsValue(value: unknown): string {
+  if (typeof value === 'string') return quote(value)
+  return JSON.stringify(value)
 }
 
 // ── Main Migrate Function ───────────────────────────────────────

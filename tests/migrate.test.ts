@@ -127,6 +127,95 @@ async function setupCodexHeaderSource() {
   return sourceDir
 }
 
+async function setupRichHookSource() {
+  const sourceDir = resolve(TEST_DIR, 'source-rich-hooks')
+  mkdirSync(resolve(sourceDir, '.claude-plugin'), { recursive: true })
+  mkdirSync(resolve(sourceDir, 'skills/research'), { recursive: true })
+
+  await writeJson(resolve(sourceDir, '.claude-plugin/plugin.json'), {
+    name: 'rich-hooks',
+    version: '0.1.0',
+    description: 'Hook-rich migrate fixture.',
+    author: { name: 'Orchid' },
+  })
+
+  await writeJson(resolve(sourceDir, 'hooks.json'), {
+    hooks: {
+      UserPromptSubmit: [
+        {
+          matcher: 'Write',
+          hooks: [
+            {
+              type: 'prompt',
+              prompt: 'Confirm before submit.',
+              model: 'claude-sonnet-4',
+            },
+          ],
+        },
+      ],
+      PreToolUse: [
+        {
+          command: './scripts/pretool.sh',
+          timeout: 15,
+          matcher: {
+            tool: 'Write',
+          },
+          failClosed: true,
+          loop_limit: 2,
+        },
+      ],
+      Stop: [
+        {
+          hooks: [
+            {
+              type: 'command',
+              command: './scripts/stop.sh',
+              async: true,
+              asyncRewake: true,
+              shell: 'bash',
+            },
+          ],
+        },
+      ],
+      Notification: [
+        {
+          hooks: [
+            {
+              type: 'http',
+              url: 'https://example.com/hook',
+              headers: {
+                'X-Test': '1',
+              },
+              allowedEnvVars: ['TEST_TOKEN'],
+            },
+          ],
+        },
+      ],
+      TaskCompleted: [
+        {
+          hooks: [
+            {
+              type: 'mcp_tool',
+              server: 'linear',
+              tool: 'create_issue',
+              input: {
+                title: 'done',
+              },
+            },
+          ],
+        },
+      ],
+    },
+  })
+
+  await Bun.write(
+    resolve(sourceDir, 'skills/research/SKILL.md'),
+    ['---', 'name: research', 'description: "Research skill."', '---', '', '# Research'].join('\n'),
+  )
+
+  return sourceDir
+}
+
 async function setupClaudeReadmeSource() {
   const sourceDir = resolve(TEST_DIR, 'source-claude-readme')
   mkdirSync(resolve(sourceDir, '.claude-plugin'), { recursive: true })
@@ -443,6 +532,50 @@ describe('migrate', () => {
     expect(config).toContain("envVar: 'PLAYKIT_API_KEY'")
     expect(config).toContain("headerName: 'X-API-Key'")
     expect(config).toContain("headerTemplate: '${value}'")
+  })
+
+  it('preserves richer hook entries during migrate instead of collapsing them to command-only hooks', async () => {
+    const sourceDir = await setupRichHookSource()
+    const outputDir = resolve(TEST_DIR, 'out-rich-hooks')
+    mkdirSync(outputDir, { recursive: true })
+
+    const previousCwd = process.cwd()
+    process.chdir(outputDir)
+    try {
+      await migrate(sourceDir)
+    } finally {
+      process.chdir(previousCwd)
+    }
+
+    const config = readFileSync(resolve(outputDir, 'pluxx.config.ts'), 'utf-8')
+    expect(config).toContain('beforeSubmitPrompt: [')
+    expect(config).toContain("type: 'prompt'")
+    expect(config).toContain("prompt: 'Confirm before submit.'")
+    expect(config).toContain("model: 'claude-sonnet-4'")
+    expect(config).toContain("matcher: 'Write'")
+    expect(config).toContain('preToolUse: [')
+    expect(config).toContain("command: './scripts/pretool.sh'")
+    expect(config).toContain('matcher: {"tool":"Write"}')
+    expect(config).toContain('failClosed: true')
+    expect(config).toContain('loop_limit: 2')
+    expect(config).toContain('stop: [')
+    expect(config).toContain('async: true')
+    expect(config).toContain('asyncRewake: true')
+    expect(config).toContain("shell: 'bash'")
+    expect(config).toContain("type: 'http'")
+    expect(config).toContain("url: 'https://example.com/hook'")
+    expect(config).toContain('headers: {"X-Test":"1"}')
+    expect(config).toContain('allowedEnvVars: ["TEST_TOKEN"]')
+    expect(config).toContain("type: 'mcp_tool'")
+    expect(config).toContain("server: 'linear'")
+    expect(config).toContain("tool: 'create_issue'")
+    expect(config).toContain('input: {"title":"done"}')
+
+    const migratedConfig = await loadConfig(outputDir)
+    expect(migratedConfig.hooks?.beforeSubmitPrompt?.[0]?.type).toBe('prompt')
+    expect(migratedConfig.hooks?.preToolUse?.[0]?.failClosed).toBe(true)
+    expect(migratedConfig.hooks?.['Notification']?.[0]?.type).toBe('http')
+    expect(migratedConfig.hooks?.['TaskCompleted']?.[0]?.type).toBe('mcp_tool')
   })
 
   it('copies README instructions when README.md is the detected instructions file', async () => {
