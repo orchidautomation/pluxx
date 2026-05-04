@@ -15,6 +15,7 @@ import { getCanonicalCommandMetadata, readCanonicalCommandFiles } from '../../co
 import { buildDelegationBehaviorNotes } from '../../delegation'
 import { mapHookEventToPascalCase } from '../../hook-events'
 import { getSupportedHookEvents, getUnsupportedHookEventReason, isHookEventSupported } from '../../hook-translation-registry'
+import { buildHookCommandWrapperScript } from '../../hook-command-env'
 
 export class CodexGenerator extends Generator {
   readonly platform: TargetPlatform = 'codex'
@@ -235,6 +236,7 @@ export class CodexGenerator extends Generator {
 
     const hooks: Record<string, Array<Record<string, unknown>>> = {}
     const unsupported: Array<Record<string, string>> = []
+    let nextWrapperIndex = 0
 
     if (readinessPlan.hasReadiness && this.config.readiness) {
       await this.writeFile('.codex/pluxx-readiness.mjs', buildGeneratedReadinessScript(this.config.readiness))
@@ -254,14 +256,24 @@ export class CodexGenerator extends Generator {
       if (!entries || entries.length === 0) continue
 
       const codexEvent = mapHookEventToPascalCase(event)
-      const mappedEntries = entries
-        .filter((entry) => entry.type !== 'prompt' && entry.command)
-        .map((entry) => ({
-          command: entry.command?.replace('${PLUGIN_ROOT}', '.'),
+      const mappedEntries: Array<Record<string, unknown>> = []
+      for (const entry of entries) {
+        if (entry.type === 'prompt' || !entry.command) continue
+
+        nextWrapperIndex += 1
+        const relativePath = `hooks/pluxx-hook-command-${nextWrapperIndex}.sh`
+        await this.writeFile(
+          relativePath,
+          buildHookCommandWrapperScript(entry.command.replace('${PLUGIN_ROOT}', '.'), 'CODEX_PLUGIN_ROOT'),
+        )
+
+        mappedEntries.push({
+          command: `bash ./${relativePath}`,
           ...(entry.matcher !== undefined ? { matcher: entry.matcher } : {}),
           ...(entry.timeout ? { timeout: entry.timeout } : {}),
           ...(entry.failClosed !== undefined ? { failClosed: entry.failClosed } : {}),
-        }))
+        })
+      }
 
       if (mappedEntries.length === 0) continue
 

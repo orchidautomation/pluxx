@@ -183,7 +183,7 @@ Open work:
   - continue the `skills` follow-on from the new shared parser into a richer canonical skill spec instead of a line-oriented reader only
   - continue the `commands` IR pass beyond `argument-hint` so richer argument/routing metadata stops degrading early
   - reduce lossy import paths in `migrate` and installed-MCP discovery, especially around richer hook fields and auth reconstruction
-  - make installed hook env parity a portable runtime contract outside the Claude-specific wrapper path
+  - continue the runtime registry rollout now that installed hook env parity also translates across Cursor, Codex, and OpenCode instead of living only in the Claude-specific wrapper path
 
 ### 2. Flagship depth example
 

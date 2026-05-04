@@ -419,7 +419,7 @@ describe('build', () => {
     expect(cursorHooks.hooks.beforeSubmitPrompt).toBeDefined()
   })
 
-  it('wraps Claude hook commands so installed userConfig env reaches SessionStart hooks and child processes', async () => {
+  it('wraps command hooks across hosts so installed userConfig env reaches runtime hook commands', async () => {
     const multilineSecret = 'secret-token\nline-two'
     const hookEnvConfig: PluginConfig = {
       ...testConfig,
@@ -459,15 +459,34 @@ describe('build', () => {
     const claudeHooks = JSON.parse(
       readFileSync(resolve(TEST_DIR, 'hook-env-dist/claude-code/hooks/hooks.json'), 'utf-8'),
     )
+    const cursorHooks = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'hook-env-dist/cursor/hooks/hooks.json'), 'utf-8'),
+    )
+    const codexHooks = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'hook-env-dist/codex/hooks/hooks.json'), 'utf-8'),
+    )
+    const opencodeIndex = readFileSync(resolve(TEST_DIR, 'hook-env-dist/opencode/index.ts'), 'utf-8')
+
     expect(claudeHooks.hooks.SessionStart[0].hooks[0].command).toBe(
       'bash "${CLAUDE_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.sh"',
     )
+    expect(cursorHooks.hooks.sessionStart[0].command).toBe('bash ./hooks/pluxx-hook-command-1.sh')
+    expect(codexHooks.hooks.SessionStart[0].command).toBe('bash ./hooks/pluxx-hook-command-1.sh')
+    expect(opencodeIndex).toContain('const buildHookShellCommand = (rawCommand: string): string => {')
+    expect(opencodeIndex).toContain('const userEnv = loadUserConfig(directory).env ?? {}')
 
     const wrapperPath = resolve(TEST_DIR, 'hook-env-dist/claude-code/hooks/pluxx-hook-command-1.sh')
     const wrapper = readFileSync(wrapperPath, 'utf-8')
     expect(wrapper).toContain('.pluxx-user.json')
     expect(wrapper).toContain('CLAUDE_ENV_FILE')
     expect(wrapper).toContain('print-hook-env.mjs')
+
+    const cursorWrapper = readFileSync(resolve(TEST_DIR, 'hook-env-dist/cursor/hooks/pluxx-hook-command-1.sh'), 'utf-8')
+    const codexWrapper = readFileSync(resolve(TEST_DIR, 'hook-env-dist/codex/hooks/pluxx-hook-command-1.sh'), 'utf-8')
+    expect(cursorWrapper).toContain('.pluxx-user.json')
+    expect(cursorWrapper).toContain('print-hook-env.mjs')
+    expect(codexWrapper).toContain('.pluxx-user.json')
+    expect(codexWrapper).toContain('print-hook-env.mjs')
 
     writeFileSync(
       resolve(TEST_DIR, 'hook-env-dist/claude-code/.pluxx-user.json'),
@@ -510,6 +529,34 @@ describe('build', () => {
 
     expect(sourcedEnv.status).toBe(0)
     expect(sourcedEnv.stdout).toBe(JSON.stringify(multilineSecret))
+
+    for (const platform of ['cursor', 'codex'] as const) {
+      writeFileSync(
+        resolve(TEST_DIR, `hook-env-dist/${platform}/.pluxx-user.json`),
+        JSON.stringify({
+          values: {
+            'sendlens-instantly-api-key': multilineSecret,
+          },
+          env: {
+            SENDLENS_INSTANTLY_API_KEY: multilineSecret,
+          },
+        }, null, 2),
+      )
+
+      const runWrappedHook = spawnSync('bash', [resolve(TEST_DIR, `hook-env-dist/${platform}/hooks/pluxx-hook-command-1.sh`)], {
+        cwd: resolve(TEST_DIR, `hook-env-dist/${platform}`),
+        encoding: 'utf-8',
+        env: {
+          ...process.env,
+          ...(platform === 'cursor'
+            ? { CURSOR_PLUGIN_ROOT: resolve(TEST_DIR, `hook-env-dist/${platform}`) }
+            : { CODEX_PLUGIN_ROOT: resolve(TEST_DIR, `hook-env-dist/${platform}`) }),
+        },
+      })
+
+      expect(runWrappedHook.status).toBe(0)
+      expect(runWrappedHook.stdout).toBe(JSON.stringify(multilineSecret))
+    }
   })
 
   it('carries a rich Claude-style skill fixture and supporting files into all core-four outputs', async () => {
@@ -778,8 +825,10 @@ describe('build', () => {
     expect(cursorManifest.agents).toBe('./agents/')
     expect(cursorManifest.hooks).toBe('./hooks/hooks.json')
     expect(existsSync(resolve(OUT_DIR, 'cursor/commands/pulse.md'))).toBe(true)
-    expect(cursorHooks.hooks.sessionStart?.[0]?.command).toBe('./scripts/validate.sh')
-    expect(cursorHooks.hooks.beforeSubmitPrompt?.[0]?.command).toBe('./scripts/check-prompt.sh')
+    expect(cursorHooks.hooks.sessionStart?.[0]?.command).toBe('bash ./hooks/pluxx-hook-command-1.sh')
+    expect(cursorHooks.hooks.beforeSubmitPrompt?.[0]?.command).toBe('bash ./hooks/pluxx-hook-command-2.sh')
+    expect(readFileSync(resolve(OUT_DIR, 'cursor/hooks/pluxx-hook-command-1.sh'), 'utf-8')).toContain('./scripts/validate.sh')
+    expect(readFileSync(resolve(OUT_DIR, 'cursor/hooks/pluxx-hook-command-2.sh'), 'utf-8')).toContain('./scripts/check-prompt.sh')
     expect(cursorMcp.mcpServers['test-server'].headers.Authorization).toContain('TEST_API_KEY')
     expect(cursorAgent).toContain('Cursor translation note: stay read-only unless the parent task explicitly asks for file edits.')
     expect(cursorAgent).toContain('Cursor translation note: only delegate further subtasks when the work clearly benefits from another specialist.')
@@ -812,8 +861,9 @@ describe('build', () => {
       },
     })
     expect(codexManifest.hooks).toBe('./hooks/hooks.json')
-    expect(codexBundledHooks.hooks.SessionStart?.[0]?.command).toContain('./scripts/validate.sh')
-    expect(codexHooks.hooks.SessionStart?.[0]?.command).toContain('./scripts/validate.sh')
+    expect(codexBundledHooks.hooks.SessionStart?.[0]?.command).toBe('bash ./hooks/pluxx-hook-command-1.sh')
+    expect(codexHooks.hooks.SessionStart?.[0]?.command).toBe('bash ./hooks/pluxx-hook-command-1.sh')
+    expect(readFileSync(resolve(OUT_DIR, 'codex/hooks/pluxx-hook-command-1.sh'), 'utf-8')).toContain('./scripts/validate.sh')
     expect(codexCommands.commands[0]?.id).toBe('pulse')
     expect(codexAgent).toContain('name = "escalation"')
     expect(codexAgent).toContain('description = "Escalation specialist."')
@@ -1055,11 +1105,13 @@ describe('build', () => {
       hooks: Record<string, Array<{ command: string }>>
     }
 
-    expect(codexBundledHooks.hooks.SessionStart?.[0]?.command).toContain('./scripts/validate.sh')
-    expect(codexBundledHooks.hooks.UserPromptSubmit?.[0]?.command).toContain('./scripts/check-prompt.sh')
+    expect(codexBundledHooks.hooks.SessionStart?.[0]?.command).toBe('bash ./hooks/pluxx-hook-command-1.sh')
+    expect(codexBundledHooks.hooks.UserPromptSubmit?.[0]?.command).toBe('bash ./hooks/pluxx-hook-command-2.sh')
     expect(codexHooks.model).toBe('pluxx.codex-hooks.v1')
-    expect(codexHooks.hooks.SessionStart?.[0]?.command).toContain('./scripts/validate.sh')
-    expect(codexHooks.hooks.UserPromptSubmit?.[0]?.command).toContain('./scripts/check-prompt.sh')
+    expect(codexHooks.hooks.SessionStart?.[0]?.command).toBe('bash ./hooks/pluxx-hook-command-1.sh')
+    expect(codexHooks.hooks.UserPromptSubmit?.[0]?.command).toBe('bash ./hooks/pluxx-hook-command-2.sh')
+    expect(readFileSync(resolve(OUT_DIR, 'codex/hooks/pluxx-hook-command-1.sh'), 'utf-8')).toContain('./scripts/validate.sh')
+    expect(readFileSync(resolve(OUT_DIR, 'codex/hooks/pluxx-hook-command-2.sh'), 'utf-8')).toContain('./scripts/check-prompt.sh')
   })
 
   it('preserves hook fields only where the target can honestly carry them', async () => {
@@ -1453,9 +1505,10 @@ describe('build', () => {
     ).toEqual([...linearMatchers])
     expect(
       cursorHooks.hooks.preToolUse.every((entry: { command: string }) =>
-        entry.command === './scripts/confirm-mutation.sh'
+        entry.command.startsWith('bash ./hooks/pluxx-hook-command-')
       )
     ).toBe(true)
+    expect(readFileSync(resolve(TEST_DIR, 'matcher-dist/cursor/hooks/pluxx-hook-command-1.sh'), 'utf-8')).toContain('./scripts/confirm-mutation.sh')
   })
 
   it('copies skills to all targets', async () => {

@@ -16,6 +16,7 @@ import {
   materializeInstalledPluginOwnedStdioPathForPlatform,
   normalizePluginOwnedStdioPathForPlatform,
 } from '../mcp-stdio-paths'
+import { getInstallFollowupNotes as getDistributionInstallFollowupNotes } from '../distribution-lifecycle'
 
 interface InstallTarget {
   platform: TargetPlatform
@@ -477,22 +478,7 @@ function removeOpenCodeSkills(pluginName: string): boolean {
 }
 
 export function getInstallFollowupNotes(platforms: TargetPlatform[]): string[] {
-  const notes: string[] = []
-
-  if (platforms.includes('claude-code')) {
-    notes.push('Claude Code note: if Claude is already open, run /reload-plugins in the session to pick up the new install.')
-  }
-  if (platforms.includes('cursor')) {
-    notes.push('Cursor note: if Cursor is already open, use Developer: Reload Window or restart Cursor to pick up the new install.')
-  }
-  if (platforms.includes('codex')) {
-    notes.push('Codex note: if Codex is already open, use Plugins > Refresh if that action is available in your current UI, or restart Codex to pick up the new install. Plugin-bundled MCP servers may appear on the plugin detail page without appearing in the global MCP servers settings page.')
-  }
-  if (platforms.includes('opencode')) {
-    notes.push('OpenCode note: if OpenCode is already open, restart or reload it so the plugin is picked up.')
-  }
-
-  return notes
+  return getDistributionInstallFollowupNotes(platforms)
 }
 
 function runCommandDefault(command: string, args: string[]): CommandResult {

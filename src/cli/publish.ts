@@ -5,6 +5,7 @@ import { spawnSync } from 'child_process'
 import { tmpdir } from 'os'
 import type { PluginConfig, TargetPlatform } from '../schema'
 import { collectUserConfigEntries, defaultUserConfigEnvVar } from '../user-config'
+import { getPublishReloadInstruction } from '../distribution-lifecycle'
 
 type PublishChannel = 'npm' | 'github-release'
 type PublishAssetKind = 'archive' | 'installer' | 'manifest' | 'checksum'
@@ -819,7 +820,7 @@ claude plugin install "\${PLUGIN_NAME}@\${MARKETPLACE_NAME}" --scope user
 
 echo
 echo "Installed \${PLUGIN_NAME}@\${MARKETPLACE_NAME} into Claude Code user scope."
-echo "If Claude is already open, run /reload-plugins in the active session."
+echo "${getPublishReloadInstruction('claude-code')}"
 `
 }
 
@@ -877,7 +878,7 @@ ${renderInstallerMcpPathMaterializationSnippet('cursor', '$INSTALL_DIR')}
 ${renderInstallerRuntimeBootstrapSnippet('$INSTALL_DIR')}
 
 echo "Installed $PLUGIN_NAME to $INSTALL_DIR"
-echo "If Cursor is already open, use Developer: Reload Window or restart Cursor so the plugin is picked up."
+echo "${getPublishReloadInstruction('cursor')}"
 `
 }
 
@@ -995,7 +996,7 @@ NODE
 
 echo "Installed $PLUGIN_NAME to $INSTALL_DIR"
 echo "Updated Codex marketplace catalog at $MARKETPLACE_PATH"
-echo "If Codex is already open, use Plugins > Refresh if that action is available in your current UI, or restart Codex so the plugin is picked up."
+echo "${getPublishReloadInstruction('codex')}"
 `
 }
 
@@ -1143,7 +1144,7 @@ fi
 echo "Installed $PLUGIN_NAME plugin code to $INSTALL_DIR"
 echo "Installed OpenCode wrapper at $ENTRY_PATH"
 echo "Synced namespaced skills into $SKILLS_ROOT"
-echo "If OpenCode is already open, restart or reload it so the plugin is picked up."
+echo "${getPublishReloadInstruction('opencode')}"
 `
 }
 

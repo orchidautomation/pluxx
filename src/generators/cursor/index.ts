@@ -8,6 +8,7 @@ import { buildDelegationBehaviorNotes } from '../../delegation'
 import { getHookFieldSupportedEvents } from '../../hook-translation-registry'
 import { buildGeneratedReadinessScript, getRuntimeReadinessPlan } from '../../readiness'
 import { getEnabledRuntimeReadinessBindings, getRuntimeReadinessCapability } from '../../runtime-readiness-registry'
+import { buildHookCommandWrapperScript } from '../../hook-command-env'
 
 export class CursorGenerator extends Generator {
   readonly platform: TargetPlatform = 'cursor'
@@ -62,6 +63,7 @@ export class CursorGenerator extends Generator {
 
     // Cursor hooks format matches the canonical format closely
     const hooks: Record<string, unknown[]> = {}
+    let nextWrapperIndex = 0
 
     if (readinessPlan.hasReadiness && this.config.readiness) {
       await this.writeFile('hooks/pluxx-readiness.mjs', buildGeneratedReadinessScript(this.config.readiness))
@@ -124,16 +126,21 @@ export class CursorGenerator extends Generator {
 
       if (filteredEntries.length === 0) continue
 
-      hooks[event] = [
-        ...(hooks[event] ?? []),
-        ...filteredEntries.map(entry => {
+      const mappedEntries: Record<string, unknown>[] = []
+      for (const entry of filteredEntries) {
         const hookDef: Record<string, unknown> = {}
         if (entry.type === 'prompt') {
           hookDef.type = 'prompt'
           hookDef.prompt = entry.prompt
           if (entry.model) hookDef.model = entry.model
         } else if (entry.command) {
-          hookDef.command = entry.command.replace('${PLUGIN_ROOT}', '.')
+          nextWrapperIndex += 1
+          const relativePath = `hooks/pluxx-hook-command-${nextWrapperIndex}.sh`
+          await this.writeFile(
+            relativePath,
+            buildHookCommandWrapperScript(entry.command.replace('${PLUGIN_ROOT}', '.'), 'CURSOR_PLUGIN_ROOT'),
+          )
+          hookDef.command = `bash ./${relativePath}`
         }
         if (entry.timeout) hookDef.timeout = entry.timeout
         if (entry.matcher) hookDef.matcher = entry.matcher
@@ -141,8 +148,12 @@ export class CursorGenerator extends Generator {
         if (entry.loop_limit !== undefined && getHookFieldSupportedEvents('cursor', 'loop_limit').includes(event)) {
           hookDef.loop_limit = entry.loop_limit
         }
-        return hookDef
-      }),
+        mappedEntries.push(hookDef)
+      }
+
+      hooks[event] = [
+        ...(hooks[event] ?? []),
+        ...mappedEntries,
       ]
     }
 

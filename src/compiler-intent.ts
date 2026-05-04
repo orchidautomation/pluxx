@@ -8,6 +8,7 @@ export const CompilerIntentSkillPolicySchema = z.object({
   skillDir: z.string(),
   title: z.string(),
   description: z.string().optional(),
+  sourceFrontmatter: z.record(z.unknown()).optional(),
   source: z.object({
     kind: z.literal('claude-allowed-tools'),
     platform: z.literal('claude-code').default('claude-code'),

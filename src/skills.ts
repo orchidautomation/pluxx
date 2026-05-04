@@ -15,7 +15,19 @@ export interface ParsedSkillMarkdown {
   body: string
   name?: string
   description?: string
+  whenToUse?: string
+  argumentHint?: string
+  arguments: string[]
+  disableModelInvocation?: boolean
+  userInvocable?: boolean
   allowedTools: string[]
+  model?: string
+  effort?: string
+  context?: string
+  agent?: string
+  hooks?: unknown
+  paths: string[]
+  shell?: string
   firstHeading?: string
 }
 
@@ -141,6 +153,44 @@ function parseAllowedTools(
   return tools
 }
 
+function parseBooleanField(frontmatterFields: Map<string, SkillFrontmatterField>, key: string): boolean | undefined {
+  const value = frontmatterFields.get(key)?.value.trim().toLowerCase()
+  if (value === 'true') return true
+  if (value === 'false') return false
+  return undefined
+}
+
+function parseInlineStringArray(rawValue: string): string[] {
+  const trimmed = rawValue.trim()
+  if (!trimmed.startsWith('[') || !trimmed.endsWith(']')) return []
+
+  const inner = trimmed.slice(1, -1).trim()
+  if (!inner) return []
+
+  return inner
+    .split(',')
+    .map(part => unquote(part).value.trim())
+    .filter(Boolean)
+}
+
+function parseStringArrayField(frontmatterFields: Map<string, SkillFrontmatterField>, key: string): string[] {
+  const rawValue = frontmatterFields.get(key)?.rawValue
+  if (!rawValue) return []
+  return parseInlineStringArray(rawValue)
+}
+
+function parseJsonField(frontmatterFields: Map<string, SkillFrontmatterField>, key: string): unknown {
+  const rawValue = frontmatterFields.get(key)?.rawValue?.trim()
+  if (!rawValue) return undefined
+  if (!(rawValue.startsWith('{') || rawValue.startsWith('['))) return undefined
+
+  try {
+    return JSON.parse(rawValue)
+  } catch {
+    return undefined
+  }
+}
+
 export function parseSkillMarkdown(content: string): ParsedSkillMarkdown {
   const {
     hasValidFrontmatter,
@@ -156,7 +206,19 @@ export function parseSkillMarkdown(content: string): ParsedSkillMarkdown {
     body,
     name: frontmatterFields.get('name')?.value,
     description: frontmatterFields.get('description')?.value,
+    whenToUse: frontmatterFields.get('when_to_use')?.value,
+    argumentHint: frontmatterFields.get('argument-hint')?.value,
+    arguments: parseStringArrayField(frontmatterFields, 'arguments'),
+    disableModelInvocation: parseBooleanField(frontmatterFields, 'disable-model-invocation'),
+    userInvocable: parseBooleanField(frontmatterFields, 'user-invocable'),
     allowedTools: parseAllowedTools(hasValidFrontmatter, frontmatterLines, frontmatterFields),
+    model: frontmatterFields.get('model')?.value,
+    effort: frontmatterFields.get('effort')?.value,
+    context: frontmatterFields.get('context')?.value,
+    agent: frontmatterFields.get('agent')?.value,
+    hooks: parseJsonField(frontmatterFields, 'hooks'),
+    paths: parseStringArrayField(frontmatterFields, 'paths'),
+    shell: frontmatterFields.get('shell')?.value,
     firstHeading: firstHeading(body),
   }
 }

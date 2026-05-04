@@ -349,7 +349,7 @@ npx @orchid-labs/pluxx autopilot \
   --trust
 ```
 
-Autopilot should finish with installed path, `verify-install` status, and the host reload instruction. If the MCP needs a key, export the real env var first; placeholder secrets are rejected before install because the installer has to materialize plugin-owned MCP credentials for hosts that do not expose them in a global MCP settings UI. On Claude Code, installed hook commands also rehydrate that saved `userConfig` env from `.pluxx-user.json`, so `SessionStart` hook scripts and their child processes see the same installed secret material as the plugin-owned MCP runtime.
+Autopilot should finish with installed path, `verify-install` status, and the host reload instruction. If the MCP needs a key, export the real env var first; placeholder secrets are rejected before install because the installer has to materialize plugin-owned MCP credentials for hosts that do not expose them in a global MCP settings UI. Installed hook commands now also rehydrate that saved `userConfig` env from `.pluxx-user.json` across Claude Code, Cursor, Codex, and OpenCode runtime hooks, so startup and guard hooks see the same installed secret material as the plugin-owned MCP runtime.
 
 The generated command surface is intentionally smaller than the raw MCP tool list. Workflow grouping keeps singleton tool wrappers as skills unless they have a strong user-facing command shape, and `pluxx eval` warns when a scaffold still looks like command-per-tool output.
 

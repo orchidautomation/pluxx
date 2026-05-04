@@ -158,7 +158,15 @@ async function setupClaudeReadmeSource() {
       '---',
       'name: prospect-research',
       'description: Research a prospect.',
+      'when_to_use: "Use when outbound needs account context."',
+      'argument-hint: "[company]"',
+      'arguments: [company]',
+      'user-invocable: true',
       'allowed-tools: mcp__leadkit__get_lead, Read',
+      'context: fork',
+      'agent: Explore',
+      'paths: ["accounts/**"]',
+      'shell: bash',
       '---',
       '',
       '# Prospect Research',
@@ -455,6 +463,7 @@ describe('migrate', () => {
     expect(config).toContain("passthrough: ['./mcp-server/']")
     expect(config).toContain('// Inferred from Claude-style allowed-tools frontmatter.')
     expect(config).toContain('// Preserved skill-scoped tool access in .pluxx/compiler-intent.json and flattened it into plugin-level canonical permissions as a fallback.')
+    expect(config).toContain('// Preserved richer Claude skill frontmatter in .pluxx/compiler-intent.json so migrate does not collapse author intent back into opaque markdown.')
     expect(config).toContain("permissions: {")
     expect(config).toContain("allow: ['MCP(leadkit.get_lead)', 'Read(*)']")
     expect(existsSync(resolve(outputDir, 'README.md'))).toBe(true)
@@ -467,12 +476,23 @@ describe('migrate', () => {
       skillPolicies: Array<{
         skillDir: string
         title: string
+        sourceFrontmatter?: Record<string, unknown>
         permissions: { allow?: string[] }
       }>
     }
     expect(compilerIntent.skillPolicies).toHaveLength(1)
     expect(compilerIntent.skillPolicies[0]?.skillDir).toBe('prospect-research')
     expect(compilerIntent.skillPolicies[0]?.title).toBe('prospect-research')
+    expect(compilerIntent.skillPolicies[0]?.sourceFrontmatter).toMatchObject({
+      when_to_use: 'Use when outbound needs account context.',
+      'argument-hint': '[company]',
+      arguments: ['company'],
+      'user-invocable': true,
+      context: 'fork',
+      agent: 'Explore',
+      paths: ['accounts/**'],
+      shell: 'bash',
+    })
     expect(compilerIntent.skillPolicies[0]?.permissions.allow).toEqual(['MCP(leadkit.get_lead)', 'Read(*)'])
     const migratedSkill = readFileSync(resolve(outputDir, 'skills/prospect-research/SKILL.md'), 'utf-8')
     expect(migratedSkill).not.toContain('allowed-tools:')

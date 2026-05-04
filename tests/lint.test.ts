@@ -771,9 +771,9 @@ describe('lintProject', () => {
         description: 'test',
         author: { name: 'Test Author' },
         skills: './skills/',
-        targets: ['claude-code', 'codex', 'opencode'],
+        targets: ['claude-code', 'cursor', 'codex', 'opencode'],
         permissions: {
-          allow: ['Skill(review-scaffold)'],
+          allow: ['Skill(review-scaffold)', 'MCP(test-server.search)'],
           deny: ['Bash(rm -rf *)'],
         },
       }, null, 2),
@@ -786,7 +786,9 @@ describe('lintProject', () => {
 
     const result = await lintProject(projectDir)
     expect(result.issues.some(issue => issue.code === 'codex-permissions-external-config')).toBe(true)
-    expect(result.issues.some(issue => issue.code === 'permissions-skill-selector-limited')).toBe(false)
+    expect(result.issues.some(issue => issue.code === 'permissions-skill-selector-limited')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'cursor-permissions-translation')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'permissions-opencode-downgrade')).toBe(true)
   })
 
   it('warns when MCP auth or local runtimes depend on external host state', async () => {
@@ -1827,7 +1829,7 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'claude-hook-failclosed-degrade')).toBe(true)
     expect(result.issues.some(issue => issue.code === 'codex-hook-loop-limit-drop')).toBe(true)
     expect(result.issues.some(issue => issue.code === 'opencode-hook-loop-limit-drop')).toBe(true)
-    expect(result.issues.some(issue => issue.code === 'codex-skill-frontmatter-translation')).toBe(true)
-    expect(result.issues.some(issue => issue.code === 'opencode-skill-frontmatter-translation')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'codex-skill-frontmatter-translation' && issue.message.includes('arguments'))).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'opencode-skill-frontmatter-translation' && issue.message.includes('arguments'))).toBe(true)
   })
 })

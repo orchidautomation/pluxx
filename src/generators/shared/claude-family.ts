@@ -11,6 +11,7 @@ import { readInstructionsContent, renderTitledInstructionsDocument } from '../..
 import { readTextFile } from '../../text-files'
 import { readCanonicalAgentFiles } from '../../agents'
 import { normalizePluginOwnedStdioPathForPlatform } from '../../mcp-stdio-paths'
+import { buildHookCommandWrapperScript } from '../../hook-command-env'
 
 export interface ClaudeFamilyOptions {
   manifestPath: string
@@ -45,56 +46,6 @@ export async function generateClaudeFamilyOutputs(args: {
     writeHooks(config, platform, options, writeJson, writeFile),
     writeInstructions(config, rootDir, options, writeFile),
   ])
-}
-
-function shellSingleQuote(value: string): string {
-  return `'${value.replace(/'/g, `'\"'\"'`)}'`
-}
-
-function buildClaudeHookCommandWrapperScript(command: string): string {
-  const serializedCommand = shellSingleQuote(command)
-  const exportLoader = [
-    'import { readFileSync } from "node:fs"',
-    '',
-    'const shellSingleQuote = (input) => `\'${String(input ?? "").replace(/\'/g, `\'"\'"\'`)}\'`',
-    '',
-    'const filepath = process.argv[1]',
-    'if (!filepath) process.exit(0)',
-    'const payload = JSON.parse(readFileSync(filepath, "utf8"))',
-    'const env = payload && typeof payload === "object" && payload.env && typeof payload.env === "object"',
-    '  ? payload.env',
-    '  : {}',
-    '',
-    'for (const [key, value] of Object.entries(env)) {',
-    '  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) continue',
-    '  process.stdout.write(`export ${key}=${shellSingleQuote(value)}\\0`)',
-    '}',
-  ].join('\n')
-
-  return [
-    '#!/usr/bin/env bash',
-    'set -euo pipefail',
-    '',
-    'PLUXX_PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"',
-    'PLUXX_USER_CONFIG_PATH="$PLUXX_PLUGIN_ROOT/.pluxx-user.json"',
-    '',
-    'if [ -f "$PLUXX_USER_CONFIG_PATH" ]; then',
-    '  while IFS= read -r -d \'\' pluxx_export; do',
-    '    if [ -n "$pluxx_export" ]; then',
-    '      eval "$pluxx_export"',
-    '      if [ -n "${CLAUDE_ENV_FILE:-}" ]; then',
-        '        printf \'%s\\n\' "$pluxx_export" >> "$CLAUDE_ENV_FILE"',
-    '      fi',
-    '    fi',
-    '  done < <(',
-    `    node --input-type=module -e ${shellSingleQuote(exportLoader)} "$PLUXX_USER_CONFIG_PATH"`,
-    '  )',
-    'fi',
-    '',
-    `PLUXX_HOOK_COMMAND=${serializedCommand}`,
-    'eval "$PLUXX_HOOK_COMMAND"',
-    '',
-  ].join('\n')
 }
 
 async function writeManifest(
@@ -335,7 +286,7 @@ async function mapClaudeHookEntry(args: {
     const finalCommand = shouldWrapClaudeHookCommands
       ? await (async () => {
         const relativePath = `hooks/pluxx-hook-command-${nextWrapperIndex()}.sh`
-        await writeFile(relativePath, buildClaudeHookCommandWrapperScript(command))
+        await writeFile(relativePath, buildHookCommandWrapperScript(command, options.pluginRootVar, 'CLAUDE_ENV_FILE'))
         return `bash "\${${options.pluginRootVar}}/${relativePath}"`
       })()
       : command

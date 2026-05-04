@@ -122,7 +122,7 @@ The closure plan is now narrower than it was before:
   - continue the new shared `skills` parser into a richer canonical skill spec and translation-aware metadata layer
   - continue the `commands` IR pass beyond `argument-hint` preservation into richer argument/routing metadata
   - reduce lossy import paths in `migrate` and installed-MCP discovery
-  - turn installed hook env parity into a portable runtime contract outside the Claude-only wrapper path
+  - continue the runtime registry rollout now that installed hook env parity also translates across Cursor, Codex, and OpenCode
 - the current execution spec for that compiler-hardening tranche now lives in:
   - [docs/primitive-compiler-hardening-architecture.md](./primitive-compiler-hardening-architecture.md)
 - example and packaged-runtime parity are back in sync:

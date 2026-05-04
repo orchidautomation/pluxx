@@ -73,6 +73,7 @@ What just moved materially closer to closed:
 - hook translation closure is stronger because Cursor no longer emits unsupported `loop_limit` fields on non-supported hook events, and the hook translation fixture now asserts the Claude/Cursor/Codex/OpenCode outcomes directly
 - a rich Claude-style skill fixture with supporting files and advanced frontmatter now rebuilds cleanly to Claude Code, Cursor, Codex, and OpenCode
 - runtime and MCP fixture closure now covers bearer auth, OAuth-shaped runtime auth, and local stdio MCP across the core four, with lint and doctor calling out external runtime state explicitly
+- installed hook env parity now translates across Claude Code, Cursor, Codex, and OpenCode, so plugin-owned command hooks rehydrate `.pluxx-user.json` instead of only the Claude wrapper path doing that
 - runtime readiness is now modeled as first-class runtime intent, with generated Claude/Cursor/OpenCode behavior and bundled Codex hook output plus companion explainability
 - shared instruction intent is now proven across all four native surfaces: `CLAUDE.md`, `AGENTS.md`, and OpenCode runtime instruction injection
 
@@ -214,6 +215,7 @@ This is still the most important under-documented bucket.
   - OpenCode permission config and per-agent overrides
 - [x] Add at least one permission-rich fixture that proves the translation path
 - [x] Make `migrate` normalize host-specific permission syntax into canonical intent
+- [x] Make lint call out the Cursor multi-plane permission translation explicitly instead of only warning about Codex and OpenCode caveats
 
 ### 8. Close the runtime and MCP translation matrix
 

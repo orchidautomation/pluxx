@@ -1309,23 +1309,48 @@ function lintCursorSkillFrontmatter(
       for (const [target, supported] of supportedByTarget.entries()) {
         if (supported.has(key)) continue
 
-        const issue = target === 'cursor'
-          ? {
-              code: 'cursor-skill-frontmatter-unsupported',
-              message: `Skill frontmatter field "${key}" is not supported by Cursor. Supported: ${[...supported].join(', ')}`,
-              platform: 'Cursor',
-            }
-          : target === 'codex'
-            ? {
-                code: 'codex-skill-frontmatter-translation',
-                message: `Skill frontmatter field "${key}" is not part of documented Codex skill frontmatter. Pluxx may need to translate that intent through AGENTS.md, .codex/agents/*.toml, permissions companions, or runtime config instead of preserving it on SKILL.md.`,
-                platform: 'Codex',
-              }
-            : {
-                code: 'opencode-skill-frontmatter-translation',
-                message: `Skill frontmatter field "${key}" is not part of documented OpenCode skill frontmatter. Pluxx may need to translate that intent through commands, agents, opencode.json, or plugin runtime code instead of preserving it on SKILL.md.`,
-                platform: 'OpenCode',
-              }
+        let issue: { code: string, message: string, platform: string }
+        if (target === 'cursor') {
+          issue = {
+            code: 'cursor-skill-frontmatter-unsupported',
+            message: `Skill frontmatter field "${key}" is not supported by Cursor. Supported: ${[...supported].join(', ')}`,
+            platform: 'Cursor',
+          }
+        } else if (target === 'codex') {
+          const codexFieldTranslation: Record<string, string> = {
+            'argument-hint': 'Pluxx currently translates `argument-hint` into Codex command or routing guidance rather than documented Codex skill frontmatter.',
+            arguments: 'Pluxx currently translates skill `arguments` into Codex command or routing guidance rather than documented Codex skill frontmatter.',
+            'allowed-tools': 'Pluxx currently translates `allowed-tools` into Codex permission companions or external config rather than documented Codex skill frontmatter.',
+            context: 'Pluxx currently treats skill `context` as companion instruction intent because Codex does not document an equivalent skill frontmatter field.',
+            agent: 'Pluxx currently translates skill `agent` intent through Codex custom agents or routing guidance rather than documented Codex skill frontmatter.',
+            hooks: 'Pluxx currently translates skill-local `hooks` intent through bundled Codex hooks, where skill-local attachment is lost.',
+            paths: 'Pluxx currently translates skill `paths` into surrounding instruction or routing context because Codex does not document an equivalent skill frontmatter field.',
+            shell: 'Pluxx currently translates skill `shell` intent through command or runtime guidance because Codex does not document an equivalent skill frontmatter field.',
+          }
+          issue = {
+            code: 'codex-skill-frontmatter-translation',
+            message: codexFieldTranslation[key]
+              ?? `Skill frontmatter field "${key}" is not part of documented Codex skill frontmatter. Pluxx may need to translate that intent through AGENTS.md, .codex/agents/*.toml, permissions companions, or runtime config instead of preserving it on SKILL.md.`,
+            platform: 'Codex',
+          }
+        } else {
+          const opencodeFieldTranslation: Record<string, string> = {
+            'argument-hint': 'Pluxx currently translates `argument-hint` into OpenCode commands or runtime command metadata rather than documented OpenCode skill frontmatter.',
+            arguments: 'Pluxx currently translates skill `arguments` into OpenCode commands or runtime command metadata rather than documented OpenCode skill frontmatter.',
+            'allowed-tools': 'Pluxx currently translates `allowed-tools` into OpenCode permission config rather than documented OpenCode skill frontmatter.',
+            context: 'Pluxx currently translates skill `context` through runtime instruction injection or neighboring config because OpenCode does not document an equivalent skill frontmatter field.',
+            agent: 'Pluxx currently translates skill `agent` intent through OpenCode agents or runtime routing rather than documented OpenCode skill frontmatter.',
+            hooks: 'Pluxx currently translates skill-local `hooks` intent through OpenCode runtime event handlers, where skill-local attachment is lost.',
+            paths: 'Pluxx currently translates skill `paths` into runtime or instruction context because OpenCode does not document an equivalent skill frontmatter field.',
+            shell: 'Pluxx currently translates skill `shell` intent through runtime code or command execution guidance because OpenCode does not document an equivalent skill frontmatter field.',
+          }
+          issue = {
+            code: 'opencode-skill-frontmatter-translation',
+            message: opencodeFieldTranslation[key]
+              ?? `Skill frontmatter field "${key}" is not part of documented OpenCode skill frontmatter. Pluxx may need to translate that intent through commands, agents, opencode.json, or plugin runtime code instead of preserving it on SKILL.md.`,
+            platform: 'OpenCode',
+          }
+        }
 
         pushIssue(issues, {
           level: 'warning',
@@ -1539,6 +1564,22 @@ function lintPermissions(config: PluginConfig, issues: LintIssue[]): void {
       file: 'pluxx.config.ts',
       platform: 'Codex',
     })
+  }
+
+  if (config.targets.includes('cursor')) {
+    const cursorNuance: string[] = []
+    if (rules.some(rule => rule.kind === 'Skill')) cursorNuance.push('Skill(...)')
+    if (rules.some(rule => rule.kind === 'MCP')) cursorNuance.push('MCP(...)')
+
+    if (cursorNuance.length > 0) {
+      pushIssue(issues, {
+        level: 'warning',
+        code: 'cursor-permissions-translation',
+        message: `Cursor permission intent is split across generated hooks, CLI permission config, and subagent/tool framing. ${cursorNuance.join(' and ')} selectors are especially important to verify because they do not map to one first-class native Cursor permission field.`,
+        file: 'pluxx.config.ts',
+        platform: 'Cursor',
+      })
+    }
   }
 
   if (rules.some(rule => rule.kind === 'Skill')) {

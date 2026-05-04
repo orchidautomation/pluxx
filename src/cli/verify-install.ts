@@ -3,6 +3,7 @@ import { resolve } from 'path'
 import type { PluginConfig, TargetPlatform } from '../schema'
 import { doctorConsumer } from './doctor'
 import { planInstallPlugin, resolveInstalledConsumerPath, type PlannedInstallTarget } from './install'
+import { getVerifyInstallStaleAction } from '../distribution-lifecycle'
 
 export interface VerifyInstallCheck {
   platform: TargetPlatform
@@ -210,9 +211,8 @@ function getVerifyInstallRecoveryActions(check: VerifyInstallCheck): string[] {
 
   if (check.stale) {
     actions.push(`rerun pluxx install --target ${check.platform} to replace the stale local install`)
-    if (check.platform === 'codex') {
-      actions.push('in Codex, use Plugins > Refresh if available, or restart Codex so the plugin cache reloads')
-    }
+    const staleAction = getVerifyInstallStaleAction(check.platform)
+    if (staleAction) actions.push(staleAction)
   }
 
   if (check.errors > 0 && actions.length === 0) {

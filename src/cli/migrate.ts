@@ -485,12 +485,27 @@ function inferPermissionsFromMigratedSkills(pluginDir: string, sourcePaths: Cano
       allow.add(rule)
     }
 
+    const sourceFrontmatter: Record<string, unknown> = {}
+    if (skill.whenToUse) sourceFrontmatter.when_to_use = skill.whenToUse
+    if (skill.argumentHint) sourceFrontmatter['argument-hint'] = skill.argumentHint
+    if (skill.arguments.length > 0) sourceFrontmatter.arguments = skill.arguments
+    if (typeof skill.disableModelInvocation === 'boolean') sourceFrontmatter['disable-model-invocation'] = skill.disableModelInvocation
+    if (typeof skill.userInvocable === 'boolean') sourceFrontmatter['user-invocable'] = skill.userInvocable
+    if (skill.model) sourceFrontmatter.model = skill.model
+    if (skill.effort) sourceFrontmatter.effort = skill.effort
+    if (skill.context) sourceFrontmatter.context = skill.context
+    if (skill.agent) sourceFrontmatter.agent = skill.agent
+    if (skill.hooks !== undefined) sourceFrontmatter.hooks = skill.hooks
+    if (skill.paths.length > 0) sourceFrontmatter.paths = skill.paths
+    if (skill.shell) sourceFrontmatter.shell = skill.shell
+
     skillPolicies.push({
       skillDir: entry.name,
       title: skill.name
         ?? skill.firstHeading
         ?? titleCaseFromDirName(entry.name),
       description: skill.description,
+      ...(Object.keys(sourceFrontmatter).length > 0 ? { sourceFrontmatter } : {}),
       source: {
         kind: 'claude-allowed-tools',
         platform: 'claude-code',
@@ -507,6 +522,7 @@ function inferPermissionsFromMigratedSkills(pluginDir: string, sourcePaths: Cano
 
   notes.push('Inferred from Claude-style allowed-tools frontmatter.')
   notes.push(`Preserved skill-scoped tool access in ${PLUXX_COMPILER_INTENT_PATH} and flattened it into plugin-level canonical permissions as a fallback.`)
+  notes.push(`Preserved richer Claude skill frontmatter in ${PLUXX_COMPILER_INTENT_PATH} so migrate does not collapse author intent back into opaque markdown.`)
 
   return {
     permissions: {

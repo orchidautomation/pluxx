@@ -147,7 +147,7 @@ Any person or agent should be able to enter the repo and answer:
   - continue the new shared `skills` parser into a richer canonical skill spec and translation-aware metadata layer
   - continue the `commands` IR pass beyond `argument-hint` preservation into richer argument/routing metadata
   - reduce lossy import paths in `migrate` and installed-MCP discovery
-  - make installed hook env parity a portable runtime contract outside the Claude-only wrapper path
+  - continue the runtime registry rollout now that installed hook env parity also translates across Cursor, Codex, and OpenCode
 
 ### 2. Flagship reference plugin
 
