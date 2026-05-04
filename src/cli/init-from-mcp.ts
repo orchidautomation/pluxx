@@ -724,6 +724,7 @@ export function buildSkillContent(skill: PlannedSkill): string {
 export function buildCommandContent(skill: PlannedSkill, existingContent?: string): string {
   const description = truncate(cleanSingleLineText(skill.description), 140)
   const argumentHint = inferCommandArgumentHint(skill)
+  const argumentNames = inferCommandArgumentNames(skill)
   const entryBlurb = buildCommandEntryBlurb(skill)
   const hasRelatedResources = skill.resources.length > 0 || skill.resourceTemplates.length > 0
   const hasRelatedPrompts = skill.prompts.length > 0
@@ -746,7 +747,10 @@ export function buildCommandContent(skill: PlannedSkill, existingContent?: strin
   const generatedContent = [
     '---',
     `description: ${JSON.stringify(description)}`,
+    `when_to_use: ${JSON.stringify(entryBlurb)}`,
     `argument-hint: ${formatArgumentHintFrontmatter(argumentHint)}`,
+    `arguments: ${JSON.stringify(argumentNames)}`,
+    `skill: ${JSON.stringify(skill.dirName)}`,
     '---',
     '',
     entryBlurb,
@@ -1788,6 +1792,15 @@ function buildInstructionSkillSummary(skill: PlannedSkill): string {
 }
 
 function inferCommandArgumentHint(skill: PlannedSkill): string {
+  const fieldHints = inferCommandArgumentNames(skill)
+  if (fieldHints.length === 0) {
+    return '[request]'
+  }
+
+  return fieldHints.slice(0, 2).map((hint) => `[${hint}]`).join(' ')
+}
+
+function inferCommandArgumentNames(skill: PlannedSkill): string[] {
   const fieldHints = new Set<string>()
 
   for (const tool of skill.tools) {
@@ -1804,10 +1817,10 @@ function inferCommandArgumentHint(skill: PlannedSkill): string {
   }
 
   if (fieldHints.size === 0) {
-    return '[request]'
+    return ['request']
   }
 
-  return [...fieldHints].slice(0, 2).map((hint) => `[${hint}]`).join(' ')
+  return [...fieldHints].slice(0, 2)
 }
 
 function buildCommandEntryBlurb(skill: PlannedSkill): string {

@@ -203,6 +203,7 @@ The repo already proves a lot.
 - commands are now less lossy as canonical authoring surfaces:
   - `src/commands.ts` now preserves `when_to_use`, argument arrays, examples, explicit command-to-skill routing, agent routing, and context hints
   - Codex and OpenCode command companions now carry that richer routing metadata instead of flattening commands to `argument-hint` plus body template only
+  - `init --from-mcp` now emits `when_to_use`, canonical `arguments`, and explicit `skill` routing into generated command frontmatter instead of only the older `argument-hint` slice
   - Agent Mode manual-project context now includes command routing metadata and examples so refinement/review flows see the same truth the generators use
 - docs/website ingestion has a provider model and writes deterministic artifacts:
   - `.pluxx/sources.json`

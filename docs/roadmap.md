@@ -127,6 +127,7 @@ The closure plan is now narrower than it was before:
 - the command/skill authoring seam is materially stronger than it was:
   - `src/commands.ts` now preserves `when_to_use`, argument arrays, examples, explicit skill routing, agent routing, and context hints
   - Codex and OpenCode command companions now carry that richer metadata instead of flattening commands back to `argument-hint` plus template only
+  - `init --from-mcp` now emits `when_to_use`, canonical `arguments`, and explicit `skill` routing into generated command frontmatter
   - `src/skills.ts` now exposes canonical support-file metadata for `examples/`, helper `scripts/`, and neighboring references
   - Agent Mode manual-project context now consumes those richer command and skill seams directly
 - the current execution spec for that compiler-hardening tranche now lives in:
