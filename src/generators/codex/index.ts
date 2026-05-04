@@ -11,7 +11,7 @@ import {
   getRuntimeReadinessExternalConfigNote,
 } from '../../runtime-readiness-registry'
 import { getCanonicalAgentMetadata, readCanonicalAgentFiles } from '../../agents'
-import { readCanonicalCommandFiles } from '../../commands'
+import { getCanonicalCommandMetadata, readCanonicalCommandFiles } from '../../commands'
 import { buildDelegationBehaviorNotes } from '../../delegation'
 import { mapHookEventToPascalCase } from '../../hook-events'
 import { getSupportedHookEvents, getUnsupportedHookEventReason, isHookEventSupported } from '../../hook-translation-registry'
@@ -343,13 +343,19 @@ export class CodexGenerator extends Generator {
       model: 'pluxx.commands.v1',
       nativeSurface: 'degraded-to-guidance',
       note: 'Codex does not currently document plugin-packaged slash commands. Use these canonical command entries as workflow routing guidance alongside AGENTS.md.',
-      commands: commands.map((command) => ({
-        id: command.commandId,
-        title: command.title,
-        ...(command.description ? { description: command.description } : {}),
-        ...(command.argumentHint ? { argumentHint: command.argumentHint } : {}),
-        template: command.body,
-      })),
+      commands: commands.map((command) => {
+        const metadata = getCanonicalCommandMetadata(command)
+        return {
+          id: metadata.commandId,
+          title: metadata.title,
+          ...(metadata.description ? { description: metadata.description } : {}),
+          ...(metadata.argumentHint ? { argumentHint: metadata.argumentHint } : {}),
+          ...(metadata.agent ? { agent: metadata.agent } : {}),
+          ...(typeof metadata.subtask === 'boolean' ? { subtask: metadata.subtask } : {}),
+          ...(metadata.model ? { model: metadata.model } : {}),
+          template: metadata.template,
+        }
+      }),
     })
   }
 
@@ -365,7 +371,10 @@ export class CodexGenerator extends Generator {
       '',
       'This plugin defines canonical command entrypoints. Codex does not package them as native slash commands today, so route those requests through the matching workflow directly.',
       '',
-      ...commands.map((command) => `- \`/${command.commandId}\` - ${command.description ?? command.title}${command.argumentHint ? ` (arguments: ${command.argumentHint})` : ''}`),
+      ...commands.map((command) => {
+        const metadata = getCanonicalCommandMetadata(command)
+        return `- \`/${metadata.commandId}\` - ${metadata.description ?? metadata.title}${metadata.argumentHint ? ` (arguments: ${metadata.argumentHint})` : ''}`
+      }),
     ]
 
     return lines.join('\n')

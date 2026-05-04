@@ -1388,7 +1388,7 @@ describe('build', () => {
       readFileSync(resolve(OUT_DIR, 'codex/.codex/commands.generated.json'), 'utf-8')
     ) as {
       model: string
-      commands: Array<{ id: string; title: string; argumentHint?: string }>
+      commands: Array<{ id: string; title: string; argumentHint?: string; agent?: string; subtask?: boolean }>
     }
 
     expect(codexAgentsMd).toContain('## Command Routing')
@@ -1397,6 +1397,8 @@ describe('build', () => {
     expect(codexCommands.model).toBe('pluxx.commands.v1')
     expect(codexCommands.commands[0]?.id).toBe('pulse')
     expect(codexCommands.commands.find((command) => command.id === 'research')?.argumentHint).toBe('[company] [region]')
+    expect(codexCommands.commands.find((command) => command.id === 'research')?.agent).toBe('escalation')
+    expect(codexCommands.commands.find((command) => command.id === 'research')?.subtask).toBe(true)
   })
 
   it('preserves Linear-style preToolUse matchers in Claude Code and Cursor outputs', async () => {

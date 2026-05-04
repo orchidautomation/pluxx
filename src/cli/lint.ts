@@ -6,6 +6,7 @@ import { PLATFORM_LIMITS, PLATFORM_LIMIT_POLICIES, getCoreFourPrimitiveCapabilit
 import { collectPermissionRules, permissionRulesNeedToolLevelDowngrade } from '../permissions'
 import { getRuntimeReadinessPlan } from '../readiness'
 import { readSkillMarkdownFile, walkSkillFiles, type ParsedSkillMarkdown } from '../skills'
+import { getCanonicalCommandMetadata, readCanonicalCommandFiles } from '../commands'
 import {
   getRuntimeReadinessCapability,
   getRuntimeReadinessExternalConfigNote,
@@ -1030,6 +1031,37 @@ function lintAgentTranslationExplainability(
   }
 }
 
+function lintCommandTranslationExplainability(
+  dir: string,
+  config: PluginConfig,
+  issues: LintIssue[],
+): void {
+  if (!config.commands) return
+
+  const commands = readCanonicalCommandFiles(resolve(dir, config.commands))
+  for (const command of commands) {
+    const metadata = getCanonicalCommandMetadata(command)
+    const relativePath = relative(dir, command.filePath).replace(/\\/g, '/')
+
+    if (config.targets.includes('codex')) {
+      const degradedFields: string[] = []
+      if (metadata.agent) degradedFields.push('agent')
+      if (typeof metadata.subtask === 'boolean') degradedFields.push('subtask')
+      if (metadata.model) degradedFields.push('model')
+
+      if (degradedFields.length > 0) {
+        pushIssue(issues, {
+          level: 'warning',
+          code: 'codex-command-translation',
+          message: `Command fields ${degradedFields.map((field) => `"${field}"`).join(', ')} are not native Codex plugin slash-command fields today. Pluxx keeps the workflow, but degrades those semantics into AGENTS.md routing guidance and \`.codex/commands.generated.json\`.`,
+          file: relativePath,
+          platform: 'Codex',
+        })
+      }
+    }
+  }
+}
+
 // ── Gotcha #9: Warn if absolute paths used in hooks/MCP instead of ${CLAUDE_PLUGIN_ROOT} ──
 function lintAbsolutePaths(config: PluginConfig, issues: LintIssue[]): void {
   const absolutePathPattern = /^\/[a-zA-Z]|^[A-Z]:\\/
@@ -1627,6 +1659,7 @@ export async function lintProject(
   lintAgentIsolation(agentFiles, issues, frontmatterCache)
   lintOpenCodeAgentFrontmatter(dir, { ...lintConfig, agents: lintConfig.agents ?? './agents/' }, issues)
   lintAgentTranslationExplainability(dir, { ...lintConfig, agents: lintConfig.agents ?? './agents/' }, issues)
+  lintCommandTranslationExplainability(dir, lintConfig, issues)
 
   // MCP and brand
   lintMcpUrls(lintConfig, issues)

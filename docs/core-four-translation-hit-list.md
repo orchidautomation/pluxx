@@ -168,6 +168,8 @@ We already know skills are the most portable layer. The remaining work is docume
   - preserved in OpenCode
 - [x] Add a fixture that starts with command-rich source intent and snapshot the four outputs
 - [x] Make build summaries explicitly call out the Codex degradation path
+- [x] Add a shared canonical command metadata seam so Codex and OpenCode stop normalizing command alias fields differently
+- [x] Make lint explicitly call out Codex-only degradation for command `agent` / `subtask` / `model` metadata
 
 ### 5. Close the agents translation matrix
 

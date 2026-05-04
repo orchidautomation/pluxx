@@ -1524,6 +1524,49 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'commands-legacy')).toBe(false)
   })
 
+  it('warns when Codex command fields degrade into routing guidance only', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+    mkdirSync(resolve(projectDir, 'commands'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        commands: './commands/',
+        targets: ['codex'],
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A skill"', '---', '', '# Skill'].join('\n'),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'commands/research.md'),
+      [
+        '---',
+        'description: Run research',
+        'agent: escalation',
+        'subtask: true',
+        'model: gpt-5',
+        '---',
+        '',
+        '# Research',
+        '',
+        'Do the work.',
+      ].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'codex-command-translation')).toBe(true)
+  })
+
   // ── Gotcha #15 & #16: Codex agents min threads/depth ──
   it('reports error when Codex agents.max_threads or max_depth is below minimum', async () => {
     const projectDir = createTempProject()

@@ -7,7 +7,7 @@ import { readInstructionsContentSync } from '../../instructions'
 import { buildGeneratedReadinessScript, getRuntimeReadinessPlan } from '../../readiness'
 import { getRuntimeReadinessCapability } from '../../runtime-readiness-registry'
 import { getCanonicalAgentMetadata, type AgentFrontmatterMap, type AgentFrontmatterValue, readCanonicalAgentFiles } from '../../agents'
-import { readCanonicalCommandFiles } from '../../commands'
+import { getCanonicalCommandMetadata, readCanonicalCommandFiles } from '../../commands'
 
 type GeneratedHook = {
   command: string
@@ -432,13 +432,14 @@ export class OpenCodeGenerator extends Generator {
     }> = {}
 
     for (const command of commands) {
-      output[command.commandId] = {
-        template: command.body,
-        ...(command.description ? { description: command.description } : {}),
-        ...(command.argumentHint ? { argumentHint: command.argumentHint } : {}),
-        ...(command.agent ? { agent: command.agent } : {}),
-        ...(typeof command.subtask === 'boolean' ? { subtask: command.subtask } : {}),
-        ...(command.model ? { model: command.model } : {}),
+      const metadata = getCanonicalCommandMetadata(command)
+      output[metadata.commandId] = {
+        template: metadata.template,
+        ...(metadata.description ? { description: metadata.description } : {}),
+        ...(metadata.argumentHint ? { argumentHint: metadata.argumentHint } : {}),
+        ...(metadata.agent ? { agent: metadata.agent } : {}),
+        ...(typeof metadata.subtask === 'boolean' ? { subtask: metadata.subtask } : {}),
+        ...(metadata.model ? { model: metadata.model } : {}),
       }
     }
 

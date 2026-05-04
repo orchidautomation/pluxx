@@ -14,6 +14,17 @@ export interface ParsedCommandMarkdownFile {
   body: string
 }
 
+export interface CanonicalCommandMetadata {
+  commandId: string
+  title: string
+  description?: string
+  argumentHint?: string
+  agent?: string
+  subtask?: boolean
+  model?: string
+  template: string
+}
+
 function firstHeading(content: string): string | undefined {
   const lines = content.split(/\r?\n/)
   for (const line of lines) {
@@ -152,4 +163,17 @@ export function readCanonicalCommandFiles(commandsDir: string | undefined): Pars
         body: body.trim(),
       }
     })
+}
+
+export function getCanonicalCommandMetadata(command: ParsedCommandMarkdownFile): CanonicalCommandMetadata {
+  return {
+    commandId: command.commandId,
+    title: command.title,
+    ...(command.description ? { description: command.description } : {}),
+    ...(command.argumentHint ? { argumentHint: command.argumentHint } : {}),
+    ...(command.agent ? { agent: command.agent } : {}),
+    ...(typeof command.subtask === 'boolean' ? { subtask: command.subtask } : {}),
+    ...(command.model ? { model: command.model } : {}),
+    template: command.body,
+  }
 }
