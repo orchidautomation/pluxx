@@ -186,6 +186,9 @@ Open work:
   - commands IR now preserves `argument-hint`, `when_to_use`, argument arrays, examples, explicit skill routing, agent routing, and context hints through Codex, OpenCode, and Agent Mode instead of flattening commands back into prose-only guidance
   - `init --from-mcp` now emits `when_to_use`, canonical `arguments`, and explicit `skill` routing into generated command frontmatter instead of stopping at `argument-hint`
   - canonical skill metadata now includes adjacent support-file awareness for `examples/`, helper `scripts/`, and neighboring references instead of treating skills as frontmatter plus opaque body only
+  - command/skill translation wording in `lint` is now less duplicated:
+    - command degradation notes route through `src/command-translation-registry.ts`
+    - skill frontmatter translation notes route through `src/skill-translation-registry.ts`
 - use the Exa example as the next import-quality pressure test:
   - a raw `init --from-mcp`, `autopilot`, or `migrate` run should get closer to the final Exa workflow architecture without depending on as much maintainer hand-shaping
 - close the now-clearer translation follow-ons behind the shipped readiness/runtime work:

@@ -96,6 +96,7 @@ Any person or agent should be able to enter the repo and answer:
   - commands IR now preserves `argument-hint`, `when_to_use`, argument arrays, examples, explicit skill routing, agent routing, and context hints through Codex, OpenCode, and Agent Mode
   - `init --from-mcp` now emits `when_to_use`, canonical `arguments`, and explicit `skill` routing into generated command frontmatter
   - the shared `src/skills.ts` seam now also emits canonical support-file metadata for `examples/`, helper `scripts/`, and neighboring references
+  - command and skill translation wording in `lint` now routes through shared registries instead of hand-written per-target strings
 - [~] Use [author-once-hardening.md](./author-once-hardening.md) as the initiative-level TODO for closing the remaining gap between:
   - the author-once vision
   - the currently shipped compiler, proof, and onboarding reality

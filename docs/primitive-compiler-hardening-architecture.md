@@ -125,6 +125,7 @@ Current state:
 - the shared command seam now preserves `when_to_use`, argument arrays, examples, explicit skill routing, agent routing, and context hints in addition to `argument-hint`
 - Codex and OpenCode command companions now carry that richer metadata instead of flattening commands back into template-only guidance
 - Agent Mode manual-project context now reads the same command-routing metadata the generators consume
+- command and skill translation wording in `lint` now routes through shared registries instead of hand-written per-target strings
 - the next follow-on is stronger native host emission and registry-backed explainability, not another ad hoc command parser
 
 ### Agents

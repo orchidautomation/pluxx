@@ -3,6 +3,7 @@ import { resolve, relative, basename, dirname } from 'path'
 import { loadConfig } from '../config/load'
 import { getConfiguredCompilerBuckets, getPluginCompilerBuckets, type McpServer, type PluginConfig, type PluxxCompilerBucket, type TargetPlatform } from '../schema'
 import { PLATFORM_LIMITS, PLATFORM_LIMIT_POLICIES, getCoreFourPrimitiveCapabilities, getPlatformRules, type CoreFourPlatform, type PrimitiveTranslationMode } from '../validation/platform-rules'
+import { getCommandTranslationMessage, getTranslatedCommandFields } from '../command-translation-registry'
 import { collectPermissionRules, permissionRulesNeedToolLevelDowngrade } from '../permissions'
 import { getRuntimeReadinessPlan } from '../readiness'
 import { readSkillMarkdownFile, walkSkillFiles, type ParsedSkillMarkdown } from '../skills'
@@ -22,6 +23,7 @@ import {
 import { findHostPluginRootVars } from '../mcp-stdio-paths'
 import { getHookFieldSupportedEvents, getSupportedHookEvents, getUnsupportedHookEventReason, isHookEventSupported } from '../hook-translation-registry'
 import { readInstructionsContentSync, resolveInstructionsPath } from '../instructions'
+import { getSkillFrontmatterTranslationIssue } from '../skill-translation-registry'
 import {
   getInstallerOwnedCheckEnvHookMessage,
   getInstallerOwnedCheckEnvRuntimeMessage,
@@ -1044,16 +1046,14 @@ function lintCommandTranslationExplainability(
     const relativePath = relative(dir, command.filePath).replace(/\\/g, '/')
 
     if (config.targets.includes('codex')) {
-      const degradedFields: string[] = []
-      if (metadata.agent) degradedFields.push('agent')
-      if (typeof metadata.subtask === 'boolean') degradedFields.push('subtask')
-      if (metadata.model) degradedFields.push('model')
+      const degradedFields = getTranslatedCommandFields('codex', metadata)
+      const message = getCommandTranslationMessage('codex', degradedFields)
 
-      if (degradedFields.length > 0) {
+      if (degradedFields.length > 0 && message) {
         pushIssue(issues, {
           level: 'warning',
           code: 'codex-command-translation',
-          message: `Command fields ${degradedFields.map((field) => `"${field}"`).join(', ')} are not native Codex plugin slash-command fields today. Pluxx keeps the workflow, but degrades those semantics into AGENTS.md routing guidance and \`.codex/commands.generated.json\`.`,
+          message,
           file: relativePath,
           platform: 'Codex',
         })
@@ -1319,53 +1319,17 @@ function lintCursorSkillFrontmatter(
       for (const [target, supported] of supportedByTarget.entries()) {
         if (supported.has(key)) continue
 
-        let issue: { code: string, message: string, platform: string }
-        if (target === 'cursor') {
-          issue = {
-            code: 'cursor-skill-frontmatter-unsupported',
-            message: `Skill frontmatter field "${key}" is not supported by Cursor. Supported: ${[...supported].join(', ')}`,
-            platform: 'Cursor',
-          }
-        } else if (target === 'codex') {
-          const codexFieldTranslation: Record<string, string> = {
-            'argument-hint': 'Pluxx currently translates `argument-hint` into Codex command or routing guidance rather than documented Codex skill frontmatter.',
-            arguments: 'Pluxx currently translates skill `arguments` into Codex command or routing guidance rather than documented Codex skill frontmatter.',
-            'allowed-tools': 'Pluxx currently translates `allowed-tools` into Codex permission companions or external config rather than documented Codex skill frontmatter.',
-            context: 'Pluxx currently treats skill `context` as companion instruction intent because Codex does not document an equivalent skill frontmatter field.',
-            agent: 'Pluxx currently translates skill `agent` intent through Codex custom agents or routing guidance rather than documented Codex skill frontmatter.',
-            hooks: 'Pluxx currently translates skill-local `hooks` intent through bundled Codex hooks, where skill-local attachment is lost.',
-            paths: 'Pluxx currently translates skill `paths` into surrounding instruction or routing context because Codex does not document an equivalent skill frontmatter field.',
-            shell: 'Pluxx currently translates skill `shell` intent through command or runtime guidance because Codex does not document an equivalent skill frontmatter field.',
-          }
-          issue = {
-            code: 'codex-skill-frontmatter-translation',
-            message: codexFieldTranslation[key]
-              ?? `Skill frontmatter field "${key}" is not part of documented Codex skill frontmatter. Pluxx may need to translate that intent through AGENTS.md, .codex/agents/*.toml, permissions companions, or runtime config instead of preserving it on SKILL.md.`,
-            platform: 'Codex',
-          }
-        } else {
-          const opencodeFieldTranslation: Record<string, string> = {
-            'argument-hint': 'Pluxx currently translates `argument-hint` into OpenCode commands or runtime command metadata rather than documented OpenCode skill frontmatter.',
-            arguments: 'Pluxx currently translates skill `arguments` into OpenCode commands or runtime command metadata rather than documented OpenCode skill frontmatter.',
-            'allowed-tools': 'Pluxx currently translates `allowed-tools` into OpenCode permission config rather than documented OpenCode skill frontmatter.',
-            context: 'Pluxx currently translates skill `context` through runtime instruction injection or neighboring config because OpenCode does not document an equivalent skill frontmatter field.',
-            agent: 'Pluxx currently translates skill `agent` intent through OpenCode agents or runtime routing rather than documented OpenCode skill frontmatter.',
-            hooks: 'Pluxx currently translates skill-local `hooks` intent through OpenCode runtime event handlers, where skill-local attachment is lost.',
-            paths: 'Pluxx currently translates skill `paths` into runtime or instruction context because OpenCode does not document an equivalent skill frontmatter field.',
-            shell: 'Pluxx currently translates skill `shell` intent through runtime code or command execution guidance because OpenCode does not document an equivalent skill frontmatter field.',
-          }
-          issue = {
-            code: 'opencode-skill-frontmatter-translation',
-            message: opencodeFieldTranslation[key]
-              ?? `Skill frontmatter field "${key}" is not part of documented OpenCode skill frontmatter. Pluxx may need to translate that intent through commands, agents, opencode.json, or plugin runtime code instead of preserving it on SKILL.md.`,
-            platform: 'OpenCode',
-          }
-        }
+        const issue = getSkillFrontmatterTranslationIssue(
+          target,
+          key,
+          [...supported],
+        )
 
         pushIssue(issues, {
           level: 'warning',
           file: skillFile,
           ...issue,
+          platform: target === 'cursor' ? 'Cursor' : target === 'codex' ? 'Codex' : 'OpenCode',
         })
       }
     }
