@@ -1801,6 +1801,12 @@ describe('lintProject', () => {
         skills: './skills/',
         commands: './commands/',
         hooks: {
+          sessionStart: [
+            {
+              type: 'prompt',
+              prompt: 'Prepare the session.',
+            },
+          ],
           beforeSubmitPrompt: [
             {
               type: 'prompt',
@@ -1843,6 +1849,9 @@ describe('lintProject', () => {
     )
 
     const result = await lintProject(projectDir)
+    const claudePromptIssues = result.issues.filter(issue => issue.code === 'claude-prompt-hook-degrade')
+    expect(claudePromptIssues).toHaveLength(1)
+    expect(claudePromptIssues[0]?.message).toContain('SessionStart')
     expect(result.issues.some(issue => issue.code === 'claude-prompt-hook-degrade')).toBe(true)
     expect(result.issues.some(issue => issue.code === 'codex-prompt-hook-drop')).toBe(true)
     expect(result.issues.some(issue => issue.code === 'opencode-prompt-hook-drop')).toBe(true)

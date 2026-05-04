@@ -78,6 +78,7 @@ What just moved materially closer to closed:
 - shared instruction intent is now proven across all four native surfaces: `CLAUDE.md`, `AGENTS.md`, and OpenCode runtime instruction injection
 - Codex command degradation closure is tighter because `AGENTS.md` routing guidance and `.codex/commands.generated.json` now read from the same richer command metadata seam
 - Codex/OpenCode skill-frontmatter explainability now explicitly covers `when_to_use`, `user-invocable`, `model`, and `effort` instead of falling back to generic unsupported-field prose
+- hook explainability closure is tighter because prompt/failClosed/loop_limit lint messaging now routes through the shared hook registry, and Claude prompt-hook warnings are event-aware instead of claiming the generator drops all prompt hooks
 
 The previous “remaining P0 fixture/proof rows” are now closed.
 The remaining work is now mainly public-proof packaging and future host-refresh maintenance, not unresolved core translation behavior.

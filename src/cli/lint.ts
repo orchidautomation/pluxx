@@ -21,7 +21,14 @@ import {
   mapHookEventToPascalCase,
 } from '../hook-events'
 import { findHostPluginRootVars } from '../mcp-stdio-paths'
-import { getHookFieldSupportedEvents, getSupportedHookEvents, getUnsupportedHookEventReason, isHookEventSupported } from '../hook-translation-registry'
+import {
+  getHookFieldSupportedEvents,
+  getHookFieldTranslationIssue,
+  getPromptHookTranslationIssue,
+  getSupportedHookEvents,
+  getUnsupportedHookEventReason,
+  isHookEventSupported,
+} from '../hook-translation-registry'
 import { readInstructionsContentSync, resolveInstructionsPath } from '../instructions'
 import { getSkillFrontmatterTranslationIssue } from '../skill-translation-registry'
 import {
@@ -1351,75 +1358,95 @@ function lintHookFieldTranslations(config: PluginConfig, issues: LintIssue[]): v
 
   if (hasPromptHooks) {
     if (config.targets.includes('claude-code')) {
-      pushIssue(issues, {
-        level: 'warning',
-        code: 'claude-prompt-hook-degrade',
-        message: 'Prompt hooks are documented in Claude-native hook surfaces, but the current Claude-family generator still drops prompt hooks. Expect a degraded result unless you remodel them as command hooks or host-specific manual work.',
-        file: 'pluxx.config.ts',
-        platform: 'claude-code',
-      })
+      const warnedEvents = new Set<string>()
+      for (const [event, entries] of Object.entries(config.hooks)) {
+        if (!(entries ?? []).some(entry => entry.type === 'prompt')) continue
+        const mappedEvent = mapHookEventToPascalCase(event)
+        const issue = getPromptHookTranslationIssue('claude-code', mappedEvent)
+        if (!issue || warnedEvents.has(mappedEvent)) continue
+
+        warnedEvents.add(mappedEvent)
+        pushIssue(issues, {
+          level: 'warning',
+          file: 'pluxx.config.ts',
+          platform: 'claude-code',
+          ...issue,
+        })
+      }
     }
 
     if (config.targets.includes('codex')) {
-      pushIssue(issues, {
-        level: 'warning',
-        code: 'codex-prompt-hook-drop',
-        message: 'Codex currently receives only command-hook companions from Pluxx. Prompt hooks will be dropped from the generated Codex bundle.',
-        file: 'pluxx.config.ts',
-        platform: 'codex',
-      })
+      const issue = getPromptHookTranslationIssue('codex')
+      if (issue) {
+        pushIssue(issues, {
+          level: 'warning',
+          file: 'pluxx.config.ts',
+          platform: 'codex',
+          ...issue,
+        })
+      }
     }
 
     if (config.targets.includes('opencode')) {
-      pushIssue(issues, {
-        level: 'warning',
-        code: 'opencode-prompt-hook-drop',
-        message: 'The current OpenCode runtime wrapper only emits command hooks. Prompt hooks will be dropped from the generated OpenCode plugin.',
-        file: 'pluxx.config.ts',
-        platform: 'opencode',
-      })
+      const issue = getPromptHookTranslationIssue('opencode')
+      if (issue) {
+        pushIssue(issues, {
+          level: 'warning',
+          file: 'pluxx.config.ts',
+          platform: 'opencode',
+          ...issue,
+        })
+      }
     }
   }
 
   if (hasFailClosed && config.targets.includes('claude-code')) {
-    pushIssue(issues, {
-      level: 'warning',
-      code: 'claude-hook-failclosed-degrade',
-      message: 'Claude hook entries currently drop `failClosed` in generated output. Keep this behavior host-specific or verify the generated hook bundle carefully.',
-      file: 'pluxx.config.ts',
-      platform: 'claude-code',
-    })
+    const issue = getHookFieldTranslationIssue('claude-code', 'failClosed')
+    if (issue) {
+      pushIssue(issues, {
+        level: 'warning',
+        file: 'pluxx.config.ts',
+        platform: 'claude-code',
+        ...issue,
+      })
+    }
   }
 
   if (hasLoopLimit) {
     if (config.targets.includes('claude-code')) {
-      pushIssue(issues, {
-        level: 'warning',
-        code: 'claude-hook-loop-limit-degrade',
-        message: 'Claude outputs currently drop `loop_limit`. Recursive hook protection is not preserved there today.',
-        file: 'pluxx.config.ts',
-        platform: 'claude-code',
-      })
+      const issue = getHookFieldTranslationIssue('claude-code', 'loop_limit')
+      if (issue) {
+        pushIssue(issues, {
+          level: 'warning',
+          file: 'pluxx.config.ts',
+          platform: 'claude-code',
+          ...issue,
+        })
+      }
     }
 
     if (config.targets.includes('codex')) {
-      pushIssue(issues, {
-        level: 'warning',
-        code: 'codex-hook-loop-limit-drop',
-        message: 'Codex hook companions currently drop `loop_limit`. Only command, matcher, timeout, and failClosed survive there today.',
-        file: 'pluxx.config.ts',
-        platform: 'codex',
-      })
+      const issue = getHookFieldTranslationIssue('codex', 'loop_limit')
+      if (issue) {
+        pushIssue(issues, {
+          level: 'warning',
+          file: 'pluxx.config.ts',
+          platform: 'codex',
+          ...issue,
+        })
+      }
     }
 
     if (config.targets.includes('opencode')) {
-      pushIssue(issues, {
-        level: 'warning',
-        code: 'opencode-hook-loop-limit-drop',
-        message: 'OpenCode runtime hooks currently drop `loop_limit`. Recursive hook protection is still Cursor-first in Pluxx.',
-        file: 'pluxx.config.ts',
-        platform: 'opencode',
-      })
+      const issue = getHookFieldTranslationIssue('opencode', 'loop_limit')
+      if (issue) {
+        pushIssue(issues, {
+          level: 'warning',
+          file: 'pluxx.config.ts',
+          platform: 'opencode',
+          ...issue,
+        })
+      }
     }
   }
 }

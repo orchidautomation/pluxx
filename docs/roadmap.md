@@ -132,6 +132,7 @@ The closure plan is now narrower than it was before:
   - Agent Mode manual-project context now consumes those richer command and skill seams directly
   - Codex command routing guidance in `AGENTS.md` now reads from the same shared command translation seam as `.codex/commands.generated.json`
   - skill-frontmatter translation notes for Codex and OpenCode now explicitly cover `when_to_use`, `user-invocable`, `model`, and `effort`
+  - hook translation notes for prompt/failClosed/loop_limit now also route through the shared hook registry, and Claude prompt-hook warnings are event-aware instead of claiming all prompt hooks degrade
 - the current execution spec for that compiler-hardening tranche now lives in:
   - [docs/primitive-compiler-hardening-architecture.md](./primitive-compiler-hardening-architecture.md)
 - the sharper initiative TODO for finishing the author-once gap now lives in:
