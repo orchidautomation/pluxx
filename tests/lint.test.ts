@@ -1742,6 +1742,12 @@ describe('lintProject', () => {
               loop_limit: 3,
             },
           ],
+          afterFileEdit: [
+            {
+              type: 'http',
+              url: 'https://example.com/hooks/after-edit',
+            },
+          ],
           stop: [
             {
               command: 'echo stop',
@@ -1767,6 +1773,7 @@ describe('lintProject', () => {
 
     const result = await lintProject(projectDir)
     expect(result.issues.filter(issue => issue.code === 'cursor-hook-event-unknown')).toHaveLength(1)
+    expect(result.issues.some(issue => issue.code === 'cursor-hook-type-unsupported')).toBe(true)
     expect(result.issues.some(issue => issue.code === 'cursor-hook-loop-limit-unsupported-event')).toBe(true)
     expect(result.issues.some(issue => issue.code === 'cursor-skill-frontmatter-unsupported')).toBe(true)
   })

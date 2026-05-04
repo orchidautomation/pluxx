@@ -148,8 +148,12 @@ export class CursorGenerator extends Generator {
         if (entry.loop_limit !== undefined && getHookFieldSupportedEvents('cursor', 'loop_limit').includes(event)) {
           hookDef.loop_limit = entry.loop_limit
         }
-        mappedEntries.push(hookDef)
+        if (Object.keys(hookDef).length > 0) {
+          mappedEntries.push(hookDef)
+        }
       }
+
+      if (mappedEntries.length === 0) continue
 
       hooks[event] = [
         ...(hooks[event] ?? []),

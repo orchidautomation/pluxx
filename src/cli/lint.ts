@@ -1271,6 +1271,16 @@ function lintCursorHooks(config: PluginConfig, issues: LintIssue[]): void {
       if (!entry || typeof entry !== 'object') continue
       const rec = entry as Record<string, unknown>
 
+      if (rec.type && rec.type !== 'command' && rec.type !== 'prompt') {
+        pushIssue(issues, {
+          level: 'warning',
+          code: 'cursor-hook-type-unsupported',
+          message: `Cursor does not document hook type "${String(rec.type)}". Pluxx currently preserves only command and prompt hooks on the Cursor hook surface.`,
+          file: 'pluxx.config.ts',
+          platform: 'Cursor',
+        })
+      }
+
       const cursorLoopLimitEvents = getHookFieldSupportedEvents('cursor', 'loop_limit')
       if (rec.loop_limit !== undefined && !cursorLoopLimitEvents.includes(hookEvent)) {
         pushIssue(issues, {

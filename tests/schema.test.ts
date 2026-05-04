@@ -251,6 +251,16 @@ describe('HookEntrySchema hook type validation', () => {
     ).toBe(false)
   })
 
+  it('rejects unsupported hook shell values', () => {
+    expect(
+      HookEntrySchema.safeParse({
+        type: 'command',
+        command: 'echo hi',
+        shell: 'powershell',
+      }).success
+    ).toBe(false)
+  })
+
   it('supports runtime readiness with refresh commands and gate scoping', () => {
     const config = PluginConfigSchema.parse({
       name: 'readiness-plugin',

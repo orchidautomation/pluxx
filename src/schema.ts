@@ -89,7 +89,7 @@ export const HookEntrySchema = z.object({
   if: z.string().optional(),
   async: z.boolean().optional(),
   asyncRewake: z.boolean().optional(),
-  shell: z.enum(['bash', 'powershell']).optional(),
+  shell: z.enum(['bash']).optional(),
   timeout: z.number().optional(),
   matcher: z.union([z.string(), z.record(z.string(), z.unknown())]).optional(),
   failClosed: z.boolean().optional(),
