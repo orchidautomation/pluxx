@@ -20,6 +20,7 @@ Last updated: 2026-05-01
   - [docs/core-four-provider-docs-audit.md](./core-four-provider-docs-audit.md)
   - [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md)
   - [docs/core-four-maintenance-routine.md](./core-four-maintenance-routine.md)
+  - [docs/todo/author-once-hardening.md](./todo/author-once-hardening.md)
   - [Linear](https://linear.app/orchid-automation)
 - Update together:
   - [docs/start-here.md](./start-here.md)
@@ -125,6 +126,10 @@ The closure plan is now narrower than it was before:
   - continue the runtime registry rollout now that installed hook env parity also translates across Cursor, Codex, and OpenCode
 - the current execution spec for that compiler-hardening tranche now lives in:
   - [docs/primitive-compiler-hardening-architecture.md](./primitive-compiler-hardening-architecture.md)
+- the sharper initiative TODO for finishing the author-once gap now lives in:
+  - [docs/todo/author-once-hardening.md](./todo/author-once-hardening.md)
+- the same initiative now explicitly includes the self-hosted `pluxx-plugin` as the average-user operator path over the CLI:
+  - use [docs/pluxx-plugin-surface-audit.md](./pluxx-plugin-surface-audit.md) as the coverage and UX truth source
 - example and packaged-runtime parity are back in sync:
   - `examples/prospeo-mcp` now bundles its `scripts/` payload and points at the official `@prospeo/prospeo-mcp-server` package
 - the release gate is green again as of 2026-04-30:

@@ -87,6 +87,11 @@ The goal of this layer is simple:
 
 > Make Pluxx the default way to author and maintain a real cross-host plugin from one source project.
 
+The CLI is the engine, but the self-hosted Pluxx plugin is part of the real product surface for average users.
+
+That means near-term product quality is not only about compiler depth.
+It is also about making the plugin-guided path feel obvious, safe, and understandable on top of the same CLI truth.
+
 ### 2. Later Trust / Distribution Layer
 
 This is a plausible later product, not the current build center.
@@ -135,6 +140,8 @@ The repo already proves a lot.
 - the repo-local Codex dogfood plugin exists in `plugins/pluxx`
 - the self-hosted Pluxx plugin has now been rebuilt, installed, and `verify-install` checked from the canonical source project across the core four:
   - `docs/pluxx-self-hosted-core-four-proof.md`
+- the self-hosted plugin surface is also documented as a thin operator layer over the CLI rather than a second engine:
+  - `docs/pluxx-plugin-surface-audit.md`
 - the flagship `example/docs-ops` source project exists and is wired to a live public Orchid Docsalot MCP endpoint for read-only proof
 - the flagship example has now also been rebuilt, installed, and `verify-install` checked from the source project across Claude Code, Cursor, Codex, and OpenCode:
   - `docs/docs-ops-core-four-proof.md`

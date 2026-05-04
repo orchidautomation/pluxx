@@ -19,6 +19,7 @@ Last updated: 2026-05-01
   - [docs/pluxx-self-hosted-core-four-proof.md](../pluxx-self-hosted-core-four-proof.md)
   - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
   - [docs/core-four-translation-hit-list.md](../core-four-translation-hit-list.md)
+  - [author-once-hardening.md](./author-once-hardening.md)
   - [Linear](https://linear.app/orchid-automation)
 - Update together:
   - [docs/start-here.md](../start-here.md)
@@ -170,6 +171,13 @@ Open work:
   - runtime/distribution internal seam hardening
 - shared skill parsing is now materially less duplicated:
   - `src/skills.ts` is the common reader for lint, Agent Mode, migrate, and Claude skill rewrites
+- use [docs/todo/author-once-hardening.md](./author-once-hardening.md) as the current initiative-level TODO for closing the remaining gap between:
+  - the author-once product vision
+  - the currently shipped compiler, proof, and install reality
+- treat the self-hosted `pluxx-plugin` as part of that same initiative for average-user product quality:
+  - the CLI stays the engine
+  - the plugin should be the guided operator surface
+  - use [docs/pluxx-plugin-surface-audit.md](../pluxx-plugin-surface-audit.md) to keep plugin coverage and UX gaps honest
 - treat the current compiler-hardening state as:
   - runtime/distribution internal seams are materially stronger
   - readiness translation is already shared through one registry

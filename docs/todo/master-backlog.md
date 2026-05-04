@@ -32,6 +32,7 @@ This is not the same thing as the short queue.
   - [docs/pluxx-self-hosted-core-four-proof.md](../pluxx-self-hosted-core-four-proof.md)
   - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
   - [docs/core-four-translation-hit-list.md](../core-four-translation-hit-list.md)
+  - [author-once-hardening.md](./author-once-hardening.md)
   - [Linear](https://linear.app/orchid-automation)
 - Update together:
   - [docs/start-here.md](../start-here.md)
@@ -94,6 +95,13 @@ Any person or agent should be able to enter the repo and answer:
   - first hook-registry slice is now in place for event support and field-preservation truth
   - first commands IR follow-on is now in place for `argument-hint` preservation
   - first shared skill-parser slice is now in place through `src/skills.ts`
+- [~] Use [author-once-hardening.md](./author-once-hardening.md) as the initiative-level TODO for closing the remaining gap between:
+  - the author-once vision
+  - the currently shipped compiler, proof, and onboarding reality
+- [~] Keep the self-hosted `pluxx-plugin` inside that same initiative as the average-user path:
+  - the CLI remains the engine
+  - the plugin should stay the guided operator surface
+  - use [docs/pluxx-plugin-surface-audit.md](../pluxx-plugin-surface-audit.md) as the coverage and UX truth source
 - [x] Close the last P0 fixture/proof rows from the translation hit list:
   - row-level translation docs are now in:
     - [docs/core-four-primitive-matrix.md](../core-four-primitive-matrix.md)
