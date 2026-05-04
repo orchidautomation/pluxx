@@ -269,6 +269,12 @@ Open work:
   - [docs/proof-and-install.md](../proof-and-install.md)
 - [ ] Keep the plugin thin and the CLI as the execution engine
 - [x] Close the plugin workflow coverage gap documented in `docs/pluxx-plugin-surface-audit.md`
+- [x] Promote runtime bootstrap to a first-class self-hosted plugin workflow:
+  - `pluxx-bootstrap-runtime`
+  - `/pluxx:bootstrap-runtime`
+- [x] Promote installed-bundle troubleshooting to a first-class self-hosted plugin workflow:
+  - `pluxx-troubleshoot-install`
+  - `/pluxx:troubleshoot-install`
 - [ ] Keep `example/pluxx`, `plugins/pluxx`, and the published `pluxx-plugin` repo aligned
 - [ ] Keep the self-hosted core-four proof current after major compatibility and lifecycle changes
 - [ ] Decide what belongs in `example/pluxx` vs `plugins/pluxx`

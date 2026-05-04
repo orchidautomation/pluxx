@@ -1,0 +1,4 @@
+interface:
+  display_name: "Prepare Context"
+  short_description: "Ingest docs, website, and local context before semantic refinement"
+  default_prompt: "Use Pluxx to pull in the relevant website, docs, and local context before we rewrite taxonomy or instructions."

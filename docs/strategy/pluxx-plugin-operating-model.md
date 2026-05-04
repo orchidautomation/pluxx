@@ -151,7 +151,21 @@ CLI it orchestrates:
 - `pluxx agent run review --runner ...`
 - optional deterministic checks when they materially improve the review
 
-### 8. `pluxx-build-install`
+### 8. `pluxx-bootstrap-runtime`
+
+Job:
+
+- install, upgrade, or validate the local Pluxx CLI runtime before deeper workflows
+
+CLI it orchestrates:
+
+- `pluxx --version`
+- `pluxx upgrade`
+- `pluxx upgrade --version ...`
+- `npm install -g @orchid-labs/pluxx@latest`
+- `npx @orchid-labs/pluxx --version` as the fallback check
+
+### 9. `pluxx-build-install`
 
 Job:
 
@@ -164,7 +178,7 @@ CLI it orchestrates:
 - `pluxx install --target ...`
 - `pluxx install --trust --target ...` when explicitly needed
 
-### 9. `pluxx-verify-install`
+### 10. `pluxx-verify-install`
 
 Job:
 
@@ -175,7 +189,18 @@ CLI it orchestrates:
 - `pluxx verify-install --target ...`
 - `pluxx doctor --consumer` when the installed state still looks wrong
 
-### 10. `pluxx-sync-mcp`
+### 11. `pluxx-troubleshoot-install`
+
+Job:
+
+- diagnose why a local install still looks wrong after build or install
+
+CLI it orchestrates:
+
+- `pluxx verify-install --target ...`
+- `pluxx doctor --consumer ...`
+
+### 12. `pluxx-sync-mcp`
 
 Job:
 
@@ -189,7 +214,7 @@ CLI it orchestrates:
 - `pluxx lint`
 - `pluxx test`
 
-### 11. `pluxx-autopilot`
+### 13. `pluxx-autopilot`
 
 Job:
 
@@ -199,7 +224,7 @@ CLI it orchestrates:
 
 - `pluxx autopilot --from-mcp ...`
 
-### 12. `pluxx-publish-plugin`
+### 14. `pluxx-publish-plugin`
 
 Job:
 
@@ -216,6 +241,7 @@ CLI it orchestrates:
 Expose namespaced explicit commands:
 
 - `/pluxx:autopilot`
+- `/pluxx:bootstrap-runtime`
 - `/pluxx:build-install`
 - `/pluxx:import-mcp`
 - `/pluxx:migrate-plugin`
@@ -226,6 +252,7 @@ Expose namespaced explicit commands:
 - `/pluxx:rewrite-instructions`
 - `/pluxx:review-scaffold`
 - `/pluxx:sync-mcp`
+- `/pluxx:troubleshoot-install`
 - `/pluxx:verify-install`
 
 ### Cursor
@@ -233,6 +260,7 @@ Expose namespaced explicit commands:
 Expose the same explicit command set where plugin commands are supported:
 
 - `/pluxx:autopilot`
+- `/pluxx:bootstrap-runtime`
 - `/pluxx:build-install`
 - `/pluxx:import-mcp`
 - `/pluxx:migrate-plugin`
@@ -243,6 +271,7 @@ Expose the same explicit command set where plugin commands are supported:
 - `/pluxx:rewrite-instructions`
 - `/pluxx:review-scaffold`
 - `/pluxx:sync-mcp`
+- `/pluxx:troubleshoot-install`
 - `/pluxx:verify-install`
 
 ### OpenCode
@@ -250,6 +279,7 @@ Expose the same explicit command set where plugin commands are supported:
 Expose the same workflow command set in OpenCode’s native command surface:
 
 - `/pluxx:autopilot`
+- `/pluxx:bootstrap-runtime`
 - `/pluxx:build-install`
 - `/pluxx:import-mcp`
 - `/pluxx:migrate-plugin`
@@ -260,6 +290,7 @@ Expose the same workflow command set in OpenCode’s native command surface:
 - `/pluxx:rewrite-instructions`
 - `/pluxx:review-scaffold`
 - `/pluxx:sync-mcp`
+- `/pluxx:troubleshoot-install`
 - `/pluxx:verify-install`
 
 ### Codex
@@ -276,6 +307,7 @@ Use:
 Equivalent operator surface:
 
 - `pluxx-autopilot`
+- `pluxx-bootstrap-runtime`
 - `pluxx-build-install`
 - `pluxx-import-mcp`
 - `pluxx-migrate-plugin`
@@ -286,6 +318,7 @@ Equivalent operator surface:
 - `pluxx-rewrite-instructions`
 - `pluxx-review-scaffold`
 - `pluxx-sync-mcp`
+- `pluxx-troubleshoot-install`
 - `pluxx-verify-install`
 
 ## CLI resolution model

@@ -245,6 +245,12 @@ The latest local self-hosted core-four proof is documented in:
 The next plugin-specific work is:
 
 - keep `example/pluxx`, `plugins/pluxx`, and the published `pluxx-plugin` repo aligned
+- the self-hosted plugin now has an explicit runtime bootstrap path:
+  - `pluxx-bootstrap-runtime`
+  - `/pluxx:bootstrap-runtime`
+- the self-hosted plugin now has an explicit installed-bundle troubleshooting path:
+  - `pluxx-troubleshoot-install`
+  - `/pluxx:troubleshoot-install`
 - improve install/update clarity and release distribution UX
 - treat [docs/proof-and-install.md](./proof-and-install.md) as the first repo-native public proof/install landing page, then push it into a cleaner visual public asset
 - keep the flagship public example page aligned with repo truth:

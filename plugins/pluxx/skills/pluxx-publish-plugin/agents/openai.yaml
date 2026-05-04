@@ -1,0 +1,4 @@
+interface:
+  display_name: "Publish Plugin"
+  short_description: "Package the current plugin for release distribution"
+  default_prompt: "Use Pluxx to package this plugin for release and show me the install/update path for each core-four host."

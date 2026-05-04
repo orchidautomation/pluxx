@@ -1,7 +1,7 @@
 {
   "name": "pluxx",
   "version": "0.1.1",
-  "description": "Build once, ship installable plugins to Claude, Cursor, Codex, and OpenCode.",
+  "description": "Turn a raw MCP or single-host plugin into one maintained source project with native outputs for Claude, Cursor, Codex, and OpenCode.",
   "author": {
     "name": "Orchid Automation",
     "url": "https://github.com/orchidautomation"
@@ -21,23 +21,24 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Pluxx",
-    "shortDescription": "Build once, ship installable plugins to Claude, Cursor, Codex, and OpenCode",
+    "shortDescription": "One maintained plugin source project. Native bundles for Claude, Cursor, Codex, and OpenCode.",
     "category": "Productivity",
-    "longDescription": "Use Pluxx to import MCPs or migrate existing plugins, prepare richer context, validate and refine the scaffold, then build, verify, and publish installable plugins for Claude, Cursor, Codex, and OpenCode from one maintained source project.",
+    "longDescription": "Use Pluxx to import MCPs or migrate existing plugins into one maintained source project, prepare context, validate and refine the scaffold, then build, verify, install, and publish native plugin bundles for Claude, Cursor, Codex, and OpenCode.",
     "brandColor": "#0F172A",
     "composerIcon": "./assets/icon/pluxx-icon.svg",
     "logo": "./assets/icon/pluxx-icon.svg",
     "defaultPrompt": [
-      "Use Pluxx to import or migrate this plugin into a maintained Pluxx project and validate the first pass.",
-      "Use Pluxx to prepare context for this scaffold, refine the taxonomy and instructions, then rerun validation safely.",
-      "Use Pluxx to build, verify, and publish installable plugins for Claude, Cursor, Codex, and OpenCode."
+      "Use Pluxx to turn this MCP into one maintained source project and validate the first pass across the core four.",
+      "Use Pluxx to prepare context, refine the taxonomy and instructions, then rebuild and verify the install state.",
+      "Use Pluxx to package this plugin for release and explain the install and update path for the core four."
     ],
     "websiteURL": "https://pluxx.dev",
     "privacyPolicyURL": "https://docs.pluxx.dev/reference/privacy-policy",
     "termsOfServiceURL": "https://docs.pluxx.dev/reference/terms-of-service",
     "screenshots": [
       "./assets/screenshots/import-workflow.svg",
-      "./assets/screenshots/build-install-workflow.svg"
+      "./assets/screenshots/build-install-workflow.svg",
+      "./assets/screenshots/verify-install-workflow.svg"
     ],
     "capabilities": [
       "Interactive",

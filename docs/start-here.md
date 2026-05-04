@@ -142,6 +142,12 @@ The repo already proves a lot.
   - `docs/pluxx-self-hosted-core-four-proof.md`
 - the self-hosted plugin surface is also documented as a thin operator layer over the CLI rather than a second engine:
   - `docs/pluxx-plugin-surface-audit.md`
+- the self-hosted plugin now also exposes an explicit runtime-bootstrap workflow for the common “plugin is installed but the underlying CLI is missing or stale” case:
+  - `pluxx-bootstrap-runtime`
+  - `/pluxx:bootstrap-runtime`
+- the self-hosted plugin now also exposes an explicit install-troubleshooting workflow instead of leaving installed-bundle diagnosis only as a secondary hint:
+  - `pluxx-troubleshoot-install`
+  - `/pluxx:troubleshoot-install`
 - the flagship `example/docs-ops` source project exists and is wired to a live public Orchid Docsalot MCP endpoint for read-only proof
 - the flagship example has now also been rebuilt, installed, and `verify-install` checked from the source project across Claude Code, Cursor, Codex, and OpenCode:
   - `docs/docs-ops-core-four-proof.md`

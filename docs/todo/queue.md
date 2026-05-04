@@ -296,6 +296,12 @@ Open work:
 - keep the plugin thin and the CLI as the execution engine
 - keep `example/pluxx`, `plugins/pluxx`, and the published `pluxx-plugin` repo in sync
 - keep [docs/pluxx-plugin-surface-audit.md](../pluxx-plugin-surface-audit.md) accurate now that lifecycle coverage is present
+- the self-hosted plugin now also has an explicit runtime-bootstrap workflow instead of leaving average users to infer install or upgrade steps from the fallback path:
+  - `pluxx-bootstrap-runtime`
+  - `/pluxx:bootstrap-runtime`
+- the self-hosted plugin now also has an explicit install-troubleshooting workflow instead of leaving `doctor --consumer` only as a secondary hint:
+  - `pluxx-troubleshoot-install`
+  - `/pluxx:troubleshoot-install`
 - treat the local self-hosted core-four proof as complete:
   - [docs/pluxx-self-hosted-core-four-proof.md](../pluxx-self-hosted-core-four-proof.md)
 - treat the first repo-native public proof/install landing page as complete:

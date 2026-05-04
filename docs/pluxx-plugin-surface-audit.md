@@ -94,20 +94,22 @@ That local plugin is useful, but it is not the canonical source project.
 
 ## What The Plugin Contains Today
 
-The self-hosted plugin now exposes twelve core workflows:
+The self-hosted plugin now exposes fourteen core workflows:
 
 1. `pluxx-import-mcp`
-2. `pluxx-migrate-plugin`
-3. `pluxx-validate-scaffold`
-4. `pluxx-prepare-context`
-5. `pluxx-refine-taxonomy`
-6. `pluxx-rewrite-instructions`
-7. `pluxx-review-scaffold`
-8. `pluxx-build-install`
-9. `pluxx-verify-install`
-10. `pluxx-sync-mcp`
-11. `pluxx-autopilot`
-12. `pluxx-publish-plugin`
+2. `pluxx-bootstrap-runtime`
+3. `pluxx-migrate-plugin`
+4. `pluxx-validate-scaffold`
+5. `pluxx-prepare-context`
+6. `pluxx-refine-taxonomy`
+7. `pluxx-rewrite-instructions`
+8. `pluxx-review-scaffold`
+9. `pluxx-build-install`
+10. `pluxx-verify-install`
+11. `pluxx-troubleshoot-install`
+12. `pluxx-sync-mcp`
+13. `pluxx-autopilot`
+14. `pluxx-publish-plugin`
 
 In Codex, those are primarily exposed as:
 
@@ -118,6 +120,7 @@ In Codex, those are primarily exposed as:
 In hosts with command surfaces, the canonical source project also defines matching explicit commands:
 
 - `/pluxx:autopilot`
+- `/pluxx:bootstrap-runtime`
 - `/pluxx:build-install`
 - `/pluxx:import-mcp`
 - `/pluxx:migrate-plugin`
@@ -128,6 +131,7 @@ In hosts with command surfaces, the canonical source project also defines matchi
 - `/pluxx:rewrite-instructions`
 - `/pluxx:review-scaffold`
 - `/pluxx:sync-mcp`
+- `/pluxx:troubleshoot-install`
 - `/pluxx:verify-install`
 
 ## How The Current Plugin Actually Works
@@ -184,6 +188,7 @@ This is the important table.
 | CLI surface | Plugin coverage today | Should it be first-class in the plugin? | Notes |
 | --- | --- | --- | --- |
 | `init --from-mcp` | Yes | Yes | Covered by `pluxx-import-mcp` |
+| runtime bootstrap / upgrade | Yes | Yes | Covered explicitly by `pluxx-bootstrap-runtime` |
 | `migrate` | Yes | Yes | Covered by `pluxx-migrate-plugin` |
 | `doctor` / `lint` / `eval` / `test` | Yes | Yes | Covered by `pluxx-validate-scaffold` |
 | `agent prepare` + taxonomy pass | Yes | Yes | Covered by `pluxx-refine-taxonomy` |
@@ -191,11 +196,11 @@ This is the important table.
 | review pass | Yes | Yes | Covered by `pluxx-review-scaffold` |
 | `build` + `install` | Yes | Yes | Covered by `pluxx-build-install` |
 | `verify-install` | Yes | Yes | Covered by `pluxx-verify-install` |
+| `doctor --consumer` | Yes | Yes | Covered explicitly by `pluxx-troubleshoot-install` and selectively by `pluxx-verify-install` |
 | `sync` | Yes | Yes | Covered by `pluxx-sync-mcp` |
 | `publish` | Yes | Yes | Covered by `pluxx-publish-plugin` |
 | `autopilot` | Yes | Yes | Covered by `pluxx-autopilot` |
 | docs/website ingestion / `agent prepare` as a standalone workflow | Yes | Yes | Covered by `pluxx-prepare-context` |
-| `doctor --consumer` | Indirect only | Maybe | Valuable as a troubleshooting workflow after install |
 | `uninstall` | No | Maybe | Useful but not urgent for the plugin’s first polished operator surface |
 | `mcp proxy --record/--replay` | No | Probably not by default | Useful maintainer/debug flow, but not core plugin UX |
 | `dev` | No | No | Maintainer workflow, not product workflow |
@@ -216,6 +221,7 @@ That means the plugin surface now covers the full modern Pluxx lifecycle:
 - build
 - install
 - verify
+- troubleshoot install
 - sync
 - autopilot
 - publish
@@ -249,14 +255,23 @@ The remaining work is:
 - turn the landing page into a cleaner visual public-facing install proof asset
 - keep it easy for a new user to understand without reading internal repo context
 
-### 2. `doctor --consumer` is still secondary
+### 2. Runtime bootstrap and install troubleshooting are now first-class, but they still need polish
 
-We currently surface consumer troubleshooting through:
+We now surface machine- and install-level troubleshooting through:
 
+- `pluxx-bootstrap-runtime`
+- `pluxx-troubleshoot-install`
 - `pluxx-verify-install`
-- selective `pluxx doctor --consumer`
+- targeted `pluxx doctor --consumer`
 
-That is probably enough for now, but install troubleshooting may deserve a more explicit operator path later if users keep getting stuck there.
+That closes the old “installed bundle still looks wrong” gap at the workflow level.
+
+The remaining work is:
+
+- make the troubleshooting flow even clearer for average users
+- keep runtime bootstrap guidance sharp when Node, npm, `pluxx`, or `npx` are the actual blocker
+- keep host-specific reload, reinstall, and trust guidance sharp
+- avoid forcing users to already know installed bundle paths when the host target alone should be enough
 
 ### 3. Distribution and update UX still matter more than more workflows
 

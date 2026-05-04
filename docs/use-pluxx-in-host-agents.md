@@ -35,9 +35,10 @@ Pluxx is the plugin-authoring substrate underneath it.
 
 ## The Main Pluxx Workflows
 
-The recommended Pluxx skill pack is organized around twelve jobs:
+The recommended Pluxx skill pack is organized around fourteen jobs:
 
 - `pluxx-import-mcp`
+- `pluxx-bootstrap-runtime`
 - `pluxx-migrate-plugin`
 - `pluxx-validate-scaffold`
 - `pluxx-prepare-context`
@@ -46,6 +47,7 @@ The recommended Pluxx skill pack is organized around twelve jobs:
 - `pluxx-review-scaffold`
 - `pluxx-build-install`
 - `pluxx-verify-install`
+- `pluxx-troubleshoot-install`
 - `pluxx-sync-mcp`
 - `pluxx-autopilot`
 - `pluxx-publish-plugin`
@@ -53,21 +55,24 @@ The recommended Pluxx skill pack is organized around twelve jobs:
 Those correspond to:
 
 1. import an MCP and scaffold a plugin
-2. migrate an existing host-native plugin into Pluxx
-3. validate the scaffold deterministically
-4. prepare website/docs/local context before semantic refinement
-5. improve the skill taxonomy
-6. rewrite the shared instructions
-7. review the scaffold critically
-8. build native outputs and optionally install them
-9. verify that the installed host bundle is actually healthy
-10. refresh the scaffold when the MCP changes
-11. run the one-shot import/refine/verify path
-12. package the plugin for release distribution
+2. bootstrap or upgrade the underlying Pluxx runtime
+3. migrate an existing host-native plugin into Pluxx
+4. validate the scaffold deterministically
+5. prepare website/docs/local context before semantic refinement
+6. improve the skill taxonomy
+7. rewrite the shared instructions
+8. review the scaffold critically
+9. build native outputs and optionally install them
+10. verify that the installed host bundle is actually healthy
+11. troubleshoot a local install that still looks wrong in the host
+12. refresh the scaffold when the MCP changes
+13. run the one-shot import/refine/verify path
+14. package the plugin for release distribution
 
 The self-hosting plugin also exposes matching explicit commands in hosts that support plugin commands:
 
 - `/pluxx:autopilot`
+- `/pluxx:bootstrap-runtime`
 - `/pluxx:build-install`
 - `/pluxx:import-mcp`
 - `/pluxx:migrate-plugin`
@@ -78,6 +83,7 @@ The self-hosting plugin also exposes matching explicit commands in hosts that su
 - `/pluxx:rewrite-instructions`
 - `/pluxx:review-scaffold`
 - `/pluxx:sync-mcp`
+- `/pluxx:troubleshoot-install`
 - `/pluxx:verify-install`
 
 Use commands when you want a direct host-native entrypoint in Claude Code, Cursor, or OpenCode. In Codex, use `@pluxx` and the skill list instead; `/` is reserved for native Codex commands. Use skills when you want the host agent to choose the right Pluxx workflow automatically.

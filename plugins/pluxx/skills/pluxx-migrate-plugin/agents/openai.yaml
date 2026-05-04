@@ -1,0 +1,4 @@
+interface:
+  display_name: "Migrate Plugin"
+  short_description: "Bring an existing host-native plugin into a Pluxx source project"
+  default_prompt: "Use Pluxx to migrate this existing plugin into one maintained source project and validate the first pass."

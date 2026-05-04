@@ -47,10 +47,12 @@ describe('pluxx dogfood plugin', () => {
     expect(manifest.interface.screenshots).toEqual([
       './assets/screenshots/import-workflow.svg',
       './assets/screenshots/build-install-workflow.svg',
+      './assets/screenshots/verify-install-workflow.svg',
     ])
     expect(marketplace.plugins.some((plugin) => plugin.name === 'pluxx' && plugin.source.path === './plugins/pluxx')).toBe(true)
     expect(commands.commands.map((command) => command.id)).toEqual([
       'autopilot',
+      'bootstrap-runtime',
       'build-install',
       'import-mcp',
       'migrate-plugin',
@@ -60,6 +62,7 @@ describe('pluxx dogfood plugin', () => {
       'review-scaffold',
       'rewrite-instructions',
       'sync-mcp',
+      'troubleshoot-install',
       'validate-scaffold',
       'verify-install',
     ])
@@ -68,11 +71,13 @@ describe('pluxx dogfood plugin', () => {
   it('defines the expected skill pack with valid frontmatter', () => {
     const skills = [
       'pluxx-autopilot',
+      'pluxx-bootstrap-runtime',
       'pluxx-build-install',
       'pluxx-import-mcp',
       'pluxx-migrate-plugin',
       'pluxx-prepare-context',
       'pluxx-publish-plugin',
+      'pluxx-troubleshoot-install',
       'pluxx-validate-scaffold',
       'pluxx-refine-taxonomy',
       'pluxx-rewrite-instructions',
@@ -105,11 +110,13 @@ describe('pluxx dogfood plugin', () => {
     const instructionsPath = resolve(EXAMPLE_ROOT, 'INSTRUCTIONS.md')
     const commands = [
       'autopilot',
+      'bootstrap-runtime',
       'build-install',
       'import-mcp',
       'migrate-plugin',
       'prepare-context',
       'publish-plugin',
+      'troubleshoot-install',
       'validate-scaffold',
       'refine-taxonomy',
       'rewrite-instructions',
@@ -119,11 +126,13 @@ describe('pluxx dogfood plugin', () => {
     ]
     const skills = [
       'pluxx-autopilot',
+      'pluxx-bootstrap-runtime',
       'pluxx-build-install',
       'pluxx-import-mcp',
       'pluxx-migrate-plugin',
       'pluxx-prepare-context',
       'pluxx-publish-plugin',
+      'pluxx-troubleshoot-install',
       'pluxx-validate-scaffold',
       'pluxx-refine-taxonomy',
       'pluxx-rewrite-instructions',

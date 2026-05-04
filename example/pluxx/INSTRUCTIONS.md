@@ -21,6 +21,9 @@ The normal workflow is:
 - `pluxx-import-mcp`
   Use when the user wants to scaffold a plugin from a remote MCP URL or a local stdio MCP command.
 
+- `pluxx-bootstrap-runtime`
+  Use when the machine is missing `pluxx`, is stale, or the user wants a smoother operator path than ad hoc `npx` usage.
+
 - `pluxx-migrate-plugin`
   Use when the user already has a Claude Code, Cursor, Codex, or OpenCode plugin and wants to bring it into Pluxx.
 
@@ -45,6 +48,9 @@ The normal workflow is:
 - `pluxx-verify-install`
   Use when the user wants to prove an installed host target is actually visible and healthy.
 
+- `pluxx-troubleshoot-install`
+  Use when the plugin already built or installed, but the host still does not look right and deeper installed-bundle diagnosis is needed.
+
 - `pluxx-sync-mcp`
   Use when an existing MCP-derived scaffold needs to be refreshed safely.
 
@@ -58,6 +64,9 @@ The normal workflow is:
 
 - `/pluxx:import-mcp`
   Explicit entrypoint for turning an MCP URL or stdio command into a first-pass Pluxx scaffold.
+
+- `/pluxx:bootstrap-runtime`
+  Explicit entrypoint for installing, upgrading, or checking the Pluxx CLI runtime.
 
 - `/pluxx:migrate-plugin`
   Explicit entrypoint for bringing an existing host-native plugin into a maintained Pluxx source project.
@@ -83,6 +92,9 @@ The normal workflow is:
 - `/pluxx:verify-install`
   Explicit entrypoint for verifying that an installed target is actually visible and healthy in the host.
 
+- `/pluxx:troubleshoot-install`
+  Explicit entrypoint for diagnosing why an installed target still does not look right in the host after build or install.
+
 - `/pluxx:sync-mcp`
   Explicit entrypoint for refreshing an existing scaffold from its MCP source.
 
@@ -104,6 +116,7 @@ Resolve it in this order:
 2. `npx @orchid-labs/pluxx`
 
 If the npm path fails because Node or package resolution is missing, surface that clearly instead of improvising a different runtime contract.
+If the runtime is missing or stale and the user wants help fixing it, route through `pluxx-bootstrap-runtime`.
 
 ### Runtime Prerequisite
 
@@ -116,6 +129,7 @@ That means the underlying machine still needs the Pluxx runtime available:
 - current runtime prerequisite for the npm path: Node 18+ on the machine
 
 If the runtime is missing, do not pretend the host plugin can execute Pluxx by itself. Tell the user what needs to be installed first.
+If the user wants the smoother reusable path, help them bootstrap or upgrade the runtime instead of leaving the fallback implicit.
 
 ### Operating Rules
 
@@ -125,6 +139,7 @@ If the runtime is missing, do not pretend the host plugin can execute Pluxx by i
 - Do not silently rewrite auth wiring, target configuration, or generated platform outputs unless the user explicitly asks.
 - Before shipping, run `pluxx doctor`, `pluxx lint`, and `pluxx test`.
 - Before telling the user a local install is healthy, prefer `pluxx verify-install`.
+- When a local install still looks wrong after verification, prefer the explicit troubleshooting path instead of guessing.
 - Findings come before summaries when the user asks for a review.
 - When starting from a raw MCP, do not stop at a lowest-common-denominator skill dump. Shape the scaffold into the strongest native mix of skills, commands, argument-bearing entrypoints, and specialist agents/subagents that the discovered workflows justify.
 
@@ -143,8 +158,10 @@ A good Pluxx result should leave the user with:
 ### Notes
 
 - `pluxx autopilot` is the one-shot path.
+- `pluxx-bootstrap-runtime` is the operator path for installing or upgrading the underlying CLI runtime.
 - `pluxx init` plus manual refinement is usually the easier path to inspect and debug.
 - `pluxx migrate` is the bridge when the user already invested heavily in one host.
 - `pluxx verify-install` is the install-state proof after local install.
+- `pluxx-troubleshoot-install` is the operator path when install-state proof alone is not enough.
 - `pluxx publish` is the packaging and release path after the scaffold is healthy.
 - For OAuth-first MCPs, import auth and runtime auth may differ. Do not assume a bearer import token is the correct long-term runtime auth shape.
