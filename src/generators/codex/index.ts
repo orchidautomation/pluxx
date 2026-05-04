@@ -25,6 +25,7 @@ import {
 } from '../../hook-translation-registry'
 import { buildHookCommandWrapperScript } from '../../hook-command-env'
 import { getCanonicalSkillMetadata, readCanonicalSkillFiles } from '../../skills'
+import { getNativeCodexMcpEntryOverride } from '../../mcp-native-overrides'
 
 export class CodexGenerator extends Generator {
   readonly platform: TargetPlatform = 'codex'
@@ -40,7 +41,10 @@ export class CodexGenerator extends Generator {
             url: server.url,
           }
 
-          if (server.auth?.type === 'bearer' && server.auth.envVar) {
+          const nativeOverride = getNativeCodexMcpEntryOverride(this.config, name)
+          if (nativeOverride) {
+            Object.assign(entry, nativeOverride)
+          } else if (server.auth?.type === 'bearer' && server.auth.envVar) {
             entry.bearer_token_env_var = server.auth.envVar
           } else if (server.auth?.type === 'header' && server.auth.envVar) {
             const isBearerAuthorizationHeader =

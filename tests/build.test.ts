@@ -393,6 +393,50 @@ describe('build', () => {
     expect(mcpJson.mcpServers['header-server'].bearer_token_env_var).toBeUndefined()
   })
 
+  it('preserves richer native Codex MCP auth overrides during build', async () => {
+    const nativeCodexAuthConfig: PluginConfig = {
+      ...testConfig,
+      name: 'native-codex-auth-plugin',
+      mcp: {
+        metrics: {
+          url: 'https://metrics.example.com/mcp',
+          transport: 'http',
+          auth: {
+            type: 'header',
+            envVar: 'PLAYKIT_API_KEY',
+            headerName: 'X-API-Key',
+            headerTemplate: '${value}',
+          },
+        },
+      },
+      platforms: {
+        ...testConfig.platforms,
+        codex: {
+          mcpServers: {
+            metrics: {
+              env_http_headers: {
+                'X-API-Key': 'PLAYKIT_API_KEY',
+                'X-Workspace': 'PLAYKIT_WORKSPACE_ID',
+              },
+            },
+          },
+        },
+      },
+      outDir: './native-codex-auth-dist',
+    }
+
+    await build(nativeCodexAuthConfig, TEST_DIR)
+
+    const mcpJson = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'native-codex-auth-dist/codex/.mcp.json'), 'utf-8')
+    )
+    expect(mcpJson.mcpServers.metrics.url).toBe('https://metrics.example.com/mcp')
+    expect(mcpJson.mcpServers.metrics.env_http_headers).toEqual({
+      'X-API-Key': 'PLAYKIT_API_KEY',
+      'X-Workspace': 'PLAYKIT_WORKSPACE_ID',
+    })
+  })
+
   it('omits inline auth headers for Claude Code and Cursor when runtime auth is platform-managed', async () => {
     const oauthishConfig: PluginConfig = {
       ...testConfig,

@@ -13,6 +13,7 @@ import {
   type CompilerIntentSkillPolicy,
 } from '../compiler-intent'
 import { getCanonicalSkillMetadata, parseSkillMarkdown, readCanonicalSkillFiles, serializeSkillMarkdown } from '../skills'
+import { buildNativeMcpPlatformOverrides } from '../mcp-native-overrides'
 import { writeTextFile } from '../text-files'
 
 type DetectedPlatform = 'claude-code' | 'cursor' | 'codex' | 'opencode'
@@ -892,52 +893,6 @@ function parseMcpServerRecords(
     warnings,
     ...(nativePlatformOverrides ? { platformOverrides: nativePlatformOverrides } : {}),
   }
-}
-
-function buildNativeMcpPlatformOverrides(
-  platform: DetectedPlatform,
-  servers: Record<string, unknown>,
-): Record<string, Record<string, unknown>> | undefined {
-  const preservedServers: Record<string, Record<string, unknown>> = {}
-
-  for (const [serverName, rawConfig] of Object.entries(servers)) {
-    const cfg = asRecord(rawConfig)
-    if (!cfg) continue
-    const nativeAuth = extractNativeMcpAuthConfig(cfg)
-    if (!nativeAuth) continue
-    preservedServers[serverName] = nativeAuth
-  }
-
-  if (Object.keys(preservedServers).length === 0) return undefined
-
-  return {
-    [platform]: {
-      mcpServers: preservedServers,
-    },
-  }
-}
-
-function extractNativeMcpAuthConfig(cfg: Record<string, unknown>): Record<string, unknown> | undefined {
-  const preserved: Record<string, unknown> = {}
-
-  const auth = asRecord(cfg.auth)
-  if (auth) preserved.auth = JSON.parse(JSON.stringify(auth))
-
-  const bearerTokenEnv = firstString(cfg.bearer_token_env_var, cfg.bearerTokenEnvVar)
-  if (typeof cfg.bearer_token_env_var === 'string') {
-    preserved.bearer_token_env_var = cfg.bearer_token_env_var
-  } else if (typeof cfg.bearerTokenEnvVar === 'string' && bearerTokenEnv) {
-    preserved.bearerTokenEnvVar = bearerTokenEnv
-  }
-
-  for (const key of ['env_http_headers', 'envHttpHeaders', 'headers', 'http_headers', 'httpHeaders'] as const) {
-    const value = asRecord(cfg[key])
-    if (value) {
-      preserved[key] = JSON.parse(JSON.stringify(value))
-    }
-  }
-
-  return Object.keys(preserved).length > 0 ? preserved : undefined
 }
 
 function parseMcpServerEntry(

@@ -406,6 +406,49 @@ describe('install', () => {
     expect(planned[0].source).toBe('env')
   })
 
+  it('derives install-time config requirements from preserved native MCP auth overrides', () => {
+    process.env.METRICS_API_KEY = 'from-env'
+    process.env.METRICS_WORKSPACE_ID = 'workspace-from-env'
+
+    const planned = planInstallUserConfig({
+      name: 'fixture',
+      version: '0.1.0',
+      description: 'Fixture',
+      author: { name: 'Test Author' },
+      license: 'MIT',
+      skills: './skills/',
+      mcp: {
+        metrics: {
+          transport: 'http',
+          url: 'https://metrics.example.com/mcp',
+          auth: {
+            type: 'header',
+            envVar: 'METRICS_API_KEY',
+            headerName: 'X-API-Key',
+            headerTemplate: '${value}',
+          },
+        },
+      },
+      platforms: {
+        codex: {
+          mcpServers: {
+            metrics: {
+              env_http_headers: {
+                'X-API-Key': 'METRICS_API_KEY',
+                'X-Workspace': 'METRICS_WORKSPACE_ID',
+              },
+            },
+          },
+        },
+      },
+      targets: ['codex'],
+      outDir: './dist',
+    })
+
+    expect(planned.map((entry) => entry.envVar)).toContain('METRICS_API_KEY')
+    expect(planned.map((entry) => entry.envVar)).toContain('METRICS_WORKSPACE_ID')
+  })
+
   it('refuses placeholder-looking secret values during install config resolution', async () => {
     process.env.TEST_API_KEY = 'dummy API key'
 
@@ -517,6 +560,86 @@ describe('install', () => {
     expect(lstatSync(opencodeSkill).isSymbolicLink()).toBe(false)
     expect(readFileSync(resolve(opencodeSkill, 'SKILL.md'), 'utf-8')).toContain('name: megamind/client-intel')
     expect(readFileSync(resolve(cursorInstall, 'scripts/check-env.sh'), 'utf-8')).toContain('materialized required config')
+  })
+
+  it('materializes richer native Codex MCP auth overrides during local install', async () => {
+    mkdirSync(resolve(DIST_DIR, 'codex/scripts'), { recursive: true })
+    await Bun.write(resolve(DIST_DIR, 'codex/.mcp.json'), JSON.stringify({ mcpServers: {} }, null, 2))
+    await Bun.write(resolve(DIST_DIR, 'codex/scripts/check-env.sh'), '#!/usr/bin/env bash\nexit 1\n')
+
+    const config: PluginConfig = {
+      name: 'megamind',
+      version: '1.0.0',
+      description: 'Fixture plugin',
+      author: { name: 'Test Author' },
+      license: 'MIT',
+      skills: './skills/',
+      mcp: {
+        metrics: {
+          transport: 'http',
+          url: 'https://metrics.example.com/mcp',
+          auth: {
+            type: 'header',
+            envVar: 'METRICS_API_KEY',
+            headerName: 'X-API-Key',
+            headerTemplate: '${value}',
+          },
+        },
+      },
+      platforms: {
+        codex: {
+          mcpServers: {
+            metrics: {
+              env_http_headers: {
+                'X-API-Key': 'METRICS_API_KEY',
+                'X-Workspace': 'METRICS_WORKSPACE_ID',
+              },
+            },
+          },
+        },
+      },
+      targets: ['codex'],
+      outDir: './dist',
+    }
+
+    await installPlugin(DIST_DIR, 'megamind', ['codex'], {
+      config,
+      resolvedUserConfig: [
+        {
+          field: {
+            key: 'metrics-api-key',
+            title: 'Metrics API Key',
+            description: 'Fixture token',
+            type: 'secret',
+            required: true,
+            envVar: 'METRICS_API_KEY',
+          },
+          value: 'secret-key',
+          envVar: 'METRICS_API_KEY',
+        },
+        {
+          field: {
+            key: 'metrics-workspace-id',
+            title: 'Metrics Workspace ID',
+            description: 'Fixture workspace',
+            type: 'secret',
+            required: true,
+            envVar: 'METRICS_WORKSPACE_ID',
+          },
+          value: 'ws-123',
+          envVar: 'METRICS_WORKSPACE_ID',
+        },
+      ],
+      useNativeClaudeInstall: false,
+      quiet: true,
+    })
+
+    const codexInstall = resolve(HOME_DIR, INSTALL_PATHS.codex)
+    const codexMcp = JSON.parse(readFileSync(resolve(codexInstall, '.mcp.json'), 'utf-8'))
+    expect(codexMcp.mcpServers.metrics.http_headers).toEqual({
+      'X-API-Key': 'secret-key',
+      'X-Workspace': 'ws-123',
+    })
   })
 
   it('normalizes plugin-owned stdio MCP paths consistently during local install materialization', async () => {

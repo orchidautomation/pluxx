@@ -74,6 +74,36 @@ env = { PROSPEO_API_KEY = "literal-secret-value-that-should-not-copy" }
     expect(discovered[0].warnings).toContain('Literal secret-like env value for PROSPEO_API_KEY was replaced with ${PROSPEO_API_KEY}.')
   })
 
+  it('preserves richer native MCP auth overrides during installed discovery', () => {
+    writeFileSync(resolve(rootDir, '.mcp.json'), JSON.stringify({
+      mcpServers: {
+        metrics: {
+          url: 'https://metrics.example.com/mcp',
+          env_http_headers: {
+            'X-API-Key': 'METRICS_API_KEY',
+            'X-Workspace': 'METRICS_WORKSPACE_ID',
+          },
+        },
+      },
+    }, null, 2))
+
+    const discovered = discoverInstalledMcpServers({ rootDir, homeDir, hosts: ['codex'] })
+
+    expect(discovered).toHaveLength(1)
+    expect(discovered[0].platformOverrides).toEqual({
+      codex: {
+        mcpServers: {
+          metrics: {
+            env_http_headers: {
+              'X-API-Key': 'METRICS_API_KEY',
+              'X-Workspace': 'METRICS_WORKSPACE_ID',
+            },
+          },
+        },
+      },
+    })
+  })
+
   it('discovers OpenCode local and remote MCP config', () => {
     writeFileSync(resolve(rootDir, 'opencode.json'), JSON.stringify({
       mcp: {

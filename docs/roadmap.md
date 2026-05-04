@@ -151,6 +151,7 @@ The closure plan is now narrower than it was before:
   - `src/agent-translation-registry.ts` now drives degraded-field messaging for Cursor, Codex, and OpenCode, and generated agent surfaces now emit the same translation story that `lint` uses
   - manifest-less Claude sources, Cursor nested rules plus nested `AGENTS.md` provenance, Codex `AGENTS.override.md`, and OpenCode configured instruction files plus package entrypoints now survive migrate and are copied into the canonical source project
   - MCP migrate now merges generic and host-native MCP sources instead of first-file-wins, so native auth blobs such as platform auth and multi-header header maps survive under `platforms.<host>.mcpServers.<server>`
+  - installed-MCP discovery now preserves those same native auth blobs, and `init --from-installed-mcp` carries them into generated `platforms.<host>.mcpServers.<server>` config with derived install-time `userConfig` entries for multi-header auth
   - richer canonical skill metadata now survives into emitted Codex/OpenCode skill companions instead of mostly living in Agent Mode and migrate
 - example and packaged-runtime parity are back in sync:
   - `examples/prospeo-mcp` now bundles its `scripts/` payload and points at the official `@prospeo/prospeo-mcp-server` package
@@ -224,7 +225,6 @@ The current status is stronger than a pure scaffold:
 - the next compiler-hardening follow-ons are now narrower than the earlier gap list:
   - push richer skill metadata into more native host emission and proof consumers
   - push richer command IR into more native host emission and install-time proof
-  - tighten auth/runtime reconstruction in installed-MCP discovery and downstream generator use of preserved native auth blobs
   - add more installed behavioral proof for delegated agents, reload/discovery quirks, and publish/recovery flows
 
 This is the strongest next proof surface for:

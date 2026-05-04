@@ -583,6 +583,46 @@ describe('init-from-mcp scaffold', () => {
     expect(metadata.settings.runtimeAuthMode).toBe('platform')
   })
 
+  it('preserves native installed-MCP auth overrides in the generated scaffold config', async () => {
+    await writeMcpScaffold({
+      rootDir: TEST_DIR,
+      pluginName: 'metrics',
+      authorName: 'Test Author',
+      displayName: 'Metrics MCP',
+      skillGrouping: 'workflow',
+      hookMode: 'none',
+      targets: ['codex'],
+      source: {
+        transport: 'http',
+        url: 'https://metrics.example.com/mcp',
+        auth: {
+          type: 'header',
+          envVar: 'METRICS_API_KEY',
+          headerName: 'X-API-Key',
+          headerTemplate: '${value}',
+        },
+      },
+      serverName: 'metrics',
+      platformOverrides: {
+        codex: {
+          mcpServers: {
+            metrics: {
+              env_http_headers: {
+                'X-API-Key': 'METRICS_API_KEY',
+                'X-Workspace': 'METRICS_WORKSPACE_ID',
+              },
+            },
+          },
+        },
+      },
+      introspection,
+    })
+
+    const config = readFileSync(resolve(TEST_DIR, 'pluxx.config.ts'), 'utf-8')
+    expect(config).toContain("codex: {\n      mcpServers: {\n        metrics: {\n          env_http_headers: {\n            'X-API-Key': 'METRICS_API_KEY',\n            'X-Workspace': 'METRICS_WORKSPACE_ID'")
+    expect(config).toContain('envVar: "METRICS_WORKSPACE_ID"')
+  })
+
   it('infers passthrough directories for local stdio runtime paths', async () => {
     rmSync(TEST_DIR, { recursive: true, force: true })
     mkdirSync(resolve(TEST_DIR, 'build'), { recursive: true })

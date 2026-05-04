@@ -219,6 +219,10 @@ The repo already proves a lot.
   - Codex-native `AGENTS.override.md` and adjacent interface/app config now survive import without clobbering one another
   - OpenCode configured instruction files and package entrypoints now survive import and are copied into the maintained source project
   - MCP migrate now merges generic and host-native MCP sources instead of first-file-wins, so native auth blobs such as Codex `auth = { type = "platform" }`, `env_http_headers`, and multi-header header maps are preserved under `platforms.<host>.mcpServers.<server>` instead of being silently lost
+- installed-MCP import now preserves richer native auth intent end to end:
+  - `pluxx discover-mcp` now surfaces preserved host-native auth overrides alongside the canonical auth shape for discovered MCP servers
+  - `pluxx init --from-installed-mcp <host:name>` now carries those preserved native auth blobs back into generated `platforms.<host>.mcpServers.<server>` config instead of flattening multi-header or platform-managed auth back to one canonical header only
+  - generated scaffold `userConfig` now derives extra env vars from preserved native MCP auth overrides, so install-time prompts do not lose secondary header requirements such as workspace or tenant ids
 - richer canonical skill metadata now survives into more emitted host surfaces:
   - Codex now writes `.codex/skills.generated.json` from the shared `src/skills.ts` seam
   - OpenCode now writes `skills.generated.json` from the same seam
@@ -269,7 +273,7 @@ The repo already proves a lot.
 - installed MCP discovery is now a first-class import path:
   - `pluxx discover-mcp` lists MCP servers already configured in Claude Code, Cursor, Codex, and OpenCode
   - `pluxx init --from-installed-mcp <host:name>` turns one discovered server into a Pluxx source project
-  - discovery preserves stdio command/args and env-var auth intent while redacting literal secret values
+  - discovery preserves stdio command/args, env-var auth intent, and richer native MCP auth overrides while redacting literal secret values
 - example and packaged-runtime parity is current again:
   - `examples/prospeo-mcp` now bundles its `scripts/` payload into built outputs
   - the example now points at the official `@prospeo/prospeo-mcp-server` package instead of a stale repo-local runtime path

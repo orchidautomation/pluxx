@@ -17,6 +17,11 @@ import {
   normalizePluginOwnedStdioPathForPlatform,
 } from '../mcp-stdio-paths'
 import { getInstallFollowupNotes as getDistributionInstallFollowupNotes } from '../distribution-lifecycle'
+import {
+  collectNativeMcpAuthUserConfigEntries,
+  getNativeCodexMcpEntryOverride,
+  getNativeJsonHeadersOverride,
+} from '../mcp-native-overrides'
 
 interface InstallTarget {
   platform: TargetPlatform
@@ -98,7 +103,11 @@ export function planInstallUserConfig(
   config: PluginConfig,
   platforms: TargetPlatform[] = config.targets,
 ): PlannedUserConfigEntry[] {
-  const entries = collectUserConfigEntries(config, platforms)
+  const baseEntries = collectUserConfigEntries(config, platforms)
+  const entries = [
+    ...baseEntries,
+    ...collectNativeMcpAuthUserConfigEntries(config, platforms, baseEntries),
+  ]
 
   return entries.map((field) => {
     const envVar = field.envVar ?? defaultUserConfigEnvVar(field.key)
@@ -659,7 +668,10 @@ function patchInstalledMcpConfig(
         url: server.url,
       }
 
-      if (!usesPlatformManagedAuth && server.auth?.type === 'bearer' && server.auth.envVar && env[server.auth.envVar]) {
+      const nativeHeaders = getNativeJsonHeadersOverride(config, platform, name)
+      if (!usesPlatformManagedAuth && nativeHeaders) {
+        entry.headers = materializeEnvRecord(nativeHeaders, env)
+      } else if (!usesPlatformManagedAuth && server.auth?.type === 'bearer' && server.auth.envVar && env[server.auth.envVar]) {
         entry.headers = {
           Authorization: `Bearer ${env[server.auth.envVar]}`,
         }
@@ -696,7 +708,37 @@ function patchInstalledMcpConfig(
         url: server.url,
       }
 
-      if (server.auth?.type === 'bearer' && server.auth.envVar && env[server.auth.envVar]) {
+      const nativeOverride = getNativeCodexMcpEntryOverride(config, name)
+      if (nativeOverride) {
+        if (typeof nativeOverride.bearer_token_env_var === 'string') {
+          const envVar = nativeOverride.bearer_token_env_var
+          if (env[envVar]) {
+            entry.bearer_token_env_var = envVar
+          }
+        }
+
+        if (nativeOverride.auth) {
+          entry.auth = nativeOverride.auth
+        }
+
+        if (nativeOverride.env_http_headers && typeof nativeOverride.env_http_headers === 'object') {
+          entry.http_headers = Object.fromEntries(
+            Object.entries(nativeOverride.env_http_headers as Record<string, unknown>)
+              .filter(([, value]) => typeof value === 'string')
+              .map(([headerName, envVar]) => [
+                headerName,
+                env[envVar as string] ?? `\${${envVar as string}}`,
+              ]),
+          )
+        }
+
+        if (nativeOverride.http_headers && typeof nativeOverride.http_headers === 'object') {
+          entry.http_headers = materializeEnvRecord(
+            nativeOverride.http_headers as Record<string, string>,
+            env,
+          )
+        }
+      } else if (server.auth?.type === 'bearer' && server.auth.envVar && env[server.auth.envVar]) {
         entry.http_headers = {
           Authorization: `Bearer ${env[server.auth.envVar]}`,
         }

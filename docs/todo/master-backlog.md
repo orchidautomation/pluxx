@@ -118,6 +118,10 @@ Any person or agent should be able to enter the repo and answer:
     - Codex `AGENTS.override.md` survives alongside interface/app metadata
     - OpenCode configured instruction files and package entrypoints now survive import and are copied into the maintained source project
     - MCP migrate now merges generic and host-native MCP sources instead of first-file-wins, so native auth blobs such as platform auth and multi-header maps survive under `platforms.<host>.mcpServers.<server>`
+  - installed-MCP auth recovery now follows through into authoring and install:
+    - `discover-installed-mcp` now preserves host-native MCP auth overrides alongside the canonical auth shape
+    - `init --from-installed-mcp` now carries those preserved auth blobs into generated `platforms.<host>.mcpServers.<server>` config
+    - generated scaffold `userConfig` now derives extra env vars from native multi-header auth overrides instead of only the first canonical header
   - richer canonical skill metadata now survives into emitted host companions:
     - Codex now writes `.codex/skills.generated.json`
     - OpenCode now writes `skills.generated.json`
@@ -172,6 +176,7 @@ Any person or agent should be able to enter the repo and answer:
   - `pluxx discover-mcp` reads Claude Code, Cursor, Codex, and OpenCode config locations
   - `pluxx init --from-installed-mcp <host:name>` imports a selected discovered server into a Pluxx project
   - discovered stdio/env auth is normalized without copying literal secret values
+  - preserved native MCP auth overrides now survive that discovery/import path into generated `platforms.<host>.mcpServers.<server>` config and derived install-time `userConfig`
 - [ ] Continue the post-closure follow-on work from the translation hit list:
   - public proof and packaging polish
   - install/distribution asset polish
@@ -179,7 +184,6 @@ Any person or agent should be able to enter the repo and answer:
 - [ ] Consolidate the remaining translation papercuts that the readiness work made more obvious:
   - keep pushing the richer `skills` metadata layer into more native host emission and proof consumers
   - keep pushing the richer `commands` IR into more native host emission and install-time proof
-  - keep tightening auth/runtime reconstruction in installed-MCP discovery and downstream generator use of preserved native auth blobs
   - add more installed behavioral proof for delegated agents, reload/discovery quirks, and publish/recovery flows
   - continue simplifying the plugin-guided average-user path so the proof state is easier to use without maintainer-level CLI literacy
 

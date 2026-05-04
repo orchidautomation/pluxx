@@ -167,6 +167,8 @@ Current state:
 - Codex `AGENTS.override.md` now survives alongside interface/app metadata instead of being dropped or clobbered
 - OpenCode configured instruction files and package entrypoints now survive import and are copied into the maintained source project
 - MCP migrate now merges generic and host-native MCP sources instead of first-file-wins, so native auth blobs such as platform auth and multi-header maps survive under `platforms.<host>.mcpServers.<server>`
+- installed-MCP discovery now preserves those same native auth blobs instead of flattening them away during discovery
+- `init --from-installed-mcp` now carries preserved native MCP auth overrides into generated `platforms.<host>.mcpServers.<server>` config and derives extra install-time `userConfig` env vars from multi-header auth maps
 
 Acceptance criteria:
 

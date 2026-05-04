@@ -211,6 +211,10 @@ Open work:
     - Codex `AGENTS.override.md` survives alongside interface/app metadata instead of being dropped or clobbered
     - OpenCode configured instruction files and package entrypoints now survive import and are copied into the maintained source project
     - MCP migrate now merges generic and host-native MCP sources instead of first-file-wins, so native auth blobs such as platform auth and multi-header maps survive under `platforms.<host>.mcpServers.<server>`
+  - installed-MCP auth recovery now follows through into authoring and install:
+    - `discover-installed-mcp` now preserves host-native MCP auth overrides alongside the canonical auth shape
+    - `init --from-installed-mcp` now carries those preserved auth blobs into generated `platforms.<host>.mcpServers.<server>` config
+    - generated scaffold `userConfig` now derives extra env vars from native multi-header auth overrides instead of only the first canonical header
   - richer canonical skill metadata now survives into emitted host companions instead of mostly living in Agent Mode and migrate:
     - Codex now writes `.codex/skills.generated.json`
     - OpenCode now writes `skills.generated.json`
@@ -230,7 +234,6 @@ Open work:
 - close the now-clearer translation follow-ons behind the shipped readiness/runtime work:
   - keep pushing the richer `skills` metadata layer into more native host emission and proof consumers beyond Codex/OpenCode companions
   - keep pushing the richer `commands` IR into more native host emission and install-time proof instead of mostly companion and context surfaces
-  - keep tightening auth/runtime reconstruction in installed-MCP discovery and downstream generator use of preserved native auth blobs, especially around platform-managed remotes and multi-header auth
   - add more installed behavioral proof for delegated agents, reload/discovery quirks, and publish/recovery flows
   - continue simplifying the plugin-guided average-user path so more of the current proof state is obvious without maintainer-level CLI literacy
 

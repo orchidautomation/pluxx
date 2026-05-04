@@ -12,6 +12,7 @@ import { readTextFile } from '../../text-files'
 import { readCanonicalAgentFiles } from '../../agents'
 import { normalizePluginOwnedStdioPathForPlatform } from '../../mcp-stdio-paths'
 import { buildHookCommandWrapperScript } from '../../hook-command-env'
+import { getNativeJsonHeadersOverride } from '../../mcp-native-overrides'
 
 export interface ClaudeFamilyOptions {
   manifestPath: string
@@ -121,7 +122,10 @@ async function writeMcpConfig(
         continue
       }
 
-      if (server.auth?.type === 'bearer' && server.auth.envVar) {
+      const nativeHeaders = getNativeJsonHeadersOverride(config, platform, name)
+      if (nativeHeaders) {
+        entry.headers = nativeHeaders
+      } else if (server.auth?.type === 'bearer' && server.auth.envVar) {
         entry.headers = {
           Authorization: `Bearer \${${server.auth.envVar}}`,
         }

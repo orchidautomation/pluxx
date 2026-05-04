@@ -1923,6 +1923,7 @@ ${formatAuthRequiredMessage('init', retryError, source)}`)
             warnings: sourcedContextPack.docsContext.warnings,
           }
         : undefined,
+      platformOverrides: installedMcpSource?.platformOverrides,
     })
     const createdFiles = plan.files
       .filter((file) => file.action === 'create')

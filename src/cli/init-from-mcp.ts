@@ -10,6 +10,7 @@ import type {
   IntrospectedMcpTool,
 } from '../mcp/introspect'
 import { collectUserConfigEntries } from '../user-config'
+import { collectNativeMcpAuthUserConfigEntries } from '../mcp-native-overrides'
 import { planTextFileAction, readTextFileIfExists, writeTextFile } from '../text-files'
 
 export interface McpScaffoldOptions {
@@ -27,6 +28,7 @@ export interface McpScaffoldOptions {
   hookMode?: McpHookMode
   runtimeAuthMode?: McpRuntimeAuthMode
   permissions?: PluginConfig['permissions']
+  platformOverrides?: PluginConfig['platforms']
   approveMcpTools?: boolean
   sourcedContext?: {
     workflowHints: string[]
@@ -392,20 +394,31 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
   const instructionsPath = resolve(options.rootDir, 'INSTRUCTIONS.md')
   const skillRoot = resolve(options.rootDir, 'skills')
   const commandsRoot = resolve(options.rootDir, 'commands')
+  const basePlatforms = runtimeAuthMode === 'platform'
+    ? {
+        'claude-code': { mcpAuth: 'platform' as const },
+        cursor: { mcpAuth: 'platform' as const },
+      }
+    : undefined
+  const platforms = mergePlatformConfigMaps(basePlatforms, options.platformOverrides)
   const userConfigSource = {
     targets: options.targets,
     mcp: {
       [serverName]: options.source,
     },
-    platforms: runtimeAuthMode === 'platform'
-      ? {
-          'claude-code': { mcpAuth: 'platform' as const },
-          cursor: { mcpAuth: 'platform' as const },
-        }
-      : undefined,
+    platforms,
   } as PluginConfig
-  const userConfig = collectUserConfigEntries(userConfigSource)
-    .map(({ source: _source, ...entry }) => entry)
+  const baseUserConfig = collectUserConfigEntries(userConfigSource)
+  const userConfig = [
+    ...baseUserConfig,
+    ...collectNativeMcpAuthUserConfigEntries(userConfigSource, options.targets, baseUserConfig),
+  ].map((entry) => {
+    if ('source' in entry) {
+      const { source: _source, ...rest } = entry
+      return rest
+    }
+    return entry
+  })
   const skillDirectories: string[] = []
   const commandFiles: string[] = []
   const generatedFiles = ['pluxx.config.ts', './INSTRUCTIONS.md']
@@ -437,6 +450,7 @@ export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpS
       passthroughPaths,
       runtimeAuthMode,
       permissions,
+      platforms,
       commandsPath: plannedCommands.length > 0 ? './commands/' : undefined,
     }),
   )
@@ -961,6 +975,7 @@ export function buildConfigTemplate(input: {
   passthroughPaths?: string[]
   runtimeAuthMode?: McpRuntimeAuthMode
   permissions?: PluginConfig['permissions']
+  platforms?: PluginConfig['platforms']
   commandsPath?: string
 }): string {
   const targets = input.targets.map((target) => JSON.stringify(target)).join(', ')
@@ -981,8 +996,8 @@ export function buildConfigTemplate(input: {
   const commandsBlock = input.commandsPath ? `  commands: ${JSON.stringify(input.commandsPath)},\n` : ''
   const hooksBlock = input.hooks ? `\n  hooks: ${serializeHooks(input.hooks)},\n` : ''
   const permissionsBlock = input.permissions ? `\n  permissions: ${serializePermissions(input.permissions)},\n` : ''
-  const platformsBlock = input.runtimeAuthMode === 'platform'
-    ? `\n  platforms: {\n    'claude-code': {\n      mcpAuth: 'platform',\n    },\n    cursor: {\n      mcpAuth: 'platform',\n    },\n  },\n`
+  const platformsBlock = input.platforms
+    ? `\n  platforms: ${serializePlatformOverrides(input.platforms)},\n`
     : ''
 
   return `import { definePlugin } from 'pluxx'
@@ -1151,6 +1166,109 @@ function serializePermissions(permissions: NonNullable<PluginConfig['permissions
     .join(',\n')
 
   return `{\n${entries}\n  }`
+}
+
+function mergePlatformConfigMaps(
+  base: PluginConfig['platforms'] | undefined,
+  extra: PluginConfig['platforms'] | undefined,
+): PluginConfig['platforms'] | undefined {
+  const merged = {
+    ...(base ?? {}),
+    ...(extra ?? {}),
+  } as NonNullable<PluginConfig['platforms']>
+
+  if (base?.['claude-code'] || extra?.['claude-code']) {
+    merged['claude-code'] = {
+      ...(base?.['claude-code'] ?? {}),
+      ...(extra?.['claude-code'] ?? {}),
+      ...(base?.['claude-code']?.mcpServers || extra?.['claude-code']?.mcpServers
+        ? {
+            mcpServers: {
+              ...(base?.['claude-code']?.mcpServers ?? {}),
+              ...(extra?.['claude-code']?.mcpServers ?? {}),
+            },
+          }
+        : {}),
+    }
+  }
+
+  if (base?.cursor || extra?.cursor) {
+    merged.cursor = {
+      ...(base?.cursor ?? {}),
+      ...(extra?.cursor ?? {}),
+      ...(base?.cursor?.mcpServers || extra?.cursor?.mcpServers
+        ? {
+            mcpServers: {
+              ...(base?.cursor?.mcpServers ?? {}),
+              ...(extra?.cursor?.mcpServers ?? {}),
+            },
+          }
+        : {}),
+    }
+  }
+
+  if (base?.codex || extra?.codex) {
+    merged.codex = {
+      ...(base?.codex ?? {}),
+      ...(extra?.codex ?? {}),
+      ...(base?.codex?.mcpServers || extra?.codex?.mcpServers
+        ? {
+            mcpServers: {
+              ...(base?.codex?.mcpServers ?? {}),
+              ...(extra?.codex?.mcpServers ?? {}),
+            },
+          }
+        : {}),
+    }
+  }
+
+  if (base?.opencode || extra?.opencode) {
+    merged.opencode = {
+      ...(base?.opencode ?? {}),
+      ...(extra?.opencode ?? {}),
+      ...(base?.opencode?.mcpServers || extra?.opencode?.mcpServers
+        ? {
+            mcpServers: {
+              ...(base?.opencode?.mcpServers ?? {}),
+              ...(extra?.opencode?.mcpServers ?? {}),
+            },
+          }
+        : {}),
+    }
+  }
+
+  return Object.keys(merged).length > 0 ? merged : undefined
+}
+
+function serializePlatformOverrides(platforms: NonNullable<PluginConfig['platforms']>): string {
+  return serializeTsLiteral(platforms, 1)
+}
+
+function serializeTsLiteral(value: unknown, indentLevel: number): string {
+  const indent = '  '.repeat(indentLevel)
+  const nextIndent = '  '.repeat(indentLevel + 1)
+
+  if (Array.isArray(value)) {
+    if (value.length === 0) return '[]'
+    return `[\n${value.map((item) => `${nextIndent}${serializeTsLiteral(item, indentLevel + 1)}`).join(',\n')}\n${indent}]`
+  }
+
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .filter(([, entryValue]) => entryValue !== undefined)
+    if (entries.length === 0) return '{}'
+    return `{\n${entries.map(([key, entryValue]) => `${nextIndent}${serializeTsKey(key)}: ${serializeTsLiteral(entryValue, indentLevel + 1)}`).join(',\n')}\n${indent}}`
+  }
+
+  if (typeof value === 'string') {
+    return `'${value.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`
+  }
+
+  return JSON.stringify(value)
+}
+
+function serializeTsKey(key: string): string {
+  return /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(key) ? key : `'${key}'`
 }
 
 const MUTATING_PREFIXES = [

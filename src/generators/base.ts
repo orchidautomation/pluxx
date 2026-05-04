@@ -4,6 +4,7 @@ import type { PluginConfig, TargetPlatform, McpServer } from '../schema'
 import { readCompilerIntent, type CompilerIntentFile } from '../compiler-intent'
 import { writeTextFile } from '../text-files'
 import { normalizePluginOwnedStdioPathForPlatform } from '../mcp-stdio-paths'
+import { getNativeJsonHeadersOverride } from '../mcp-native-overrides'
 
 type McpRemoteServer = Exclude<McpServer, { transport: 'stdio' }>
 
@@ -145,6 +146,11 @@ export abstract class Generator {
         if (headers) {
           entry.headers = headers
         }
+      }
+
+      const nativeHeaders = getNativeJsonHeadersOverride(this.config, this.platform, name)
+      if (nativeHeaders && this.getMcpAuthMode() !== 'platform' && remoteServer.auth?.type !== 'platform') {
+        entry.headers = nativeHeaders
       }
 
       if (transformRemoteEntry) {

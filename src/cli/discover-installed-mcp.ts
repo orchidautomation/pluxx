@@ -1,7 +1,8 @@
 import { existsSync, readFileSync } from 'fs'
 import { homedir } from 'os'
 import { resolve } from 'path'
-import type { McpAuth, McpServer, TargetPlatform } from '../schema'
+import type { McpAuth, McpServer, PluginConfig, TargetPlatform } from '../schema'
+import { buildNativeMcpPlatformOverrides } from '../mcp-native-overrides'
 
 export const INSTALLED_MCP_HOSTS = ['claude-code', 'cursor', 'codex', 'opencode'] as const satisfies readonly TargetPlatform[]
 export type InstalledMcpHost = typeof INSTALLED_MCP_HOSTS[number]
@@ -13,6 +14,7 @@ export interface DiscoveredInstalledMcpServer {
   sourcePath: string
   server: McpServer
   warnings: string[]
+  platformOverrides?: PluginConfig['platforms']
 }
 
 export interface DiscoverInstalledMcpOptions {
@@ -148,7 +150,8 @@ function parseJsonMcpFile(path: string, host: InstalledMcpHost): DiscoveredInsta
     return Object.entries(servers).flatMap(([serverName, config]) => {
       const normalized = normalizeCommonMcpServer(config, host)
       if (!normalized) return []
-      return [toDiscovered(host, serverName, path, normalized.server, normalized.warnings)]
+      const platformOverrides = buildNativeMcpPlatformOverrides(host, { [serverName]: config })
+      return [toDiscovered(host, serverName, path, normalized.server, normalized.warnings, platformOverrides)]
     })
   } catch {
     return []
@@ -227,7 +230,8 @@ function parseCodexTomlMcpFile(path: string): DiscoveredInstalledMcpServer[] {
   return Object.entries(servers).flatMap(([serverName, config]) => {
     const normalized = normalizeCommonMcpServer(config, 'codex')
     if (!normalized) return []
-    return [toDiscovered('codex', serverName, path, normalized.server, normalized.warnings)]
+    const platformOverrides = buildNativeMcpPlatformOverrides('codex', { [serverName]: config })
+    return [toDiscovered('codex', serverName, path, normalized.server, normalized.warnings, platformOverrides)]
   })
 }
 
@@ -368,6 +372,7 @@ function toDiscovered(
   sourcePath: string,
   server: McpServer,
   warnings: string[],
+  platformOverrides?: PluginConfig['platforms'],
 ): DiscoveredInstalledMcpServer {
   return {
     id: `${host}:${serverName}`,
@@ -376,6 +381,7 @@ function toDiscovered(
     sourcePath,
     server,
     warnings,
+    ...(platformOverrides ? { platformOverrides } : {}),
   }
 }
 
