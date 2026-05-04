@@ -248,6 +248,11 @@ The next plugin-specific work is:
 - the self-hosted plugin now has an explicit runtime bootstrap path:
   - `pluxx-bootstrap-runtime`
   - `/pluxx:bootstrap-runtime`
+- the self-hosted plugin now also has guided refinement and proof paths for average-user operator flows:
+  - `pluxx-refine-plugin`
+  - `/pluxx:refine-plugin`
+  - `pluxx-prove-plugin`
+  - `/pluxx:prove-plugin`
 - the self-hosted plugin now has an explicit installed-bundle troubleshooting path:
   - `pluxx-troubleshoot-install`
   - `/pluxx:troubleshoot-install`

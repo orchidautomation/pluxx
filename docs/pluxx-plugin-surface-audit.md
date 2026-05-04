@@ -94,22 +94,24 @@ That local plugin is useful, but it is not the canonical source project.
 
 ## What The Plugin Contains Today
 
-The self-hosted plugin now exposes fourteen core workflows:
+The self-hosted plugin now exposes sixteen core workflows:
 
 1. `pluxx-import-mcp`
 2. `pluxx-bootstrap-runtime`
 3. `pluxx-migrate-plugin`
 4. `pluxx-validate-scaffold`
 5. `pluxx-prepare-context`
-6. `pluxx-refine-taxonomy`
-7. `pluxx-rewrite-instructions`
-8. `pluxx-review-scaffold`
-9. `pluxx-build-install`
-10. `pluxx-verify-install`
-11. `pluxx-troubleshoot-install`
-12. `pluxx-sync-mcp`
-13. `pluxx-autopilot`
-14. `pluxx-publish-plugin`
+6. `pluxx-refine-plugin`
+7. `pluxx-refine-taxonomy`
+8. `pluxx-rewrite-instructions`
+9. `pluxx-review-scaffold`
+10. `pluxx-build-install`
+11. `pluxx-prove-plugin`
+12. `pluxx-verify-install`
+13. `pluxx-troubleshoot-install`
+14. `pluxx-sync-mcp`
+15. `pluxx-autopilot`
+16. `pluxx-publish-plugin`
 
 In Codex, those are primarily exposed as:
 
@@ -125,7 +127,9 @@ In hosts with command surfaces, the canonical source project also defines matchi
 - `/pluxx:import-mcp`
 - `/pluxx:migrate-plugin`
 - `/pluxx:prepare-context`
+- `/pluxx:prove-plugin`
 - `/pluxx:publish-plugin`
+- `/pluxx:refine-plugin`
 - `/pluxx:validate-scaffold`
 - `/pluxx:refine-taxonomy`
 - `/pluxx:rewrite-instructions`
@@ -194,7 +198,9 @@ This is the important table.
 | `agent prepare` + taxonomy pass | Yes | Yes | Covered by `pluxx-refine-taxonomy` |
 | `agent prepare` + instructions pass | Yes | Yes | Covered by `pluxx-rewrite-instructions` |
 | review pass | Yes | Yes | Covered by `pluxx-review-scaffold` |
+| guided refinement journey | Yes | Yes | Covered by `pluxx-refine-plugin` across context, taxonomy, instruction, review, and translation-adjacent work |
 | `build` + `install` | Yes | Yes | Covered by `pluxx-build-install` |
+| guided proof journey | Yes | Yes | Covered by `pluxx-prove-plugin` across structural, install, and behavioral proof layers |
 | `verify-install` | Yes | Yes | Covered by `pluxx-verify-install` |
 | `doctor --consumer` | Yes | Yes | Covered explicitly by `pluxx-troubleshoot-install` and selectively by `pluxx-verify-install` |
 | `sync` | Yes | Yes | Covered by `pluxx-sync-mcp` |
@@ -209,17 +215,20 @@ This is the important table.
 
 The plugin workflow coverage gap is now closed across the maintained source project and the repo-local Codex dogfood plugin.
 
-That means the plugin surface now covers the full modern Pluxx lifecycle:
+That means the plugin surface now covers the full modern Pluxx lifecycle plus the guided average-user overlays:
 
 - import
+- bootstrap runtime
 - migrate
 - validate
 - prepare context
+- refine plugin
 - refine
 - rewrite
 - review
 - build
 - install
+- prove plugin
 - verify
 - troubleshoot install
 - sync
@@ -313,7 +322,7 @@ full lifecycle coverage is present
 polish and distribution still need work
 ```
 
-The most important next moves are not new workflows.
+The most important next moves are no longer basic lifecycle coverage.
 
 They are:
 

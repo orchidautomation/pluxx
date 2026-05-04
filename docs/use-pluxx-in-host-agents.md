@@ -35,17 +35,19 @@ Pluxx is the plugin-authoring substrate underneath it.
 
 ## The Main Pluxx Workflows
 
-The recommended Pluxx skill pack is organized around fourteen jobs:
+The recommended Pluxx skill pack is organized around sixteen jobs:
 
 - `pluxx-import-mcp`
 - `pluxx-bootstrap-runtime`
 - `pluxx-migrate-plugin`
 - `pluxx-validate-scaffold`
 - `pluxx-prepare-context`
+- `pluxx-refine-plugin`
 - `pluxx-refine-taxonomy`
 - `pluxx-rewrite-instructions`
 - `pluxx-review-scaffold`
 - `pluxx-build-install`
+- `pluxx-prove-plugin`
 - `pluxx-verify-install`
 - `pluxx-troubleshoot-install`
 - `pluxx-sync-mcp`
@@ -59,15 +61,17 @@ Those correspond to:
 3. migrate an existing host-native plugin into Pluxx
 4. validate the scaffold deterministically
 5. prepare website/docs/local context before semantic refinement
-6. improve the skill taxonomy
-7. rewrite the shared instructions
-8. review the scaffold critically
-9. build native outputs and optionally install them
-10. verify that the installed host bundle is actually healthy
-11. troubleshoot a local install that still looks wrong in the host
-12. refresh the scaffold when the MCP changes
-13. run the one-shot import/refine/verify path
-14. package the plugin for release distribution
+6. run the guided refinement journey
+7. improve the skill taxonomy
+8. rewrite the shared instructions
+9. review the scaffold critically
+10. build native outputs and optionally install them
+11. run the guided proof journey
+12. verify that the installed host bundle is actually healthy
+13. troubleshoot a local install that still looks wrong in the host
+14. refresh the scaffold when the MCP changes
+15. run the one-shot import/refine/verify path
+16. package the plugin for release distribution
 
 The self-hosting plugin also exposes matching explicit commands in hosts that support plugin commands:
 
@@ -77,7 +81,9 @@ The self-hosting plugin also exposes matching explicit commands in hosts that su
 - `/pluxx:import-mcp`
 - `/pluxx:migrate-plugin`
 - `/pluxx:prepare-context`
+- `/pluxx:prove-plugin`
 - `/pluxx:publish-plugin`
+- `/pluxx:refine-plugin`
 - `/pluxx:validate-scaffold`
 - `/pluxx:refine-taxonomy`
 - `/pluxx:rewrite-instructions`

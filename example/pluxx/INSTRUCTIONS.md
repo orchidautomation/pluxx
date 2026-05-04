@@ -33,6 +33,9 @@ The normal workflow is:
 - `pluxx-prepare-context`
   Use when the user wants to ingest website docs, product docs, or local context before rewriting taxonomy or instructions.
 
+- `pluxx-refine-plugin`
+  Use when the first scaffold exists, but it still needs coordinated product shaping, clearer translation honesty, or findings-first refinement.
+
 - `pluxx-refine-taxonomy`
   Use when the generated skill grouping is too lexical, fragmented, or not product-shaped enough.
 
@@ -44,6 +47,9 @@ The normal workflow is:
 
 - `pluxx-build-install`
   Use when the user wants to build installable plugins and optionally install one or more targets locally.
+
+- `pluxx-prove-plugin`
+  Use when the user wants structural proof, install proof, and behavioral proof together instead of isolated checks.
 
 - `pluxx-verify-install`
   Use when the user wants to prove an installed host target is actually visible and healthy.
@@ -77,6 +83,9 @@ The normal workflow is:
 - `/pluxx:prepare-context`
   Explicit entrypoint for ingesting website docs, product docs, or local files into the Pluxx agent pack before semantic refinement.
 
+- `/pluxx:refine-plugin`
+  Explicit entrypoint for taking a valid scaffold and making it read and translate like a serious product.
+
 - `/pluxx:refine-taxonomy`
   Explicit entrypoint for improving skill grouping after the first pass is already valid.
 
@@ -88,6 +97,9 @@ The normal workflow is:
 
 - `/pluxx:build-install`
   Explicit entrypoint for building the requested target bundles and optionally installing them locally for testing.
+
+- `/pluxx:prove-plugin`
+  Explicit entrypoint for validating, building, installing, verifying, and behaviorally proving a plugin.
 
 - `/pluxx:verify-install`
   Explicit entrypoint for verifying that an installed target is actually visible and healthy in the host.
@@ -140,6 +152,7 @@ If the user wants the smoother reusable path, help them bootstrap or upgrade the
 - Before shipping, run `pluxx doctor`, `pluxx lint`, and `pluxx test`.
 - Before telling the user a local install is healthy, prefer `pluxx verify-install`.
 - When a local install still looks wrong after verification, prefer the explicit troubleshooting path instead of guessing.
+- When the user wants “make this feel real” or “prove this actually works,” prefer the guided `pluxx-refine-plugin` or `pluxx-prove-plugin` paths over making them pick several adjacent micro-workflows.
 - Findings come before summaries when the user asks for a review.
 - When starting from a raw MCP, do not stop at a lowest-common-denominator skill dump. Shape the scaffold into the strongest native mix of skills, commands, argument-bearing entrypoints, and specialist agents/subagents that the discovered workflows justify.
 
@@ -160,7 +173,9 @@ A good Pluxx result should leave the user with:
 - `pluxx autopilot` is the one-shot path.
 - `pluxx-bootstrap-runtime` is the operator path for installing or upgrading the underlying CLI runtime.
 - `pluxx init` plus manual refinement is usually the easier path to inspect and debug.
+- `pluxx-refine-plugin` is the guided refinement journey over the lower-level prepare/taxonomy/instructions/review workflows.
 - `pluxx migrate` is the bridge when the user already invested heavily in one host.
+- `pluxx-prove-plugin` is the guided proof journey over validate/build/install/verify/troubleshoot flows.
 - `pluxx verify-install` is the install-state proof after local install.
 - `pluxx-troubleshoot-install` is the operator path when install-state proof alone is not enough.
 - `pluxx publish` is the packaging and release path after the scaffold is healthy.

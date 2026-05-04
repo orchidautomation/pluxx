@@ -46,11 +46,25 @@
       "template": "Use the Pluxx context preparation workflow.\n\nArguments: $ARGUMENTS\n\n## What To Do\n\n1. Use the `pluxx-prepare-context` skill.\n2. Treat the arguments as hints for website URLs, docs URLs, or local context files.\n3. Run `pluxx agent prepare` with the richest safe context available.\n4. Summarize what sources were ingested and what artifacts were written.\n5. Point to the next best follow-up workflow:\n   - taxonomy\n   - rewrite instructions\n   - review\n\nReturn the selected sources, the generated context artifacts, and the next recommended refinement step."
     },
     {
+      "id": "prove-plugin",
+      "title": "prove-plugin",
+      "description": "Validate, build, install, verify, and behaviorally prove a plugin",
+      "argumentHint": "[targets optional]",
+      "template": "Use the Pluxx proof workflow.\n\nArguments: $ARGUMENTS\n\n## What To Do\n\n1. Use the `pluxx-prove-plugin` skill.\n2. Treat the argument as the requested host subset when present.\n3. Combine structural proof, install proof, and behavioral proof instead of stopping at one layer.\n4. If local stdio runtimes or install-time secrets are involved, check those explicitly.\n5. Return the proof result by layer:\n   - source\n   - install\n   - behavior"
+    },
+    {
       "id": "publish-plugin",
       "title": "publish-plugin",
       "description": "Package the current plugin for release distribution",
       "argumentHint": "[release options optional]",
       "template": "Use the Pluxx publish workflow.\n\nArguments: $ARGUMENTS\n\n## What To Do\n\n1. Use the `pluxx-publish-plugin` skill.\n2. Validate that the current project is healthy enough to publish.\n3. Run `pluxx publish` with the requested release options when appropriate.\n4. Summarize the release artifacts and install scripts that were produced.\n5. Call out anything that still blocks an actual release.\n\nReturn what was published, what artifacts were generated, and any remaining release caveats."
+    },
+    {
+      "id": "refine-plugin",
+      "title": "refine-plugin",
+      "description": "Refine a scaffold into a product-shaped, host-honest plugin",
+      "argumentHint": "[context or focus optional]",
+      "template": "Use the Pluxx refinement workflow.\n\nArguments: $ARGUMENTS\n\n## What To Do\n\n1. Use the `pluxx-refine-plugin` skill.\n2. Treat the argument as context or focus:\n   - website/docs/local context\n   - taxonomy quality\n   - instruction quality\n   - host translation concerns\n   - overall scaffold quality\n3. Keep this as one coordinated refinement pass instead of a list of separate subcommands.\n4. Return what changed, what still feels weak, and whether the next step is proof or publish."
     },
     {
       "id": "refine-taxonomy",

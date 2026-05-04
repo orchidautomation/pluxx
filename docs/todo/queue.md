@@ -299,6 +299,11 @@ Open work:
 - the self-hosted plugin now also has an explicit runtime-bootstrap workflow instead of leaving average users to infer install or upgrade steps from the fallback path:
   - `pluxx-bootstrap-runtime`
   - `/pluxx:bootstrap-runtime`
+- the self-hosted plugin now also has guided refinement and proof overlays on top of the lower-level lifecycle steps:
+  - `pluxx-refine-plugin`
+  - `/pluxx:refine-plugin`
+  - `pluxx-prove-plugin`
+  - `/pluxx:prove-plugin`
 - the self-hosted plugin now also has an explicit install-troubleshooting workflow instead of leaving `doctor --consumer` only as a secondary hint:
   - `pluxx-troubleshoot-install`
   - `/pluxx:troubleshoot-install`

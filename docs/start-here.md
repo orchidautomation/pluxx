@@ -145,6 +145,11 @@ The repo already proves a lot.
 - the self-hosted plugin now also exposes an explicit runtime-bootstrap workflow for the common “plugin is installed but the underlying CLI is missing or stale” case:
   - `pluxx-bootstrap-runtime`
   - `/pluxx:bootstrap-runtime`
+- the self-hosted plugin now also exposes guided refinement and proof workflows so average users do not need to compose as many adjacent micro-steps by hand:
+  - `pluxx-refine-plugin`
+  - `/pluxx:refine-plugin`
+  - `pluxx-prove-plugin`
+  - `/pluxx:prove-plugin`
 - the self-hosted plugin now also exposes an explicit install-troubleshooting workflow instead of leaving installed-bundle diagnosis only as a secondary hint:
   - `pluxx-troubleshoot-install`
   - `/pluxx:troubleshoot-install`

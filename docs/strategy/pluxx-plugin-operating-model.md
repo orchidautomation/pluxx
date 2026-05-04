@@ -214,7 +214,21 @@ CLI it orchestrates:
 - `pluxx lint`
 - `pluxx test`
 
-### 13. `pluxx-autopilot`
+### 13. `pluxx-refine-plugin`
+
+Job:
+
+- take a valid scaffold and make it read and translate like a serious product
+
+CLI it orchestrates:
+
+- `pluxx agent prepare ...` when context is weak
+- `pluxx lint`
+- `pluxx eval`
+- `pluxx test`
+- selectively the lower-level refinement workflows when they materially sharpen the pass
+
+### 14. `pluxx-autopilot`
 
 Job:
 
@@ -224,7 +238,25 @@ CLI it orchestrates:
 
 - `pluxx autopilot --from-mcp ...`
 
-### 14. `pluxx-publish-plugin`
+### 15. `pluxx-prove-plugin`
+
+Job:
+
+- combine structural proof, install proof, and behavioral proof into one operator path
+
+CLI it orchestrates:
+
+- `pluxx doctor`
+- `pluxx lint`
+- `pluxx eval`
+- `pluxx test`
+- `pluxx build`
+- `pluxx install --target ...`
+- `pluxx verify-install --target ...`
+- `pluxx doctor --consumer ...`
+- `pluxx test --install --trust --behavioral --target ...`
+
+### 16. `pluxx-publish-plugin`
 
 Job:
 
@@ -246,7 +278,9 @@ Expose namespaced explicit commands:
 - `/pluxx:import-mcp`
 - `/pluxx:migrate-plugin`
 - `/pluxx:prepare-context`
+- `/pluxx:prove-plugin`
 - `/pluxx:publish-plugin`
+- `/pluxx:refine-plugin`
 - `/pluxx:validate-scaffold`
 - `/pluxx:refine-taxonomy`
 - `/pluxx:rewrite-instructions`
@@ -265,7 +299,9 @@ Expose the same explicit command set where plugin commands are supported:
 - `/pluxx:import-mcp`
 - `/pluxx:migrate-plugin`
 - `/pluxx:prepare-context`
+- `/pluxx:prove-plugin`
 - `/pluxx:publish-plugin`
+- `/pluxx:refine-plugin`
 - `/pluxx:validate-scaffold`
 - `/pluxx:refine-taxonomy`
 - `/pluxx:rewrite-instructions`
@@ -284,7 +320,9 @@ Expose the same workflow command set in OpenCode’s native command surface:
 - `/pluxx:import-mcp`
 - `/pluxx:migrate-plugin`
 - `/pluxx:prepare-context`
+- `/pluxx:prove-plugin`
 - `/pluxx:publish-plugin`
+- `/pluxx:refine-plugin`
 - `/pluxx:validate-scaffold`
 - `/pluxx:refine-taxonomy`
 - `/pluxx:rewrite-instructions`
@@ -312,7 +350,9 @@ Equivalent operator surface:
 - `pluxx-import-mcp`
 - `pluxx-migrate-plugin`
 - `pluxx-prepare-context`
+- `pluxx-prove-plugin`
 - `pluxx-publish-plugin`
+- `pluxx-refine-plugin`
 - `pluxx-validate-scaffold`
 - `pluxx-refine-taxonomy`
 - `pluxx-rewrite-instructions`

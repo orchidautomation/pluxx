@@ -272,6 +272,11 @@ Open work:
 - [x] Promote runtime bootstrap to a first-class self-hosted plugin workflow:
   - `pluxx-bootstrap-runtime`
   - `/pluxx:bootstrap-runtime`
+- [x] Promote guided refinement and proof to first-class self-hosted plugin workflows:
+  - `pluxx-refine-plugin`
+  - `/pluxx:refine-plugin`
+  - `pluxx-prove-plugin`
+  - `/pluxx:prove-plugin`
 - [x] Promote installed-bundle troubleshooting to a first-class self-hosted plugin workflow:
   - `pluxx-troubleshoot-install`
   - `/pluxx:troubleshoot-install`
