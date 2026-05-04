@@ -2,12 +2,12 @@ import { existsSync } from 'fs'
 import { Generator } from '../base'
 import type { TargetPlatform } from '../../schema'
 import { buildGeneratedPermissionHookScript } from '../../permissions'
+import { readInstructionsContent } from '../../instructions'
 import { getCanonicalAgentMetadata, type AgentFrontmatterMap, readCanonicalAgentFiles } from '../../agents'
 import { buildDelegationBehaviorNotes } from '../../delegation'
 import { getHookFieldSupportedEvents } from '../../hook-translation-registry'
 import { buildGeneratedReadinessScript, getRuntimeReadinessPlan } from '../../readiness'
 import { getEnabledRuntimeReadinessBindings, getRuntimeReadinessCapability } from '../../runtime-readiness-registry'
-import { readTextFile } from '../../text-files'
 
 export class CursorGenerator extends Generator {
   readonly platform: TargetPlatform = 'cursor'
@@ -184,11 +184,8 @@ export class CursorGenerator extends Generator {
   }
 
   private async generateAgentsMd(): Promise<void> {
-    if (!this.config.instructions) return
-    const srcPath = this.resolveConfigPath(this.config.instructions, 'instructions')
-    if (!existsSync(srcPath)) return
-
-    const content = await readTextFile(srcPath)
+    const content = await readInstructionsContent(this.rootDir, this.config)
+    if (!content) return
     await this.writeFile('AGENTS.md', content)
   }
 

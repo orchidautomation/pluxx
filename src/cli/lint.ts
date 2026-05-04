@@ -20,6 +20,7 @@ import {
 } from '../hook-events'
 import { findHostPluginRootVars } from '../mcp-stdio-paths'
 import { getHookFieldSupportedEvents, getSupportedHookEvents, getUnsupportedHookEventReason, isHookEventSupported } from '../hook-translation-registry'
+import { readInstructionsContentSync, resolveInstructionsPath } from '../instructions'
 import {
   getInstallerOwnedCheckEnvHookMessage,
   getInstallerOwnedCheckEnvRuntimeMessage,
@@ -725,13 +726,20 @@ function lintInstructionsFileLimits(config: PluginConfig, dir: string, issues: L
     const limits = PLATFORM_LIMITS[target]
     if (limits.instructionsMaxBytes === null) continue
 
-    // Check common instructions files
-    const instructionsFiles = ['AGENTS.md', 'CLAUDE.md', 'INSTRUCTIONS.md']
+    const configuredInstructionsPath = resolveInstructionsPath(dir, config)
+    const instructionsFiles = new Set(['AGENTS.md', 'CLAUDE.md', 'INSTRUCTIONS.md'])
+    if (configuredInstructionsPath) {
+      instructionsFiles.add(relative(dir, configuredInstructionsPath).replace(/\\/g, '/'))
+    }
+
     for (const file of instructionsFiles) {
       const filePath = resolve(dir, file)
       if (!existsSync(filePath)) continue
 
-      const content = readFileSync(filePath, 'utf-8')
+      const content = file === relative(dir, configuredInstructionsPath ?? '').replace(/\\/g, '/')
+        ? readInstructionsContentSync(dir, config)
+        : readFileSync(filePath, 'utf-8')
+      if (content === null) continue
       const byteSize = Buffer.byteLength(content, 'utf-8')
       if (byteSize > limits.instructionsMaxBytes) {
         pushIssue(issues, {

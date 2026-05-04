@@ -240,6 +240,7 @@ This is still the most important under-documented bucket.
   - OpenCode `AGENTS.md`, `CLAUDE.md`, config `instructions`
 - [x] Add proof that migration/build preserve instruction intent across all four without hand-copying prose
 - [x] Make examples stop implying there is only one universal instruction file shape
+- [x] Make the compiler and lint use the configured instructions source path directly instead of only assuming root-level fallback filenames
 
 ### 10. Close the install/update/distribution matrix
 

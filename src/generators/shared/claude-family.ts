@@ -7,6 +7,7 @@ import { isHookFieldPreserved } from '../../hook-translation-registry'
 import { buildGeneratedPermissionHookScript } from '../../permissions'
 import { buildGeneratedReadinessScript, getRuntimeReadinessPlan } from '../../readiness'
 import { getEnabledRuntimeReadinessBindings, getRuntimeReadinessCapability } from '../../runtime-readiness-registry'
+import { readInstructionsContent, renderTitledInstructionsDocument } from '../../instructions'
 import { readTextFile } from '../../text-files'
 import { readCanonicalAgentFiles } from '../../agents'
 import { normalizePluginOwnedStdioPathForPlatform } from '../../mcp-stdio-paths'
@@ -404,20 +405,10 @@ async function writeInstructions(
   options: ClaudeFamilyOptions,
   writeFile: (relativePath: string, content: string) => Promise<void>,
 ): Promise<void> {
-  if (!config.instructions) return
-
-  const srcPath = resolve(rootDir, config.instructions)
-  if (!existsSync(srcPath)) return
-
-  const content = await readTextFile(srcPath)
+  const content = await readInstructionsContent(rootDir, config)
+  if (!content) return
   const titleSuffix = options.titleSuffix ?? 'Plugin'
-  const instructions = [
-    `# ${config.brand?.displayName ?? config.name} ${titleSuffix}`,
-    '',
-    config.brand?.shortDescription ?? config.description,
-    '',
-    content,
-  ].join('\n')
+  const instructions = renderTitledInstructionsDocument(config, content, titleSuffix)
 
   await writeFile(options.instructionsFile, instructions)
 }

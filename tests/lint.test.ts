@@ -682,6 +682,48 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'platform-instructions-size' && issue.platform === 'codex')).toBe(true)
   })
 
+  it('reports platform-instructions-size warning for a configured nonstandard instructions path', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+    mkdirSync(resolve(projectDir, 'docs'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        instructions: './docs/OPERATIONS.md',
+        targets: ['codex'],
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      [
+        '---',
+        'name: my-skill',
+        'description: "A valid skill"',
+        '---',
+        '',
+        '# My Skill',
+      ].join('\n'),
+    )
+
+    writeFileSync(resolve(projectDir, 'docs/OPERATIONS.md'), 'x'.repeat(40000))
+
+    const result = await lintProject(projectDir)
+    expect(
+      result.issues.some(
+        issue => issue.code === 'platform-instructions-size'
+          && issue.platform === 'codex'
+          && issue.file === 'docs/OPERATIONS.md',
+      ),
+    ).toBe(true)
+  })
+
   it('reports platform-rules-lines warning when rules file exceeds max lines', async () => {
     const projectDir = createTempProject()
     mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })

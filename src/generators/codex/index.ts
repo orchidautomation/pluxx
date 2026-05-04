@@ -3,6 +3,7 @@ import { relative } from 'path'
 import { Generator } from '../base'
 import type { TargetPlatform } from '../../schema'
 import { collectPermissionRules } from '../../permissions'
+import { readInstructionsContent } from '../../instructions'
 import { buildGeneratedReadinessScript, getRuntimeReadinessPlan } from '../../readiness'
 import {
   getEnabledRuntimeReadinessBindings,
@@ -14,7 +15,6 @@ import { readCanonicalCommandFiles } from '../../commands'
 import { buildDelegationBehaviorNotes } from '../../delegation'
 import { mapHookEventToPascalCase } from '../../hook-events'
 import { getSupportedHookEvents, getUnsupportedHookEventReason, isHookEventSupported } from '../../hook-translation-registry'
-import { readTextFile } from '../../text-files'
 
 export class CodexGenerator extends Generator {
   readonly platform: TargetPlatform = 'codex'
@@ -167,11 +167,9 @@ export class CodexGenerator extends Generator {
   private async generateAgentsMd(): Promise<void> {
     const sections: string[] = []
 
-    if (this.config.instructions) {
-      const srcPath = this.resolveConfigPath(this.config.instructions, 'instructions')
-      if (existsSync(srcPath)) {
-        sections.push((await readTextFile(srcPath)).trim())
-      }
+    const instructions = await readInstructionsContent(this.rootDir, this.config)
+    if (instructions?.trim()) {
+      sections.push(instructions.trim())
     }
 
     const commandsSection = this.buildCodexCommandRoutingSection()

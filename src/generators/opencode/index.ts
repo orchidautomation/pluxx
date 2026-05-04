@@ -3,6 +3,7 @@ import { basename, extname, relative, resolve } from 'path'
 import { Generator } from '../base'
 import type { HookEntry, TargetPlatform } from '../../schema'
 import { buildOpenCodePermissionMap } from '../../permissions'
+import { readInstructionsContentSync } from '../../instructions'
 import { buildGeneratedReadinessScript, getRuntimeReadinessPlan } from '../../readiness'
 import { getRuntimeReadinessCapability } from '../../runtime-readiness-registry'
 import { getCanonicalAgentMetadata, type AgentFrontmatterMap, type AgentFrontmatterValue, readCanonicalAgentFiles } from '../../agents'
@@ -505,10 +506,7 @@ export class OpenCodeGenerator extends Generator {
   }
 
   private getInstructionsContent(): string | null {
-    if (!this.config.instructions) return null
-    const instructionsPath = this.resolveConfigPath(this.config.instructions, 'instructions')
-    if (!existsSync(instructionsPath)) return null
-    return readFileSync(instructionsPath, 'utf-8').trim()
+    return readInstructionsContentSync(this.rootDir, this.config)?.trim() ?? null
   }
 
   private getOpenCodeHookPlan(): OpenCodeHookPlan {
