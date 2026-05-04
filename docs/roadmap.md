@@ -143,6 +143,8 @@ The closure plan is now narrower than it was before:
   - [docs/todo/author-once-hardening.md](./todo/author-once-hardening.md)
 - the same initiative now explicitly includes the self-hosted `pluxx-plugin` as the average-user operator path over the CLI:
   - use [docs/pluxx-plugin-surface-audit.md](./pluxx-plugin-surface-audit.md) as the coverage and UX truth source
+- the main author-once hardening tranche is now materially closed:
+  - remaining work is follow-on proof packaging, host-refresh maintenance, extra behavioral depth for edge-case flows, and continued plugin-guided UX simplification
 - the current tranche also closed several formerly explicit author-once gaps:
   - the behavioral proof harness now supports expected-failure cases and host-specific runner args for maintained smoke fixtures
   - maintained smoke fixtures can now declare an explicit `commandId` plus required output markers, so command-proof cases fail when the prompt does not reference the command or the output shape stays vague

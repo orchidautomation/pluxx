@@ -52,6 +52,15 @@ For broader context, use:
 
 The core-four compiler sprint is done.
 
+The initial author-once hardening tranche is also materially done.
+
+- the originally identified primitive, registry, migrate, behavioral-proof, and plugin-operator gaps are now closed as one core execution block
+- the remaining work is narrower:
+  - public proof and packaging polish
+  - future host-refresh maintenance
+  - extra behavioral depth for edge-case flows
+  - continued average-user UX simplification through the self-hosted plugin
+
 - canonical compiler buckets are defined
 - host capability registry and translation modes exist
 - semantic migration now preserves more host intent
@@ -119,6 +128,8 @@ The core-four compiler sprint is done.
 The public baseline is also real.
 
 - npm package is live as `@orchid-labs/pluxx`
+- the next public package cut carries the author-once hardening tranche and release-gate fixes:
+  - `0.1.15`
 - published CLI runtime is Node `>=18`
 - published CLI lifecycle ergonomics are now stronger for global installs:
   - `pluxx --version`

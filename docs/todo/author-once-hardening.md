@@ -32,6 +32,17 @@ It is not the same as the broader compiler-hardening architecture doc.
 That doc explains the system shape.
 This doc is the sharper execution list for closing the remaining gap between the current product and the vision.
 
+## Status
+
+As of 2026-05-04, the originally identified author-once hardening gaps are materially closed in code, proof fixtures, install verification, and the self-hosted plugin/operator path.
+
+What remains is narrower follow-on work:
+
+- public proof and packaging polish
+- future host-doc refreshes and compatibility drift maintenance
+- additional behavioral depth for edge-case host flows
+- continued plugin-guided UX simplification for average users
+
 ## Current Gap
 
 Pluxx is already a real cross-host compiler.
@@ -40,14 +51,12 @@ What is not done yet is the stronger claim:
 
 > one canonical source project can express the richest practical plugin intent once, and Pluxx can preserve or honestly translate that intent across Claude Code, Cursor, Codex, and OpenCode without expert-only cleanup.
 
-Today the main shortcomings are:
+Today the remaining shortcomings are:
 
-- the compiler is ahead of the canonical authoring model
-- the proof stack is ahead of the onboarding simplicity
-- several primitives still preserve only part of the host-native intent
-- behavioral parity is still weaker than structural parity
-- import and migrate still lose meaning too early in some paths
-- the plugin-guided path still depends too much on operator literacy instead of feeling like the obvious safe default for normal users
+- the proof stack is still ahead of the onboarding simplicity
+- some host-local behavioral paths still have less proof depth than the main structural/compiler lanes
+- import and migrate are much stronger, but still benefit from continued recovery-quality work rather than one-time closure
+- the plugin-guided path is materially better, but can still become more obvious and less operator-literacy-dependent for average users
 
 ## Definition Of Done
 

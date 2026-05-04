@@ -44,7 +44,11 @@ describe('CORE_FOUR_PRIMITIVE_CAPABILITIES', () => {
 
   it('captures the current codex command degradation truth', () => {
     expect(CORE_FOUR_PRIMITIVE_CAPABILITIES.codex.buckets.commands.mode).toBe('degrade')
-    expect(CORE_FOUR_PRIMITIVE_CAPABILITIES.codex.buckets.commands.nativeSurfaces).toEqual(['skills/', 'AGENTS.md'])
+    expect(CORE_FOUR_PRIMITIVE_CAPABILITIES.codex.buckets.commands.nativeSurfaces).toEqual([
+      'skills/',
+      'AGENTS.md',
+      '.codex/commands.generated.json',
+    ])
   })
 
   it('captures cursor agent translation through subagents', () => {

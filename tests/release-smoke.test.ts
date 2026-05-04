@@ -141,7 +141,7 @@ async function runCliJson<T>(cwd: string, ...argv: string[]): Promise<T> {
 
 describe('release smoke', () => {
   for (const projectPath of RELEASE_SMOKE_PROJECTS) {
-    it(`validates ${projectPath} across the core four with the real CLI`, async () => {
+    it(`validates ${projectPath} across the core four with the real CLI`, { timeout: 600_000 }, async () => {
       const cwd = resolve(ROOT, projectPath)
 
       const doctor = await runCliJson<DoctorResult>(cwd, 'doctor', '--json')

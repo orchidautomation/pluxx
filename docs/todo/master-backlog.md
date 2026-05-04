@@ -125,10 +125,11 @@ Any person or agent should be able to enter the repo and answer:
   - richer canonical skill metadata now survives into emitted host companions:
     - Codex now writes `.codex/skills.generated.json`
     - OpenCode now writes `skills.generated.json`
-- [~] Use [author-once-hardening.md](./author-once-hardening.md) as the initiative-level TODO for closing the remaining gap between:
+- [x] Use [author-once-hardening.md](./author-once-hardening.md) as the initiative-level TODO for closing the main author-once gap between:
   - the author-once vision
   - the currently shipped compiler, proof, and onboarding reality
-- [~] Keep the self-hosted `pluxx-plugin` inside that same initiative as the average-user path:
+  - the remaining work is now follow-on proof packaging, host-refresh maintenance, and average-user UX polish rather than unresolved core hardening
+- [x] Keep the self-hosted `pluxx-plugin` inside that same initiative as the average-user path:
   - the CLI remains the engine
   - the plugin should stay the guided operator surface
   - use [docs/pluxx-plugin-surface-audit.md](../pluxx-plugin-surface-audit.md) as the coverage and UX truth source
