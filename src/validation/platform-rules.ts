@@ -877,8 +877,8 @@ export const CORE_FOUR_PRIMITIVE_CAPABILITIES: Record<CoreFourPlatform, CoreFour
       },
       commands: {
         mode: 'degrade',
-        nativeSurfaces: ['skills/', 'AGENTS.md'],
-        notes: 'Current Codex docs do not document plugin-packaged slash-command parity.',
+        nativeSurfaces: ['skills/', 'AGENTS.md', '.codex/commands.generated.json'],
+        notes: 'Current Codex docs do not document plugin-packaged slash-command parity, so Pluxx keeps canonical command intent through routing guidance plus a generated companion mirror.',
       },
       agents: {
         mode: 'translate',

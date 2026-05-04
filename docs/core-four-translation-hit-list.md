@@ -76,6 +76,8 @@ What just moved materially closer to closed:
 - installed hook env parity now translates across Claude Code, Cursor, Codex, and OpenCode, so plugin-owned command hooks rehydrate `.pluxx-user.json` instead of only the Claude wrapper path doing that
 - runtime readiness is now modeled as first-class runtime intent, with generated Claude/Cursor/OpenCode behavior and bundled Codex hook output plus companion explainability
 - shared instruction intent is now proven across all four native surfaces: `CLAUDE.md`, `AGENTS.md`, and OpenCode runtime instruction injection
+- Codex command degradation closure is tighter because `AGENTS.md` routing guidance and `.codex/commands.generated.json` now read from the same richer command metadata seam
+- Codex/OpenCode skill-frontmatter explainability now explicitly covers `when_to_use`, `user-invocable`, `model`, and `effort` instead of falling back to generic unsupported-field prose
 
 The previous “remaining P0 fixture/proof rows” are now closed.
 The remaining work is now mainly public-proof packaging and future host-refresh maintenance, not unresolved core translation behavior.

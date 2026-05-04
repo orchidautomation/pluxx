@@ -97,6 +97,8 @@ Any person or agent should be able to enter the repo and answer:
   - `init --from-mcp` now emits `when_to_use`, canonical `arguments`, and explicit `skill` routing into generated command frontmatter
   - the shared `src/skills.ts` seam now also emits canonical support-file metadata for `examples/`, helper `scripts/`, and neighboring references
   - command and skill translation wording in `lint` now routes through shared registries instead of hand-written per-target strings
+  - Codex command routing guidance and `.codex/commands.generated.json` now read from the same richer command seam, reducing drift between AGENTS.md guidance and companion metadata
+  - Codex/OpenCode skill-frontmatter translation notes now explicitly cover `when_to_use`, `user-invocable`, `model`, and `effort`
 - [~] Use [author-once-hardening.md](./author-once-hardening.md) as the initiative-level TODO for closing the remaining gap between:
   - the author-once vision
   - the currently shipped compiler, proof, and onboarding reality

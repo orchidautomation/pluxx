@@ -1554,9 +1554,12 @@ describe('lintProject', () => {
       [
         '---',
         'description: Run research',
+        'when_to_use: Use when routed research needs a specialist.',
+        'argument-hint: [company]',
         'agent: escalation',
         'subtask: true',
         'model: gpt-5',
+        'context: fork',
         '---',
         '',
         '# Research',
@@ -1567,6 +1570,12 @@ describe('lintProject', () => {
 
     const result = await lintProject(projectDir)
     expect(result.issues.some(issue => issue.code === 'codex-command-translation')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'codex-command-translation' && issue.message.includes('"when_to_use"'))).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'codex-command-translation' && issue.message.includes('"argument-hint"'))).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'codex-command-translation' && issue.message.includes('"agent"'))).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'codex-command-translation' && issue.message.includes('"subtask"'))).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'codex-command-translation' && issue.message.includes('"model"'))).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'codex-command-translation' && issue.message.includes('"context"'))).toBe(true)
   })
 
   // ── Gotcha #15 & #16: Codex agents min threads/depth ──
@@ -1819,8 +1828,12 @@ describe('lintProject', () => {
         '---',
         'name: rich-skill',
         'description: "A valid skill"',
+        'when_to_use: "Use when deep analysis is needed"',
         'arguments: [target]',
+        'user-invocable: false',
         'allowed-tools: Read',
+        'model: claude-sonnet-4',
+        'effort: high',
         'context: fork',
         'agent: Explore',
         '---',
@@ -1837,6 +1850,10 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'codex-hook-loop-limit-drop')).toBe(true)
     expect(result.issues.some(issue => issue.code === 'opencode-hook-loop-limit-drop')).toBe(true)
     expect(result.issues.some(issue => issue.code === 'codex-skill-frontmatter-translation' && issue.message.includes('arguments'))).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'codex-skill-frontmatter-translation' && issue.message.includes('when_to_use'))).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'codex-skill-frontmatter-translation' && issue.message.includes('model'))).toBe(true)
     expect(result.issues.some(issue => issue.code === 'opencode-skill-frontmatter-translation' && issue.message.includes('arguments'))).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'opencode-skill-frontmatter-translation' && issue.message.includes('user-invocable'))).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'opencode-skill-frontmatter-translation' && issue.message.includes('effort'))).toBe(true)
   })
 })

@@ -12,6 +12,7 @@ import {
 } from '../../runtime-readiness-registry'
 import { getCanonicalAgentMetadata, readCanonicalAgentFiles } from '../../agents'
 import { getCanonicalCommandMetadata, readCanonicalCommandFiles } from '../../commands'
+import { buildCodexCommandRoutingEntry } from '../../command-translation-registry'
 import { buildDelegationBehaviorNotes } from '../../delegation'
 import { mapHookEventToPascalCase } from '../../hook-events'
 import { getSupportedHookEvents, getUnsupportedHookEventReason, isHookEventSupported } from '../../hook-translation-registry'
@@ -389,15 +390,7 @@ export class CodexGenerator extends Generator {
       '',
       'This plugin defines canonical command entrypoints. Codex does not package them as native slash commands today, so route those requests through the matching workflow directly.',
       '',
-      ...commands.map((command) => {
-        const metadata = getCanonicalCommandMetadata(command)
-        const routingBits = [
-          metadata.argumentHint ? `arguments: ${metadata.argumentHint}` : null,
-          metadata.skill ? `skill: ${metadata.skill}` : null,
-          metadata.agent ? `agent: ${metadata.agent}` : null,
-        ].filter(Boolean)
-        return `- \`/${metadata.commandId}\` - ${metadata.description ?? metadata.title}${routingBits.length > 0 ? ` (${routingBits.join('; ')})` : ''}`
-      }),
+      ...commands.flatMap((command) => buildCodexCommandRoutingEntry(getCanonicalCommandMetadata(command))),
     ]
 
     return lines.join('\n')

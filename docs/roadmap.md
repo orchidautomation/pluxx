@@ -130,6 +130,8 @@ The closure plan is now narrower than it was before:
   - `init --from-mcp` now emits `when_to_use`, canonical `arguments`, and explicit `skill` routing into generated command frontmatter
   - `src/skills.ts` now exposes canonical support-file metadata for `examples/`, helper `scripts/`, and neighboring references
   - Agent Mode manual-project context now consumes those richer command and skill seams directly
+  - Codex command routing guidance in `AGENTS.md` now reads from the same shared command translation seam as `.codex/commands.generated.json`
+  - skill-frontmatter translation notes for Codex and OpenCode now explicitly cover `when_to_use`, `user-invocable`, `model`, and `effort`
 - the current execution spec for that compiler-hardening tranche now lives in:
   - [docs/primitive-compiler-hardening-architecture.md](./primitive-compiler-hardening-architecture.md)
 - the sharper initiative TODO for finishing the author-once gap now lives in:

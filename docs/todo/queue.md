@@ -189,6 +189,14 @@ Open work:
   - command/skill translation wording in `lint` is now less duplicated:
     - command degradation notes route through `src/command-translation-registry.ts`
     - skill frontmatter translation notes route through `src/skill-translation-registry.ts`
+  - Codex command degradation truth is now more internally consistent:
+    - `AGENTS.md` routing guidance and `.codex/commands.generated.json` now come from the same richer command metadata seam
+    - capability docs and machine-readable platform rules now both treat `.codex/commands.generated.json` as part of the shipped Codex degrade surface
+  - Codex/OpenCode skill-frontmatter explainability now explicitly covers:
+    - `when_to_use`
+    - `user-invocable`
+    - `model`
+    - `effort`
 - use the Exa example as the next import-quality pressure test:
   - a raw `init --from-mcp`, `autopilot`, or `migrate` run should get closer to the final Exa workflow architecture without depending on as much maintainer hand-shaping
 - close the now-clearer translation follow-ons behind the shipped readiness/runtime work:
