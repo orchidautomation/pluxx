@@ -197,6 +197,23 @@ Open work:
   - commands IR now preserves `argument-hint`, `when_to_use`, argument arrays, examples, explicit skill routing, agent routing, and context hints through Codex, OpenCode, and Agent Mode instead of flattening commands back into prose-only guidance
   - `init --from-mcp` now emits `when_to_use`, canonical `arguments`, and explicit `skill` routing into generated command frontmatter instead of stopping at `argument-hint`
   - canonical skill metadata now includes adjacent support-file awareness for `examples/`, helper `scripts/`, and neighboring references instead of treating skills as frontmatter plus opaque body only
+  - installed behavioral proof is now materially stronger:
+    - the behavioral harness supports expected-failure cases and host-specific runner args for maintained smoke fixtures
+    - maintained smoke fixtures can now declare an explicit `commandId` plus required output markers, so command-proof cases fail when the prompt does not reference the command or the output shape stays vague
+    - `example/docs-ops`, `example/exa-plugin`, and `example/platform-change-ops` now each carry maintained behavioral smoke configs with command-specific assertions instead of relying only on ad hoc walkthroughs
+    - `doctor --consumer` and `verify-install` now execute generated Claude/Cursor bundled permission-hook scripts and fail if those installed decisions are invalid
+  - agent translation explainability is now less duplicated:
+    - `src/agent-translation-registry.ts` now drives degraded-field messaging for Cursor, Codex, and OpenCode
+    - generated Cursor and Codex agent surfaces now emit the same translation story that `lint` uses
+  - migrate now preserves more host-native instruction and distribution intent on the first canonical pass:
+    - manifest-less Claude sources can now migrate directly from `CLAUDE.md`
+    - Cursor nested rule files and nested `AGENTS.md` provenance now survive migrate and are copied into the maintained source project
+    - Codex `AGENTS.override.md` survives alongside interface/app metadata instead of being dropped or clobbered
+    - OpenCode configured instruction files and package entrypoints now survive import and are copied into the maintained source project
+    - MCP migrate now merges generic and host-native MCP sources instead of first-file-wins, so native auth blobs such as platform auth and multi-header maps survive under `platforms.<host>.mcpServers.<server>`
+  - richer canonical skill metadata now survives into emitted host companions instead of mostly living in Agent Mode and migrate:
+    - Codex now writes `.codex/skills.generated.json`
+    - OpenCode now writes `skills.generated.json`
   - command/skill translation wording in `lint` is now less duplicated:
     - command degradation notes route through `src/command-translation-registry.ts`
     - skill frontmatter translation notes route through `src/skill-translation-registry.ts`
@@ -211,11 +228,11 @@ Open work:
 - use the Exa example as the next import-quality pressure test:
   - a raw `init --from-mcp`, `autopilot`, or `migrate` run should get closer to the final Exa workflow architecture without depending on as much maintainer hand-shaping
 - close the now-clearer translation follow-ons behind the shipped readiness/runtime work:
-  - finish the deeper hook-registry rollout so generator routing and docs rows read registry-backed truth instead of parallel tables
-  - keep pushing the richer `skills` metadata layer into more generator, proof, and translation-registry consumers instead of leaving support-file understanding mostly in Agent Mode and migrate
-  - keep pushing the richer `commands` IR into more native host emission and registry-backed explainability instead of mostly Codex/OpenCode companion and context surfaces
-  - reduce lossy import paths in `migrate` and installed-MCP discovery, especially around richer hook fields and auth reconstruction
-  - continue the runtime registry rollout now that installed hook env parity also translates across Cursor, Codex, and OpenCode instead of living only in the Claude-specific wrapper path
+  - keep pushing the richer `skills` metadata layer into more native host emission and proof consumers beyond Codex/OpenCode companions
+  - keep pushing the richer `commands` IR into more native host emission and install-time proof instead of mostly companion and context surfaces
+  - keep tightening auth/runtime reconstruction in installed-MCP discovery and downstream generator use of preserved native auth blobs, especially around platform-managed remotes and multi-header auth
+  - add more installed behavioral proof for delegated agents, reload/discovery quirks, and publish/recovery flows
+  - continue simplifying the plugin-guided average-user path so more of the current proof state is obvious without maintainer-level CLI literacy
 
 ### 2. Flagship depth example
 

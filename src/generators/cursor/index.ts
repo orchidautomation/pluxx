@@ -4,6 +4,7 @@ import type { TargetPlatform } from '../../schema'
 import { buildGeneratedPermissionHookScript } from '../../permissions'
 import { readInstructionsContent } from '../../instructions'
 import { getCanonicalAgentMetadata, type AgentFrontmatterMap, readCanonicalAgentFiles } from '../../agents'
+import { getAgentTranslationMessage, getTranslatedAgentFields } from '../../agent-translation-registry'
 import { buildDelegationBehaviorNotes } from '../../delegation'
 import {
   getHookFieldSupportedEvents,
@@ -237,7 +238,7 @@ export class CursorGenerator extends Generator {
 
       frontmatter.push('---')
 
-      const translatedNotes = buildCursorAgentTranslationNotes(agent.frontmatter)
+      const translatedNotes = buildCursorAgentTranslationNotes(agent.frontmatter, metadata)
       const bodyParts = [
         ...translatedNotes,
         agent.body,
@@ -251,8 +252,16 @@ export class CursorGenerator extends Generator {
   }
 }
 
-function buildCursorAgentTranslationNotes(frontmatter: AgentFrontmatterMap): string[] {
-  return buildDelegationBehaviorNotes(frontmatter).map(
+function buildCursorAgentTranslationNotes(
+  frontmatter: AgentFrontmatterMap,
+  metadata: ReturnType<typeof getCanonicalAgentMetadata>,
+): string[] {
+  const notes = [
+    getAgentTranslationMessage('cursor', getTranslatedAgentFields('cursor', metadata)),
+    ...buildDelegationBehaviorNotes(frontmatter),
+  ].filter((note): note is string => Boolean(note))
+
+  return notes.map(
     (note) => `Cursor translation note: ${note.charAt(0).toLowerCase()}${note.slice(1)}`,
   )
 }

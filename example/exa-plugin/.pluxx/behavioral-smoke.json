@@ -2,22 +2,51 @@
   "cases": [
     {
       "name": "deep-research",
+      "commandId": "deep-research",
       "targets": {
         "claude-code": {
-          "prompt": "/exa-research-example:deep-research best open source agentic model in April 2026",
+          "prompt": "/exa-research-example:deep-research best open source agentic model in April 2026. Return three sections labeled Finding: and Source:.",
+          "require": [
+            "Finding:",
+            "Source:"
+          ],
           "forbid": [
             "context too long",
             "skill bailed"
           ]
         },
         "cursor": {
-          "prompt": "/exa-deep-research best open source agentic model in April 2026"
+          "prompt": "/exa-deep-research best open source agentic model in April 2026. Return three sections labeled Finding: and Source:.",
+          "require": [
+            "Finding:",
+            "Source:"
+          ],
+          "forbid": [
+            "context too long",
+            "skill bailed"
+          ]
         },
         "codex": {
-          "prompt": "Use Exa Research Example to run a deep research pass on the best open source agentic model in April 2026. Return three compact cited findings."
+          "prompt": "Use Exa Research Example command `deep-research` to run a deep research pass on the best open source agentic model in April 2026. Return three sections labeled Finding: and Source:.",
+          "require": [
+            "Finding:",
+            "Source:"
+          ],
+          "forbid": [
+            "context too long",
+            "skill bailed"
+          ]
         },
         "opencode": {
-          "prompt": "/deep-research best open source agentic model in April 2026"
+          "prompt": "/deep-research best open source agentic model in April 2026. Return three sections labeled Finding: and Source:.",
+          "require": [
+            "Finding:",
+            "Source:"
+          ],
+          "forbid": [
+            "context too long",
+            "skill bailed"
+          ]
         }
       }
     }

@@ -143,6 +143,15 @@ The closure plan is now narrower than it was before:
   - [docs/todo/author-once-hardening.md](./todo/author-once-hardening.md)
 - the same initiative now explicitly includes the self-hosted `pluxx-plugin` as the average-user operator path over the CLI:
   - use [docs/pluxx-plugin-surface-audit.md](./pluxx-plugin-surface-audit.md) as the coverage and UX truth source
+- the current tranche also closed several formerly explicit author-once gaps:
+  - the behavioral proof harness now supports expected-failure cases and host-specific runner args for maintained smoke fixtures
+  - maintained smoke fixtures can now declare an explicit `commandId` plus required output markers, so command-proof cases fail when the prompt does not reference the command or the output shape stays vague
+  - `example/docs-ops`, `example/exa-plugin`, and `example/platform-change-ops` now each carry maintained behavioral smoke configs with command-specific assertions
+  - `doctor --consumer` and `verify-install` now execute generated Claude/Cursor bundled permission-hook scripts and fail if they emit unusable decisions
+  - `src/agent-translation-registry.ts` now drives degraded-field messaging for Cursor, Codex, and OpenCode, and generated agent surfaces now emit the same translation story that `lint` uses
+  - manifest-less Claude sources, Cursor nested rules plus nested `AGENTS.md` provenance, Codex `AGENTS.override.md`, and OpenCode configured instruction files plus package entrypoints now survive migrate and are copied into the canonical source project
+  - MCP migrate now merges generic and host-native MCP sources instead of first-file-wins, so native auth blobs such as platform auth and multi-header header maps survive under `platforms.<host>.mcpServers.<server>`
+  - richer canonical skill metadata now survives into emitted Codex/OpenCode skill companions instead of mostly living in Agent Mode and migrate
 - example and packaged-runtime parity are back in sync:
   - `examples/prospeo-mcp` now bundles its `scripts/` payload and points at the official `@prospeo/prospeo-mcp-server` package
 - the release gate is green again as of 2026-04-30:
@@ -212,6 +221,11 @@ The current status is stronger than a pure scaffold:
   - a raw import or migration can already get to a credible starting point
   - the next product leverage is making that first pass recover more of the final workflow architecture and packaging quality automatically
 - the next proof steps are capturing at least one polished in-app walkthrough beyond Codex, then running a real authenticated publish plus rollback against a safe private target
+- the next compiler-hardening follow-ons are now narrower than the earlier gap list:
+  - push richer skill metadata into more native host emission and proof consumers
+  - push richer command IR into more native host emission and install-time proof
+  - tighten auth/runtime reconstruction in installed-MCP discovery and downstream generator use of preserved native auth blobs
+  - add more installed behavioral proof for delegated agents, reload/discovery quirks, and publish/recovery flows
 
 This is the strongest next proof surface for:
 

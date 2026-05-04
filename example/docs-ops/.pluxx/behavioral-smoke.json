@@ -1,0 +1,54 @@
+{
+  "cases": [
+    {
+      "name": "review-doc-changes",
+      "commandId": "review-doc-changes",
+      "targets": {
+        "claude-code": {
+          "prompt": "/docs-ops:review-doc-changes getting-started. Return sections titled Findings: and Publish recommendation:.",
+          "require": [
+            "Findings:",
+            "Publish recommendation:"
+          ],
+          "forbid": [
+            "context too long",
+            "skill bailed"
+          ]
+        },
+        "cursor": {
+          "prompt": "/review-doc-changes getting-started. Return sections titled Findings: and Publish recommendation:.",
+          "require": [
+            "Findings:",
+            "Publish recommendation:"
+          ],
+          "forbid": [
+            "context too long",
+            "skill bailed"
+          ]
+        },
+        "codex": {
+          "prompt": "Use Docs Ops command `review-doc-changes` to review the changed getting-started docs page. Return sections titled Findings: and Publish recommendation:.",
+          "require": [
+            "Findings:",
+            "Publish recommendation:"
+          ],
+          "forbid": [
+            "context too long",
+            "skill bailed"
+          ]
+        },
+        "opencode": {
+          "prompt": "/review-doc-changes getting-started. Return sections titled Findings: and Publish recommendation:.",
+          "require": [
+            "Findings:",
+            "Publish recommendation:"
+          ],
+          "forbid": [
+            "context too long",
+            "skill bailed"
+          ]
+        }
+      }
+    }
+  ]
+}

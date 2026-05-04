@@ -8,6 +8,7 @@ import { buildGeneratedReadinessScript, getRuntimeReadinessPlan } from '../../re
 import { getRuntimeReadinessCapability } from '../../runtime-readiness-registry'
 import { getCanonicalAgentMetadata, type AgentFrontmatterMap, type AgentFrontmatterValue, readCanonicalAgentFiles } from '../../agents'
 import { getCanonicalCommandMetadata, readCanonicalCommandFiles } from '../../commands'
+import { getCanonicalSkillMetadata, readCanonicalSkillFiles } from '../../skills'
 
 type GeneratedHook = {
   command: string
@@ -54,6 +55,7 @@ export class OpenCodeGenerator extends Generator {
       this.generatePackageJson(),
       this.generatePluginWrapper(),
       this.generateReadinessRuntime(),
+      this.generateSkillsCompanion(),
     ])
 
     this.copySkills()
@@ -380,6 +382,43 @@ export class OpenCodeGenerator extends Generator {
     lines.push('')
 
     await this.writeFile('index.ts', lines.join('\n'))
+  }
+
+  private async generateSkillsCompanion(): Promise<void> {
+    if (!this.config.skills) return
+
+    const skillsDir = this.resolveConfigPath(this.config.skills, 'skills')
+    const skills = readCanonicalSkillFiles(skillsDir)
+    if (skills.length === 0) return
+
+    await this.writeJson('skills.generated.json', {
+      model: 'pluxx.skills.v1',
+      nativeSurface: 'skill-files-plus-runtime-guidance',
+      note: 'OpenCode preserves canonical skill files, but richer discovery, helper-script, and support-file metadata may still need command, agent, or runtime guidance. This companion keeps that richer canonical metadata visible after translation.',
+      skills: skills.map((skill) => {
+        const metadata = getCanonicalSkillMetadata(skill)
+        return {
+          id: metadata.dirName,
+          title: metadata.title,
+          ...(metadata.description ? { description: metadata.description } : {}),
+          ...(metadata.whenToUse ? { whenToUse: metadata.whenToUse } : {}),
+          ...(metadata.argumentHint ? { argumentHint: metadata.argumentHint } : {}),
+          ...(metadata.arguments.length > 0 ? { arguments: metadata.arguments } : {}),
+          ...(typeof metadata.disableModelInvocation === 'boolean' ? { disableModelInvocation: metadata.disableModelInvocation } : {}),
+          ...(typeof metadata.userInvocable === 'boolean' ? { userInvocable: metadata.userInvocable } : {}),
+          ...(metadata.allowedTools.length > 0 ? { allowedTools: metadata.allowedTools } : {}),
+          ...(metadata.model ? { model: metadata.model } : {}),
+          ...(metadata.effort ? { effort: metadata.effort } : {}),
+          ...(metadata.context ? { context: metadata.context } : {}),
+          ...(metadata.agent ? { agent: metadata.agent } : {}),
+          ...(metadata.paths.length > 0 ? { paths: metadata.paths } : {}),
+          ...(metadata.shell ? { shell: metadata.shell } : {}),
+          ...(metadata.helperScripts.length > 0 ? { helperScripts: metadata.helperScripts } : {}),
+          ...(metadata.examplePaths.length > 0 ? { examplePaths: metadata.examplePaths } : {}),
+          ...(metadata.referencePaths.length > 0 ? { referencePaths: metadata.referencePaths } : {}),
+        }
+      }),
+    })
   }
 
   private async generateReadinessRuntime(): Promise<void> {

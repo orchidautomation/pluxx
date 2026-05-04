@@ -1,4 +1,4 @@
-import { spawn } from 'child_process'
+import { spawn, spawnSync } from 'child_process'
 import { accessSync, constants, existsSync, lstatSync, readFileSync, readdirSync } from 'fs'
 import { basename, dirname, resolve } from 'path'
 import { CONFIG_FILES, loadConfig } from '../config/load'
@@ -25,6 +25,7 @@ import {
   getRuntimeReadinessExternalConfigNote,
   getRuntimeReadinessNamedPromptTargetNote,
 } from '../runtime-readiness-registry'
+import type { ParsedPermissionRule } from '../permissions'
 
 export type DoctorLevel = 'error' | 'warning' | 'info' | 'success'
 
@@ -88,6 +89,13 @@ interface InstalledStdioLaunchResult {
   command: string
   ok: boolean
   detail: string
+}
+
+interface InstalledPermissionProbe {
+  action: 'allow' | 'ask' | 'deny'
+  raw: string
+  mode: string
+  event: Record<string, unknown>
 }
 
 function renderInstalledPluginRoot(value: string, rootDir: string): string {
@@ -1163,6 +1171,225 @@ function checkInstalledBundleIntegrity(checks: DoctorCheck[], rootDir: string, l
   })
 }
 
+function parseInstalledPermissionRules(scriptSource: string): ParsedPermissionRule[] {
+  const match = scriptSource.match(/const RULES = (\[[\s\S]*?\]);\nconst ACTION_PRIORITY/)
+  if (!match?.[1]) {
+    throw new Error('Could not locate embedded RULES payload in hooks/pluxx-permissions.mjs.')
+  }
+
+  const parsed = JSON.parse(match[1]) as unknown
+  if (!Array.isArray(parsed)) {
+    throw new Error('Embedded RULES payload is not an array.')
+  }
+
+  return parsed as ParsedPermissionRule[]
+}
+
+function materializePermissionPattern(pattern: string): string {
+  return pattern
+    .replace(/\*\*/g, 'probe/path')
+    .replace(/\*/g, 'probe')
+}
+
+function buildInstalledPermissionProbe(
+  platform: ConsumerPlatform,
+  rule: ParsedPermissionRule,
+): InstalledPermissionProbe | null {
+  const value = materializePermissionPattern(rule.pattern)
+
+  if (rule.kind === 'Bash') {
+    return {
+      action: rule.action,
+      raw: rule.raw,
+      mode: platform === 'cursor' ? 'cursor-shell' : 'claude-pretool',
+      event: platform === 'cursor'
+        ? { command: value }
+        : { tool_name: 'Bash', tool_input: { command: value } },
+    }
+  }
+
+  if (rule.kind === 'Read') {
+    return {
+      action: rule.action,
+      raw: rule.raw,
+      mode: platform === 'cursor' ? 'cursor-read' : 'claude-pretool',
+      event: platform === 'cursor'
+        ? { file_path: value }
+        : { tool_name: 'Read', tool_input: { file_path: value } },
+    }
+  }
+
+  if (rule.kind === 'Edit') {
+    return {
+      action: rule.action,
+      raw: rule.raw,
+      mode: platform === 'cursor' ? 'cursor' : 'claude-pretool',
+      event: { tool_name: 'Edit', tool_input: { file_path: value } },
+    }
+  }
+
+  if (rule.kind === 'Skill') {
+    return {
+      action: rule.action,
+      raw: rule.raw,
+      mode: platform === 'cursor' ? 'cursor' : 'claude-pretool',
+      event: { tool_name: 'Skill', tool_input: { name: value } },
+    }
+  }
+
+  if (rule.kind === 'MCP') {
+    const canonical = value.includes('.')
+      ? value
+      : `${value}.probe`
+    const dotIndex = canonical.indexOf('.')
+    const server = canonical.slice(0, dotIndex).trim()
+    const tool = canonical.slice(dotIndex + 1).trim()
+    if (!server || !tool) return null
+
+    return {
+      action: rule.action,
+      raw: rule.raw,
+      mode: platform === 'cursor' ? 'cursor-mcp' : 'claude-pretool',
+      event: platform === 'cursor'
+        ? { tool_name: `mcp__${server}__${tool.replace(/\./g, '__')}` }
+        : { tool_name: `mcp__${server}__${tool.replace(/\./g, '__')}` },
+    }
+  }
+
+  return null
+}
+
+function extractPermissionDecision(
+  platform: ConsumerPlatform,
+  payload: Record<string, unknown>,
+): string | undefined {
+  if (platform === 'claude-code') {
+    const hookSpecificOutput = payload.hookSpecificOutput
+    if (!hookSpecificOutput || typeof hookSpecificOutput !== 'object') return undefined
+    const decision = (hookSpecificOutput as Record<string, unknown>).permissionDecision
+    return typeof decision === 'string' ? decision : undefined
+  }
+
+  const decision = payload.permission
+  return typeof decision === 'string' ? decision : undefined
+}
+
+function smokeCheckInstalledPermissionHook(
+  rootDir: string,
+  layout: ConsumerBundleLayout,
+): {
+  ok: boolean
+  detail: string
+} | null {
+  if (layout.platform !== 'claude-code' && layout.platform !== 'cursor') {
+    return null
+  }
+
+  const scriptPath = resolve(rootDir, 'hooks/pluxx-permissions.mjs')
+  if (!existsSync(scriptPath)) {
+    return null
+  }
+
+  const rules = parseInstalledPermissionRules(readFileSync(scriptPath, 'utf-8'))
+  const selected = new Map<string, InstalledPermissionProbe>()
+
+  for (const rule of rules) {
+    if (selected.has(rule.action)) continue
+    const probe = buildInstalledPermissionProbe(layout.platform, rule)
+    if (!probe) continue
+    selected.set(rule.action, probe)
+  }
+
+  if (selected.size === 0) {
+    return {
+      ok: false,
+      detail: 'Permission hook script is present, but no supported canonical probe cases could be derived from its embedded rules.',
+    }
+  }
+
+  const failures: string[] = []
+  const successes: string[] = []
+
+  for (const probe of selected.values()) {
+    const result = spawnSync('node', [scriptPath, probe.mode], {
+      cwd: rootDir,
+      input: JSON.stringify(probe.event),
+      encoding: 'utf-8',
+      env: process.env,
+    })
+
+    if (result.status !== 0) {
+      failures.push(`${probe.raw} exited ${result.status ?? 'null'}${result.stderr ? `: ${result.stderr.trim()}` : ''}`)
+      continue
+    }
+
+    let payload: Record<string, unknown>
+    try {
+      payload = JSON.parse(result.stdout || '{}') as Record<string, unknown>
+    } catch (error) {
+      failures.push(`${probe.raw} returned non-JSON output: ${error instanceof Error ? error.message : String(error)}`)
+      continue
+    }
+
+    const decision = extractPermissionDecision(layout.platform, payload)
+    if (decision !== probe.action) {
+      failures.push(`${probe.raw} returned ${decision ?? 'no decision'} instead of ${probe.action}`)
+      continue
+    }
+
+    successes.push(`${probe.raw} -> ${decision}`)
+  }
+
+  return failures.length > 0
+    ? { ok: false, detail: failures.join('; ') }
+    : { ok: true, detail: `Validated ${successes.join(', ')}` }
+}
+
+function checkInstalledPermissionHook(checks: DoctorCheck[], rootDir: string, layout: ConsumerBundleLayout): void {
+  const permissionScriptPath = 'hooks/pluxx-permissions.mjs'
+  let scriptResult: ReturnType<typeof smokeCheckInstalledPermissionHook>
+  try {
+    scriptResult = smokeCheckInstalledPermissionHook(rootDir, layout)
+  } catch (error) {
+    addCheck(checks, {
+      level: 'error',
+      code: 'consumer-permission-hook-invalid',
+      title: 'Installed bundled permission hook behavior is broken',
+      detail: error instanceof Error ? error.message : String(error),
+      fix: 'Rebuild or reinstall the plugin so the bundled permission hook script and hook wiring stay aligned with the declared permission rules.',
+      path: permissionScriptPath,
+    })
+    return
+  }
+
+  if (!scriptResult) {
+    addCheck(checks, {
+      level: 'info',
+      code: 'consumer-permission-hook-not-applicable',
+      title: 'No bundled permission hook smoke check for this install',
+      detail: layout.platform === 'claude-code' || layout.platform === 'cursor'
+        ? 'This installed bundle does not include hooks/pluxx-permissions.mjs.'
+        : 'This platform does not currently use a bundled pluxx-permissions.mjs hook script for permission enforcement.',
+      fix: 'No action needed unless you expected bundled permission-hook enforcement in this installed bundle.',
+      path: permissionScriptPath,
+    })
+    return
+  }
+
+  addCheck(checks, {
+    level: scriptResult.ok ? 'success' : 'error',
+    code: scriptResult.ok ? 'consumer-permission-hook-valid' : 'consumer-permission-hook-invalid',
+    title: scriptResult.ok
+      ? 'Installed bundled permission hook returns expected decisions'
+      : 'Installed bundled permission hook behavior is broken',
+    detail: scriptResult.detail,
+    fix: scriptResult.ok
+      ? 'No action needed.'
+      : 'Rebuild or reinstall the plugin so the bundled permission hook script and hook wiring stay aligned with the declared permission rules.',
+    path: permissionScriptPath,
+  })
+}
+
 function findMissingInstalledStdioRuntimePaths(
   rootDir: string,
   stdioEntries: Array<Record<string, unknown>>,
@@ -1489,6 +1716,7 @@ export async function doctorConsumer(rootDir: string = process.cwd()): Promise<D
 
   checkConsumerManifest(checks, rootDir, layout)
   checkInstalledBundleIntegrity(checks, rootDir, layout)
+  checkInstalledPermissionHook(checks, rootDir, layout)
   checkInstalledUserConfig(checks, rootDir)
   checkInstalledEnvValidation(checks, rootDir)
   checkInstalledRuntimeScriptRoles(checks, rootDir)

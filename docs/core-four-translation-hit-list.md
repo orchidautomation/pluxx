@@ -315,6 +315,10 @@ For the current prime-time core four, the mapped translation rows are now materi
 - generator behavior
 - lint/build/doctor explainability
 - fixture and migration proof
+- installed bundled permission-hook proof for Claude and Cursor bundles
+- shared agent translation explainability for Cursor, Codex, and OpenCode
+- manifest-less Claude, nested Cursor rule plus `AGENTS.md` provenance, Codex override-instructions, and OpenCode configured-instruction plus entrypoint migrate fidelity
+- richer emitted skill companion metadata for Codex and OpenCode
 
 What remains is not “can Pluxx translate this row truthfully?” but:
 

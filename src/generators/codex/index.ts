@@ -11,6 +11,7 @@ import {
   getRuntimeReadinessExternalConfigNote,
 } from '../../runtime-readiness-registry'
 import { getCanonicalAgentMetadata, readCanonicalAgentFiles } from '../../agents'
+import { getAgentTranslationMessage, getTranslatedAgentFields } from '../../agent-translation-registry'
 import { getCanonicalCommandMetadata, readCanonicalCommandFiles } from '../../commands'
 import { buildCodexCommandRoutingEntry, getCodexCommandGuidanceNote } from '../../command-translation-registry'
 import { buildDelegationBehaviorNotes } from '../../delegation'
@@ -23,6 +24,7 @@ import {
   isHookTypeSupported,
 } from '../../hook-translation-registry'
 import { buildHookCommandWrapperScript } from '../../hook-command-env'
+import { getCanonicalSkillMetadata, readCanonicalSkillFiles } from '../../skills'
 
 export class CodexGenerator extends Generator {
   readonly platform: TargetPlatform = 'codex'
@@ -71,6 +73,7 @@ export class CodexGenerator extends Generator {
       this.generateHooksCompanion(),
       this.generateReadinessCompanion(),
       this.generateCommandsCompanion(),
+      this.generateSkillsCompanion(),
       this.generatePermissionsCompanion(),
     ])
 
@@ -214,7 +217,15 @@ export class CodexGenerator extends Generator {
         lines.push(`sandbox_mode = ${JSON.stringify(metadata.sandboxMode)}`)
       }
       const delegationNotes = buildDelegationBehaviorNotes(agent.frontmatter)
+      const fieldTranslationNote = getAgentTranslationMessage('codex', getTranslatedAgentFields('codex', metadata))
       const developerInstructions = [
+        ...(fieldTranslationNote
+          ? [
+              'Host translation note:',
+              `- ${fieldTranslationNote}`,
+              '',
+            ]
+          : []),
         ...(delegationNotes.length > 0
           ? [
               'Delegation contract:',
@@ -391,6 +402,43 @@ export class CodexGenerator extends Generator {
           ...(metadata.model ? { model: metadata.model } : {}),
           ...(metadata.context ? { context: metadata.context } : {}),
           template: metadata.template,
+        }
+      }),
+    })
+  }
+
+  private async generateSkillsCompanion(): Promise<void> {
+    if (!this.config.skills) return
+
+    const skillsDir = this.resolveConfigPath(this.config.skills, 'skills')
+    const skills = readCanonicalSkillFiles(skillsDir)
+    if (skills.length === 0) return
+
+    await this.writeJson('.codex/skills.generated.json', {
+      model: 'pluxx.skills.v1',
+      nativeSurface: 'compatibility-skill-files-plus-guidance',
+      note: 'Codex preserves canonical SKILL.md files, but richer discovery and support-file metadata may also need command or AGENTS.md guidance. Use this companion to keep that richer canonical metadata visible after translation.',
+      skills: skills.map((skill) => {
+        const metadata = getCanonicalSkillMetadata(skill)
+        return {
+          id: metadata.dirName,
+          title: metadata.title,
+          ...(metadata.description ? { description: metadata.description } : {}),
+          ...(metadata.whenToUse ? { whenToUse: metadata.whenToUse } : {}),
+          ...(metadata.argumentHint ? { argumentHint: metadata.argumentHint } : {}),
+          ...(metadata.arguments.length > 0 ? { arguments: metadata.arguments } : {}),
+          ...(typeof metadata.disableModelInvocation === 'boolean' ? { disableModelInvocation: metadata.disableModelInvocation } : {}),
+          ...(typeof metadata.userInvocable === 'boolean' ? { userInvocable: metadata.userInvocable } : {}),
+          ...(metadata.allowedTools.length > 0 ? { allowedTools: metadata.allowedTools } : {}),
+          ...(metadata.model ? { model: metadata.model } : {}),
+          ...(metadata.effort ? { effort: metadata.effort } : {}),
+          ...(metadata.context ? { context: metadata.context } : {}),
+          ...(metadata.agent ? { agent: metadata.agent } : {}),
+          ...(metadata.paths.length > 0 ? { paths: metadata.paths } : {}),
+          ...(metadata.shell ? { shell: metadata.shell } : {}),
+          ...(metadata.helperScripts.length > 0 ? { helperScripts: metadata.helperScripts } : {}),
+          ...(metadata.examplePaths.length > 0 ? { examplePaths: metadata.examplePaths } : {}),
+          ...(metadata.referencePaths.length > 0 ? { referencePaths: metadata.referencePaths } : {}),
         }
       }),
     })

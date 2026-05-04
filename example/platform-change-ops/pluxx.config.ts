@@ -149,7 +149,7 @@ export default definePlugin({
       'Edit(.env)',
       'Bash(rm *)',
       'Bash(kubectl delete *)',
-      'Skill(rollback-planner)',
+      'Skill(rollback-change)',
     ],
   },
 

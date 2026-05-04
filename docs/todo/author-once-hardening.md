@@ -133,6 +133,13 @@ TODO:
 - add proof where host-local reload, cache, or plugin discovery behavior can drift from bundle shape
 - keep the Exa, docs-ops, platform-change-ops, and self-hosted Pluxx examples current as regression surfaces
 
+Current state:
+
+- the behavioral harness now supports expected-failure cases and host-specific runner args for maintained smoke fixtures
+- maintained smoke fixtures can now declare an explicit `commandId` plus required output markers, so command-proof cases fail when the prompt does not reference the command or the output shape stays vague
+- `example/docs-ops`, `example/exa-plugin`, and `example/platform-change-ops` now each carry maintained behavioral smoke configs with command-specific assertions
+- `doctor --consumer` and `verify-install` now execute generated Claude/Cursor bundled permission-hook scripts and fail if they emit unusable decisions
+
 Acceptance criteria:
 
 - each major primitive has at least one real installed-behavior proof path
@@ -152,6 +159,14 @@ TODO:
 - reduce lossy import paths in installed-MCP discovery
 - preserve richer hook and auth meaning earlier in the import pipeline
 - use the Exa example as the pressure test for “how close to final quality does first pass get”
+
+Current state:
+
+- manifest-less Claude sources can now migrate from `CLAUDE.md` alone instead of requiring a separate manifest
+- Cursor nested rule files and nested `AGENTS.md` provenance now survive migrate and are copied into the maintained source project
+- Codex `AGENTS.override.md` now survives alongside interface/app metadata instead of being dropped or clobbered
+- OpenCode configured instruction files and package entrypoints now survive import and are copied into the maintained source project
+- MCP migrate now merges generic and host-native MCP sources instead of first-file-wins, so native auth blobs such as platform auth and multi-header maps survive under `platforms.<host>.mcpServers.<server>`
 
 Acceptance criteria:
 
@@ -251,6 +266,10 @@ Acceptance criteria:
 - preserve identity, invocation hints, related files, scripts, context, agent ties, and richer supporting metadata
 - reduce line-oriented markdown assumptions where hosts expose more structure
 - make build, lint, migrate, and proof consume the same skill truth
+- current state:
+  - Codex now writes `.codex/skills.generated.json` from the shared `src/skills.ts` seam
+  - OpenCode now writes `skills.generated.json` from that same seam
+  - support-file, helper-script, and example-path awareness now survives beyond Agent Mode and migrate
 
 ### Commands
 
@@ -258,6 +277,8 @@ Acceptance criteria:
 - improve native host emission and explainability from that richer model
 - keep degraded command companions honest where a host lacks a native analog
 - prove argument-bearing commands across the core four
+- current state:
+  - maintained behavioral smoke fixtures now pin explicit command ids and required output markers for `docs-ops`, `exa-plugin`, and `platform-change-ops`
 
 ### Agents
 
@@ -265,6 +286,9 @@ Acceptance criteria:
 - preserve delegation posture, reasoning/tuning hints, and permission intent more uniformly
 - keep subagent/native-specialist proof current across Claude, Cursor, Codex, and OpenCode
 - make migration/import preserve more native agent meaning before rebuild
+- current state:
+  - `src/agent-translation-registry.ts` now drives degraded-field messaging for Cursor, Codex, and OpenCode
+  - generated Cursor and Codex agent surfaces now emit the same translation story that `lint` uses
 
 ### Hooks
 
@@ -280,6 +304,8 @@ Acceptance criteria:
 - preserve skill-scoped and workflow-scoped intent where hosts can carry it
 - keep OpenCode native permission-first output strong without weakening other hosts
 - improve behavioral proof for risky-action enforcement and tool approval flows
+- current state:
+  - installed Claude/Cursor permission-hook scripts are now exercised by `doctor --consumer` and `verify-install` instead of only being validated structurally
 
 ### Runtime
 

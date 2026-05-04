@@ -18,6 +18,7 @@ import {
   getRuntimeReadinessNamedPromptTargetNote,
 } from '../runtime-readiness-registry'
 import { getCanonicalAgentMetadata, readCanonicalAgentFiles } from '../agents'
+import { getAgentTranslationMessage, getTranslatedAgentFields } from '../agent-translation-registry'
 import { buildPrimitiveTranslationSummary, renderPrimitiveTranslationSummary, type PrimitiveTranslationSummary } from './primitive-summary'
 import { getBrandingCompletenessWarnings } from '../branding-completeness'
 import {
@@ -1000,21 +1001,13 @@ function lintAgentTranslationExplainability(
     const relativePath = relative(dir, agent.filePath).replace(/\\/g, '/')
 
     if (config.targets.includes('cursor')) {
-      const cursorDegradedFields: string[] = []
-      if (metadata.hidden) cursorDegradedFields.push('hidden')
-      if (metadata.modelReasoningEffort) cursorDegradedFields.push('model_reasoning_effort')
-      if (metadata.sandboxMode) cursorDegradedFields.push('sandbox_mode')
-      if (metadata.permission) cursorDegradedFields.push('permission')
-      if (metadata.tools !== undefined) cursorDegradedFields.push('tools')
-      if (metadata.memory) cursorDegradedFields.push('memory')
-      if (typeof metadata.background === 'boolean') cursorDegradedFields.push('background')
-      if (metadata.isolation) cursorDegradedFields.push('isolation')
-
-      if (cursorDegradedFields.length > 0) {
+      const cursorDegradedFields = getTranslatedAgentFields('cursor', metadata)
+      const message = getAgentTranslationMessage('cursor', cursorDegradedFields)
+      if (message) {
         pushIssue(issues, {
           level: 'warning',
           code: 'cursor-agent-translation',
-          message: `Agent fields ${cursorDegradedFields.map((field) => `"${field}"`).join(', ')} are not preserved as first-class Cursor agent frontmatter today. Pluxx translates that intent through subagent framing and generated notes instead.`,
+          message,
           file: relativePath,
           platform: 'Cursor',
         })
@@ -1022,23 +1015,29 @@ function lintAgentTranslationExplainability(
     }
 
     if (config.targets.includes('codex')) {
-      const codexDegradedFields: string[] = []
-      if (metadata.hidden) codexDegradedFields.push('hidden')
-      if (metadata.permission) codexDegradedFields.push('permission')
-      if (metadata.tools !== undefined) codexDegradedFields.push('tools')
-      if (metadata.skills) codexDegradedFields.push('skills')
-      if (metadata.memory) codexDegradedFields.push('memory')
-      if (typeof metadata.background === 'boolean') codexDegradedFields.push('background')
-      if (metadata.isolation) codexDegradedFields.push('isolation')
-      if (metadata.color) codexDegradedFields.push('color')
-
-      if (codexDegradedFields.length > 0) {
+      const codexDegradedFields = getTranslatedAgentFields('codex', metadata)
+      const message = getAgentTranslationMessage('codex', codexDegradedFields)
+      if (message) {
         pushIssue(issues, {
           level: 'warning',
           code: 'codex-agent-translation',
-          message: `Agent fields ${codexDegradedFields.map((field) => `"${field}"`).join(', ')} are not native Codex TOML fields today. Pluxx keeps the specialist behavior, but translates that intent through developer instructions and companion surfaces instead.`,
+          message,
           file: relativePath,
           platform: 'Codex',
+        })
+      }
+    }
+
+    if (config.targets.includes('opencode')) {
+      const opencodeDegradedFields = getTranslatedAgentFields('opencode', metadata)
+      const message = getAgentTranslationMessage('opencode', opencodeDegradedFields)
+      if (message) {
+        pushIssue(issues, {
+          level: 'warning',
+          code: 'opencode-agent-translation',
+          message,
+          file: relativePath,
+          platform: 'OpenCode',
         })
       }
     }

@@ -273,6 +273,9 @@ async function setupCursorNativeAgentSource() {
   const sourceDir = resolve(TEST_DIR, 'source-cursor-native-agents')
   mkdirSync(resolve(sourceDir, '.cursor-plugin'), { recursive: true })
   mkdirSync(resolve(sourceDir, '.cursor/agents'), { recursive: true })
+  mkdirSync(resolve(sourceDir, 'guides/research'), { recursive: true })
+  mkdirSync(resolve(sourceDir, 'rules/nested'), { recursive: true })
+  mkdirSync(resolve(sourceDir, 'rules'), { recursive: true })
   mkdirSync(resolve(sourceDir, 'skills/inbox-triage'), { recursive: true })
 
   await writeJson(resolve(sourceDir, '.cursor-plugin/plugin.json'), {
@@ -280,6 +283,9 @@ async function setupCursorNativeAgentSource() {
     version: '0.2.0',
     description: 'Cursor-native agent fixture.',
     author: { name: 'Orchid' },
+    homepage: 'https://cursor-native.example.com',
+    logo: './assets/icon.svg',
+    rules: './rules/',
   })
 
   await writeJson(resolve(sourceDir, '.mcp.json'), {
@@ -298,6 +304,53 @@ async function setupCursorNativeAgentSource() {
     resolve(sourceDir, '.cursor/agents/research.md'),
     ['---', 'name: research', 'description: "Specialist researcher."', '---', '', '# Research'].join('\n'),
   )
+  await Bun.write(resolve(sourceDir, 'AGENTS.md'), 'Root Cursor operating guide.\n')
+  await Bun.write(resolve(sourceDir, 'guides/research/AGENTS.md'), 'Nested research guide.\n')
+  await Bun.write(
+    resolve(sourceDir, 'rules/research-conventions.mdc'),
+    [
+      '---',
+      'description: "Research conventions"',
+      'globs: ["**/*.ts","**/*.tsx"]',
+      'alwaysApply: true',
+      '---',
+      '',
+      'Verify account context before responding.',
+      '',
+    ].join('\n'),
+  )
+  await Bun.write(
+    resolve(sourceDir, 'rules/nested/safety.mdc'),
+    [
+      '---',
+      'description: "Nested safety rule"',
+      'alwaysApply: false',
+      '---',
+      '',
+      'Escalate if account state is inconsistent.',
+      '',
+    ].join('\n'),
+  )
+
+  return sourceDir
+}
+
+async function setupManifestlessClaudeSource() {
+  const sourceDir = resolve(TEST_DIR, 'source-claude-manifestless')
+  mkdirSync(resolve(sourceDir, 'skills/triage'), { recursive: true })
+
+  await Bun.write(resolve(sourceDir, 'CLAUDE.md'), 'Manifestless Claude instructions.\n')
+  await Bun.write(
+    resolve(sourceDir, 'skills/triage/SKILL.md'),
+    ['---', 'name: triage', 'description: "Triage issues."', '---', '', '# Triage'].join('\n'),
+  )
+  await writeJson(resolve(sourceDir, '.mcp.json'), {
+    mcpServers: {
+      fixture: {
+        url: 'https://example.com/mcp',
+      },
+    },
+  })
 
   return sourceDir
 }
@@ -346,9 +399,80 @@ async function setupCodexNativeAgentSource() {
   return sourceDir
 }
 
+async function setupCodexPlatformAuthDistributionSource() {
+  const sourceDir = resolve(TEST_DIR, 'source-codex-platform-auth-distribution')
+  mkdirSync(resolve(sourceDir, '.codex-plugin'), { recursive: true })
+  mkdirSync(resolve(sourceDir, '.codex'), { recursive: true })
+  mkdirSync(resolve(sourceDir, 'skills/release-ops'), { recursive: true })
+
+  await writeJson(resolve(sourceDir, '.codex-plugin/plugin.json'), {
+    name: 'codex-platform-auth',
+    version: '0.7.0',
+    description: 'Codex distribution + platform auth fixture.',
+    author: { name: 'Orchid' },
+    interface: {
+      displayName: 'Codex Platform Auth',
+      shortDescription: 'Codex-hosted OAuth fixture.',
+      longDescription: 'Preserve Codex-native distribution metadata during migrate.',
+      category: 'Operations',
+      brandColor: '#112233',
+      composerIcon: './assets/icon.svg',
+      logo: './assets/logo.svg',
+      websiteURL: 'https://codex-auth.example.com',
+      privacyPolicyURL: 'https://codex-auth.example.com/privacy',
+      termsOfServiceURL: 'https://codex-auth.example.com/terms',
+      screenshots: ['./assets/screenshots/overview.png'],
+      defaultPrompt: ['Review release state'],
+      experimentalBadge: 'beta',
+    },
+  })
+
+  await writeJson(resolve(sourceDir, '.app.json'), {
+    capabilities: ['Interactive', 'Read'],
+    actions: {
+      openComposer: true,
+    },
+  })
+
+  await writeJson(resolve(sourceDir, '.mcp.json'), {
+    mcpServers: {
+      linear: {
+        url: 'https://mcp.linear.app/mcp',
+      },
+      metrics: {
+        url: 'https://metrics.example.com/mcp',
+      },
+    },
+  })
+
+  await Bun.write(
+    resolve(sourceDir, '.codex/config.toml'),
+    [
+      '[mcp_servers.linear]',
+      'url = "https://mcp.linear.app/mcp"',
+      'auth = { type = "platform", mode = "oauth" }',
+      '',
+      '[mcp_servers.metrics]',
+      'url = "https://metrics.example.com/mcp"',
+      'env_http_headers = { X-API-Key = "METRICS_API_KEY", X-Workspace = "METRICS_WORKSPACE_ID" }',
+      '',
+    ].join('\n'),
+  )
+
+  await Bun.write(
+    resolve(sourceDir, 'skills/release-ops/SKILL.md'),
+    ['---', 'name: release-ops', 'description: "Run release checks."', '---', '', '# Release Ops'].join('\n'),
+  )
+  await Bun.write(resolve(sourceDir, 'AGENTS.md'), 'Codex base instructions.\n')
+  await Bun.write(resolve(sourceDir, 'AGENTS.override.md'), 'Codex override instructions.\n')
+
+  return sourceDir
+}
+
 async function setupOpenCodeNativeCommandSource() {
   const sourceDir = resolve(TEST_DIR, 'source-opencode-native-commands')
   mkdirSync(resolve(sourceDir, '.opencode/commands'), { recursive: true })
+  mkdirSync(resolve(sourceDir, 'docs'), { recursive: true })
   mkdirSync(resolve(sourceDir, 'skills/pipeline-review'), { recursive: true })
 
   await writeJson(resolve(sourceDir, 'package.json'), {
@@ -357,6 +481,10 @@ async function setupOpenCodeNativeCommandSource() {
     description: 'OpenCode-native command fixture.',
     author: { name: 'Orchid' },
     type: 'module',
+    main: './index.ts',
+    exports: {
+      '.': './index.ts',
+    },
     dependencies: {
       '@opencode-ai/plugin': '^0.0.1',
     },
@@ -369,11 +497,16 @@ async function setupOpenCodeNativeCommandSource() {
       },
     },
   })
+  await writeJson(resolve(sourceDir, 'opencode.json'), {
+    instructions: ['./docs/OPENCODE.md'],
+  })
 
   await Bun.write(
     resolve(sourceDir, 'skills/pipeline-review/SKILL.md'),
     ['---', 'name: pipeline-review', 'description: "Review pipeline health."', '---', '', '# Pipeline Review'].join('\n'),
   )
+  await Bun.write(resolve(sourceDir, 'docs/OPENCODE.md'), 'OpenCode configured instructions.\n')
+  await Bun.write(resolve(sourceDir, 'index.ts'), 'export default function plugin() { return {} }\n')
   await Bun.write(
     resolve(sourceDir, '.opencode/commands/research.md'),
     ['---', 'description: "OpenCode-native command."', '---', '', '# Research'].join('\n'),
@@ -647,8 +780,29 @@ describe('migrate', () => {
 
     const config = readFileSync(resolve(outputDir, 'pluxx.config.ts'), 'utf-8')
     expect(config).toContain("agents: './agents/'")
+    expect(config).toContain('"websiteURL": "https://cursor-native.example.com"')
+    expect(config).toContain('"icon": "./assets/icon.svg"')
+    expect(config).toContain('"description": "Research conventions"')
+    expect(config).toContain('"alwaysApply": true')
+    expect(config).toContain('"path": "./rules/research-conventions.mdc"')
+    expect(config).toContain('"path": "./rules/nested/safety.mdc"')
+    expect(config).toContain('"nestedAgents": [')
+    expect(config).toContain('"./guides/research/AGENTS.md"')
     expect(existsSync(resolve(outputDir, 'agents/research.md'))).toBe(true)
+    expect(existsSync(resolve(outputDir, 'guides/research/AGENTS.md'))).toBe(true)
     expect(readFileSync(resolve(outputDir, 'agents/research.md'), 'utf-8')).toContain('Specialist researcher.')
+  })
+
+  it('migrates a manifest-less Claude plugin when CLAUDE.md is present', async () => {
+    const sourceDir = await setupManifestlessClaudeSource()
+    const outputDir = resolve(TEST_DIR, 'out-claude-manifestless')
+    await runMigrate(sourceDir, outputDir)
+
+    const config = readFileSync(resolve(outputDir, 'pluxx.config.ts'), 'utf-8')
+    expect(config).toContain("instructions: './CLAUDE.md'")
+    expect(config).toContain("skills: './skills/'")
+    expect(existsSync(resolve(outputDir, 'CLAUDE.md'))).toBe(true)
+    expect(existsSync(resolve(outputDir, 'skills/triage/SKILL.md'))).toBe(true)
   })
 
   it('converts Codex native TOML agents into canonical markdown agents', async () => {
@@ -675,6 +829,66 @@ describe('migrate', () => {
     expect(migratedAgent).toContain('Use the MCP for account intelligence.')
   })
 
+  it('preserves Codex platform auth, interface metadata, and app metadata during migrate', async () => {
+    const sourceDir = await setupCodexPlatformAuthDistributionSource()
+    const outputDir = resolve(TEST_DIR, 'out-codex-platform-auth-distribution')
+    await runMigrate(sourceDir, outputDir)
+
+    const config = readFileSync(resolve(outputDir, 'pluxx.config.ts'), 'utf-8')
+    expect(config).toContain('"displayName": "Codex Platform Auth"')
+    expect(config).toContain('"shortDescription": "Codex-hosted OAuth fixture."')
+    expect(config).toContain('"longDescription": "Preserve Codex-native distribution metadata during migrate."')
+    expect(config).toContain('"category": "Operations"')
+    expect(config).toContain('"color": "#112233"')
+    expect(config).toContain('"icon": "./assets/icon.svg"')
+    expect(config).toContain('"logo": "./assets/logo.svg"')
+    expect(config).toContain('"websiteURL": "https://codex-auth.example.com"')
+    expect(config).toContain('"privacyPolicyURL": "https://codex-auth.example.com/privacy"')
+    expect(config).toContain('"termsOfServiceURL": "https://codex-auth.example.com/terms"')
+    expect(config).toContain('"screenshots": [')
+    expect(config).toContain('"defaultPrompts": [')
+    expect(config).toContain('"experimentalBadge": "beta"')
+    expect(config).toContain('"capabilities": [')
+    expect(config).toContain('"openComposer": true')
+    expect(config).toContain('"override": "./AGENTS.override.md"')
+    expect(config).toContain("type: 'platform'")
+    expect(config).toContain("mode: 'oauth'")
+    expect(config).toContain('"mcpAuth": "platform"')
+    expect(config).toContain("envVar: 'METRICS_API_KEY'")
+    expect(config).toContain("headerName: 'X-API-Key'")
+    expect(config).toContain('"mcpServers": {')
+    expect(config).toContain('"linear": {')
+    expect(config).toContain('"auth": {')
+    expect(config).toContain('"type": "platform"')
+    expect(config).toContain('"metrics": {')
+    expect(config).toContain('"env_http_headers": {')
+    expect(config).toContain('"X-Workspace": "METRICS_WORKSPACE_ID"')
+    expect(existsSync(resolve(outputDir, 'AGENTS.override.md'))).toBe(true)
+
+    const metadata = JSON.parse(readFileSync(resolve(outputDir, '.pluxx/mcp.json'), 'utf-8')) as {
+      settings: { runtimeAuthMode: string }
+      source: { auth?: { type?: string } }
+    }
+    expect(metadata.settings.runtimeAuthMode).toBe('platform')
+    expect(metadata.source.auth?.type).toBe('platform')
+
+    const migratedConfig = await loadConfig(outputDir) as {
+      platforms?: {
+        codex?: {
+          mcpServers?: Record<string, Record<string, unknown>>
+        }
+      }
+    }
+    expect(migratedConfig.platforms?.codex?.mcpServers?.linear?.auth).toEqual({
+      type: 'platform',
+      mode: 'oauth',
+    })
+    expect(migratedConfig.platforms?.codex?.mcpServers?.metrics?.env_http_headers).toEqual({
+      'X-API-Key': 'METRICS_API_KEY',
+      'X-Workspace': 'METRICS_WORKSPACE_ID',
+    })
+  })
+
   it('imports OpenCode native commands into the canonical commands directory', async () => {
     const sourceDir = await setupOpenCodeNativeCommandSource()
     const outputDir = resolve(TEST_DIR, 'out-opencode-native-commands')
@@ -689,8 +903,15 @@ describe('migrate', () => {
     }
 
     const config = readFileSync(resolve(outputDir, 'pluxx.config.ts'), 'utf-8')
+    expect(config).toContain("instructions: './docs/OPENCODE.md'")
+    expect(config).toContain('"configured": [')
+    expect(config).toContain('"./docs/OPENCODE.md"')
+    expect(config).toContain('"main": "./index.ts"')
+    expect(config).toContain('"exports": {')
     expect(config).toContain("commands: './commands/'")
     expect(existsSync(resolve(outputDir, 'commands/research.md'))).toBe(true)
+    expect(existsSync(resolve(outputDir, 'docs/OPENCODE.md'))).toBe(true)
+    expect(existsSync(resolve(outputDir, 'index.ts'))).toBe(true)
     expect(readFileSync(resolve(outputDir, 'commands/research.md'), 'utf-8')).toContain('OpenCode-native command.')
   })
 

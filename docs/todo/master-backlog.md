@@ -104,6 +104,23 @@ Any person or agent should be able to enter the repo and answer:
   - command and skill translation wording in `lint` now routes through shared registries instead of hand-written per-target strings
   - Codex command routing guidance and `.codex/commands.generated.json` now read from the same richer command seam, reducing drift between AGENTS.md guidance and companion metadata
   - Codex/OpenCode skill-frontmatter translation notes now explicitly cover `when_to_use`, `user-invocable`, `model`, and `effort`
+  - the behavioral proof lane is now materially stronger:
+    - the harness supports expected-failure cases and host-specific runner args for maintained smoke fixtures
+    - maintained smoke fixtures can now declare an explicit `commandId` plus required output markers, so command-proof cases fail when the prompt does not reference the command or the output shape stays vague
+    - `example/docs-ops`, `example/exa-plugin`, and `example/platform-change-ops` now each carry behavioral smoke configs with command-specific assertions
+    - `doctor --consumer` and `verify-install` now execute generated Claude/Cursor bundled permission-hook scripts and fail if they emit unusable decisions
+  - agent translation explainability now has a shared registry slice:
+    - `src/agent-translation-registry.ts` now drives degraded-field messaging for Cursor, Codex, and OpenCode
+    - generated Cursor and Codex agent surfaces now emit the same translation story as `lint`
+  - migrate now preserves more host-native instruction and distribution intent:
+    - manifest-less Claude sources can migrate from `CLAUDE.md`
+    - Cursor nested rule files and nested `AGENTS.md` provenance survive migrate and are copied into the maintained source project
+    - Codex `AGENTS.override.md` survives alongside interface/app metadata
+    - OpenCode configured instruction files and package entrypoints now survive import and are copied into the maintained source project
+    - MCP migrate now merges generic and host-native MCP sources instead of first-file-wins, so native auth blobs such as platform auth and multi-header maps survive under `platforms.<host>.mcpServers.<server>`
+  - richer canonical skill metadata now survives into emitted host companions:
+    - Codex now writes `.codex/skills.generated.json`
+    - OpenCode now writes `skills.generated.json`
 - [~] Use [author-once-hardening.md](./author-once-hardening.md) as the initiative-level TODO for closing the remaining gap between:
   - the author-once vision
   - the currently shipped compiler, proof, and onboarding reality
@@ -160,11 +177,11 @@ Any person or agent should be able to enter the repo and answer:
   - install/distribution asset polish
   - future host-drift refreshes
 - [ ] Consolidate the remaining translation papercuts that the readiness work made more obvious:
-  - finish the deeper hook-registry rollout so generator routing and docs rows read registry-backed truth
-  - keep pushing the richer `skills` metadata layer into more generator, proof, and translation-registry consumers
-  - keep pushing the richer `commands` IR into more native host emission and registry-backed explainability
-  - reduce lossy import paths in `migrate` and installed-MCP discovery
-  - continue the runtime registry rollout now that installed hook env parity also translates across Cursor, Codex, and OpenCode
+  - keep pushing the richer `skills` metadata layer into more native host emission and proof consumers
+  - keep pushing the richer `commands` IR into more native host emission and install-time proof
+  - keep tightening auth/runtime reconstruction in installed-MCP discovery and downstream generator use of preserved native auth blobs
+  - add more installed behavioral proof for delegated agents, reload/discovery quirks, and publish/recovery flows
+  - continue simplifying the plugin-guided average-user path so the proof state is easier to use without maintainer-level CLI literacy
 
 ### 2. Flagship reference plugin
 

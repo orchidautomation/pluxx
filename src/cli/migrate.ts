@@ -1,4 +1,4 @@
-import { basename, relative, resolve } from 'path'
+import { basename, dirname, relative, resolve } from 'path'
 import { existsSync, readdirSync, mkdirSync, cpSync, readFileSync, writeFileSync } from 'fs'
 import {
   MCP_SCAFFOLD_METADATA_PATH,
@@ -6,7 +6,7 @@ import {
   type McpScaffoldMetadata,
   type PersistedSkill,
 } from './init-from-mcp'
-import type { HookEntry, McpServer } from '../schema'
+import type { HookEntry, McpServer, PluginConfig } from '../schema'
 import {
   PLUXX_COMPILER_INTENT_PATH,
   type CompilerIntentFile,
@@ -19,7 +19,7 @@ type DetectedPlatform = 'claude-code' | 'cursor' | 'codex' | 'opencode'
 
 interface DetectionResult {
   platform: DetectedPlatform
-  manifestPath: string
+  manifestPath?: string
 }
 
 interface ParsedManifest {
@@ -30,6 +30,8 @@ interface ParsedManifest {
   repository?: string
   license?: string
   keywords?: string[]
+  brand?: Record<string, unknown>
+  platforms?: Record<string, Record<string, unknown>>
 }
 
 interface ParsedMcp {
@@ -40,11 +42,13 @@ interface ParsedMcp {
     args?: string[]
     env?: Record<string, string>
     auth?: {
-      type: 'bearer' | 'header' | 'none'
+      type: 'bearer' | 'header' | 'none' | 'platform'
       envVar?: string
       headerName?: string
       headerTemplate?: string
+      mode?: 'oauth'
     }
+    warnings?: string[]
   }
 }
 
@@ -64,6 +68,7 @@ interface MigrateResult {
   platform: DetectedPlatform
   manifest: ParsedManifest
   mcp: ParsedMcp
+  runtimeAuthMode: 'inline' | 'platform'
   hooks: ParsedHooks
   permissions?: {
     allow?: string[]
@@ -76,6 +81,8 @@ interface MigrateResult {
   sourcePaths: CanonicalSourcePaths
   persistedSkills: PersistedSkill[]
   compilerIntent?: CompilerIntentFile
+  warnings: string[]
+  extraCopyPaths: string[]
 }
 
 // ── Platform Detection ──────────────────────────────────────────
@@ -112,15 +119,25 @@ function detectPlatform(pluginDir: string): DetectionResult | null {
     }
   }
 
+  if (existsSync(resolve(pluginDir, 'CLAUDE.md'))) {
+    return { platform: 'claude-code' }
+  }
+
   return null
 }
 
 // ── Manifest Parsing ────────────────────────────────────────────
 
 function parseManifest(detection: DetectionResult): ParsedManifest {
+  if (!detection.manifestPath) {
+    return {}
+  }
+
   const raw = JSON.parse(readFileSync(detection.manifestPath, 'utf-8'))
 
   const result: ParsedManifest = {}
+  const brand: Record<string, unknown> = {}
+  const platforms: Record<string, Record<string, unknown>> = {}
 
   if (raw.name) result.name = raw.name
   if (raw.version) result.version = raw.version
@@ -145,103 +162,191 @@ function parseManifest(detection: DetectionResult): ParsedManifest {
     }
   }
 
+  const homepage = typeof raw.homepage === 'string' ? raw.homepage : undefined
+  if (homepage) brand.websiteURL = homepage
+  if (typeof raw.icon === 'string') brand.icon = raw.icon
+  if (typeof raw.logo === 'string') {
+    brand.logo = raw.logo
+    if (!brand.icon) brand.icon = raw.logo
+  }
+
+  const codexInterface = asRecord(raw.interface)
+  if (codexInterface) {
+    if (typeof codexInterface.displayName === 'string') brand.displayName = codexInterface.displayName
+    if (typeof codexInterface.shortDescription === 'string') brand.shortDescription = codexInterface.shortDescription
+    if (typeof codexInterface.longDescription === 'string') brand.longDescription = codexInterface.longDescription
+    if (typeof codexInterface.category === 'string') brand.category = codexInterface.category
+    if (typeof codexInterface.brandColor === 'string') brand.color = codexInterface.brandColor
+    if (typeof codexInterface.composerIcon === 'string') brand.icon = codexInterface.composerIcon
+    if (typeof codexInterface.logo === 'string') brand.logo = codexInterface.logo
+    if (Array.isArray(codexInterface.defaultPrompt)) {
+      const prompts = codexInterface.defaultPrompt.filter(value => typeof value === 'string')
+      if (prompts.length > 0) brand.defaultPrompts = prompts
+    }
+    if (typeof codexInterface.websiteURL === 'string') brand.websiteURL = codexInterface.websiteURL
+    if (typeof codexInterface.privacyPolicyURL === 'string') brand.privacyPolicyURL = codexInterface.privacyPolicyURL
+    if (typeof codexInterface.termsOfServiceURL === 'string') brand.termsOfServiceURL = codexInterface.termsOfServiceURL
+    if (Array.isArray(codexInterface.screenshots)) {
+      const screenshots = codexInterface.screenshots.filter(value => typeof value === 'string')
+      if (screenshots.length > 0) brand.screenshots = screenshots
+    }
+
+    const remainingInterface = Object.fromEntries(
+      Object.entries(codexInterface).filter(([key]) => !new Set([
+        'displayName',
+        'shortDescription',
+        'longDescription',
+        'category',
+        'brandColor',
+        'composerIcon',
+        'logo',
+        'defaultPrompt',
+        'websiteURL',
+        'privacyPolicyURL',
+        'termsOfServiceURL',
+        'screenshots',
+      ]).has(key)),
+    )
+    if (Object.keys(remainingInterface).length > 0) {
+      platforms.codex = {
+        ...(platforms.codex ?? {}),
+        interface: remainingInterface,
+      }
+    }
+  }
+
+  if (detection.platform === 'cursor') {
+    const marketplacePath = resolve(dirname(detection.manifestPath), 'marketplace.json')
+    if (existsSync(marketplacePath)) {
+      try {
+        const marketplace = JSON.parse(readFileSync(marketplacePath, 'utf-8'))
+        if (marketplace && typeof marketplace === 'object') {
+          platforms.cursor = {
+            ...(platforms.cursor ?? {}),
+            marketplace,
+          }
+        }
+      } catch {
+        // ignore malformed marketplace metadata
+      }
+    }
+  }
+
+  if (detection.platform === 'codex') {
+    const appPath = resolve(dirname(dirname(detection.manifestPath)), '.app.json')
+    if (existsSync(appPath)) {
+      try {
+        const app = JSON.parse(readFileSync(appPath, 'utf-8'))
+        if (app && typeof app === 'object' && !Array.isArray(app)) {
+          platforms.codex = {
+            ...(platforms.codex ?? {}),
+            app,
+          }
+        }
+      } catch {
+        // ignore malformed app metadata
+      }
+    }
+  }
+
+  if (detection.platform === 'opencode') {
+    const pluginConfig = asRecord(raw.plugin)
+    if (pluginConfig) {
+      platforms.opencode = {
+        ...(platforms.opencode ?? {}),
+        plugin: pluginConfig,
+      }
+    }
+  }
+
+  if (Object.keys(brand).length > 0) result.brand = brand
+  if (Object.keys(platforms).length > 0) result.platforms = platforms
+
   return result
 }
 
 // ── MCP Parsing ─────────────────────────────────────────────────
 
-function parseMcp(pluginDir: string, detection: DetectionResult): ParsedMcp {
-  const mcpPaths = [
-    resolve(pluginDir, '.mcp.json'),
-    resolve(pluginDir, 'mcp.json'),
+function parseMcp(pluginDir: string, detection: DetectionResult): {
+  servers: ParsedMcp
+  runtimeAuthMode: 'inline' | 'platform'
+  warnings: string[]
+  platformOverrides?: Record<string, Record<string, unknown>>
+} {
+  const mcpCandidates: Array<{ path: string; parser: 'json' | 'toml' }> = [
+    { path: resolve(pluginDir, '.mcp.json'), parser: 'json' },
+    { path: resolve(pluginDir, 'mcp.json'), parser: 'json' },
   ]
 
+  if (detection.platform === 'codex') {
+    mcpCandidates.push({ path: resolve(pluginDir, '.codex/config.toml'), parser: 'toml' })
+  }
+
+  if (detection.platform === 'opencode') {
+    mcpCandidates.push({ path: resolve(pluginDir, 'opencode.json'), parser: 'json' })
+    mcpCandidates.push({ path: resolve(pluginDir, '.opencode.json'), parser: 'json' })
+  }
+
   // Also check if the manifest references an mcpServers file
-  try {
-    const manifest = JSON.parse(readFileSync(detection.manifestPath, 'utf-8'))
-    if (manifest.mcpServers && typeof manifest.mcpServers === 'string') {
-      mcpPaths.unshift(resolve(pluginDir, manifest.mcpServers))
-    }
-  } catch {
-    // ignore
-  }
-
-  for (const mcpPath of mcpPaths) {
-    if (!existsSync(mcpPath)) continue
+  if (detection.manifestPath) {
     try {
-      const raw = JSON.parse(readFileSync(mcpPath, 'utf-8'))
-      const servers = raw.mcpServers ?? raw
-      if (!servers || typeof servers !== 'object') continue
-
-      const result: ParsedMcp = {}
-
-      for (const [name, config] of Object.entries(servers)) {
-        const cfg = config as Record<string, unknown>
-        const entry: ParsedMcp[string] = {}
-
-        if (cfg.url) entry.url = cfg.url as string
-
-        // Detect transport
-        if (cfg.type === 'stdio' || cfg.command) {
-          entry.transport = 'stdio'
-          if (cfg.command) entry.command = cfg.command as string
-          if (cfg.args) entry.args = cfg.args as string[]
-          if (cfg.env) entry.env = cfg.env as Record<string, string>
-        } else if (cfg.type === 'sse') {
-          entry.transport = 'sse'
-        } else {
-          entry.transport = 'http'
-        }
-
-        // Parse auth from headers
-        if (cfg.headers && typeof cfg.headers === 'object') {
-          const headers = cfg.headers as Record<string, string>
-          const authHeader = headers['Authorization'] ?? headers['authorization']
-          if (authHeader) {
-            // Extract env var from patterns like "Bearer ${SOME_KEY}"
-            const envMatch = authHeader.match(/\$\{(\w+)\}/)
-            if (envMatch) {
-              entry.auth = {
-                type: 'bearer',
-                envVar: envMatch[1],
-                headerTemplate: authHeader.replace(/\$\{\w+\}/, '${value}'),
-              }
-            }
-          }
-        }
-
-        // Codex-style bearer_token_env_var
-        if (cfg.bearer_token_env_var) {
-          entry.auth = {
-            type: 'bearer',
-            envVar: cfg.bearer_token_env_var as string,
-          }
-        }
-
-        // Codex-style env_http_headers
-        if (cfg.env_http_headers && typeof cfg.env_http_headers === 'object') {
-          const envHeaders = Object.entries(cfg.env_http_headers as Record<string, string>)
-          if (envHeaders.length > 0) {
-            const [headerName, envVar] = envHeaders[0]
-            entry.auth = {
-              type: 'header',
-              envVar,
-              headerName,
-              headerTemplate: '${value}',
-            }
-          }
-        }
-
-        result[name] = entry
+      const manifest = JSON.parse(readFileSync(detection.manifestPath, 'utf-8'))
+      if (manifest.mcpServers && typeof manifest.mcpServers === 'string') {
+        mcpCandidates.unshift({ path: resolve(pluginDir, manifest.mcpServers), parser: 'json' })
       }
-
-      return result
     } catch {
-      continue
+      // ignore
     }
   }
 
-  return {}
+  const mergedServers: ParsedMcp = {}
+  const mergedWarnings = new Set<string>()
+  let runtimeAuthMode: 'inline' | 'platform' = 'inline'
+  let platformOverrides: Record<string, Record<string, unknown>> | undefined
+
+  for (const candidate of mcpCandidates) {
+    if (!existsSync(candidate.path)) continue
+
+    const parsed = candidate.parser === 'toml'
+      ? parseTomlMcpFile(candidate.path, detection.platform)
+      : parseJsonMcpFile(candidate.path, detection.platform)
+    if (Object.keys(parsed.servers).length === 0) continue
+
+    for (const [serverName, server] of Object.entries(parsed.servers)) {
+      const previous = mergedServers[serverName]
+      const combinedWarnings = [...new Set([...(previous?.warnings ?? []), ...(server.warnings ?? [])])]
+      mergedServers[serverName] = {
+        ...(previous ?? {}),
+        ...server,
+        ...(combinedWarnings.length > 0 ? { warnings: combinedWarnings } : {}),
+      }
+    }
+
+    if (parsed.runtimeAuthMode === 'platform') {
+      runtimeAuthMode = 'platform'
+    }
+
+    for (const warning of parsed.warnings) {
+      mergedWarnings.add(warning)
+    }
+
+    platformOverrides = mergePlatformOverrideMaps(platformOverrides, parsed.platformOverrides)
+  }
+
+  if (Object.keys(mergedServers).length > 0) {
+    return {
+      servers: mergedServers,
+      runtimeAuthMode,
+      warnings: [...mergedWarnings],
+      ...(platformOverrides ? { platformOverrides } : {}),
+    }
+  }
+
+  return {
+    servers: {},
+    runtimeAuthMode: 'inline',
+    warnings: [],
+  }
 }
 
 // ── Hooks Parsing ───────────────────────────────────────────────
@@ -276,13 +381,15 @@ function parseHooks(pluginDir: string, detection: DetectionResult): ParsedHooks 
   ]
 
   // Check if manifest references a hooks file
-  try {
-    const manifest = JSON.parse(readFileSync(detection.manifestPath, 'utf-8'))
-    if (manifest.hooks && typeof manifest.hooks === 'string') {
-      hooksPaths.unshift(resolve(pluginDir, manifest.hooks))
+  if (detection.manifestPath) {
+    try {
+      const manifest = JSON.parse(readFileSync(detection.manifestPath, 'utf-8'))
+      if (manifest.hooks && typeof manifest.hooks === 'string') {
+        hooksPaths.unshift(resolve(pluginDir, manifest.hooks))
+      }
+    } catch {
+      // ignore
     }
-  } catch {
-    // ignore
   }
 
   for (const hooksPath of hooksPaths) {
@@ -400,6 +507,12 @@ function parseMigratedHookEntry(raw: unknown, fallbackMatcher?: unknown): HookEn
 
 // ── Instructions Detection ──────────────────────────────────────
 
+interface InstructionSourceResult {
+  primary?: string
+  extraPaths: string[]
+  platformOverrides?: Record<string, Record<string, unknown>>
+}
+
 function findInstructions(pluginDir: string): string | undefined {
   const candidates = [
     'CLAUDE.md',
@@ -417,6 +530,631 @@ function findInstructions(pluginDir: string): string | undefined {
   }
 
   return undefined
+}
+
+interface ParsedCursorRule {
+  description: string
+  globs?: string | string[]
+  alwaysApply?: boolean
+  content?: string
+  path?: string
+}
+
+function parseCursorRules(pluginDir: string, detection: DetectionResult): ParsedCursorRule[] {
+  if (detection.platform !== 'cursor') return []
+
+  const manifest = detection.manifestPath ? tryReadJson(detection.manifestPath) : null
+  const configuredRulesDir = typeof manifest?.rules === 'string' ? stripRelativePrefix(manifest.rules) : undefined
+  const candidates = [
+    configuredRulesDir,
+    'rules',
+    '.cursor/rules',
+  ].filter((value): value is string => Boolean(value))
+
+  for (const relativeDir of candidates) {
+    const dirPath = resolve(pluginDir, relativeDir)
+    if (!existsSync(dirPath)) continue
+
+    const entries = collectFiles(dirPath, (entry) => entry.endsWith('.mdc'))
+      .map((entry) => parseCursorRuleFile(pluginDir, entry))
+      .filter((entry): entry is ParsedCursorRule => Boolean(entry))
+
+    if (entries.length > 0) return entries
+  }
+
+  return []
+}
+
+function parseCursorRuleFile(pluginDir: string, filePath: string): ParsedCursorRule | null {
+  const content = readFileSync(filePath, 'utf-8')
+  const { hasFrontmatter, frontmatterLines, body } = splitMarkdownFrontmatter(content)
+  if (!hasFrontmatter) return null
+
+  const description = parseTopLevelStringFrontmatter(frontmatterLines, 'description')
+    ?? titleCaseFromDirName(basename(filePath, '.mdc'))
+  const globs = parseTopLevelStringOrStringArrayFrontmatter(frontmatterLines, 'globs')
+  const alwaysApply = parseTopLevelBooleanFrontmatter(frontmatterLines, 'alwaysApply')
+
+  return {
+    description,
+    ...(globs !== undefined ? { globs } : {}),
+    ...(alwaysApply !== undefined ? { alwaysApply } : {}),
+    ...(body.trim() ? { content: body.trim() } : {}),
+    path: `./${relative(pluginDir, filePath).replace(/\\/g, '/')}`,
+  }
+}
+
+function collectFiles(dir: string, predicate: (relativePath: string) => boolean): string[] {
+  const results: string[] = []
+  const stack = [dir]
+
+  while (stack.length > 0) {
+    const current = stack.pop()!
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      const fullPath = resolve(current, entry.name)
+      if (entry.isDirectory()) {
+        stack.push(fullPath)
+        continue
+      }
+      if (entry.isFile() && predicate(entry.name)) {
+        results.push(fullPath)
+      }
+    }
+  }
+
+  return results.sort((a, b) => a.localeCompare(b))
+}
+
+function findOpenCodeConfiguredInstructions(pluginDir: string): string[] {
+  const candidates = [resolve(pluginDir, 'opencode.json'), resolve(pluginDir, '.opencode.json')]
+  const discovered = new Set<string>()
+
+  for (const path of candidates) {
+    const raw = tryReadJson(path)
+    if (!raw) continue
+
+    const instructions = raw.instructions
+    const values = typeof instructions === 'string'
+      ? [instructions]
+      : Array.isArray(instructions)
+        ? instructions.filter((value): value is string => typeof value === 'string')
+        : []
+
+    for (const value of values) {
+      if (value.startsWith('./') || value.startsWith('../')) {
+        const normalized = `./${stripRelativePrefix(value)}`
+        if (existsSync(resolve(pluginDir, normalized))) {
+          discovered.add(normalized)
+        }
+      }
+    }
+  }
+
+  return [...discovered]
+}
+
+function findInstructionSources(pluginDir: string, detection: DetectionResult): InstructionSourceResult {
+  const primary = findInstructions(pluginDir)
+  const extraPaths = new Set<string>()
+  const platformOverrides: Record<string, Record<string, unknown>> = {}
+
+  if (detection.platform === 'cursor') {
+    const nestedAgents = collectFiles(pluginDir, (entry) => entry === 'AGENTS.md')
+      .map((path) => `./${relative(pluginDir, path).replace(/\\/g, '/')}`)
+      .filter((path) => path !== primary)
+
+    if (nestedAgents.length > 0) {
+      platformOverrides.cursor = {
+        ...(platformOverrides.cursor ?? {}),
+        instructionSources: {
+          ...(asRecord(platformOverrides.cursor?.instructionSources) ?? {}),
+          nestedAgents,
+        },
+      }
+      for (const path of nestedAgents) extraPaths.add(path)
+    }
+  }
+
+  if (detection.platform === 'codex') {
+    const overridePath = './AGENTS.override.md'
+    if (existsSync(resolve(pluginDir, stripRelativePrefix(overridePath)))) {
+      platformOverrides.codex = {
+        ...(platformOverrides.codex ?? {}),
+        instructionSources: {
+          ...(asRecord(platformOverrides.codex?.instructionSources) ?? {}),
+          override: overridePath,
+        },
+      }
+      if (overridePath !== primary) {
+        extraPaths.add(overridePath)
+      }
+    }
+  }
+
+  if (detection.platform === 'opencode') {
+    const configured = findOpenCodeConfiguredInstructions(pluginDir)
+    if (configured.length > 0) {
+      platformOverrides.opencode = {
+        ...(platformOverrides.opencode ?? {}),
+        instructionSources: {
+          ...(asRecord(platformOverrides.opencode?.instructionSources) ?? {}),
+          configured,
+        },
+      }
+      for (const path of configured) {
+        if (path !== primary) extraPaths.add(path)
+      }
+    }
+  }
+
+  return {
+    primary: primary ?? (detection.platform === 'opencode' ? findOpenCodeConfiguredInstructions(pluginDir)[0] : undefined),
+    extraPaths: [...extraPaths].sort(),
+    ...(Object.keys(platformOverrides).length > 0 ? { platformOverrides } : {}),
+  }
+}
+
+function collectPackageEntryPaths(value: unknown, acc: Set<string>): void {
+  if (typeof value === 'string') {
+    if (value.startsWith('./') || value.startsWith('../')) {
+      acc.add(`./${stripRelativePrefix(value)}`)
+    }
+    return
+  }
+
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return
+  for (const nested of Object.values(value as Record<string, unknown>)) {
+    collectPackageEntryPaths(nested, acc)
+  }
+}
+
+function findOpenCodeDistributionSources(pluginDir: string, detection: DetectionResult): {
+  extraPaths: string[]
+  platformOverrides?: Record<string, Record<string, unknown>>
+} {
+  if (detection.platform !== 'opencode' || !detection.manifestPath) {
+    return { extraPaths: [] }
+  }
+
+  const pkg = tryReadJson(detection.manifestPath)
+  if (!pkg) return { extraPaths: [] }
+
+  const entrypoints: Record<string, unknown> = {}
+  const extraPaths = new Set<string>()
+
+  for (const key of ['main', 'module', 'types']) {
+    const value = pkg[key]
+    if (typeof value === 'string') {
+      entrypoints[key] = value
+      collectPackageEntryPaths(value, extraPaths)
+    }
+  }
+
+  if (pkg.exports !== undefined) {
+    entrypoints.exports = pkg.exports
+    collectPackageEntryPaths(pkg.exports, extraPaths)
+  }
+
+  const fallbackEntries = ['./index.ts', './index.js', './src/index.ts', './src/index.js']
+  if (Object.keys(entrypoints).length === 0) {
+    for (const candidate of fallbackEntries) {
+      if (existsSync(resolve(pluginDir, stripRelativePrefix(candidate)))) {
+        entrypoints.entry = candidate
+        extraPaths.add(candidate)
+        break
+      }
+    }
+  }
+
+  const presentPaths = [...extraPaths].filter((entry) => existsSync(resolve(pluginDir, stripRelativePrefix(entry))))
+  if (Object.keys(entrypoints).length === 0) {
+    return { extraPaths: presentPaths }
+  }
+
+  return {
+    extraPaths: presentPaths,
+    platformOverrides: {
+      opencode: {
+        entrypoints,
+      },
+    },
+  }
+}
+
+function tryReadJson(path: string): Record<string, unknown> | null {
+  try {
+    const parsed = JSON.parse(readFileSync(path, 'utf-8'))
+    return asRecord(parsed) ?? null
+  } catch {
+    return null
+  }
+}
+
+function parseJsonMcpFile(path: string, platform: DetectedPlatform): {
+  servers: ParsedMcp
+  runtimeAuthMode: 'inline' | 'platform'
+  warnings: string[]
+  platformOverrides?: Record<string, Record<string, unknown>>
+} {
+  const raw = tryReadJson(path)
+  if (!raw) {
+    return { servers: {}, runtimeAuthMode: 'inline', warnings: [] }
+  }
+
+  const servers = extractJsonMcpServers(raw, platform, path)
+  if (!servers) {
+    return { servers: {}, runtimeAuthMode: 'inline', warnings: [] }
+  }
+
+  return parseMcpServerRecords(servers, platform)
+}
+
+function extractJsonMcpServers(
+  raw: Record<string, unknown>,
+  platform: DetectedPlatform,
+  path: string,
+): Record<string, unknown> | null {
+  if (platform === 'opencode') {
+    const mcp = asRecord(raw.mcp)
+    if (mcp) return mcp
+  }
+
+  const mcpServers = asRecord(raw.mcpServers)
+  if (mcpServers) return mcpServers
+  if (typeof raw.mcpServers === 'string') return null
+
+  if (path.endsWith('mcp.json') || path.endsWith('.mcp.json')) {
+    return raw
+  }
+
+  return null
+}
+
+function parseTomlMcpFile(path: string, platform: DetectedPlatform): {
+  servers: ParsedMcp
+  runtimeAuthMode: 'inline' | 'platform'
+  warnings: string[]
+  platformOverrides?: Record<string, Record<string, unknown>>
+} {
+  const content = readFileSync(path, 'utf-8')
+  const servers: Record<string, Record<string, unknown>> = {}
+  let currentServer: string | undefined
+  let currentSubtable: string | undefined
+
+  for (const rawLine of content.split(/\r?\n/)) {
+    const line = stripTomlComment(rawLine).trim()
+    if (!line) continue
+
+    const section = line.match(/^\[mcp_servers\.([A-Za-z0-9_.-]+)(?:\.([A-Za-z0-9_.-]+))?\]$/)
+    if (section) {
+      currentServer = section[1]
+      currentSubtable = section[2]
+      servers[currentServer] ??= {}
+      if (currentSubtable) {
+        const existing = servers[currentServer][currentSubtable]
+        if (!existing || typeof existing !== 'object' || Array.isArray(existing)) {
+          servers[currentServer][currentSubtable] = {}
+        }
+      }
+      continue
+    }
+
+    if (!currentServer) continue
+    const assignment = line.match(/^([A-Za-z0-9_-]+)\s*=\s*(.+)$/)
+    if (!assignment) continue
+
+    const key = assignment[1]
+    const value = parseTomlValue(assignment[2].trim())
+    if (currentSubtable) {
+      const table = servers[currentServer][currentSubtable] as Record<string, unknown>
+      table[key] = value
+    } else {
+      servers[currentServer][key] = value
+    }
+  }
+
+  return parseMcpServerRecords(servers, platform)
+}
+
+function parseMcpServerRecords(
+  servers: Record<string, unknown>,
+  platform: DetectedPlatform,
+): {
+  servers: ParsedMcp
+  runtimeAuthMode: 'inline' | 'platform'
+  warnings: string[]
+  platformOverrides?: Record<string, Record<string, unknown>>
+} {
+  const parsed: ParsedMcp = {}
+  const warnings: string[] = []
+  let runtimeAuthMode: 'inline' | 'platform' = 'inline'
+  const nativePlatformOverrides = buildNativeMcpPlatformOverrides(platform, servers)
+
+  for (const [name, config] of Object.entries(servers)) {
+    const cfg = asRecord(config)
+    if (!cfg) continue
+
+    const entryWarnings: string[] = []
+    const entry = parseMcpServerEntry(cfg, entryWarnings)
+    if (entry.auth?.type === 'platform' && entry.transport !== 'stdio') {
+      runtimeAuthMode = 'platform'
+    }
+    if (entryWarnings.length > 0) {
+      entry.warnings = entryWarnings
+      warnings.push(...entryWarnings.map((warning) => `${name}: ${warning}`))
+    }
+    parsed[name] = entry
+  }
+
+  return {
+    servers: parsed,
+    runtimeAuthMode,
+    warnings,
+    ...(nativePlatformOverrides ? { platformOverrides: nativePlatformOverrides } : {}),
+  }
+}
+
+function buildNativeMcpPlatformOverrides(
+  platform: DetectedPlatform,
+  servers: Record<string, unknown>,
+): Record<string, Record<string, unknown>> | undefined {
+  const preservedServers: Record<string, Record<string, unknown>> = {}
+
+  for (const [serverName, rawConfig] of Object.entries(servers)) {
+    const cfg = asRecord(rawConfig)
+    if (!cfg) continue
+    const nativeAuth = extractNativeMcpAuthConfig(cfg)
+    if (!nativeAuth) continue
+    preservedServers[serverName] = nativeAuth
+  }
+
+  if (Object.keys(preservedServers).length === 0) return undefined
+
+  return {
+    [platform]: {
+      mcpServers: preservedServers,
+    },
+  }
+}
+
+function extractNativeMcpAuthConfig(cfg: Record<string, unknown>): Record<string, unknown> | undefined {
+  const preserved: Record<string, unknown> = {}
+
+  const auth = asRecord(cfg.auth)
+  if (auth) preserved.auth = JSON.parse(JSON.stringify(auth))
+
+  const bearerTokenEnv = firstString(cfg.bearer_token_env_var, cfg.bearerTokenEnvVar)
+  if (typeof cfg.bearer_token_env_var === 'string') {
+    preserved.bearer_token_env_var = cfg.bearer_token_env_var
+  } else if (typeof cfg.bearerTokenEnvVar === 'string' && bearerTokenEnv) {
+    preserved.bearerTokenEnvVar = bearerTokenEnv
+  }
+
+  for (const key of ['env_http_headers', 'envHttpHeaders', 'headers', 'http_headers', 'httpHeaders'] as const) {
+    const value = asRecord(cfg[key])
+    if (value) {
+      preserved[key] = JSON.parse(JSON.stringify(value))
+    }
+  }
+
+  return Object.keys(preserved).length > 0 ? preserved : undefined
+}
+
+function parseMcpServerEntry(
+  cfg: Record<string, unknown>,
+  warnings: string[],
+): ParsedMcp[string] {
+  const entry: ParsedMcp[string] = {}
+
+  if (typeof cfg.url === 'string') entry.url = cfg.url
+
+  if (cfg.type === 'stdio' || cfg.command) {
+    entry.transport = 'stdio'
+    entry.command = normalizeCommandValue(cfg.command)
+    entry.args = normalizeStringArray(cfg.args)
+    entry.env = normalizeEnvRecord(cfg.env)
+  } else if (cfg.type === 'sse') {
+    entry.transport = 'sse'
+  } else {
+    entry.transport = 'http'
+  }
+
+  const auth = inferMigrateAuth(cfg, warnings)
+  if (auth) entry.auth = auth
+
+  return entry
+}
+
+function inferMigrateAuth(
+  cfg: Record<string, unknown>,
+  warnings: string[],
+): ParsedMcp[string]['auth'] | undefined {
+  const explicitAuth = asRecord(cfg.auth)
+  const explicitType = typeof explicitAuth?.type === 'string' ? explicitAuth.type : undefined
+
+  if (explicitType === 'platform') {
+    return {
+      type: 'platform',
+      mode: explicitAuth?.mode === 'oauth' ? 'oauth' : 'oauth',
+    }
+  }
+
+  if (explicitType === 'none') {
+    return { type: 'none' }
+  }
+
+  if (explicitType === 'bearer') {
+    const envVar = firstString(explicitAuth?.envVar, explicitAuth?.env_var)
+    if (envVar) {
+      return {
+        type: 'bearer',
+        envVar,
+        headerName: firstString(explicitAuth?.headerName, explicitAuth?.header_name) ?? 'Authorization',
+        headerTemplate: firstString(explicitAuth?.headerTemplate, explicitAuth?.header_template) ?? 'Bearer ${value}',
+      }
+    }
+  }
+
+  if (explicitType === 'header') {
+    const envVar = firstString(explicitAuth?.envVar, explicitAuth?.env_var)
+    const headerName = firstString(explicitAuth?.headerName, explicitAuth?.header_name)
+    if (envVar && headerName) {
+      return {
+        type: 'header',
+        envVar,
+        headerName,
+        headerTemplate: firstString(explicitAuth?.headerTemplate, explicitAuth?.header_template) ?? '${value}',
+      }
+    }
+  }
+
+  const bearerTokenEnv = firstString(cfg.bearer_token_env_var, cfg.bearerTokenEnvVar)
+  if (bearerTokenEnv) {
+    return {
+      type: 'bearer',
+      envVar: bearerTokenEnv,
+      headerName: 'Authorization',
+      headerTemplate: 'Bearer ${value}',
+    }
+  }
+
+  const envHttpHeaders = asRecord(cfg.env_http_headers ?? cfg.envHttpHeaders)
+  if (envHttpHeaders) {
+    const stringHeaders = Object.entries(envHttpHeaders)
+      .filter(([, value]) => typeof value === 'string')
+      .map(([key, value]) => [key, String(value)] as const)
+    if (stringHeaders.length > 0) {
+      const preferred = stringHeaders.find(([key]) => key.toLowerCase() === 'authorization') ?? stringHeaders[0]
+      const [headerName, envVar] = preferred
+      const extras = stringHeaders.filter(([key]) => key !== headerName)
+      if (extras.length > 0) {
+        warnings.push(`Preserved ${headerName} as canonical auth but native env_http_headers declared additional header auth keys (${extras.map(([key]) => key).join(', ')}). Review the migrated MCP config and platform overrides.`)
+      }
+      return {
+        type: headerName.toLowerCase() === 'authorization' ? 'bearer' : 'header',
+        envVar,
+        headerName,
+        headerTemplate: headerName.toLowerCase() === 'authorization' ? 'Bearer ${value}' : '${value}',
+      }
+    }
+  }
+
+  const headers = asRecord(cfg.headers ?? cfg.http_headers ?? cfg.httpHeaders)
+  if (!headers) return undefined
+
+  const envBackedHeaders = Object.entries(headers)
+    .filter(([, value]) => typeof value === 'string')
+    .map(([headerName, rawValue]) => ({
+      headerName,
+      rawValue: rawValue as string,
+      envVar: extractEnvVar(rawValue as string),
+    }))
+    .filter((entry) => Boolean(entry.envVar))
+
+  if (envBackedHeaders.length > 0) {
+    const preferred = envBackedHeaders.find((entry) => entry.headerName.toLowerCase() === 'authorization') ?? envBackedHeaders[0]
+    const extras = envBackedHeaders.filter((entry) => entry.headerName !== preferred.headerName)
+    if (extras.length > 0) {
+      warnings.push(`Preserved ${preferred.headerName} as canonical auth but native headers declared additional env-backed auth keys (${extras.map((entry) => entry.headerName).join(', ')}). Review the migrated MCP config and platform overrides.`)
+    }
+    return {
+      type: preferred.headerName.toLowerCase() === 'authorization' ? 'bearer' : 'header',
+      envVar: preferred.envVar!,
+      headerName: preferred.headerName,
+      headerTemplate: preferred.rawValue.replace(envReferencePattern(preferred.envVar!), '${value}'),
+    }
+  }
+
+  return undefined
+}
+
+function normalizeCommandValue(value: unknown): string | undefined {
+  if (typeof value === 'string') return value
+  if (Array.isArray(value) && typeof value[0] === 'string') return value[0]
+  return undefined
+}
+
+function normalizeStringArray(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  return value.map(String)
+}
+
+function normalizeEnvRecord(value: unknown): Record<string, string> | undefined {
+  const record = asRecord(value)
+  if (!record) return undefined
+  const env = Object.fromEntries(
+    Object.entries(record)
+      .filter(([, rawValue]) => typeof rawValue === 'string')
+      .map(([key, rawValue]) => [key, rawValue as string]),
+  )
+  return Object.keys(env).length > 0 ? env : undefined
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  return value as Record<string, unknown>
+}
+
+function firstString(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) return value.trim()
+  }
+  return undefined
+}
+
+function extractEnvVar(value: string): string | undefined {
+  const match = value.match(/\$\{(?:env:)?([A-Za-z_][A-Za-z0-9_]*)\}|\$([A-Za-z_][A-Za-z0-9_]*)/)
+  return match?.[1] ?? match?.[2]
+}
+
+function envReferencePattern(envVar: string): RegExp {
+  return new RegExp(`\\$\\{(?:env:)?${escapeRegExp(envVar)}\\}|\\$${escapeRegExp(envVar)}`)
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function parseTopLevelStringFrontmatter(frontmatterLines: string[], key: string): string | undefined {
+  const match = frontmatterLines.find((line) => new RegExp(`^${escapeRegExp(key)}\\s*:`).test(line.trim()))
+  if (!match) return undefined
+  const rawValue = match.replace(/^[^:]+:\s*/, '')
+  return unquoteFrontmatterValue(rawValue)
+}
+
+function parseTopLevelBooleanFrontmatter(frontmatterLines: string[], key: string): boolean | undefined {
+  const value = parseTopLevelStringFrontmatter(frontmatterLines, key)?.toLowerCase()
+  if (value === 'true') return true
+  if (value === 'false') return false
+  return undefined
+}
+
+function parseTopLevelStringOrStringArrayFrontmatter(frontmatterLines: string[], key: string): string | string[] | undefined {
+  const match = frontmatterLines.find((line) => new RegExp(`^${escapeRegExp(key)}\\s*:`).test(line.trim()))
+  if (!match) return undefined
+  const rawValue = match.replace(/^[^:]+:\s*/, '').trim()
+  if (rawValue.startsWith('[') && rawValue.endsWith(']')) {
+    try {
+      const parsed = JSON.parse(rawValue)
+      if (Array.isArray(parsed) && parsed.every(value => typeof value === 'string')) {
+        return parsed
+      }
+    } catch {
+      return undefined
+    }
+  }
+  return unquoteFrontmatterValue(rawValue)
+}
+
+function unquoteFrontmatterValue(value: string): string {
+  const trimmed = value.trim()
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"'))
+    || (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1)
+  }
+  return trimmed
 }
 
 // ── Directory Detection ─────────────────────────────────────────
@@ -692,6 +1430,91 @@ function parseCodexAgentToml(content: string): ParsedCodexAgent {
   }
 }
 
+function stripTomlComment(line: string): string {
+  let inString = false
+  let quote = ''
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i]
+    if ((char === '"' || char === "'") && line[i - 1] !== '\\') {
+      if (!inString) {
+        inString = true
+        quote = char
+      } else if (quote === char) {
+        inString = false
+        quote = ''
+      }
+      continue
+    }
+    if (char === '#' && !inString) return line.slice(0, i)
+  }
+  return line
+}
+
+function parseTomlValue(value: string): unknown {
+  if (value.startsWith('"') && value.endsWith('"')) return unquoteTomlString(value)
+  if (value.startsWith("'") && value.endsWith("'")) return value.slice(1, -1)
+  if (value.startsWith('[') && value.endsWith(']')) {
+    const inner = value.slice(1, -1).trim()
+    if (!inner) return []
+    return splitTomlList(inner).map((part) => parseTomlValue(part.trim()))
+  }
+  if (value.startsWith('{') && value.endsWith('}')) {
+    const inner = value.slice(1, -1).trim()
+    const result: Record<string, unknown> = {}
+    if (!inner) return result
+    for (const part of splitTomlList(inner)) {
+      const assignment = part.trim().match(/^([A-Za-z0-9_-]+)\s*=\s*(.+)$/)
+      if (!assignment) continue
+      result[assignment[1]] = parseTomlValue(assignment[2].trim())
+    }
+    return result
+  }
+  if (value === 'true') return true
+  if (value === 'false') return false
+  return value
+}
+
+function splitTomlList(value: string): string[] {
+  const parts: string[] = []
+  let current = ''
+  let inString = false
+  let quote = ''
+  let braceDepth = 0
+
+  for (let i = 0; i < value.length; i += 1) {
+    const char = value[i]
+    if ((char === '"' || char === "'") && value[i - 1] !== '\\') {
+      if (!inString) {
+        inString = true
+        quote = char
+      } else if (quote === char) {
+        inString = false
+        quote = ''
+      }
+    }
+    if (!inString && char === '{') braceDepth += 1
+    if (!inString && char === '}') braceDepth -= 1
+    if (!inString && braceDepth === 0 && char === ',') {
+      parts.push(current)
+      current = ''
+      continue
+    }
+    current += char
+  }
+
+  if (current.trim()) parts.push(current)
+  return parts
+}
+
+function unquoteTomlString(value: string): string {
+  return value
+    .slice(1, -1)
+    .replace(/\\"/g, '"')
+    .replace(/\\n/g, '\n')
+    .replace(/\\t/g, '\t')
+    .replace(/\\\\/g, '\\')
+}
+
 function renderMigratedAgentMarkdown(fileStem: string, parsed: ParsedCodexAgent): string {
   const agentName = toKebabCase(parsed.name ?? fileStem) || 'agent'
   const title = parsed.name ?? titleCaseFromDirName(agentName)
@@ -904,6 +1727,12 @@ function normalizeMigrateAuth(auth: ParsedMcp[string]['auth']) {
   if (auth.type === 'none') {
     return { type: 'none' as const }
   }
+  if (auth.type === 'platform') {
+    return {
+      type: 'platform' as const,
+      mode: auth.mode ?? 'oauth',
+    }
+  }
   if (auth.type === 'bearer' && auth.envVar) {
     return {
       type: 'bearer' as const,
@@ -930,6 +1759,7 @@ function buildMigratedScaffoldMetadata(result: MigrateResult, outputDir: string)
   const generatedHookEvents = Object.keys(result.hooks)
   const managedFiles = [
     ...(result.instructions ? [result.instructions.replace(/^\.\//, '')] : []),
+    ...result.extraCopyPaths.map((path) => path.replace(/^\.\//, '')),
     ...(['skills', 'commands', 'agents', 'scripts', 'assets'] as const).flatMap((dir) => {
       if (!result.sourcePaths[dir]) return []
       const baseDir = dir
@@ -977,7 +1807,7 @@ function buildMigratedScaffoldMetadata(result: MigrateResult, outputDir: string)
       requestedHookMode: generatedHookEvents.length > 0 ? 'safe' : 'none',
       generatedHookMode: generatedHookEvents.length > 0 ? 'safe' : 'none',
       generatedHookEvents,
-      runtimeAuthMode: 'inline',
+      runtimeAuthMode: result.runtimeAuthMode,
     },
     userConfig: [],
     tools: [],
@@ -1079,6 +1909,9 @@ function generateConfigTs(result: MigrateResult): string {
   if (result.manifest.keywords && result.manifest.keywords.length > 0) {
     lines.push(`  keywords: [${result.manifest.keywords.map(k => quote(k)).join(', ')}],`)
   }
+  if (result.manifest.brand && Object.keys(result.manifest.brand).length > 0) {
+    lines.push('  brand: ' + renderIndentedTsValue(result.manifest.brand, 2) + ',')
+  }
 
   lines.push('')
 
@@ -1130,6 +1963,9 @@ function generateConfigTs(result: MigrateResult): string {
     for (const name of mcpNames) {
       const server = result.mcp[name]
       lines.push(`    ${quote(name)}: {`)
+      for (const warning of server.warnings ?? []) {
+        lines.push(`      // ${warning}`)
+      }
       if (server.url) lines.push(`      url: ${quote(server.url)},`)
       if (server.transport && server.transport !== 'http') {
         lines.push(`      transport: ${quote(server.transport)},`)
@@ -1149,6 +1985,9 @@ function generateConfigTs(result: MigrateResult): string {
         lines.push('      auth: {')
         lines.push(`        type: ${quote(server.auth.type)},`)
         if (server.auth.envVar) lines.push(`        envVar: ${quote(server.auth.envVar)},`)
+        if (server.auth.mode && server.auth.type === 'platform') {
+          lines.push(`        mode: ${quote(server.auth.mode)},`)
+        }
         if (server.auth.headerName && server.auth.headerName !== 'Authorization') {
           lines.push(`        headerName: ${quote(server.auth.headerName)},`)
         }
@@ -1160,6 +1999,12 @@ function generateConfigTs(result: MigrateResult): string {
       lines.push('    },')
     }
     lines.push('  },')
+  }
+
+  const platforms = buildMigratedPlatformOverrides(result)
+  if (platforms && Object.keys(platforms).length > 0) {
+    lines.push('')
+    lines.push('  platforms: ' + renderIndentedTsValue(platforms, 2) + ',')
   }
 
   // Hooks
@@ -1216,6 +2061,83 @@ function renderTsValue(value: unknown): string {
   return JSON.stringify(value)
 }
 
+function renderIndentedTsValue(value: unknown, indentLevel: number): string {
+  const rendered = JSON.stringify(value, null, 2)
+  if (!rendered.includes('\n')) return rendered
+
+  const indent = ' '.repeat(indentLevel)
+  return rendered
+    .split('\n')
+    .map((line, index) => (index === 0 ? line : indent + line))
+    .join('\n')
+}
+
+function buildMigratedPlatformOverrides(result: MigrateResult): Record<string, Record<string, unknown>> | undefined {
+  const platforms = cloneRecordMap(result.manifest.platforms)
+
+  if (result.runtimeAuthMode === 'platform') {
+    platforms['claude-code'] = {
+      ...(platforms['claude-code'] ?? {}),
+      mcpAuth: 'platform',
+    }
+    platforms.cursor = {
+      ...(platforms.cursor ?? {}),
+      mcpAuth: 'platform',
+    }
+  }
+
+  return mergePlatformOverrideMaps(platforms)
+}
+
+function cloneRecordMap(
+  input: Record<string, Record<string, unknown>> | undefined,
+): Record<string, Record<string, unknown>> {
+  if (!input) return {}
+  return JSON.parse(JSON.stringify(input)) as Record<string, Record<string, unknown>>
+}
+
+function mergePlatformOverrideMaps(
+  ...maps: Array<Record<string, Record<string, unknown>> | undefined>
+): Record<string, Record<string, unknown>> | undefined {
+  const merged: Record<string, Record<string, unknown>> = {}
+
+  for (const map of maps) {
+    if (!map) continue
+    for (const [platform, override] of Object.entries(map)) {
+      const current = asRecord(merged[platform]) ?? {}
+      const next = asRecord(override) ?? {}
+      const mergedPlatform: Record<string, unknown> = {
+        ...current,
+        ...next,
+      }
+
+      const currentMcpServers = asRecord(current.mcpServers)
+      const nextMcpServers = asRecord(next.mcpServers)
+      if (currentMcpServers || nextMcpServers) {
+        const mergedMcpServers: Record<string, unknown> = {}
+        for (const [serverName, serverConfig] of Object.entries(currentMcpServers ?? {})) {
+          const currentServerConfig = asRecord(serverConfig)
+          mergedMcpServers[serverName] = currentServerConfig
+            ? { ...currentServerConfig }
+            : serverConfig
+        }
+        for (const [serverName, serverConfig] of Object.entries(nextMcpServers ?? {})) {
+          const previousServerConfig = asRecord(mergedMcpServers[serverName])
+          const nextServerConfig = asRecord(serverConfig)
+          mergedMcpServers[serverName] = previousServerConfig && nextServerConfig
+            ? { ...previousServerConfig, ...nextServerConfig }
+            : serverConfig
+        }
+        mergedPlatform.mcpServers = mergedMcpServers
+      }
+
+      merged[platform] = mergedPlatform
+    }
+  }
+
+  return Object.keys(merged).length > 0 ? merged : undefined
+}
+
 // ── Main Migrate Function ───────────────────────────────────────
 
 export async function migrate(inputPath: string): Promise<void> {
@@ -1235,6 +2157,7 @@ export async function migrate(inputPath: string): Promise<void> {
     console.error('Error: Could not detect plugin platform.')
     console.error('Expected one of:')
     console.error('  .claude-plugin/plugin.json')
+    console.error('  or a manifest-less Claude plugin with CLAUDE.md')
     console.error('  .cursor-plugin/plugin.json')
     console.error('  .codex-plugin/plugin.json')
     console.error('  package.json with @opencode-ai/plugin dependency')
@@ -1249,7 +2172,8 @@ export async function migrate(inputPath: string): Promise<void> {
   console.log(`  version: ${manifest.version ?? '(none)'}`)
 
   // 3. Parse MCP
-  const mcp = parseMcp(pluginDir, detection)
+  const parsedMcp = parseMcp(pluginDir, detection)
+  const mcp = parsedMcp.servers
   const mcpCount = Object.keys(mcp).length
   if (mcpCount > 0) {
     console.log(`  mcp servers: ${Object.keys(mcp).join(', ')}`)
@@ -1263,9 +2187,31 @@ export async function migrate(inputPath: string): Promise<void> {
   }
 
   // 5. Find instructions
-  const instructions = findInstructions(pluginDir)
+  const instructionSources = findInstructionSources(pluginDir, detection)
+  const instructions = instructionSources.primary
   if (instructions) {
     console.log(`  instructions: ${instructions}`)
+  }
+  if (instructionSources.platformOverrides) {
+    manifest.platforms = mergePlatformOverrideMaps(manifest.platforms, instructionSources.platformOverrides)
+  }
+  const cursorRules = parseCursorRules(pluginDir, detection)
+  const openCodeDistributionSources = findOpenCodeDistributionSources(pluginDir, detection)
+  if (cursorRules.length > 0) {
+    manifest.platforms = {
+      ...(manifest.platforms ?? {}),
+      cursor: {
+        ...(manifest.platforms?.cursor ?? {}),
+        rules: cursorRules,
+      },
+    }
+    console.log(`  cursor rules: ${cursorRules.length}`)
+  }
+  if (openCodeDistributionSources.platformOverrides) {
+    manifest.platforms = mergePlatformOverrideMaps(manifest.platforms, openCodeDistributionSources.platformOverrides)
+  }
+  if (parsedMcp.platformOverrides) {
+    manifest.platforms = mergePlatformOverrideMaps(manifest.platforms, parsedMcp.platformOverrides)
   }
 
   // 6. Detect directories
@@ -1292,6 +2238,7 @@ export async function migrate(inputPath: string): Promise<void> {
     platform: detection.platform,
     manifest,
     mcp,
+    runtimeAuthMode: parsedMcp.runtimeAuthMode,
     hooks,
     permissions: inferredPermissions.permissions,
     permissionNotes: inferredPermissions.notes,
@@ -1299,6 +2246,11 @@ export async function migrate(inputPath: string): Promise<void> {
     instructions,
     sourcePaths,
     persistedSkills,
+    warnings: parsedMcp.warnings,
+    extraCopyPaths: [...new Set([
+      ...instructionSources.extraPaths,
+      ...openCodeDistributionSources.extraPaths,
+    ])].sort(),
     ...(inferredPermissions.skillPolicies.length > 0
       ? {
           compilerIntent: {
@@ -1339,6 +2291,14 @@ export async function migrate(inputPath: string): Promise<void> {
       await writeTextFile(destInstr, content)
       console.log(`Copied: ${instructions}`)
     }
+  }
+  for (const copiedPath of result.extraCopyPaths) {
+    const srcPath = resolve(pluginDir, copiedPath)
+    const destPath = resolve(outputDir, copiedPath)
+    if (existsSync(destPath)) continue
+    const content = readFileSync(srcPath, 'utf-8')
+    await writeTextFile(destPath, content)
+    console.log(`Copied: ${copiedPath}`)
   }
 
   // 11. Create synthetic migration metadata/taxonomy so Agent Mode and evals work.

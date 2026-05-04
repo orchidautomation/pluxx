@@ -13,12 +13,17 @@ type BehavioralPlatform = typeof SUPPORTED_PLATFORMS[number]
 
 interface BehavioralCaseTargetConfig {
   prompt: string
+  commandId?: string
   require?: string[]
   forbid?: string[]
+  expectedExitCodes?: number[]
+  expectFailure?: boolean
+  runnerArgs?: string[]
 }
 
 interface BehavioralCaseConfig {
   name: string
+  commandId?: string
   targets: Partial<Record<BehavioralPlatform, BehavioralCaseTargetConfig>>
 }
 
@@ -34,6 +39,7 @@ export interface BehavioralCheckResult {
   caseName: string
   platform: BehavioralPlatform
   prompt: string
+  commandId?: string
   command: string[]
   ok: boolean
   exitCode: number
@@ -41,6 +47,7 @@ export interface BehavioralCheckResult {
   responsePreview: string
   require?: string[]
   forbid?: string[]
+  expectedExitCodes: number[]
   failures: string[]
 }
 
@@ -67,7 +74,14 @@ export async function runBehavioralSuite(
     for (const platform of selectedPlatforms) {
       const targetConfig = behavioralCase.targets[platform]
       if (!targetConfig) continue
-      checks.push(await runBehavioralCheck(rootDir, config, behavioralCase.name, platform, targetConfig))
+      checks.push(await runBehavioralCheck(
+        rootDir,
+        config,
+        behavioralCase.name,
+        behavioralCase.commandId,
+        platform,
+        targetConfig,
+      ))
     }
   }
 
@@ -111,6 +125,7 @@ async function runBehavioralCheck(
   rootDir: string,
   config: PluginConfig,
   caseName: string,
+  caseCommandId: string | undefined,
   platform: BehavioralPlatform,
   targetConfig: BehavioralCaseTargetConfig,
 ): Promise<BehavioralCheckResult> {
@@ -118,14 +133,33 @@ async function runBehavioralCheck(
   if (!prompt) {
     throw new Error(`Behavioral smoke case "${caseName}" for ${platform} is missing a prompt.`)
   }
+  const commandId = targetConfig.commandId ?? caseCommandId
+  if (commandId) {
+    if (!behavioralPromptReferencesCommand(prompt, commandId)) {
+      throw new Error(
+        `Behavioral smoke case "${caseName}" for ${platform} declares commandId "${commandId}" but the prompt does not reference that command explicitly.`,
+      )
+    }
+    if (!targetConfig.require?.length) {
+      throw new Error(
+        `Behavioral smoke case "${caseName}" for ${platform} declares commandId "${commandId}" but does not define any required output markers.`,
+      )
+    }
+  }
 
-  const command = await buildBehavioralCommand(platform, prompt, rootDir)
+  const expectedExitCodes = targetConfig.expectedExitCodes?.length
+    ? [...new Set(targetConfig.expectedExitCodes)]
+    : targetConfig.expectFailure
+      ? [1]
+      : [0]
+
+  const command = await buildBehavioralCommand(platform, prompt, rootDir, targetConfig)
   const execution = await executeBehavioralCommand(platform, command, rootDir)
   const responseText = execution.response.trim()
   const failures: string[] = []
 
-  if (execution.exitCode !== 0) {
-    failures.push(`runner exited with code ${execution.exitCode}`)
+  if (!expectedExitCodes.includes(execution.exitCode)) {
+    failures.push(`runner exited with code ${execution.exitCode}; expected one of ${expectedExitCodes.join(', ')}`)
   }
 
   if (!responseText) {
@@ -148,6 +182,7 @@ async function runBehavioralCheck(
     caseName,
     platform,
     prompt,
+    commandId,
     command,
     ok: failures.length === 0,
     exitCode: execution.exitCode,
@@ -155,6 +190,7 @@ async function runBehavioralCheck(
     responsePreview: truncate(responseText, 220),
     require: targetConfig.require,
     forbid: targetConfig.forbid,
+    expectedExitCodes,
     failures,
   }
 }
@@ -163,7 +199,10 @@ async function buildBehavioralCommand(
   platform: BehavioralPlatform,
   prompt: string,
   workspace: string,
+  targetConfig: BehavioralCaseTargetConfig,
 ): Promise<string[]> {
+  const runnerArgs = targetConfig.runnerArgs ?? []
+
   if (platform === 'claude-code') {
     return [
       'claude',
@@ -172,6 +211,7 @@ async function buildBehavioralCommand(
       'text',
       '--permission-mode',
       'acceptEdits',
+      ...runnerArgs,
       '-p',
       prompt,
     ]
@@ -190,6 +230,7 @@ async function buildBehavioralCommand(
       '--workspace',
       workspace,
       '--force',
+      ...runnerArgs,
       prompt,
     ]
   }
@@ -201,11 +242,12 @@ async function buildBehavioralCommand(
       '--ephemeral',
       '--skip-git-repo-check',
       '--full-auto',
+      ...runnerArgs,
       prompt,
     ]
   }
 
-  return ['opencode', 'run', prompt]
+  return ['opencode', 'run', ...runnerArgs, prompt]
 }
 
 async function executeBehavioralCommand(
@@ -309,6 +351,18 @@ function truncate(value: string, length: number): string {
 
 function includesNeedle(haystack: string, needle: string): boolean {
   return haystack.toLowerCase().includes(needle.trim().toLowerCase())
+}
+
+function behavioralPromptReferencesCommand(prompt: string, commandId: string): boolean {
+  const normalizedPrompt = prompt.toLowerCase()
+  const normalizedCommandId = commandId.trim().toLowerCase()
+  if (!normalizedCommandId) return false
+
+  return normalizedPrompt.includes(`/${normalizedCommandId}`)
+    || normalizedPrompt.includes(`:${normalizedCommandId}`)
+    || normalizedPrompt.includes(`command ${normalizedCommandId}`)
+    || normalizedPrompt.includes(`command \`${normalizedCommandId}\``)
+    || normalizedPrompt.includes(normalizedCommandId)
 }
 
 function shellQuote(value: string): string {

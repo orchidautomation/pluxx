@@ -1342,7 +1342,7 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'agent-isolation-invalid')).toBe(true)
   })
 
-  it('warns when agent fields degrade on Cursor and Codex', async () => {
+  it('warns when agent fields degrade on Cursor, Codex, and OpenCode', async () => {
     const projectDir = createTempProject()
     mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
     mkdirSync(resolve(projectDir, 'agents'), { recursive: true })
@@ -1356,7 +1356,7 @@ describe('lintProject', () => {
         author: { name: 'Test Author' },
         skills: './skills/',
         agents: './agents/',
-        targets: ['cursor', 'codex'],
+        targets: ['cursor', 'codex', 'opencode'],
       }, null, 2),
     )
 
@@ -1371,8 +1371,16 @@ describe('lintProject', () => {
         '---',
         'name: review',
         'description: "Review agent"',
+        'mode: subagent',
         'hidden: true',
+        'model_reasoning_effort: high',
+        'sandbox_mode: workspace-write',
+        'steps: 5',
+        'topP: 0.25',
+        'skills: research',
         'memory: "project"',
+        'background: true',
+        'isolation: worktree',
         'permission:',
         '  edit: deny',
         '---',
@@ -1382,8 +1390,30 @@ describe('lintProject', () => {
     )
 
     const result = await lintProject(projectDir)
-    expect(result.issues.some(issue => issue.code === 'cursor-agent-translation')).toBe(true)
-    expect(result.issues.some(issue => issue.code === 'codex-agent-translation')).toBe(true)
+    const cursorIssue = result.issues.find(issue => issue.code === 'cursor-agent-translation')
+    const codexIssue = result.issues.find(issue => issue.code === 'codex-agent-translation')
+    const opencodeIssue = result.issues.find(issue => issue.code === 'opencode-agent-translation')
+
+    expect(cursorIssue?.message).toContain('"mode"')
+    expect(cursorIssue?.message).toContain('"model_reasoning_effort"')
+    expect(cursorIssue?.message).toContain('"sandbox_mode"')
+    expect(cursorIssue?.message).toContain('"steps"')
+    expect(cursorIssue?.message).toContain('"topP"')
+    expect(cursorIssue?.message).toContain('"permission"')
+
+    expect(codexIssue?.message).toContain('"mode"')
+    expect(codexIssue?.message).toContain('"steps"')
+    expect(codexIssue?.message).toContain('"topP"')
+    expect(codexIssue?.message).toContain('"permission"')
+    expect(codexIssue?.message).not.toContain('"model_reasoning_effort"')
+    expect(codexIssue?.message).not.toContain('"sandbox_mode"')
+
+    expect(opencodeIssue?.message).toContain('"model_reasoning_effort"')
+    expect(opencodeIssue?.message).toContain('"sandbox_mode"')
+    expect(opencodeIssue?.message).toContain('"skills"')
+    expect(opencodeIssue?.message).toContain('"memory"')
+    expect(opencodeIssue?.message).toContain('"background"')
+    expect(opencodeIssue?.message).toContain('"isolation"')
   })
 
   // ── Gotcha #9: Warn on absolute paths in hooks ──

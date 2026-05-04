@@ -205,6 +205,24 @@ The repo already proves a lot.
   - Codex and OpenCode command companions now carry that richer routing metadata instead of flattening commands to `argument-hint` plus body template only
   - `init --from-mcp` now emits `when_to_use`, canonical `arguments`, and explicit `skill` routing into generated command frontmatter instead of only the older `argument-hint` slice
   - Agent Mode manual-project context now includes command routing metadata and examples so refinement/review flows see the same truth the generators use
+- installed behavioral proof is now stronger than simple file-shape verification:
+  - the behavioral harness now supports host-specific runner args plus expected-failure cases without treating intentional nonzero exits as harness failures
+  - maintained smoke fixtures can now declare an explicit `commandId` plus required output markers, so command-proof cases fail if the prompt does not reference the command or the response shape is too vague
+  - `example/docs-ops`, `example/exa-plugin`, and `example/platform-change-ops` now each carry maintained behavioral smoke fixtures with command-specific output assertions instead of relying only on "did not bail" checks or one-off walkthroughs
+  - `doctor --consumer` and `verify-install` now execute bundled Claude and Cursor permission-hook scripts and fail if the generated decisions are not actually usable
+- agent explainability is now less generator-local:
+  - `src/agent-translation-registry.ts` now backs degraded-field messaging for Cursor, Codex, and OpenCode instead of parallel per-target strings
+  - generated Cursor and Codex agent surfaces now emit the same registry-backed translation notes that `lint` uses
+- migrate is now less lossy across instruction and distribution surfaces:
+  - manifest-less Claude sources can now migrate from `CLAUDE.md` alone instead of requiring a separate manifest file
+  - Cursor nested `rules/**/*.mdc` files and nested `AGENTS.md` provenance now survive migrate and are copied into the canonical source project
+  - Codex-native `AGENTS.override.md` and adjacent interface/app config now survive import without clobbering one another
+  - OpenCode configured instruction files and package entrypoints now survive import and are copied into the maintained source project
+  - MCP migrate now merges generic and host-native MCP sources instead of first-file-wins, so native auth blobs such as Codex `auth = { type = "platform" }`, `env_http_headers`, and multi-header header maps are preserved under `platforms.<host>.mcpServers.<server>` instead of being silently lost
+- richer canonical skill metadata now survives into more emitted host surfaces:
+  - Codex now writes `.codex/skills.generated.json` from the shared `src/skills.ts` seam
+  - OpenCode now writes `skills.generated.json` from the same seam
+  - those companions now preserve support-file, helper-script, and example-path awareness beyond Agent Mode and migrate
 - docs/website ingestion has a provider model and writes deterministic artifacts:
   - `.pluxx/sources.json`
   - `.pluxx/docs-context.json`

@@ -16,6 +16,21 @@ function extractGeneratedJson<T>(source: string, constantName: string): T {
   return JSON.parse(match[1]) as T
 }
 
+function runPermissionHookScript(
+  scriptPath: string,
+  mode: string,
+  event: Record<string, unknown>,
+): Record<string, unknown> {
+  const result = spawnSync('node', [scriptPath, mode], {
+    input: JSON.stringify(event),
+    encoding: 'utf-8',
+  })
+
+  expect(result.status).toBe(0)
+  expect(result.stderr).toBe('')
+  return JSON.parse(result.stdout || '{}') as Record<string, unknown>
+}
+
 const testConfig: PluginConfig = {
   name: 'test-plugin',
   version: '1.0.0',
@@ -591,6 +606,33 @@ describe('build', () => {
       expect(skillFile).toContain('shell: bash')
       expect(skillFile).toContain(expectedPhrase)
     }
+
+    const codexSkills = JSON.parse(
+      readFileSync(resolve(OUT_DIR, 'codex/.codex/skills.generated.json'), 'utf-8'),
+    ) as {
+      skills: Array<{
+        id: string
+        whenToUse?: string
+        helperScripts?: string[]
+        examplePaths?: string[]
+      }>
+    }
+    const opencodeSkills = JSON.parse(
+      readFileSync(resolve(OUT_DIR, 'opencode/skills.generated.json'), 'utf-8'),
+    ) as {
+      skills: Array<{
+        id: string
+        whenToUse?: string
+        helperScripts?: string[]
+        examplePaths?: string[]
+      }>
+    }
+
+    expect(codexSkills.skills.find((skill) => skill.id === 'deep-research')?.whenToUse).toBe(
+      'Use when the user wants a thorough investigation with sourced evidence.',
+    )
+    expect(codexSkills.skills.find((skill) => skill.id === 'deep-research')?.helperScripts).toEqual(['scripts/assist.sh'])
+    expect(opencodeSkills.skills.find((skill) => skill.id === 'deep-research')?.examplePaths).toEqual(['examples/sample.md'])
   })
 
   it('hides command-wrapped Claude skills from direct slash invocation while keeping their names stable', async () => {
@@ -1032,16 +1074,59 @@ describe('build', () => {
     const codexPermissions = JSON.parse(
       readFileSync(resolve(TEST_DIR, 'permission-dist/codex/.codex/permissions.generated.json'), 'utf-8')
     )
+    const claudePermissionDecision = runPermissionHookScript(
+      resolve(TEST_DIR, 'permission-dist/claude-code/hooks/pluxx-permissions.mjs'),
+      'claude-pretool',
+      {
+        tool_name: 'Read',
+        tool_input: {
+          file_path: 'src/index.ts',
+        },
+      },
+    ) as {
+      hookSpecificOutput?: {
+        permissionDecision?: string
+      }
+    }
+    const claudeAskDecision = runPermissionHookScript(
+      resolve(TEST_DIR, 'permission-dist/claude-code/hooks/pluxx-permissions.mjs'),
+      'claude-pretool',
+      {
+        tool_name: 'Bash',
+        tool_input: {
+          command: 'git commit -m "ship it"',
+        },
+      },
+    ) as {
+      hookSpecificOutput?: {
+        permissionDecision?: string
+      }
+    }
+    const cursorDenyDecision = runPermissionHookScript(
+      resolve(TEST_DIR, 'permission-dist/cursor/hooks/pluxx-permissions.mjs'),
+      'cursor',
+      {
+        tool_name: 'Edit',
+        tool_input: {
+          file_path: '.env',
+        },
+      },
+    ) as {
+      permission?: string
+    }
 
     expect(claudeManifest.hooks).toBeUndefined()
     expect(existsSync(resolve(TEST_DIR, 'permission-dist/claude-code/hooks/pluxx-permissions.mjs'))).toBe(true)
     expect(claudeHooks.hooks.PreToolUse).toBeDefined()
     expect(claudePermissionScript).toContain('hookEventName: "PreToolUse"')
+    expect(claudePermissionDecision.hookSpecificOutput?.permissionDecision).toBe('allow')
+    expect(claudeAskDecision.hookSpecificOutput?.permissionDecision).toBe('ask')
 
     expect(cursorManifest.hooks).toBe('./hooks/hooks.json')
     expect(existsSync(resolve(TEST_DIR, 'permission-dist/cursor/hooks/pluxx-permissions.mjs'))).toBe(true)
     expect(cursorHooks.hooks.preToolUse).toBeDefined()
     expect(cursorHooks.hooks.beforeShellExecution).toBeDefined()
+    expect(cursorDenyDecision.permission).toBe('deny')
 
     expect(opencodeIndex).toContain('const PERMISSIONS =')
     expect(opencodeIndex).toContain('"read": {')
@@ -1323,7 +1408,7 @@ describe('build', () => {
       ...testConfig,
       name: 'agent-metadata-aliases',
       agents: './agents/',
-      targets: ['claude-code', 'codex', 'opencode'],
+      targets: ['claude-code', 'cursor', 'codex', 'opencode'],
       outDir: './agent-metadata-aliases-dist',
     }
 
@@ -1353,6 +1438,10 @@ describe('build', () => {
       resolve(TEST_DIR, 'agent-metadata-aliases-dist/claude-code/agents/alias-agent.md'),
       'utf-8',
     )
+    const cursorAgent = readFileSync(
+      resolve(TEST_DIR, 'agent-metadata-aliases-dist/cursor/agents/alias-agent.md'),
+      'utf-8',
+    )
     const codexAgent = readFileSync(
       resolve(TEST_DIR, 'agent-metadata-aliases-dist/codex/.codex/agents/alias-agent.toml'),
       'utf-8',
@@ -1364,7 +1453,12 @@ describe('build', () => {
 
     expect(claudeAgent).toContain('effort: "high"')
     expect(claudeAgent).toContain('maxTurns: 7')
+    expect(cursorAgent).toContain('Cursor translation note:')
+    expect(cursorAgent).toContain('"steps"')
+    expect(cursorAgent).toContain('"topP"')
     expect(codexAgent).toContain('model_reasoning_effort = "high"')
+    expect(codexAgent).toContain('Host translation note:')
+    expect(codexAgent).toContain('"steps"')
     expect(opencodeIndex).toContain('"alias-agent"')
     expect(opencodeIndex).toContain('"steps": 7')
     expect(opencodeIndex).toContain('"topP": 0.35')

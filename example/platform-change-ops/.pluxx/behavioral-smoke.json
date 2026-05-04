@@ -2,18 +2,101 @@
   "cases": [
     {
       "name": "risk-review",
+      "commandId": "review-risk-and-policy",
       "targets": {
         "claude-code": {
-          "prompt": "/platform-change-ops:review-risk-and-policy CHG-4312"
+          "prompt": "/platform-change-ops:review-risk-and-policy CHG-4312. Return sections titled Missing approvals: and Next safe step:.",
+          "require": [
+            "Missing approvals:",
+            "Next safe step:"
+          ],
+          "forbid": [
+            "context too long",
+            "skill bailed"
+          ]
         },
         "cursor": {
-          "prompt": "/review-risk-and-policy CHG-4312"
+          "prompt": "/review-risk-and-policy CHG-4312. Return sections titled Missing approvals: and Next safe step:.",
+          "require": [
+            "Missing approvals:",
+            "Next safe step:"
+          ],
+          "forbid": [
+            "context too long",
+            "skill bailed"
+          ]
         },
         "codex": {
-          "prompt": "Use Platform Change Ops to review change CHG-4312, explain the missing evidence, and draft the next safe operator step."
+          "prompt": "Use Platform Change Ops command `review-risk-and-policy` to review change CHG-4312. Return sections titled Missing approvals: and Next safe step:.",
+          "require": [
+            "Missing approvals:",
+            "Next safe step:"
+          ],
+          "forbid": [
+            "context too long",
+            "skill bailed"
+          ]
         },
         "opencode": {
-          "prompt": "/review-risk-and-policy CHG-4312"
+          "prompt": "/review-risk-and-policy CHG-4312. Return sections titled Missing approvals: and Next safe step:.",
+          "require": [
+            "Missing approvals:",
+            "Next safe step:"
+          ],
+          "forbid": [
+            "context too long",
+            "skill bailed"
+          ]
+        }
+      }
+    },
+    {
+      "name": "verify-installed-state",
+      "commandId": "verify-installed-state",
+      "targets": {
+        "claude-code": {
+          "prompt": "/platform-change-ops:verify-installed-state claude-code. Return sections titled Installed bundle status: and Next recovery action:.",
+          "require": [
+            "Installed bundle status:",
+            "Next recovery action:"
+          ],
+          "forbid": [
+            "context too long",
+            "skill bailed"
+          ]
+        },
+        "cursor": {
+          "prompt": "/verify-installed-state cursor. Return sections titled Installed bundle status: and Next recovery action:.",
+          "require": [
+            "Installed bundle status:",
+            "Next recovery action:"
+          ],
+          "forbid": [
+            "context too long",
+            "skill bailed"
+          ]
+        },
+        "codex": {
+          "prompt": "Use Platform Change Ops command `verify-installed-state` to verify the installed bundle and runtime payload for the Codex host. Return sections titled Installed bundle status: and Next recovery action:.",
+          "require": [
+            "Installed bundle status:",
+            "Next recovery action:"
+          ],
+          "forbid": [
+            "context too long",
+            "skill bailed"
+          ]
+        },
+        "opencode": {
+          "prompt": "/verify-installed-state opencode. Return sections titled Installed bundle status: and Next recovery action:.",
+          "require": [
+            "Installed bundle status:",
+            "Next recovery action:"
+          ],
+          "forbid": [
+            "context too long",
+            "skill bailed"
+          ]
         }
       }
     }
