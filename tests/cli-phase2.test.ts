@@ -197,6 +197,91 @@ env = { STUB_API_KEY = "$STUB_API_KEY" }
     }
   })
 
+  it('can scaffold from a nested Claude project-scoped installed MCP selector', async () => {
+    const { dir, statePath, stubServerPath } = createStubServerFixture()
+    const homeDir = resolve(dir, 'home')
+    mkdirSync(homeDir, { recursive: true })
+    mkdirSync(resolve(dir, 'workspace-a'), { recursive: true })
+    mkdirSync(resolve(dir, 'workspace-b'), { recursive: true })
+
+    writeFileSync(
+      statePath,
+      JSON.stringify({
+        serverInfo: {
+          name: 'installed-stub',
+          title: 'Installed Stub',
+          version: '1.0.0',
+          description: 'A fake installed MCP server.',
+        },
+        instructions: 'Use the installed Claude MCP config.',
+        tools: [
+          {
+            name: 'FindOrganizations',
+            description: 'Search organizations.',
+          },
+        ],
+      }, null, 2),
+    )
+    writeFileSync(resolve(homeDir, '.claude.json'), JSON.stringify({
+      projects: {
+        [resolve(dir, 'workspace-a')]: {
+          mcpServers: {
+            installed_stub: {
+              url: 'https://workspace-a.example.com/mcp',
+            },
+          },
+        },
+        [resolve(dir, 'workspace-b')]: {
+          mcpServers: {
+            installed_stub: {
+              command: 'bun',
+              args: [stubServerPath, statePath],
+              env: {
+                STUB_API_KEY: '$STUB_API_KEY',
+              },
+            },
+          },
+        },
+      },
+    }, null, 2))
+
+    try {
+      const proc = spawnCli([
+        'init',
+        '--from-installed-mcp',
+        'claude-code:installed_stub@user:.claude.json:projects/workspace-b',
+        '--host',
+        'claude-code',
+        '--yes',
+        '--name',
+        'installed-stub',
+        '--author',
+        'Test Author',
+        '--dry-run',
+        '--json',
+      ], dir, { HOME: homeDir })
+
+      const stdout = await new Response(proc.stdout).text()
+      const stderr = await new Response(proc.stderr).text()
+      const exitCode = await proc.exited
+
+      expect(exitCode, stderr).toBe(0)
+      expect(stderr).toBe('')
+
+      const summary = JSON.parse(stdout) as {
+        dryRun: boolean
+        source: string
+        createdFiles: string[]
+      }
+      expect(summary.dryRun).toBe(true)
+      expect(summary.source).toContain('claude-code:installed_stub@user:.claude.json:projects/workspace-b')
+      expect(summary.createdFiles).toContain('pluxx.config.ts')
+      expect(existsSync(resolve(dir, 'pluxx.config.ts'))).toBe(false)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('does not mutate project files for sync --dry-run', async () => {
     const { dir, statePath, stubServerPath } = createStubServerFixture()
     writeFileSync(

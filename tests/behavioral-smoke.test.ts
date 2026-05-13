@@ -186,6 +186,126 @@ describe('behavioral smoke suite', () => {
     expect(result.checks[0]?.command).toContain('--model')
   })
 
+  it('times out hanging runner commands instead of blocking indefinitely', async () => {
+    const rootDir = makeTempDir('pluxx-behavioral-timeout-')
+    const binDir = resolve(rootDir, '.bin')
+    mkdirSync(binDir, { recursive: true })
+    mkdirSync(resolve(rootDir, '.pluxx'), { recursive: true })
+
+    writeFileSync(
+      resolve(rootDir, '.pluxx/behavioral-smoke.json'),
+      JSON.stringify({
+        cases: [
+          {
+            name: 'codex-timeout',
+            targets: {
+              codex: {
+                prompt: 'Use the plugin to verify the installed Codex bundle.',
+                timeoutMs: 50,
+              },
+            },
+          },
+        ],
+      }, null, 2),
+    )
+
+    makeStubExecutable(
+      resolve(binDir, 'codex'),
+      '#!/bin/sh\nsleep 1\nprintf "late response\\n"\n',
+    )
+
+    process.env.PATH = `${binDir}:${ORIGINAL_PATH}`
+
+    const config = { name: 'timeout-proof-example' } as PluginConfig
+    const result = await runBehavioralSuite(rootDir, config, ['codex'])
+
+    expect(result.ok).toBe(false)
+    expect(result.checks).toHaveLength(1)
+    expect(result.checks[0]?.exitCode).toBe(124)
+    expect(result.checks[0]?.timeoutMs).toBe(50)
+    expect(result.checks[0]?.responsePreview).toContain('timed out')
+  })
+
+  it('treats Codex last-message completion as success even when the process lingers', async () => {
+    const rootDir = makeTempDir('pluxx-behavioral-codex-sentinel-')
+    const binDir = resolve(rootDir, '.bin')
+    mkdirSync(binDir, { recursive: true })
+    mkdirSync(resolve(rootDir, '.pluxx'), { recursive: true })
+
+    writeFileSync(
+      resolve(rootDir, '.pluxx/behavioral-smoke.json'),
+      JSON.stringify({
+        cases: [
+          {
+            name: 'codex-final-message',
+            targets: {
+              codex: {
+                prompt: 'Use the plugin to verify the installed Codex bundle.',
+                timeoutMs: 5000,
+                require: ['response ok'],
+              },
+            },
+          },
+        ],
+      }, null, 2),
+    )
+
+    makeStubExecutable(
+      resolve(binDir, 'codex'),
+      '#!/bin/sh\nOUT=\"\"\nwhile [ $# -gt 0 ]; do\n  if [ \"$1\" = \"--output-last-message\" ]; then\n    shift\n    OUT=\"$1\"\n  fi\n  shift\ndone\nif [ -n \"$OUT\" ]; then\n  printf \"response ok\\n\" > \"$OUT\"\nfi\nsleep 10\n',
+    )
+
+    process.env.PATH = `${binDir}:${ORIGINAL_PATH}`
+
+    const config = { name: 'codex-sentinel-example' } as PluginConfig
+    const startedAt = Date.now()
+    const result = await runBehavioralSuite(rootDir, config, ['codex'])
+    const elapsedMs = Date.now() - startedAt
+
+    expect(result.ok).toBe(true)
+    expect(result.checks).toHaveLength(1)
+    expect(result.checks[0]?.ok).toBe(true)
+    expect(result.checks[0]?.exitCode).toBe(0)
+    expect(result.checks[0]?.responsePreview).toContain('response ok')
+    expect(elapsedMs).toBeLessThan(5000)
+  })
+
+  it('returns a failed check when a runner process cannot be spawned', async () => {
+    const rootDir = makeTempDir('pluxx-behavioral-runner-error-')
+    const binDir = resolve(rootDir, '.bin')
+    mkdirSync(binDir, { recursive: true })
+    mkdirSync(resolve(rootDir, '.pluxx'), { recursive: true })
+
+    writeFileSync(
+      resolve(rootDir, '.pluxx/behavioral-smoke.json'),
+      JSON.stringify({
+        cases: [
+          {
+            name: 'opencode-runner-error',
+            targets: {
+              opencode: {
+                prompt: '/verify-install opencode',
+              },
+            },
+          },
+        ],
+      }, null, 2),
+    )
+
+    writeFileSync(resolve(binDir, 'opencode'), '#!/bin/sh\nprintf "not executable"\n')
+    chmodSync(resolve(binDir, 'opencode'), 0o644)
+
+    process.env.PATH = `${binDir}:${ORIGINAL_PATH}`
+
+    const config = { name: 'runner-error-example' } as PluginConfig
+    const result = await runBehavioralSuite(rootDir, config, ['opencode'])
+
+    expect(result.ok).toBe(false)
+    expect(result.checks).toHaveLength(1)
+    expect(result.checks[0]?.ok).toBe(false)
+    expect(result.checks[0]?.failures[0]).toMatch(/(spawn opencode|Executable not found in \$PATH: "opencode")/)
+  })
+
   it('rejects command proof cases that do not reference the command explicitly or lack required markers', async () => {
     const rootDir = makeTempDir('pluxx-behavioral-invalid-command-proof-')
     const binDir = resolve(rootDir, '.bin')

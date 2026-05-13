@@ -1,6 +1,6 @@
 # Self-Hosted Pluxx Core-Four Proof
 
-Last updated: 2026-04-23
+Last updated: 2026-05-12
 
 ## Doc Links
 
@@ -28,6 +28,18 @@ Use this doc when you want the shortest concrete answer to:
 This is the self-hosted Pluxx plugin proof.
 
 It is not the same thing as the flagship Docs Ops proof.
+
+The self-hosted source project now also carries a maintained behavioral smoke fixture at:
+
+- `example/pluxx/.pluxx/behavioral-smoke.json`
+
+That fixture covers:
+
+- `verify-install`
+- `translate-hosts` with a Codex hooks focus
+
+This doc still only claims the install/verify proof below.
+It does not yet promote the self-hosted lane to full real-host behavioral proof across the core four.
 
 ## Source Project Under Test
 
@@ -130,6 +142,7 @@ That matters because this proof is specifically about the canonical source proje
 - it does not replace the flagship Docs Ops proof
 - it does not prove polished public distribution UX yet
 - it does not prove automatic update behavior inside every host
+- it does not yet claim a clean real-host behavioral smoke rerun for the self-hosted plugin across Claude Code, Cursor, Codex, and OpenCode, even though the maintained fixture now exists
 - it does not replace a fuller pre-release smoke pass that exercises richer in-host interaction, screenshots, and public-facing install docs
 
 ## Why This Matters

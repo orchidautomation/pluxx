@@ -575,7 +575,7 @@ Pluxx compiles canonical `permissions.{allow,ask,deny}` into each primary target
 |----------|--------------|-------|
 | Claude Code | generated `hooks/pluxx-permissions.mjs` + `PreToolUse` hook wiring | Fine-grained rule matching via hook decisions |
 | Cursor | generated `hooks/pluxx-permissions.mjs` + `preToolUse`/`beforeShellExecution`/`beforeReadFile`/`beforeMCPExecution` wiring | Fine-grained rule matching via hook decisions |
-| Codex | `.codex/permissions.generated.json` | External enforcement only; mirror rules into Codex policy/hooks |
+| Codex | `.codex/permissions.generated.json` + optional `.codex/config.generated.toml` | External enforcement only; Pluxx now emits a real Codex config companion for the live-proven MCP allow-path when top-level `MCP(...)` rules can be materialized into per-tool approval stanzas, and lint warns when canonical `agents/` plus root MCP config would rely on inherited agent MCP with no documented reliable opt-out, including the locally proven `mcp_servers = {}` custom-agent ceiling |
 | OpenCode | tool-level `config.permission` map in generated wrapper | Selector-level precision is downgraded to tool-level permissions |
 
 ### Instructions Generation

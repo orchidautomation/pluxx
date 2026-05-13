@@ -1,6 +1,6 @@
 # Author-Once Hardening
 
-Last updated: 2026-05-04
+Last updated: 2026-05-12
 
 ## Doc Links
 
@@ -141,6 +141,7 @@ TODO:
 - keep `doctor --consumer` and `verify-install` honest about actual launchability
 - add proof where host-local reload, cache, or plugin discovery behavior can drift from bundle shape
 - keep the Exa, docs-ops, platform-change-ops, and self-hosted Pluxx examples current as regression surfaces
+- reduce repo-local shared fixture and cwd assumptions so release-grade proof is less dependent on worktree-local serialization
 
 Current state:
 
@@ -148,6 +149,8 @@ Current state:
 - maintained smoke fixtures can now declare an explicit `commandId` plus required output markers, so command-proof cases fail when the prompt does not reference the command or the output shape stays vague
 - `example/docs-ops`, `example/exa-plugin`, and `example/platform-change-ops` now each carry maintained behavioral smoke configs with command-specific assertions
 - `doctor --consumer` and `verify-install` now execute generated Claude/Cursor bundled permission-hook scripts and fail if they emit unusable decisions
+- `npm test` now acquires a same-worktree lock so concurrent local full-suite proof runs fail clearly instead of producing misleading shared-fixture flakes
+- `tests/run-vitest-exclusive.test.ts` now pins both active-lock refusal and stale-lock cleanup for that full-suite guard
 
 Acceptance criteria:
 

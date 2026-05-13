@@ -9,11 +9,11 @@ Verification labels:
 
 | Platform | Status | Docs Basis | Manifest | Hooks | MCP | Instructions | Verification |
 |----------|--------|------------|----------|-------|-----|--------------|--------------|
-| Claude Code | Primary | Official docs audited | .claude-plugin/plugin.json | hooks/hooks.json, .claude-plugin/plugin.json, ~/.claude/settings.json, .claude/settings.json, .claude/settings.local.json | .mcp.json, .claude-plugin/plugin.json | CLAUDE.md | Release smoke + Generator fixture |
+| Claude Code | Primary | Official docs audited | .claude-plugin/plugin.json | hooks/hooks.json, .claude-plugin/plugin.json, managed settings, ~/.claude/settings.json, .claude/settings.json, .claude/settings.local.json | .mcp.json, ~/.claude.json, managed-mcp.json, .claude-plugin/plugin.json | CLAUDE.md | Release smoke + Generator fixture |
 | Cursor | Primary | Official docs audited | .cursor-plugin/plugin.json | hooks/hooks.json, .cursor/hooks.json, ~/.cursor/hooks.json | mcp.json, .cursor/mcp.json, ~/.cursor/mcp.json | rules/, AGENTS.md | Release smoke + Generator fixture |
 | Codex | Primary | Official docs audited | .codex-plugin/plugin.json | hooks/hooks.json, .codex/hooks.json, ~/.codex/hooks.json | .mcp.json, .codex/config.toml | AGENTS.md, AGENTS.override.md | Release smoke + Generator fixture |
 | OpenCode | Primary | Official docs audited | opencode.json, .opencode/plugins/, ~/.config/opencode/plugins/ | plugin module (index.ts/index.js) | opencode.json | AGENTS.md, CLAUDE.md, opencode.json | Release smoke + Generator fixture |
-| GitHub Copilot | Beta | Inherits Claude Code packaging | .claude-plugin/plugin.json | hooks/hooks.json, .claude-plugin/plugin.json, ~/.claude/settings.json, .claude/settings.json, .claude/settings.local.json | .mcp.json, .claude-plugin/plugin.json | CLAUDE.md | Generator fixture |
+| GitHub Copilot | Beta | Inherits Claude Code packaging | .claude-plugin/plugin.json | hooks/hooks.json, .claude-plugin/plugin.json, managed settings, ~/.claude/settings.json, .claude/settings.json, .claude/settings.local.json | .mcp.json, ~/.claude.json, managed-mcp.json, .claude-plugin/plugin.json | CLAUDE.md | Generator fixture |
 | OpenHands | Beta | Official docs audited | .plugin/plugin.json | hooks/hooks.json | .mcp.json | AGENTS.md | Generator fixture |
 | Warp | Beta | Official docs audited | No dedicated manifest | No documented standalone hook surface | mcp.json | AGENTS.md, WARP.md | Generator fixture |
 | Gemini CLI | Beta | Official docs audited | gemini-extension.json | hooks/hooks.json | gemini-extension.json | GEMINI.md | Generator fixture |

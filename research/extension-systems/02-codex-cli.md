@@ -15,7 +15,7 @@
 | **Skills** | User: `~/.agents/skills/<name>/` • Project: `.agents/skills/<name>/` • Admin: `/etc/codex/skills/` | Dir w/ SKILL.md (+ optional `scripts/`, `references/`, `assets/`, `agents/openai.yaml`) | Stable | [codex/skills](https://developers.openai.com/codex/skills) |
 | **Custom prompts** (legacy slash commands) | `~/.codex/prompts/*.md` (top-level only, not recursive) | Markdown + YAML frontmatter | **Deprecated** → replaced by Skills | [custom-prompts](https://developers.openai.com/codex/custom-prompts) |
 | **Subagents** | User: `~/.codex/agents/*.toml` • Project: `.codex/agents/*.toml` | TOML | Stable | [subagents](https://developers.openai.com/codex/subagents) |
-| **Hooks** | `~/.codex/hooks.json`, `<repo>/.codex/hooks.json` | JSON | **Experimental** (requires `[features] codex_hooks = true`) | [hooks](https://developers.openai.com/codex/hooks) |
+| **Hooks** | `~/.codex/hooks.json`, `<repo>/.codex/hooks.json` | JSON | Feature-gated (`hooks` and `codex_hooks` both exist under `[features]`; `codex exec --help` now exposes `--enable <FEATURE>` instead of `--enable-hooks`; maintained local probes on May 13, 2026 timed out without a project-local hook side effect under either config flag or under `--enable hooks`, and the local runtime deprecated `codex_hooks`) | [hooks](https://developers.openai.com/codex/hooks) |
 | **MCP servers** | `[mcp_servers.<id>]` in `config.toml` | TOML | Stable | [config-reference](https://developers.openai.com/codex/config-reference) |
 | **Plugins** | `<plugin>/.codex-plugin/plugin.json` | JSON | Stable (distribution surface); Public marketplace "coming soon" | [plugins/build](https://developers.openai.com/codex/plugins/build) |
 | **Marketplace** | `$REPO_ROOT/.agents/plugins/marketplace.json`, `~/.agents/plugins/marketplace.json`, official curated catalog | JSON | Stable | [plugins/build](https://developers.openai.com/codex/plugins/build) |
@@ -178,15 +178,33 @@ Per-agent config: `[agents.<name>]` blocks with `config_file = "..."` and `descr
 - User-driven only: ask Codex to spawn, or `/agent` to switch threads.
 - Approval requests surface from inactive threads too.
 
+### 5.7 Observed custom-agent invocation in local Pluxx probes (2026-05-13)
+- The maintained `bun scripts/probe-codex-agents-runtime.ts --json` probe now runs isolated authenticated headless `codex exec` checks against project-local `.codex/agents/*.toml` files by copying only `auth.json` into a temporary `CODEX_HOME` and stripping desktop thread-coupling env vars.
+- On local Codex CLI `0.130.0`, the explicit-agent scenario emitted `spawn_agent` then `wait` `collab_tool_call` events, populated `receiver_thread_ids`, surfaced the child result under `agents_states.*.message`, and returned `CUSTOM_AGENT_PROOF` as the final parent `agent_message`.
+- The negative-control scenario (`Reply only with OK.`) returned `OK` with no `spawn_agent` or `wait` events.
+- A project-local `.codex/agents/explorer.toml` override also emitted `spawn_agent` plus `wait` and returned `CUSTOM_EXPLORER_OVERRIDE ...`, which live-proves the documented built-in-name override path for `explorer`.
+- A project-local `.codex/agents/proof.toml` beat a same-name user-local `~/.codex/agents/proof.toml` by returning `PROJECT_AGENT_PROOF ...` from the child and parent final messages, which shows project-local precedence over ambient user-local agent definitions for the same name.
+- The maintained sandbox scenarios also exposed a sharper runtime caveat: a child agent declared with `sandbox_mode = "read-only"` still emitted `spawn_agent` plus `wait`, returned `SANDBOX_WRITE_PROOF`, and wrote `sandbox-proof.txt`, while the `workspace-write` control wrote its expected side effect.
+- The maintained skill scenarios now split discovery from config semantics more clearly. On May 13, 2026, a project-local `.agents/skills/proof-skill/SKILL.md` was inherited cleanly by a custom agent and returned `SKILL_PROOF_TOKEN_PROJECT_DISCOVERY` with no pre-spawn local work from the parent. In the same maintained headless suite, a parent `.codex/config.toml` `[[skills.config]] enabled = false` entry for that discovered skill was ignored by the runtime and still returned `SKILL_PROOF_TOKEN_DISABLED_IGNORED`, while an agent-local `[[skills.config]] path = "./skills/proof-skill/SKILL.md"` entry did not preload an undiscovered `skills/` path and fell back to `SKILL_PROOF_MISSING`.
+- A targeted maintained invalid-model rerun on May 13, 2026 also showed that an agent-local `model = "definitely-not-a-real-codex-model"` is honored strongly enough to affect live runtime: Codex still emitted `spawn_agent` plus `wait`, and the parent surfaced `The proof agent errored: ... model is not supported when using Codex with a ChatGPT account.` while stderr logged both `Unknown model definitely-not-a-real-codex-model is used` and a `startup websocket prewarm setup failed` warning.
+- Targeted maintained live reruns on May 13, 2026 now also closed the two model-precedence cases that were previously only in source/test coverage: `project-no-model-does-not-inherit-user-invalid-model` returned `PROJECT_NO_MODEL_PROOF`, which shows a project-local same-name agent without an explicit `model` did not inherit the user-local invalid model, and `project-valid-model-overrides-user-invalid-model` returned `PROJECT_VALID_MODEL_PROOF`, which shows an explicit valid project-local model overrode the same-name user-local invalid model.
+- The maintained `bun scripts/probe-codex-agents-interactive-runtime.ts --json` probe now gives isolated trusted interactive evidence too. On local Codex CLI `0.130.0`, the `sandbox-readonly-trusted` scenario surfaced `proofToken = SANDBOX_WRITE_PROOF`, wrote `sandbox-proof.txt` with `interactive-readonly`, and ended `expectationStatus = "mismatched"`, while the `sandbox-workspace-write-trusted` control kept `sideEffectOutput = "interactive-writable"` with `expectationStatus = "matched"`.
+- The maintained `bun scripts/probe-codex-mcp-runtime.ts --json` probe now also covers headless MCP behavior across default project `.codex/config.toml`, default user `CODEX_HOME/config.toml`, inline custom-agent `mcp_servers`, `agent-inline-approve`, `project-config-root-approve`, `user-config-root-approve`, `project-config-agent-inherit-approve`, and `user-config-agent-inherit-approve`. On local Codex CLI `0.130.0` on May 13, 2026, the three default scenarios all reached `initialize`, `notifications/initialized`, and `tools/list`, but only the root-scoped defaults emitted a real `mcp_tool_call` item, and both of those default root paths still failed it with `user cancelled MCP tool call`; the default inline custom-agent path still returned `MCP_PROOF_MARKER_MISSING` after `spawn_agent` plus `wait`. In the same maintained suite, `project-config-root-approve`, `user-config-root-approve`, `agent-inline-approve`, `project-config-agent-inherit-approve`, and `user-config-agent-inherit-approve` all reached real server-side `tools/call` and returned `MCP_PROOF_MARKER_ALLOWED` once explicit `[mcp_servers.probe.tools.get_allowed_marker] approval_mode = "approve"` was present in the relevant root or agent-local layer. All three approved custom-agent paths still avoided a root `mcp_tool_call` item in the parent `codex exec --json` stream and instead surfaced child `agents_states` moving through `pending_init` to `completed`; the project-scoped server still did not appear in `codex mcp list`, while the user-scoped server did.
+- Practical implication for Pluxx: project-local Codex custom-agent invocation, built-in-name override, project-local precedence over same-name user-local agents, discovered `.agents/skills` inheritance, the invalid agent-local model failure path, and the two same-name user-local model precedence cases are now live-proven, but advanced config depth is still uneven. `sandbox_mode` is documented and generated, yet both the current headless runtime and the maintained trusted interactive probe still ignored a `read-only` child sandbox in local probes. `skills.config` is also not uniformly trustworthy in the current headless runtime: disabling a discovered skill via parent config was ignored, and pointing an agent-local `skills.config` entry at an undiscovered `skills/` path did not preload it. MCP is now sharper too: default headless Codex reaches startup and `tools/list` for project, user, and inline-agent MCP config; default root MCP still auto-cancels a real `mcp_tool_call` before server `tools/call`; default inline-agent MCP still falls back quietly without approval; explicit per-tool `approval_mode = "approve"` is now maintained as a proven unlock path for project-scoped root MCP, user-scoped root MCP, agent-local inline MCP, and delegated inherited-root MCP from either project or user config; and Pluxx now compiles the live-proven root allow-path into `.codex/config.generated.toml` when top-level canonical `MCP(...)` rules are concrete enough to materialize per-tool approvals.
+
 ---
 
-## 6. Hooks (experimental — `codex_hooks` flag)
+## 6. Hooks (feature-gated — mixed `codex_hooks` / `hooks` contract)
 
 ### 6.1 Enable
 ```toml
 [features]
-codex_hooks = true
+hooks = true
 ```
+
+Current Codex config surfaces still expose both `hooks` and `codex_hooks` under `[features]`. Current `codex exec --help` also exposes `--enable <FEATURE>`, which means the current CLI path for hooks is `--enable hooks`, not `--enable-hooks`. In maintained local May 13, 2026 probes, trusted interactive `UserPromptSubmit` timed out without a project-local hook side effect under either config flag, the `codex_hooks` prompt path emitted `"[features].codex_hooks is deprecated. Use [features].hooks instead."`, and the optional maintained CLI-flag scenarios still no-op under `--enable hooks`.
+
+The maintained interactive probe now also has a targeted reviewed `SessionStart` rerun on May 13, 2026 via `--include-reviewed-session-start`, and that rerun still ended `runner-timed-out` with no project-local hook side effect and no `/hooks` review gate. So the current local reviewed interactive path remains negative evidence rather than an unrerun placeholder.
 
 ### 6.2 Config files (all loaded; higher layers don't *replace*)
 - `~/.codex/hooks.json`
@@ -233,6 +251,22 @@ Event-specific:
 ### 6.7 Schema source
 - Generated JSON schemas: `github.com/openai/codex/tree/main/codex-rs/hooks/schema/generated`.
 
+### 6.8 Observed activation gates in local Pluxx probes (2026-05-13)
+- The maintained `bun scripts/probe-codex-hooks-runtime.ts --json` probe now runs isolated authenticated headless `codex exec` checks against project-local hooks by copying only `auth.json` into a temporary `CODEX_HOME` and stripping desktop thread-coupling env vars.
+- On local Codex CLI `0.130.0`, that probe reported `headless-response-no-hook` for `hooks-no-trust`, `hooks-trusted`, and `codex-hooks-trusted`: `codex exec` returned the final response, emitted `turn.completed`, and never executed the corrected `SessionStart` hook command.
+- In an interactive TTY probe, Codex persisted trusted-project state under `[projects."<path>"].trust_level = "trusted"` in the user config, which narrowed the gap from “bundle shape” to “runtime activation.”
+- Even after trust was persisted, Codex still blocked execution with `1 hook needs review before it can run. Open /hooks to review it.`
+- The maintained `bun scripts/probe-codex-hooks-interactive-runtime.ts --json` probe now checks four trusted interactive scenarios against project-local `.codex/hooks.json`: `UserPromptSubmit` with `codex_hooks`, `UserPromptSubmit` with `hooks`, `SessionStart` with `codex_hooks`, and `SessionStart` with `hooks`.
+- On local Codex CLI `0.130.0` on May 13, 2026, all four maintained interactive scenarios timed out without a hook side effect and without surfacing the old `/hooks` review gate message.
+- The `codex_hooks` prompt scenario emitted `"[features].codex_hooks is deprecated. Use [features].hooks instead."` in the interactive transcript.
+- The optional `bun scripts/probe-codex-hooks-runtime.ts --include-enable-hooks-cli` scenario `enable-hooks-trusted` still returned `OK` with no hook side effect, and the optional `bun scripts/probe-codex-hooks-interactive-runtime.ts --include-enable-hooks-cli` scenarios `user-prompt-submit-enable-hooks-trusted` and `session-start-enable-hooks-trusted` both still timed out without a hook side effect or `/hooks` review gate.
+- Practical implication for Pluxx: current Codex hook proof needs four distinct checks, not one:
+  - official nested hook schema in `hooks/hooks.json`
+  - a `[features]` activation flag, with `hooks` now the preferred spelling and `codex_hooks` only a compatibility alias, even though current local probes still no-op under both config spellings and under the current CLI feature path `--enable hooks`
+  - trusted project entry in the user Codex config
+  - pending-hook review state, even though the maintained interactive probe no longer reproduces the older `/hooks` gate observation and the current slash-command docs still do not list `/hooks`
+- Remaining open question: whether reviewed hooks can ever fire under non-interactive `codex exec` at all, and why the current local reviewed interactive path no longer reproduces either successful hook execution or the older ad hoc `/hooks` review gate on current Codex builds.
+
 ---
 
 ## 7. MCP servers
@@ -264,6 +298,20 @@ url = "https://figma.com/mcp/sse"
 
 ### 7.3 Admin allowlisting
 - `mcp_servers.<id>.identity` under `requirements.toml` allowlists specific MCP servers.
+
+### 7.4 Observed MCP behavior in local Pluxx probes (2026-05-13)
+- The maintained `bun scripts/probe-codex-mcp-runtime.ts --json` probe now runs isolated authenticated headless `codex exec` checks against:
+  - project-scoped `.codex/config.toml` MCP config
+  - user-scoped `CODEX_HOME/config.toml` MCP config
+  - inline custom-agent `mcp_servers` TOML config
+- On local Codex CLI `0.130.0`, the default project-scoped, default user-scoped, and default inline-agent scenarios all reached `initialize`, `notifications/initialized`, and `tools/list`.
+- The default project-scoped and default user-scoped root paths each emitted a real `mcp_tool_call` item for `get_allowed_marker`, but both failed it with `user cancelled MCP tool call` even with `approval_policy = "never"`.
+- The default inline custom-agent path still returned `MCP_PROOF_MARKER_MISSING` after `spawn_agent` plus `wait` and never emitted a root `mcp_tool_call` item.
+- The maintained `project-config-root-approve`, `user-config-root-approve`, `agent-inline-approve`, `project-config-agent-inherit-approve`, `project-config-agent-empty-mcp-override-approve`, and `user-config-agent-inherit-approve` controls all reached server-side `tools/call` and returned `MCP_PROOF_MARKER_ALLOWED` once explicit `[mcp_servers.probe.tools.get_allowed_marker] approval_mode = "approve"` was present in the relevant root or agent-local layer.
+- In the same maintained suite, the `project-config-agent-empty-mcp-override-approve` scenario still reached `tools/call` and returned `MCP_PROOF_MARKER_ALLOWED` even though the custom agent explicitly set `mcp_servers = {}`, which means the attempted empty override did not block inherited approved root MCP in the current local runtime.
+- The four approved custom-agent controls still did not emit a root `mcp_tool_call` item in the parent `codex exec --json` stream, even though all four returned `MCP_PROOF_MARKER_ALLOWED`, reached real server-side `tools/call`, and surfaced child `agents_states` moving through `pending_init` to `completed`.
+- `codex mcp list` exposed the user-scoped server but did not expose the project-scoped server, even though headless `codex exec` still touched the project-scoped server.
+- Practical implication for Pluxx: current headless Codex MCP proof is no longer just “startup and listing reached, but root auto-cancelled before `tools/call`.” The maintained suite now also proves that explicit per-tool `approval_mode = "approve"` can unlock project-scoped root MCP, user-scoped root MCP, agent-local inline MCP, delegated inherited-root MCP from either project or user config, and even a custom agent that explicitly sets `mcp_servers = {}`. That narrows the remaining gap to default root policy behavior, delegated event-stream visibility, and how far Pluxx should generate or preserve those approval surfaces explicitly.
 
 ---
 
@@ -344,7 +392,7 @@ my-plugin/
 | `smart_approvals` | off | experimental |
 | `undo` | off | stable |
 | `apps` | — | experimental |
-| `codex_hooks` | off | experimental (enables hooks) |
+| `hooks` | off | stable in current CLI feature listing (enables hooks) |
 
 ### 9.3 `requirements.toml` (admin enforcement)
 - `allowed_sandbox_modes`, `allowed_approval_policies`, `allowed_web_search_modes`.
@@ -384,6 +432,8 @@ approval_policy = "never"
 ### 10.1 `sandbox_mode`
 `read-only` | `workspace-write` (default) | `danger-full-access`.
 
+Observed May 13, 2026 caveat: both the maintained headless custom-agent probe and the maintained trusted interactive probe still let a child agent declared with `sandbox_mode = "read-only"` create `sandbox-proof.txt`, so the field currently has stronger documentation support than maintained enforcement proof.
+
 ### 10.2 `approval_policy`
 `untrusted` | `on-request` (default) | `never` | granular mode with per-category subcategories.
 
@@ -402,7 +452,7 @@ Source: [developers.openai.com/codex/cli/slash-commands](https://developers.open
 1. **AGENTS.md truncates silently at 32 KiB.** Raise with `project_doc_max_bytes`.
 2. **Custom prompts (`~/.codex/prompts/`) are deprecated** — use Skills going forward.
 3. Custom prompts are **top-level only** (no nested directories scanned).
-4. **Hooks are experimental + require feature flag** + **no Windows** currently.
+4. **Hooks are feature-gated and still require a feature flag** + **no Windows** currently. Maintained local probes on May 13, 2026 showed both `hooks` and `codex_hooks` timing out without a project-local hook side effect in trusted interactive `UserPromptSubmit` and `SessionStart` scenarios, the current CLI feature path `--enable hooks` still no-oping in maintained headless and interactive probes, and the local runtime deprecating `codex_hooks` in favor of `hooks`.
 5. Codex hooks expose **only 5 events** (Claude Code has 26).
 6. Subagents are **TOML**, not markdown.
 7. Skills path is `.agents/skills/` (shared cross-agent convention), not `.codex/skills/`.

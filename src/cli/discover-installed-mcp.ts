@@ -1,8 +1,9 @@
-import { existsSync, readFileSync } from 'fs'
+import { existsSync, readFileSync, realpathSync } from 'fs'
 import { homedir } from 'os'
-import { resolve } from 'path'
+import { isAbsolute, relative, resolve } from 'path'
 import type { McpAuth, McpServer, PluginConfig, TargetPlatform } from '../schema'
 import { buildNativeMcpPlatformOverrides } from '../mcp-native-overrides'
+import { parseTomlValue, stripTomlComment } from '../toml-lite'
 
 export const INSTALLED_MCP_HOSTS = ['claude-code', 'cursor', 'codex', 'opencode'] as const satisfies readonly TargetPlatform[]
 export type InstalledMcpHost = typeof INSTALLED_MCP_HOSTS[number]
@@ -12,6 +13,7 @@ export interface DiscoveredInstalledMcpServer {
   host: InstalledMcpHost
   serverName: string
   sourcePath: string
+  sourceScope?: string
   server: McpServer
   warnings: string[]
   platformOverrides?: PluginConfig['platforms']
@@ -35,6 +37,12 @@ interface FileCandidate {
   parser: 'json' | 'toml'
 }
 
+interface JsonMcpEntry {
+  serverName: string
+  config: unknown
+  sourceScope?: string
+}
+
 export function discoverInstalledMcpServers(options: DiscoverInstalledMcpOptions = {}): DiscoveredInstalledMcpServer[] {
   const rootDir = options.rootDir ?? process.cwd()
   const homeDir = options.homeDir ?? homedir()
@@ -46,18 +54,20 @@ export function discoverInstalledMcpServers(options: DiscoverInstalledMcpOptions
     if (!hostSet.has(candidate.host) || !existsSync(candidate.path)) continue
 
     const parsed = candidate.parser === 'json'
-      ? parseJsonMcpFile(candidate.path, candidate.host)
+      ? parseJsonMcpFile(candidate.path, candidate.host, rootDir, homeDir)
       : parseCodexTomlMcpFile(candidate.path)
 
     for (const discovered of parsed) {
-      const key = `${discovered.host}:${discovered.serverName}:${discovered.sourcePath}`
+      const key = `${discovered.host}:${discovered.serverName}:${discovered.sourcePath}:${discovered.sourceScope ?? ''}`
       if (seen.has(key)) continue
       seen.add(key)
       results.push(discovered)
     }
   }
 
-  return results.sort((a, b) => {
+  const withStableIds = assignDiscoveredIds(results, rootDir, homeDir)
+
+  return withStableIds.sort((a, b) => {
     const hostOrder = INSTALLED_MCP_HOSTS.indexOf(a.host) - INSTALLED_MCP_HOSTS.indexOf(b.host)
     if (hostOrder !== 0) return hostOrder
     return a.serverName.localeCompare(b.serverName)
@@ -126,10 +136,6 @@ function installedMcpFileCandidates(rootDir: string, homeDir: string): FileCandi
   return [
     { host: 'claude-code', path: resolve(rootDir, '.mcp.json'), parser: 'json' },
     { host: 'claude-code', path: resolve(rootDir, '.claude-plugin/plugin.json'), parser: 'json' },
-    { host: 'claude-code', path: resolve(rootDir, '.claude/settings.json'), parser: 'json' },
-    { host: 'claude-code', path: resolve(rootDir, '.claude/settings.local.json'), parser: 'json' },
-    { host: 'claude-code', path: resolve(homeDir, '.claude/settings.json'), parser: 'json' },
-    { host: 'claude-code', path: resolve(homeDir, '.claude/settings.local.json'), parser: 'json' },
     { host: 'claude-code', path: resolve(homeDir, '.claude.json'), parser: 'json' },
     { host: 'cursor', path: resolve(rootDir, 'mcp.json'), parser: 'json' },
     { host: 'cursor', path: resolve(rootDir, '.cursor/mcp.json'), parser: 'json' },
@@ -143,50 +149,103 @@ function installedMcpFileCandidates(rootDir: string, homeDir: string): FileCandi
   ]
 }
 
-function parseJsonMcpFile(path: string, host: InstalledMcpHost): DiscoveredInstalledMcpServer[] {
+function parseJsonMcpFile(
+  path: string,
+  host: InstalledMcpHost,
+  rootDir: string,
+  homeDir: string,
+): DiscoveredInstalledMcpServer[] {
   try {
     const raw = JSON.parse(readFileSync(path, 'utf-8')) as CommonMcpConfig
-    const servers = extractJsonMcpServers(raw, path, host)
-    return Object.entries(servers).flatMap(([serverName, config]) => {
+    const entries = extractJsonMcpEntries(raw, path, host, rootDir, homeDir)
+    return entries.flatMap(({ serverName, config, sourceScope }) => {
       const normalized = normalizeCommonMcpServer(config, host)
       if (!normalized) return []
       const platformOverrides = buildNativeMcpPlatformOverrides(host, { [serverName]: config })
-      return [toDiscovered(host, serverName, path, normalized.server, normalized.warnings, platformOverrides)]
+      return [toDiscovered(host, serverName, path, normalized.server, normalized.warnings, platformOverrides, sourceScope)]
     })
   } catch {
     return []
   }
 }
 
-function extractJsonMcpServers(raw: CommonMcpConfig, path: string, host: InstalledMcpHost): Record<string, unknown> {
+function extractJsonMcpEntries(
+  raw: CommonMcpConfig,
+  path: string,
+  host: InstalledMcpHost,
+  rootDir: string,
+  homeDir: string,
+): JsonMcpEntry[] {
+  const entries: JsonMcpEntry[] = []
+
   if (host === 'opencode' && raw.mcp && typeof raw.mcp === 'object') {
-    return raw.mcp
+    entries.push(...toJsonMcpEntries(raw.mcp as Record<string, unknown>))
   }
 
   if (raw.mcpServers && typeof raw.mcpServers === 'object') {
-    return raw.mcpServers as Record<string, unknown>
+    entries.push(...toJsonMcpEntries(raw.mcpServers as Record<string, unknown>))
   }
 
-  // Claude project files can carry nested project MCP config under absolute project keys.
+  // Claude user config (~/.claude.json) can carry local-scoped project MCP config
+  // under absolute project keys inside `projects`.
   if (host === 'claude-code' && raw.projects && typeof raw.projects === 'object') {
-    const projectServers: Record<string, unknown> = {}
-    for (const projectConfig of Object.values(raw.projects as Record<string, unknown>)) {
+    for (const [projectPath, projectConfig] of Object.entries(raw.projects as Record<string, unknown>)) {
       if (!projectConfig || typeof projectConfig !== 'object') continue
       const mcpServers = (projectConfig as CommonMcpConfig).mcpServers
       if (!mcpServers || typeof mcpServers !== 'object') continue
-      Object.assign(projectServers, mcpServers)
+      const sourceScope = buildClaudeProjectSourceScope(projectPath, rootDir, homeDir)
+      entries.push(...toJsonMcpEntries(mcpServers as Record<string, unknown>, sourceScope))
     }
-    return projectServers
   }
 
   // Avoid treating plugin manifests that only reference an external MCP file as inline config.
-  if (typeof raw.mcpServers === 'string') return {}
+  if (typeof raw.mcpServers === 'string') return entries
 
-  if (path.endsWith('mcp.json') || path.endsWith('.mcp.json')) {
-    return raw as Record<string, unknown>
+  if (entries.length === 0 && (path.endsWith('mcp.json') || path.endsWith('.mcp.json'))) {
+    entries.push(...toJsonMcpEntries(raw as Record<string, unknown>))
   }
 
-  return {}
+  return entries
+}
+
+function toJsonMcpEntries(servers: Record<string, unknown>, sourceScope?: string): JsonMcpEntry[] {
+  return Object.entries(servers).map(([serverName, config]) => ({
+    serverName,
+    config,
+    ...(sourceScope ? { sourceScope } : {}),
+  }))
+}
+
+function buildClaudeProjectSourceScope(projectPath: string, rootDir: string, homeDir: string): string {
+  const rootRelative = buildRelativeScopePath(rootDir, projectPath)
+  if (rootRelative) return `projects/${rootRelative}`
+
+  const homeRelative = buildRelativeScopePath(homeDir, projectPath)
+  if (homeRelative) return `projects/home/${homeRelative}`
+
+  return `projects/absolute/${normalizeScopePath(projectPath)}`
+}
+
+function buildRelativeScopePath(baseDir: string, targetPath: string): string | undefined {
+  const relativePath = relative(baseDir, targetPath)
+  if (!relativePath.startsWith('..') && !isAbsolute(relativePath)) {
+    return normalizeScopePath(relativePath)
+  }
+
+  if (!existsSync(baseDir) || !existsSync(targetPath)) return undefined
+
+  try {
+    const realRelativePath = relative(realpathSync(baseDir), realpathSync(targetPath))
+    if (realRelativePath.startsWith('..') || isAbsolute(realRelativePath)) return undefined
+    return normalizeScopePath(realRelativePath)
+  } catch {
+    return undefined
+  }
+}
+
+function normalizeScopePath(value: string): string {
+  const normalized = value.replace(/\\/g, '/').replace(/^\.\/+/, '').replace(/^\/+/, '')
+  return normalized || 'root'
 }
 
 function parseCodexTomlMcpFile(path: string): DiscoveredInstalledMcpServer[] {
@@ -373,16 +432,65 @@ function toDiscovered(
   server: McpServer,
   warnings: string[],
   platformOverrides?: PluginConfig['platforms'],
+  sourceScope?: string,
 ): DiscoveredInstalledMcpServer {
   return {
     id: `${host}:${serverName}`,
     host,
     serverName,
     sourcePath,
+    ...(sourceScope ? { sourceScope } : {}),
     server,
     warnings,
     ...(platformOverrides ? { platformOverrides } : {}),
   }
+}
+
+function assignDiscoveredIds(
+  discovered: DiscoveredInstalledMcpServer[],
+  rootDir: string,
+  homeDir: string,
+): DiscoveredInstalledMcpServer[] {
+  const groups = new Map<string, DiscoveredInstalledMcpServer[]>()
+
+  for (const server of discovered) {
+    const key = `${server.host}:${server.serverName}`
+    groups.set(key, [...(groups.get(key) ?? []), server])
+  }
+
+  return discovered.map((server) => {
+    const baseId = `${server.host}:${server.serverName}`
+    const group = groups.get(baseId) ?? []
+    if (group.length <= 1) return server
+
+    const sourceLabel = buildInstalledMcpSourceLabel(server, rootDir, homeDir)
+    return {
+      ...server,
+      id: `${baseId}@${sourceLabel}`,
+    }
+  })
+}
+
+function buildInstalledMcpSourceLabel(
+  discovered: Pick<DiscoveredInstalledMcpServer, 'sourcePath' | 'sourceScope'>,
+  rootDir: string,
+  homeDir: string,
+): string {
+  const projectRelative = buildRelativeSelectorLabel('project', rootDir, discovered.sourcePath)
+  if (projectRelative) return discovered.sourceScope ? `${projectRelative}:${discovered.sourceScope}` : projectRelative
+
+  const userRelative = buildRelativeSelectorLabel('user', homeDir, discovered.sourcePath)
+  if (userRelative) return discovered.sourceScope ? `${userRelative}:${discovered.sourceScope}` : userRelative
+
+  const base = `file:${discovered.sourcePath}`
+  return discovered.sourceScope ? `${base}:${discovered.sourceScope}` : base
+}
+
+function buildRelativeSelectorLabel(prefix: 'project' | 'user', baseDir: string, sourcePath: string): string | undefined {
+  const relativePath = relative(baseDir, sourcePath)
+  if (relativePath === '') return `${prefix}:.`
+  if (relativePath.startsWith('..') || isAbsolute(relativePath)) return undefined
+  return `${prefix}:${relativePath.replace(/\\/g, '/')}`
 }
 
 function firstString(...values: unknown[]): string | undefined {
@@ -416,87 +524,4 @@ function looksSecretKey(value: string): boolean {
 
 function looksSecretValue(value: string): boolean {
   return value.length >= 16 && !extractEnvVar(value)
-}
-
-function stripTomlComment(line: string): string {
-  let inString = false
-  let quote = ''
-  for (let i = 0; i < line.length; i += 1) {
-    const char = line[i]
-    if ((char === '"' || char === "'") && line[i - 1] !== '\\') {
-      if (!inString) {
-        inString = true
-        quote = char
-      } else if (quote === char) {
-        inString = false
-        quote = ''
-      }
-      continue
-    }
-    if (char === '#' && !inString) return line.slice(0, i)
-  }
-  return line
-}
-
-function parseTomlValue(value: string): unknown {
-  if (value.startsWith('"') && value.endsWith('"')) return unquoteTomlString(value)
-  if (value.startsWith("'") && value.endsWith("'")) return value.slice(1, -1)
-  if (value.startsWith('[') && value.endsWith(']')) {
-    const inner = value.slice(1, -1).trim()
-    if (!inner) return []
-    return splitTomlList(inner).map((part) => parseTomlValue(part.trim()))
-  }
-  if (value.startsWith('{') && value.endsWith('}')) {
-    const inner = value.slice(1, -1).trim()
-    const result: Record<string, unknown> = {}
-    if (!inner) return result
-    for (const part of splitTomlList(inner)) {
-      const assignment = part.match(/^([A-Za-z0-9_-]+)\s*=\s*(.+)$/)
-      if (!assignment) continue
-      result[assignment[1]] = parseTomlValue(assignment[2].trim())
-    }
-    return result
-  }
-  if (value === 'true') return true
-  if (value === 'false') return false
-  return value
-}
-
-function splitTomlList(value: string): string[] {
-  const parts: string[] = []
-  let current = ''
-  let inString = false
-  let quote = ''
-  let braceDepth = 0
-  for (let i = 0; i < value.length; i += 1) {
-    const char = value[i]
-    if ((char === '"' || char === "'") && value[i - 1] !== '\\') {
-      if (!inString) {
-        inString = true
-        quote = char
-      } else if (quote === char) {
-        inString = false
-        quote = ''
-      }
-    }
-    if (!inString && char === '{') braceDepth += 1
-    if (!inString && char === '}') braceDepth -= 1
-    if (!inString && braceDepth === 0 && char === ',') {
-      parts.push(current)
-      current = ''
-      continue
-    }
-    current += char
-  }
-  if (current.trim()) parts.push(current)
-  return parts
-}
-
-function unquoteTomlString(value: string): string {
-  return value
-    .slice(1, -1)
-    .replace(/\\"/g, '"')
-    .replace(/\\n/g, '\n')
-    .replace(/\\t/g, '\t')
-    .replace(/\\\\/g, '\\')
 }

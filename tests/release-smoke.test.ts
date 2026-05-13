@@ -14,6 +14,7 @@ const RELEASE_SMOKE_PROJECTS = [
   'example/docs-ops',
 ]
 const COMMAND_BEHAVIORAL_PROOF_PROJECTS = [
+  'example/pluxx',
   'example/exa-plugin',
   'example/docs-ops',
   'example/platform-change-ops',

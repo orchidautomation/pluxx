@@ -31,6 +31,17 @@ function runPermissionHookScript(
   return JSON.parse(result.stdout || '{}') as Record<string, unknown>
 }
 
+interface CodexCommandHookHandler {
+  type: 'command'
+  command: string
+  timeout?: number
+}
+
+interface CodexHookMatcherGroup {
+  matcher?: string
+  hooks: CodexCommandHookHandler[]
+}
+
 const testConfig: PluginConfig = {
   name: 'test-plugin',
   version: '1.0.0',
@@ -537,7 +548,8 @@ describe('build', () => {
       'bash "${CLAUDE_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.sh"',
     )
     expect(cursorHooks.hooks.sessionStart[0].command).toBe('bash ./hooks/pluxx-hook-command-1.sh')
-    expect(codexHooks.hooks.SessionStart[0].command).toBe('bash ./hooks/pluxx-hook-command-1.sh')
+    expect(codexHooks.hooks.SessionStart[0].hooks[0].type).toBe('command')
+    expect(codexHooks.hooks.SessionStart[0].hooks[0].command).toBe('bash ./hooks/pluxx-hook-command-1.sh')
     expect(opencodeIndex).toContain('const buildHookShellCommand = (rawCommand: string): string => {')
     expect(opencodeIndex).toContain('const userEnv = loadUserConfig(directory).env ?? {}')
 
@@ -986,6 +998,7 @@ describe('build', () => {
     const codexAgentsMd = readFileSync(resolve(OUT_DIR, 'codex/AGENTS.md'), 'utf-8')
 
     expect(codexManifest.interface.displayName).toBe('Test Plugin')
+    expect(codexManifest.apps).toBe('./.app.json')
     expect(codexApp).toEqual({
       capabilities: ['Interactive', 'Read'],
       actions: {
@@ -993,8 +1006,11 @@ describe('build', () => {
       },
     })
     expect(codexManifest.hooks).toBe('./hooks/hooks.json')
-    expect(codexBundledHooks.hooks.SessionStart?.[0]?.command).toBe('bash ./hooks/pluxx-hook-command-1.sh')
-    expect(codexHooks.hooks.SessionStart?.[0]?.command).toBe('bash ./hooks/pluxx-hook-command-1.sh')
+    expect(codexBundledHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.type).toBe('command')
+    expect(codexBundledHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toBe('bash ./hooks/pluxx-hook-command-1.sh')
+    expect(codexHooks.featureFlag).toBe('hooks')
+    expect(codexHooks.alternateFeatureFlag).toBe('codex_hooks')
+    expect(codexHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toBe('bash ./hooks/pluxx-hook-command-1.sh')
     expect(readFileSync(resolve(OUT_DIR, 'codex/hooks/pluxx-hook-command-1.sh'), 'utf-8')).toContain('./scripts/validate.sh')
     expect(codexCommands.commands[0]?.id).toBe('pulse')
     expect(codexAgent).toContain('name = "escalation"')
@@ -1088,7 +1104,7 @@ describe('build', () => {
       name: 'permission-plugin',
       hooks: undefined,
       permissions: {
-        allow: ['Read(src/**)'],
+        allow: ['Read(src/**)', 'MCP(test-server.search)'],
         ask: ['Bash(git commit *)'],
         deny: ['Edit(.env)', 'Skill(review-scaffold)'],
       },
@@ -1117,6 +1133,10 @@ describe('build', () => {
     const opencodeIndex = readFileSync(resolve(TEST_DIR, 'permission-dist/opencode/index.ts'), 'utf-8')
     const codexPermissions = JSON.parse(
       readFileSync(resolve(TEST_DIR, 'permission-dist/codex/.codex/permissions.generated.json'), 'utf-8')
+    )
+    const codexConfigCompanion = readFileSync(
+      resolve(TEST_DIR, 'permission-dist/codex/.codex/config.generated.toml'),
+      'utf-8'
     )
     const claudePermissionDecision = runPermissionHookScript(
       resolve(TEST_DIR, 'permission-dist/claude-code/hooks/pluxx-permissions.mjs'),
@@ -1183,6 +1203,8 @@ describe('build', () => {
     expect(codexPermissions.model).toBe('pluxx.permissions.v1')
     expect(codexPermissions.enforcedByPluginBundle).toBe(false)
     expect(codexPermissions.rules.some((rule: { raw: string }) => rule.raw === 'Read(src/**)')).toBe(true)
+    expect(codexConfigCompanion).toContain('[mcp_servers."test-server".tools."search"]')
+    expect(codexConfigCompanion).toContain('approval_mode = "approve"')
   })
 
   it('generates runtime readiness outputs across Claude Code, Cursor, Codex, and OpenCode', async () => {
@@ -1259,11 +1281,16 @@ describe('build', () => {
     expect(cursorHooks.hooks.beforeSubmitPrompt?.[0]?.command).toBe('node ./hooks/pluxx-readiness.mjs prompt-gate')
 
     expect(existsSync(resolve(TEST_DIR, 'readiness-dist/codex/.codex/pluxx-readiness.mjs'))).toBe(true)
-    expect(codexBundledHooks.hooks.SessionStart?.[0]?.command).toBe('node ./.codex/pluxx-readiness.mjs session-start')
+    expect(codexBundledHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.type).toBe('command')
+    expect(codexBundledHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toBe('node ./.codex/pluxx-readiness.mjs session-start')
     expect(codexBundledHooks.hooks.PreToolUse?.[0]?.matcher).toBe('MCP')
-    expect(codexHooks.hooks.SessionStart?.[0]?.command).toBe('node ./.codex/pluxx-readiness.mjs session-start')
+    expect(codexBundledHooks.hooks.PreToolUse?.[0]?.hooks?.[0]?.command).toBe('node ./.codex/pluxx-readiness.mjs mcp-gate')
+    expect(codexHooks.featureFlag).toBe('hooks')
+    expect(codexHooks.alternateFeatureFlag).toBe('codex_hooks')
+    expect(codexHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toBe('node ./.codex/pluxx-readiness.mjs session-start')
     expect(codexHooks.hooks.PreToolUse?.[0]?.matcher).toBe('MCP')
-    expect(codexHooks.hooks.UserPromptSubmit?.[0]?.command).toBe('node ./.codex/pluxx-readiness.mjs prompt-gate')
+    expect(codexHooks.hooks.PreToolUse?.[0]?.hooks?.[0]?.command).toBe('node ./.codex/pluxx-readiness.mjs mcp-gate')
+    expect(codexHooks.hooks.UserPromptSubmit?.[0]?.hooks?.[0]?.command).toBe('node ./.codex/pluxx-readiness.mjs prompt-gate')
     expect(codexReadiness.model).toBe('pluxx.readiness.v1')
     expect(codexReadiness.translatedHooks.mcpGate).toBe('node ./.codex/pluxx-readiness.mjs mcp-gate')
 
@@ -1278,20 +1305,30 @@ describe('build', () => {
     const codexBundledHooks = JSON.parse(
       readFileSync(resolve(OUT_DIR, 'codex/hooks/hooks.json'), 'utf-8')
     ) as {
-      hooks: Record<string, Array<{ command: string }>>
+      hooks: Record<string, CodexHookMatcherGroup[]>
     }
     const codexHooks = JSON.parse(
       readFileSync(resolve(OUT_DIR, 'codex/.codex/hooks.generated.json'), 'utf-8')
     ) as {
       model: string
-      hooks: Record<string, Array<{ command: string }>>
+      featureFlag: string
+      alternateFeatureFlag: string
+      hooks: Record<string, CodexHookMatcherGroup[]>
     }
 
-    expect(codexBundledHooks.hooks.SessionStart?.[0]?.command).toBe('bash ./hooks/pluxx-hook-command-1.sh')
-    expect(codexBundledHooks.hooks.UserPromptSubmit?.[0]?.command).toBe('bash ./hooks/pluxx-hook-command-2.sh')
+    expect(codexBundledHooks.hooks.SessionStart?.[0]?.hooks?.[0]).toEqual({
+      type: 'command',
+      command: 'bash ./hooks/pluxx-hook-command-1.sh',
+    })
+    expect(codexBundledHooks.hooks.UserPromptSubmit?.[0]?.hooks?.[0]).toEqual({
+      type: 'command',
+      command: 'bash ./hooks/pluxx-hook-command-2.sh',
+    })
     expect(codexHooks.model).toBe('pluxx.codex-hooks.v1')
-    expect(codexHooks.hooks.SessionStart?.[0]?.command).toBe('bash ./hooks/pluxx-hook-command-1.sh')
-    expect(codexHooks.hooks.UserPromptSubmit?.[0]?.command).toBe('bash ./hooks/pluxx-hook-command-2.sh')
+    expect(codexHooks.featureFlag).toBe('hooks')
+    expect(codexHooks.alternateFeatureFlag).toBe('codex_hooks')
+    expect(codexHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toBe('bash ./hooks/pluxx-hook-command-1.sh')
+    expect(codexHooks.hooks.UserPromptSubmit?.[0]?.hooks?.[0]?.command).toBe('bash ./hooks/pluxx-hook-command-2.sh')
     expect(readFileSync(resolve(OUT_DIR, 'codex/hooks/pluxx-hook-command-1.sh'), 'utf-8')).toContain('./scripts/validate.sh')
     expect(readFileSync(resolve(OUT_DIR, 'codex/hooks/pluxx-hook-command-2.sh'), 'utf-8')).toContain('./scripts/check-prompt.sh')
   })
@@ -1362,15 +1399,21 @@ describe('build', () => {
     expect(cursorHooks.hooks.stop?.[0]?.loop_limit).toBe(3)
 
     expect(codexBundledHooks.hooks.PreToolUse?.[0]?.matcher).toBe('Bash')
-    expect(codexBundledHooks.hooks.PreToolUse?.[0]?.failClosed).toBe(true)
+    expect(codexBundledHooks.hooks.PreToolUse?.[0]?.hooks?.[0]).toEqual({
+      type: 'command',
+      command: 'bash ./hooks/pluxx-hook-command-1.sh',
+    })
     expect(codexBundledHooks.hooks.PermissionRequest?.[0]?.matcher).toBe('Edit')
-    expect(codexBundledHooks.hooks.PermissionRequest?.[0]?.failClosed).toBe(true)
+    expect(codexBundledHooks.hooks.PermissionRequest?.[0]?.hooks?.[0]).toEqual({
+      type: 'command',
+      command: 'bash ./hooks/pluxx-hook-command-2.sh',
+    })
     expect(codexBundledHooks.hooks.UserPromptSubmit).toBeUndefined()
     expect(codexHooks.hooks.PreToolUse?.[0]?.matcher).toBe('Bash')
-    expect(codexHooks.hooks.PreToolUse?.[0]?.failClosed).toBe(true)
+    expect(codexHooks.hooks.PreToolUse?.[0]?.hooks?.[0]?.command).toBe('bash ./hooks/pluxx-hook-command-1.sh')
     expect(codexHooks.hooks.PermissionRequest?.[0]?.matcher).toBe('Edit')
-    expect(codexHooks.hooks.PermissionRequest?.[0]?.failClosed).toBe(true)
-    expect(codexHooks.hooks.PreToolUse?.[0]?.loop_limit).toBeUndefined()
+    expect(codexHooks.hooks.PermissionRequest?.[0]?.hooks?.[0]?.command).toBe('bash ./hooks/pluxx-hook-command-2.sh')
+    expect(codexHooks.hooks.PreToolUse?.[0]?.hooks?.[0]?.timeout).toBeUndefined()
     expect(codexHooks.hooks.UserPromptSubmit).toBeUndefined()
     expect(codexHooks.unsupported).toEqual(
       expect.arrayContaining([
@@ -1550,6 +1593,48 @@ describe('build', () => {
     expect(codexPermissions.skillPolicies).toHaveLength(1)
     expect(codexPermissions.skillPolicies?.[0]?.skillDir).toBe('hello')
     expect(codexPermissions.skillPolicies?.[0]?.permissions.allow).toEqual(['Read(*)', 'MCP(test-server.greet)'])
+  })
+
+  it('expands single-server MCP wildcards into Codex approval stanzas and suppresses denied tools', async () => {
+    try {
+      mkdirSync(resolve(TEST_DIR, '.pluxx'), { recursive: true })
+      writeFileSync(
+        resolve(TEST_DIR, '.pluxx/mcp.json'),
+        JSON.stringify({
+          version: 1,
+          tools: [
+            { name: 'search' },
+            { name: 'dangerous' },
+            { name: 'lookup' },
+          ],
+        }, null, 2) + '\n',
+      )
+
+      const permissionConfig: PluginConfig = {
+        ...testConfig,
+        name: 'codex-wildcard-permissions-plugin',
+        hooks: undefined,
+        permissions: {
+          allow: ['MCP(test-server.*)', 'MCP(test-server.search)'],
+          deny: ['MCP(test-server.dangerous)'],
+        },
+        targets: ['codex'],
+        outDir: './codex-wildcard-permission-dist',
+      }
+
+      await build(permissionConfig, TEST_DIR)
+
+      const codexConfigCompanion = readFileSync(
+        resolve(TEST_DIR, 'codex-wildcard-permission-dist/codex/.codex/config.generated.toml'),
+        'utf-8'
+      )
+
+      expect(codexConfigCompanion).toContain('[mcp_servers."test-server".tools."lookup"]')
+      expect(codexConfigCompanion).toContain('[mcp_servers."test-server".tools."search"]')
+      expect(codexConfigCompanion).not.toContain('[mcp_servers."test-server".tools."dangerous"]')
+    } finally {
+      rmSync(resolve(TEST_DIR, '.pluxx'), { recursive: true, force: true })
+    }
   })
 
   it('writes documented manifest paths for Claude Code, Cursor, and Codex plugin components', async () => {

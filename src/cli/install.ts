@@ -37,6 +37,7 @@ export interface PlannedInstallTarget extends InstallTarget {
 
 interface BundleIntegrityIssues {
   manifestIssue?: string
+  hookConfigIssue?: string
   missingManifestPaths: string[]
   missingHookTargets: string[]
   invalidRuntimeScripts: string[]
@@ -525,6 +526,11 @@ function getCodexMarketplacePluginPath(pluginName: string): string {
   return `./.codex/plugins/${pluginName}`
 }
 
+function getCodexLocalCachePluginRoot(pluginName: string): string {
+  const home = process.env.HOME ?? '~'
+  return resolve(home, '.codex/plugins/cache/local-plugins', pluginName)
+}
+
 function readCodexMarketplace(filepath: string): CodexMarketplaceFile {
   if (!existsSync(filepath)) {
     return {
@@ -598,6 +604,12 @@ function removeCodexMarketplacePlugin(pluginName: string): void {
       plugins: nextPlugins,
     }, null, 2) + '\n',
   )
+}
+
+function clearCodexLocalCache(pluginName: string): void {
+  const cacheRoot = getCodexLocalCachePluginRoot(pluginName)
+  if (!existsSync(cacheRoot)) return
+  rmSync(cacheRoot, { recursive: true, force: true })
 }
 
 function createCopiedInstall(target: PlannedInstallTarget): void {
@@ -904,7 +916,7 @@ function resolveBundleReference(rootDir: string, value: string): string | undefi
 function readBundleManifestReferences(manifest: Record<string, unknown>): string[] {
   const references: string[] = []
 
-  for (const key of ['commands', 'skills', 'hooks', 'mcpServers']) {
+  for (const key of ['commands', 'skills', 'hooks', 'mcpServers', 'rules', 'apps']) {
     const value = manifest[key]
     if (typeof value === 'string') {
       references.push(value)
@@ -949,6 +961,55 @@ function extractBundleCommandTargets(command: string): string[] {
   return matches ?? []
 }
 
+function resolveInstalledHooksReference(
+  rootDir: string,
+  platform: TargetPlatform,
+  manifest: Record<string, unknown>,
+): {
+  reference?: string
+  path?: string
+} {
+  const manifestReference = typeof manifest.hooks === 'string' ? manifest.hooks : undefined
+  if (manifestReference) {
+    return {
+      reference: manifestReference,
+      path: resolveBundleReference(rootDir, manifestReference),
+    }
+  }
+
+  if (platform === 'claude-code') {
+    const fallbackReference = './hooks/hooks.json'
+    const fallbackPath = resolve(rootDir, 'hooks/hooks.json')
+    if (existsSync(fallbackPath)) {
+      return {
+        reference: fallbackReference,
+        path: fallbackPath,
+      }
+    }
+  }
+
+  return {}
+}
+
+function getClaudeStandardHooksManifestIssue(
+  rootDir: string,
+  platform: TargetPlatform,
+  manifest: Record<string, unknown>,
+): string | undefined {
+  if (platform !== 'claude-code') return undefined
+
+  const manifestReference = typeof manifest.hooks === 'string' ? manifest.hooks : undefined
+  if (!manifestReference) return undefined
+
+  const manifestHooksPath = resolveBundleReference(rootDir, manifestReference)
+  const standardHooksPath = resolve(rootDir, 'hooks/hooks.json')
+  if (!manifestHooksPath || manifestHooksPath !== standardHooksPath || !existsSync(standardHooksPath)) {
+    return undefined
+  }
+
+  return 'Claude auto-loads hooks/hooks.json. Current Claude CLI releases report a duplicate hooks file load error when manifest.hooks also points at ./hooks/hooks.json, so manifest.hooks should only reference additional hook files.'
+}
+
 export function findInstalledBundleIntegrityIssues(rootDir: string, platform: TargetPlatform): BundleIntegrityIssues {
   const manifestPath = manifestPathForPlatform(platform)
   if (!manifestPath) {
@@ -987,19 +1048,21 @@ export function findInstalledBundleIntegrityIssues(rootDir: string, platform: Ta
       return resolved !== undefined && !existsSync(resolved)
     })
     .sort()
+  const manifestIssue = getClaudeStandardHooksManifestIssue(rootDir, platform, manifest)
 
-  const hooksReference = typeof manifest.hooks === 'string' ? manifest.hooks : undefined
+  const { reference: hooksReference, path: hooksPath } = resolveInstalledHooksReference(rootDir, platform, manifest)
   if (!hooksReference) {
     return {
+      ...(manifestIssue ? { manifestIssue } : {}),
       missingManifestPaths,
       missingHookTargets: [],
       invalidRuntimeScripts: findInstalledRuntimeScriptIssues(rootDir, manifest),
     }
   }
 
-  const hooksPath = resolveBundleReference(rootDir, hooksReference)
   if (!hooksPath || !existsSync(hooksPath)) {
     return {
+      ...(manifestIssue ? { manifestIssue } : {}),
       missingManifestPaths,
       missingHookTargets: [],
       invalidRuntimeScripts: findInstalledRuntimeScriptIssues(rootDir, manifest),
@@ -1021,12 +1084,15 @@ export function findInstalledBundleIntegrityIssues(rootDir: string, platform: Ta
     )].sort()
 
     return {
+      ...(manifestIssue ? { manifestIssue } : {}),
       missingManifestPaths,
       missingHookTargets,
       invalidRuntimeScripts: findInstalledRuntimeScriptIssues(rootDir, manifest),
     }
-  } catch {
+  } catch (error) {
     return {
+      ...(manifestIssue ? { manifestIssue } : {}),
+      hookConfigIssue: `hooks config at ${hooksReference} is not parseable: ${error instanceof Error ? error.message : String(error)}`,
       missingManifestPaths,
       missingHookTargets: [],
       invalidRuntimeScripts: findInstalledRuntimeScriptIssues(rootDir, manifest),
@@ -1081,6 +1147,9 @@ function assertInstalledBundleIntegrity(rootDir: string, platform: TargetPlatfor
 
   if (issues.manifestIssue) {
     details.push(issues.manifestIssue)
+  }
+  if (issues.hookConfigIssue) {
+    details.push(issues.hookConfigIssue)
   }
   if (issues.missingManifestPaths.length > 0) {
     details.push(`manifest paths missing: ${issues.missingManifestPaths.join(', ')}`)
@@ -1324,6 +1393,7 @@ export async function installPlugin(
     }
     if (target.platform === 'codex') {
       ensureCodexMarketplace(pluginName)
+      clearCodexLocalCache(pluginName)
     }
     if (!options.quiet) {
       console.log(`  ${target.platform} -> ${target.description}`)
@@ -1393,6 +1463,7 @@ export async function uninstallPlugin(
     }
     if (target.platform === 'codex') {
       removeCodexMarketplacePlugin(pluginName)
+      clearCodexLocalCache(pluginName)
     }
   }
 

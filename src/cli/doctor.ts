@@ -1,5 +1,6 @@
 import { spawn, spawnSync } from 'child_process'
-import { accessSync, constants, existsSync, lstatSync, readFileSync, readdirSync } from 'fs'
+import { accessSync, constants, existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from 'fs'
+import { homedir } from 'os'
 import { basename, dirname, resolve } from 'path'
 import { CONFIG_FILES, loadConfig } from '../config/load'
 import { findInstalledBundleIntegrityIssues, listHookCommands } from './install'
@@ -25,7 +26,17 @@ import {
   getRuntimeReadinessExternalConfigNote,
   getRuntimeReadinessNamedPromptTargetNote,
 } from '../runtime-readiness-registry'
+import {
+  ALTERNATE_CODEX_HOOKS_FEATURE_FLAG,
+  getCodexHooksFeatureState,
+  RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG,
+} from '../codex-hooks-feature'
+import {
+  parseCodexApprovedMcpToolsFromToml,
+  type CodexMcpApprovalEntry,
+} from '../codex-permissions-companion'
 import type { ParsedPermissionRule } from '../permissions'
+import { parseTomlValue, stripTomlComment } from '../toml-lite'
 
 export type DoctorLevel = 'error' | 'warning' | 'info' | 'success'
 
@@ -84,6 +95,10 @@ interface ConsumerBundleLayout {
   mcpConfigPath?: string
 }
 
+export interface DoctorConsumerOptions {
+  projectRoot?: string
+}
+
 interface InstalledStdioLaunchResult {
   serverName: string
   command: string
@@ -96,6 +111,44 @@ interface InstalledPermissionProbe {
   raw: string
   mode: string
   event: Record<string, unknown>
+}
+
+interface CodexConfigCandidate {
+  path: string
+  scope: 'project' | 'user'
+}
+
+interface CodexHooksFeatureProbe extends CodexConfigCandidate {
+  exists: boolean
+  enabled: boolean
+  recommendedEnabled: boolean
+  alternateEnabled: boolean
+  parseError?: string
+}
+
+interface CodexMcpApprovalProbe extends CodexConfigCandidate {
+  exists: boolean
+  approvals: CodexMcpApprovalEntry[]
+  parseError?: string
+}
+
+interface CodexProjectTrustProbe {
+  path: string
+  exists: boolean
+  trusted: boolean
+  matchedProjectPaths: string[]
+  parseError?: string
+}
+
+interface ClaudeSettingsCandidate {
+  path: string
+  scope: 'managed' | 'user' | 'project' | 'local'
+}
+
+interface ClaudeDisableAllHooksProbe extends ClaudeSettingsCandidate {
+  exists: boolean
+  disableAllHooks: boolean
+  parseError?: string
 }
 
 function renderInstalledPluginRoot(value: string, rootDir: string): string {
@@ -344,9 +397,9 @@ function checkRuntimeReadiness(checks: DoctorCheck[], config: PluginConfig): voi
     addCheck(checks, {
       level: 'warning',
       code: 'runtime-readiness-codex-external',
-      title: 'Codex readiness needs external hook wiring',
+      title: 'Codex readiness activation may still be feature-gated',
       detail: getRuntimeReadinessExternalConfigNote(),
-      fix: `Apply ${codexReadinessCapability.companionArtifacts.join(' and ')} when wiring the installed Codex bundle.`,
+      fix: `Keep ${codexReadinessCapability.companionArtifacts.join(' and ')} available when verifying the installed Codex bundle, and enable \`${RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG} = true\` under \`[features]\` if bundled readiness does not activate.`,
       path: 'pluxx.config.ts',
     })
   }
@@ -793,6 +846,322 @@ function readJsonFile<T>(rootDir: string, relativePath: string): T {
   return JSON.parse(readFileSync(resolve(rootDir, relativePath), 'utf-8')) as T
 }
 
+function listCodexConfigCandidates(projectRoot: string | undefined): CodexConfigCandidate[] {
+  const projectCandidate = resolve(projectRoot ?? process.cwd(), '.codex/config.toml')
+  const homeDir = process.env.HOME?.trim() || homedir()
+  const codexHome = process.env.CODEX_HOME?.trim() || resolve(homeDir, '.codex')
+  const userCandidate = resolve(codexHome, 'config.toml')
+
+  const seen = new Set<string>()
+  const candidates: CodexConfigCandidate[] = []
+  for (const candidate of [
+    { path: projectCandidate, scope: 'project' as const },
+    { path: userCandidate, scope: 'user' as const },
+  ]) {
+    if (seen.has(candidate.path)) continue
+    seen.add(candidate.path)
+    candidates.push(candidate)
+  }
+
+  return candidates
+}
+
+function readCodexHooksFeatureFlag(filePath: string): ReturnType<typeof getCodexHooksFeatureState> | undefined {
+  let inFeaturesTable = false
+  const lines = readFileSync(filePath, 'utf-8').split(/\r?\n/)
+  let recommended: boolean | undefined
+  let alternate: boolean | undefined
+
+  const assignFeatureFlag = (key: string, rawValue: string): void => {
+    const parsed = parseTomlValue(rawValue.trim())
+    if (typeof parsed !== 'boolean') return
+    if (key === RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG) recommended = parsed
+    if (key === ALTERNATE_CODEX_HOOKS_FEATURE_FLAG) alternate = parsed
+  }
+
+  for (const rawLine of lines) {
+    const line = stripTomlComment(rawLine).trim()
+    if (!line) continue
+
+    const sectionMatch = line.match(/^\[(.+)\]$/)
+    if (sectionMatch) {
+      inFeaturesTable = sectionMatch[1].trim() === 'features'
+      continue
+    }
+
+    const dottedFeatureMatch = line.match(/^features\.(hooks|codex_hooks)\s*=\s*(.+)$/)
+    if (dottedFeatureMatch) {
+      assignFeatureFlag(dottedFeatureMatch[1], dottedFeatureMatch[2])
+      continue
+    }
+
+    const inlineFeaturesMatch = line.match(/^features\s*=\s*(.+)$/)
+    if (inlineFeaturesMatch) {
+      const parsed = parseTomlValue(inlineFeaturesMatch[1].trim())
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        const featureState = getCodexHooksFeatureState(parsed as Record<string, unknown>)
+        recommended = featureState.recommended
+        alternate = featureState.alternate
+      }
+      continue
+    }
+
+    if (!inFeaturesTable) continue
+    const featureMatch = line.match(/^(hooks|codex_hooks)\s*=\s*(.+)$/)
+    if (!featureMatch) continue
+    assignFeatureFlag(featureMatch[1], featureMatch[2])
+  }
+
+  if (recommended === undefined && alternate === undefined) return undefined
+  return {
+    recommended: recommended === true,
+    alternate: alternate === true,
+  }
+}
+
+function probeCodexHooksFeatureFlags(projectRoot: string | undefined): CodexHooksFeatureProbe[] {
+  return listCodexConfigCandidates(projectRoot).map((candidate) => {
+    if (!existsSync(candidate.path)) {
+      return {
+        ...candidate,
+        exists: false,
+        enabled: false,
+        recommendedEnabled: false,
+        alternateEnabled: false,
+      }
+    }
+
+    try {
+      const featureState = readCodexHooksFeatureFlag(candidate.path)
+      return {
+        ...candidate,
+        exists: true,
+        enabled: featureState?.recommended === true || featureState?.alternate === true,
+        recommendedEnabled: featureState?.recommended === true,
+        alternateEnabled: featureState?.alternate === true,
+      }
+    } catch (error) {
+      return {
+        ...candidate,
+        exists: true,
+        enabled: false,
+        recommendedEnabled: false,
+        alternateEnabled: false,
+        parseError: error instanceof Error ? error.message : String(error),
+      }
+    }
+  })
+}
+
+function probeCodexMcpApprovalEntries(projectRoot: string | undefined): CodexMcpApprovalProbe[] {
+  return listCodexConfigCandidates(projectRoot).map((candidate) => {
+    if (!existsSync(candidate.path)) {
+      return {
+        ...candidate,
+        exists: false,
+        approvals: [],
+      }
+    }
+
+    try {
+      return {
+        ...candidate,
+        exists: true,
+        approvals: parseCodexApprovedMcpToolsFromToml(readFileSync(candidate.path, 'utf-8')),
+      }
+    } catch (error) {
+      return {
+        ...candidate,
+        exists: true,
+        approvals: [],
+        parseError: error instanceof Error ? error.message : String(error),
+      }
+    }
+  })
+}
+
+function getCodexProjectPathCandidates(projectRoot: string | undefined): string[] {
+  if (!projectRoot) return []
+
+  const candidates = new Set<string>()
+  const resolvedProjectRoot = resolve(projectRoot)
+  candidates.add(resolvedProjectRoot)
+
+  try {
+    candidates.add(realpathSync(resolvedProjectRoot))
+  } catch {
+    // Keep the resolved project root even when realpath resolution fails.
+  }
+
+  return [...candidates]
+}
+
+function parseCodexProjectKeySegment(segment: string): string | null {
+  const trimmed = segment.trim()
+  if (!trimmed) return null
+
+  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+    const parsed = parseTomlValue(trimmed)
+    return typeof parsed === 'string' ? parsed : null
+  }
+
+  return null
+}
+
+function readCodexProjectTrust(filePath: string, projectPaths: Set<string>): string[] {
+  const matchedPaths = new Set<string>()
+  let currentProjectKey: string | null = null
+
+  const lines = readFileSync(filePath, 'utf-8').split(/\r?\n/)
+  for (const rawLine of lines) {
+    const line = stripTomlComment(rawLine).trim()
+    if (!line) continue
+
+    const sectionMatch = line.match(/^\[(.+)\]$/)
+    if (sectionMatch) {
+      currentProjectKey = null
+      const section = sectionMatch[1].trim()
+      if (section.startsWith('projects.')) {
+        currentProjectKey = parseCodexProjectKeySegment(section.slice('projects.'.length))
+      }
+      continue
+    }
+
+    const dottedTrustMatch = line.match(/^projects\.(.+)\.trust_level\s*=\s*(.+)$/)
+    if (dottedTrustMatch) {
+      const projectKey = parseCodexProjectKeySegment(dottedTrustMatch[1])
+      const parsed = parseTomlValue(dottedTrustMatch[2].trim())
+      if (projectKey && projectPaths.has(projectKey) && parsed === 'trusted') {
+        matchedPaths.add(projectKey)
+      }
+      continue
+    }
+
+    if (!currentProjectKey || !projectPaths.has(currentProjectKey)) continue
+    const trustMatch = line.match(/^trust_level\s*=\s*(.+)$/)
+    if (!trustMatch) continue
+    const parsed = parseTomlValue(trustMatch[1].trim())
+    if (parsed === 'trusted') {
+      matchedPaths.add(currentProjectKey)
+    }
+  }
+
+  return [...matchedPaths]
+}
+
+function probeCodexProjectTrust(projectRoot: string | undefined): CodexProjectTrustProbe | undefined {
+  const projectPaths = getCodexProjectPathCandidates(projectRoot)
+  if (projectPaths.length === 0) return undefined
+
+  const userConfig = listCodexConfigCandidates(projectRoot).find((candidate) => candidate.scope === 'user')
+  if (!userConfig) return undefined
+
+  if (!existsSync(userConfig.path)) {
+    return {
+      path: userConfig.path,
+      exists: false,
+      trusted: false,
+      matchedProjectPaths: [],
+    }
+  }
+
+  try {
+    const matchedProjectPaths = readCodexProjectTrust(userConfig.path, new Set(projectPaths))
+    return {
+      path: userConfig.path,
+      exists: true,
+      trusted: matchedProjectPaths.length > 0,
+      matchedProjectPaths,
+    }
+  } catch (error) {
+    return {
+      path: userConfig.path,
+      exists: true,
+      trusted: false,
+      matchedProjectPaths: [],
+      parseError: error instanceof Error ? error.message : String(error),
+    }
+  }
+}
+
+function getClaudeManagedSettingsPath(): string | undefined {
+  switch (process.platform) {
+    case 'darwin':
+      return '/Library/Application Support/ClaudeCode/managed-settings.json'
+    case 'linux':
+      return '/etc/claude-code/managed-settings.json'
+    case 'win32':
+      return 'C:\\Program Files\\ClaudeCode\\managed-settings.json'
+    default:
+      return undefined
+  }
+}
+
+function listClaudeSettingsCandidates(projectRoot: string | undefined): ClaudeSettingsCandidate[] {
+  const homeDir = process.env.HOME?.trim() || homedir()
+  const candidates: ClaudeSettingsCandidate[] = []
+  const managedPath = getClaudeManagedSettingsPath()
+
+  if (managedPath) {
+    candidates.push({ path: managedPath, scope: 'managed' })
+  }
+
+  candidates.push({ path: resolve(homeDir, '.claude/settings.json'), scope: 'user' })
+
+  if (projectRoot) {
+    candidates.push({ path: resolve(projectRoot, '.claude/settings.json'), scope: 'project' })
+    candidates.push({ path: resolve(projectRoot, '.claude/settings.local.json'), scope: 'local' })
+  }
+
+  const seen = new Set<string>()
+  return candidates.filter((candidate) => {
+    if (seen.has(candidate.path)) return false
+    seen.add(candidate.path)
+    return true
+  })
+}
+
+function readClaudeDisableAllHooks(filePath: string): boolean | undefined {
+  const parsed = readJsonFile<Record<string, unknown>>(dirname(filePath), basename(filePath))
+  return typeof parsed.disableAllHooks === 'boolean' ? parsed.disableAllHooks : undefined
+}
+
+function probeClaudeDisableAllHooks(projectRoot: string | undefined): ClaudeDisableAllHooksProbe[] {
+  return listClaudeSettingsCandidates(projectRoot).map((candidate) => {
+    if (!existsSync(candidate.path)) {
+      return {
+        ...candidate,
+        exists: false,
+        disableAllHooks: false,
+      }
+    }
+
+    try {
+      return {
+        ...candidate,
+        exists: true,
+        disableAllHooks: readClaudeDisableAllHooks(candidate.path) === true,
+      }
+    } catch (error) {
+      return {
+        ...candidate,
+        exists: true,
+        disableAllHooks: false,
+        parseError: error instanceof Error ? error.message : String(error),
+      }
+    }
+  })
+}
+
+function getInstalledClaudeHooksReference(rootDir: string, manifest: Record<string, unknown>): string | undefined {
+  if (existsSync(resolve(rootDir, 'hooks/hooks.json'))) {
+    return './hooks/hooks.json'
+  }
+
+  const manifestReference = typeof manifest.hooks === 'string' ? manifest.hooks : undefined
+  return manifestReference
+}
+
 function checkConsumerBundlePath(checks: DoctorCheck[], rootDir: string): void {
   try {
     accessSync(rootDir, constants.R_OK)
@@ -1139,6 +1508,9 @@ function checkInstalledBundleIntegrity(checks: DoctorCheck[], rootDir: string, l
   if (issues.manifestIssue) {
     details.push(issues.manifestIssue)
   }
+  if (issues.hookConfigIssue) {
+    details.push(issues.hookConfigIssue)
+  }
   if (issues.missingManifestPaths.length > 0) {
     details.push(`manifest references missing path${issues.missingManifestPaths.length === 1 ? '' : 's'}: ${issues.missingManifestPaths.join(', ')}`)
   }
@@ -1164,10 +1536,269 @@ function checkInstalledBundleIntegrity(checks: DoctorCheck[], rootDir: string, l
   addCheck(checks, {
     level: 'error',
     code: 'consumer-bundle-integrity-invalid',
-    title: 'Installed bundle is missing referenced files',
+    title: 'Installed bundle integrity is broken',
     detail: details.join('; '),
-    fix: 'Reinstall the plugin or rebuild the bundle so every manifest path and hook target exists in the installed plugin.',
+    fix: 'Reinstall the plugin or rebuild the bundle so every manifest path, hook config, and hook target is valid inside the installed plugin.',
     path: layout.manifestPath,
+  })
+}
+
+function checkInstalledClaudeHookSettings(
+  checks: DoctorCheck[],
+  rootDir: string,
+  layout: ConsumerBundleLayout,
+  options: DoctorConsumerOptions,
+): void {
+  if (layout.platform !== 'claude-code') return
+  if (checks.some((check) => check.code === 'consumer-bundle-integrity-invalid')) return
+
+  let manifest: Record<string, unknown>
+  try {
+    manifest = readJsonFile<Record<string, unknown>>(rootDir, layout.manifestPath)
+  } catch {
+    return
+  }
+
+  const hooksReference = getInstalledClaudeHooksReference(rootDir, manifest)
+  if (!hooksReference) return
+
+  const probes = probeClaudeDisableAllHooks(options.projectRoot)
+  const disabled = probes.filter((probe) => probe.disableAllHooks)
+  const parseErrors = probes
+    .filter((probe) => probe.parseError)
+    .map((probe) => `${probe.path}: ${probe.parseError}`)
+  const checkedPaths = probes
+    .map((probe) => `${probe.scope} ${probe.exists ? 'settings' : 'path'}: ${probe.path}${probe.exists ? '' : ' (missing)'}`)
+    .join('; ')
+
+  if (disabled.length > 0) {
+    addCheck(checks, {
+      level: 'warning',
+      code: 'consumer-claude-hooks-disabled',
+      title: 'Claude settings may currently suppress bundled hook activation',
+      detail: `This installed Claude bundle uses hooks at ${hooksReference}, and \`disableAllHooks = true\` was found in ${disabled.map((probe) => `${probe.scope} settings ${probe.path}`).join(' and ')}. Live Claude CLI 2.1.140 headless probes on 2026-05-13 showed this setting suppressing SessionStart settings-hook execution across user, project, and local layers.${parseErrors.length > 0 ? ` Unparseable settings: ${parseErrors.join('; ')}.` : ''} This check only inspects the file-based managed path plus user/project/local settings; Claude enterprise policy can also arrive through registry, plist/MDM, or server-managed policy, and \`allowManagedHooksOnly\` is not evaluated here.`,
+      fix: 'Remove or flip `disableAllHooks` in the active Claude settings layer, run /reload-plugins or restart Claude, rerun pluxx verify-install, and use Claude /status when enterprise managed policy may still control hook activation.',
+      path: disabled[0].path,
+    })
+    return
+  }
+
+  if (parseErrors.length > 0) {
+    addCheck(checks, {
+      level: 'warning',
+      code: 'consumer-claude-hook-settings-invalid',
+      title: 'Claude hook settings could not be fully inspected',
+      detail: `This installed Claude bundle uses hooks at ${hooksReference}, but some checked Claude settings files were not parseable. Checked ${checkedPaths}. Unparseable settings: ${parseErrors.join('; ')}. This check only inspects the file-based managed path plus user/project/local settings; it does not verify registry, plist/MDM, server-managed policy, or \`allowManagedHooksOnly\`.`,
+      fix: 'Fix the malformed Claude settings JSON, reload Claude, rerun pluxx verify-install, and use Claude /status if enterprise policy may still control hook activation.',
+      path: probes.find((probe) => probe.parseError)?.path ?? hooksReference,
+    })
+    return
+  }
+
+  addCheck(checks, {
+    level: 'success',
+    code: 'consumer-claude-hook-settings-clear',
+    title: 'No checked Claude settings layer is disabling hooks',
+    detail: `This installed Claude bundle uses hooks at ${hooksReference}, and no checked Claude settings layer currently sets \`disableAllHooks = true\`. Checked ${checkedPaths}. This success result only covers the file-based managed path plus user/project/local settings; it does not prove registry, plist/MDM, server-managed policy, or \`allowManagedHooksOnly\` are clear.`,
+    fix: 'No action needed.',
+    path: hooksReference,
+  })
+}
+
+function checkInstalledCodexHooksFeatureFlag(
+  checks: DoctorCheck[],
+  rootDir: string,
+  layout: ConsumerBundleLayout,
+  options: DoctorConsumerOptions,
+): void {
+  if (layout.platform !== 'codex') return
+  if (checks.some((check) => check.code === 'consumer-bundle-integrity-invalid')) return
+
+  let manifest: Record<string, unknown>
+  try {
+    manifest = readJsonFile<Record<string, unknown>>(rootDir, layout.manifestPath)
+  } catch {
+    return
+  }
+
+  const hooksReference = typeof manifest.hooks === 'string' ? manifest.hooks : undefined
+  if (!hooksReference) return
+
+  const probes = probeCodexHooksFeatureFlags(options.projectRoot)
+  const enabledProbes = probes.filter((probe) => probe.enabled)
+  const checkedPaths = probes
+    .map((probe) => `${probe.scope} ${probe.exists ? 'config' : 'path'}: ${probe.path}${probe.exists ? '' : ' (missing)'}`)
+    .join('; ')
+  const describeEnabledFlags = (probe: CodexHooksFeatureProbe): string => {
+    const enabledFlags: string[] = []
+    if (probe.recommendedEnabled) enabledFlags.push(RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG)
+    if (probe.alternateEnabled) enabledFlags.push(ALTERNATE_CODEX_HOOKS_FEATURE_FLAG)
+    return enabledFlags.join(' + ')
+  }
+
+  if (enabledProbes.length > 0) {
+    const legacyOnlyProbes = enabledProbes.filter((probe) => probe.alternateEnabled && !probe.recommendedEnabled)
+    if (legacyOnlyProbes.length > 0) {
+      addCheck(checks, {
+        level: 'warning',
+        code: 'consumer-codex-hooks-feature-flag-legacy-only',
+        title: 'Codex hooks are enabled only through the legacy compatibility flag',
+        detail: `This installed Codex bundle declares hooks at ${hooksReference}, and the checked Codex config enables only \`${ALTERNATE_CODEX_HOOKS_FEATURE_FLAG} = true\` in ${legacyOnlyProbes.map((probe) => `${probe.scope} config ${probe.path}`).join(' and ')}. Maintained interactive probes on May 13, 2026 showed local Codex CLI 0.130.0 emitting a deprecation warning for \`${ALTERNATE_CODEX_HOOKS_FEATURE_FLAG}\` that points users to \`${RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG}\`.`,
+        fix: `Prefer \`${RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG} = true\` under \`[features]\` in the active Codex config, keep \`${ALTERNATE_CODEX_HOOKS_FEATURE_FLAG}\` only as a compatibility fallback if needed, reload Codex, and rerun pluxx verify-install.`,
+        path: legacyOnlyProbes[0].path,
+      })
+    }
+
+    addCheck(checks, {
+      level: 'success',
+      code: 'consumer-codex-hooks-feature-flag-enabled',
+      title: 'Codex hook feature flag found for this install',
+      detail: `This installed Codex bundle declares hooks at ${hooksReference}, and a Codex hook feature flag was found in ${enabledProbes.map((probe) => `${probe.scope} config ${probe.path} (${describeEnabledFlags(probe)})`).join(' and ')}. Treat that as a prerequisite, not proof of live hook execution: maintained local probes on May 13, 2026 showed local Codex CLI 0.130.0 still failing to execute the project-local hook under \`${RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG} = true\`, \`${ALTERNATE_CODEX_HOOKS_FEATURE_FLAG} = true\`, and the current CLI feature path \`--enable hooks\`.`,
+      fix: 'No action needed.',
+      path: enabledProbes[0].path,
+    })
+    return
+  }
+
+  const parseErrors = probes
+    .filter((probe) => probe.parseError)
+    .map((probe) => `${probe.path}: ${probe.parseError}`)
+
+  addCheck(checks, {
+    level: 'warning',
+    code: 'consumer-codex-hooks-feature-flag-missing',
+    title: 'Codex hook activation is missing its known feature-gate prerequisite',
+    detail: `This installed Codex bundle declares hooks at ${hooksReference}, but neither \`${RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG} = true\` nor \`${ALTERNATE_CODEX_HOOKS_FEATURE_FLAG} = true\` was found in the checked Codex config layers. Current Codex config surfaces still accept both keys under \`[features]\`, but maintained probes on May 13, 2026 showed local Codex CLI 0.130.0 still failing to execute the project-local hook under \`${RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG} = true\`, \`${ALTERNATE_CODEX_HOOKS_FEATURE_FLAG} = true\`, and the current CLI feature path \`--enable hooks\`, while also emitting a deprecation warning for \`${ALTERNATE_CODEX_HOOKS_FEATURE_FLAG}\` that points users to \`${RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG}\`. Checked ${checkedPaths}.${parseErrors.length > 0 ? ` Unparseable config: ${parseErrors.join('; ')}.` : ''}`,
+    fix: `Enable \`${RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG} = true\` under \`[features]\` in the relevant project or user Codex config, reload Codex, and rerun pluxx verify-install. Keep \`${ALTERNATE_CODEX_HOOKS_FEATURE_FLAG}\` only as a compatibility fallback if your Codex runtime still needs it, and treat any enabled flag as best-effort activation rather than proof that hooks will execute.`,
+    path: probes.find((probe) => probe.exists)?.path ?? hooksReference,
+  })
+}
+
+function checkInstalledCodexProjectTrust(
+  checks: DoctorCheck[],
+  rootDir: string,
+  layout: ConsumerBundleLayout,
+  options: DoctorConsumerOptions,
+): void {
+  if (layout.platform !== 'codex') return
+  if (checks.some((check) => check.code === 'consumer-bundle-integrity-invalid')) return
+  if (!options.projectRoot) return
+
+  let manifest: Record<string, unknown>
+  try {
+    manifest = readJsonFile<Record<string, unknown>>(rootDir, layout.manifestPath)
+  } catch {
+    return
+  }
+
+  const hooksReference = typeof manifest.hooks === 'string' ? manifest.hooks : undefined
+  if (!hooksReference) return
+
+  const trustProbe = probeCodexProjectTrust(options.projectRoot)
+  if (!trustProbe) return
+
+  const projectPaths = getCodexProjectPathCandidates(options.projectRoot)
+  const displayProjectPaths = projectPaths.join(' or ')
+  const parseErrorDetail = trustProbe.parseError ? ` Unparseable user config: ${trustProbe.parseError}.` : ''
+
+  if (trustProbe.trusted) {
+    addCheck(checks, {
+      level: 'success',
+      code: 'consumer-codex-project-trust-enabled',
+      title: 'Codex trusted-project entry found for this install',
+      detail: `This installed Codex bundle declares hooks at ${hooksReference}, and the user Codex config ${trustProbe.path} trusts ${trustProbe.matchedProjectPaths.join(' and ')} for project-local hook loading.`,
+      fix: 'No action needed.',
+      path: trustProbe.path,
+    })
+    return
+  }
+
+  addCheck(checks, {
+    level: 'warning',
+    code: 'consumer-codex-project-trust-missing',
+    title: 'Codex project trust may still block hook activation',
+    detail: `This installed Codex bundle declares hooks at ${hooksReference}, but the user Codex config ${trustProbe.exists ? trustProbe.path : `${trustProbe.path} (missing)`} does not currently trust ${displayProjectPaths}. Current Codex CLI releases can keep project-local config, hooks, and exec policies disabled until the project is trusted.${parseErrorDetail}`,
+    fix: `Trust the project in Codex, or add a matching \`[projects.\"<absolute-project-path>\"]\\ntrust_level = \"trusted\"\` entry in ${trustProbe.path}, reload Codex, retry a trusted interactive prompt, and rerun pluxx verify-install if hooks still do not activate.`,
+    path: trustProbe.path,
+  })
+}
+
+function checkInstalledCodexPermissionCompanion(
+  checks: DoctorCheck[],
+  rootDir: string,
+  layout: ConsumerBundleLayout,
+  options: DoctorConsumerOptions,
+): void {
+  if (layout.platform !== 'codex') return
+  if (checks.some((check) => check.code === 'consumer-bundle-integrity-invalid')) return
+
+  const companionPath = resolve(rootDir, '.codex/config.generated.toml')
+  const companionReference = '.codex/config.generated.toml'
+  if (!existsSync(companionPath)) return
+
+  let expectedEntries: CodexMcpApprovalEntry[]
+  try {
+    expectedEntries = parseCodexApprovedMcpToolsFromToml(readFileSync(companionPath, 'utf-8'))
+  } catch (error) {
+    addCheck(checks, {
+      level: 'error',
+      code: 'consumer-codex-mcp-approval-companion-invalid',
+      title: 'Generated Codex MCP approval companion is malformed',
+      detail: `${companionReference} could not be parsed: ${error instanceof Error ? error.message : String(error)}`,
+      fix: 'Rebuild or reinstall the plugin so the generated Codex MCP approval companion is written correctly before you merge it into active Codex config.',
+      path: companionReference,
+    })
+    return
+  }
+
+  if (expectedEntries.length === 0) return
+
+  const probes = probeCodexMcpApprovalEntries(options.projectRoot)
+  const checkedPaths = probes
+    .map((probe) => `${probe.scope} ${probe.exists ? 'config' : 'path'}: ${probe.path}${probe.exists ? '' : ' (missing)'}`)
+    .join('; ')
+  const parseErrors = probes
+    .filter((probe) => probe.parseError)
+    .map((probe) => `${probe.path}: ${probe.parseError}`)
+  const activeEntries = new Set(
+    probes.flatMap((probe) => probe.approvals.map((entry) => `${entry.serverName}.${entry.toolName}`)),
+  )
+  const missingEntries = expectedEntries.filter((entry) => !activeEntries.has(`${entry.serverName}.${entry.toolName}`))
+
+  const formatEntries = (entries: CodexMcpApprovalEntry[]): string =>
+    entries.map((entry) => `${entry.serverName}.${entry.toolName}`).join(', ')
+
+  if (missingEntries.length > 0) {
+    addCheck(checks, {
+      level: 'warning',
+      code: 'consumer-codex-mcp-approval-config-missing',
+      title: 'Generated Codex MCP approval stanzas are not fully merged into active config',
+      detail: `This installed Codex bundle includes ${companionReference} with ${expectedEntries.length} per-tool approval stanza${expectedEntries.length === 1 ? '' : 's'}, but the checked Codex config layers are still missing ${missingEntries.length === expectedEntries.length ? 'all of them' : formatEntries(missingEntries)}. Checked ${checkedPaths}.${parseErrors.length > 0 ? ` Unparseable config: ${parseErrors.join('; ')}.` : ''} Live maintained Codex MCP probes on May 13, 2026 only proved this approval path once explicit per-tool \`approval_mode = "approve"\` entries were merged into active config.`,
+      fix: `Merge the missing stanza${missingEntries.length === 1 ? '' : 's'} from ${companionReference} into the active project or user Codex config.toml, reload Codex, and rerun pluxx verify-install. Keep .codex/permissions.generated.json as the broader mirror for selectors that still remain external.`,
+      path: companionReference,
+    })
+    return
+  }
+
+  if (parseErrors.length > 0) {
+    addCheck(checks, {
+      level: 'warning',
+      code: 'consumer-codex-mcp-approval-config-unparseable',
+      title: 'Codex MCP approval config could not be fully inspected',
+      detail: `This installed Codex bundle includes ${companionReference}, and matching approval stanzas were found in the checked Codex config layers, but some config files were not parseable. Checked ${checkedPaths}. Unparseable config: ${parseErrors.join('; ')}.`,
+      fix: 'Fix the malformed Codex config, reload Codex, and rerun pluxx verify-install so Pluxx can confirm the generated approval stanzas are still merged correctly.',
+      path: probes.find((probe) => probe.parseError)?.path ?? companionReference,
+    })
+    return
+  }
+
+  addCheck(checks, {
+    level: 'success',
+    code: 'consumer-codex-mcp-approval-config-merged',
+    title: 'Generated Codex MCP approval stanzas are present in active config',
+    detail: `This installed Codex bundle includes ${companionReference} with ${expectedEntries.length} per-tool approval stanza${expectedEntries.length === 1 ? '' : 's'}, and matching entries were found in the checked Codex config layers. Checked ${checkedPaths}.`,
+    fix: 'No action needed.',
+    path: companionReference,
   })
 }
 
@@ -1645,7 +2276,7 @@ function checkInstalledOpenCodeSkills(checks: DoctorCheck[], rootDir: string): v
       ? `malformed exported skills: ${malformedSkills.join(', ')}`
       : undefined
     addCheck(checks, {
-      level: 'warning',
+      level: 'error',
       code: 'consumer-opencode-skill-sync-incomplete',
       title: 'OpenCode exported skills are incomplete',
       detail: [missingDetail, malformedDetail].filter(Boolean).join('; '),
@@ -1665,7 +2296,10 @@ function checkInstalledOpenCodeSkills(checks: DoctorCheck[], rootDir: string): v
   })
 }
 
-export async function doctorConsumer(rootDir: string = process.cwd()): Promise<DoctorReport> {
+export async function doctorConsumer(
+  rootDir: string = process.cwd(),
+  options: DoctorConsumerOptions = {},
+): Promise<DoctorReport> {
   const checks: DoctorCheck[] = []
   addRuntimeChecks(checks, 'consumer')
 
@@ -1716,6 +2350,10 @@ export async function doctorConsumer(rootDir: string = process.cwd()): Promise<D
 
   checkConsumerManifest(checks, rootDir, layout)
   checkInstalledBundleIntegrity(checks, rootDir, layout)
+  checkInstalledClaudeHookSettings(checks, rootDir, layout, options)
+  checkInstalledCodexHooksFeatureFlag(checks, rootDir, layout, options)
+  checkInstalledCodexProjectTrust(checks, rootDir, layout, options)
+  checkInstalledCodexPermissionCompanion(checks, rootDir, layout, options)
   checkInstalledPermissionHook(checks, rootDir, layout)
   checkInstalledUserConfig(checks, rootDir)
   checkInstalledEnvValidation(checks, rootDir)

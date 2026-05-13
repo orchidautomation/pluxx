@@ -118,7 +118,6 @@ function createBrokenClaudeConsumerFixture(): string {
       version: '0.1.0',
       commands: './commands/',
       skills: './skills/',
-      hooks: './hooks/hooks.json',
     }, null, 2),
   )
   writeFileSync(resolve(dir, 'skills/research/SKILL.md'), '# Research\n')
@@ -143,11 +142,164 @@ function createBrokenClaudeConsumerFixture(): string {
   return dir
 }
 
+function createHealthyClaudeHookConsumerFixture(options: {
+  includeManifestHooks?: boolean
+} = {}): string {
+  const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-claude-hook-consumer-'))
+  mkdirSync(resolve(dir, '.claude-plugin'), { recursive: true })
+  mkdirSync(resolve(dir, 'skills/research'), { recursive: true })
+  mkdirSync(resolve(dir, 'hooks'), { recursive: true })
+  mkdirSync(resolve(dir, 'scripts'), { recursive: true })
+
+  writeFileSync(
+    resolve(dir, '.claude-plugin/plugin.json'),
+    JSON.stringify({
+      name: 'claude-hook-consumer-fixture',
+      version: '0.1.0',
+      skills: './skills/',
+      ...(options.includeManifestHooks ? { hooks: './hooks/hooks.json' } : {}),
+    }, null, 2),
+  )
+  writeFileSync(resolve(dir, 'skills/research/SKILL.md'), '# Research\n')
+  writeFileSync(resolve(dir, 'scripts/session-start.sh'), '#!/usr/bin/env bash\nexit 0\n')
+  writeFileSync(
+    resolve(dir, 'hooks/hooks.json'),
+    JSON.stringify({
+      hooks: {
+        SessionStart: [
+          {
+            hooks: [
+              {
+                type: 'command',
+                command: 'bash "${CLAUDE_PLUGIN_ROOT}/scripts/session-start.sh"',
+              },
+            ],
+          },
+        ],
+      },
+    }, null, 2),
+  )
+
+  return dir
+}
+
+function createMalformedClaudeHookConsumerFixture(): string {
+  const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-claude-hooks-'))
+  mkdirSync(resolve(dir, '.claude-plugin'), { recursive: true })
+  mkdirSync(resolve(dir, 'skills/research'), { recursive: true })
+  mkdirSync(resolve(dir, 'hooks'), { recursive: true })
+
+  writeFileSync(
+    resolve(dir, '.claude-plugin/plugin.json'),
+    JSON.stringify({
+      name: 'claude-hook-fixture',
+      version: '0.1.0',
+      skills: './skills/',
+    }, null, 2),
+  )
+  writeFileSync(resolve(dir, 'skills/research/SKILL.md'), '# Research\n')
+  writeFileSync(resolve(dir, 'hooks/hooks.json'), '{"hooks":')
+
+  return dir
+}
+
+function createMalformedCodexHookConsumerFixture(): string {
+  const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-codex-hooks-'))
+  mkdirSync(resolve(dir, '.codex-plugin'), { recursive: true })
+  mkdirSync(resolve(dir, 'skills/hello'), { recursive: true })
+  mkdirSync(resolve(dir, 'hooks'), { recursive: true })
+
+  writeFileSync(
+    resolve(dir, '.codex-plugin/plugin.json'),
+    JSON.stringify({
+      name: 'codex-hook-fixture',
+      version: '0.1.0',
+      skills: './skills/',
+      hooks: './hooks/hooks.json',
+    }, null, 2),
+  )
+  writeFileSync(resolve(dir, 'skills/hello/SKILL.md'), '# Hello\n')
+  writeFileSync(resolve(dir, 'hooks/hooks.json'), '{"version":1,"hooks":')
+
+  return dir
+}
+
+function createCodexHookConsumerFixture(): string {
+  const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-codex-hook-flag-'))
+  mkdirSync(resolve(dir, '.codex-plugin'), { recursive: true })
+  mkdirSync(resolve(dir, 'skills/hello'), { recursive: true })
+  mkdirSync(resolve(dir, 'hooks'), { recursive: true })
+  mkdirSync(resolve(dir, 'scripts'), { recursive: true })
+
+  writeFileSync(
+    resolve(dir, '.codex-plugin/plugin.json'),
+    JSON.stringify({
+      name: 'codex-hook-flag-fixture',
+      version: '0.1.0',
+      skills: './skills/',
+      hooks: './hooks/hooks.json',
+    }, null, 2),
+  )
+  writeFileSync(resolve(dir, 'skills/hello/SKILL.md'), '# Hello\n')
+  writeFileSync(resolve(dir, 'scripts/session-start.sh'), '#!/usr/bin/env bash\nexit 0\n')
+  writeFileSync(
+    resolve(dir, 'hooks/hooks.json'),
+    JSON.stringify({
+      version: 1,
+      hooks: {
+        SessionStart: [
+          {
+            hooks: [
+              {
+                type: 'command',
+                command: 'bash ./scripts/session-start.sh',
+              },
+            ],
+          },
+        ],
+      },
+    }, null, 2),
+  )
+
+  return dir
+}
+
+function createCodexAppConsumerFixture(options: {
+  includeAppFile?: boolean
+} = {}): string {
+  const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-codex-app-'))
+  mkdirSync(resolve(dir, '.codex-plugin'), { recursive: true })
+  mkdirSync(resolve(dir, 'skills/hello'), { recursive: true })
+
+  writeFileSync(
+    resolve(dir, '.codex-plugin/plugin.json'),
+    JSON.stringify({
+      name: 'codex-app-fixture',
+      version: '0.1.0',
+      skills: './skills/',
+      apps: './.app.json',
+    }, null, 2),
+  )
+  writeFileSync(resolve(dir, 'skills/hello/SKILL.md'), '# Hello\n')
+
+  if (options.includeAppFile !== false) {
+    writeFileSync(
+      resolve(dir, '.app.json'),
+      JSON.stringify({
+        capabilities: ['Read'],
+      }, null, 2),
+    )
+  }
+
+  return dir
+}
+
 function createCodexConsumerFixture(options: {
   includeRuntime?: boolean
   useScriptEntrypoint?: boolean
   scriptChainsCheckEnv?: boolean
   immediateExit?: boolean
+  permissionApprovals?: Array<{ serverName: string; toolName: string }>
 } = {}): string {
   const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-codex-consumer-'))
   mkdirSync(resolve(dir, '.codex-plugin'), { recursive: true })
@@ -199,6 +351,18 @@ function createCodexConsumerFixture(options: {
       },
     }, null, 2),
   )
+  if ((options.permissionApprovals?.length ?? 0) > 0) {
+    mkdirSync(resolve(dir, '.codex'), { recursive: true })
+    const lines = [
+      '# Generated by test fixture',
+    ]
+    for (const entry of options.permissionApprovals ?? []) {
+      lines.push('')
+      lines.push(`[mcp_servers.${JSON.stringify(entry.serverName)}.tools.${JSON.stringify(entry.toolName)}]`)
+      lines.push('approval_mode = "approve"')
+    }
+    writeFileSync(resolve(dir, '.codex/config.generated.toml'), `${lines.join('\n')}\n`)
+  }
   writeFileSync(resolve(dir, 'skills/hello/SKILL.md'), '# Hello\n')
   return dir
 }
@@ -584,6 +748,329 @@ describe('doctorConsumer', () => {
     }
   })
 
+  it('fails when a generated-shape Claude installed hook config is malformed', async () => {
+    const dir = createMalformedClaudeHookConsumerFixture()
+
+    try {
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(false)
+      expect(report.checks.some((check) => check.code === 'consumer-bundle-integrity-invalid' && check.level === 'error')).toBe(true)
+      expect(report.checks.some((check) => check.detail.includes('hooks config at ./hooks/hooks.json is not parseable'))).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('fails when an installed Claude bundle redundantly declares the standard hooks file in the manifest', async () => {
+    const dir = createHealthyClaudeHookConsumerFixture({ includeManifestHooks: true })
+
+    try {
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(false)
+      expect(report.checks.some((check) => check.code === 'consumer-bundle-integrity-invalid' && check.level === 'error')).toBe(true)
+      expect(report.checks.some((check) => check.detail.includes('Claude auto-loads hooks/hooks.json'))).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('warns when a hook-bearing Claude install is checked with disableAllHooks in user settings', async () => {
+    const dir = createHealthyClaudeHookConsumerFixture()
+    const projectRoot = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-claude-project-'))
+    const homeDir = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-claude-home-'))
+    const originalHome = process.env.HOME
+    process.env.HOME = homeDir
+    mkdirSync(resolve(homeDir, '.claude'), { recursive: true })
+    writeFileSync(resolve(homeDir, '.claude/settings.json'), JSON.stringify({ disableAllHooks: true }, null, 2))
+
+    try {
+      const report = await doctorConsumer(dir, { projectRoot })
+      expect(report.ok).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-claude-hooks-disabled' && check.level === 'warning')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-claude-hook-settings-clear')).toBe(false)
+    } finally {
+      process.env.HOME = originalHome
+      rmSync(dir, { recursive: true, force: true })
+      rmSync(projectRoot, { recursive: true, force: true })
+      rmSync(homeDir, { recursive: true, force: true })
+    }
+  })
+
+  it('reports success when a hook-bearing Claude install has no disableAllHooks blocker in checked settings', async () => {
+    const dir = createHealthyClaudeHookConsumerFixture()
+    const projectRoot = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-claude-project-'))
+    const homeDir = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-claude-home-'))
+    const originalHome = process.env.HOME
+    process.env.HOME = homeDir
+
+    try {
+      const report = await doctorConsumer(dir, { projectRoot })
+      expect(report.ok).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-claude-hook-settings-clear' && check.level === 'success')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-claude-hooks-disabled')).toBe(false)
+    } finally {
+      process.env.HOME = originalHome
+      rmSync(dir, { recursive: true, force: true })
+      rmSync(projectRoot, { recursive: true, force: true })
+      rmSync(homeDir, { recursive: true, force: true })
+    }
+  })
+
+  it('fails when an installed bundled hook config is malformed', async () => {
+    const dir = createMalformedCodexHookConsumerFixture()
+
+    try {
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(false)
+      expect(report.checks.some((check) => check.code === 'consumer-bundle-integrity-invalid' && check.level === 'error')).toBe(true)
+      expect(report.checks.some((check) => check.detail.includes('hooks config at ./hooks/hooks.json is not parseable'))).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('warns when an installed codex bundle includes hooks but host config does not enable hooks', async () => {
+    const dir = createCodexHookConsumerFixture()
+    const projectRoot = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-codex-project-'))
+    const originalHome = process.env.HOME
+    const originalCodexHome = process.env.CODEX_HOME
+    const homeDir = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-codex-home-'))
+    process.env.HOME = homeDir
+    delete process.env.CODEX_HOME
+
+    try {
+      const report = await doctorConsumer(dir, { projectRoot })
+      expect(report.ok).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-codex-hooks-feature-flag-missing' && check.level === 'warning')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-codex-hooks-feature-flag-enabled')).toBe(false)
+    } finally {
+      process.env.HOME = originalHome
+      if (originalCodexHome === undefined) {
+        delete process.env.CODEX_HOME
+      } else {
+        process.env.CODEX_HOME = originalCodexHome
+      }
+      rmSync(dir, { recursive: true, force: true })
+      rmSync(projectRoot, { recursive: true, force: true })
+      rmSync(homeDir, { recursive: true, force: true })
+    }
+  })
+
+  it('reports success when a project Codex config enables hooks for a hook-bearing install', async () => {
+    const dir = createCodexHookConsumerFixture()
+    const projectRoot = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-codex-project-'))
+    const originalHome = process.env.HOME
+    const originalCodexHome = process.env.CODEX_HOME
+    const homeDir = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-codex-home-'))
+    process.env.HOME = homeDir
+    delete process.env.CODEX_HOME
+    mkdirSync(resolve(projectRoot, '.codex'), { recursive: true })
+    mkdirSync(resolve(homeDir, '.codex'), { recursive: true })
+    writeFileSync(resolve(projectRoot, '.codex/config.toml'), '[features]\nhooks = true\n')
+    writeFileSync(
+      resolve(homeDir, '.codex/config.toml'),
+      `[projects.${JSON.stringify(resolve(projectRoot))}]\ntrust_level = "trusted"\n`,
+    )
+
+    try {
+      const report = await doctorConsumer(dir, { projectRoot })
+      expect(report.ok).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-codex-hooks-feature-flag-enabled' && check.level === 'success')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-codex-project-trust-enabled' && check.level === 'success')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-codex-hooks-feature-flag-missing')).toBe(false)
+      expect(report.checks.some((check) => check.code === 'consumer-codex-project-trust-missing')).toBe(false)
+    } finally {
+      process.env.HOME = originalHome
+      if (originalCodexHome === undefined) {
+        delete process.env.CODEX_HOME
+      } else {
+        process.env.CODEX_HOME = originalCodexHome
+      }
+      rmSync(dir, { recursive: true, force: true })
+      rmSync(projectRoot, { recursive: true, force: true })
+      rmSync(homeDir, { recursive: true, force: true })
+    }
+  })
+
+  it('reports success when a user Codex config enables hooks for a hook-bearing install', async () => {
+    const dir = createCodexHookConsumerFixture()
+    const projectRoot = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-codex-project-'))
+    const originalHome = process.env.HOME
+    const originalCodexHome = process.env.CODEX_HOME
+    const homeDir = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-codex-home-'))
+    process.env.HOME = homeDir
+    delete process.env.CODEX_HOME
+    mkdirSync(resolve(homeDir, '.codex'), { recursive: true })
+    writeFileSync(
+      resolve(homeDir, '.codex/config.toml'),
+      `[features]\nhooks = true\n\n[projects.${JSON.stringify(resolve(projectRoot))}]\ntrust_level = "trusted"\n`,
+    )
+
+    try {
+      const report = await doctorConsumer(dir, { projectRoot })
+      expect(report.ok).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-codex-hooks-feature-flag-enabled' && check.level === 'success')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-codex-project-trust-enabled' && check.level === 'success')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-codex-hooks-feature-flag-missing')).toBe(false)
+      expect(report.checks.some((check) => check.code === 'consumer-codex-project-trust-missing')).toBe(false)
+    } finally {
+      process.env.HOME = originalHome
+      if (originalCodexHome === undefined) {
+        delete process.env.CODEX_HOME
+      } else {
+        process.env.CODEX_HOME = originalCodexHome
+      }
+      rmSync(dir, { recursive: true, force: true })
+      rmSync(projectRoot, { recursive: true, force: true })
+      rmSync(homeDir, { recursive: true, force: true })
+    }
+  })
+
+  it('warns when a hook-bearing Codex install is not trusted even when the feature flag is enabled', async () => {
+    const dir = createCodexHookConsumerFixture()
+    const projectRoot = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-codex-project-'))
+    const originalHome = process.env.HOME
+    const originalCodexHome = process.env.CODEX_HOME
+    const homeDir = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-codex-home-'))
+    process.env.HOME = homeDir
+    delete process.env.CODEX_HOME
+    mkdirSync(resolve(projectRoot, '.codex'), { recursive: true })
+    writeFileSync(resolve(projectRoot, '.codex/config.toml'), '[features]\nhooks = true\n')
+
+    try {
+      const report = await doctorConsumer(dir, { projectRoot })
+      expect(report.ok).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-codex-hooks-feature-flag-enabled' && check.level === 'success')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-codex-project-trust-enabled')).toBe(false)
+      expect(report.checks.some((check) => check.code === 'consumer-codex-project-trust-missing' && check.level === 'warning')).toBe(true)
+    } finally {
+      process.env.HOME = originalHome
+      if (originalCodexHome === undefined) {
+        delete process.env.CODEX_HOME
+      } else {
+        process.env.CODEX_HOME = originalCodexHome
+      }
+      rmSync(dir, { recursive: true, force: true })
+      rmSync(projectRoot, { recursive: true, force: true })
+      rmSync(homeDir, { recursive: true, force: true })
+    }
+  })
+
+  it('reports success when a hook-bearing Codex install finds codex_hooks in the checked config layers', async () => {
+    const dir = createCodexHookConsumerFixture()
+    const projectRoot = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-codex-project-'))
+    const originalHome = process.env.HOME
+    const originalCodexHome = process.env.CODEX_HOME
+    const homeDir = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-codex-home-'))
+    process.env.HOME = homeDir
+    delete process.env.CODEX_HOME
+    mkdirSync(resolve(projectRoot, '.codex'), { recursive: true })
+    mkdirSync(resolve(homeDir, '.codex'), { recursive: true })
+    writeFileSync(resolve(projectRoot, '.codex/config.toml'), '[features]\ncodex_hooks = true\n')
+    writeFileSync(
+      resolve(homeDir, '.codex/config.toml'),
+      `[projects.${JSON.stringify(resolve(projectRoot))}]\ntrust_level = "trusted"\n`,
+    )
+
+    try {
+      const report = await doctorConsumer(dir, { projectRoot })
+      expect(report.ok).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-codex-hooks-feature-flag-enabled' && check.level === 'success')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-codex-hooks-feature-flag-legacy-only' && check.level === 'warning')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-codex-hooks-feature-flag-missing')).toBe(false)
+      expect(report.checks.some((check) => check.code === 'consumer-codex-project-trust-enabled' && check.level === 'success')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-codex-project-trust-missing')).toBe(false)
+    } finally {
+      process.env.HOME = originalHome
+      if (originalCodexHome === undefined) {
+        delete process.env.CODEX_HOME
+      } else {
+        process.env.CODEX_HOME = originalCodexHome
+      }
+      rmSync(dir, { recursive: true, force: true })
+      rmSync(projectRoot, { recursive: true, force: true })
+      rmSync(homeDir, { recursive: true, force: true })
+    }
+  })
+
+  it('warns when generated Codex MCP approval stanzas have not been merged into active config', async () => {
+    const dir = createCodexConsumerFixture({
+      includeRuntime: true,
+      permissionApprovals: [{ serverName: 'hosted', toolName: 'search' }],
+    })
+    const projectRoot = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-codex-project-'))
+    const originalHome = process.env.HOME
+    const originalCodexHome = process.env.CODEX_HOME
+    const homeDir = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-codex-home-'))
+    process.env.HOME = homeDir
+    delete process.env.CODEX_HOME
+
+    try {
+      const report = await doctorConsumer(dir, { projectRoot })
+      expect(report.ok).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-codex-mcp-approval-config-missing' && check.level === 'warning')).toBe(true)
+      expect(report.checks.some((check) => check.detail.includes('.codex/config.generated.toml'))).toBe(true)
+    } finally {
+      process.env.HOME = originalHome
+      if (originalCodexHome === undefined) {
+        delete process.env.CODEX_HOME
+      } else {
+        process.env.CODEX_HOME = originalCodexHome
+      }
+      rmSync(dir, { recursive: true, force: true })
+      rmSync(projectRoot, { recursive: true, force: true })
+      rmSync(homeDir, { recursive: true, force: true })
+    }
+  })
+
+  it('reports success when generated Codex MCP approval stanzas are merged into project config', async () => {
+    const dir = createCodexConsumerFixture({
+      includeRuntime: true,
+      permissionApprovals: [{ serverName: 'hosted', toolName: 'search' }],
+    })
+    const projectRoot = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-codex-project-'))
+    const originalHome = process.env.HOME
+    const originalCodexHome = process.env.CODEX_HOME
+    const homeDir = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-codex-home-'))
+    process.env.HOME = homeDir
+    delete process.env.CODEX_HOME
+    mkdirSync(resolve(projectRoot, '.codex'), { recursive: true })
+    writeFileSync(
+      resolve(projectRoot, '.codex/config.toml'),
+      '[mcp_servers.hosted.tools.search]\napproval_mode = "approve"\n',
+    )
+
+    try {
+      const report = await doctorConsumer(dir, { projectRoot })
+      expect(report.ok).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-codex-mcp-approval-config-merged' && check.level === 'success')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-codex-mcp-approval-config-missing')).toBe(false)
+    } finally {
+      process.env.HOME = originalHome
+      if (originalCodexHome === undefined) {
+        delete process.env.CODEX_HOME
+      } else {
+        process.env.CODEX_HOME = originalCodexHome
+      }
+      rmSync(dir, { recursive: true, force: true })
+      rmSync(projectRoot, { recursive: true, force: true })
+      rmSync(homeDir, { recursive: true, force: true })
+    }
+  })
+
+  it('fails when an installed codex bundle references a missing .app.json surface', async () => {
+    const dir = createCodexAppConsumerFixture({ includeAppFile: false })
+
+    try {
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(false)
+      expect(report.checks.some((check) => check.code === 'consumer-bundle-integrity-invalid' && check.level === 'error')).toBe(true)
+      expect(report.checks.some((check) => check.detail.includes('manifest references missing path: ./.app.json'))).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('fails cleanly when consumer mode points at a source project', async () => {
     const dir = createProjectFixture()
 
@@ -731,6 +1218,43 @@ describe('doctorConsumer', () => {
       expect(report.checks.some((check) => check.code === 'consumer-opencode-entry-missing' && check.level === 'error')).toBe(true)
     } finally {
       rmSync(resolve(dir, '..', '..', '..', '..'), { recursive: true, force: true })
+    }
+  })
+
+  it('fails OpenCode consumer checks when exported skills are not synced globally', async () => {
+    const dir = createOpenCodeConsumerFixture({ includeSyncedSkills: false })
+
+    try {
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(false)
+      expect(report.checks.some((check) => check.code === 'consumer-opencode-skill-sync-incomplete' && check.level === 'error')).toBe(true)
+    } finally {
+      rmSync(resolve(dir, '..', '..', '..', '..'), { recursive: true, force: true })
+    }
+  })
+
+  it('fails Cursor consumer checks when the manifest rules path is missing from the installed bundle', async () => {
+    const dir = createConsumerFixture()
+    mkdirSync(resolve(dir, 'rules'), { recursive: true })
+    writeFileSync(
+      resolve(dir, '.cursor-plugin/plugin.json'),
+      JSON.stringify({
+        name: 'consumer-fixture',
+        version: '0.1.0',
+        skills: './skills/',
+        rules: './rules/',
+        mcpServers: './mcp.json',
+      }, null, 2),
+    )
+    writeFileSync(resolve(dir, 'rules/policy.mdc'), '# Policy\n')
+    rmSync(resolve(dir, 'rules'), { recursive: true, force: true })
+
+    try {
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(false)
+      expect(report.checks.some((check) => check.code === 'consumer-bundle-integrity-invalid' && check.level === 'error')).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
     }
   })
 })

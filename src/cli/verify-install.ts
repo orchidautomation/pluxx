@@ -1,9 +1,15 @@
 import { existsSync, lstatSync, readdirSync, readFileSync, readlinkSync, realpathSync, statSync } from 'fs'
 import { resolve } from 'path'
 import type { PluginConfig, TargetPlatform } from '../schema'
-import { doctorConsumer } from './doctor'
+import { doctorConsumer, type DoctorCheck, type DoctorLevel } from './doctor'
 import { planInstallPlugin, resolveInstalledConsumerPath, type PlannedInstallTarget } from './install'
 import { getVerifyInstallStaleAction } from '../distribution-lifecycle'
+
+type VerifyInstallIssueLevel = Exclude<DoctorLevel, 'success'>
+
+export interface VerifyInstallIssue extends Omit<DoctorCheck, 'level'> {
+  level: VerifyInstallIssueLevel
+}
 
 export interface VerifyInstallCheck {
   platform: TargetPlatform
@@ -17,6 +23,7 @@ export interface VerifyInstallCheck {
   errors: number
   warnings: number
   infos: number
+  issues: VerifyInstallIssue[]
 }
 
 export interface VerifyInstallResult {
@@ -36,6 +43,7 @@ function buildCheckFromReport(
     ? detectStaleInstall(target, pluginName, consumerPath)
     : undefined
   const stale = staleReason !== undefined
+  const issues = listVerifyInstallIssues(report.checks)
   return {
     platform: target.platform,
     installPath: consumerPath,
@@ -48,7 +56,24 @@ function buildCheckFromReport(
     errors: report.errors + (stale ? 1 : 0),
     warnings: report.warnings,
     infos: report.infos,
+    issues,
   }
+}
+
+function listVerifyInstallIssues(checks: DoctorCheck[]): VerifyInstallIssue[] {
+  return checks
+    .filter(
+      (check): check is DoctorCheck & { level: VerifyInstallIssueLevel } =>
+        !check.code.startsWith('primitive-') && check.level !== 'success',
+    )
+    .map((check) => ({
+      level: check.level,
+      code: check.code,
+      title: check.title,
+      detail: check.detail,
+      fix: check.fix,
+      ...(check.path ? { path: check.path } : {}),
+    }))
 }
 
 function manifestPathForPlatform(platform: TargetPlatform): string | undefined {
@@ -166,7 +191,7 @@ export async function verifyInstall(
   const checks = await Promise.all(
     filteredPlan.map(async (target) => {
       const consumerPath = resolveInstalledConsumerPath(target, config.name)
-      const report = await doctorConsumer(consumerPath)
+      const report = await doctorConsumer(consumerPath, { projectRoot: rootDir })
       return buildCheckFromReport(target, config.name, report)
     }),
   )
@@ -186,6 +211,13 @@ export function printVerifyInstallResult(result: VerifyInstallResult): void {
     console.log(`${prefix} ${check.platform}: ${check.consumerPath}`)
     console.log(`  install path: ${check.installPath}`)
     console.log(`  built: ${check.built ? 'yes' : 'no'}; installed: ${check.installed ? 'yes' : 'no'}; errors: ${check.errors}; warnings: ${check.warnings}; infos: ${check.infos}`)
+    for (const issue of check.issues) {
+      const issuePrefix = issue.level.toUpperCase().padEnd(7, ' ')
+      const pathLabel = issue.path ? ` [${issue.path}]` : ''
+      console.log(`  ${issuePrefix} ${issue.code}${pathLabel} ${issue.title}`)
+      console.log(`           ${issue.detail}`)
+      console.log(`           Fix: ${issue.fix}`)
+    }
     if (check.stale) {
       console.log(`  stale install: ${check.staleReason}`)
     }

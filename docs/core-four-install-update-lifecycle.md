@@ -1,6 +1,6 @@
 # Core-Four Install And Update Lifecycle
 
-Last updated: 2026-04-30
+Last updated: 2026-05-13
 
 This doc explains the practical install, update, and reload behavior for the four primary Pluxx targets:
 
@@ -63,6 +63,28 @@ When a Pluxx-generated Codex plugin includes `.mcp.json`, Codex may display that
 - inspect the installed bundle with `pluxx doctor --consumer ~/.codex/plugins/<plugin-name>`
 - refresh/restart Codex if the plugin UI still shows stale state
 - confirm tools are visible from the plugin inside chat
+
+If the installed Codex bundle also declares plugin-bundled hooks, `doctor --consumer` and `verify-install` now warn when the checked project or user Codex config layers do not enable either `[features] hooks = true` or `[features] codex_hooks = true`. These warnings do not mean the bundle is malformed. They mean Codex hook activation is missing a known prerequisite, not that activation is guaranteed once that prerequisite exists. The current recommendation is still to try `hooks = true` first, because maintained local probes on May 13, 2026 showed Codex CLI `0.130.0` deprecating `codex_hooks` while still failing to execute the project-local hook under either config flag and under the current CLI feature path `--enable hooks`.
+
+Those consumer checks now also warn when the checked project is not trusted in the user Codex config, because Codex can keep project-local hooks disabled until that trust entry exists. `verify-install` now carries those `doctor --consumer` issue details through directly, so operators see the specific warning code, explanation, and fix instead of only a warning count.
+
+If the installed Codex bundle also includes `.codex/config.generated.toml`, `doctor --consumer` and `verify-install` now inspect the checked project and user `config.toml` layers for matching per-tool `approval_mode = "approve"` stanzas. When those generated approvals have not been merged yet, Pluxx warns explicitly instead of assuming the companion file was actually applied. This is still an external merge step, not plugin-bundled enforcement.
+
+The newest live Codex proof on 2026-05-13 narrowed the remaining gap further:
+
+- Pluxx now emits the official nested Codex hook shape at `hooks/hooks.json`
+- the maintained `bun scripts/probe-codex-hooks-runtime.ts --json` probe now runs isolated authenticated headless `codex exec` checks against project-local hooks
+- that probe currently reports `headless-response-no-hook` for `hooks-no-trust`, `hooks-trusted`, and `codex-hooks-trusted`: each scenario returns `OK`, each emits `turn.completed`, and none executes the hook side effect
+- the maintained `bun scripts/probe-codex-hooks-interactive-runtime.ts --json` probe now checks trusted `UserPromptSubmit` and `SessionStart` scenarios against project-local `.codex/hooks.json`
+- on May 13, 2026, that maintained interactive probe timed out with no hook side effect and no `/hooks` review gate for:
+  - `user-prompt-submit-codex-hooks-trusted`
+  - `user-prompt-submit-hooks-trusted`
+  - `session-start-codex-hooks-trusted-unreviewed`
+  - `session-start-hooks-trusted-unreviewed`
+- the `codex_hooks` prompt scenario emitted `"[features].codex_hooks is deprecated. Use [features].hooks instead."`
+- the optional `--include-enable-hooks-cli` probe scenarios sharpen that further: headless `enable-hooks-trusted` still returned `OK` with no hook side effect, and trusted interactive `user-prompt-submit-enable-hooks-trusted` plus `session-start-enable-hooks-trusted` still timed out with no hook side effect and no `/hooks` review gate
+
+Treat that as a runtime activation caveat plus a current runtime/docs drift, not a bundle-shape defect. The remaining live-proof gap is trusted-and-reviewed interactive hook execution, plus whether reviewed hooks can ever fire headlessly under `codex exec`.
 
 If a Codex plugin-owned MCP needs an API key, install-time `userConfig` is the expected Pluxx path. Codex may not provide a global MCP settings form for that plugin-owned secret, so reinstall with the real env var exported or rerun the installer interactively. Generated `pluxx publish` installer scripts should prompt consumers for required secrets, materialize them into the installed bundle, reject obvious placeholder values, and let `doctor --consumer` warn if an older install contains one.
 
@@ -156,3 +178,5 @@ When verification fails, `pluxx verify-install` should print a concrete recovery
 - stale symlink or stale version: rerun install for that host
 - Codex cache mismatch: refresh plugins if available or restart Codex
 - unknown consumer failure: run `pluxx doctor --consumer <installed-path>`
+
+When verification passes with warnings, `pluxx verify-install` should still print the concrete issue code, explanation, and fix for those warnings instead of hiding them behind a count.

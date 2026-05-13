@@ -399,6 +399,58 @@ async function setupCodexNativeAgentSource() {
   return sourceDir
 }
 
+async function setupCodexNativeAgentWithInlineMcpSource() {
+  const sourceDir = resolve(TEST_DIR, 'source-codex-native-agent-inline-mcp')
+  mkdirSync(resolve(sourceDir, '.codex-plugin'), { recursive: true })
+  mkdirSync(resolve(sourceDir, '.codex/agents'), { recursive: true })
+  mkdirSync(resolve(sourceDir, 'skills/account-brief'), { recursive: true })
+
+  await writeJson(resolve(sourceDir, '.codex-plugin/plugin.json'), {
+    name: 'codex-native-agent-inline-mcp',
+    version: '0.3.1',
+    description: 'Codex-native custom agent MCP fixture.',
+    author: { name: 'Orchid' },
+  })
+
+  await writeJson(resolve(sourceDir, '.mcp.json'), {
+    mcpServers: {
+      fixture: {
+        url: 'https://example.com/mcp',
+      },
+    },
+  })
+
+  await Bun.write(
+    resolve(sourceDir, 'skills/account-brief/SKILL.md'),
+    ['---', 'name: account-brief', 'description: "Summarize an account."', '---', '', '# Account Brief'].join('\n'),
+  )
+  await Bun.write(
+    resolve(sourceDir, '.codex/agents/specialist.toml'),
+    [
+      'name = "Sales Research"',
+      'description = "Handle complex: research tasks."',
+      'model = "gpt-5.4"',
+      'model_reasoning_effort = "high"',
+      'sandbox_mode = "workspace-write"',
+      '',
+      '[mcp_servers.probe]',
+      'command = "node"',
+      'args = ["./probe.js"]',
+      '',
+      '[mcp_servers.probe.tools.get_allowed_marker]',
+      'approval_mode = "approve"',
+      '',
+      'developer_instructions = """',
+      'Use the MCP for account intelligence.',
+      'Return only the synthesized result.',
+      '"""',
+      '',
+    ].join('\n'),
+  )
+
+  return sourceDir
+}
+
 async function setupCodexPlatformAuthDistributionSource() {
   const sourceDir = resolve(TEST_DIR, 'source-codex-platform-auth-distribution')
   mkdirSync(resolve(sourceDir, '.codex-plugin'), { recursive: true })
@@ -827,6 +879,22 @@ describe('migrate', () => {
     expect(migratedAgent).toContain('model_reasoning_effort: "high"')
     expect(migratedAgent).toContain('sandbox_mode: "workspace-write"')
     expect(migratedAgent).toContain('Use the MCP for account intelligence.')
+  })
+
+  it('warns when migrating Codex native agents that declare inline MCP config or approvals', async () => {
+    const sourceDir = await setupCodexNativeAgentWithInlineMcpSource()
+    const outputDir = resolve(TEST_DIR, 'out-codex-native-agent-inline-mcp')
+    await runMigrate(sourceDir, outputDir)
+
+    const config = readFileSync(resolve(outputDir, 'pluxx.config.ts'), 'utf-8')
+    expect(config).toContain('// Migration warnings:')
+    expect(config).toContain('Codex native agent specialist.toml declares agent-local mcp_servers and per-tool approval stanzas.')
+    expect(config).toContain('that agent-local MCP config is not preserved automatically')
+
+    const migratedAgent = readFileSync(resolve(outputDir, 'agents/sales-research.md'), 'utf-8')
+    expect(migratedAgent).toContain('Use the MCP for account intelligence.')
+    expect(migratedAgent).not.toContain('mcp_servers')
+    expect(migratedAgent).not.toContain('approval_mode')
   })
 
   it('preserves Codex platform auth, interface metadata, and app metadata during migrate', async () => {

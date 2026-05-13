@@ -89,7 +89,7 @@
 | Invocation | `/agents`, Task tool | `/agent` picker, user request | `/agent-name …`, natural language, auto | `@agent-name …` |
 | Built-in / overridable | `Explore`, `Plan`, `general-purpose` | `default`, `worker`, `explorer` (overridable by matching name) | — | `Build`, `Plan` (primaries); `General`, `Explore` (subagents) |
 | Memory | Per-subagent auto-memory supported | — | — | Per-session (shared) |
-| Runtime sandbox | Worktree isolation option | `sandbox_mode` inheritance | `readonly` flag | Via `permission` + agent `tools` list |
+| Runtime sandbox | Worktree isolation option | `sandbox_mode` inheritance (documented, but May 13, 2026 headless and trusted interactive Pluxx probes still let a `read-only` child agent write) | `readonly` flag | Via `permission` + agent `tools` list |
 
 ---
 
@@ -98,7 +98,7 @@
 | | Claude Code | Codex CLI | Cursor | OpenCode |
 |---|---|---|---|---|
 | Canonical config | `settings.json` hooks block + plugin `hooks/hooks.json` + inline skill/agent `hooks:` | `hooks.json` next to active config layers | `.cursor/hooks.json` (project/user/enterprise) | **No config** — plugins register hooks via TS/JS module |
-| Stability | Stable | **EXPERIMENTAL** — needs `[features] codex_hooks = true` | Stable (Windows may be disabled) | Stable |
+| Stability | Stable | Feature-gated — current config surfaces still expose both `[features] hooks = true` and `[features] codex_hooks = true`, current CLI help exposes `--enable <FEATURE>`, but maintained local probes on May 13, 2026 timed out or no-oped without a project-local hook side effect under either config flag or under `--enable hooks`, and the local runtime deprecated `codex_hooks` in favor of `hooks` | Stable (Windows may be disabled) | Stable |
 | Event count | **26** | **5** | **20** | **~28** |
 | Events | SessionStart, InstructionsLoaded, UserPromptSubmit, PreToolUse, PermissionRequest, PermissionDenied, PostToolUse, PostToolUseFailure, Notification, SubagentStart, SubagentStop, TaskCreated, TaskCompleted, Stop, StopFailure, TeammateIdle, ConfigChange, CwdChanged, FileChanged, WorktreeCreate, WorktreeRemove, PreCompact, PostCompact, Elicitation, ElicitationResult, SessionEnd | SessionStart, PreToolUse, PostToolUse, UserPromptSubmit, Stop | sessionStart, sessionEnd, preToolUse, postToolUse, postToolUseFailure, subagentStart, subagentStop, beforeShellExecution, afterShellExecution, beforeMCPExecution, afterMCPExecution, beforeReadFile, afterFileEdit, beforeSubmitPrompt, preCompact, stop, afterAgentResponse, afterAgentThought, beforeTabFileRead, afterTabFileEdit | command.executed, file.edited, file.watcher.updated, installation.updated, lsp.client.diagnostics, lsp.updated, message.part.(removed/updated), message.(removed/updated), permission.(asked/replied), server.connected, session.(created/compacted/deleted/diff/error/idle/status/updated), todo.updated, shell.env, tool.execute.(before/after), tui.prompt.append, tui.command.execute, tui.toast.show, experimental.session.compacting |
 | Hook types | `command`, `http`, `prompt`, `agent` | `command` | `command`, `prompt` | JS/TS function in-process |
@@ -200,7 +200,7 @@
 
 13. **Skill description caps differ per tool**: Claude Code 1,536 (skills page) / 250 (slash-commands page), Cursor ≤200 (community guidance), Codex per-spec, **OpenCode hard 1,024 chars**.
 
-14. **Codex hooks require `[features] codex_hooks = true`** and **don't run on Windows**.
+14. **Codex hooks currently rely on a `[features]` flag** and **don't run on Windows**. Maintained local probes on May 13, 2026 showed both `hooks` and `codex_hooks` timing out without a project-local hook side effect in trusted interactive scenarios, and the optional CLI activation path `--enable hooks` also still no-oped in both maintained headless and interactive probes, while the local runtime deprecated `codex_hooks` in favor of `hooks`.
 
 15. **Claude Code's hooks work at the skill/agent level, too** — you can inline `hooks:` in SKILL.md/agent frontmatter. Other tools scope hooks globally.
 
