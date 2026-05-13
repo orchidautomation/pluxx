@@ -785,10 +785,55 @@ describe('lintProject', () => {
     )
 
     const result = await lintProject(projectDir)
-    expect(result.issues.some(issue => issue.code === 'codex-permissions-external-config')).toBe(true)
+    expect(result.issues.some(issue =>
+      issue.code === 'codex-permissions-external-config'
+      && issue.message.includes('.codex/config.generated.toml')
+    )).toBe(true)
     expect(result.issues.some(issue => issue.code === 'permissions-skill-selector-limited')).toBe(true)
     expect(result.issues.some(issue => issue.code === 'cursor-permissions-translation')).toBe(true)
     expect(result.issues.some(issue => issue.code === 'permissions-opencode-downgrade')).toBe(true)
+  })
+
+  it('warns when Codex agents and root MCP config rely on inherited MCP visibility', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+    mkdirSync(resolve(projectDir, 'agents'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        agents: './agents/',
+        targets: ['codex'],
+        mcp: {
+          probe: {
+            transport: 'http',
+            url: 'https://example.com/mcp',
+          },
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A valid skill"', '---', '', '# My Skill'].join('\n'),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'agents/research-agent.md'),
+      ['---', 'name: research-agent', 'description: "A valid agent"', '---', '', '# Agent'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue =>
+      issue.code === 'codex-agent-mcp-inheritance'
+      && issue.message.includes('mcp_servers = {}')
+      && issue.message.includes('inherit parent MCP servers')
+    )).toBe(true)
   })
 
   it('warns when MCP auth or local runtimes depend on external host state', async () => {
@@ -1640,8 +1685,8 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'codex-agents-max-depth')).toBe(true)
   })
 
-  // ── Gotcha #18: Codex hooks may still depend on the codex_hooks feature flag ──
-  it('warns when Codex hooks are configured without the codex_hooks feature flag', async () => {
+  // ── Gotcha #18: Codex hooks may still depend on a host feature gate ──
+  it('warns when Codex hooks are configured without the current Codex hooks feature flag', async () => {
     const projectDir = createTempProject()
     mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
 
@@ -1669,7 +1714,7 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'codex-hooks-external-config')).toBe(true)
   })
 
-  it('does not warn for supported Codex canonical hook aliases when the feature flag is enabled', async () => {
+  it('does not warn for supported Codex canonical hook aliases when the current feature flag is enabled', async () => {
     const projectDir = createTempProject()
     mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
 
@@ -1688,6 +1733,41 @@ describe('lintProject', () => {
         },
         platforms: {
           codex: {
+            features: { hooks: true },
+          },
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A skill"', '---', '', '# Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'codex-hooks-external-config')).toBe(false)
+    expect(result.issues.some(issue => issue.code === 'codex-hooks-legacy-feature-flag')).toBe(false)
+    expect(result.issues.some(issue => issue.code === 'codex-hook-event-unsupported')).toBe(false)
+  })
+
+  it('accepts codex_hooks as a valid Codex hook feature flag', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['codex'],
+        hooks: {
+          sessionStart: [{ command: 'echo start' }],
+        },
+        platforms: {
+          codex: {
             features: { codex_hooks: true },
           },
         },
@@ -1701,7 +1781,7 @@ describe('lintProject', () => {
 
     const result = await lintProject(projectDir)
     expect(result.issues.some(issue => issue.code === 'codex-hooks-external-config')).toBe(false)
-    expect(result.issues.some(issue => issue.code === 'codex-hook-event-unsupported')).toBe(false)
+    expect(result.issues.some(issue => issue.code === 'codex-hooks-legacy-feature-flag')).toBe(true)
   })
 
   it('warns when runtime readiness depends on external Codex wiring or best-effort prompt scoping', async () => {
@@ -1894,6 +1974,7 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'codex-hook-type-drop' && issue.message.includes('http hooks'))).toBe(true)
     expect(result.issues.some(issue => issue.code === 'opencode-hook-type-drop' && issue.message.includes('http hooks'))).toBe(true)
     expect(result.issues.some(issue => issue.code === 'claude-hook-failclosed-degrade')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'codex-hook-failclosed-drop')).toBe(true)
     expect(result.issues.some(issue => issue.code === 'codex-hook-loop-limit-drop')).toBe(true)
     expect(result.issues.some(issue => issue.code === 'opencode-hook-loop-limit-drop')).toBe(true)
     expect(result.issues.some(issue => issue.code === 'codex-skill-frontmatter-translation' && issue.message.includes('arguments'))).toBe(true)

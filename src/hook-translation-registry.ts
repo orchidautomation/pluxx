@@ -64,8 +64,11 @@ const HOOK_PLATFORM_REGISTRY: Partial<Record<TargetPlatform, HookPlatformRegistr
     unsupportedEventReason: 'Codex currently documents only SessionStart, PreToolUse, PermissionRequest, PostToolUse, UserPromptSubmit, and Stop for hook configuration.',
     fields: {
       prompt: { mode: 'drop' },
-      matcher: { mode: 'preserve' },
-      failClosed: { mode: 'preserve' },
+      matcher: {
+        mode: 'preserve',
+        supportedEvents: ['SessionStart', 'PreToolUse', 'PermissionRequest', 'PostToolUse'],
+      },
+      failClosed: { mode: 'drop' },
       loop_limit: { mode: 'drop' },
     },
   },
@@ -264,10 +267,17 @@ export function getHookFieldTranslationIssue(
     }
   }
 
+  if (platform === 'codex' && field === 'failClosed') {
+    return {
+      code: 'codex-hook-failclosed-drop',
+      message: 'Codex hook bundles currently drop `failClosed`. Strict failure behavior is not preserved in generated Codex output today.',
+    }
+  }
+
   if (platform === 'codex' && field === 'loop_limit') {
     return {
       code: 'codex-hook-loop-limit-drop',
-      message: 'Codex hook companions currently drop `loop_limit`. Only command, matcher, timeout, and failClosed survive there today.',
+      message: 'Codex hook bundles currently drop `loop_limit`. Current Codex output keeps command handlers, event matcher groups, and timeout where documented.',
     }
   }
 

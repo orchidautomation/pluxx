@@ -137,6 +137,54 @@ describe('install', () => {
     expect(existsSync(resolve(HOME_DIR, '.agents/plugins/marketplace.json'))).toBe(false)
   })
 
+  it('clears stale Codex local cache entries on install', async () => {
+    mkdirSync(resolve(DIST_DIR, 'codex/.codex-plugin'), { recursive: true })
+    writeFileSync(
+      resolve(DIST_DIR, 'codex/.codex-plugin/plugin.json'),
+      JSON.stringify({
+        name: 'megamind',
+        version: '1.0.0',
+      }),
+    )
+
+    const staleCacheRoot = resolve(HOME_DIR, '.codex/plugins/cache/local-plugins/megamind/0.9.0/.codex-plugin')
+    mkdirSync(staleCacheRoot, { recursive: true })
+    writeFileSync(
+      resolve(staleCacheRoot, 'plugin.json'),
+      JSON.stringify({
+        name: 'megamind',
+        version: '0.9.0',
+      }),
+    )
+
+    await installPlugin(DIST_DIR, 'megamind', ['codex'], { useNativeClaudeInstall: false })
+
+    expect(existsSync(resolve(HOME_DIR, '.codex/plugins/cache/local-plugins/megamind'))).toBe(false)
+    expect(existsSync(resolve(HOME_DIR, INSTALL_PATHS.codex))).toBe(true)
+    expect(existsSync(resolve(HOME_DIR, '.agents/plugins/marketplace.json'))).toBe(true)
+  })
+
+  it('clears Codex local cache entries on uninstall', async () => {
+    mkdirSync(resolve(DIST_DIR, 'codex'), { recursive: true })
+    await installPlugin(DIST_DIR, 'megamind', ['codex'], { useNativeClaudeInstall: false })
+
+    const staleCacheRoot = resolve(HOME_DIR, '.codex/plugins/cache/local-plugins/megamind/0.9.0/.codex-plugin')
+    mkdirSync(staleCacheRoot, { recursive: true })
+    writeFileSync(
+      resolve(staleCacheRoot, 'plugin.json'),
+      JSON.stringify({
+        name: 'megamind',
+        version: '0.9.0',
+      }),
+    )
+
+    await uninstallPlugin('megamind', ['codex'])
+
+    expect(existsSync(resolve(HOME_DIR, '.codex/plugins/cache/local-plugins/megamind'))).toBe(false)
+    expect(existsSync(resolve(HOME_DIR, INSTALL_PATHS.codex))).toBe(false)
+    expect(existsSync(resolve(HOME_DIR, '.agents/plugins/marketplace.json'))).toBe(false)
+  })
+
   it('uninstalls OpenCode wrapper files and exported skills', async () => {
     mkdirSync(resolve(DIST_DIR, 'opencode/skills/client-intel'), { recursive: true })
     await Bun.write(resolve(DIST_DIR, 'opencode/index.ts'), 'export const MegamindPlugin = async () => ({});\n')
@@ -218,7 +266,6 @@ describe('install', () => {
         license: 'MIT',
         commands: './commands/',
         skills: './skills/',
-        hooks: './hooks/hooks.json',
       }),
     )
     await Bun.write(resolve(DIST_DIR, 'claude-code/commands/pulse.md'), '# pulse\n')
@@ -264,12 +311,16 @@ describe('install', () => {
     const marketplaceRoot = resolve(HOME_DIR, '.claude/plugins/data/pluxx-local-megamind')
     const marketplaceManifest = resolve(marketplaceRoot, '.claude-plugin/marketplace.json')
     const installedBundle = resolve(HOME_DIR, '.claude/plugins/cache/pluxx-local-megamind/megamind/1.2.3')
+    const installedManifest = JSON.parse(readFileSync(resolve(installedBundle, '.claude-plugin/plugin.json'), 'utf-8')) as {
+      hooks?: string
+    }
     expect(existsSync(marketplaceManifest)).toBe(true)
     expect(lstatSync(resolve(marketplaceRoot, 'plugins/megamind')).isSymbolicLink()).toBe(false)
     expect(existsSync(resolve(marketplaceRoot, 'plugins/megamind/commands/pulse.md'))).toBe(true)
     expect(existsSync(resolve(marketplaceRoot, 'plugins/megamind/skills/research/SKILL.md'))).toBe(true)
     expect(existsSync(resolve(marketplaceRoot, 'plugins/megamind/scripts/session-start.sh'))).toBe(true)
     expect(existsSync(resolve(installedBundle, '.claude-plugin/plugin.json'))).toBe(true)
+    expect(installedManifest.hooks).toBeUndefined()
 
     expect(calls).toEqual([
       { command: 'claude', args: ['plugin', 'marketplace', 'list', '--json'] },

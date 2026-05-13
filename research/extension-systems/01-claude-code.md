@@ -16,7 +16,7 @@
 | **Slash commands (legacy)** | `.claude/commands/*.md` | `<plugin>/commands/*.md` | Flat markdown (same frontmatter as skills) | [slash-commands](https://code.claude.com/docs/en/slash-commands) |
 | **Subagents** | `.claude/agents/*.md`, `~/.claude/agents/*.md` | `<plugin>/agents/*.md` | Markdown + YAML frontmatter | [sub-agents](https://code.claude.com/docs/en/sub-agents) |
 | **Hooks** | `.claude/settings.json`, `.claude/settings.local.json`, `~/.claude/settings.json`, managed settings | `<plugin>/hooks/hooks.json` OR inline in `plugin.json` | JSON | [hooks](https://code.claude.com/docs/en/hooks) |
-| **MCP servers** | `~/.claude.json` (user), `.mcp.json` (project), CLI `claude mcp add` | `<plugin>/.mcp.json` OR inline in `plugin.json` | JSON | [mcp](https://code.claude.com/docs/en/mcp) |
+| **MCP servers** | `~/.claude.json` (user + local), `.mcp.json` (project), `managed-mcp.json`, CLI `claude mcp add` | `<plugin>/.mcp.json` OR inline in `plugin.json` | JSON | [mcp](https://code.claude.com/docs/en/mcp) |
 | **LSP servers** | n/a (plugin-only feature) | `<plugin>/.lsp.json` OR inline in `plugin.json` | JSON | [plugins-reference#lsp-servers](https://code.claude.com/docs/en/plugins-reference#lsp-servers) |
 | **Output styles** | `.claude/output-styles/` | `<plugin>/output-styles/` | Markdown | [plugins-reference](https://code.claude.com/docs/en/plugins-reference#component-path-fields) |
 | **Monitors** | n/a | `<plugin>/monitors/monitors.json` | JSON | [plugins-reference](https://code.claude.com/docs/en/plugins-reference#component-path-fields) |
@@ -180,6 +180,8 @@ Event-specific via `hookSpecificOutput`:
 
 ### 5.7 Disable / global
 - `"disableAllHooks": true` in a settings layer kills hooks at that layer.
+  Observed on 2026-05-13 with Claude Code CLI `2.1.140`: the maintained `bun scripts/probe-claude-hooks-runtime.ts --json` suite showed broader suppression than the docs wording implies. A user-layer `disableAllHooks: true` prevented an otherwise-present local `SessionStart` settings hook from firing. The same maintained unauthenticated probe also proved installed plugin `SessionStart` activation before the expected `/login` response, and it showed that redundant `manifest.hooks: "./hooks/hooks.json"` still triggers Claude's duplicate hooks-file load error even though the standard auto-loaded hook continues to run.
+- Managed settings proof remains intentionally bounded. The maintained probe now also has opt-in shadow scenarios for managed `disableAllHooks` and `allowManagedHooksOnly` with `SessionStart`, but those run through a synthetic managed-settings path in the probe/test harness rather than the real Claude managed-settings delivery surface. Until the probe is rerun against an actual managed settings surface such as the documented managed file location or equivalent registry/plist/MDM/server-managed policy, managed precedence, managed-scope plugin behavior, and broader managed hook-event semantics should remain marked unproven.
 - Only managed settings can disable managed hooks.
 
 ### 5.8 Environment variables for hook scripts
@@ -190,10 +192,12 @@ Event-specific via `hookSpecificOutput`:
 ## 6. MCP — full spec
 
 ### 6.1 Config locations
-- User (global): `~/.claude.json` (via `claude mcp add -s user`).
+- User (global): `~/.claude.json` top-level `mcpServers` (via `claude mcp add -s user`).
 - Project committed: `.mcp.json` at repo root.
-- Project local: via CLI `claude mcp add -s local`.
+- Project local: `~/.claude.json` under `projects["/abs/path"].mcpServers` (via `claude mcp add -s local`).
+- Managed / enterprise: system `managed-mcp.json` (`/Library/Application Support/ClaudeCode/managed-mcp.json` on macOS, `/etc/claude-code/managed-mcp.json` on Linux, `C:\Program Files\ClaudeCode\managed-mcp.json` on Windows).
 - Plugin: `<plugin>/.mcp.json` or inline `"mcpServers": {...}` in `plugin.json`.
+- Current Claude debug docs explicitly warn that `settings.json` / `settings.local.json` do **not** read `mcpServers`; those files are for general settings and hooks, not MCP registration.
 
 ### 6.2 Transport types
 - **stdio** — local subprocess (`command`, `args`, `env`, `cwd`).
@@ -349,7 +353,7 @@ Listed in 8.1.
 
 | Scope | Path | Share? |
 |---|---|---|
-| Managed | macOS `/Library/Application Support/ClaudeCode/managed-settings.json`, Linux `/etc/claude-code/managed-settings.json`, Windows `C:\ProgramData\ClaudeCode\managed-settings.json` | Org-wide, read-only from user |
+| Managed | macOS `/Library/Application Support/ClaudeCode/managed-settings.json`, Linux `/etc/claude-code/managed-settings.json`, Windows `C:\Program Files\ClaudeCode\managed-settings.json` | Org-wide, read-only from user |
 | User | `~/.claude/settings.json` | No |
 | Project shared | `.claude/settings.json` | Yes (git) |
 | Project local | `.claude/settings.local.json` | No (gitignored) |

@@ -1,6 +1,6 @@
 # Core-Four Provider Docs Audit
 
-Last updated: 2026-05-04
+Last updated: 2026-05-13
 
 ## Doc Links
 
@@ -128,7 +128,7 @@ Confirmed by official docs:
 - MCP can be declared in `.mcp.json` or inline in plugin config
 - auth is broader than simple headers and env interpolation
 - install, update, and reload are explicit product surfaces, including `/reload-plugins`
-- settings scopes matter: managed, user, project, and local settings affect which plugin, hook, and MCP surfaces are active
+- settings scopes matter for plugin settings and hooks, while MCP uses its own managed / user-local / project scope model through `managed-mcp.json`, `~/.claude.json`, and `.mcp.json`
 
 Current repo gaps:
 
@@ -186,7 +186,7 @@ Confirmed by official docs:
 - plugin skills are bundled under `skills/`
 - non-plugin skills are discovered through `.agents/skills` directories
 - `agents/openai.yaml` is optional metadata for plugin skills
-- hook config exists at project and user paths and is gated by the `codex_hooks` feature flag; Pluxx now also bundles translated Codex hooks at `hooks/hooks.json` for plugin installs
+- hook config exists at project and user paths and is still feature-gated; the current Codex config schema still exposes both `[features].hooks = true` and `[features].codex_hooks = true`, and current `codex exec --help` exposes `--enable <FEATURE>` for the CLI path, but maintained local probes on May 13, 2026 showed the runtime deprecating `codex_hooks` while still failing to execute the project-local hook under either config flag or under `--enable hooks`. Pluxx now also bundles translated Codex hooks at `hooks/hooks.json` for plugin installs
 - Codex documents `stdio` and streamable HTTP MCP transports
 - Codex documents bearer-token and OAuth MCP auth
 - `.app.json` is a real optional plugin surface
@@ -198,7 +198,9 @@ Confirmed by official docs:
 Current repo gaps:
 
 - the main machine-readable Codex transport and hook-event gaps have now been corrected in `src/validation/platform-rules.ts`
-- some top-level prose still drifted toward the older "external hooks only" description even after the generator and row-level matrix moved to bundled Codex hooks
+- the current remaining drift is no longer about bundled-vs-external hooks; it is about proving real runtime activation across Codex versions now that both feature-flag spellings still exist, the local runtime now deprecates `codex_hooks`, current CLI help routes feature activation through `--enable <FEATURE>`, and the maintained probes still time out or no-op without a project-local hook signal under either config flag or under `--enable hooks`
+- current live probes also show docs-vs-runtime caveats for Codex subagents: `sandbox_mode` is documented and emitted, but both the maintained headless probe and the maintained trusted interactive probe still let a child agent declared as `read-only` write `sandbox-proof.txt`; discovered `.agents/skills` inheritance is live-proven, yet a parent `[[skills.config]] enabled = false` entry was ignored in the maintained headless probe and an agent-local `[[skills.config]]` entry did not preload an undiscovered `skills/` path
+- current live probes now also show a sharper Codex MCP caveat: project-scoped, user-scoped, and inline-agent MCP config all reached `initialize`, `notifications/initialized`, and `tools/list` in headless `codex exec`, but the default root-scoped paths were still auto-cancelled with `user cancelled MCP tool call` before any server-side `tools/call`, while the default inline-agent path fell back to `MCP_PROOF_MARKER_MISSING`. The maintained suite now also proves five explicit approval unlock paths: project-scoped root MCP, user-scoped root MCP, agent-local inline `mcp_servers`, a custom agent inheriting an approved project-scoped root MCP server, and a custom agent inheriting an approved user-scoped root MCP server can all reach real server-side `tools/call` once `[mcp_servers.<id>.tools.<tool>] approval_mode = "approve"` is present. All three approved custom-agent runs still avoid a root `mcp_tool_call` item and instead surface child `agents_states` moving through `pending_init` to `completed`; project-scoped servers still do not appear in `codex mcp list`, and user-scoped servers do appear there. Pluxx already uses the root-config proof by generating `.codex/config.generated.toml` when canonical top-level MCP allow rules can be materialized safely
 - several conservative Codex listing limits are now encoded as Pluxx advisory heuristics rather than official-doc-backed hard facts:
   - `skillDescriptionMax: 1024`
   - `skillNameMustMatchDir: true`
@@ -322,9 +324,11 @@ After the rules file is corrected, regenerate `docs/compatibility.md`.
 
 Then update `docs/core-four-primitive-matrix.md` so the higher-level explanation matches the newly refreshed rules.
 
-### 4. Add a host lifecycle matrix
+### 4. Keep the host lifecycle matrix current
 
-This should cover:
+The install/update/reload matrix now lives in [docs/core-four-install-update-lifecycle.md](./core-four-install-update-lifecycle.md).
+
+Refresh it when provider docs or live proof change around:
 
 - install surface
 - update surface

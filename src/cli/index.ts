@@ -1435,7 +1435,7 @@ async function runDiscoverMcp() {
   console.log('Installed MCP servers:')
   for (const server of discovered) {
     console.log(`  ${server.id}`)
-    console.log(`    source: ${server.sourcePath}`)
+    console.log(`    source: ${server.sourcePath}${server.sourceScope ? ` (${server.sourceScope})` : ''}`)
     console.log(`    server: ${formatInstalledMcpSource(server)}`)
     for (const warning of server.warnings) {
       console.log(`    warning: ${warning}`)
@@ -2147,7 +2147,7 @@ async function runDoctor() {
   const doctorPath = args.slice(1).find((value) => !value.startsWith('-'))
   const rootDir = doctorPath ? resolve(process.cwd(), doctorPath) : process.cwd()
   const report = consumerMode
-    ? await doctorConsumer(rootDir)
+    ? await doctorConsumer(rootDir, { projectRoot: process.cwd() })
     : await doctorProject(rootDir)
 
   if (runtime.jsonOutput) {

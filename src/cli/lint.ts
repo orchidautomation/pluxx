@@ -17,6 +17,12 @@ import {
   getRuntimeReadinessExternalConfigNote,
   getRuntimeReadinessNamedPromptTargetNote,
 } from '../runtime-readiness-registry'
+import {
+  ALTERNATE_CODEX_HOOKS_FEATURE_FLAG,
+  isCodexHooksFeatureEnabled,
+  RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG,
+  usesAlternateCodexHooksFeatureFlagOnly,
+} from '../codex-hooks-feature'
 import { getCanonicalAgentMetadata, readCanonicalAgentFiles } from '../agents'
 import { getAgentTranslationMessage, getTranslatedAgentFields } from '../agent-translation-registry'
 import { buildPrimitiveTranslationSummary, renderPrimitiveTranslationSummary, type PrimitiveTranslationSummary } from './primitive-summary'
@@ -1198,17 +1204,27 @@ function lintCodexHooksExternalConfig(config: PluginConfig, issues: LintIssue[])
 
   const codexOverrides = asRecord(config.platforms?.codex)
   const features = codexOverrides ? asRecord(codexOverrides.features) : null
-  const hasPluxxCodexHooksFlag = features && features.codex_hooks === true
+  const hasPluxxCodexHooksFlag = isCodexHooksFeatureEnabled(features)
 
-  if (hasPluxxCodexHooksFlag) return
+  if (!hasPluxxCodexHooksFlag) {
+    pushIssue(issues, {
+      level: 'warning',
+      code: 'codex-hooks-external-config',
+      message: `Pluxx now bundles Codex hooks at \`hooks/hooks.json\`, but Codex hook loading may still be guarded by a \`[features]\` flag in the host runtime. Current Codex config surfaces still accept both \`${RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG} = true\` and \`${ALTERNATE_CODEX_HOOKS_FEATURE_FLAG} = true\`; maintained probes on May 13, 2026 showed local Codex CLI 0.130.0 still failing to execute the project-local hook under either config flag and under the current CLI feature path \`--enable hooks\`, while \`${ALTERNATE_CODEX_HOOKS_FEATURE_FLAG}\` emitted a deprecation warning that points users to \`${RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG}\`. If bundled hooks do not activate, enable \`${RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG} = true\` first, reload Codex, and retest in a trusted interactive session, but do not treat the flag by itself as proof that hooks will execute.`,
+      file: 'pluxx.config.ts',
+      platform: 'Codex',
+    })
+  }
 
-  pushIssue(issues, {
-    level: 'warning',
-    code: 'codex-hooks-external-config',
-    message: 'Pluxx now bundles Codex hooks at `hooks/hooks.json`, but Codex hook loading may still be guarded by `codex_hooks = true` in the host runtime. If bundled hooks do not activate, enable that feature flag and reload Codex.',
-    file: 'pluxx.config.ts',
-    platform: 'Codex',
-  })
+  if (usesAlternateCodexHooksFeatureFlagOnly(features)) {
+    pushIssue(issues, {
+      level: 'warning',
+      code: 'codex-hooks-legacy-feature-flag',
+      message: `Current local Codex CLI 0.130.0 interactive probes on May 13, 2026 emitted a deprecation warning for \`${ALTERNATE_CODEX_HOOKS_FEATURE_FLAG}\` that points users to \`${RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG}\`. Keep \`${ALTERNATE_CODEX_HOOKS_FEATURE_FLAG}\` only as a compatibility fallback and prefer \`${RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG} = true\`.`,
+      file: 'pluxx.config.ts',
+      platform: 'Codex',
+    })
+  }
 }
 
 function lintRuntimeReadiness(config: PluginConfig, issues: LintIssue[]): void {
@@ -1255,7 +1271,7 @@ function lintRuntimeReadiness(config: PluginConfig, issues: LintIssue[]): void {
     pushIssue(issues, {
       level: 'warning',
       code: 'codex-readiness-external-config',
-      message: `${getRuntimeReadinessExternalConfigNote()} Pluxx emits ${codexReadinessCapability.companionArtifacts.join(' plus ')}, but you still need to wire those commands into Codex hook config itself.`,
+      message: `${getRuntimeReadinessExternalConfigNote()} Pluxx emits ${codexReadinessCapability.companionArtifacts.join(' plus ')} so you can verify the bundled hook translation and debug activation if the host feature gate is still required.`,
       file: 'pluxx.config.ts',
       platform: 'Codex',
     })
@@ -1417,6 +1433,18 @@ function lintHookFieldTranslations(config: PluginConfig, issues: LintIssue[]): v
         level: 'warning',
         file: 'pluxx.config.ts',
         platform: 'claude-code',
+        ...issue,
+      })
+    }
+  }
+
+  if (hasFailClosed && config.targets.includes('codex')) {
+    const issue = getHookFieldTranslationIssue('codex', 'failClosed')
+    if (issue) {
+      pushIssue(issues, {
+        level: 'warning',
+        file: 'pluxx.config.ts',
+        platform: 'codex',
         ...issue,
       })
     }
@@ -1601,7 +1629,7 @@ function lintPermissions(config: PluginConfig, issues: LintIssue[]): void {
     pushIssue(issues, {
       level: 'warning',
       code: 'codex-permissions-external-config',
-      message: 'Codex does not currently support plugin-packaged permission enforcement. Mirror canonical permissions into Codex user/admin config or external hooks for real enforcement (Pluxx emits .codex/permissions.generated.json as a starter mirror).',
+      message: 'Codex does not currently support plugin-packaged permission enforcement. For real enforcement, merge .codex/config.generated.toml into active Codex config when Pluxx can materialize live-proven MCP approval stanzas, and use .codex/permissions.generated.json as the broader mirror for selectors that still remain external.',
       file: 'pluxx.config.ts',
       platform: 'Codex',
     })
@@ -1645,6 +1673,20 @@ function lintPermissions(config: PluginConfig, issues: LintIssue[]): void {
       platform: 'OpenCode',
     })
   }
+}
+
+function lintCodexAgentMcpInheritance(config: PluginConfig, issues: LintIssue[]): void {
+  if (!config.targets.includes('codex')) return
+  if (!config.agents) return
+  if (!config.mcp || Object.keys(config.mcp).length === 0) return
+
+  pushIssue(issues, {
+    level: 'warning',
+    code: 'codex-agent-mcp-inheritance',
+    message: 'Codex custom agents currently inherit parent MCP servers from active project/user config. Maintained local probes now show that this still happens even when a custom agent explicitly sets `mcp_servers = {}`, and open upstream issue #20135 reports the same ceiling. Do not assume read-only or non-MCP agents are isolated from root MCP tools; keep the root MCP surface minimal, and use agent-local inline mcp_servers only when an agent truly needs a different native MCP shape.',
+    file: 'pluxx.config.ts',
+    platform: 'Codex',
+  })
 }
 
 function isCoreFourPlatform(target: TargetPlatform): target is CoreFourPlatform {
@@ -1755,6 +1797,7 @@ export async function lintProject(
   lintCodexHooksExternalConfig(lintConfig, issues)
   lintRuntimeReadiness(lintConfig, issues)
   lintPermissions(lintConfig, issues)
+  lintCodexAgentMcpInheritance(lintConfig, issues)
   lintPrimitiveTranslations(lintConfig, issues)
   lintHookFieldTranslations(lintConfig, issues)
   lintHookTypeTranslations(lintConfig, issues)

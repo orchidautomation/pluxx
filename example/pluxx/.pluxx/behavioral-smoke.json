@@ -1,0 +1,104 @@
+{
+  "cases": [
+    {
+      "name": "verify-install",
+      "commandId": "verify-install",
+      "targets": {
+        "claude-code": {
+          "prompt": "/pluxx:verify-install claude-code. Return sections titled Passed targets: and Smallest next step:.",
+          "require": [
+            "Passed targets:",
+            "Smallest next step:"
+          ],
+          "forbid": [
+            "context too long",
+            "skill bailed"
+          ]
+        },
+        "cursor": {
+          "prompt": "/verify-install cursor. Return sections titled Passed targets: and Smallest next step:.",
+          "require": [
+            "Passed targets:",
+            "Smallest next step:"
+          ],
+          "forbid": [
+            "context too long",
+            "skill bailed"
+          ]
+        },
+        "codex": {
+          "prompt": "Use Pluxx command `verify-install` to verify the installed Codex bundle. Return sections titled Passed targets: and Smallest next step:.",
+          "require": [
+            "Passed targets:",
+            "Smallest next step:"
+          ],
+          "forbid": [
+            "context too long",
+            "skill bailed"
+          ]
+        },
+        "opencode": {
+          "prompt": "/verify-install opencode. Return sections titled Passed targets: and Smallest next step:.",
+          "require": [
+            "Passed targets:",
+            "Smallest next step:"
+          ],
+          "forbid": [
+            "context too long",
+            "skill bailed"
+          ]
+        }
+      }
+    },
+    {
+      "name": "translate-hosts",
+      "commandId": "translate-hosts",
+      "targets": {
+        "claude-code": {
+          "prompt": "/pluxx:translate-hosts hooks codex. Return sections titled Preserve/translate/degrade/drop: and Highest-value source-shape fix:.",
+          "require": [
+            "Preserve/translate/degrade/drop:",
+            "Highest-value source-shape fix:"
+          ],
+          "forbid": [
+            "context too long",
+            "skill bailed"
+          ]
+        },
+        "cursor": {
+          "prompt": "/translate-hosts hooks codex. Return sections titled Preserve/translate/degrade/drop: and Highest-value source-shape fix:.",
+          "require": [
+            "Preserve/translate/degrade/drop:",
+            "Highest-value source-shape fix:"
+          ],
+          "forbid": [
+            "context too long",
+            "skill bailed"
+          ]
+        },
+        "codex": {
+          "prompt": "Use Pluxx command `translate-hosts` to review Codex hook translation truth. Return sections titled Preserve/translate/degrade/drop: and Highest-value source-shape fix:.",
+          "require": [
+            "Preserve/translate/degrade/drop:",
+            "Highest-value source-shape fix:"
+          ],
+          "forbid": [
+            "context too long",
+            "skill bailed"
+          ]
+        },
+        "opencode": {
+          "prompt": "/translate-hosts hooks codex. Return sections titled Preserve/translate/degrade/drop: and Highest-value source-shape fix:.",
+          "require": [
+            "Preserve/translate/degrade/drop:",
+            "Highest-value source-shape fix:"
+          ],
+          "forbid": [
+            "context too long",
+            "skill bailed"
+          ]
+        }
+      }
+    }
+  ]
+}

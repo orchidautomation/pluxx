@@ -1,13 +1,13 @@
 import { existsSync, readFileSync } from 'fs'
-import { mkdtemp, rm } from 'fs/promises'
-import { tmpdir } from 'os'
-import { resolve } from 'path'
 import { spawn } from 'child_process'
+import { resolve } from 'path'
 import type { PluginConfig, TargetPlatform } from '../schema'
+import { executeCodexExecCommand } from '../codex-exec-runner'
 
 const BEHAVIORAL_CONFIG_PATH = '.pluxx/behavioral-smoke.json'
 const CURSOR_RUNNER_BINARIES = ['agent', 'cursor-agent'] as const
 const SUPPORTED_PLATFORMS = ['claude-code', 'cursor', 'codex', 'opencode'] as const satisfies readonly TargetPlatform[]
+const DEFAULT_BEHAVIORAL_TIMEOUT_MS = 60_000
 
 type BehavioralPlatform = typeof SUPPORTED_PLATFORMS[number]
 
@@ -19,6 +19,7 @@ interface BehavioralCaseTargetConfig {
   expectedExitCodes?: number[]
   expectFailure?: boolean
   runnerArgs?: string[]
+  timeoutMs?: number
 }
 
 interface BehavioralCaseConfig {
@@ -48,6 +49,7 @@ export interface BehavioralCheckResult {
   require?: string[]
   forbid?: string[]
   expectedExitCodes: number[]
+  timeoutMs: number
   failures: string[]
 }
 
@@ -152,9 +154,39 @@ async function runBehavioralCheck(
     : targetConfig.expectFailure
       ? [1]
       : [0]
+  const timeoutMs = Number.isFinite(targetConfig.timeoutMs) && (targetConfig.timeoutMs ?? 0) > 0
+    ? Math.trunc(targetConfig.timeoutMs!)
+    : DEFAULT_BEHAVIORAL_TIMEOUT_MS
 
-  const command = await buildBehavioralCommand(platform, prompt, rootDir, targetConfig)
-  const execution = await executeBehavioralCommand(platform, command, rootDir)
+  let command: string[] = []
+  let execution: {
+    exitCode: number
+    response: string
+  }
+
+  try {
+    command = await buildBehavioralCommand(platform, prompt, rootDir, targetConfig)
+    execution = await executeBehavioralCommand(platform, command, rootDir, timeoutMs)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return {
+      caseName,
+      platform,
+      prompt,
+      commandId,
+      command,
+      ok: false,
+      exitCode: 1,
+      responseBytes: message.length,
+      responsePreview: truncate(message, 220),
+      require: targetConfig.require,
+      forbid: targetConfig.forbid,
+      expectedExitCodes,
+      timeoutMs,
+      failures: [message],
+    }
+  }
+
   const responseText = execution.response.trim()
   const failures: string[] = []
 
@@ -191,6 +223,7 @@ async function runBehavioralCheck(
     require: targetConfig.require,
     forbid: targetConfig.forbid,
     expectedExitCodes,
+    timeoutMs,
     failures,
   }
 }
@@ -254,51 +287,47 @@ async function executeBehavioralCommand(
   platform: BehavioralPlatform,
   command: string[],
   cwd: string,
+  timeoutMs: number,
 ): Promise<{
   exitCode: number
   response: string
 }> {
-  let codexOutputDir: string | null = null
-  let codexLastMessagePath: string | null = null
-  const runtimeCommand = [...command]
-
   if (platform === 'codex') {
-    codexOutputDir = await mkdtemp(resolve(tmpdir(), 'pluxx-codex-behavioral-'))
-    codexLastMessagePath = resolve(codexOutputDir, 'last-message.txt')
-    runtimeCommand.splice(2, 0, '--output-last-message', codexLastMessagePath)
-  }
-
-  try {
-    return await new Promise((resolvePromise, reject) => {
-      const child = spawn(runtimeCommand[0], runtimeCommand.slice(1), {
-        cwd,
-        stdio: ['ignore', 'pipe', 'pipe'],
-        env: process.env,
-      })
-
-      const stdoutChunks: Buffer[] = []
-      const stderrChunks: Buffer[] = []
-
-      child.stdout?.on('data', (chunk) => stdoutChunks.push(Buffer.from(chunk)))
-      child.stderr?.on('data', (chunk) => stderrChunks.push(Buffer.from(chunk)))
-      child.on('error', reject)
-      child.on('close', (code) => {
-        const stdout = Buffer.concat(stdoutChunks).toString('utf-8')
-        const stderr = Buffer.concat(stderrChunks).toString('utf-8')
-        const codexMessage = codexLastMessagePath && existsSync(codexLastMessagePath)
-          ? readFileSync(codexLastMessagePath, 'utf-8')
-          : ''
-        resolvePromise({
-          exitCode: code ?? 1,
-          response: codexMessage.trim() || stdout.trim() || stderr.trim(),
-        })
-      })
+    const result = await executeCodexExecCommand(command, {
+      cwd,
+      timeoutMs,
+      env: process.env,
+      outputDirPrefix: 'pluxx-codex-behavioral-',
     })
-  } finally {
-    if (codexOutputDir) {
-      await rm(codexOutputDir, { recursive: true, force: true })
+    return {
+      exitCode: result.exitCode,
+      response: result.response,
     }
   }
+
+  return await new Promise((resolvePromise, reject) => {
+    const child = spawn(command[0], command.slice(1), {
+      cwd,
+      detached: process.platform !== 'win32',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: process.env,
+    })
+
+    const stdoutChunks: Buffer[] = []
+    const stderrChunks: Buffer[] = []
+
+    child.stdout?.on('data', (chunk) => stdoutChunks.push(Buffer.from(chunk)))
+    child.stderr?.on('data', (chunk) => stderrChunks.push(Buffer.from(chunk)))
+    child.on('error', reject)
+    child.on('close', (code) => {
+      const stdout = Buffer.concat(stdoutChunks).toString('utf-8')
+      const stderr = Buffer.concat(stderrChunks).toString('utf-8')
+      resolvePromise({
+        exitCode: code ?? 1,
+        response: stdout.trim() || stderr.trim(),
+      })
+    })
+  })
 }
 
 async function resolveCursorBinary(): Promise<string | undefined> {

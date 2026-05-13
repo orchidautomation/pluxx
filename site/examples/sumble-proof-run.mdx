@@ -1,6 +1,6 @@
 ---
 title: Sumble Example
-description: Import Sumble's MCP, generate a workflow-grouped plugin, validate outputs for Claude Code, Cursor, Codex, and OpenCode, and review the current Codex hooks caveat.
+description: Import Sumble's MCP, generate a workflow-grouped plugin, validate outputs for Claude Code, Cursor, Codex, and OpenCode, and review the current Codex hook activation caveat.
 ---
 
 ## Overview
@@ -204,24 +204,24 @@ This is expected:
 - Pluxx generated local shell hooks under `scripts/`
 - users should explicitly opt in before those commands run
 
-### Codex hooks are still configured externally
+### Codex hooks are bundled but may still be feature-gated
 
-`build` also reports the current Codex hooks limitation:
+`build` also reports the current Codex hook activation caveat when the source scaffold declares Codex hooks without the host feature flag:
 
 ```text
 WARN codex-hooks-external-config [Codex] pluxx.config.ts:
-Codex plugin docs currently separate hook configuration from plugin packaging,
-so Pluxx does not bundle Codex hooks into generated plugin output.
-If you want Codex to run these hooks, configure them in ~/.codex/hooks.json
-or <repo>/.codex/hooks.json and enable codex_hooks = true in Codex itself.
+Pluxx now bundles Codex hooks at hooks/hooks.json, but Codex hook loading may
+still be guarded by hooks = true under [features] in the host runtime.
+Older docs or configs may still refer to codex_hooks. If bundled hooks do not
+activate, enable the current feature flag and reload Codex.
 ```
 
 What this means:
 
-- Claude Code and Cursor receive packaged hook output from this scaffold
-- Codex still requires hook configuration outside the plugin bundle
+- Claude Code, Cursor, and Codex all receive packaged hook output from this scaffold
+- Codex may still require `[features].hooks = true` in project or user config before those bundled hooks activate
 - the Codex plugin still built and tested successfully
-- the caveat is specifically about hook packaging parity
+- the caveat is about runtime activation, not hook packaging parity
 
 ## Next Steps
 

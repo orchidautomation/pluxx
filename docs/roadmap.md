@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-05-04
+Last updated: 2026-05-13
 
 ## Doc Links
 
@@ -18,6 +18,7 @@ Last updated: 2026-05-04
   - [docs/pluxx-plugin-surface-audit.md](./pluxx-plugin-surface-audit.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](./pluxx-self-hosted-core-four-proof.md)
   - [docs/core-four-provider-docs-audit.md](./core-four-provider-docs-audit.md)
+  - [docs/core-four-reliability-register.md](./core-four-reliability-register.md)
   - [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md)
   - [docs/core-four-maintenance-routine.md](./core-four-maintenance-routine.md)
   - [docs/todo/author-once-hardening.md](./todo/author-once-hardening.md)
@@ -90,6 +91,9 @@ The closure plan is now narrower than it was before:
   - migration normalization proof
   - install-lifecycle explainability proof
 - the remaining closure work is now mainly public proof packaging, install/distribution polish, and future host-refresh maintenance tracked in [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md)
+- the next reliability pass should now run from [docs/core-four-reliability-register.md](./core-four-reliability-register.md):
+  - Claude Code and Codex stay the priority hosts
+  - the immediate focus is agents, hooks, settings/discovery, and distribution-edge proof rather than broad compiler rewrites
 - local stdio import quality is now stronger for the common "I already have an MCP" path:
   - `init --from-mcp` auto-recovers `passthrough` for project-relative runtimes such as `./build/index.js`
   - `lint` catches unbundled stdio runtime payloads earlier
@@ -118,6 +122,9 @@ The closure plan is now narrower than it was before:
   - `pluxx discover-mcp` lists configured MCP servers from Claude Code, Cursor, Codex, and OpenCode config locations
   - `pluxx init --from-installed-mcp <host:name>` imports the selected MCP into a maintained Pluxx source project
   - literal secret values are not copied into generated project config
+  - Claude MCP discovery now follows the real live CLI sources: project `.mcp.json` plus user/local `~/.claude.json`, and it no longer treats `settings.json` `mcpServers` as active install sources
+  - duplicate Claude same-name MCPs across `.mcp.json`, top-level `~/.claude.json`, and nested local `projects[...]` entries now get path-qualified selectors instead of ambiguous duplicate ids
+  - duplicate Claude same-name MCPs across nested local `projects[...]` blocks in `~/.claude.json` now also stay distinct, and the path-qualified selector is proven through `init --from-installed-mcp`
 - the next translation follow-ons are now clearer and narrower:
   - finish the deeper hook-registry rollout so generator routing and docs rows read registry-backed truth
   - keep pushing the richer `skills` metadata layer into more generator, proof, and translation-registry consumers
@@ -155,11 +162,39 @@ The closure plan is now narrower than it was before:
   - MCP migrate now merges generic and host-native MCP sources instead of first-file-wins, so native auth blobs such as platform auth and multi-header header maps survive under `platforms.<host>.mcpServers.<server>`
   - installed-MCP discovery now preserves those same native auth blobs, and `init --from-installed-mcp` carries them into generated `platforms.<host>.mcpServers.<server>` config with derived install-time `userConfig` entries for multi-header auth
   - richer canonical skill metadata now survives into emitted Codex/OpenCode skill companions instead of mostly living in Agent Mode and migrate
+- local full-suite proof is now also more explicit operationally:
+  - `npm test` now acquires a same-worktree suite lock and fails fast instead of creating misleading cross-test flakes when multiple full proof jobs hit the same repo-local fixture paths
+  - the follow-on is deeper fixture isolation so more proof paths can run independently without sharing cwd or repo-local temp state
+- installed consumer-bundle integrity is stricter:
+  - generated-shape Claude bundles now fail `doctor --consumer` and `verify-install` when `hooks/hooks.json` is malformed or points at missing bundle-owned targets, even though the Claude manifest omits `hooks`
+  - Claude bundles now also fail `doctor --consumer` and `verify-install` when the manifest redundantly points `hooks` at the standard `./hooks/hooks.json` file that current Claude auto-loads anyway
+  - hook-bearing Claude installs now also warn when a checked Claude settings layer sets `disableAllHooks = true`, because current Claude CLI `2.1.140` probes showed that suppressing `SessionStart` settings-hook execution across user, project, and local layers
+  - `bun scripts/probe-claude-hooks-runtime.ts --json` now gives maintained isolated headless Claude evidence that user, project, and local `SessionStart` settings hooks fire by default, `--setting-sources user,project` drops local hooks, a user-layer `disableAllHooks` suppresses an otherwise-present local hook, installed plugin `SessionStart` hooks execute before the expected unauthenticated `/login` response, and duplicate-manifest plugin bundles surface Claude's duplicate hooks-file load error
+  - malformed bundled Codex `hooks/hooks.json` now fails `doctor --consumer` and `verify-install` instead of passing on file presence alone
+  - missing Codex `.app.json` surfaces referenced by the manifest now also fail `doctor --consumer` and `verify-install`
+  - hook-bearing Codex installs now warn when neither the checked project nor user Codex config enables `[features] hooks = true` or `[features] codex_hooks = true`; missing-flag guidance now recommends `hooks = true` first, and `codex_hooks`-only use is now warned as a legacy compatibility path
+  - `bun scripts/probe-codex-hooks-interactive-runtime.ts --json` now gives maintained trusted interactive Codex hook evidence too: on May 13, 2026 both trusted `UserPromptSubmit` variants and both trusted `SessionStart` variants timed out with no project-local hook side effect and no `/hooks` review gate, while the `codex_hooks` prompt path emitted a deprecation message pointing users to `[features].hooks`
+  - the optional `--include-enable-hooks-cli` hook scenarios now show that the current CLI feature path `--enable hooks` still does not execute the project-local hook in either headless or trusted interactive probes
+  - hook-bearing Codex installs now also warn when the checked project is not trusted in the user Codex config for project-local hook loading
+  - `verify-install` now prints the concrete installed-bundle Codex warning code, explanation, and fix inline instead of only surfacing a warning count
+  - generated Codex hooks now use the official nested matcher-group schema instead of the older flat entry shape
+  - `bun scripts/probe-codex-agents-runtime.ts --json` now gives maintained isolated headless Codex custom-agent evidence; on 2026-05-13 it showed an explicit project-local `proof` agent request producing `spawn_agent` plus `wait` in `codex exec --json` and returning `CUSTOM_AGENT_PROOF`, a project-local `explorer.toml` override returning `CUSTOM_EXPLORER_OVERRIDE`, a project-local `proof.toml` beating a same-name user-local `~/.codex/agents/proof.toml` by returning `PROJECT_AGENT_PROOF`, a discovered project `.agents/skills/proof-skill/SKILL.md` being inherited cleanly and returning `SKILL_PROOF_TOKEN_PROJECT_DISCOVERY`, a parent `.codex/config.toml` `[[skills.config]] enabled = false` entry being ignored and still returning `SKILL_PROOF_TOKEN_DISABLED_IGNORED`, an agent-local `[[skills.config]] path = "./skills/proof-skill/SKILL.md"` entry failing to preload an undiscovered `skills/` path and instead returning `SKILL_PROOF_MISSING`, and the maintained `sandbox-readonly` scenario still writing `sandbox-proof.txt` and returning `SANDBOX_WRITE_PROOF` despite `sandbox_mode = "read-only"`
+  - `bun scripts/probe-codex-agents-interactive-runtime.ts --json` now gives maintained trusted interactive Codex custom-agent evidence too: on 2026-05-13 the `sandbox-readonly-trusted` scenario stayed `interactive-proof-observed`, surfaced `SANDBOX_WRITE_PROOF`, and wrote `sandbox-proof.txt` with `interactive-readonly`, while the writable control stayed side-effect-matched with `interactive-writable`
+  - `bun scripts/probe-codex-mcp-runtime.ts --json` now gives maintained isolated headless Codex MCP evidence too: on 2026-05-13 default project-scoped `.codex/config.toml`, user-scoped `CODEX_HOME/config.toml`, and inline custom-agent `mcp_servers` all reached `initialize`, `notifications/initialized`, and `tools/list`; the default project-scoped and user-scoped root paths then emitted a real `mcp_tool_call` item for `get_allowed_marker` but failed it with `user cancelled MCP tool call` before any server-side `tools/call`, while the default inline-agent path still returned `MCP_PROOF_MARKER_MISSING` after `spawn_agent` plus `wait`. The same maintained suite now also includes `project-config-root-approve`, `user-config-root-approve`, `agent-inline-approve`, `project-config-agent-inherit-approve`, and `user-config-agent-inherit-approve`, which all reached real server-side `tools/call` and returned `MCP_PROOF_MARKER_ALLOWED` once explicit `[mcp_servers.probe.tools.get_allowed_marker] approval_mode = "approve"` was present in the relevant root or agent-local layer, even though all three approved custom-agent paths still avoided a root `mcp_tool_call` item in the parent `codex exec --json` stream and instead surfaced child `agents_states` moving through `pending_init` to `completed`; `codex mcp list` still did not expose the project-scoped server, and the same command did expose the user-scoped server
+  - `pluxx migrate` now warns when native Codex `.codex/agents/*.toml` files declare agent-local `mcp_servers` or approval stanzas, because current canonical agent migration still preserves only the simpler native agent fields and would otherwise silently drop the live-proven delegated MCP shape
+  - `bun scripts/probe-codex-hooks-runtime.ts --json` now gives maintained isolated headless evidence that `hooks-no-trust`, `hooks-trusted`, and `codex-hooks-trusted` all return `OK` without firing the hook side effect
+  - Pluxx now compiles that proven Codex MCP allow-path into `.codex/config.generated.toml` when top-level canonical `MCP(...)` rules are concrete enough to materialize per-tool approvals, while keeping `.codex/permissions.generated.json` as the broader advisory mirror
+  - `pluxx lint` now also warns when a Codex target combines canonical `agents/` plus root MCP config, because maintained local proof now includes an explicit custom-agent `mcp_servers = {}` scenario that still inherited approved root MCP, and upstream Codex issue `#20135` reports the same ceiling: custom agents inherit parent MCP servers from active project/user config, and there is still no documented reliable opt-out for non-MCP or least-privilege subagents
+  - `doctor --consumer` and `verify-install` now also inspect checked Codex project/user config layers for those generated approvals and warn when the companion exists but its per-tool stanzas have not actually been merged yet
+  - the remaining Codex runtime gap is now narrower: whether reviewed hooks can ever fire at all, especially headlessly, why successful delegated MCP paths still do not surface a root `mcp_tool_call` item in the parent event stream, whether canonical authoring should learn to preserve agent-local MCP config instead of only warning during migrate, how far the new `.codex/config.generated.toml` approval companion should go now that it is live-proven for project-root, user-root, and inherited delegated MCP while agent-local inline approvals still require their own shape, and deeper custom-agent config proof beyond the now-pinned headless-plus-interactive read-only sandbox mismatch, the newly pinned headless `skills.config` disable/preload caveats, the newly pinned invalid-model failure path plus same-name user-local model precedence cases, and installed-plugin skill preload
 - example and packaged-runtime parity are back in sync:
   - `examples/prospeo-mcp` now bundles its `scripts/` payload and points at the official `@prospeo/prospeo-mcp-server` package
-- the release gate is green again as of 2026-04-30:
-  - `npm test`
-  - `npm run release:check`
+- the self-hosted `example/pluxx` source project now also carries maintained behavioral smoke cases for:
+  - `verify-install`
+  - `translate-hosts` with a Codex hooks focus
+- the release gate is green again as of 2026-05-13:
+  - `npm test` passed
+  - `npm run release:check` passed
 - OpenClaw should stay in scope only as a beta-target lane until a native generator, validator/doctor path, and behavioral smoke proof exist:
   - [docs/openclaw-target-evaluation.md](./openclaw-target-evaluation.md)
 
@@ -216,6 +251,7 @@ The current status is stronger than a pure scaffold:
   - Cursor CLI
   - Codex Desktop app
   - OpenCode CLI
+- that workflow proof is broader than before, but managed Claude settings behavior beyond the current file-based verifier, broader Claude hook-event coverage, and plugin-agent unsupported-field constraints still remain open reliability rows rather than closed proof
 - the published npm package now includes the Claude plugin-agent manifest fix
 - the public `pluxx test --install --trust --behavioral` path now reflects the same Claude state as the repo-local Exa proof
 - the remaining Exa rerun gap is now narrower and host-local:

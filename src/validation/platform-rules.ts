@@ -152,7 +152,7 @@ export const PLATFORM_LIMITS: Record<TargetPlatform, PlatformLimits> = {
     manifestPromptCountMax: 3,
     manifestPathPrefix: './',
     instructionsMaxBytes: 32768,
-    hooksFeatureFlag: 'codex_hooks',
+    hooksFeatureFlag: 'hooks',
   },
   'cursor': {
     ...NULL_LIMITS,
@@ -322,17 +322,17 @@ export const PLATFORM_VALIDATION_RULES: Record<ResearchTarget, PlatformRules> = 
       notes: 'The manifest is optional; if present, name is the only required field.',
     },
     mcp: {
-      files: ['.mcp.json', '.claude-plugin/plugin.json'],
+      files: ['.mcp.json', '~/.claude.json', 'managed-mcp.json', '.claude-plugin/plugin.json'],
       rootKey: 'mcpServers',
       transports: ['stdio', 'http', 'sse'],
       auth: ['headers', 'env interpolation', 'OAuth 2.0', 'bearer tokens', 'dynamic headers'],
-      notes: 'Claude Code supports either inline MCP config in plugin.json or a separate .mcp.json file, with marketplace and dependency-aware install flows.',
+      notes: 'Claude Code project-scoped MCP lives in .mcp.json, while local and user scopes live in ~/.claude.json; managed deployments can also pin managed-mcp.json. Current docs explicitly warn that settings.json does not read mcpServers.',
     },
     hooks: {
       supported: true,
-      files: ['hooks/hooks.json', '.claude-plugin/plugin.json', '~/.claude/settings.json', '.claude/settings.json', '.claude/settings.local.json'],
+      files: ['hooks/hooks.json', '.claude-plugin/plugin.json', 'managed settings', '~/.claude/settings.json', '.claude/settings.json', '.claude/settings.local.json'],
       eventNames: ['SessionStart', 'Setup', 'UserPromptSubmit', 'UserPromptExpansion', 'PreToolUse', 'PermissionRequest', 'PermissionDenied', 'PostToolUse', 'PostToolUseFailure', 'PostToolBatch', 'Notification', 'SubagentStart', 'SubagentStop', 'TaskCreated', 'TaskCompleted', 'Stop', 'StopFailure', 'TeammateIdle', 'InstructionsLoaded', 'ConfigChange', 'CwdChanged', 'FileChanged', 'WorktreeCreate', 'WorktreeRemove', 'PreCompact', 'PostCompact', 'Elicitation', 'ElicitationResult', 'SessionEnd'],
-      notes: 'Hook configs can be stored in hooks/hooks.json, inlined in plugin.json, added in settings files, or scoped through skill and agent frontmatter. Claude also documents a broader lifecycle event set than the older simplified Pluxx model.',
+      notes: 'Hook configs can be stored in hooks/hooks.json, inlined in plugin.json, added in user/project/local settings files, or controlled by managed policy settings; Claude also documents a broader lifecycle event set than the older simplified Pluxx model.',
     },
     instructions: {
       files: ['CLAUDE.md'],
@@ -448,7 +448,7 @@ export const PLATFORM_VALIDATION_RULES: Record<ResearchTarget, PlatformRules> = 
       supported: true,
       files: ['hooks/hooks.json', '.codex/hooks.json', '~/.codex/hooks.json'],
       eventNames: ['SessionStart', 'PreToolUse', 'PermissionRequest', 'PostToolUse', 'UserPromptSubmit', 'Stop'],
-      notes: 'Codex documents hooks in project and user config, and the hooks docs still mention the codex_hooks feature flag/runtime caveat. The official hooks docs also cover plugin-bundled hooks, which Pluxx now emits at hooks/hooks.json.',
+      notes: 'Codex documents hooks in project and user config, and the current config schema still accepts both `[features].hooks = true` and `[features].codex_hooks = true`. Maintained interactive probes on May 13, 2026 showed local Codex CLI 0.130.0 timing out without a project-local `.codex/hooks.json` side effect or `/hooks` review gate under either flag; the `codex_hooks` variant also emitted a deprecation message that points users to `hooks`, while the official docs still show `codex_hooks`. The official hooks docs also cover plugin-bundled hooks, which Pluxx now emits at `hooks/hooks.json`.',
     },
     instructions: {
       files: ['AGENTS.md', 'AGENTS.override.md'],
@@ -883,22 +883,22 @@ export const CORE_FOUR_PRIMITIVE_CAPABILITIES: Record<CoreFourPlatform, CoreFour
       agents: {
         mode: 'translate',
         nativeSurfaces: ['.codex/agents/*.toml', '~/.codex/agents/*.toml', 'subagent workflows'],
-        notes: 'Codex custom agents and subagents are real native surfaces, but they are not packaged the same way as Claude or Cursor plugin agents.',
+        notes: 'Codex custom agents and subagents are real native surfaces, but they are not packaged the same way as Claude or Cursor plugin agents. Local May 13, 2026 headless probes now prove explicit invocation, built-in-name override, project-local precedence, and discovered `.agents/skills` inheritance. The same maintained headless suite also showed two config-depth caveats: a parent `[[skills.config]] enabled = false` entry did not disable a discovered project skill, and an agent-local `[[skills.config]]` entry did not preload an undiscovered `skills/` path. The maintained `bun scripts/probe-codex-mcp-runtime.ts --json` headless probe now also shows a more precise MCP approval split: default project-scoped and user-scoped root MCP both emit a real `mcp_tool_call` item but fail it with `user cancelled MCP tool call` before any server-side `tools/call`, while the default inline-agent path reaches startup plus `tools/list` and then falls back to `MCP_PROOF_MARKER_MISSING`. The same maintained suite now also proves five approved allow-paths: explicit `[mcp_servers.<id>.tools.<tool>] approval_mode = "approve"` works for project-scoped root MCP, user-scoped root MCP, agent-local inline `mcp_servers`, and custom agents that inherit an approved project-scoped or user-scoped root MCP server. All three approved custom-agent MCP paths still avoid a root `mcp_tool_call` item in the parent `codex exec --json` stream and instead surface child `agents_states` moving through `pending_init` to `completed`; project-scoped servers still do not appear in `codex mcp list`, and user-scoped servers do appear there. The maintained `bun scripts/probe-codex-agents-interactive-runtime.ts --json` trusted interactive probe also showed the same `sandbox_mode = "read-only"` child agent still wrote to the workspace there too, so these fields are not yet uniformly trustworthy runtime boundaries.',
       },
       hooks: {
         mode: 'translate',
         nativeSurfaces: ['hooks/hooks.json', '.codex/hooks.json', '~/.codex/hooks.json'],
-        notes: 'Hooks are native. Pluxx bundles translated Codex hooks in the plugin and still tracks the project/user config paths plus the codex_hooks feature-gate caveat.',
+      notes: 'Hooks are native. Pluxx bundles translated Codex hooks in the plugin and still tracks the project/user config paths plus the mixed `[features].hooks` / `[features].codex_hooks` activation caveat and current runtime/doc drift.',
       },
       permissions: {
         mode: 'translate',
         nativeSurfaces: ['approvals', 'sandbox policy', 'hook matchers', 'custom agent config'],
-        notes: 'Codex expresses permission intent through approvals, sandboxing, hooks, and custom agents rather than skill frontmatter.',
+        notes: 'Codex expresses permission intent through approvals, sandboxing, hooks, and custom agents rather than skill frontmatter. Pluxx now also emits `.codex/config.generated.toml` for the live-proven top-level MCP allow-path when canonical `MCP(...)` rules are concrete enough to materialize per-tool `approval_mode = "approve"` stanzas, while `.codex/permissions.generated.json` remains the broader advisory mirror.',
       },
       runtime: {
         mode: 'preserve',
         nativeSurfaces: ['.mcp.json', '.app.json', '.codex/config.toml', 'scripts/', 'assets/'],
-        notes: `Bundle-local MCP config exists, but active MCP state also lives in config.toml. ${getRuntimeReadinessExternalConfigNote()}`,
+        notes: `Bundle-local MCP config exists, but active MCP state also lives in config.toml. Local May 13, 2026 headless Codex MCP probes reached startup plus \`tools/list\` across project-scoped, user-scoped, and inline-agent config; default root MCP emitted a real \`mcp_tool_call\` item but failed it with \`user cancelled MCP tool call\` before any server-side \`tools/call\`, while the default inline-agent path fell back to \`MCP_PROOF_MARKER_MISSING\` after startup plus \`tools/list\`. The same maintained suite now proves five concrete approval paths: project-scoped root MCP, user-scoped root MCP, agent-local inline \`mcp_servers\`, a custom agent inheriting an approved project-scoped root MCP server, and a custom agent inheriting an approved user-scoped root MCP server all reach real server-side \`tools/call\` once explicit \`[mcp_servers.<id>.tools.<tool>] approval_mode = "approve"\` is present in the relevant layer. All three approved custom-agent MCP paths still avoid a root \`mcp_tool_call\` item in the parent \`codex exec --json\` stream and instead surface child \`agents_states\` moving through \`pending_init\` to \`completed\`; project-scoped servers still do not appear in \`codex mcp list\`, and user-scoped servers do appear there. ${getRuntimeReadinessExternalConfigNote()}`,
       },
       distribution: {
         mode: 'preserve',

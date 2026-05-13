@@ -1,6 +1,6 @@
 # Master Backlog
 
-Last updated: 2026-05-04
+Last updated: 2026-05-13
 
 This is the most complete repo-native backlog for Pluxx.
 
@@ -31,6 +31,7 @@ This is not the same thing as the short queue.
   - [docs/pluxx-plugin-surface-audit.md](../pluxx-plugin-surface-audit.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](../pluxx-self-hosted-core-four-proof.md)
   - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
+  - [docs/core-four-reliability-register.md](../core-four-reliability-register.md)
   - [docs/core-four-translation-hit-list.md](../core-four-translation-hit-list.md)
   - [author-once-hardening.md](./author-once-hardening.md)
   - [Linear](https://linear.app/orchid-automation)
@@ -109,6 +110,7 @@ Any person or agent should be able to enter the repo and answer:
     - maintained smoke fixtures can now declare an explicit `commandId` plus required output markers, so command-proof cases fail when the prompt does not reference the command or the output shape stays vague
     - `example/docs-ops`, `example/exa-plugin`, and `example/platform-change-ops` now each carry behavioral smoke configs with command-specific assertions
     - `doctor --consumer` and `verify-install` now execute generated Claude/Cursor bundled permission-hook scripts and fail if they emit unusable decisions
+    - `tests/verify-install.test.ts` now also covers corrupted installed Cursor hook bundles, missing Cursor rules payloads, stale installed Cursor versions, and missing entry, missing skill-sync, and stale package OpenCode install drift, so verifier regressions are pinned at the host-visible bundle layer instead of only `doctor --consumer`
   - agent translation explainability now has a shared registry slice:
     - `src/agent-translation-registry.ts` now drives degraded-field messaging for Cursor, Codex, and OpenCode
     - generated Cursor and Codex agent surfaces now emit the same translation story as `lint`
@@ -125,6 +127,14 @@ Any person or agent should be able to enter the repo and answer:
   - richer canonical skill metadata now survives into emitted host companions:
     - Codex now writes `.codex/skills.generated.json`
     - OpenCode now writes `skills.generated.json`
+- [~] Keep [docs/core-four-reliability-register.md](../core-four-reliability-register.md) current as the concrete Claude Code and Codex failure register:
+  - use it to separate generator defects from host-runtime issues and proof-harness issues
+  - use it to drive the next proof-depth tranche for agents, hooks, settings/discovery, and distribution edges
+  - the current register now also captures real Claude `.mcp.json` plus `~/.claude.json` MCP selector collisions, generated-shape Claude hook-integrity failures, Claude duplicate-hooks manifest failures, Claude `disableAllHooks` activation blockers, the maintained Claude settings-hook probe plus maintained installed-plugin default and duplicate-manifest proof, malformed bundled Codex hook JSON, missing manifest-wired Codex `.app.json` surfaces, missing current-hook-gate warnings plus legacy-alias warnings for hook-bearing Codex installs, the corrected nested Codex hook schema, trusted-project plus current interactive hook-activation drift, the maintained Codex custom-agent sandbox mismatch (`sandbox_mode = "read-only"` still writing in both the headless and maintained trusted interactive probes), the newly pinned Codex headless skill-config split (discovered `.agents/skills` inheritance works, a parent `[[skills.config]] enabled = false` entry was ignored, and an agent-local `[[skills.config]]` entry did not preload an undiscovered `skills/` path), and maintained self-hosted behavioral smoke coverage
+- [~] Keep local proof orchestration honest:
+  - `npm test` now fails fast when another full-suite run is already active in the same worktree
+  - the follow-on work is removing more repo-local shared fixture and cwd assumptions so worktree-local serialization is no longer carrying as much reliability weight
+  - the current worktree release gate is green again with a passing `npm test` and `npm run release:check`
 - [x] Use [author-once-hardening.md](./author-once-hardening.md) as the initiative-level TODO for closing the main author-once gap between:
   - the author-once vision
   - the currently shipped compiler, proof, and onboarding reality
@@ -167,7 +177,13 @@ Any person or agent should be able to enter the repo and answer:
   - source config now models refresh dependencies and gate policy once
   - Claude Code, Cursor, and OpenCode now emit generated readiness behavior from that shared primitive
   - Codex now bundles translated hooks at `hooks/hooks.json` and keeps `.codex/readiness.generated.json` plus `.codex/hooks.generated.json` companions for explanation/debugging
+  - generated Codex hooks now use the official nested matcher-group schema instead of the older flat entry shape
   - `lint` and `doctor` now explain the remaining Codex feature-gate and best-effort prompt-entry degradation for named skill/command readiness targets
+  - `doctor --consumer` and `verify-install` now also warn when a hook-bearing installed Codex bundle is missing both `[features] hooks = true` and `[features] codex_hooks = true` in the checked project/user config layers; the current recommendation is to try `hooks = true` first, and `codex_hooks`-only use is now treated as a legacy compatibility warning
+  - `doctor --consumer` and `verify-install` now also warn when the checked project is not trusted in the user Codex config for project-local hook loading
+  - `verify-install` now prints the concrete installed-bundle Codex warning code, explanation, and fix inline instead of only surfacing a warning count
+  - `bun scripts/probe-codex-hooks-runtime.ts --json` now gives maintained isolated headless evidence that `hooks-no-trust`, `hooks-trusted`, and `codex-hooks-trusted` all return `OK` without firing the hook side effect
+  - the remaining Codex runtime gap is now narrower: the targeted maintained reviewed `SessionStart` rerun still timed out with no project-local hook side effect and no `/hooks` review gate, so the real open question is whether reviewed hooks can ever fire at all, especially headlessly
   - the compiler now also treats `runtime` more explicitly as internal MCP/auth, readiness, and payload subcontracts
   - the readiness translation notes shared by generators, `lint`, and `doctor` are now centralized instead of repeated as drift-prone parallel strings
 - [x] Surface host-visible branding gaps earlier in author workflows:
@@ -178,6 +194,9 @@ Any person or agent should be able to enter the repo and answer:
   - `pluxx init --from-installed-mcp <host:name>` imports a selected discovered server into a Pluxx project
   - discovered stdio/env auth is normalized without copying literal secret values
   - preserved native MCP auth overrides now survive that discovery/import path into generated `platforms.<host>.mcpServers.<server>` config and derived install-time `userConfig`
+  - Claude MCP discovery now follows the real live CLI sources: project `.mcp.json` plus user/local `~/.claude.json`, and it no longer treats `settings.json` `mcpServers` as active install sources
+  - duplicate Claude same-name MCPs across `.mcp.json`, top-level `~/.claude.json`, and nested local `projects[...]` entries now get path-qualified selectors instead of ambiguous duplicate ids
+  - duplicate Claude same-name MCPs across nested local `projects[...]` blocks in `~/.claude.json` now also stay distinct, and the path-qualified selector is proven through `init --from-installed-mcp`
 - [ ] Continue the post-closure follow-on work from the translation hit list:
   - public proof and packaging polish
   - install/distribution asset polish
@@ -187,6 +206,11 @@ Any person or agent should be able to enter the repo and answer:
   - keep pushing the richer `commands` IR into more native host emission and install-time proof
   - add more installed behavioral proof for delegated agents, reload/discovery quirks, and publish/recovery flows
   - continue simplifying the plugin-guided average-user path so the proof state is easier to use without maintainer-level CLI literacy
+- [ ] Close the highest-value open rows from the new reliability register:
+  - deeper Codex custom-agent config-depth proof beyond the now-pinned headless-plus-interactive `sandbox_mode = "read-only"` mismatch, the newly pinned headless `skills.config` disable/preload caveats, the newly pinned `mcp_servers = {}` inheritance ceiling, the newly pinned invalid agent-local model failure path, and the now-pinned same-name user-local model precedence cases, including why successful delegated MCP paths still do not surface a root `mcp_tool_call` item in the parent event stream, installed-plugin skill preload, whether canonical authoring should preserve agent-local MCP config instead of only warning during migrate, how far generated `.codex/config.generated.toml` approval stanzas should go now that project-root, user-root, inherited delegated, agent-local inline approval, and explicit empty-agent-MCP override paths are all live-proven but not proven through the same config layer, and whether other approval or sandbox combinations behave differently
+  - live Codex interactive-vs-headless hook execution proof across both `codex_hooks` and `hooks`
+  - Claude managed-settings behavior beyond the current file-based verifier still requires a real managed-settings surface; the maintained probe now has shadow-scenario coverage for managed `disableAllHooks` and `allowManagedHooksOnly`, but registry, plist/MDM, server-managed policy, managed-scope plugin precedence, and broader hook-event proof are not closable from the current local environment alone
+  - broader Codex and Claude adjunct distribution-surface proof
 
 ### 2. Flagship reference plugin
 

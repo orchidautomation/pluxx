@@ -4,12 +4,20 @@ import { Generator } from '../base'
 import type { TargetPlatform } from '../../schema'
 import { collectPermissionRules } from '../../permissions'
 import { readInstructionsContent } from '../../instructions'
+import {
+  planCodexPermissionCompanion,
+  renderCodexPermissionCompanion,
+} from '../../codex-permissions-companion'
 import { buildGeneratedReadinessScript, getRuntimeReadinessPlan } from '../../readiness'
 import {
   getEnabledRuntimeReadinessBindings,
   getRuntimeReadinessCapability,
   getRuntimeReadinessExternalConfigNote,
 } from '../../runtime-readiness-registry'
+import {
+  ALTERNATE_CODEX_HOOKS_FEATURE_FLAG,
+  RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG,
+} from '../../codex-hooks-feature'
 import { getCanonicalAgentMetadata, readCanonicalAgentFiles } from '../../agents'
 import { getAgentTranslationMessage, getTranslatedAgentFields } from '../../agent-translation-registry'
 import { getCanonicalCommandMetadata, readCanonicalCommandFiles } from '../../commands'
@@ -18,6 +26,7 @@ import { buildDelegationBehaviorNotes } from '../../delegation'
 import { mapHookEventToPascalCase } from '../../hook-events'
 import {
   getHookTypeTranslationIssue,
+  isHookFieldPreserved,
   getSupportedHookEvents,
   getUnsupportedHookEventReason,
   isHookEventSupported,
@@ -26,6 +35,18 @@ import {
 import { buildHookCommandWrapperScript } from '../../hook-command-env'
 import { getCanonicalSkillMetadata, readCanonicalSkillFiles } from '../../skills'
 import { getNativeCodexMcpEntryOverride } from '../../mcp-native-overrides'
+import { warnDroppedHookFields } from '../hooks-warning'
+
+interface CodexHookHandler {
+  type: 'command'
+  command: string
+  timeout?: number
+}
+
+interface CodexHookMatcherGroup {
+  matcher?: string
+  hooks: CodexHookHandler[]
+}
 
 export class CodexGenerator extends Generator {
   readonly platform: TargetPlatform = 'codex'
@@ -103,6 +124,7 @@ export class CodexGenerator extends Generator {
 
     manifest.skills = './skills/'
     if (this.config.mcp) manifest.mcpServers = './.mcp.json'
+    if (this.config.platforms?.codex?.app) manifest.apps = './.app.json'
     if (this.config.hooks || getRuntimeReadinessPlan(this.config.readiness).hasReadiness) {
       manifest.hooks = './hooks/hooks.json'
     }
@@ -168,15 +190,23 @@ export class CodexGenerator extends Generator {
     const skillPolicies = compilerIntent?.skillPolicies ?? []
     if (rules.length === 0 && skillPolicies.length === 0) return
 
+    const codexPermissionCompanion = renderCodexPermissionCompanion(
+      planCodexPermissionCompanion(this.config, this.rootDir),
+    )
+
     await this.writeJson('.codex/permissions.generated.json', {
       model: 'pluxx.permissions.v1',
       enforcedByPluginBundle: false,
       note: skillPolicies.length > 0
-        ? 'Codex permissions are configured externally. Use this file as a generated mirror of canonical rules for Codex user/admin policy or hook configuration. skillPolicies preserves migrated skill-scoped intent that cannot yet be enforced directly by the plugin bundle.'
-        : 'Codex permissions are configured externally. Use this file as a generated mirror of canonical rules for Codex user/admin policy or hook configuration.',
+        ? `Codex permissions are configured externally. Use this file as a generated mirror of canonical rules for Codex user/admin policy or hook configuration.${codexPermissionCompanion ? ' Pluxx also emits .codex/config.generated.toml for the live-proven MCP allow-path when it can materialize per-tool approval stanzas.' : ''} skillPolicies preserves migrated skill-scoped intent that cannot yet be enforced directly by the plugin bundle.`
+        : `Codex permissions are configured externally. Use this file as a generated mirror of canonical rules for Codex user/admin policy or hook configuration.${codexPermissionCompanion ? ' Pluxx also emits .codex/config.generated.toml for the live-proven MCP allow-path when it can materialize per-tool approval stanzas.' : ''}`,
       rules,
       ...(skillPolicies.length > 0 ? { skillPolicies } : {}),
     })
+
+    if (codexPermissionCompanion) {
+      await this.writeFile('.codex/config.generated.toml', codexPermissionCompanion)
+    }
   }
 
   private async generateAgentsMd(): Promise<void> {
@@ -256,7 +286,7 @@ export class CodexGenerator extends Generator {
     const readinessCapability = getRuntimeReadinessCapability('codex')
     if (!this.config.hooks && !readinessPlan.hasReadiness) return
 
-    const hooks: Record<string, Array<Record<string, unknown>>> = {}
+    const hooks: Record<string, CodexHookMatcherGroup[]> = {}
     const unsupported: Array<Record<string, string>> = []
     let nextWrapperIndex = 0
 
@@ -266,10 +296,7 @@ export class CodexGenerator extends Generator {
       for (const binding of getEnabledRuntimeReadinessBindings(readinessCapability, readinessPlan)) {
         hooks[binding.event] = [
           ...(hooks[binding.event] ?? []),
-          {
-            command: binding.command,
-            ...(binding.matcher ? { matcher: binding.matcher } : {}),
-          },
+          this.buildCodexCommandHookGroup(binding.event, binding.command, binding.matcher),
         ]
       }
     }
@@ -278,7 +305,23 @@ export class CodexGenerator extends Generator {
       if (!entries || entries.length === 0) continue
 
       const codexEvent = mapHookEventToPascalCase(event)
-      const mappedEntries: Array<Record<string, unknown>> = []
+      if (!isHookEventSupported('codex', codexEvent)) {
+        for (const entry of entries) {
+          const entryType = entry.type ?? 'command'
+          unsupported.push({
+            canonicalEvent: event,
+            codexEvent,
+            ...(entryType !== 'command' ? { type: entryType } : {}),
+            reason: getUnsupportedHookEventReason('codex')
+              ?? `Codex currently documents only ${getSupportedHookEvents('codex').join(', ')} for hook configuration.`,
+          })
+        }
+        continue
+      }
+
+      warnDroppedHookFields(this.platform, codexEvent, entries)
+
+      const mappedEntries: CodexHookMatcherGroup[] = []
       for (const entry of entries) {
         const entryType = entry.type ?? 'command'
         if (!isHookTypeSupported('codex', entryType)) {
@@ -301,25 +344,19 @@ export class CodexGenerator extends Generator {
           buildHookCommandWrapperScript(entry.command.replace('${PLUGIN_ROOT}', '.'), 'CODEX_PLUGIN_ROOT'),
         )
 
-        mappedEntries.push({
-          command: `bash ./${relativePath}`,
-          ...(entry.matcher !== undefined ? { matcher: entry.matcher } : {}),
-          ...(entry.timeout ? { timeout: entry.timeout } : {}),
-          ...(entry.failClosed !== undefined ? { failClosed: entry.failClosed } : {}),
-        })
+        const matcher = typeof entry.matcher === 'string' && isHookFieldPreserved('codex', 'matcher', codexEvent)
+          ? entry.matcher
+          : undefined
+
+        mappedEntries.push(this.buildCodexCommandHookGroup(
+          codexEvent,
+          `bash ./${relativePath}`,
+          matcher,
+          entry.timeout,
+        ))
       }
 
       if (mappedEntries.length === 0) continue
-
-      if (!isHookEventSupported('codex', codexEvent)) {
-        unsupported.push({
-          canonicalEvent: event,
-          codexEvent,
-          reason: getUnsupportedHookEventReason('codex')
-            ?? `Codex currently documents only ${getSupportedHookEvents('codex').join(', ')} for hook configuration.`,
-        })
-        continue
-      }
 
       hooks[codexEvent] = [
         ...(hooks[codexEvent] ?? []),
@@ -337,8 +374,9 @@ export class CodexGenerator extends Generator {
     await this.writeJson('.codex/hooks.generated.json', {
       model: 'pluxx.codex-hooks.v1',
       enforcedByPluginBundle: true,
-      featureFlag: 'codex_hooks',
-      note: 'Codex hook configuration is bundled at hooks/hooks.json in the plugin. This companion mirror preserves the translated native event names and highlights any dropped events or fields; enable codex_hooks in Codex if your runtime still requires that feature gate.',
+      featureFlag: RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG,
+      alternateFeatureFlag: ALTERNATE_CODEX_HOOKS_FEATURE_FLAG,
+      note: 'Codex hook configuration is bundled at hooks/hooks.json in the plugin. This companion mirror preserves the translated native event names, matcher groups, and command handlers while highlighting any dropped events or fields. Current Codex config surfaces still accept both hooks and codex_hooks under [features], but maintained interactive probes on May 13, 2026 showed local Codex CLI 0.130.0 timing out without a project-local hook side effect under either flag while emitting a deprecation warning for codex_hooks that points users to hooks.',
       hooks,
       ...(unsupported.length > 0 ? { unsupported } : {}),
     })
@@ -367,7 +405,7 @@ export class CodexGenerator extends Generator {
     await this.writeJson('.codex/readiness.generated.json', {
       model: 'pluxx.readiness.v1',
       enforcedByPluginBundle: readinessCapability.bundleEnforced,
-      note: `${getRuntimeReadinessExternalConfigNote()} Use this file together with hooks/hooks.json (and .codex/hooks.generated.json when debugging translated event names) when wiring readiness into Codex hook config.`,
+      note: `${getRuntimeReadinessExternalConfigNote()} Use this file together with hooks/hooks.json and .codex/hooks.generated.json when verifying bundled readiness hooks or debugging translated event names.`,
       dependencies: this.config.readiness.dependencies,
       gates: this.config.readiness.gates,
       translatedHooks: {
@@ -376,6 +414,24 @@ export class CodexGenerator extends Generator {
         promptGate: translatedHooks.promptGate ?? null,
       },
     })
+  }
+
+  private buildCodexCommandHookGroup(
+    event: string,
+    command: string,
+    matcher?: string,
+    timeout?: number,
+  ): CodexHookMatcherGroup {
+    const handler: CodexHookHandler = {
+      type: 'command',
+      command,
+      ...(timeout !== undefined ? { timeout } : {}),
+    }
+
+    return {
+      ...(matcher !== undefined && isHookFieldPreserved('codex', 'matcher', event) ? { matcher } : {}),
+      hooks: [handler],
+    }
   }
 
   private async generateCommandsCompanion(): Promise<void> {

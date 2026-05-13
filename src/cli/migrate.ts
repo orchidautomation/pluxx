@@ -14,6 +14,7 @@ import {
 } from '../compiler-intent'
 import { getCanonicalSkillMetadata, parseSkillMarkdown, readCanonicalSkillFiles, serializeSkillMarkdown } from '../skills'
 import { buildNativeMcpPlatformOverrides } from '../mcp-native-overrides'
+import { parseTomlValue, stripTomlComment } from '../toml-lite'
 import { writeTextFile } from '../text-files'
 
 type DetectedPlatform = 'claude-code' | 'cursor' | 'codex' | 'opencode'
@@ -1364,6 +1365,15 @@ interface ParsedCodexAgent {
   developerInstructions?: string
 }
 
+const PRESERVED_CODEX_AGENT_FIELDS = [
+  'name',
+  'description',
+  'model',
+  'model_reasoning_effort',
+  'sandbox_mode',
+  'developer_instructions',
+]
+
 function readTomlScalarValue(content: string, key: string): string | undefined {
   const match = content.match(new RegExp(`(?:^|\\n)${key}\\s*=\\s*"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"`, 'm'))
   return match?.[1]?.replace(/\\"/g, '"').replace(/\\\\/g, '\\')
@@ -1383,91 +1393,6 @@ function parseCodexAgentToml(content: string): ParsedCodexAgent {
     sandboxMode: readTomlScalarValue(content, 'sandbox_mode'),
     developerInstructions: readTomlMultilineValue(content, 'developer_instructions'),
   }
-}
-
-function stripTomlComment(line: string): string {
-  let inString = false
-  let quote = ''
-  for (let i = 0; i < line.length; i += 1) {
-    const char = line[i]
-    if ((char === '"' || char === "'") && line[i - 1] !== '\\') {
-      if (!inString) {
-        inString = true
-        quote = char
-      } else if (quote === char) {
-        inString = false
-        quote = ''
-      }
-      continue
-    }
-    if (char === '#' && !inString) return line.slice(0, i)
-  }
-  return line
-}
-
-function parseTomlValue(value: string): unknown {
-  if (value.startsWith('"') && value.endsWith('"')) return unquoteTomlString(value)
-  if (value.startsWith("'") && value.endsWith("'")) return value.slice(1, -1)
-  if (value.startsWith('[') && value.endsWith(']')) {
-    const inner = value.slice(1, -1).trim()
-    if (!inner) return []
-    return splitTomlList(inner).map((part) => parseTomlValue(part.trim()))
-  }
-  if (value.startsWith('{') && value.endsWith('}')) {
-    const inner = value.slice(1, -1).trim()
-    const result: Record<string, unknown> = {}
-    if (!inner) return result
-    for (const part of splitTomlList(inner)) {
-      const assignment = part.trim().match(/^([A-Za-z0-9_-]+)\s*=\s*(.+)$/)
-      if (!assignment) continue
-      result[assignment[1]] = parseTomlValue(assignment[2].trim())
-    }
-    return result
-  }
-  if (value === 'true') return true
-  if (value === 'false') return false
-  return value
-}
-
-function splitTomlList(value: string): string[] {
-  const parts: string[] = []
-  let current = ''
-  let inString = false
-  let quote = ''
-  let braceDepth = 0
-
-  for (let i = 0; i < value.length; i += 1) {
-    const char = value[i]
-    if ((char === '"' || char === "'") && value[i - 1] !== '\\') {
-      if (!inString) {
-        inString = true
-        quote = char
-      } else if (quote === char) {
-        inString = false
-        quote = ''
-      }
-    }
-    if (!inString && char === '{') braceDepth += 1
-    if (!inString && char === '}') braceDepth -= 1
-    if (!inString && braceDepth === 0 && char === ',') {
-      parts.push(current)
-      current = ''
-      continue
-    }
-    current += char
-  }
-
-  if (current.trim()) parts.push(current)
-  return parts
-}
-
-function unquoteTomlString(value: string): string {
-  return value
-    .slice(1, -1)
-    .replace(/\\"/g, '"')
-    .replace(/\\n/g, '\n')
-    .replace(/\\t/g, '\t')
-    .replace(/\\\\/g, '\\')
 }
 
 function renderMigratedAgentMarkdown(fileStem: string, parsed: ParsedCodexAgent): string {
@@ -1497,6 +1422,26 @@ function renderMigratedAgentMarkdown(fileStem: string, parsed: ParsedCodexAgent)
   ]
 
   return frontmatter.join('\n')
+}
+
+function collectCodexAgentMigrationWarnings(sourceDir: string, normalizedSourcePath: string): string[] {
+  if (normalizedSourcePath !== '.codex/agents') return []
+  if (!existsSync(sourceDir)) return []
+
+  const warnings: string[] = []
+  for (const entry of readdirSync(sourceDir, { withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith('.toml')) continue
+
+    const content = readFileSync(resolve(sourceDir, entry.name), 'utf-8')
+    if (!content.includes('[mcp_servers.')) continue
+
+    const mentionsApprovals = content.includes('approval_mode = "approve"')
+    warnings.push(
+      `Codex native agent ${entry.name} declares agent-local mcp_servers${mentionsApprovals ? ' and per-tool approval stanzas' : ''}. Pluxx currently migrates only ${PRESERVED_CODEX_AGENT_FIELDS.join(', ')} for native Codex agents, so that agent-local MCP config is not preserved automatically. Review the source TOML and rebuild the intended Codex behavior manually.`,
+    )
+  }
+
+  return warnings
 }
 
 function buildFallbackAgentDescription(agentName: string): string {
@@ -1868,6 +1813,14 @@ function generateConfigTs(result: MigrateResult): string {
     lines.push('  brand: ' + renderIndentedTsValue(result.manifest.brand, 2) + ',')
   }
 
+  if (result.warnings.length > 0) {
+    lines.push('')
+    lines.push('  // Migration warnings:')
+    for (const warning of result.warnings) {
+      lines.push(`  // ${warning}`)
+    }
+  }
+
   lines.push('')
 
   // Directories
@@ -2188,6 +2141,13 @@ export async function migrate(inputPath: string): Promise<void> {
     console.log(`  inferred permissions: ${inferredPermissions.permissions.allow.join(', ')}`)
   }
 
+  const codexAgentWarnings = sourcePaths.agents
+    ? collectCodexAgentMigrationWarnings(
+        resolve(pluginDir, stripRelativePrefix(sourcePaths.agents)),
+        stripRelativePrefix(sourcePaths.agents),
+      )
+    : []
+
   // 7. Build result
   const result: MigrateResult = {
     platform: detection.platform,
@@ -2201,7 +2161,7 @@ export async function migrate(inputPath: string): Promise<void> {
     instructions,
     sourcePaths,
     persistedSkills,
-    warnings: parsedMcp.warnings,
+    warnings: [...parsedMcp.warnings, ...codexAgentWarnings],
     extraCopyPaths: [...new Set([
       ...instructionSources.extraPaths,
       ...openCodeDistributionSources.extraPaths,
@@ -2274,6 +2234,14 @@ export async function migrate(inputPath: string): Promise<void> {
     MCP_SCAFFOLD_METADATA_PATH,
   ]
   console.log(`Generated: ${generatedPluxxFiles.join(', ')}`)
+
+  if (result.warnings.length > 0) {
+    console.log('')
+    console.log('Migration warnings:')
+    for (const warning of result.warnings) {
+      console.log(`  - ${warning}`)
+    }
+  }
 
   console.log('')
   console.log('Migration complete! Next steps:')
