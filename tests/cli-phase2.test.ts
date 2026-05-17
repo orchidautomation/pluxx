@@ -199,7 +199,7 @@ env = { STUB_API_KEY = "$STUB_API_KEY" }
 
   it('can scaffold from a nested Claude project-scoped installed MCP selector', async () => {
     const { dir, statePath, stubServerPath } = createStubServerFixture()
-    const homeDir = resolve(dir, 'home')
+    const homeDir = mkdtempSync(resolve(tmpdir(), 'pluxx-phase2-home-'))
     mkdirSync(homeDir, { recursive: true })
     mkdirSync(resolve(dir, 'workspace-a'), { recursive: true })
     mkdirSync(resolve(dir, 'workspace-b'), { recursive: true })
@@ -279,6 +279,7 @@ env = { STUB_API_KEY = "$STUB_API_KEY" }
       expect(existsSync(resolve(dir, 'pluxx.config.ts'))).toBe(false)
     } finally {
       rmSync(dir, { recursive: true, force: true })
+      rmSync(homeDir, { recursive: true, force: true })
     }
   })
 
