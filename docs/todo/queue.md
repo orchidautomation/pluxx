@@ -166,8 +166,8 @@ The initial author-once hardening tranche is also materially done.
 The public baseline is also real.
 
 - npm package is live as `@orchid-labs/pluxx`
-- the next public package cut carries the author-once hardening tranche and release-gate fixes:
-  - `0.1.15`
+- the next public package cut carries the core-four reliability proof tranche and release-gate fixes:
+  - `0.1.16`
 - published CLI runtime is Node `>=18`
 - published CLI lifecycle ergonomics are now stronger for global installs:
   - `pluxx --version`
