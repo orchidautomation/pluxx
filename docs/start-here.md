@@ -1,6 +1,6 @@
 # Start Here
 
-Last updated: 2026-05-17
+Last updated: 2026-05-19
 
 ## Doc Links
 
@@ -306,10 +306,10 @@ The repo already proves a lot.
 - example and packaged-runtime parity is current again:
   - `examples/prospeo-mcp` now bundles its `scripts/` payload into built outputs
   - the example now points at the official `@prospeo/prospeo-mcp-server` package instead of a stale repo-local runtime path
-- the current release gate is green again as of 2026-05-17:
+- the current release gate is green again as of 2026-05-19:
   - `npm test` passed
   - `npm run release:check` passed
-- the latest published npm package is `@orchid-labs/pluxx@0.1.20`
+- the latest published npm package is `@orchid-labs/pluxx@0.1.21`
 - OpenCode-native agent output is now permission-first:
   - legacy agent `tools` input is translated forward where possible
   - native OpenCode `skill` and `task` permission keys are treated as real first-class surfaces
@@ -475,13 +475,13 @@ Run two lanes in parallel:
 
 ### 6. Release State
 
-The current public release is `0.1.20`.
+The current public release is `0.1.21`.
 
 The release checklist for the current cut is complete:
 
-- `package.json` and `package-lock.json` are at `0.1.20`
-- local `main` is tagged `v0.1.20`
-- npm reports `@orchid-labs/pluxx@0.1.20` as latest
+- `package.json` and `package-lock.json` are at `0.1.21`
+- local `main` is tagged `v0.1.21`
+- npm reports `@orchid-labs/pluxx@0.1.21` as latest
 - the GitHub release workflow reran the release gate, including package runtime verification and release tarball pack
 
 For the next release, start from the current version, rerun `npm run release:check`, bump the package version, push `main`, push the matching `vX.Y.Z` tag, and verify npm plus GitHub release artifacts after the workflow completes.
