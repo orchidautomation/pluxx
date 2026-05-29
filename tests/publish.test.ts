@@ -740,6 +740,63 @@ describe('runPublish', () => {
     expect(run.installedUserConfig?.envRefs?.METRICS_API_KEY).toBe('METRICS_API_KEY')
   })
 
+  it('prompts for native Codex MCP auth env references in generated installers', () => {
+    const run = runGeneratedInstaller('codex', {
+      config: {
+        ...makeConfig(),
+        targets: ['codex'],
+        mcp: {
+          metrics: {
+            transport: 'http',
+            url: 'https://metrics.example.com/mcp',
+          },
+        },
+        platforms: {
+          codex: {
+            mcpServers: {
+              metrics: {
+                env_http_headers: {
+                  'X-API-Key': 'METRICS_API_KEY',
+                  'X-Workspace': 'METRICS_WORKSPACE_ID',
+                },
+              },
+            },
+          },
+        },
+      },
+      env: {
+        METRICS_API_KEY: 'known-test-secret',
+        METRICS_WORKSPACE_ID: 'workspace-123',
+      },
+      extraFiles: {
+        '.mcp.json': JSON.stringify({
+          mcpServers: {
+            metrics: {
+              url: 'https://metrics.example.com/mcp',
+              env_http_headers: {
+                'X-API-Key': 'METRICS_API_KEY',
+                'X-Workspace': 'METRICS_WORKSPACE_ID',
+              },
+            },
+          },
+        }, null, 2),
+      },
+    })
+
+    const installedMcp = JSON.parse(readFileSync(resolve(run.pluginInstallDir, '.mcp.json'), 'utf-8'))
+    expect(installedMcp.mcpServers.metrics.env_http_headers).toEqual({
+      'X-API-Key': 'METRICS_API_KEY',
+      'X-Workspace': 'METRICS_WORKSPACE_ID',
+    })
+    expect(run.installerContent).toContain('pluxx_prompt_secret_config "metrics-api-key" "METRICS_API_KEY"')
+    expect(run.installerContent).toContain('pluxx_prompt_secret_config "metrics-workspace-id" "METRICS_WORKSPACE_ID"')
+    expect(JSON.stringify(run.installedUserConfig)).not.toContain('known-test-secret')
+    expect(run.installedUserConfig?.envRefs).toEqual({
+      METRICS_API_KEY: 'METRICS_API_KEY',
+      METRICS_WORKSPACE_ID: 'METRICS_WORKSPACE_ID',
+    })
+  })
+
   it('enables Codex plugin-bundled hooks in generated installers when automation opts in', () => {
     const run = runGeneratedCodexInstaller(CODEX_HOOK_FILES, {
       configText: '[features]\nhooks = true\n',

@@ -6,6 +6,7 @@ import { tmpdir } from 'os'
 import type { PluginConfig, TargetPlatform } from '../schema'
 import { collectUserConfigEntries, defaultUserConfigEnvVar } from '../user-config'
 import { getPublishReloadInstruction } from '../distribution-lifecycle'
+import { collectNativeMcpAuthUserConfigEntries } from '../mcp-native-overrides'
 
 type PublishChannel = 'npm' | 'github-release'
 type PublishAssetKind = 'archive' | 'installer' | 'manifest' | 'checksum'
@@ -468,8 +469,16 @@ echo "Installed __DISPLAY_NAME__ across ${installerTargets.join(', ')}."
 `.replaceAll('__REPO__', 'REPO_PLACEHOLDER').replaceAll('__DISPLAY_NAME__', 'DISPLAY_PLACEHOLDER')
 }
 
+function collectInstallerUserConfigEntries(config: PluginConfig, platforms: TargetPlatform[]) {
+  const baseEntries = collectUserConfigEntries(config, platforms)
+  return [
+    ...baseEntries,
+    ...collectNativeMcpAuthUserConfigEntries(config, platforms, baseEntries),
+  ]
+}
+
 function renderInstallerUserConfigSnippet(config: PluginConfig, platform: TargetPlatform, installDirVariable: string): string {
-  const entries = collectUserConfigEntries(config, [platform])
+  const entries = collectInstallerUserConfigEntries(config, [platform])
     .map((entry) => ({
       key: entry.key,
       title: entry.title,
@@ -726,7 +735,7 @@ NODE
 }
 
 function hasInstallerUserConfig(config: PluginConfig, platform: TargetPlatform): boolean {
-  return collectUserConfigEntries(config, [platform]).length > 0
+  return collectInstallerUserConfigEntries(config, [platform]).length > 0
 }
 
 function renderInstallerSavedUserConfigCaptureSnippet(config: PluginConfig, platform: TargetPlatform, installDirVariable: string): string {
