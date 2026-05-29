@@ -10,6 +10,9 @@ export interface InstalledUserConfigPayload {
   values?: Record<string, string | number | boolean>
   env?: Record<string, string>
   envRefs?: Record<string, string>
+  secretStorage?: 'env-ref' | 'materialized'
+  secretKeys?: string[]
+  secretEnv?: string[]
 }
 
 interface DerivedUserConfigEntry extends UserConfigEntry {
@@ -207,10 +210,20 @@ export function buildInstalledUserConfigPayload(
   const values: Record<string, string | number | boolean> = {}
   const env: Record<string, string> = {}
   const envRefs: Record<string, string> = {}
+  const secretKeys = new Set<string>()
+  const secretEnv = new Set<string>()
+  let hasSecret = false
 
   for (const entry of entries) {
     const envVar = entry.envVar
     const isSecret = entry.field.type === 'secret'
+    if (isSecret) {
+      hasSecret = true
+      if (preserveSecretReferences) {
+        secretKeys.add(entry.field.key)
+        if (envVar) secretEnv.add(envVar)
+      }
+    }
 
     if (preserveSecretReferences && isSecret) {
       if (envVar) envRefs[envVar] = envVar
@@ -225,5 +238,8 @@ export function buildInstalledUserConfigPayload(
     ...(Object.keys(values).length > 0 ? { values } : {}),
     ...(Object.keys(env).length > 0 ? { env } : {}),
     ...(Object.keys(envRefs).length > 0 ? { envRefs } : {}),
+    ...(hasSecret ? { secretStorage: preserveSecretReferences ? 'env-ref' : 'materialized' } : {}),
+    ...(preserveSecretReferences && secretKeys.size > 0 ? { secretKeys: [...secretKeys].sort() } : {}),
+    ...(preserveSecretReferences && secretEnv.size > 0 ? { secretEnv: [...secretEnv].sort() } : {}),
   }
 }

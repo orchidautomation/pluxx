@@ -638,6 +638,9 @@ if (installDir && spec.length > 0) {
   const env = {}
   const values = {}
   const envRefs = {}
+  const secretKeys = []
+  const secretEnv = []
+  let hasSecret = false
   const secretEnvVars = new Set(
     spec
       .filter((entry) => entry && entry.type === 'secret' && typeof entry.envVar === 'string' && entry.envVar !== '')
@@ -645,6 +648,13 @@ if (installDir && spec.length > 0) {
   )
 
   for (const entry of spec) {
+    if (entry.type === 'secret') {
+      hasSecret = true
+      if (preserveSecretReferences) {
+        if (entry.key) secretKeys.push(entry.key)
+        if (entry.envVar) secretEnv.push(entry.envVar)
+      }
+    }
     const value = process.env[entry.envVar]
     if (value === undefined || value === '') continue
     if (preserveSecretReferences && entry.type === 'secret') {
@@ -662,6 +672,9 @@ if (installDir && spec.length > 0) {
         ...(Object.keys(values).length > 0 ? { values } : {}),
         ...(Object.keys(env).length > 0 ? { env } : {}),
         ...(Object.keys(envRefs).length > 0 ? { envRefs } : {}),
+        ...(hasSecret ? { secretStorage: preserveSecretReferences ? 'env-ref' : 'materialized' } : {}),
+        ...(preserveSecretReferences && secretKeys.length > 0 ? { secretKeys: [...new Set(secretKeys)].sort() } : {}),
+        ...(preserveSecretReferences && secretEnv.length > 0 ? { secretEnv: [...new Set(secretEnv)].sort() } : {}),
       },
       null,
       2,

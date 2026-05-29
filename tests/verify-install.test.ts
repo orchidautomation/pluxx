@@ -139,7 +139,7 @@ describe('verifyInstall', () => {
           fixture: {
             url: 'https://example.com/mcp',
             headers: {
-              Authorization: 'Bearer shh-secret',
+              Authorization: 'Bearer ${VERIFY_PLUGIN_API_KEY}',
             },
           },
         },

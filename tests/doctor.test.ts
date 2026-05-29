@@ -105,6 +105,51 @@ function createConsumerFixture(): string {
   return dir
 }
 
+function createSafeConsumerFixture(): string {
+  const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-consumer-safe-'))
+  mkdirSync(resolve(dir, '.cursor-plugin'), { recursive: true })
+  mkdirSync(resolve(dir, 'skills/hello'), { recursive: true })
+  mkdirSync(resolve(dir, 'scripts'), { recursive: true })
+  writeFileSync(
+    resolve(dir, '.cursor-plugin/plugin.json'),
+    JSON.stringify({
+      name: 'consumer-fixture',
+      version: '0.1.0',
+      skills: './skills/',
+      mcpServers: './mcp.json',
+    }, null, 2),
+  )
+  writeFileSync(
+    resolve(dir, 'mcp.json'),
+    JSON.stringify({
+      mcpServers: {
+        fixture: {
+          type: 'http',
+          url: 'https://example.com/mcp',
+          headers: {
+            Authorization: 'Bearer ${FIXTURE_API_KEY}',
+          },
+        },
+      },
+    }, null, 2),
+  )
+  writeFileSync(
+    resolve(dir, '.pluxx-user.json'),
+    JSON.stringify({
+      values: {},
+      env: {
+        FIXTURE_API_KEY: '${FIXTURE_API_KEY}',
+      },
+    }, null, 2),
+  )
+  writeFileSync(
+    resolve(dir, 'scripts/check-env.sh'),
+    '#!/usr/bin/env bash\nset -euo pipefail\n# pluxx install materialized required config for this local plugin install.\nexit 0\n',
+  )
+  writeFileSync(resolve(dir, 'skills/hello/SKILL.md'), '# Hello\n')
+  return dir
+}
+
 function createBrokenClaudeConsumerFixture(): string {
   const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-claude-consumer-'))
   mkdirSync(resolve(dir, '.claude-plugin'), { recursive: true })
@@ -713,7 +758,7 @@ describe('doctorProject', () => {
     const dir = createProjectFixture()
 
     try {
-      const proc = Bun.spawn(['bun', resolve(ROOT, 'bin/pluxx.js'), 'doctor', '--json'], {
+      const proc = Bun.spawn([process.execPath, resolve(ROOT, 'bin/pluxx.js'), 'doctor', '--json'], {
         cwd: dir,
         stdout: 'pipe',
         stderr: 'pipe',
@@ -746,8 +791,8 @@ describe('doctorProject', () => {
 })
 
 describe('doctorConsumer', () => {
-  it('reports installed bundle health for a materialized consumer install', async () => {
-    const dir = createConsumerFixture()
+  it('reports installed bundle health for a secret-reference consumer install', async () => {
+    const dir = createSafeConsumerFixture()
 
     try {
       const report = await doctorConsumer(dir)
@@ -756,6 +801,7 @@ describe('doctorConsumer', () => {
       expect(report.checks.some((check) => check.code === 'consumer-manifest-valid' && check.level === 'success')).toBe(true)
       expect(report.checks.some((check) => check.code === 'consumer-bundle-integrity-valid' && check.level === 'success')).toBe(true)
       expect(report.checks.some((check) => check.code === 'consumer-user-config-valid' && check.level === 'success')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-plaintext-secret-absent' && check.level === 'success')).toBe(true)
       expect(report.checks.some((check) => check.code === 'consumer-env-script-materialized' && check.level === 'success')).toBe(true)
       expect(report.checks.some((check) => check.code === 'consumer-mcp-inline-auth' && check.level === 'success')).toBe(true)
     } finally {
@@ -763,8 +809,193 @@ describe('doctorConsumer', () => {
     }
   })
 
-  it('warns when a materialized consumer install contains placeholder-looking secrets', async () => {
+  it('fails when an installed bundle contains plaintext secret material', async () => {
     const dir = createConsumerFixture()
+
+    try {
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(false)
+      expect(report.checks.some((check) => check.code === 'consumer-plaintext-secret-leak' && check.level === 'error')).toBe(true)
+      expect(report.checks.every((check) => !check.detail.includes('shh-secret'))).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('does not fail ordinary api/key named config values as plaintext secrets', async () => {
+    const dir = createSafeConsumerFixture()
+
+    try {
+      writeFileSync(
+        resolve(dir, '.pluxx-user.json'),
+        JSON.stringify({
+          values: {
+            'api-base-url': 'https://example.com/mcp',
+          },
+          env: {
+            API_BASE_URL: 'https://example.com/mcp',
+          },
+        }, null, 2),
+      )
+
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-plaintext-secret-leak')).toBe(false)
+      expect(report.checks.some((check) => check.code === 'consumer-plaintext-secret-absent' && check.level === 'success')).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('fails metadata-marked api keys copied into installed bundle files', async () => {
+    const dir = createSafeConsumerFixture()
+
+    try {
+      writeFileSync(
+        resolve(dir, '.pluxx-user.json'),
+        JSON.stringify({
+          values: {
+            'fixture-api-key': 'realistic-live-api-key-value',
+          },
+          env: {
+            FIXTURE_API_KEY: 'realistic-live-api-key-value',
+          },
+          secretStorage: 'env-ref',
+          secretKeys: ['fixture-api-key'],
+          secretEnv: ['FIXTURE_API_KEY'],
+        }, null, 2),
+      )
+      writeFileSync(
+        resolve(dir, 'mcp.json'),
+        JSON.stringify({
+          mcpServers: {
+            fixture: {
+              type: 'http',
+              url: 'https://example.com/mcp',
+              headers: {
+                Authorization: 'Bearer realistic-live-api-key-value',
+              },
+            },
+          },
+        }, null, 2),
+      )
+
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(false)
+      expect(report.checks.some((check) => check.code === 'consumer-plaintext-secret-leak' && check.level === 'error')).toBe(true)
+      expect(report.checks.every((check) => !check.detail.includes('realistic-live-api-key-value'))).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('fails legacy api keys copied into installed bundle files without secret metadata', async () => {
+    const dir = createSafeConsumerFixture()
+
+    try {
+      writeFileSync(
+        resolve(dir, '.pluxx-user.json'),
+        JSON.stringify({
+          values: {
+            'fixture-api-key': 'realistic-live-api-key-value',
+          },
+          env: {
+            FIXTURE_API_KEY: 'realistic-live-api-key-value',
+          },
+        }, null, 2),
+      )
+      writeFileSync(
+        resolve(dir, 'mcp.json'),
+        JSON.stringify({
+          mcpServers: {
+            fixture: {
+              type: 'http',
+              url: 'https://example.com/mcp',
+              headers: {
+                Authorization: 'Bearer realistic-live-api-key-value',
+              },
+            },
+          },
+        }, null, 2),
+      )
+
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(false)
+      expect(report.checks.some((check) => check.code === 'consumer-plaintext-secret-leak' && check.level === 'error')).toBe(true)
+      expect(report.checks.every((check) => !check.detail.includes('realistic-live-api-key-value'))).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('fails legacy api keys stored only in installed user config', async () => {
+    const dir = createSafeConsumerFixture()
+
+    try {
+      writeFileSync(
+        resolve(dir, '.pluxx-user.json'),
+        JSON.stringify({
+          values: {
+            'fixture-api-key': 'realistic-live-api-key-value',
+          },
+          env: {
+            FIXTURE_API_KEY: 'realistic-live-api-key-value',
+          },
+        }, null, 2),
+      )
+
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(false)
+      expect(report.checks.some((check) => check.code === 'consumer-plaintext-secret-leak' && check.level === 'error')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-plaintext-secret-leak' && check.detail.includes('.pluxx-user.json'))).toBe(true)
+      expect(report.checks.every((check) => !check.detail.includes('realistic-live-api-key-value'))).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('does not fail explicit materialized secret installs as plaintext leaks', async () => {
+    const dir = createSafeConsumerFixture()
+
+    try {
+      writeFileSync(
+        resolve(dir, '.pluxx-user.json'),
+        JSON.stringify({
+          values: {
+            'fixture-api-key': 'realistic-live-api-key-value',
+          },
+          env: {
+            FIXTURE_API_KEY: 'realistic-live-api-key-value',
+          },
+          secretStorage: 'materialized',
+        }, null, 2),
+      )
+      writeFileSync(
+        resolve(dir, 'mcp.json'),
+        JSON.stringify({
+          mcpServers: {
+            fixture: {
+              type: 'http',
+              url: 'https://example.com/mcp',
+              headers: {
+                Authorization: 'Bearer realistic-live-api-key-value',
+              },
+            },
+          },
+        }, null, 2),
+      )
+
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-plaintext-secret-leak')).toBe(false)
+      expect(report.checks.some((check) => check.code === 'consumer-plaintext-secret-absent' && check.level === 'success')).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('warns when a materialized consumer install contains placeholder-looking secrets', async () => {
+    const dir = createSafeConsumerFixture()
 
     try {
       writeFileSync(
@@ -1189,10 +1420,10 @@ describe('doctorConsumer', () => {
   })
 
   it('prints stable JSON from the CLI in consumer mode', async () => {
-    const dir = createConsumerFixture()
+    const dir = createSafeConsumerFixture()
 
     try {
-      const proc = Bun.spawn(['bun', resolve(ROOT, 'bin/pluxx.js'), 'doctor', '--consumer', '--json', dir], {
+      const proc = Bun.spawn([process.execPath, resolve(ROOT, 'bin/pluxx.js'), 'doctor', '--consumer', '--json', dir], {
         cwd: ROOT,
         stdout: 'pipe',
         stderr: 'pipe',
