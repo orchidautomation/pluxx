@@ -1,7 +1,7 @@
 import { spawn, spawnSync } from 'child_process'
 import { accessSync, constants, existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from 'fs'
 import { homedir } from 'os'
-import { basename, dirname, resolve } from 'path'
+import { basename, dirname, relative, resolve } from 'path'
 import { CONFIG_FILES, loadConfig } from '../config/load'
 import { findInstalledBundleIntegrityIssues, listHookCommands } from './install'
 import { PLATFORM_LIMITS, getCoreFourPrimitiveCapabilities, type CoreFourPlatform, type PrimitiveTranslationMode } from '../validation/platform-rules'
@@ -9,7 +9,7 @@ import { getConfiguredCompilerBuckets, type McpServer, type PluginConfig, type T
 import { PLUXX_COMPILER_INTENT_PATH, readCompilerIntent } from '../compiler-intent'
 import { MCP_SCAFFOLD_METADATA_PATH, type McpScaffoldMetadata } from './init-from-mcp'
 import { buildPrimitiveTranslationSummary, renderPrimitiveTranslationSummary, type PrimitiveTranslationSummary } from './primitive-summary'
-import { isPlaceholderSecretValue } from '../user-config'
+import { extractEnvReference, isPlaceholderSecretValue } from '../user-config'
 import { getBrandingCompletenessWarnings } from '../branding-completeness'
 import { findLeakedPluginRootVars } from '../mcp-stdio-paths'
 import { getRuntimeReadinessPlan } from '../readiness'
@@ -79,6 +79,13 @@ const LOW_INFO_DESCRIPTION_PATTERNS = [
 const MATERIALIZED_ENV_MARKER = 'materialized required config'
 const MIN_NODE_MAJOR = 18
 const STDIO_LAUNCH_SMOKE_TIMEOUT_MS = 1200
+const MAX_SECRET_SCAN_FILE_BYTES = 512 * 1024
+const SECRET_IDENTIFIER_PATTERN = /(api|auth|secret|token|key|password|credential)/i
+const TEST_SECRET_SENTINELS = [
+  { pattern: /\bshh-secret\b/i, label: 'test secret sentinel' },
+  { pattern: /\bsecret-key\b/i, label: 'test secret sentinel' },
+  { pattern: /\bliteral-secret-value-that-should-not-copy\b/i, label: 'test secret sentinel' },
+]
 
 const PRIMITIVE_MODE_LEVEL: Record<PrimitiveTranslationMode, DoctorLevel> = {
   preserve: 'success',
@@ -128,6 +135,11 @@ interface CodexHooksFeatureProbe extends CodexConfigCandidate {
   parseError?: string
 }
 
+interface InstalledPlaintextSecretCandidate {
+  value: string
+  labels: string[]
+}
+
 interface CodexMcpApprovalProbe extends CodexConfigCandidate {
   exists: boolean
   approvals: CodexMcpApprovalEntry[]
@@ -170,6 +182,123 @@ type ConsumerLayoutDetection =
 
 function addCheck(checks: DoctorCheck[], check: DoctorCheck): void {
   checks.push(check)
+}
+
+function looksSecretIdentifier(value: string): boolean {
+  return SECRET_IDENTIFIER_PATTERN.test(value)
+}
+
+function walkInstalledBundleFiles(rootDir: string, currentDir: string = rootDir): string[] {
+  const files: string[] = []
+
+  for (const entry of readdirSync(currentDir, { withFileTypes: true })) {
+    const absolutePath = resolve(currentDir, entry.name)
+    if (entry.isDirectory()) {
+      files.push(...walkInstalledBundleFiles(rootDir, absolutePath))
+      continue
+    }
+
+    if (!entry.isFile()) continue
+    files.push(relative(rootDir, absolutePath).replace(/\\/g, '/'))
+  }
+
+  return files.sort()
+}
+
+function readInstalledTextFile(rootDir: string, relativePath: string): string | null {
+  const absolutePath = resolve(rootDir, relativePath)
+  const content = readFileSync(absolutePath)
+  if (content.length > MAX_SECRET_SCAN_FILE_BYTES) return null
+  if (content.includes(0)) return null
+  return content.toString('utf-8')
+}
+
+function collectInstalledPlaintextSecretCandidates(rootDir: string): InstalledPlaintextSecretCandidate[] {
+  const userConfigPath = resolve(rootDir, '.pluxx-user.json')
+  if (!existsSync(userConfigPath)) return []
+
+  try {
+    const payload = JSON.parse(readFileSync(userConfigPath, 'utf-8')) as {
+      values?: Record<string, unknown>
+      env?: Record<string, unknown>
+    }
+    const candidateLabels = new Map<string, Set<string>>()
+    const recordCandidate = (rawValue: unknown, label: string) => {
+      if (typeof rawValue !== 'string') return
+      const value = rawValue.trim()
+      if (!value) return
+      if (extractEnvReference(value)) return
+      if (isPlaceholderSecretValue(value)) return
+      const labels = candidateLabels.get(value) ?? new Set<string>()
+      labels.add(label)
+      candidateLabels.set(value, labels)
+    }
+
+    for (const [key, value] of Object.entries(payload.values ?? {})) {
+      if (!looksSecretIdentifier(key)) continue
+      recordCandidate(value, `userConfig "${key}"`)
+    }
+
+    for (const [key, value] of Object.entries(payload.env ?? {})) {
+      if (!looksSecretIdentifier(key)) continue
+      recordCandidate(value, `env "${key}"`)
+    }
+
+    return [...candidateLabels.entries()].map(([value, labels]) => ({
+      value,
+      labels: [...labels].sort(),
+    }))
+  } catch {
+    return []
+  }
+}
+
+function checkInstalledPlaintextSecrets(checks: DoctorCheck[], rootDir: string): void {
+  const literalCandidates = collectInstalledPlaintextSecretCandidates(rootDir)
+  const findings = new Map<string, Set<string>>()
+
+  for (const relativePath of walkInstalledBundleFiles(rootDir)) {
+    const content = readInstalledTextFile(rootDir, relativePath)
+    if (!content) continue
+
+    const labels = new Set<string>()
+    for (const candidate of literalCandidates) {
+      if (!content.includes(candidate.value)) continue
+      for (const label of candidate.labels) labels.add(label)
+    }
+    for (const sentinel of TEST_SECRET_SENTINELS) {
+      if (sentinel.pattern.test(content)) {
+        labels.add(sentinel.label)
+      }
+    }
+
+    if (labels.size > 0) {
+      findings.set(relativePath, labels)
+    }
+  }
+
+  if (findings.size === 0) {
+    addCheck(checks, {
+      level: 'success',
+      code: 'consumer-plaintext-secret-absent',
+      title: 'Installed bundle does not expose known plaintext secret material',
+      detail: 'No known prompted secret values or maintained test-secret sentinels were detected in scanned installed text files.',
+      fix: 'No action needed.',
+    })
+    return
+  }
+
+  const detail = [...findings.entries()]
+    .map(([path, labels]) => `${path} (${[...labels].sort().join(', ')})`)
+    .join('; ')
+
+  addCheck(checks, {
+    level: 'error',
+    code: 'consumer-plaintext-secret-leak',
+    title: 'Installed bundle contains plaintext secret material',
+    detail: `Detected plaintext secret material in installed files: ${detail}.`,
+    fix: 'Rotate the affected credential, remove the leaking install, reinstall after the Pluxx secret-reference fix, and rerun pluxx doctor --consumer.',
+  })
 }
 
 function summarizeChecks(checks: DoctorCheck[]): DoctorReport {
@@ -2381,6 +2510,7 @@ export async function doctorConsumer(
   checkInstalledCodexPermissionCompanion(checks, rootDir, layout, options)
   checkInstalledPermissionHook(checks, rootDir, layout)
   checkInstalledUserConfig(checks, rootDir)
+  checkInstalledPlaintextSecrets(checks, rootDir)
   checkInstalledEnvValidation(checks, rootDir)
   checkInstalledRuntimeScriptRoles(checks, rootDir)
   await checkInstalledMcpConfig(checks, rootDir, layout)
