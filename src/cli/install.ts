@@ -4,8 +4,8 @@ import { spawnSync } from 'child_process'
 import * as readline from 'readline'
 import type { PluginConfig, TargetPlatform, UserConfigEntry } from '../schema'
 import {
+  buildInstalledUserConfigPayload,
   buildUserConfigEnvMap,
-  buildUserConfigValueMap,
   collectUserConfigEntries,
   defaultUserConfigEnvVar,
   isPlaceholderSecretValue,
@@ -630,18 +630,22 @@ function createOpenCodeCopiedInstall(target: PlannedInstallTarget, pluginName: s
   syncOpenCodeSkills(target.pluginDir, pluginName)
 }
 
-function materializeTemplateValue(value: string, env: Record<string, string>): string {
-  return value.replace(/\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g, (_match, name: string) => env[name] ?? `\${${name}}`)
+function materializeTemplateValue(value: string, env: Record<string, string>, secretEnvVars = new Set<string>()): string {
+  return value.replace(
+    /\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g,
+    (_match, name: string) => (secretEnvVars.has(name) ? `\${${name}}` : (env[name] ?? `\${${name}}`)),
+  )
 }
 
 function materializeEnvRecord(
   input: Record<string, string> | undefined,
   env: Record<string, string>,
+  secretEnvVars = new Set<string>(),
 ): Record<string, string> {
   const output: Record<string, string> = {}
 
   for (const [key, value] of Object.entries(input ?? {})) {
-    output[key] = materializeTemplateValue(value, env)
+    output[key] = materializeTemplateValue(value, env, secretEnvVars)
   }
 
   return output
@@ -656,6 +660,11 @@ function patchInstalledMcpConfig(
   if (!config.mcp) return
 
   const env = buildUserConfigEnvMap(entries)
+  const secretEnvVars = new Set(
+    entries
+      .filter((entry) => entry.field.type === 'secret' && entry.envVar)
+      .map((entry) => entry.envVar as string),
+  )
 
   if (platform === 'claude-code' || platform === 'cursor') {
     const filepath = resolve(pluginDir, platform === 'claude-code' ? '.mcp.json' : 'mcp.json')
@@ -712,7 +721,7 @@ function patchInstalledMcpConfig(
         mcpServers[name] = {
           command: materializeInstalledPluginOwnedStdioPathForPlatform(server.command, platform, pluginDir),
           args: (server.args ?? []).map((value) => materializeInstalledPluginOwnedStdioPathForPlatform(value, platform, pluginDir)),
-          env: materializeEnvRecord(server.env, env),
+          env: materializeEnvRecord(server.env, env, secretEnvVars),
         }
         continue
       }
@@ -724,10 +733,7 @@ function patchInstalledMcpConfig(
       const nativeOverride = getNativeCodexMcpEntryOverride(config, name)
       if (nativeOverride) {
         if (typeof nativeOverride.bearer_token_env_var === 'string') {
-          const envVar = nativeOverride.bearer_token_env_var
-          if (env[envVar]) {
-            entry.bearer_token_env_var = envVar
-          }
+          entry.bearer_token_env_var = nativeOverride.bearer_token_env_var
         }
 
         if (nativeOverride.auth) {
@@ -735,13 +741,10 @@ function patchInstalledMcpConfig(
         }
 
         if (nativeOverride.env_http_headers && typeof nativeOverride.env_http_headers === 'object') {
-          entry.http_headers = Object.fromEntries(
+          entry.env_http_headers = Object.fromEntries(
             Object.entries(nativeOverride.env_http_headers as Record<string, unknown>)
               .filter(([, value]) => typeof value === 'string')
-              .map(([headerName, envVar]) => [
-                headerName,
-                env[envVar as string] ?? `\${${envVar as string}}`,
-              ]),
+              .map(([headerName, envVar]) => [headerName, envVar]),
           )
         }
 
@@ -749,15 +752,21 @@ function patchInstalledMcpConfig(
           entry.http_headers = materializeEnvRecord(
             nativeOverride.http_headers as Record<string, string>,
             env,
+            secretEnvVars,
           )
         }
-      } else if (server.auth?.type === 'bearer' && server.auth.envVar && env[server.auth.envVar]) {
-        entry.http_headers = {
-          Authorization: `Bearer ${env[server.auth.envVar]}`,
-        }
-      } else if (server.auth?.type === 'header' && server.auth.envVar && env[server.auth.envVar]) {
-        entry.http_headers = {
-          [server.auth.headerName]: server.auth.headerTemplate.replace('${value}', env[server.auth.envVar]),
+      } else if (server.auth?.type === 'bearer' && server.auth.envVar) {
+        entry.bearer_token_env_var = server.auth.envVar
+      } else if (server.auth?.type === 'header' && server.auth.envVar) {
+        const isBearerAuthorizationHeader =
+          server.auth.headerName === 'Authorization'
+          && server.auth.headerTemplate === 'Bearer ${value}'
+        if (isBearerAuthorizationHeader) {
+          entry.bearer_token_env_var = server.auth.envVar
+        } else if (server.auth.headerTemplate === '${value}') {
+          entry.env_http_headers = {
+            [server.auth.headerName]: server.auth.envVar,
+          }
         }
       }
 
@@ -771,14 +780,14 @@ function patchInstalledMcpConfig(
 function writeInstalledUserConfig(
   pluginDir: string,
   entries: ResolvedUserConfigEntry[],
+  platform: TargetPlatform,
 ): void {
   if (entries.length === 0) return
 
   const filepath = resolve(pluginDir, '.pluxx-user.json')
-  const payload = {
-    values: buildUserConfigValueMap(entries),
-    env: buildUserConfigEnvMap(entries),
-  }
+  const payload = buildInstalledUserConfigPayload(entries, {
+    preserveSecretReferences: platform === 'codex',
+  })
 
   writeFileSync(filepath, JSON.stringify(payload, null, 2) + '\n')
 }
@@ -802,7 +811,7 @@ function materializeInstalledPlugin(
   entries: ResolvedUserConfigEntry[],
 ): void {
   if (entries.length > 0) {
-    writeInstalledUserConfig(pluginDir, entries)
+    writeInstalledUserConfig(pluginDir, entries, platform)
     disableInstalledEnvValidation(pluginDir, entries)
   }
   patchInstalledMcpConfig(pluginDir, platform, config, entries)

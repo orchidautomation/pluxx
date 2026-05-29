@@ -602,10 +602,17 @@ describe('install', () => {
 
     const cursorMcp = JSON.parse(readFileSync(resolve(cursorInstall, 'mcp.json'), 'utf-8'))
     const codexMcp = JSON.parse(readFileSync(resolve(codexInstall, '.mcp.json'), 'utf-8'))
+    const codexUserConfig = JSON.parse(readFileSync(resolve(codexInstall, '.pluxx-user.json'), 'utf-8'))
     const opencodeUserConfig = JSON.parse(readFileSync(resolve(opencodeInstall, '.pluxx-user.json'), 'utf-8'))
 
     expect(cursorMcp.mcpServers.fixture.headers.Authorization).toBe('Bearer shh-secret')
-    expect(codexMcp.mcpServers.fixture.http_headers.Authorization).toBe('Bearer shh-secret')
+    expect(codexMcp.mcpServers.fixture.bearer_token_env_var).toBe('TEST_API_KEY')
+    expect(codexMcp.mcpServers.fixture.http_headers).toBeUndefined()
+    expect(JSON.stringify(codexMcp)).not.toContain('shh-secret')
+    expect(codexUserConfig.values?.['test-api-key']).toBeUndefined()
+    expect(codexUserConfig.env?.TEST_API_KEY).toBeUndefined()
+    expect(codexUserConfig.envRefs?.TEST_API_KEY).toBe('TEST_API_KEY')
+    expect(JSON.stringify(codexUserConfig)).not.toContain('shh-secret')
     expect(opencodeUserConfig.env.TEST_API_KEY).toBe('shh-secret')
     expect(readFileSync(opencodeEntry, 'utf-8')).toContain('directory: join(context.directory, "megamind")')
     expect(lstatSync(opencodeSkill).isSymbolicLink()).toBe(false)
@@ -687,10 +694,20 @@ describe('install', () => {
 
     const codexInstall = resolve(HOME_DIR, INSTALL_PATHS.codex)
     const codexMcp = JSON.parse(readFileSync(resolve(codexInstall, '.mcp.json'), 'utf-8'))
-    expect(codexMcp.mcpServers.metrics.http_headers).toEqual({
-      'X-API-Key': 'secret-key',
-      'X-Workspace': 'ws-123',
+    const codexUserConfig = JSON.parse(readFileSync(resolve(codexInstall, '.pluxx-user.json'), 'utf-8'))
+    expect(codexMcp.mcpServers.metrics.env_http_headers).toEqual({
+      'X-API-Key': 'METRICS_API_KEY',
+      'X-Workspace': 'METRICS_WORKSPACE_ID',
     })
+    expect(codexMcp.mcpServers.metrics.http_headers).toBeUndefined()
+    expect(JSON.stringify(codexMcp)).not.toContain('secret-key')
+    expect(JSON.stringify(codexMcp)).not.toContain('ws-123')
+    expect(codexUserConfig.envRefs).toEqual({
+      METRICS_API_KEY: 'METRICS_API_KEY',
+      METRICS_WORKSPACE_ID: 'METRICS_WORKSPACE_ID',
+    })
+    expect(JSON.stringify(codexUserConfig)).not.toContain('secret-key')
+    expect(JSON.stringify(codexUserConfig)).not.toContain('ws-123')
   })
 
   it('normalizes plugin-owned stdio MCP paths consistently during local install materialization', async () => {
@@ -745,6 +762,7 @@ describe('install', () => {
     const codexInstall = resolve(HOME_DIR, INSTALL_PATHS.codex)
     const cursorMcp = JSON.parse(readFileSync(resolve(cursorInstall, 'mcp.json'), 'utf-8'))
     const codexMcp = JSON.parse(readFileSync(resolve(codexInstall, '.mcp.json'), 'utf-8'))
+    const codexUserConfig = JSON.parse(readFileSync(resolve(codexInstall, '.pluxx-user.json'), 'utf-8'))
 
     expect(cursorMcp.mcpServers.sendlens).toEqual({
       command: 'bash',
@@ -757,9 +775,12 @@ describe('install', () => {
       command: 'bash',
       args: [resolve(codexInstall, 'scripts/start-mcp.sh')],
       env: {
-        SENDLENS_TOKEN: 'shh-secret',
+        SENDLENS_TOKEN: '${SENDLENS_TOKEN}',
       },
     })
+    expect(codexUserConfig.envRefs?.SENDLENS_TOKEN).toBe('SENDLENS_TOKEN')
+    expect(JSON.stringify(codexMcp)).not.toContain('shh-secret')
+    expect(JSON.stringify(codexUserConfig)).not.toContain('shh-secret')
   })
 
   it('materializes plugin-owned Codex stdio MCP paths even without install-time user config', async () => {

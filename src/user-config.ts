@@ -6,6 +6,12 @@ export interface ResolvedUserConfigEntry {
   envVar?: string
 }
 
+export interface InstalledUserConfigPayload {
+  values?: Record<string, string | number | boolean>
+  env?: Record<string, string>
+  envRefs?: Record<string, string>
+}
+
 interface DerivedUserConfigEntry extends UserConfigEntry {
   source: 'explicit' | 'mcp-auth' | 'mcp-env'
 }
@@ -191,4 +197,33 @@ export function buildUserConfigValueMap(entries: ResolvedUserConfigEntry[]): Rec
     values[entry.field.key] = entry.value
   }
   return values
+}
+
+export function buildInstalledUserConfigPayload(
+  entries: ResolvedUserConfigEntry[],
+  options: { preserveSecretReferences?: boolean } = {},
+): InstalledUserConfigPayload {
+  const preserveSecretReferences = options.preserveSecretReferences === true
+  const values: Record<string, string | number | boolean> = {}
+  const env: Record<string, string> = {}
+  const envRefs: Record<string, string> = {}
+
+  for (const entry of entries) {
+    const envVar = entry.envVar
+    const isSecret = entry.field.type === 'secret'
+
+    if (preserveSecretReferences && isSecret) {
+      if (envVar) envRefs[envVar] = envVar
+      continue
+    }
+
+    values[entry.field.key] = entry.value
+    if (envVar) env[envVar] = String(entry.value)
+  }
+
+  return {
+    ...(Object.keys(values).length > 0 ? { values } : {}),
+    ...(Object.keys(env).length > 0 ? { env } : {}),
+    ...(Object.keys(envRefs).length > 0 ? { envRefs } : {}),
+  }
 }
