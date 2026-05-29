@@ -4,6 +4,13 @@ import { spawnSync } from 'child_process'
 import { resolve } from 'path'
 import type { PluginConfig, TargetPlatform } from '../src/schema'
 import { planPublish, runPublish } from '../src/cli/publish'
+import {
+  makeSecretReferenceFixtureConfig,
+  SECRET_REFERENCE_ENV_VAR,
+  SECRET_REFERENCE_SENTINEL,
+  SECRET_REFERENCE_WORKSPACE_ENV_VAR,
+  SECRET_REFERENCE_WORKSPACE_SENTINEL,
+} from '../test-fixtures/secret-reference-fixture'
 
 const ROOT = resolve(import.meta.dir, '.publish-fixture')
 
@@ -138,6 +145,7 @@ interface GeneratedInstallerRunOptions {
 }
 
 interface GeneratedInstallerRunResult {
+  rootDir: string
   status: number | null
   stdout: string
   stderr: string
@@ -269,6 +277,7 @@ function runGeneratedInstaller(
         })
         const userConfigPath = resolve(paths.pluginInstallDir, '.pluxx-user.json')
         installerRun = {
+          rootDir,
           status: proc.status,
           stdout: proc.stdout ?? '',
           stderr: proc.stderr ?? '',
@@ -672,6 +681,75 @@ describe('runPublish', () => {
     expect(run.installedUserConfig?.values?.['instantly-api-key']).toBeUndefined()
     expect(run.installedUserConfig?.env?.SENDLENS_INSTANTLY_API_KEY).toBeUndefined()
     expect(run.installedUserConfig?.envRefs?.SENDLENS_INSTANTLY_API_KEY).toBe('SENDLENS_INSTANTLY_API_KEY')
+  })
+
+  it('preserves secret references across Codex installer rebuilds', () => {
+    const config: PluginConfig = {
+      ...makeSecretReferenceFixtureConfig(['codex']),
+      ...makeConfig(),
+      targets: ['codex'],
+    }
+    const extraFiles = {
+      '.codex-plugin/plugin.json': JSON.stringify({
+        name: 'publish-plugin',
+        version: '1.0.0',
+      }),
+      '.mcp.json': JSON.stringify({
+        mcpServers: {
+          fixture: {
+            url: 'https://metrics.example.com/mcp',
+            env_http_headers: {
+              'X-API-Key': SECRET_REFERENCE_ENV_VAR,
+              'X-Workspace': SECRET_REFERENCE_WORKSPACE_ENV_VAR,
+            },
+          },
+        },
+      }, null, 2),
+    }
+
+    const firstRun = runGeneratedInstaller('codex', {
+      config,
+      extraFiles,
+      env: {
+        [SECRET_REFERENCE_ENV_VAR]: SECRET_REFERENCE_SENTINEL,
+        [SECRET_REFERENCE_WORKSPACE_ENV_VAR]: SECRET_REFERENCE_WORKSPACE_SENTINEL,
+      },
+    })
+
+    const builtMcpPath = resolve(firstRun.rootDir, 'dist/codex/.mcp.json')
+    const installedMcpPath = resolve(firstRun.rootDir, 'installed-codex/.mcp.json')
+    const builtMcp = readFileSync(builtMcpPath, 'utf-8')
+    const installedMcp = readFileSync(installedMcpPath, 'utf-8')
+
+    expect(firstRun.status).toBe(0)
+    expect(firstRun.stderr).toBe('')
+    expect(firstRun.installerContent).not.toContain(SECRET_REFERENCE_SENTINEL)
+    expect(firstRun.installerContent).not.toContain(SECRET_REFERENCE_WORKSPACE_SENTINEL)
+    expect(builtMcp).toContain(SECRET_REFERENCE_ENV_VAR)
+    expect(builtMcp).not.toContain(SECRET_REFERENCE_SENTINEL)
+    expect(installedMcp).toContain(SECRET_REFERENCE_ENV_VAR)
+    expect(installedMcp).toContain(SECRET_REFERENCE_WORKSPACE_ENV_VAR)
+    expect(installedMcp).not.toContain(SECRET_REFERENCE_SENTINEL)
+    expect(installedMcp).not.toContain(SECRET_REFERENCE_WORKSPACE_SENTINEL)
+    expect(firstRun.installedUserConfig?.env?.[SECRET_REFERENCE_ENV_VAR]).toBeUndefined()
+    expect(firstRun.installedUserConfig?.env?.[SECRET_REFERENCE_WORKSPACE_ENV_VAR]).toBeUndefined()
+    expect(firstRun.installedUserConfig?.envRefs?.[SECRET_REFERENCE_ENV_VAR]).toBe(SECRET_REFERENCE_ENV_VAR)
+    expect(firstRun.installedUserConfig?.envRefs?.[SECRET_REFERENCE_WORKSPACE_ENV_VAR]).toBe(SECRET_REFERENCE_WORKSPACE_ENV_VAR)
+
+    const secondRun = runGeneratedInstaller('codex', {
+      config,
+      extraFiles,
+      existingUserConfig: firstRun.installedUserConfig,
+    })
+    const reinstalledMcp = readFileSync(resolve(secondRun.rootDir, 'installed-codex/.mcp.json'), 'utf-8')
+
+    expect(secondRun.status).toBe(0)
+    expect(secondRun.stderr).toBe('')
+    expect(secondRun.stdout).toContain('Found existing plugin config; reusing saved install values.')
+    expect(reinstalledMcp).toContain(SECRET_REFERENCE_ENV_VAR)
+    expect(reinstalledMcp).toContain(SECRET_REFERENCE_WORKSPACE_ENV_VAR)
+    expect(reinstalledMcp).not.toContain(SECRET_REFERENCE_SENTINEL)
+    expect(reinstalledMcp).not.toContain(SECRET_REFERENCE_WORKSPACE_SENTINEL)
   })
 
   it('ignores placeholder-looking saved generated-installer secret values', () => {

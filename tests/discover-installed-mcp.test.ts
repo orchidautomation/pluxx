@@ -6,6 +6,12 @@ import {
   discoverInstalledMcpServers,
   resolveInstalledMcpSelector,
 } from '../src/cli/discover-installed-mcp'
+import {
+  SECRET_REFERENCE_ENV_VAR,
+  SECRET_REFERENCE_SENTINEL,
+  SECRET_REFERENCE_WORKSPACE_ENV_VAR,
+  SECRET_REFERENCE_WORKSPACE_SENTINEL,
+} from '../test-fixtures/secret-reference-fixture'
 
 let rootDir = ''
 let homeDir = ''
@@ -102,6 +108,49 @@ env = { PROSPEO_API_KEY = "literal-secret-value-that-should-not-copy" }
         },
       },
     })
+  })
+
+  it('reconstructs Codex remote header auth with secret references and never copies sentinel values', () => {
+    writeFileSync(resolve(rootDir, '.mcp.json'), JSON.stringify({
+      mcpServers: {
+        fixture: {
+          url: 'https://metrics.example.com/mcp',
+          env_http_headers: {
+            'X-API-Key': SECRET_REFERENCE_ENV_VAR,
+            'X-Workspace': SECRET_REFERENCE_WORKSPACE_ENV_VAR,
+          },
+        },
+      },
+    }, null, 2))
+
+    const discovered = discoverInstalledMcpServers({ rootDir, homeDir, hosts: ['codex'] })
+    const serialized = JSON.stringify(discovered)
+
+    expect(discovered).toHaveLength(1)
+    expect(discovered[0].server).toEqual({
+      transport: 'http',
+      url: 'https://metrics.example.com/mcp',
+      auth: {
+        type: 'header',
+        envVar: SECRET_REFERENCE_ENV_VAR,
+        headerName: 'X-API-Key',
+        headerTemplate: '${value}',
+      },
+    })
+    expect(discovered[0].platformOverrides).toEqual({
+      codex: {
+        mcpServers: {
+          fixture: {
+            env_http_headers: {
+              'X-API-Key': SECRET_REFERENCE_ENV_VAR,
+              'X-Workspace': SECRET_REFERENCE_WORKSPACE_ENV_VAR,
+            },
+          },
+        },
+      },
+    })
+    expect(serialized).not.toContain(SECRET_REFERENCE_SENTINEL)
+    expect(serialized).not.toContain(SECRET_REFERENCE_WORKSPACE_SENTINEL)
   })
 
   it('discovers OpenCode local and remote MCP config', () => {

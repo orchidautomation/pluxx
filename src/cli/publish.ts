@@ -501,6 +501,8 @@ ${JSON.stringify(entries)}
 PLUXX_USER_CONFIG_JSON
 )"
 PLUXX_REUSED_USER_CONFIG=0
+PLUXX_PRESERVE_SECRET_REFS="${preserveSecretReferences ? '1' : '0'}"
+export PLUXX_PRESERVE_SECRET_REFS
 
 pluxx_is_placeholder_secret() {
   case "$1" in
@@ -527,12 +529,14 @@ const fs = require('fs')
 const filepath = process.env.PLUXX_SAVED_USER_CONFIG_PATH
 const key = process.env.PLUXX_SAVED_CONFIG_KEY
 const envVar = process.env.PLUXX_SAVED_CONFIG_ENV_VAR
+const preserveSecretRefs = process.env.PLUXX_PRESERVE_SECRET_REFS === '1'
 
 try {
   const payload = JSON.parse(fs.readFileSync(filepath, 'utf8'))
   const candidates = [
     payload && payload.env && envVar ? payload.env[envVar] : undefined,
     payload && payload.values && key ? payload.values[key] : undefined,
+    preserveSecretRefs && payload && payload.envRefs && envVar && payload.envRefs[envVar] === envVar ? envVar : undefined,
   ]
 
   for (const candidate of candidates) {
