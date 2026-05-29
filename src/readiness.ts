@@ -92,8 +92,16 @@ function loadUserEnv(pluginRoot) {
     const env = parsed && typeof parsed === "object" && parsed.env && typeof parsed.env === "object"
       ? parsed.env
       : {}
+    const envRefs = parsed && typeof parsed === "object" && parsed.envRefs && typeof parsed.envRefs === "object"
+      ? parsed.envRefs
+      : {}
     return Object.fromEntries(
-      Object.entries(env).filter(([key]) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(key)),
+      [
+        ...Object.entries(env),
+        ...Object.entries(envRefs)
+          .filter(([, value]) => typeof value === "string" && value in process.env)
+          .map(([key, value]) => [key, process.env[value]]),
+      ].filter(([key, value]) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(key) && typeof value === "string"),
     )
   } catch {
     return {}

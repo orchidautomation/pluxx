@@ -6,6 +6,7 @@ import { tmpdir } from 'os'
 import type { PluginConfig, TargetPlatform } from '../schema'
 import { collectUserConfigEntries, defaultUserConfigEnvVar } from '../user-config'
 import { getPublishReloadInstruction } from '../distribution-lifecycle'
+import { collectNativeMcpAuthUserConfigEntries } from '../mcp-native-overrides'
 
 type PublishChannel = 'npm' | 'github-release'
 type PublishAssetKind = 'archive' | 'installer' | 'manifest' | 'checksum'
@@ -468,8 +469,16 @@ echo "Installed __DISPLAY_NAME__ across ${installerTargets.join(', ')}."
 `.replaceAll('__REPO__', 'REPO_PLACEHOLDER').replaceAll('__DISPLAY_NAME__', 'DISPLAY_PLACEHOLDER')
 }
 
+function collectInstallerUserConfigEntries(config: PluginConfig, platforms: TargetPlatform[]) {
+  const baseEntries = collectUserConfigEntries(config, platforms)
+  return [
+    ...baseEntries,
+    ...collectNativeMcpAuthUserConfigEntries(config, platforms, baseEntries),
+  ]
+}
+
 function renderInstallerUserConfigSnippet(config: PluginConfig, platform: TargetPlatform, installDirVariable: string): string {
-  const entries = collectUserConfigEntries(config, [platform])
+  const entries = collectInstallerUserConfigEntries(config, [platform])
     .map((entry) => ({
       key: entry.key,
       title: entry.title,
@@ -479,6 +488,7 @@ function renderInstallerUserConfigSnippet(config: PluginConfig, platform: Target
     }))
 
   if (entries.length === 0) return ''
+  const preserveSecretReferences = platform === 'codex'
 
   const promptLines = entries.map((entry) => {
     const functionName = entry.type === 'secret' ? 'pluxx_prompt_secret_config' : 'pluxx_prompt_text_config'
@@ -618,21 +628,40 @@ const path = require('path')
 
 const installDir = process.env.PLUXX_INSTALL_DIR
 const spec = JSON.parse(process.env.PLUXX_USER_CONFIG_SPEC || '[]')
+const preserveSecretReferences = ${preserveSecretReferences ? 'true' : 'false'}
 
 if (installDir && spec.length > 0) {
   const env = {}
   const values = {}
+  const envRefs = {}
+  const secretEnvVars = new Set(
+    spec
+      .filter((entry) => entry && entry.type === 'secret' && typeof entry.envVar === 'string' && entry.envVar !== '')
+      .map((entry) => entry.envVar),
+  )
 
   for (const entry of spec) {
     const value = process.env[entry.envVar]
     if (value === undefined || value === '') continue
+    if (preserveSecretReferences && entry.type === 'secret') {
+      envRefs[entry.envVar] = entry.envVar
+      continue
+    }
     values[entry.key] = value
     env[entry.envVar] = value
   }
 
   fs.writeFileSync(
     path.join(installDir, '.pluxx-user.json'),
-    JSON.stringify({ values, env }, null, 2) + '\\n',
+    JSON.stringify(
+      {
+        ...(Object.keys(values).length > 0 ? { values } : {}),
+        ...(Object.keys(env).length > 0 ? { env } : {}),
+        ...(Object.keys(envRefs).length > 0 ? { envRefs } : {}),
+      },
+      null,
+      2,
+    ) + '\\n',
   )
 
   const envScriptPath = path.join(installDir, 'scripts/check-env.sh')
@@ -645,7 +674,10 @@ if (installDir && spec.length > 0) {
 
   const materialize = (value) =>
     typeof value === 'string'
-      ? value.replace(/\\$\\{([A-Za-z_][A-Za-z0-9_]*)\\}/g, (_match, name) => env[name] || '${' + name + '}')
+      ? value.replace(
+        /\\$\\{([A-Za-z_][A-Za-z0-9_]*)\\}/g,
+        (_match, name) => (preserveSecretReferences && secretEnvVars.has(name) ? '${' + name + '}' : (env[name] || '${' + name + '}')),
+      )
       : value
 
   const materializeRecord = (record) => {
@@ -669,7 +701,7 @@ if (installDir && spec.length > 0) {
         server.env = materializeRecord(server.env)
       }
 
-      if (server.bearer_token_env_var && env[server.bearer_token_env_var]) {
+      if (!preserveSecretReferences && server.bearer_token_env_var && env[server.bearer_token_env_var]) {
         server.http_headers = {
           ...(server.http_headers || {}),
           Authorization: 'Bearer ' + env[server.bearer_token_env_var],
@@ -677,7 +709,7 @@ if (installDir && spec.length > 0) {
         delete server.bearer_token_env_var
       }
 
-      if (server.env_http_headers && typeof server.env_http_headers === 'object') {
+      if (!preserveSecretReferences && server.env_http_headers && typeof server.env_http_headers === 'object') {
         server.http_headers = {
           ...(server.http_headers || {}),
         }
@@ -703,7 +735,7 @@ NODE
 }
 
 function hasInstallerUserConfig(config: PluginConfig, platform: TargetPlatform): boolean {
-  return collectUserConfigEntries(config, [platform]).length > 0
+  return collectInstallerUserConfigEntries(config, [platform]).length > 0
 }
 
 function renderInstallerSavedUserConfigCaptureSnippet(config: PluginConfig, platform: TargetPlatform, installDirVariable: string): string {
