@@ -4,6 +4,14 @@ import { resolve } from 'path'
 import { spawnSync } from 'child_process'
 import { build } from '../src/generators'
 import type { PluginConfig } from '../src/schema'
+import {
+  makeSecretReferenceFixtureConfig,
+  readTextTree,
+  SECRET_REFERENCE_ENV_VAR,
+  SECRET_REFERENCE_SENTINEL,
+  SECRET_REFERENCE_WORKSPACE_ENV_VAR,
+  SECRET_REFERENCE_WORKSPACE_SENTINEL,
+} from './helpers/secret-reference-fixture'
 
 const TEST_DIR = resolve(import.meta.dir, '.fixture')
 const OUT_DIR = resolve(TEST_DIR, 'dist')
@@ -446,6 +454,39 @@ describe('build', () => {
       'X-API-Key': 'PLAYKIT_API_KEY',
       'X-Workspace': 'PLAYKIT_WORKSPACE_ID',
     })
+  })
+
+  it('keeps secret-reference MCP auth fixtures out of generated build outputs', async () => {
+    process.env[SECRET_REFERENCE_ENV_VAR] = SECRET_REFERENCE_SENTINEL
+    process.env[SECRET_REFERENCE_WORKSPACE_ENV_VAR] = SECRET_REFERENCE_WORKSPACE_SENTINEL
+
+    try {
+      const config = makeSecretReferenceFixtureConfig(
+        ['claude-code', 'cursor', 'codex', 'opencode'],
+        './secret-reference-dist',
+      )
+
+      await build(config, TEST_DIR)
+
+      const codexMcp = JSON.parse(
+        readFileSync(resolve(TEST_DIR, 'secret-reference-dist/codex/.mcp.json'), 'utf-8')
+      )
+
+      expect(codexMcp.mcpServers.fixture.env_http_headers).toEqual({
+        'X-API-Key': SECRET_REFERENCE_ENV_VAR,
+        'X-Workspace': SECRET_REFERENCE_WORKSPACE_ENV_VAR,
+      })
+      expect(codexMcp.mcpServers.fixture.http_headers).toBeUndefined()
+
+      const generatedFiles = readTextTree(resolve(TEST_DIR, 'secret-reference-dist'))
+      for (const generated of generatedFiles) {
+        expect(generated.content).not.toContain(SECRET_REFERENCE_SENTINEL)
+        expect(generated.content).not.toContain(SECRET_REFERENCE_WORKSPACE_SENTINEL)
+      }
+    } finally {
+      delete process.env[SECRET_REFERENCE_ENV_VAR]
+      delete process.env[SECRET_REFERENCE_WORKSPACE_ENV_VAR]
+    }
   })
 
   it('omits inline auth headers for Claude Code and Cursor when runtime auth is platform-managed', async () => {
