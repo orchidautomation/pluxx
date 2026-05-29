@@ -142,9 +142,11 @@ interface GeneratedInstallerRunResult {
   stdout: string
   stderr: string
   installerContent: string
+  pluginInstallDir: string
   installedUserConfig?: {
     values?: Record<string, unknown>
     env?: Record<string, unknown>
+    envRefs?: Record<string, unknown>
   }
 }
 
@@ -271,6 +273,7 @@ function runGeneratedInstaller(
           stdout: proc.stdout ?? '',
           stderr: proc.stderr ?? '',
           installerContent: readFileSync(installerPath!, 'utf-8'),
+          pluginInstallDir: paths.pluginInstallDir,
           installedUserConfig: existsSync(userConfigPath)
             ? JSON.parse(readFileSync(userConfigPath, 'utf-8'))
             : undefined,
@@ -589,7 +592,7 @@ describe('runPublish', () => {
     expect(installerContent).toContain('Refusing placeholder-looking secret for $env_var')
     expect(installerContent).toContain("path.join(installDir, '.pluxx-user.json')")
     expect(installerContent).toContain('server.http_headers')
-    expect(installerContent).toContain('delete server.bearer_token_env_var')
+    expect(installerContent).toContain('preserveSecretReferences = true')
     expect(installerContent).toContain('Preparing local plugin runtime dependencies...')
     expect(installerContent).toContain('bash "$INSTALL_DIR/scripts/bootstrap-runtime.sh"')
     expect(installerContent).toContain('PLUXX_CODEX_ENABLE_PLUGIN_HOOKS')
@@ -622,8 +625,14 @@ describe('runPublish', () => {
       expect(run.status).toBe(0)
       expect(run.stderr).toBe('')
       expect(run.stdout).toContain('Found existing plugin config; reusing saved install values.')
-      expect(run.installedUserConfig?.values?.['instantly-api-key']).toBe('saved-instantly-key')
-      expect(run.installedUserConfig?.env?.SENDLENS_INSTANTLY_API_KEY).toBe('saved-instantly-key')
+      if (platform === 'codex') {
+        expect(run.installedUserConfig?.values?.['instantly-api-key']).toBeUndefined()
+        expect(run.installedUserConfig?.env?.SENDLENS_INSTANTLY_API_KEY).toBeUndefined()
+        expect(run.installedUserConfig?.envRefs?.SENDLENS_INSTANTLY_API_KEY).toBe('SENDLENS_INSTANTLY_API_KEY')
+      } else {
+        expect(run.installedUserConfig?.values?.['instantly-api-key']).toBe('saved-instantly-key')
+        expect(run.installedUserConfig?.env?.SENDLENS_INSTANTLY_API_KEY).toBe('saved-instantly-key')
+      }
     }
   })
 
@@ -639,8 +648,9 @@ describe('runPublish', () => {
     expect(run.status).toBe(0)
     expect(run.stderr).toBe('')
     expect(run.stdout).not.toContain('Found existing plugin config; reusing saved install values.')
-    expect(run.installedUserConfig?.values?.['instantly-api-key']).toBe('fresh-env-key')
-    expect(run.installedUserConfig?.env?.SENDLENS_INSTANTLY_API_KEY).toBe('fresh-env-key')
+    expect(run.installedUserConfig?.values?.['instantly-api-key']).toBeUndefined()
+    expect(run.installedUserConfig?.env?.SENDLENS_INSTANTLY_API_KEY).toBeUndefined()
+    expect(run.installedUserConfig?.envRefs?.SENDLENS_INSTANTLY_API_KEY).toBe('SENDLENS_INSTANTLY_API_KEY')
   })
 
   it('lets PLUXX_RECONFIGURE skip saved generated-installer user config', () => {
@@ -659,8 +669,9 @@ describe('runPublish', () => {
     expect(run.stderr).toBe('')
     expect(run.stdout).not.toContain('Found existing plugin config; reusing saved install values.')
     expect(run.installerContent).toContain('PLUXX_RECONFIGURE')
-    expect(run.installedUserConfig?.values?.['instantly-api-key']).toBe('reconfigured-key')
-    expect(run.installedUserConfig?.env?.SENDLENS_INSTANTLY_API_KEY).toBe('reconfigured-key')
+    expect(run.installedUserConfig?.values?.['instantly-api-key']).toBeUndefined()
+    expect(run.installedUserConfig?.env?.SENDLENS_INSTANTLY_API_KEY).toBeUndefined()
+    expect(run.installedUserConfig?.envRefs?.SENDLENS_INSTANTLY_API_KEY).toBe('SENDLENS_INSTANTLY_API_KEY')
   })
 
   it('ignores placeholder-looking saved generated-installer secret values', () => {
@@ -677,6 +688,113 @@ describe('runPublish', () => {
     expect(run.stderr).toContain('Ignoring placeholder-looking saved config for SENDLENS_INSTANTLY_API_KEY.')
     expect(run.installedUserConfig?.values?.['instantly-api-key']).toBeUndefined()
     expect(run.installedUserConfig?.env?.SENDLENS_INSTANTLY_API_KEY).toBeUndefined()
+    expect(run.installedUserConfig?.envRefs?.SENDLENS_INSTANTLY_API_KEY).toBeUndefined()
+  })
+
+  it('keeps Codex generated-installer auth as env references without bundling the secret', () => {
+    const run = runGeneratedInstaller('codex', {
+      config: {
+        ...makeConfig(),
+        targets: ['codex'],
+        userConfig: [
+          {
+            key: 'metrics-api-key',
+            title: 'Metrics API Key',
+            type: 'secret',
+            required: true,
+            envVar: 'METRICS_API_KEY',
+          },
+        ],
+        mcp: {
+          metrics: {
+            transport: 'http',
+            url: 'https://metrics.example.com/mcp',
+            auth: {
+              type: 'bearer',
+              envVar: 'METRICS_API_KEY',
+              headerName: 'Authorization',
+              headerTemplate: 'Bearer ${value}',
+            },
+          },
+        },
+      },
+      env: { METRICS_API_KEY: 'known-test-secret' },
+      extraFiles: {
+        '.mcp.json': JSON.stringify({
+          mcpServers: {
+            metrics: {
+              url: 'https://metrics.example.com/mcp',
+              bearer_token_env_var: 'METRICS_API_KEY',
+            },
+          },
+        }, null, 2),
+        'scripts/check-env.sh': '#!/usr/bin/env bash\nexit 1\n',
+      },
+    })
+
+    const installedMcp = JSON.parse(readFileSync(resolve(run.pluginInstallDir, '.mcp.json'), 'utf-8'))
+    expect(installedMcp.mcpServers.metrics.bearer_token_env_var).toBe('METRICS_API_KEY')
+    expect(installedMcp.mcpServers.metrics.http_headers).toBeUndefined()
+    expect(JSON.stringify(installedMcp)).not.toContain('known-test-secret')
+    expect(JSON.stringify(run.installedUserConfig)).not.toContain('known-test-secret')
+    expect(run.installedUserConfig?.envRefs?.METRICS_API_KEY).toBe('METRICS_API_KEY')
+  })
+
+  it('prompts for native Codex MCP auth env references in generated installers', () => {
+    const run = runGeneratedInstaller('codex', {
+      config: {
+        ...makeConfig(),
+        targets: ['codex'],
+        mcp: {
+          metrics: {
+            transport: 'http',
+            url: 'https://metrics.example.com/mcp',
+          },
+        },
+        platforms: {
+          codex: {
+            mcpServers: {
+              metrics: {
+                env_http_headers: {
+                  'X-API-Key': 'METRICS_API_KEY',
+                  'X-Workspace': 'METRICS_WORKSPACE_ID',
+                },
+              },
+            },
+          },
+        },
+      },
+      env: {
+        METRICS_API_KEY: 'known-test-secret',
+        METRICS_WORKSPACE_ID: 'workspace-123',
+      },
+      extraFiles: {
+        '.mcp.json': JSON.stringify({
+          mcpServers: {
+            metrics: {
+              url: 'https://metrics.example.com/mcp',
+              env_http_headers: {
+                'X-API-Key': 'METRICS_API_KEY',
+                'X-Workspace': 'METRICS_WORKSPACE_ID',
+              },
+            },
+          },
+        }, null, 2),
+      },
+    })
+
+    const installedMcp = JSON.parse(readFileSync(resolve(run.pluginInstallDir, '.mcp.json'), 'utf-8'))
+    expect(installedMcp.mcpServers.metrics.env_http_headers).toEqual({
+      'X-API-Key': 'METRICS_API_KEY',
+      'X-Workspace': 'METRICS_WORKSPACE_ID',
+    })
+    expect(run.installerContent).toContain('pluxx_prompt_secret_config "metrics-api-key" "METRICS_API_KEY"')
+    expect(run.installerContent).toContain('pluxx_prompt_secret_config "metrics-workspace-id" "METRICS_WORKSPACE_ID"')
+    expect(JSON.stringify(run.installedUserConfig)).not.toContain('known-test-secret')
+    expect(run.installedUserConfig?.envRefs).toEqual({
+      METRICS_API_KEY: 'METRICS_API_KEY',
+      METRICS_WORKSPACE_ID: 'METRICS_WORKSPACE_ID',
+    })
   })
 
   it('enables Codex plugin-bundled hooks in generated installers when automation opts in', () => {

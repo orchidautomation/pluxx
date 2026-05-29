@@ -551,20 +551,22 @@ describe('build', () => {
     expect(codexHooks.hooks.SessionStart[0].hooks[0].type).toBe('command')
     expect(codexHooks.hooks.SessionStart[0].hooks[0].command).toBe('bash "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.sh"')
     expect(opencodeIndex).toContain('const buildHookShellCommand = (rawCommand: string): string => {')
-    expect(opencodeIndex).toContain('const userEnv = loadUserConfig(directory).env ?? {}')
+    expect(opencodeIndex).toContain('const userConfig = loadUserConfig(directory)')
+    expect(opencodeIndex).toContain('const userEnvRefs = userConfig.envRefs ?? {}')
+    expect(opencodeIndex).toContain('Object.entries(userEnvRefs)')
 
     const wrapperPath = resolve(TEST_DIR, 'hook-env-dist/claude-code/hooks/pluxx-hook-command-1.sh')
     const wrapper = readFileSync(wrapperPath, 'utf-8')
     expect(wrapper).toContain('.pluxx-user.json')
     expect(wrapper).toContain('CLAUDE_ENV_FILE')
-    expect(wrapper).toContain('print-hook-env.mjs')
+    expect(wrapper).toContain('PLUXX_HOOK_COMMAND=')
 
     const cursorWrapper = readFileSync(resolve(TEST_DIR, 'hook-env-dist/cursor/hooks/pluxx-hook-command-1.sh'), 'utf-8')
     const codexWrapper = readFileSync(resolve(TEST_DIR, 'hook-env-dist/codex/hooks/pluxx-hook-command-1.sh'), 'utf-8')
     expect(cursorWrapper).toContain('.pluxx-user.json')
-    expect(cursorWrapper).toContain('print-hook-env.mjs')
+    expect(cursorWrapper).toContain('PLUXX_HOOK_COMMAND=')
     expect(codexWrapper).toContain('.pluxx-user.json')
-    expect(codexWrapper).toContain('print-hook-env.mjs')
+    expect(codexWrapper).toContain('PLUXX_HOOK_COMMAND=')
 
     writeFileSync(
       resolve(TEST_DIR, 'hook-env-dist/claude-code/.pluxx-user.json'),
