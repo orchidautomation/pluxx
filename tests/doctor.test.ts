@@ -847,6 +847,47 @@ describe('doctorConsumer', () => {
     }
   })
 
+  it('fails metadata-marked api keys copied into installed bundle files', async () => {
+    const dir = createSafeConsumerFixture()
+
+    try {
+      writeFileSync(
+        resolve(dir, '.pluxx-user.json'),
+        JSON.stringify({
+          values: {
+            'fixture-api-key': 'realistic-live-api-key-value',
+          },
+          env: {
+            FIXTURE_API_KEY: 'realistic-live-api-key-value',
+          },
+          secretKeys: ['fixture-api-key'],
+          secretEnv: ['FIXTURE_API_KEY'],
+        }, null, 2),
+      )
+      writeFileSync(
+        resolve(dir, 'mcp.json'),
+        JSON.stringify({
+          mcpServers: {
+            fixture: {
+              type: 'http',
+              url: 'https://example.com/mcp',
+              headers: {
+                Authorization: 'Bearer realistic-live-api-key-value',
+              },
+            },
+          },
+        }, null, 2),
+      )
+
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(false)
+      expect(report.checks.some((check) => check.code === 'consumer-plaintext-secret-leak' && check.level === 'error')).toBe(true)
+      expect(report.checks.every((check) => !check.detail.includes('realistic-live-api-key-value'))).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('warns when a materialized consumer install contains placeholder-looking secrets', async () => {
     const dir = createSafeConsumerFixture()
 

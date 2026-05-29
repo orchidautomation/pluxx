@@ -80,7 +80,6 @@ const MATERIALIZED_ENV_MARKER = 'materialized required config'
 const MIN_NODE_MAJOR = 18
 const STDIO_LAUNCH_SMOKE_TIMEOUT_MS = 1200
 const MAX_SECRET_SCAN_FILE_BYTES = 512 * 1024
-const SECRET_IDENTIFIER_PATTERN = /(secret|token|password|credential)/i
 const TEST_SECRET_SENTINELS = [
   { pattern: /\bshh-secret\b/i, label: 'test secret sentinel' },
   { pattern: /\bsecret-key\b/i, label: 'test secret sentinel' },
@@ -184,10 +183,6 @@ function addCheck(checks: DoctorCheck[], check: DoctorCheck): void {
   checks.push(check)
 }
 
-function looksSecretIdentifier(value: string): boolean {
-  return SECRET_IDENTIFIER_PATTERN.test(value)
-}
-
 function walkInstalledBundleFiles(rootDir: string, currentDir: string = rootDir): string[] {
   const files: string[] = []
 
@@ -221,7 +216,11 @@ function collectInstalledPlaintextSecretCandidates(rootDir: string): InstalledPl
     const payload = JSON.parse(readFileSync(userConfigPath, 'utf-8')) as {
       values?: Record<string, unknown>
       env?: Record<string, unknown>
+      secretKeys?: unknown
+      secretEnv?: unknown
     }
+    const secretKeys = new Set(Array.isArray(payload.secretKeys) ? payload.secretKeys.filter((value): value is string => typeof value === 'string') : [])
+    const secretEnv = new Set(Array.isArray(payload.secretEnv) ? payload.secretEnv.filter((value): value is string => typeof value === 'string') : [])
     const candidateLabels = new Map<string, Set<string>>()
     const recordCandidate = (rawValue: unknown, label: string) => {
       if (typeof rawValue !== 'string') return
@@ -235,12 +234,12 @@ function collectInstalledPlaintextSecretCandidates(rootDir: string): InstalledPl
     }
 
     for (const [key, value] of Object.entries(payload.values ?? {})) {
-      if (!looksSecretIdentifier(key)) continue
+      if (!secretKeys.has(key)) continue
       recordCandidate(value, `userConfig "${key}"`)
     }
 
     for (const [key, value] of Object.entries(payload.env ?? {})) {
-      if (!looksSecretIdentifier(key)) continue
+      if (!secretEnv.has(key)) continue
       recordCandidate(value, `env "${key}"`)
     }
 
