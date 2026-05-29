@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from 'fs'
 import { resolve } from 'path'
-import type { PluginConfig, TargetPlatform } from '../../src/schema'
+import type { PluginConfig, TargetPlatform } from '../src/schema'
 
 export const SECRET_REFERENCE_SENTINEL = 'pluxx-sentinel-secret-should-never-compile'
 export const SECRET_REFERENCE_WORKSPACE_SENTINEL = 'pluxx-sentinel-workspace-should-never-compile'

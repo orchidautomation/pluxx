@@ -11,7 +11,7 @@ import {
   SECRET_REFERENCE_SENTINEL,
   SECRET_REFERENCE_WORKSPACE_ENV_VAR,
   SECRET_REFERENCE_WORKSPACE_SENTINEL,
-} from './helpers/secret-reference-fixture'
+} from '../test-fixtures/secret-reference-fixture'
 
 const TEST_DIR = resolve(import.meta.dir, '.fixture')
 const OUT_DIR = resolve(TEST_DIR, 'dist')

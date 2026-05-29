@@ -10,7 +10,7 @@ import {
   SECRET_REFERENCE_SENTINEL,
   SECRET_REFERENCE_WORKSPACE_ENV_VAR,
   SECRET_REFERENCE_WORKSPACE_SENTINEL,
-} from './helpers/secret-reference-fixture'
+} from '../test-fixtures/secret-reference-fixture'
 
 const ROOT = resolve(import.meta.dir, '.publish-fixture')
 
