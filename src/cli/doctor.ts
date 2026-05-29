@@ -270,8 +270,6 @@ function checkInstalledPlaintextSecrets(checks: DoctorCheck[], rootDir: string):
   const findings = new Map<string, Set<string>>()
 
   for (const relativePath of walkInstalledBundleFiles(rootDir)) {
-    if (relativePath === '.pluxx-user.json') continue
-
     const content = readInstalledTextFile(rootDir, relativePath)
     if (!content) continue
 

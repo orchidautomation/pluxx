@@ -928,6 +928,32 @@ describe('doctorConsumer', () => {
     }
   })
 
+  it('fails legacy api keys stored only in installed user config', async () => {
+    const dir = createSafeConsumerFixture()
+
+    try {
+      writeFileSync(
+        resolve(dir, '.pluxx-user.json'),
+        JSON.stringify({
+          values: {
+            'fixture-api-key': 'realistic-live-api-key-value',
+          },
+          env: {
+            FIXTURE_API_KEY: 'realistic-live-api-key-value',
+          },
+        }, null, 2),
+      )
+
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(false)
+      expect(report.checks.some((check) => check.code === 'consumer-plaintext-secret-leak' && check.level === 'error')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-plaintext-secret-leak' && check.detail.includes('.pluxx-user.json'))).toBe(true)
+      expect(report.checks.every((check) => !check.detail.includes('realistic-live-api-key-value'))).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('does not fail explicit materialized secret installs as plaintext leaks', async () => {
     const dir = createSafeConsumerFixture()
 
