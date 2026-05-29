@@ -80,6 +80,7 @@ const MATERIALIZED_ENV_MARKER = 'materialized required config'
 const MIN_NODE_MAJOR = 18
 const STDIO_LAUNCH_SMOKE_TIMEOUT_MS = 1200
 const MAX_SECRET_SCAN_FILE_BYTES = 512 * 1024
+const LEGACY_SECRET_IDENTIFIER_PATTERN = /(^|[-_])(api[-_]?key|secret|token|password|credential)([-_]|$)/i
 const TEST_SECRET_SENTINELS = [
   { pattern: /\bshh-secret\b/i, label: 'test secret sentinel' },
   { pattern: /\bsecret-key\b/i, label: 'test secret sentinel' },
@@ -183,6 +184,14 @@ function addCheck(checks: DoctorCheck[], check: DoctorCheck): void {
   checks.push(check)
 }
 
+function looksLegacySecretIdentifier(value: string): boolean {
+  return LEGACY_SECRET_IDENTIFIER_PATTERN.test(
+    value
+      .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+      .replace(/[._/\s]+/g, '-'),
+  )
+}
+
 function walkInstalledBundleFiles(rootDir: string, currentDir: string = rootDir): string[] {
   const files: string[] = []
 
@@ -218,9 +227,13 @@ function collectInstalledPlaintextSecretCandidates(rootDir: string): InstalledPl
       env?: Record<string, unknown>
       secretKeys?: unknown
       secretEnv?: unknown
+      secretStorage?: unknown
     }
+    if (payload.secretStorage === 'materialized') return []
+
     const secretKeys = new Set(Array.isArray(payload.secretKeys) ? payload.secretKeys.filter((value): value is string => typeof value === 'string') : [])
     const secretEnv = new Set(Array.isArray(payload.secretEnv) ? payload.secretEnv.filter((value): value is string => typeof value === 'string') : [])
+    const hasSecretMetadata = secretKeys.size > 0 || secretEnv.size > 0
     const candidateLabels = new Map<string, Set<string>>()
     const recordCandidate = (rawValue: unknown, label: string) => {
       if (typeof rawValue !== 'string') return
@@ -234,12 +247,12 @@ function collectInstalledPlaintextSecretCandidates(rootDir: string): InstalledPl
     }
 
     for (const [key, value] of Object.entries(payload.values ?? {})) {
-      if (!secretKeys.has(key)) continue
+      if (hasSecretMetadata ? !secretKeys.has(key) : !looksLegacySecretIdentifier(key)) continue
       recordCandidate(value, `userConfig "${key}"`)
     }
 
     for (const [key, value] of Object.entries(payload.env ?? {})) {
-      if (!secretEnv.has(key)) continue
+      if (hasSecretMetadata ? !secretEnv.has(key) : !looksLegacySecretIdentifier(key)) continue
       recordCandidate(value, `env "${key}"`)
     }
 
