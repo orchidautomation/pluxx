@@ -822,6 +822,31 @@ describe('doctorConsumer', () => {
     }
   })
 
+  it('does not fail ordinary api/key named config values as plaintext secrets', async () => {
+    const dir = createSafeConsumerFixture()
+
+    try {
+      writeFileSync(
+        resolve(dir, '.pluxx-user.json'),
+        JSON.stringify({
+          values: {
+            'api-base-url': 'https://example.com/mcp',
+          },
+          env: {
+            API_BASE_URL: 'https://example.com/mcp',
+          },
+        }, null, 2),
+      )
+
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-plaintext-secret-leak')).toBe(false)
+      expect(report.checks.some((check) => check.code === 'consumer-plaintext-secret-absent' && check.level === 'success')).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('warns when a materialized consumer install contains placeholder-looking secrets', async () => {
     const dir = createSafeConsumerFixture()
 

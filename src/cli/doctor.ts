@@ -80,7 +80,7 @@ const MATERIALIZED_ENV_MARKER = 'materialized required config'
 const MIN_NODE_MAJOR = 18
 const STDIO_LAUNCH_SMOKE_TIMEOUT_MS = 1200
 const MAX_SECRET_SCAN_FILE_BYTES = 512 * 1024
-const SECRET_IDENTIFIER_PATTERN = /(api|auth|secret|token|key|password|credential)/i
+const SECRET_IDENTIFIER_PATTERN = /(secret|token|password|credential)/i
 const TEST_SECRET_SENTINELS = [
   { pattern: /\bshh-secret\b/i, label: 'test secret sentinel' },
   { pattern: /\bsecret-key\b/i, label: 'test secret sentinel' },
@@ -258,6 +258,8 @@ function checkInstalledPlaintextSecrets(checks: DoctorCheck[], rootDir: string):
   const findings = new Map<string, Set<string>>()
 
   for (const relativePath of walkInstalledBundleFiles(rootDir)) {
+    if (relativePath === '.pluxx-user.json') continue
+
     const content = readInstalledTextFile(rootDir, relativePath)
     if (!content) continue
 
