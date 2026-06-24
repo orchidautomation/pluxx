@@ -23,6 +23,19 @@ export const CURSOR_SUPPORTED_HOOK_EVENTS = [
 
 export const CURSOR_LOOP_LIMIT_HOOK_EVENTS = ['stop', 'subagentStop'] as const
 
+export const CODEX_SUPPORTED_HOOK_EVENTS = [
+  'SessionStart',
+  'SubagentStart',
+  'PreToolUse',
+  'PermissionRequest',
+  'PostToolUse',
+  'PreCompact',
+  'PostCompact',
+  'UserPromptSubmit',
+  'SubagentStop',
+  'Stop',
+] as const
+
 const PASCAL_CASE_HOOK_ALIASES: Record<string, string> = {
   beforeSubmitPrompt: 'UserPromptSubmit',
 }

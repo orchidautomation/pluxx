@@ -1,4 +1,5 @@
 import type { PluxxCompilerBucket, TargetPlatform } from '../schema'
+import { CODEX_SUPPORTED_HOOK_EVENTS } from '../hook-events'
 import { getRuntimeReadinessExternalConfigNote } from '../runtime-readiness-registry'
 
 type RuleLevel = 'required' | 'supported' | 'fallback' | 'optional' | 'unknown'
@@ -87,6 +88,7 @@ export interface PlatformRules {
 export type PrimitiveTranslationMode = 'preserve' | 'translate' | 'degrade' | 'drop'
 
 export type CoreFourPlatform = Extract<TargetPlatform, 'claude-code' | 'cursor' | 'codex' | 'opencode'>
+export const CORE_FOUR_PLATFORMS = ['claude-code', 'cursor', 'codex', 'opencode'] as const satisfies readonly CoreFourPlatform[]
 
 export interface PlatformPrimitiveCapability {
   mode: PrimitiveTranslationMode
@@ -232,7 +234,7 @@ export const PLATFORM_LIMIT_POLICIES: Record<TargetPlatform, PlatformLimitPolici
     },
     hooksFeatureFlag: {
       kind: 'hard',
-      notes: 'Hook support depends on the Codex hooks feature flag/runtime support.',
+      notes: 'Codex hook support depends on the canonical hooks feature flag plus enabled-plugin, trust/review, and runtime support.',
     },
   },
   'cursor': {
@@ -447,8 +449,8 @@ export const PLATFORM_VALIDATION_RULES: Record<ResearchTarget, PlatformRules> = 
     hooks: {
       supported: true,
       files: ['hooks/hooks.json', '.codex/hooks.json', '~/.codex/hooks.json'],
-      eventNames: ['SessionStart', 'PreToolUse', 'PermissionRequest', 'PostToolUse', 'UserPromptSubmit', 'Stop'],
-      notes: 'Codex documents both project or user hook config and plugin-bundled hooks. Plugin-bundled hooks live at `hooks/hooks.json` in the plugin and require `[features].plugin_hooks = true`; the general `[features].hooks = true` flag covers non-plugin hook config and defaults on. `codex_hooks` is deprecated and should not be treated as a plugin-bundled hook fallback.',
+      eventNames: [...CODEX_SUPPORTED_HOOK_EVENTS],
+      notes: 'Codex documents both project/user hook config and plugin-bundled hooks. Plugin-bundled hooks live at `hooks/hooks.json` in the plugin and require the canonical `[features].hooks = true` flag, enabled plugin state, user review, trust, and runtime support. `codex_hooks` is deprecated and should not be treated as the current hook feature key.',
     },
     instructions: {
       files: ['AGENTS.md', 'AGENTS.override.md'],
@@ -888,7 +890,7 @@ export const CORE_FOUR_PRIMITIVE_CAPABILITIES: Record<CoreFourPlatform, CoreFour
       hooks: {
         mode: 'translate',
         nativeSurfaces: ['hooks/hooks.json', '.codex/hooks.json', '~/.codex/hooks.json'],
-        notes: 'Hooks are native. Pluxx bundles translated Codex hooks in the plugin with the documented `[features].plugin_hooks = true` plugin gate, and still tracks the broader project/user hook config paths where `[features].hooks` is the general flag and `codex_hooks` is deprecated.',
+        notes: 'Hooks are native. Pluxx bundles translated Codex hooks in the plugin with the documented `[features].hooks = true` feature key, and still tracks broader project/user hook config paths where `codex_hooks` is deprecated. Plugin-bundled execution still also depends on enabled plugin state, review, trust, and runtime support.',
       },
       permissions: {
         mode: 'translate',

@@ -44,6 +44,15 @@
         ]
       },
       {
+        "group": "Platform Guides",
+        "pages": [
+          "platform-guides/claude-code",
+          "platform-guides/cursor",
+          "platform-guides/codex",
+          "platform-guides/opencode"
+        ]
+      },
+      {
         "group": "Examples",
         "pages": [
           "examples/which-example",

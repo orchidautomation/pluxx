@@ -18,7 +18,7 @@ This is the working homepage copy for Pluxx. It is intentionally concise and str
 
 ## Positioning
 
-Pluxx gives you one maintained plugin source project that ships native plugins for Claude Code, Codex, Cursor, and OpenCode.
+Pluxx gives you one maintained plugin source project that ships native plugins for Claude Code, Cursor, Codex, and OpenCode.
 
 The sharpest wedge is MCP-first:
 
@@ -124,7 +124,7 @@ Prime-time on the core four.
 
 ### Body
 
-Claude Code, Codex, Cursor, and OpenCode are the primary launch path. Other generators exist, but they are still beta and should be positioned that way.
+Claude Code, Cursor, Codex, and OpenCode are the primary launch path. Other generators exist, but they are still beta and should be positioned that way.
 
 ## Section: Open Source
 

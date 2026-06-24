@@ -1,5 +1,5 @@
 import type { TargetPlatform } from './schema'
-import { CURSOR_SUPPORTED_HOOK_EVENTS } from './hook-events'
+import { CODEX_SUPPORTED_HOOK_EVENTS, CURSOR_SUPPORTED_HOOK_EVENTS } from './hook-events'
 
 export type HookFieldName = 'prompt' | 'matcher' | 'failClosed' | 'loop_limit'
 export type HookEntryType = 'command' | 'http' | 'mcp_tool' | 'prompt' | 'agent'
@@ -60,8 +60,8 @@ const HOOK_PLATFORM_REGISTRY: Partial<Record<TargetPlatform, HookPlatformRegistr
   },
   codex: {
     supportedTypes: ['command'],
-    supportedEvents: ['SessionStart', 'PreToolUse', 'PermissionRequest', 'PostToolUse', 'UserPromptSubmit', 'Stop'],
-    unsupportedEventReason: 'Codex currently documents only SessionStart, PreToolUse, PermissionRequest, PostToolUse, UserPromptSubmit, and Stop for hook configuration.',
+    supportedEvents: CODEX_SUPPORTED_HOOK_EVENTS,
+    unsupportedEventReason: `Codex currently documents only ${CODEX_SUPPORTED_HOOK_EVENTS.join(', ')} for hook configuration.`,
     fields: {
       prompt: { mode: 'drop' },
       matcher: {

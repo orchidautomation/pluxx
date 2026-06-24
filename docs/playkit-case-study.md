@@ -53,7 +53,7 @@ From the raw MCP, Pluxx generated:
 - `INSTRUCTIONS.md`
 - `.pluxx/mcp.json`
 - workflow skill directories
-- platform bundles for Claude Code, Codex, Cursor, and OpenCode
+- platform bundles for Claude Code, Cursor, Codex, and OpenCode
 
 Example top-level shape:
 

@@ -1,6 +1,6 @@
 # Master Backlog
 
-Last updated: 2026-05-19
+Last updated: 2026-06-24
 
 This is the most complete repo-native backlog for Pluxx.
 
@@ -28,6 +28,8 @@ This is not the same thing as the short queue.
   - [docs/platform-change-ops-reference-plugin.md](../platform-change-ops-reference-plugin.md)
   - [docs/docs-ops-core-four-proof.md](../docs-ops-core-four-proof.md)
   - [docs/exa-research-example.md](../exa-research-example.md)
+  - [docs/release-distribution-proof-map.md](../release-distribution-proof-map.md)
+  - [docs/core-four-primitive-proof-ledger.md](../core-four-primitive-proof-ledger.md)
   - [docs/pluxx-plugin-surface-audit.md](../pluxx-plugin-surface-audit.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](../pluxx-self-hosted-core-four-proof.md)
   - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
@@ -79,6 +81,12 @@ Any person or agent should be able to enter the repo and answer:
 ### 1. Product clarity and front-door coherence
 
 - [~] Keep [start-here.md](../start-here.md), [queue.md](./queue.md), this file, and Linear aligned
+- [~] Keep [docs/release-distribution-proof-map.md](../release-distribution-proof-map.md) current as the short ship-today vs release-gap source of truth:
+  - primary release-smoked fronts are Claude Code, Cursor, Codex, and OpenCode
+  - Gemini CLI remains a beta generator target until it has release-smoke and installer parity
+  - local build/install/verify, GitHub Release bundle installers, and npm-backed OpenCode package publishing are shipped
+  - marketplace submission APIs, managed trust/distribution, automatic rollback/unpublish, and real authenticated publish plus rollback proof remain open
+- [~] Keep [docs/core-four-primitive-proof-ledger.md](../core-four-primitive-proof-ledger.md) current as the primitive-by-host proof ledger for the core-four native shipping claim
 - [~] Close the remaining ticket-state drift where shipped work can still appear as backlog in Linear
 - [~] Keep the README top section, website hero, GitHub About metadata, and docs homepage messaging aligned
 - [ ] Remove or rewrite any stale docs that still describe already-shipped work as future work
@@ -130,7 +138,7 @@ Any person or agent should be able to enter the repo and answer:
 - [~] Keep [docs/core-four-reliability-register.md](../core-four-reliability-register.md) current as the concrete Claude Code and Codex failure register:
   - use it to separate generator defects from host-runtime issues and proof-harness issues
   - use it to drive the next proof-depth tranche for agents, hooks, settings/discovery, and distribution edges
-  - the current register now also captures real Claude `.mcp.json` plus `~/.claude.json` MCP selector collisions, generated-shape Claude hook-integrity failures, Claude duplicate-hooks manifest failures, Claude `disableAllHooks` activation blockers, the maintained Claude settings-hook probe plus maintained installed-plugin default and duplicate-manifest proof, malformed bundled Codex hook JSON, missing manifest-wired Codex `.app.json` surfaces, missing `plugin_hooks` gate warnings plus general-hook-only warnings for hook-bearing Codex plugin installs, the corrected nested Codex hook schema, trusted-project plus current interactive hook-activation drift, the maintained Codex custom-agent sandbox mismatch (`sandbox_mode = "read-only"` still writing in both the headless and maintained trusted interactive probes), the newly pinned Codex headless skill-config split (discovered `.agents/skills` inheritance works, a parent `[[skills.config]] enabled = false` entry was ignored, and an agent-local `[[skills.config]]` entry did not preload an undiscovered `skills/` path), and maintained self-hosted behavioral smoke coverage
+  - the current register now also captures real Claude `.mcp.json` plus `~/.claude.json` MCP selector collisions, generated-shape Claude hook-integrity failures, Claude duplicate-hooks manifest failures, Claude `disableAllHooks` activation blockers, the maintained Claude settings-hook probe plus maintained installed-plugin default and duplicate-manifest proof, malformed bundled Codex hook JSON, missing manifest-wired Codex `.app.json` surfaces, missing `hooks` gate warnings plus general-hook-only warnings for hook-bearing Codex plugin installs, the corrected nested Codex hook schema, trusted-project plus current interactive hook-activation drift, the maintained Codex custom-agent sandbox mismatch (`sandbox_mode = "read-only"` still writing in both the headless and maintained trusted interactive probes), the newly pinned Codex headless skill-config split (discovered `.agents/skills` inheritance works, a parent `[[skills.config]] enabled = false` entry was ignored, and an agent-local `[[skills.config]]` entry did not preload an undiscovered `skills/` path), and maintained self-hosted behavioral smoke coverage
 - [~] Keep local proof orchestration honest:
   - `npm test` now fails fast when another full-suite run is already active in the same worktree
   - the follow-on work is removing more repo-local shared fixture and cwd assumptions so worktree-local serialization is no longer carrying as much reliability weight
@@ -179,7 +187,7 @@ Any person or agent should be able to enter the repo and answer:
   - Codex now bundles translated hooks at `hooks/hooks.json` and keeps `.codex/readiness.generated.json` plus `.codex/hooks.generated.json` companions for explanation/debugging
   - generated Codex hooks now use the official nested matcher-group schema instead of the older flat entry shape
   - `lint` and `doctor` now explain the remaining Codex feature-gate and best-effort prompt-entry degradation for named skill/command readiness targets
-  - `doctor --consumer` and `verify-install` now also warn when a hook-bearing installed Codex plugin bundle is missing `[features].plugin_hooks = true` in the checked project or user config layers; `hooks` remains the general non-plugin hook flag and defaults on, while `codex_hooks` is deprecated and no longer treated as a plugin-bundled hook fallback
+  - `doctor --consumer` and `verify-install` now also warn when a hook-bearing installed Codex plugin bundle is missing the canonical `[features].hooks = true` hook flag in the checked project or user config layers; `codex_hooks` is deprecated and no longer treated as current guidance
   - `doctor --consumer` and `verify-install` now also warn when the checked project is not trusted in the user Codex config for project-local hook loading
   - `verify-install` now prints the concrete installed-bundle Codex warning code, explanation, and fix inline instead of only surfacing a warning count
   - `bun scripts/probe-codex-hooks-runtime.ts --json` now gives maintained isolated headless evidence that `hooks-no-trust`, `hooks-trusted`, and `codex-hooks-trusted` all return `OK` without firing the hook side effect
@@ -208,7 +216,7 @@ Any person or agent should be able to enter the repo and answer:
   - continue simplifying the plugin-guided average-user path so the proof state is easier to use without maintainer-level CLI literacy
 - [ ] Close the highest-value open rows from the new reliability register:
   - deeper Codex custom-agent config-depth proof beyond the now-pinned headless-plus-interactive `sandbox_mode = "read-only"` mismatch, the newly pinned headless `skills.config` disable/preload caveats, the newly pinned `mcp_servers = {}` inheritance ceiling, the newly pinned invalid agent-local model failure path, and the now-pinned same-name user-local model precedence cases, including why successful delegated MCP paths still do not surface a root `mcp_tool_call` item in the parent event stream, installed-plugin skill preload, whether canonical authoring should preserve agent-local MCP config instead of only warning during migrate, how far generated `.codex/config.generated.toml` approval stanzas should go now that project-root, user-root, inherited delegated, agent-local inline approval, and explicit empty-agent-MCP override paths are all live-proven but not proven through the same config layer, and whether other approval or sandbox combinations behave differently
-  - live Codex interactive-vs-headless hook execution proof across both `codex_hooks` and `hooks`
+  - live Codex interactive-vs-headless hook execution proof across canonical `[features].hooks = true` and the deprecated `codex_hooks` alias
   - Claude managed-settings behavior beyond the current file-based verifier still requires a real managed-settings surface; the maintained probe now has shadow-scenario coverage for managed `disableAllHooks` and `allowManagedHooksOnly`, but registry, plist/MDM, server-managed policy, managed-scope plugin precedence, and broader hook-event proof are not closable from the current local environment alone
   - broader Codex and Claude adjunct distribution-surface proof
 
@@ -347,6 +355,7 @@ Open work:
   - direct install commands
   - one-click install buttons where hosts support them
   - how much Pluxx should abstract host-specific install flows vs expose them clearly
+- [ ] Extend release-smoke and generated installer parity before promoting Gemini CLI out of beta
 - [ ] Turn the repo-native proof/install landing page into a stronger visual public asset
 
 ### 5. Public site and docs polish

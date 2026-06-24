@@ -2,6 +2,8 @@
 
 This document defines the first shippable product contract for `pluxx publish`.
 
+For the broader ship-today vs release-gap map, use [Release Distribution Proof Map](./release-distribution-proof-map.md).
+
 ## Goal
 
 `pluxx publish` should make plugin distribution repeatable from one source repo by orchestrating two channels:
@@ -10,6 +12,12 @@ This document defines the first shippable product contract for `pluxx publish`.
 - GitHub Release publication for versioned bundle artifacts (`dist/<platform>/...`)
 
 The command is orchestration-only. It does not replace `pluxx build`, and it does not deploy MCP backends.
+
+The current implemented release lane is intentionally narrow:
+
+- GitHub Release assets and generated installers are for the primary fronts: Claude Code, Cursor, Codex, and OpenCode.
+- The npm channel is currently for the npm-backed OpenCode wrapper package path.
+- Gemini CLI and the other beta targets may be generated and fixture-tested, but they are not part of the primary release-smoked installer lane yet.
 
 ## Command surface (v1)
 
@@ -123,7 +131,7 @@ GitHub Release channel owns:
 
 - creating/updating release entry for the version
 - uploading built plugin bundle artifacts for manual or platform-specific install flows
-- generating host installer scripts, including `install-codex.sh` hook-gate handling for hook-bearing Codex bundles that need `[features].plugin_hooks = true`
+- generating host installer scripts, including `install-codex.sh` hook-gate handling for hook-bearing Codex bundles that need `[features].hooks = true`
 - release notes body (initially templated/minimal in v1)
 
 When both channels are enabled, failure handling should report per-channel outcome and return non-zero if any enabled channel fails.
@@ -133,6 +141,7 @@ When both channels are enabled, failure handling should report per-channel outco
 Out of scope for this first version:
 
 - marketplace-specific API submissions (Cursor store, etc.)
+- promoting Gemini CLI or other beta targets into primary-front installer/release-smoke parity
 - automatic rollback/unpublish orchestration
 - signing, notarization, or SBOM generation
 - cross-repo publish orchestration

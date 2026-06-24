@@ -1,11 +1,11 @@
-# Use Pluxx In Claude, Codex, Cursor, And OpenCode
+# Use Pluxx In Claude Code, Cursor, Codex, And OpenCode
 
 This is the operator guide for using **Pluxx inside a host coding agent**.
 
 Use this doc when you want the meta workflow:
 
 - install or enable Pluxx in your host
-- ask Claude, Codex, Cursor, or OpenCode to use Pluxx for you
+- ask Claude, Cursor, Codex, or OpenCode to use Pluxx for you
 - scaffold a plugin from an MCP
 - prepare context and refine the scaffold
 - review it
@@ -222,7 +222,7 @@ Under the hood, the host agent should follow something close to this:
 8. run `pluxx build`
 9. optionally run `pluxx install --target ...`
 
-That is the right sequence whether the host is Claude, Codex, Cursor, or OpenCode.
+That is the right sequence whether the host is Claude, Cursor, Codex, or OpenCode.
 
 ## Host-Specific Guidance
 

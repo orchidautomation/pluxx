@@ -1,8 +1,10 @@
-# Extension Systems Research — Claude Code · Codex · Cursor · OpenCode
+# Extension Systems Research — Claude Code · Cursor · Codex · OpenCode
 
 Deep reference for hooks / plugins / MCPs / slash commands / skills / subagents / project-instructions across the four major agentic coding tools.
 
-Research date: April 2026. Sources cited inline in each file.
+Initial research date: April 2026. Core-four refresh date: June 24, 2026.
+
+Sources are cited inline in each file. The Pluxx core-four scope here is Claude Code, Cursor, Codex, and OpenCode. Gemini CLI may appear only as cross-tool ecosystem context inside a source note; it is not one of Pluxx's core four.
 
 ## Files
 

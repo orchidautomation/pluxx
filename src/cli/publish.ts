@@ -924,13 +924,13 @@ for (const line of lines) {
     continue
   }
   if (tableName === '') {
-    const dottedMatch = trimmed.match(/^features\\.plugin_hooks\\s*=\\s*(.+)$/)
+    const dottedMatch = trimmed.match(/^features\\.hooks\\s*=\\s*(.+)$/)
     if (dottedMatch && isTomlTrue(dottedMatch[1])) process.exit(0)
     const inlineMatch = trimmed.match(/^features\\s*=\\s*(.+)$/)
-    if (inlineMatch && /\\bplugin_hooks\\s*=\\s*true\\b/i.test(inlineMatch[1])) process.exit(0)
+    if (inlineMatch && /\\bhooks\\s*=\\s*true\\b/i.test(inlineMatch[1])) process.exit(0)
   }
   if (tableName !== 'features') continue
-  const match = trimmed.match(/^plugin_hooks\\s*=\\s*(.+)$/)
+  const match = trimmed.match(/^hooks\\s*=\\s*(.+)$/)
   if (match && isTomlTrue(match[1])) process.exit(0)
 }
 process.exit(1)
@@ -949,7 +949,7 @@ NODE
       *)
         if [[ -r /dev/tty ]]; then
           echo "This Codex plugin bundle includes startup hooks." >/dev/tty
-          echo "Codex requires [features].plugin_hooks = true before plugin-bundled hooks can run." >/dev/tty
+          echo "Codex requires [features].hooks = true before plugin-bundled hooks can run." >/dev/tty
           read -r -p "Enable Codex plugin-bundled hooks in $CODEX_CONFIG_PATH now? [Y/n] " PLUXX_CODEX_HOOKS_REPLY </dev/tty
           case "$PLUXX_CODEX_HOOKS_REPLY" in
             n|N|no|NO)
@@ -1021,7 +1021,7 @@ for (let index = 0; index < lines.length; index += 1) {
     if (/^features\\.[A-Za-z0-9_-]+\\s*=/.test(trimmed) && firstTopLevelFeaturesDotted < 0) {
       firstTopLevelFeaturesDotted = index
     }
-    if (/^features\\.plugin_hooks\\s*=/.test(trimmed)) {
+    if (/^features\\.hooks\\s*=/.test(trimmed)) {
       topLevelPluginHooksDotted = index
     }
     if (/^features\\s*=\\s*\\{/.test(trimmed)) {
@@ -1040,28 +1040,28 @@ if (start >= 0) {
 
   let updated = false
   for (let index = start + 1; index < end; index += 1) {
-    if (/^plugin_hooks\\s*=/.test(stripTomlComment(lines[index]).trim())) {
-      lines[index] = 'plugin_hooks = true'
+    if (/^hooks\\s*=/.test(stripTomlComment(lines[index]).trim())) {
+      lines[index] = 'hooks = true'
       updated = true
     }
   }
-  if (!updated) lines.splice(start + 1, 0, 'plugin_hooks = true')
+  if (!updated) lines.splice(start + 1, 0, 'hooks = true')
 } else if (topLevelPluginHooksDotted >= 0) {
-  lines[topLevelPluginHooksDotted] = 'features.plugin_hooks = true'
+  lines[topLevelPluginHooksDotted] = 'features.hooks = true'
 } else if (firstTopLevelFeaturesDotted >= 0) {
-  lines.splice(firstTopLevelFeaturesDotted + 1, 0, 'features.plugin_hooks = true')
+  lines.splice(firstTopLevelFeaturesDotted + 1, 0, 'features.hooks = true')
 } else if (topLevelInlineFeatures >= 0 && lines[topLevelInlineFeatures].includes('}')) {
-  if (/\\bplugin_hooks\\s*=/.test(lines[topLevelInlineFeatures])) {
+  if (/\\bhooks\\s*=/.test(lines[topLevelInlineFeatures])) {
     lines[topLevelInlineFeatures] = lines[topLevelInlineFeatures].replace(
-      /\\bplugin_hooks\\s*=\\s*(true|false)\\b/i,
-      'plugin_hooks = true',
+      /\\bhooks\\s*=\\s*(true|false)\\b/i,
+      'hooks = true',
     )
   } else {
-    lines[topLevelInlineFeatures] = lines[topLevelInlineFeatures].replace(/}/, ', plugin_hooks = true }')
+    lines[topLevelInlineFeatures] = lines[topLevelInlineFeatures].replace(/}/, ', hooks = true }')
   }
 } else {
   if (lines.length > 0 && lines[lines.length - 1] !== '') lines.push('')
-  lines.push('[features]', 'plugin_hooks = true')
+  lines.push('[features]', 'hooks = true')
 }
 
 fs.mkdirSync(path.dirname(filepath), { recursive: true })
@@ -1072,7 +1072,7 @@ NODE
     else
       echo "Codex plugin-bundled hooks are not enabled. Startup hooks from this plugin will not run until you add this to $CODEX_CONFIG_PATH:" >&2
       echo "[features]" >&2
-      echo "plugin_hooks = true" >&2
+      echo "hooks = true" >&2
       echo "Then restart or refresh Codex before relying on plugin startup hooks." >&2
       echo "Set PLUXX_CODEX_ENABLE_PLUGIN_HOOKS=1 before running this installer to enable it noninteractively." >&2
     fi

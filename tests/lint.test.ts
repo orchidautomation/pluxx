@@ -1730,10 +1730,14 @@ describe('lintProject', () => {
         hooks: {
           sessionStart: [{ command: 'echo start' }],
           beforeSubmitPrompt: [{ command: 'echo prompt' }],
+          subagentStart: [{ command: 'echo start' }],
+          preCompact: [{ command: 'echo compact' }],
+          postCompact: [{ command: 'echo compact' }],
+          subagentStop: [{ command: 'echo stop' }],
         },
         platforms: {
           codex: {
-            features: { plugin_hooks: true },
+            features: { hooks: true },
           },
         },
       }, null, 2),
@@ -1785,7 +1789,7 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'codex-hooks-general-feature-flag-only')).toBe(true)
   })
 
-  it('accepts plugin_hooks as the plugin-bundled Codex hook feature flag', async () => {
+  it('accepts hooks as the plugin-bundled Codex hook feature flag', async () => {
     const projectDir = createTempProject()
     mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
 
@@ -1803,7 +1807,7 @@ describe('lintProject', () => {
         },
         platforms: {
           codex: {
-            features: { plugin_hooks: true },
+            features: { hooks: true },
           },
         },
       }, null, 2),

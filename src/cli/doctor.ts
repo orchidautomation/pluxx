@@ -1034,7 +1034,7 @@ function readCodexHooksFeatureFlag(filePath: string): ReturnType<typeof getCodex
       continue
     }
 
-    const dottedFeatureMatch = line.match(/^features\.(plugin_hooks|hooks|codex_hooks)\s*=\s*(.+)$/)
+    const dottedFeatureMatch = line.match(/^features\.(hooks|codex_hooks)\s*=\s*(.+)$/)
     if (dottedFeatureMatch) {
       assignFeatureFlag(dottedFeatureMatch[1], dottedFeatureMatch[2])
       continue
@@ -1053,7 +1053,7 @@ function readCodexHooksFeatureFlag(filePath: string): ReturnType<typeof getCodex
     }
 
     if (!inFeaturesTable) continue
-    const featureMatch = line.match(/^(plugin_hooks|hooks|codex_hooks)\s*=\s*(.+)$/)
+    const featureMatch = line.match(/^(hooks|codex_hooks)\s*=\s*(.+)$/)
     if (!featureMatch) continue
     assignFeatureFlag(featureMatch[1], featureMatch[2])
   }
@@ -1783,11 +1783,11 @@ function checkInstalledCodexHooksFeatureFlag(
     .map((probe) => `${probe.scope} ${probe.exists ? 'config' : 'path'}: ${probe.path}${probe.exists ? '' : ' (missing)'}`)
     .join('; ')
   const describeEnabledFlags = (probe: CodexHooksFeatureProbe): string => {
-    const enabledFlags: string[] = []
-    if (probe.pluginBundledEnabled) enabledFlags.push(PLUGIN_BUNDLED_CODEX_HOOKS_FEATURE_FLAG)
-    if (probe.recommendedEnabled) enabledFlags.push(RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG)
-    if (probe.alternateEnabled) enabledFlags.push(ALTERNATE_CODEX_HOOKS_FEATURE_FLAG)
-    return enabledFlags.join(' + ')
+    const enabledFlags = new Set<string>()
+    if (probe.pluginBundledEnabled) enabledFlags.add(PLUGIN_BUNDLED_CODEX_HOOKS_FEATURE_FLAG)
+    if (probe.recommendedEnabled) enabledFlags.add(RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG)
+    if (probe.alternateEnabled) enabledFlags.add(ALTERNATE_CODEX_HOOKS_FEATURE_FLAG)
+    return [...enabledFlags].join(' + ')
   }
   const generalOnlyProbes = probes.filter((probe) => !probe.pluginBundledEnabled && (probe.recommendedEnabled || probe.alternateEnabled))
 
@@ -1795,9 +1795,9 @@ function checkInstalledCodexHooksFeatureFlag(
     addCheck(checks, {
       level: 'warning',
       code: 'consumer-codex-plugin-hooks-feature-flag-general-only',
-      title: 'Codex config enables only general hook flags, not the plugin-bundled hook gate',
-      detail: `This installed Codex bundle declares plugin-bundled hooks at ${hooksReference}, but ${generalOnlyProbes.map((probe) => `${probe.scope} config ${probe.path}`).join(' and ')} enables only general hook flags (${generalOnlyProbes.map((probe) => describeEnabledFlags(probe)).join(' and ')}). Those general flags do not activate plugin-bundled hooks by themselves.`,
-      fix: `Enable \`${PLUGIN_BUNDLED_CODEX_HOOKS_FEATURE_FLAG} = true\` under \`[features]\` in the active Codex config, reload Codex, and rerun pluxx verify-install.`,
+      title: 'Codex config enables only deprecated hook flags',
+      detail: `This installed Codex bundle declares plugin-bundled hooks at ${hooksReference}, but ${generalOnlyProbes.map((probe) => `${probe.scope} config ${probe.path}`).join(' and ')} enables only deprecated hook flags (${generalOnlyProbes.map((probe) => describeEnabledFlags(probe)).join(' and ')}). Current Codex docs use \`${RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG}\` as the canonical feature key.`,
+      fix: `Enable \`${RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG} = true\` under \`[features]\` in the active Codex config, reload Codex, and rerun pluxx verify-install.`,
       path: generalOnlyProbes[0].path,
     })
   }
@@ -1808,8 +1808,8 @@ function checkInstalledCodexHooksFeatureFlag(
       level: 'warning',
       code: 'consumer-codex-hooks-feature-flag-legacy-only',
       title: 'Codex config still uses the deprecated general hook compatibility flag',
-      detail: `This installed Codex bundle declares plugin-bundled hooks at ${hooksReference}, and the checked Codex config enables only the deprecated general hook flag \`${ALTERNATE_CODEX_HOOKS_FEATURE_FLAG} = true\` in ${legacyOnlyProbes.map((probe) => `${probe.scope} config ${probe.path}`).join(' and ')}. That flag is not the plugin-bundled hook gate.`,
-      fix: `Prefer \`${RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG} = true\` only for non-plugin hook config if needed, and use \`${PLUGIN_BUNDLED_CODEX_HOOKS_FEATURE_FLAG} = true\` under \`[features]\` for plugin-bundled hooks. Reload Codex and rerun pluxx verify-install after updating the active config.`,
+      detail: `This installed Codex bundle declares plugin-bundled hooks at ${hooksReference}, and the checked Codex config enables only the deprecated hook flag \`${ALTERNATE_CODEX_HOOKS_FEATURE_FLAG} = true\` in ${legacyOnlyProbes.map((probe) => `${probe.scope} config ${probe.path}`).join(' and ')}. Current Codex docs use \`${RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG}\` as the canonical feature key.`,
+      fix: `Use \`${RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG} = true\` under \`[features]\`, reload Codex, and rerun pluxx verify-install after updating the active config.`,
       path: legacyOnlyProbes[0].path,
     })
   }
@@ -1818,8 +1818,8 @@ function checkInstalledCodexHooksFeatureFlag(
     addCheck(checks, {
       level: 'success',
       code: 'consumer-codex-hooks-feature-flag-enabled',
-      title: 'Codex plugin-bundled hook feature flag found for this install',
-      detail: `This installed Codex bundle declares plugin-bundled hooks at ${hooksReference}, and the plugin hook gate was found in ${enabledProbes.map((probe) => `${probe.scope} config ${probe.path} (${describeEnabledFlags(probe)})`).join(' and ')}. Treat that as a prerequisite, not proof of live hook execution.`,
+      title: 'Codex hook feature flag found for this install',
+      detail: `This installed Codex bundle declares plugin-bundled hooks at ${hooksReference}, and the canonical hook feature key was found in ${enabledProbes.map((probe) => `${probe.scope} config ${probe.path} (${describeEnabledFlags(probe)})`).join(' and ')}. Treat that as a prerequisite, not proof of live hook execution.`,
       fix: 'No action needed.',
       path: enabledProbes[0].path,
     })
@@ -1834,8 +1834,8 @@ function checkInstalledCodexHooksFeatureFlag(
     level: 'warning',
     code: 'consumer-codex-hooks-feature-flag-missing',
     title: 'Codex plugin-bundled hook activation is missing its known feature-gate prerequisite',
-    detail: `This installed Codex bundle declares plugin-bundled hooks at ${hooksReference}, but \`${PLUGIN_BUNDLED_CODEX_HOOKS_FEATURE_FLAG} = true\` was not found in the checked Codex config layers. The general \`${RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG}\` flag covers non-plugin hook config and defaults on, while \`${ALTERNATE_CODEX_HOOKS_FEATURE_FLAG}\` is deprecated and should not be treated as a plugin-bundled hook fallback. Checked ${checkedPaths}.${parseErrors.length > 0 ? ` Unparseable config: ${parseErrors.join('; ')}.` : ''}`,
-    fix: `Enable \`${PLUGIN_BUNDLED_CODEX_HOOKS_FEATURE_FLAG} = true\` under \`[features]\` in the relevant project or user Codex config, reload Codex, and rerun pluxx verify-install.`,
+    detail: `This installed Codex bundle declares plugin-bundled hooks at ${hooksReference}, but \`${RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG} = true\` was not found in the checked Codex config layers. \`${ALTERNATE_CODEX_HOOKS_FEATURE_FLAG}\` is deprecated and should not be treated as the current hook feature key. Checked ${checkedPaths}.${parseErrors.length > 0 ? ` Unparseable config: ${parseErrors.join('; ')}.` : ''}`,
+    fix: `Enable \`${RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG} = true\` under \`[features]\` in the relevant project or user Codex config, reload Codex, and rerun pluxx verify-install.`,
     path: probes.find((probe) => probe.exists)?.path ?? hooksReference,
   })
 }

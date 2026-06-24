@@ -378,7 +378,7 @@ export class CodexGenerator extends Generator {
       pluginBundleFeatureFlag: PLUGIN_BUNDLED_CODEX_HOOKS_FEATURE_FLAG,
       generalFeatureFlag: RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG,
       deprecatedGeneralFeatureFlag: ALTERNATE_CODEX_HOOKS_FEATURE_FLAG,
-      note: 'Codex plugin-bundled hook configuration is bundled at hooks/hooks.json in the plugin and currently requires `[features].plugin_hooks = true`. The general `[features].hooks` flag covers non-plugin hook config and defaults on, while `codex_hooks` is deprecated and should not be treated as a plugin-bundled hook fallback. This companion mirror preserves the translated native event names, matcher groups, and command handlers while highlighting any dropped events or fields.',
+      note: 'Codex plugin-bundled hook configuration is bundled at hooks/hooks.json in the plugin and currently requires `[features].hooks = true`, enabled plugin state, review, trust, and runtime support. `codex_hooks` is deprecated and should not be treated as the current hook feature key. This companion mirror preserves the translated native event names, matcher groups, and command handlers while highlighting any dropped events or fields.',
       hooks,
       ...(unsupported.length > 0 ? { unsupported } : {}),
     })

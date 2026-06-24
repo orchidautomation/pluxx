@@ -41,7 +41,7 @@ export function getEnabledRuntimeReadinessBindings(
 }
 
 const NAMED_PROMPT_TARGET_NOTE = 'Named `skills` / `commands` readiness targets currently translate through prompt-entry gating with best-effort matching because the core four do not share one exact per-skill or per-command runtime interception surface.'
-const CODEX_EXTERNAL_NOTE = 'Codex readiness now bundles translated hooks in the plugin, and Pluxx still emits `.codex/readiness.generated.json` plus `.codex/hooks.generated.json` as debugging companions because plugin-bundled hook activation still depends on `[features].plugin_hooks = true`. The general `hooks = true` flag covers non-plugin hook config and defaults on, while `codex_hooks` is deprecated and should not be treated as a plugin-bundled hook fallback.'
+const CODEX_EXTERNAL_NOTE = 'Codex readiness now bundles translated hooks in the plugin, and Pluxx still emits `.codex/readiness.generated.json` plus `.codex/hooks.generated.json` as debugging companions because hook activation still depends on `[features].hooks = true`, enabled plugin state, review, trust, and runtime support. `codex_hooks` is deprecated and should not be treated as the current hook feature key.'
 
 export function getRuntimeReadinessNamedPromptTargetNote(): string {
   return NAMED_PROMPT_TARGET_NOTE

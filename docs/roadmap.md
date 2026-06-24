@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-05-19
+Last updated: 2026-06-24
 
 ## Doc Links
 
@@ -15,6 +15,8 @@ Last updated: 2026-05-19
   - [docs/platform-change-ops-reference-plugin.md](./platform-change-ops-reference-plugin.md)
   - [docs/docs-ops-core-four-proof.md](./docs-ops-core-four-proof.md)
   - [docs/exa-research-example.md](./exa-research-example.md)
+  - [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md)
+  - [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md)
   - [docs/pluxx-plugin-surface-audit.md](./pluxx-plugin-surface-audit.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](./pluxx-self-hosted-core-four-proof.md)
   - [docs/core-four-provider-docs-audit.md](./core-four-provider-docs-audit.md)
@@ -77,6 +79,7 @@ This includes:
 - site hero and metadata
 - Linear
 - the audit-to-implementation closure plan in [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md)
+- the primitive-by-host proof ledger in [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md)
 
 The closure plan is now narrower than it was before:
 
@@ -172,7 +175,7 @@ The closure plan is now narrower than it was before:
   - `bun scripts/probe-claude-hooks-runtime.ts --json` now gives maintained isolated headless Claude evidence that user, project, and local `SessionStart` settings hooks fire by default, `--setting-sources user,project` drops local hooks, a user-layer `disableAllHooks` suppresses an otherwise-present local hook, installed plugin `SessionStart` hooks execute before the expected unauthenticated `/login` response, and duplicate-manifest plugin bundles surface Claude's duplicate hooks-file load error
   - malformed bundled Codex `hooks/hooks.json` now fails `doctor --consumer` and `verify-install` instead of passing on file presence alone
   - missing Codex `.app.json` surfaces referenced by the manifest now also fail `doctor --consumer` and `verify-install`
-  - hook-bearing Codex plugin installs now warn when the checked project and user Codex config both omit `[features].plugin_hooks = true`; `hooks` remains the general non-plugin hook flag and defaults on, while `codex_hooks` is deprecated and no longer warned as a plugin-bundled hook fallback
+  - hook-bearing Codex plugin installs now warn when the checked project and user Codex config both omit the canonical `[features].hooks = true` hook flag; `codex_hooks` is deprecated and no longer treated as current guidance
   - `bun scripts/probe-codex-hooks-interactive-runtime.ts --json` now gives maintained trusted interactive Codex hook evidence too: on May 13, 2026 both trusted `UserPromptSubmit` variants and both trusted `SessionStart` variants timed out with no project-local hook side effect and no `/hooks` review gate, while the `codex_hooks` prompt path emitted a deprecation message pointing users to `[features].hooks`
   - the optional `--include-enable-hooks-cli` hook scenarios now show that the current CLI feature path `--enable hooks` still does not execute the project-local hook in either headless or trusted interactive probes
   - hook-bearing Codex installs now also warn when the checked project is not trusted in the user Codex config for project-local hook loading
@@ -196,6 +199,13 @@ The closure plan is now narrower than it was before:
   - `npm test` passed
   - `npm run release:check` passed
 - the latest published npm package is `@orchid-labs/pluxx@0.1.21`
+- the release/distribution/proof boundary is now explicit:
+  - [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md)
+  - [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md)
+  - current primary release-smoked fronts remain Claude Code, Cursor, Codex, and OpenCode
+  - Gemini CLI remains a beta generator target until it has release-smoke and installer parity
+  - `pluxx publish --github-release` covers primary-front release assets and installers; `pluxx publish --npm` covers the npm-backed OpenCode wrapper path
+  - marketplace submission APIs, a managed trust/distribution control plane, automatic rollback/unpublish orchestration, and real authenticated publish plus rollback proof remain open release gaps
 - OpenClaw should stay in scope only as a beta-target lane until a native generator, validator/doctor path, and behavioral smoke proof exist:
   - [docs/openclaw-target-evaluation.md](./openclaw-target-evaluation.md)
 
@@ -326,6 +336,7 @@ The next plugin-specific work is:
   - `pluxx-troubleshoot-install`
   - `/pluxx:troubleshoot-install`
 - improve install/update clarity and release distribution UX
+- keep [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md) current as the short release/distribution/proof source of truth
 - treat [docs/proof-and-install.md](./proof-and-install.md) as the first repo-native public proof/install landing page, then push it into a cleaner visual public asset
 - keep the flagship public example page aligned with repo truth:
   - `site/examples/docs-ops-flagship.mdx`

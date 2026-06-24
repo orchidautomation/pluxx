@@ -1,7 +1,11 @@
 import { getConfiguredCompilerBuckets, type PluginConfig, type PluxxCompilerBucket, type TargetPlatform } from '../schema'
-import { getCoreFourPrimitiveCapabilities, type CoreFourPlatform, type PrimitiveTranslationMode } from '../validation/platform-rules'
+import {
+  CORE_FOUR_PLATFORMS,
+  getCoreFourPrimitiveCapabilities,
+  type CoreFourPlatform,
+  type PrimitiveTranslationMode,
+} from '../validation/platform-rules'
 
-const CORE_FOUR_ORDER = ['claude-code', 'cursor', 'codex', 'opencode'] as const satisfies readonly CoreFourPlatform[]
 const TARGET_LABELS: Record<CoreFourPlatform, string> = {
   'claude-code': 'claude',
   cursor: 'cursor',
@@ -30,7 +34,7 @@ export function buildPrimitiveTranslationSummary(
   config: PluginConfig,
   targets: TargetPlatform[] = config.targets,
 ): PrimitiveTranslationSummary | undefined {
-  const selectedTargets = CORE_FOUR_ORDER.filter((target) => targets.includes(target))
+  const selectedTargets = CORE_FOUR_PLATFORMS.filter((target) => targets.includes(target))
   if (selectedTargets.length === 0) return undefined
 
   const configuredBuckets = getConfiguredCompilerBuckets({

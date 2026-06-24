@@ -1165,7 +1165,7 @@ describe('doctorConsumer', () => {
     delete process.env.CODEX_HOME
     mkdirSync(resolve(projectRoot, '.codex'), { recursive: true })
     mkdirSync(resolve(homeDir, '.codex'), { recursive: true })
-    writeFileSync(resolve(projectRoot, '.codex/config.toml'), '[features]\nplugin_hooks = true\n')
+    writeFileSync(resolve(projectRoot, '.codex/config.toml'), '[features]\nhooks = true\n')
     writeFileSync(
       resolve(homeDir, '.codex/config.toml'),
       `[projects.${JSON.stringify(resolve(projectRoot))}]\ntrust_level = "trusted"\n`,
@@ -1202,7 +1202,7 @@ describe('doctorConsumer', () => {
     mkdirSync(resolve(homeDir, '.codex'), { recursive: true })
     writeFileSync(
       resolve(homeDir, '.codex/config.toml'),
-      `[features]\nplugin_hooks = true\n\n[projects.${JSON.stringify(resolve(projectRoot))}]\ntrust_level = "trusted"\n`,
+      `[features]\nhooks = true\n\n[projects.${JSON.stringify(resolve(projectRoot))}]\ntrust_level = "trusted"\n`,
     )
 
     try {
@@ -1234,7 +1234,7 @@ describe('doctorConsumer', () => {
     process.env.HOME = homeDir
     delete process.env.CODEX_HOME
     mkdirSync(resolve(projectRoot, '.codex'), { recursive: true })
-    writeFileSync(resolve(projectRoot, '.codex/config.toml'), '[features]\nplugin_hooks = true\n')
+    writeFileSync(resolve(projectRoot, '.codex/config.toml'), '[features]\nhooks = true\n')
 
     try {
       const report = await doctorConsumer(dir, { projectRoot })
@@ -1256,7 +1256,7 @@ describe('doctorConsumer', () => {
     }
   })
 
-  it('reports success when a hook-bearing Codex install finds plugin_hooks even if codex_hooks is also present', async () => {
+  it('reports success when a hook-bearing Codex install finds hooks even if codex_hooks is also present', async () => {
     const dir = createCodexHookConsumerFixture()
     const projectRoot = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-codex-project-'))
     const originalHome = process.env.HOME
@@ -1266,7 +1266,7 @@ describe('doctorConsumer', () => {
     delete process.env.CODEX_HOME
     mkdirSync(resolve(projectRoot, '.codex'), { recursive: true })
     mkdirSync(resolve(homeDir, '.codex'), { recursive: true })
-    writeFileSync(resolve(projectRoot, '.codex/config.toml'), '[features]\nplugin_hooks = true\ncodex_hooks = true\n')
+    writeFileSync(resolve(projectRoot, '.codex/config.toml'), '[features]\nhooks = true\ncodex_hooks = true\n')
     writeFileSync(
       resolve(homeDir, '.codex/config.toml'),
       `[projects.${JSON.stringify(resolve(projectRoot))}]\ntrust_level = "trusted"\n`,
@@ -1372,7 +1372,7 @@ describe('doctorConsumer', () => {
     }
   })
 
-  it('warns when a hook-bearing Codex install finds only general hook flags in the checked config layers', async () => {
+  it('warns when a hook-bearing Codex install finds only the deprecated hook flag in the checked config layers', async () => {
     const dir = createCodexHookConsumerFixture()
     const projectRoot = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-codex-project-'))
     const originalHome = process.env.HOME
@@ -1382,7 +1382,7 @@ describe('doctorConsumer', () => {
     delete process.env.CODEX_HOME
     mkdirSync(resolve(projectRoot, '.codex'), { recursive: true })
     mkdirSync(resolve(homeDir, '.codex'), { recursive: true })
-    writeFileSync(resolve(projectRoot, '.codex/config.toml'), '[features]\nhooks = true\n')
+    writeFileSync(resolve(projectRoot, '.codex/config.toml'), '[features]\ncodex_hooks = true\n')
     writeFileSync(
       resolve(homeDir, '.codex/config.toml'),
       `[projects.${JSON.stringify(resolve(projectRoot))}]\ntrust_level = "trusted"\n`,

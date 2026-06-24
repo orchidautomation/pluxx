@@ -1212,7 +1212,7 @@ function lintCodexHooksExternalConfig(config: PluginConfig, issues: LintIssue[])
     pushIssue(issues, {
       level: 'warning',
       code: 'codex-hooks-external-config',
-      message: `Pluxx now bundles Codex hooks at \`hooks/hooks.json\`, and Codex plugin-bundled hook loading requires \`${PLUGIN_BUNDLED_CODEX_HOOKS_FEATURE_FLAG} = true\` under \`[features]\`. The general \`${RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG}\` flag covers non-plugin hook config and defaults on; \`${ALTERNATE_CODEX_HOOKS_FEATURE_FLAG}\` is deprecated and should not be treated as a plugin-bundled hook fallback. If bundled hooks do not activate, enable \`${PLUGIN_BUNDLED_CODEX_HOOKS_FEATURE_FLAG} = true\`, reload Codex, and retest in a trusted interactive session.`,
+      message: `Pluxx now bundles Codex hooks at \`hooks/hooks.json\`, and current Codex docs use \`${RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG} = true\` under \`[features]\` as the canonical hook feature key. \`${ALTERNATE_CODEX_HOOKS_FEATURE_FLAG}\` is deprecated and should not be treated as the current hook feature key. If bundled hooks do not activate, enable \`${RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG} = true\`, reload Codex, and retest in a trusted interactive session.`,
       file: 'pluxx.config.ts',
       platform: 'Codex',
     })
@@ -1222,7 +1222,7 @@ function lintCodexHooksExternalConfig(config: PluginConfig, issues: LintIssue[])
     pushIssue(issues, {
       level: 'warning',
       code: 'codex-hooks-legacy-feature-flag',
-      message: `\`${ALTERNATE_CODEX_HOOKS_FEATURE_FLAG}\` is deprecated for general Codex hook config and should not be treated as a plugin-bundled hook fallback. Keep it only as a compatibility fallback for non-plugin hook wiring, prefer \`${RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG} = true\` there, and use \`${PLUGIN_BUNDLED_CODEX_HOOKS_FEATURE_FLAG} = true\` for plugin-bundled hooks.`,
+      message: `\`${ALTERNATE_CODEX_HOOKS_FEATURE_FLAG}\` is deprecated for Codex hook config. Prefer \`${RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG} = true\` under \`[features]\`.`,
       file: 'pluxx.config.ts',
       platform: 'Codex',
     })
@@ -1232,7 +1232,7 @@ function lintCodexHooksExternalConfig(config: PluginConfig, issues: LintIssue[])
     pushIssue(issues, {
       level: 'warning',
       code: 'codex-hooks-general-feature-flag-only',
-      message: `This Codex config enables only general hook flags. Plugin-bundled hooks at \`hooks/hooks.json\` still need \`${PLUGIN_BUNDLED_CODEX_HOOKS_FEATURE_FLAG} = true\` under \`[features]\`; \`${RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG}\` and \`${ALTERNATE_CODEX_HOOKS_FEATURE_FLAG}\` alone are not sufficient.`,
+      message: `This Codex config enables only deprecated hook flags. Plugin-bundled hooks at \`hooks/hooks.json\` should use \`${RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG} = true\` under \`[features]\`.`,
       file: 'pluxx.config.ts',
       platform: 'Codex',
     })

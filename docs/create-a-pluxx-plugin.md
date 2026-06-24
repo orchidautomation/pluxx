@@ -8,7 +8,7 @@ Use this doc when you want the exact sequence for:
 
 - starting from a raw MCP
 - generating the editable source scaffold
-- refining the scaffold with Claude, Codex, Cursor, or OpenCode
+- refining the scaffold with Claude, Cursor, Codex, or OpenCode
 - validating the result
 - building target bundles
 - installing and verifying the plugin in a host app
