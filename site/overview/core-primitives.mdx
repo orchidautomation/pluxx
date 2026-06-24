@@ -96,7 +96,7 @@ This is a compiler-facing model, not a promise that every one of these buckets m
 
 This is the semantic center of Pluxx.
 
-- Skills are the most portable extension surface across Claude Code, Codex, Cursor, and OpenCode.
+- Skills are the most portable extension surface across Claude Code, Cursor, Codex, and OpenCode.
 - Skills should remain the primary source of workflow meaning.
 - Commands and agents should layer on top of the same semantic model, not replace it.
 

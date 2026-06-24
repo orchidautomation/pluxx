@@ -4,7 +4,7 @@ Issue: `PLUXX-117`
 
 ## Goal
 
-Define the smallest truthful permissions contract Pluxx owns across Claude Code, Codex, Cursor, and OpenCode.
+Define the smallest truthful permissions contract Pluxx owns across Claude Code, Cursor, Codex, and OpenCode.
 
 ## Recommendation
 

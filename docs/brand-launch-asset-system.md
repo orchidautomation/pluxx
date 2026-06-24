@@ -17,7 +17,7 @@ It does not redefine the plugin `brand` primitive in `pluxx.config.ts`. That pri
 
 ### Product Positioning
 
-Pluxx is the fastest way to maintain one plugin source project and ship native bundles across Claude Code, Codex, Cursor, and OpenCode.
+Pluxx is the fastest way to maintain one plugin source project and ship native bundles across Claude Code, Cursor, Codex, and OpenCode.
 
 Core promise to repeat consistently:
 

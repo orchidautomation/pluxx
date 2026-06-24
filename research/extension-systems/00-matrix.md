@@ -1,8 +1,8 @@
-# Extension Systems Comparison Matrix — Claude Code, Codex, Cursor, OpenCode
+# Extension Systems Comparison Matrix — Claude Code, Cursor, Codex, OpenCode
 
 > **Scope**: hooks, plugins, MCPs, slash commands, skills, subagents, project instructions.
 > Initial research date: April 2026. Core-four and Codex hook refresh: June 24, 2026.
-> Core-four scope: Claude Code, Codex, Cursor, and OpenCode. Gemini CLI is not part of this matrix.
+> Core-four scope: Claude Code, Cursor, Codex, and OpenCode. Gemini CLI is not part of this matrix.
 > Accompanying files:
 > - [01-claude-code.md](./01-claude-code.md)
 > - [02-codex-cli.md](./02-codex-cli.md)

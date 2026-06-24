@@ -36,11 +36,11 @@ but also:
 
 For the shorter primitive-by-host ledger behind the core-four native shipping claim, use [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md).
 
-The priority order in this register is:
+The core-four presentation order in this register is:
 
 1. Claude Code
-2. Codex
-3. Cursor
+2. Cursor
+3. Codex
 4. OpenCode
 
 ## Current Baseline
@@ -165,8 +165,8 @@ As of 2026-05-13:
 - Cursor/OpenCode secondary notes:
   - both are stronger native agent hosts than older Pluxx simplifications implied
 - Strong proof:
-  - migrate/build coverage for Claude, Codex, Cursor, and OpenCode agent translation
-  - `agent run` coverage for Claude, Codex, Cursor, and OpenCode runners
+  - migrate/build coverage for Claude, Cursor, Codex, and OpenCode agent translation
+  - `agent run` coverage for Claude, Cursor, Codex, and OpenCode runners
   - `bun scripts/probe-codex-agents-runtime.ts --json` now gives maintained isolated headless Codex custom-agent evidence; on 2026-05-13 local Codex CLI `0.130.0` emitted `spawn_agent` plus `wait` for an explicit project-local `proof` agent request and returned `CUSTOM_AGENT_PROOF`, the implicit-control prompt returned `OK` without spawning any custom agent, a project-local `explorer.toml` override produced `CUSTOM_EXPLORER_OVERRIDE`, a project-local `proof.toml` beat a same-name user-local `~/.codex/agents/proof.toml` by returning `PROJECT_AGENT_PROOF`, a discovered project `.agents/skills/proof-skill/SKILL.md` was inherited cleanly by a custom agent and returned `SKILL_PROOF_TOKEN_PROJECT_DISCOVERY`, a parent `.codex/config.toml` `[[skills.config]] enabled = false` entry for that discovered skill was ignored and still returned `SKILL_PROOF_TOKEN_DISABLED_IGNORED`, an agent-local `[[skills.config]] path = "./skills/proof-skill/SKILL.md"` entry did not preload an undiscovered `skills/` path and instead returned `SKILL_PROOF_MISSING`, the maintained sandbox scenarios still showed `sandbox_mode = "read-only"` writing `sandbox-proof.txt` while the `workspace-write` control wrote as expected, and a targeted invalid-model rerun still emitted `spawn_agent` plus `wait` while surfacing `The proof agent errored: ... model is not supported ...`, which pins that agent-local `model` is honored strongly enough to affect live runtime even when the parent wraps the failure
   - targeted maintained live reruns on 2026-05-13 now also closed the two model-precedence cases that were previously only in source/test coverage: `project-no-model-does-not-inherit-user-invalid-model` returned `PROJECT_NO_MODEL_PROOF`, which shows a project-local same-name agent without an explicit `model` did not inherit the user-local invalid model, and `project-valid-model-overrides-user-invalid-model` returned `PROJECT_VALID_MODEL_PROOF`, which shows an explicit valid project-local model overrode the same-name user-local invalid model
   - `pluxx migrate` now also warns when a native Codex `.codex/agents/*.toml` file declares agent-local `mcp_servers` and per-tool approvals, because current canonical agent migration only preserves `name`, `description`, `model`, `model_reasoning_effort`, `sandbox_mode`, and `developer_instructions`; that delegated MCP shape is now explicitly review-required instead of silently downgraded
