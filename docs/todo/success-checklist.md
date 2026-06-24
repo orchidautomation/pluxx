@@ -1,6 +1,6 @@
 # Pluxx Success Checklist
 
-Last updated: 2026-04-24
+Last updated: 2026-06-24
 
 ## Doc Links
 
@@ -11,6 +11,7 @@ Last updated: 2026-04-24
   - [master-backlog.md](./master-backlog.md)
   - [docs/roadmap.md](../roadmap.md)
   - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
+  - [docs/core-four-primitive-proof-ledger.md](../core-four-primitive-proof-ledger.md)
   - [docs/core-four-translation-hit-list.md](../core-four-translation-hit-list.md)
   - [docs/core-four-install-update-lifecycle.md](../core-four-install-update-lifecycle.md)
   - [docs/flagship-docs-ops-plugin.md](../flagship-docs-ops-plugin.md)
@@ -91,6 +92,8 @@ Use this file to:
   - [docs/compatibility.md](../compatibility.md)
 - [x] A conceptual primitive matrix exists:
   - [docs/core-four-primitive-matrix.md](../core-four-primitive-matrix.md)
+- [x] A primitive-by-host proof ledger exists:
+  - [docs/core-four-primitive-proof-ledger.md](../core-four-primitive-proof-ledger.md)
 - [x] A first-party provider audit exists:
   - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
 - [x] A concrete closure tracker exists for turning mapped audit rows into documented and proven translation behavior:

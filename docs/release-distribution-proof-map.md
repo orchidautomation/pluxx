@@ -9,6 +9,7 @@ Last updated: 2026-06-24
   - [README.md](../README.md)
   - [docs/start-here.md](./start-here.md)
   - [docs/proof-and-install.md](./proof-and-install.md)
+  - [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md)
   - [docs/core-four-install-update-lifecycle.md](./core-four-install-update-lifecycle.md)
   - [docs/releasing-pluxx.md](./releasing-pluxx.md)
   - [docs/publish-v1-contract.md](./publish-v1-contract.md)
@@ -55,6 +56,7 @@ The strongest current proof assets are:
 - [Docs Ops core-four proof](./docs-ops-core-four-proof.md)
 - [Exa Research Example](./exa-research-example.md)
 - [Platform Change Ops reference plugin](./platform-change-ops-reference-plugin.md)
+- [Core-four primitive proof ledger](./core-four-primitive-proof-ledger.md)
 
 ## Local Build, Install, And Proof Commands
 

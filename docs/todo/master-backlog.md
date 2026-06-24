@@ -29,6 +29,7 @@ This is not the same thing as the short queue.
   - [docs/docs-ops-core-four-proof.md](../docs-ops-core-four-proof.md)
   - [docs/exa-research-example.md](../exa-research-example.md)
   - [docs/release-distribution-proof-map.md](../release-distribution-proof-map.md)
+  - [docs/core-four-primitive-proof-ledger.md](../core-four-primitive-proof-ledger.md)
   - [docs/pluxx-plugin-surface-audit.md](../pluxx-plugin-surface-audit.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](../pluxx-self-hosted-core-four-proof.md)
   - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
@@ -85,6 +86,7 @@ Any person or agent should be able to enter the repo and answer:
   - Gemini CLI remains a beta generator target until it has release-smoke and installer parity
   - local build/install/verify, GitHub Release bundle installers, and npm-backed OpenCode package publishing are shipped
   - marketplace submission APIs, managed trust/distribution, automatic rollback/unpublish, and real authenticated publish plus rollback proof remain open
+- [~] Keep [docs/core-four-primitive-proof-ledger.md](../core-four-primitive-proof-ledger.md) current as the primitive-by-host proof ledger for the core-four native shipping claim
 - [~] Close the remaining ticket-state drift where shipped work can still appear as backlog in Linear
 - [~] Keep the README top section, website hero, GitHub About metadata, and docs homepage messaging aligned
 - [ ] Remove or rewrite any stale docs that still describe already-shipped work as future work
@@ -214,7 +216,7 @@ Any person or agent should be able to enter the repo and answer:
   - continue simplifying the plugin-guided average-user path so the proof state is easier to use without maintainer-level CLI literacy
 - [ ] Close the highest-value open rows from the new reliability register:
   - deeper Codex custom-agent config-depth proof beyond the now-pinned headless-plus-interactive `sandbox_mode = "read-only"` mismatch, the newly pinned headless `skills.config` disable/preload caveats, the newly pinned `mcp_servers = {}` inheritance ceiling, the newly pinned invalid agent-local model failure path, and the now-pinned same-name user-local model precedence cases, including why successful delegated MCP paths still do not surface a root `mcp_tool_call` item in the parent event stream, installed-plugin skill preload, whether canonical authoring should preserve agent-local MCP config instead of only warning during migrate, how far generated `.codex/config.generated.toml` approval stanzas should go now that project-root, user-root, inherited delegated, agent-local inline approval, and explicit empty-agent-MCP override paths are all live-proven but not proven through the same config layer, and whether other approval or sandbox combinations behave differently
-  - live Codex interactive-vs-headless hook execution proof across both `codex_hooks` and `hooks`
+  - live Codex interactive-vs-headless hook execution proof across canonical `[features].hooks = true` and the deprecated `codex_hooks` alias
   - Claude managed-settings behavior beyond the current file-based verifier still requires a real managed-settings surface; the maintained probe now has shadow-scenario coverage for managed `disableAllHooks` and `allowManagedHooksOnly`, but registry, plist/MDM, server-managed policy, managed-scope plugin precedence, and broader hook-event proof are not closable from the current local environment alone
   - broader Codex and Claude adjunct distribution-surface proof
 

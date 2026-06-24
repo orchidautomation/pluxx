@@ -1,6 +1,6 @@
 # Core-Four Reliability Register
 
-Last updated: 2026-05-13
+Last updated: 2026-06-24
 
 ## Doc Links
 
@@ -8,6 +8,7 @@ Last updated: 2026-05-13
 - Related:
   - [docs/core-four-primitive-matrix.md](./core-four-primitive-matrix.md)
   - [docs/core-four-provider-docs-audit.md](./core-four-provider-docs-audit.md)
+  - [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md)
   - [docs/core-four-install-update-lifecycle.md](./core-four-install-update-lifecycle.md)
   - [docs/compatibility.md](./compatibility.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](./pluxx-self-hosted-core-four-proof.md)
@@ -32,6 +33,8 @@ but also:
 - what can still break
 - what already has strong proof
 - what still needs deeper release-grade evidence
+
+For the shorter primitive-by-host ledger behind the core-four native shipping claim, use [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md).
 
 The priority order in this register is:
 
@@ -70,7 +73,7 @@ As of 2026-05-13:
   - all three approved custom-agent controls still completed without surfacing a root `mcp_tool_call` item in the parent `codex exec --json` stream, but the maintained probe now also records child `agents_states` moving through `pending_init` to `completed`, so child-agent MCP success is now proven from `spawn_agent` / `wait`, child agent state, plus server-side methods and side effects
   - the same maintained MCP probe also showed a discovery mismatch: the project-scoped `.codex/config.toml` server was used by `codex exec`, and the `project-config-root-approve` control stayed callable, but neither project-scoped variant appeared in `codex mcp list`, while the user-scoped `CODEX_HOME/config.toml` server did appear in `codex mcp list`
   - an earlier ad hoc interactive Codex TTY `SessionStart` probe did persist `[projects."<path>"].trust_level = "trusted"` and surface `1 hook needs review before it can run. Open /hooks to review it.`, but the maintained interactive hook probe no longer reproduces that gate on local Codex CLI `0.130.0`
-  - the maintained `bun scripts/probe-codex-hooks-interactive-runtime.ts --json` probe now checks trusted `UserPromptSubmit` and `SessionStart` scenarios under both `hooks` and `codex_hooks`; on May 13, 2026 all four scenarios timed out with no project-local hook side effect and no `/hooks` review gate, while the `codex_hooks` prompt path emitted a deprecation message pointing users to `hooks`
+  - the maintained `bun scripts/probe-codex-hooks-interactive-runtime.ts --json` probe now checks trusted `UserPromptSubmit` and `SessionStart` scenarios under canonical `[features].hooks = true` and the deprecated `codex_hooks` alias; on May 13, 2026 all four scenarios timed out with no project-local hook side effect and no `/hooks` review gate, while the deprecated prompt path emitted a message pointing users to `[features].hooks`
   - a targeted maintained `session-start-hooks-trusted-reviewed` rerun on 2026-05-13 also ended `runner-timed-out` with no project-local hook side effect and no `/hooks` review gate, so the current local reviewed interactive path is now negative evidence rather than an unrerun placeholder
   - the optional `--include-enable-hooks-cli` maintained hook scenarios now sharpen that activation story further: on May 13, 2026 headless `enable-hooks-trusted` still returned `OK` with no hook side effect, and trusted interactive `user-prompt-submit-enable-hooks-trusted` plus `session-start-enable-hooks-trusted` both still timed out with no hook side effect and no `/hooks` review gate, so the current local runtime still no-ops hooks even through the current CLI feature path `--enable hooks`
   - the official CLI slash-command docs currently list `/skills`, `/review`, `/mcp`, and `/plugins`, but not `/hooks`

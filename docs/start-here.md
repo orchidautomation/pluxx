@@ -17,6 +17,7 @@ Last updated: 2026-06-24
   - [docs/docs-ops-authenticated-publish-path.md](./docs-ops-authenticated-publish-path.md)
   - [docs/exa-research-example.md](./exa-research-example.md)
   - [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md)
+  - [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md)
   - [docs/core-four-provider-docs-audit.md](./core-four-provider-docs-audit.md)
   - [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](./pluxx-self-hosted-core-four-proof.md)
@@ -35,6 +36,8 @@ If you want the broadest completeness checklist after reading this, use [docs/to
 If you want the shortest public proof and install path after this file, use [docs/proof-and-install.md](./proof-and-install.md).
 
 If you want the current release, distribution, and proof boundary, use [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md).
+
+If you want the primitive-by-host proof ledger behind the core-four native shipping claim, use [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md).
 
 ## What Pluxx Is
 
@@ -137,6 +140,8 @@ The repo already proves a lot.
   - `pluxx upgrade`
 - the primary release-smoked fronts are Claude Code, Cursor, Codex, and OpenCode; Gemini CLI is generated and fixture-tested as a beta target, but it is not yet part of the core-four release-smoke or installer lane:
   - `docs/release-distribution-proof-map.md`
+- the primitive-by-host proof ledger now ties the core-four claim back to the matrix, reliability register, and maintained example proofs:
+  - `docs/core-four-primitive-proof-ledger.md`
 - the core-four compiler work is materially shipped
 - `verify-install` exists and is tested
 - consumer-side `doctor --consumer` exists and is tested
@@ -296,7 +301,7 @@ The repo already proves a lot.
   - `bun scripts/probe-claude-hooks-runtime.ts --json` now provides a maintained isolated headless Claude probe; on 2026-05-13 it showed user, project, and local `SessionStart` settings hooks firing by default, `--setting-sources user,project` dropping local hooks, a user-layer `disableAllHooks` suppressing an otherwise-present local hook, installed plugin `SessionStart` hooks executing before the expected unauthenticated `/login` response, and duplicate-manifest plugin bundles surfacing Claude's duplicate hooks-file load error
   - managed Claude settings proof is intentionally bounded here: the opt-in managed-shadow `SessionStart` scenarios run through a synthetic managed-settings path in the probe/test harness, not the real Claude managed-settings delivery surface, so registry/plist/MDM/server-managed precedence and managed-scope plugin behavior remain unproven in this environment
   - `bun scripts/probe-codex-hooks-runtime.ts --json` now provides a maintained isolated headless Codex hook probe; on 2026-05-13 it showed `hooks-no-trust`, `hooks-trusted`, and `codex-hooks-trusted` all returning `OK` with no hook side effect
-  - the maintained `bun scripts/probe-codex-hooks-interactive-runtime.ts --json` Codex probe now pins the current interactive result more sharply: on May 13, 2026 both trusted `UserPromptSubmit` variants and both trusted `SessionStart` variants timed out with no project-local hook side effect and no `/hooks` review gate, while the `codex_hooks` prompt path emitted a deprecation message pointing users to `hooks`
+  - the maintained `bun scripts/probe-codex-hooks-interactive-runtime.ts --json` Codex probe now pins the current interactive result more sharply: on May 13, 2026 both trusted `UserPromptSubmit` variants and both trusted `SessionStart` variants timed out with no project-local hook side effect and no `/hooks` review gate, while the deprecated `codex_hooks` prompt path emitted a message pointing users to `[features].hooks`
   - a targeted maintained `session-start-hooks-trusted-reviewed` rerun on 2026-05-13 also ended `runner-timed-out` with no project-local hook side effect and no `/hooks` review gate, so the current local reviewed interactive path still has no maintained successful hook execution
   - the optional `--include-enable-hooks-cli` Codex hook scenarios now show that the current CLI feature path does not rescue activation either: headless `enable-hooks-trusted` still returned `OK` with no hook side effect, and trusted interactive `user-prompt-submit-enable-hooks-trusted` plus `session-start-enable-hooks-trusted` still timed out with no hook side effect and no `/hooks` review gate
   - `lint` and `doctor` now explain where readiness is preserved vs degraded, especially for the remaining Codex feature-gate and named skill/command prompt-entry scoping caveats

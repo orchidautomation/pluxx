@@ -13,7 +13,9 @@ The goal is to normalize author intent once, then compile it into the best nativ
 
 If you want the maintainer-facing build plan that follows from this matrix, read [Core-Four Primitive Implementation Plan](./core-four-primitive-implementation-plan.md).
 
-If you want the April 2026 first-party host audit that compares Pluxx's current assumptions against official provider docs, read [Core-Four Provider Docs Audit](./core-four-provider-docs-audit.md).
+If you want the first-party host audit that compares Pluxx's current assumptions against official provider docs, read [Core-Four Provider Docs Audit](./core-four-provider-docs-audit.md).
+
+If you want the primitive-by-host proof ledger behind the current core-four claim, read [Core-Four Primitive Proof Ledger](./core-four-primitive-proof-ledger.md).
 
 ## Compiler Buckets
 

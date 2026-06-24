@@ -3,6 +3,7 @@
 > Canonical docs: `developers.openai.com/codex/*`
 > CLI repo: `github.com/openai/codex`
 > Notes: As of ~2026, Codex exposes **AGENTS.md**, **Skills** (SKILL.md), **Custom Prompts** (deprecated → Skills), **Plugins** (`.codex-plugin/plugin.json`), **Subagents** (TOML), **Hooks** (experimental, feature-flagged), **MCP** (stdio + http/SSE), and a rich `config.toml`.
+> Core-four refresh: June 24, 2026. Current hook guidance is canonical `[features].hooks = true`; `codex_hooks` is deprecated and should only appear as historical compatibility context.
 
 ---
 
@@ -15,7 +16,7 @@
 | **Skills** | User: `~/.agents/skills/<name>/` • Project: `.agents/skills/<name>/` • Admin: `/etc/codex/skills/` | Dir w/ SKILL.md (+ optional `scripts/`, `references/`, `assets/`, `agents/openai.yaml`) | Stable | [codex/skills](https://developers.openai.com/codex/skills) |
 | **Custom prompts** (legacy slash commands) | `~/.codex/prompts/*.md` (top-level only, not recursive) | Markdown + YAML frontmatter | **Deprecated** → replaced by Skills | [custom-prompts](https://developers.openai.com/codex/custom-prompts) |
 | **Subagents** | User: `~/.codex/agents/*.toml` • Project: `.codex/agents/*.toml` | TOML | Stable | [subagents](https://developers.openai.com/codex/subagents) |
-| **Hooks** | `~/.codex/hooks.json`, `<repo>/.codex/hooks.json` | JSON | Feature-gated (`hooks` and `codex_hooks` both exist under `[features]`; `codex exec --help` now exposes `--enable <FEATURE>` instead of `--enable-hooks`; maintained local probes on May 13, 2026 timed out without a project-local hook side effect under either config flag or under `--enable hooks`, and the local runtime deprecated `codex_hooks`) | [hooks](https://developers.openai.com/codex/hooks) |
+| **Hooks** | `~/.codex/hooks.json`, `<repo>/.codex/hooks.json` | JSON | Feature-gated; canonical `[features].hooks = true`; `codex exec --help` now exposes `--enable <FEATURE>` instead of `--enable-hooks`; maintained local probes on May 13, 2026 timed out without a project-local hook side effect under the canonical flag, the deprecated `codex_hooks` alias, or `--enable hooks` | [hooks](https://developers.openai.com/codex/hooks) |
 | **MCP servers** | `[mcp_servers.<id>]` in `config.toml` | TOML | Stable | [config-reference](https://developers.openai.com/codex/config-reference) |
 | **Plugins** | `<plugin>/.codex-plugin/plugin.json` | JSON | Stable (distribution surface); Public marketplace "coming soon" | [plugins/build](https://developers.openai.com/codex/plugins/build) |
 | **Marketplace** | `$REPO_ROOT/.agents/plugins/marketplace.json`, `~/.agents/plugins/marketplace.json`, official curated catalog | JSON | Stable | [plugins/build](https://developers.openai.com/codex/plugins/build) |
@@ -202,7 +203,7 @@ Per-agent config: `[agents.<name>]` blocks with `config_file = "..."` and `descr
 hooks = true
 ```
 
-Current Codex docs use `[features].hooks = true` as the canonical feature key. The `codex_hooks` key is deprecated. Current `codex exec --help` also exposes `--enable <FEATURE>`, which means the current CLI path for hooks is `--enable hooks`, not `--enable-hooks`. In maintained local May 13, 2026 probes, trusted interactive `UserPromptSubmit` timed out without a project-local hook side effect under either historical config spelling, the `codex_hooks` prompt path emitted `"[features].codex_hooks is deprecated. Use [features].hooks instead."`, and the optional maintained CLI-flag scenarios still no-op under `--enable hooks`.
+Current Codex docs use `[features].hooks = true` as the canonical feature key. The `codex_hooks` key is deprecated. Current `codex exec --help` also exposes `--enable <FEATURE>`, which means the current CLI path for hooks is `--enable hooks`, not `--enable-hooks`. In maintained local May 13, 2026 probes, trusted interactive `UserPromptSubmit` timed out without a project-local hook side effect under the canonical flag or the deprecated alias, the `codex_hooks` prompt path emitted `"[features].codex_hooks is deprecated. Use [features].hooks instead."`, and the optional maintained CLI-flag scenarios still no-op under `--enable hooks`.
 
 The maintained interactive probe now also has a targeted reviewed `SessionStart` rerun on May 13, 2026 via `--include-reviewed-session-start`, and that rerun still ended `runner-timed-out` with no project-local hook side effect and no `/hooks` review gate. So the current local reviewed interactive path remains negative evidence rather than an unrerun placeholder.
 
@@ -267,7 +268,7 @@ Event-specific:
 - The optional `bun scripts/probe-codex-hooks-runtime.ts --include-enable-hooks-cli` scenario `enable-hooks-trusted` still returned `OK` with no hook side effect, and the optional `bun scripts/probe-codex-hooks-interactive-runtime.ts --include-enable-hooks-cli` scenarios `user-prompt-submit-enable-hooks-trusted` and `session-start-enable-hooks-trusted` both still timed out without a hook side effect or `/hooks` review gate.
 - Practical implication for Pluxx: current Codex hook proof needs four distinct checks, not one:
   - official nested hook schema in `hooks/hooks.json`
-  - a `[features]` activation flag, with `hooks` now the preferred spelling and `codex_hooks` only a compatibility alias, even though current local probes still no-op under both config spellings and under the current CLI feature path `--enable hooks`
+  - canonical `[features].hooks = true`, with `codex_hooks` only a deprecated compatibility alias, even though current local probes still no-op under both config spellings and under the current CLI feature path `--enable hooks`
   - trusted project entry in the user Codex config
   - pending-hook review state, even though the maintained interactive probe no longer reproduces the older `/hooks` gate observation and the current slash-command docs still do not list `/hooks`
 - Remaining open question: whether reviewed hooks can ever fire under non-interactive `codex exec` at all, and why the current local reviewed interactive path no longer reproduces either successful hook execution or the older ad hoc `/hooks` review gate on current Codex builds.
@@ -457,7 +458,7 @@ Source: [developers.openai.com/codex/cli/slash-commands](https://developers.open
 1. **AGENTS.md truncates silently at 32 KiB.** Raise with `project_doc_max_bytes`.
 2. **Custom prompts (`~/.codex/prompts/`) are deprecated** — use Skills going forward.
 3. Custom prompts are **top-level only** (no nested directories scanned).
-4. **Hooks are feature-gated and still require a feature flag** + **no Windows** currently. Maintained local probes on May 13, 2026 showed both `hooks` and `codex_hooks` timing out without a project-local hook side effect in trusted interactive `UserPromptSubmit` and `SessionStart` scenarios, the current CLI feature path `--enable hooks` still no-oping in maintained headless and interactive probes, and the local runtime deprecating `codex_hooks` in favor of `hooks`.
+4. **Hooks are feature-gated and still require canonical `[features].hooks = true`** + **no Windows** currently. Maintained local probes on May 13, 2026 showed the canonical `hooks` flag and the deprecated `codex_hooks` alias timing out without a project-local hook side effect in trusted interactive `UserPromptSubmit` and `SessionStart` scenarios, and the current CLI feature path `--enable hooks` still no-oping in maintained headless and interactive probes.
 5. Codex hooks now expose **10 documented events** (Claude Code has 26).
 6. Subagents are **TOML**, not markdown.
 7. Skills path is `.agents/skills/` (shared cross-agent convention), not `.codex/skills/`.

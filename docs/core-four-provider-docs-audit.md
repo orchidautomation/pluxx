@@ -7,6 +7,7 @@ Last updated: 2026-06-24
 - Role: official-doc-backed host capability audit
 - Related:
   - [docs/core-four-primitive-matrix.md](./core-four-primitive-matrix.md)
+  - [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md)
   - [docs/compatibility.md](./compatibility.md)
   - [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md)
   - [src/validation/platform-rules.ts](../src/validation/platform-rules.ts)

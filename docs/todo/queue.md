@@ -16,6 +16,7 @@ Last updated: 2026-06-24
   - [docs/docs-ops-core-four-proof.md](../docs-ops-core-four-proof.md)
   - [docs/exa-research-example.md](../exa-research-example.md)
   - [docs/release-distribution-proof-map.md](../release-distribution-proof-map.md)
+  - [docs/core-four-primitive-proof-ledger.md](../core-four-primitive-proof-ledger.md)
   - [docs/pluxx-plugin-surface-audit.md](../pluxx-plugin-surface-audit.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](../pluxx-self-hosted-core-four-proof.md)
   - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
@@ -169,6 +170,8 @@ The initial author-once hardening tranche is also materially done.
   - Gemini CLI: beta generator target only today
   - shipped distribution lane: local build/install/verify, GitHub Release bundle installers, and npm-backed OpenCode package publishing
   - remaining release gaps: marketplace submission APIs, managed trust/distribution control plane, automatic rollback/unpublish, and a real authenticated publish plus rollback proof
+- the core-four native shipping claim now has a primitive-by-host proof ledger:
+  - [docs/core-four-primitive-proof-ledger.md](../core-four-primitive-proof-ledger.md)
 
 The public baseline is also real.
 
@@ -216,6 +219,7 @@ Open work:
   - keep the new Codex hook split explicit: schema correctness is now fixed, but live execution still depends on trusted-project state plus `/hooks` review
 - tighten the remaining top-level docs framing and entrypoint docs
 - keep [docs/release-distribution-proof-map.md](../release-distribution-proof-map.md) aligned with CLI release/publish behavior and proof docs
+- keep [docs/core-four-primitive-proof-ledger.md](../core-four-primitive-proof-ledger.md) aligned with the matrix, reliability register, and maintained example proofs
 - keep GTM-sensitive material out of the public repo
 - continue reconciling stale planning artifacts that still describe already-shipped work as future work
 - close the remaining Linear drift where shipped work like installed-MCP discovery is still marked as backlog

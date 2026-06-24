@@ -1,7 +1,8 @@
 # Extension Systems Comparison Matrix — Claude Code, Codex, Cursor, OpenCode
 
 > **Scope**: hooks, plugins, MCPs, slash commands, skills, subagents, project instructions.
-> Research date: April 2026.
+> Initial research date: April 2026. Core-four and Codex hook refresh: June 24, 2026.
+> Core-four scope: Claude Code, Codex, Cursor, and OpenCode. Gemini CLI is not part of this matrix.
 > Accompanying files:
 > - [01-claude-code.md](./01-claude-code.md)
 > - [02-codex-cli.md](./02-codex-cli.md)
@@ -98,7 +99,7 @@
 | | Claude Code | Codex CLI | Cursor | OpenCode |
 |---|---|---|---|---|
 | Canonical config | `settings.json` hooks block + plugin `hooks/hooks.json` + inline skill/agent `hooks:` | `hooks.json` next to active config layers | `.cursor/hooks.json` (project/user/enterprise) | **No config** — plugins register hooks via TS/JS module |
-| Stability | Stable | Feature-gated — current docs use `[features].hooks = true` as canonical, current CLI help exposes `--enable <FEATURE>`, but maintained local probes on May 13, 2026 timed out or no-oped without a project-local hook side effect under historical config spellings or under `--enable hooks`, and the local runtime deprecated `codex_hooks` in favor of `hooks` | Stable (Windows may be disabled) | Stable |
+| Stability | Stable | Feature-gated — current docs use `[features].hooks = true` as canonical, current CLI help exposes `--enable <FEATURE>`, but maintained local probes on May 13, 2026 timed out or no-oped without a project-local hook side effect under the canonical flag, the deprecated `codex_hooks` alias, or `--enable hooks` | Stable (Windows may be disabled) | Stable |
 | Event count | **26** | **10** | **20** | **~28** |
 | Events | SessionStart, InstructionsLoaded, UserPromptSubmit, PreToolUse, PermissionRequest, PermissionDenied, PostToolUse, PostToolUseFailure, Notification, SubagentStart, SubagentStop, TaskCreated, TaskCompleted, Stop, StopFailure, TeammateIdle, ConfigChange, CwdChanged, FileChanged, WorktreeCreate, WorktreeRemove, PreCompact, PostCompact, Elicitation, ElicitationResult, SessionEnd | SessionStart, SubagentStart, PreToolUse, PermissionRequest, PostToolUse, PreCompact, PostCompact, UserPromptSubmit, SubagentStop, Stop | sessionStart, sessionEnd, preToolUse, postToolUse, postToolUseFailure, subagentStart, subagentStop, beforeShellExecution, afterShellExecution, beforeMCPExecution, afterMCPExecution, beforeReadFile, afterFileEdit, beforeSubmitPrompt, preCompact, stop, afterAgentResponse, afterAgentThought, beforeTabFileRead, afterTabFileEdit | command.executed, file.edited, file.watcher.updated, installation.updated, lsp.client.diagnostics, lsp.updated, message.part.(removed/updated), message.(removed/updated), permission.(asked/replied), server.connected, session.(created/compacted/deleted/diff/error/idle/status/updated), todo.updated, shell.env, tool.execute.(before/after), tui.prompt.append, tui.command.execute, tui.toast.show, experimental.session.compacting |
 | Hook types | `command`, `http`, `prompt`, `agent` | `command` | `command`, `prompt` | JS/TS function in-process |
@@ -200,7 +201,7 @@
 
 13. **Skill description caps differ per tool**: Claude Code 1,536 (skills page) / 250 (slash-commands page), Cursor ≤200 (community guidance), Codex per-spec, **OpenCode hard 1,024 chars**.
 
-14. **Codex hooks currently rely on a `[features]` flag** and **don't run on Windows**. Maintained local probes on May 13, 2026 showed both `hooks` and `codex_hooks` timing out without a project-local hook side effect in trusted interactive scenarios, and the optional CLI activation path `--enable hooks` also still no-oped in both maintained headless and interactive probes, while the local runtime deprecated `codex_hooks` in favor of `hooks`.
+14. **Codex hooks currently rely on canonical `[features].hooks = true`** and **don't run on Windows**. Maintained local probes on May 13, 2026 showed the canonical `hooks` flag and the deprecated `codex_hooks` alias timing out without a project-local hook side effect in trusted interactive scenarios, and the optional CLI activation path `--enable hooks` also still no-oped in both maintained headless and interactive probes.
 
 15. **Claude Code's hooks work at the skill/agent level, too** — you can inline `hooks:` in SKILL.md/agent frontmatter. Other tools scope hooks globally.
 

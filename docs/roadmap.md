@@ -16,6 +16,7 @@ Last updated: 2026-06-24
   - [docs/docs-ops-core-four-proof.md](./docs-ops-core-four-proof.md)
   - [docs/exa-research-example.md](./exa-research-example.md)
   - [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md)
+  - [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md)
   - [docs/pluxx-plugin-surface-audit.md](./pluxx-plugin-surface-audit.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](./pluxx-self-hosted-core-four-proof.md)
   - [docs/core-four-provider-docs-audit.md](./core-four-provider-docs-audit.md)
@@ -78,6 +79,7 @@ This includes:
 - site hero and metadata
 - Linear
 - the audit-to-implementation closure plan in [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md)
+- the primitive-by-host proof ledger in [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md)
 
 The closure plan is now narrower than it was before:
 
@@ -199,6 +201,7 @@ The closure plan is now narrower than it was before:
 - the latest published npm package is `@orchid-labs/pluxx@0.1.21`
 - the release/distribution/proof boundary is now explicit:
   - [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md)
+  - [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md)
   - current primary release-smoked fronts remain Claude Code, Cursor, Codex, and OpenCode
   - Gemini CLI remains a beta generator target until it has release-smoke and installer parity
   - `pluxx publish --github-release` covers primary-front release assets and installers; `pluxx publish --npm` covers the npm-backed OpenCode wrapper path

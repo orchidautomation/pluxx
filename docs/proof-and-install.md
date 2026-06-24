@@ -14,6 +14,7 @@ Last updated: 2026-06-24
   - [docs/exa-research-example.md](./exa-research-example.md)
   - [docs/orchid-docs-ops-codex-walkthrough.md](./orchid-docs-ops-codex-walkthrough.md)
   - [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md)
+  - [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md)
   - [docs/core-four-install-update-lifecycle.md](./core-four-install-update-lifecycle.md)
   - [docs/strategy/docs-ingestion-scaffold-before-after.md](./strategy/docs-ingestion-scaffold-before-after.md)
   - [docs/core-four-provider-docs-audit.md](./core-four-provider-docs-audit.md)
@@ -71,6 +72,9 @@ If you want the shortest credible answer to "is this real yet?", use this order:
 8. [Core-four provider docs audit](./core-four-provider-docs-audit.md)
    What it proves: the compatibility story is grounded in first-party provider docs, not hand-waving.
 
+9. [Core-four primitive proof ledger](./core-four-primitive-proof-ledger.md)
+   What it proves: each core primitive has an explicit Claude Code, Cursor, Codex, and OpenCode proof link, plus known gaps where parity would be dishonest.
+
 ## Public Proof Panels
 
 If you need the public story in the fewest moving parts, use these four proof panels:
@@ -82,6 +86,7 @@ If you need the public story in the fewest moving parts, use these four proof pa
 | Flagship authenticated publish split | [docs-ops-authenticated-publish-path](./docs-ops-authenticated-publish-path.md) | read-only Orchid access is not being mislabeled as a publish path |
 | Exa distribution proof | [exa-research-example](./exa-research-example.md) | Exa-style research workflows can ship natively across the core four from one maintained source project |
 | Docs-ingestion improvement | [docs-ingestion scaffold before/after](./strategy/docs-ingestion-scaffold-before-after.md) | sourced product/docs context materially improves the generated scaffold |
+| Primitive proof ledger | [core-four primitive proof ledger](./core-four-primitive-proof-ledger.md) | the core-four native shipping claim is traceable primitive by primitive |
 
 ## Current Distribution Boundary
 
