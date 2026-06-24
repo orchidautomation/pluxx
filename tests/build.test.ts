@@ -1053,7 +1053,7 @@ describe('build', () => {
     expect(codexManifest.hooks).toBe('./hooks/hooks.json')
     expect(codexBundledHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.type).toBe('command')
     expect(codexBundledHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toBe('bash "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.sh"')
-    expect(codexHooks.pluginBundleFeatureFlag).toBe('plugin_hooks')
+    expect(codexHooks.pluginBundleFeatureFlag).toBe('hooks')
     expect(codexHooks.generalFeatureFlag).toBe('hooks')
     expect(codexHooks.deprecatedGeneralFeatureFlag).toBe('codex_hooks')
     expect(codexHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toBe('bash "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.sh"')
@@ -1331,7 +1331,7 @@ describe('build', () => {
     expect(codexBundledHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/.codex/pluxx-readiness.mjs" session-start')
     expect(codexBundledHooks.hooks.PreToolUse?.[0]?.matcher).toBe('MCP')
     expect(codexBundledHooks.hooks.PreToolUse?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/.codex/pluxx-readiness.mjs" mcp-gate')
-    expect(codexHooks.pluginBundleFeatureFlag).toBe('plugin_hooks')
+    expect(codexHooks.pluginBundleFeatureFlag).toBe('hooks')
     expect(codexHooks.generalFeatureFlag).toBe('hooks')
     expect(codexHooks.deprecatedGeneralFeatureFlag).toBe('codex_hooks')
     expect(codexHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/.codex/pluxx-readiness.mjs" session-start')
@@ -1373,13 +1373,52 @@ describe('build', () => {
       command: 'bash "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-2.sh"',
     })
     expect(codexHooks.model).toBe('pluxx.codex-hooks.v1')
-    expect(codexHooks.pluginBundleFeatureFlag).toBe('plugin_hooks')
+    expect(codexHooks.pluginBundleFeatureFlag).toBe('hooks')
     expect(codexHooks.generalFeatureFlag).toBe('hooks')
     expect(codexHooks.deprecatedGeneralFeatureFlag).toBe('codex_hooks')
     expect(codexHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toBe('bash "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.sh"')
     expect(codexHooks.hooks.UserPromptSubmit?.[0]?.hooks?.[0]?.command).toBe('bash "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-2.sh"')
     expect(readFileSync(resolve(OUT_DIR, 'codex/hooks/pluxx-hook-command-1.sh'), 'utf-8')).toContain('${PLUXX_PLUGIN_ROOT}/scripts/validate.sh')
     expect(readFileSync(resolve(OUT_DIR, 'codex/hooks/pluxx-hook-command-2.sh'), 'utf-8')).toContain('${PLUXX_PLUGIN_ROOT}/scripts/check-prompt.sh')
+  })
+
+  it('emits generated Codex hooks for newly documented native events', async () => {
+    const codexEventConfig: PluginConfig = {
+      ...testConfig,
+      name: 'codex-event-plugin',
+      targets: ['codex'],
+      outDir: './codex-event-dist',
+      hooks: {
+        subagentStart: [{ command: 'true' }],
+        preCompact: [{ command: 'true' }],
+        postCompact: [{ command: 'true' }],
+        subagentStop: [{ command: 'true' }],
+      },
+    }
+
+    await build(codexEventConfig, TEST_DIR)
+
+    const codexBundledHooks = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'codex-event-dist/codex/hooks/hooks.json'), 'utf-8')
+    ) as {
+      hooks: Record<string, CodexHookMatcherGroup[]>
+    }
+    const codexHooks = JSON.parse(
+      readFileSync(resolve(TEST_DIR, 'codex-event-dist/codex/.codex/hooks.generated.json'), 'utf-8')
+    ) as {
+      hooks: Record<string, CodexHookMatcherGroup[]>
+      unsupported?: unknown[]
+    }
+
+    expect(codexBundledHooks.hooks.SubagentStart?.[0]?.hooks?.[0]?.command).toBe('bash "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.sh"')
+    expect(codexBundledHooks.hooks.PreCompact?.[0]?.hooks?.[0]?.command).toBe('bash "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-2.sh"')
+    expect(codexBundledHooks.hooks.PostCompact?.[0]?.hooks?.[0]?.command).toBe('bash "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-3.sh"')
+    expect(codexBundledHooks.hooks.SubagentStop?.[0]?.hooks?.[0]?.command).toBe('bash "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-4.sh"')
+    expect(codexHooks.hooks.SubagentStart?.[0]?.hooks?.[0]?.command).toBe('bash "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.sh"')
+    expect(codexHooks.hooks.PreCompact?.[0]?.hooks?.[0]?.command).toBe('bash "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-2.sh"')
+    expect(codexHooks.hooks.PostCompact?.[0]?.hooks?.[0]?.command).toBe('bash "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-3.sh"')
+    expect(codexHooks.hooks.SubagentStop?.[0]?.hooks?.[0]?.command).toBe('bash "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-4.sh"')
+    expect(codexHooks.unsupported).toBeUndefined()
   })
 
   it('preserves hook fields only where the target can honestly carry them', async () => {

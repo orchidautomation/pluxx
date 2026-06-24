@@ -306,6 +306,7 @@ async function executeBehavioralCommand(
   }
 
   return await new Promise((resolvePromise, reject) => {
+    const startedAt = Date.now()
     const child = spawn(command[0], command.slice(1), {
       cwd,
       detached: process.platform !== 'win32',
@@ -315,16 +316,33 @@ async function executeBehavioralCommand(
 
     const stdoutChunks: Buffer[] = []
     const stderrChunks: Buffer[] = []
+    let settled = false
+    let timedOut = false
+    const timeout = setTimeout(() => {
+      timedOut = true
+      signalBehavioralProcess(child, 'SIGKILL')
+    }, timeoutMs)
 
     child.stdout?.on('data', (chunk) => stdoutChunks.push(Buffer.from(chunk)))
     child.stderr?.on('data', (chunk) => stderrChunks.push(Buffer.from(chunk)))
-    child.on('error', reject)
+    child.on('error', (error) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timeout)
+      reject(error)
+    })
     child.on('close', (code) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timeout)
+      const exceededDeadline = timedOut || Date.now() - startedAt > timeoutMs
       const stdout = Buffer.concat(stdoutChunks).toString('utf-8')
       const stderr = Buffer.concat(stderrChunks).toString('utf-8')
       resolvePromise({
-        exitCode: code ?? 1,
-        response: stdout.trim() || stderr.trim(),
+        exitCode: exceededDeadline ? 124 : (code ?? 1),
+        response: exceededDeadline
+          ? `behavioral runner timed out after ${timeoutMs}ms`
+          : stdout.trim() || stderr.trim(),
       })
     })
   })
@@ -371,6 +389,30 @@ async function commandSucceeds(command: string[]): Promise<boolean> {
     child.on('close', (code) => resolvePromise(code === 0))
     child.on('error', () => resolvePromise(false))
   })
+}
+
+function signalBehavioralProcess(
+  child: ReturnType<typeof spawn>,
+  signal: NodeJS.Signals,
+): void {
+  if (child.exitCode != null || child.signalCode != null) {
+    return
+  }
+
+  if (process.platform !== 'win32' && typeof child.pid === 'number') {
+    try {
+      process.kill(-child.pid, signal)
+      return
+    } catch {
+      // Fall back to signaling the direct child if the process group is gone.
+    }
+  }
+
+  try {
+    child.kill(signal)
+  } catch {
+    // Ignore signaling failures after the child exits.
+  }
 }
 
 function truncate(value: string, length: number): string {

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'bun:test'
 import {
+  CORE_FOUR_PLATFORMS,
   CORE_FOUR_PRIMITIVE_CAPABILITIES,
   PLATFORM_VALIDATION_RULES,
   PLATFORM_LIMITS,
@@ -7,6 +8,7 @@ import {
   getCoreFourPrimitiveCapabilities,
   getPlatformRules,
 } from '../src/validation/platform-rules'
+import { PLUXX_COMPILER_BUCKETS } from '../src/schema'
 
 describe('PLATFORM_VALIDATION_RULES', () => {
   it('has entries for all researched platforms', () => {
@@ -30,16 +32,37 @@ describe('PLATFORM_VALIDATION_RULES', () => {
     const rules = getPlatformRules('claude-code')
     expect(rules.platform).toBe('claude-code')
   })
+
+  it('tracks the current official Codex hook event set and plugin hook gate', () => {
+    const rules = getPlatformRules('codex')
+
+    expect(rules.hooks.eventNames).toEqual([
+      'SessionStart',
+      'SubagentStart',
+      'PreToolUse',
+      'PermissionRequest',
+      'PostToolUse',
+      'PreCompact',
+      'PostCompact',
+      'UserPromptSubmit',
+      'SubagentStop',
+      'Stop',
+    ])
+    expect(PLATFORM_LIMITS.codex.hooksFeatureFlag).toBe('hooks')
+    expect(PLATFORM_LIMIT_POLICIES.codex.hooksFeatureFlag?.notes).toContain('enabled-plugin')
+    expect(rules.hooks.notes).toContain('user review')
+  })
 })
 
 describe('CORE_FOUR_PRIMITIVE_CAPABILITIES', () => {
   it('covers the four primary platforms', () => {
-    expect(Object.keys(CORE_FOUR_PRIMITIVE_CAPABILITIES)).toEqual([
-      'claude-code',
-      'cursor',
-      'codex',
-      'opencode',
-    ])
+    expect(Object.keys(CORE_FOUR_PRIMITIVE_CAPABILITIES)).toEqual([...CORE_FOUR_PLATFORMS])
+  })
+
+  it('covers every compiler bucket for each primary platform', () => {
+    for (const platform of CORE_FOUR_PLATFORMS) {
+      expect(Object.keys(CORE_FOUR_PRIMITIVE_CAPABILITIES[platform].buckets)).toEqual([...PLUXX_COMPILER_BUCKETS])
+    }
   })
 
   it('captures the current codex command degradation truth', () => {

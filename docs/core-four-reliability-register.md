@@ -56,7 +56,7 @@ As of 2026-05-13:
   - `bun scripts/probe-codex-hooks-runtime.ts --json`
   - host walkthroughs and example proof docs
 - the newest live Codex runtime evidence is now more specific:
-  - the current local Codex runtime accepts both `[features].codex_hooks` and `[features].hooks`, even though the first-party docs and the runtime are now drifting
+  - the current local Codex runtime still accepts deprecated `[features].codex_hooks` in some probes, while first-party docs and runtime messaging now point to `[features].hooks`
   - Pluxx now emits the official nested Codex hook shape: `event -> matcher group -> hooks[]`
   - the maintained `bun scripts/probe-codex-hooks-runtime.ts --json` probe now runs isolated authenticated headless `codex exec` checks against project-local hooks
   - on 2026-05-13, that probe reported `headless-response-no-hook` for `hooks-no-trust`, `hooks-trusted`, and `codex-hooks-trusted`: each scenario returned `OK`, each emitted `turn.completed`, and none executed the hook side effect
@@ -186,7 +186,7 @@ As of 2026-05-13:
   - only command hooks are bundled today, even though the bundle now uses the official nested matcher-group hook schema instead of flat entries
   - prompt hooks and non-command hook types drop
   - `failClosed` and `loop_limit` do not survive into generated Codex hook output
-  - hook activation can still depend on feature gates, project trust, hook review, and runtime support; official docs now split the gates between the general `[features].hooks` flag for project/user hooks and `[features].plugin_hooks = true` for plugin-bundled hooks, while maintained interactive probes on May 13, 2026 timed out without a project-local `.codex/hooks.json` side effect or `/hooks` review gate under both `[features].hooks = true` and the deprecated `[features].codex_hooks = true` alias
+  - hook activation can still depend on feature gates, project trust, hook review, and runtime support; official docs now split the gates between the general `[features].hooks` flag for project/user hooks and `[features].hooks = true` for plugin-bundled hooks, while maintained interactive probes on May 13, 2026 timed out without a project-local `.codex/hooks.json` side effect or `/hooks` review gate under both `[features].hooks = true` and the deprecated `[features].codex_hooks = true` alias
   - a targeted maintained `reviewed-session-start` rerun on 2026-05-13 also timed out after the post-review phase with no project-local hook side effect and no `/hooks` review gate, so the current local reviewed interactive path still does not produce maintained successful hook execution
   - readiness for named skills/commands still degrades to prompt-entry best-effort matching
 - Cursor/OpenCode secondary notes:
@@ -197,8 +197,8 @@ As of 2026-05-13:
   - build fixture coverage, including the official nested Codex matcher-group shape
   - `doctor` and `lint` explain the degradation
   - installed-bundle integrity now fails malformed bundled `hooks/hooks.json`, not only missing hook files
-  - `doctor --consumer`, `verify-install`, and `lint` now distinguish general Codex hook config from plugin-bundled hook activation: hook-bearing plugin installs need `[features].plugin_hooks = true`, while `[features].hooks` remains the general non-plugin hook flag and `codex_hooks` is deprecated
-  - general-only flag guidance now warns that `[features].hooks = true` and deprecated `[features].codex_hooks = true` do not activate plugin-bundled hooks by themselves; maintained local probes on May 13, 2026 still no-oped the project-local hook under both general config flags and under the current CLI feature path `--enable hooks`
+  - `doctor --consumer`, `verify-install`, and `lint` now check the canonical `[features].hooks = true` hook flag for hook-bearing plugin installs; `codex_hooks` is deprecated
+  - deprecated-only flag guidance now warns that `[features].codex_hooks = true` is not current hook guidance; maintained local probes on May 13, 2026 still no-oped the project-local hook under both historical config flags and under the current CLI feature path `--enable hooks`
   - `doctor --consumer` and `verify-install` now also warn when the checked project is not trusted in the user Codex config for project-local hook loading
   - `verify-install` now surfaces those installed-bundle Codex warning codes, explanations, and fixes inline instead of hiding them behind a warning count
   - Codex bundles that include `.codex/config.generated.toml` now also warn when the checked project/user Codex config layers still do not contain the generated per-tool approval stanzas
@@ -288,7 +288,7 @@ As of 2026-05-13:
   - Claude bundles also no longer look healthy when the manifest redundantly points `hooks` at the standard `./hooks/hooks.json` file that current Claude auto-loads anyway
   - malformed bundled Codex hook JSON is now a release-blocking consumer defect instead of a silent pass
   - missing Codex `.app.json` surfaces referenced by the manifest now also fail consumer integrity checks instead of passing as a partially wired install
-  - hook-bearing Codex plugin installs no longer look silently healthy when neither project nor user Codex config enables `plugin_hooks = true`
+  - hook-bearing Codex plugin installs no longer look silently healthy when neither project nor user Codex config enables `hooks = true`
   - hook-bearing Codex installs also no longer look silently healthy when the checked project is not trusted in the user Codex config
   - hook-bearing Claude installs now warn when any checked Claude settings layer sets `disableAllHooks = true`, because current live Claude probes showed that suppressing SessionStart settings-hook execution across user, project, and local layers
 - Separate Codex hook bundle shape from Codex runtime activation:

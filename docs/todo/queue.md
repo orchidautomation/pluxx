@@ -1,6 +1,6 @@
 # Pluxx Queue
 
-Last updated: 2026-05-19
+Last updated: 2026-06-24
 
 ## Doc Links
 
@@ -15,6 +15,7 @@ Last updated: 2026-05-19
   - [docs/platform-change-ops-reference-plugin.md](../platform-change-ops-reference-plugin.md)
   - [docs/docs-ops-core-four-proof.md](../docs-ops-core-four-proof.md)
   - [docs/exa-research-example.md](../exa-research-example.md)
+  - [docs/release-distribution-proof-map.md](../release-distribution-proof-map.md)
   - [docs/pluxx-plugin-surface-audit.md](../pluxx-plugin-surface-audit.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](../pluxx-self-hosted-core-four-proof.md)
   - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
@@ -141,7 +142,7 @@ The initial author-once hardening tranche is also materially done.
   - managed Claude settings proof is intentionally bounded here: the opt-in managed-shadow `SessionStart` scenarios run through a synthetic managed-settings path in the probe/test harness, so live registry/plist/MDM/server-managed precedence proof is still outside the current environment
   - malformed bundled Codex `hooks/hooks.json` now fails `doctor --consumer` and `verify-install` instead of passing on file presence alone
   - missing Codex `.app.json` surfaces referenced by the manifest now also fail `doctor --consumer` and `verify-install`
-  - hook-bearing Codex plugin installs now warn when the checked project and user Codex config both omit `[features].plugin_hooks = true`; `hooks` remains the general non-plugin hook flag and defaults on, while `codex_hooks` is deprecated and no longer presented as a plugin-bundled hook fallback
+  - hook-bearing Codex plugin installs now warn when the checked project and user Codex config both omit the canonical `[features].hooks = true` hook flag; `codex_hooks` is deprecated and no longer presented as current guidance
   - hook-bearing Codex installs now also warn when the checked project is not trusted in the user Codex config for project-local hook loading
   - `verify-install` now prints the concrete installed-bundle Codex warning code, explanation, and fix inline instead of only surfacing a warning count
   - generated Codex hooks now use the official nested matcher-group schema instead of the older flat entry shape
@@ -162,6 +163,12 @@ The initial author-once hardening tranche is also materially done.
 - the repo release gate is green again as of 2026-05-19:
   - `npm test`
   - `npm run release:check`
+- the release/distribution/proof lane now has a short source-of-truth map:
+  - [docs/release-distribution-proof-map.md](../release-distribution-proof-map.md)
+  - primary release-smoked fronts: Claude Code, Cursor, Codex, OpenCode
+  - Gemini CLI: beta generator target only today
+  - shipped distribution lane: local build/install/verify, GitHub Release bundle installers, and npm-backed OpenCode package publishing
+  - remaining release gaps: marketplace submission APIs, managed trust/distribution control plane, automatic rollback/unpublish, and a real authenticated publish plus rollback proof
 
 The public baseline is also real.
 
@@ -208,6 +215,7 @@ Open work:
   - treat Cursor and OpenCode as secondary reliability follow-ons rather than flattening all four hosts into one identical work block
   - keep the new Codex hook split explicit: schema correctness is now fixed, but live execution still depends on trusted-project state plus `/hooks` review
 - tighten the remaining top-level docs framing and entrypoint docs
+- keep [docs/release-distribution-proof-map.md](../release-distribution-proof-map.md) aligned with CLI release/publish behavior and proof docs
 - keep GTM-sensitive material out of the public repo
 - continue reconciling stale planning artifacts that still describe already-shipped work as future work
 - close the remaining Linear drift where shipped work like installed-MCP discovery is still marked as backlog

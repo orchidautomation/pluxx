@@ -605,8 +605,8 @@ describe('runPublish', () => {
     expect(installerContent).toContain('Preparing local plugin runtime dependencies...')
     expect(installerContent).toContain('bash "$INSTALL_DIR/scripts/bootstrap-runtime.sh"')
     expect(installerContent).toContain('PLUXX_CODEX_ENABLE_PLUGIN_HOOKS')
-    expect(installerContent).toContain('Codex requires [features].plugin_hooks = true')
-    expect(installerContent).toContain('plugin_hooks = true')
+    expect(installerContent).toContain('Codex requires [features].hooks = true')
+    expect(installerContent).toContain('hooks = true')
     expect(installerContent).toContain('materializeInstalledStdioPath')
     expect(installerContent).toContain("path.resolve(installDir, normalized)")
     expect(installerContent.indexOf('PLUXX_USER_CONFIG_SPEC')).toBeLessThan(
@@ -877,7 +877,7 @@ describe('runPublish', () => {
 
   it('enables Codex plugin-bundled hooks in generated installers when automation opts in', () => {
     const run = runGeneratedCodexInstaller(CODEX_HOOK_FILES, {
-      configText: '[features]\nhooks = true\n',
+      configText: '[features]\nexperimental = true\n',
       env: { PLUXX_CODEX_ENABLE_PLUGIN_HOOKS: '1' },
     })
 
@@ -885,9 +885,9 @@ describe('runPublish', () => {
     expect(run.stderr).toBe('')
     expect(run.stdout).toContain('Enabled Codex plugin-bundled hooks')
     expect(run.stdout).toContain('Restart or refresh Codex')
-    expect(run.configText).toContain('[features]\nplugin_hooks = true\nhooks = true\n')
+    expect(run.configText).toContain('[features]\nhooks = true\nexperimental = true\n')
     expect(run.installerContent).toContain('PLUXX_CODEX_ENABLE_PLUGIN_HOOKS')
-    expect(run.installerContent).toContain('features\\.plugin_hooks')
+    expect(run.installerContent).toContain('features\\.hooks')
   })
 
   it('prints exact Codex hook TOML and leaves config unchanged when explicitly skipped', () => {
@@ -898,7 +898,7 @@ describe('runPublish', () => {
     expect(run.status).toBe(0)
     expect(run.configText).toBeUndefined()
     expect(run.stderr).toContain('[features]')
-    expect(run.stderr).toContain('plugin_hooks = true')
+    expect(run.stderr).toContain('hooks = true')
     expect(run.stderr).toContain('Then restart or refresh Codex')
     expect(run.stderr).toContain('PLUXX_CODEX_ENABLE_PLUGIN_HOOKS=1')
   })
@@ -913,6 +913,6 @@ describe('runPublish', () => {
     expect(run.status).toBe(0)
     expect(run.configText).toBeUndefined()
     expect(run.stdout).not.toContain('Enabled Codex plugin-bundled hooks')
-    expect(run.stderr).not.toContain('plugin_hooks = true')
+    expect(run.stderr).not.toContain('hooks = true')
   })
 })

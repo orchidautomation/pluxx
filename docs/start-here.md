@@ -1,6 +1,6 @@
 # Start Here
 
-Last updated: 2026-05-19
+Last updated: 2026-06-24
 
 ## Doc Links
 
@@ -16,6 +16,7 @@ Last updated: 2026-05-19
   - [docs/docs-ops-core-four-proof.md](./docs-ops-core-four-proof.md)
   - [docs/docs-ops-authenticated-publish-path.md](./docs-ops-authenticated-publish-path.md)
   - [docs/exa-research-example.md](./exa-research-example.md)
+  - [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md)
   - [docs/core-four-provider-docs-audit.md](./core-four-provider-docs-audit.md)
   - [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](./pluxx-self-hosted-core-four-proof.md)
@@ -32,6 +33,8 @@ This is the shortest accurate explanation of what Pluxx is, what is already real
 If you want the broadest completeness checklist after reading this, use [docs/todo/success-checklist.md](./todo/success-checklist.md).
 
 If you want the shortest public proof and install path after this file, use [docs/proof-and-install.md](./proof-and-install.md).
+
+If you want the current release, distribution, and proof boundary, use [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md).
 
 ## What Pluxx Is
 
@@ -132,10 +135,14 @@ The repo already proves a lot.
 - the published CLI now has first-class lifecycle helpers for global installs:
   - `pluxx --version`
   - `pluxx upgrade`
+- the primary release-smoked fronts are Claude Code, Cursor, Codex, and OpenCode; Gemini CLI is generated and fixture-tested as a beta target, but it is not yet part of the core-four release-smoke or installer lane:
+  - `docs/release-distribution-proof-map.md`
 - the core-four compiler work is materially shipped
 - `verify-install` exists and is tested
 - consumer-side `doctor --consumer` exists and is tested
 - `migrate`, `eval`, and `mcp proxy --record/--replay` are shipped
+- `pluxx publish --github-release` can package built primary-front bundles as GitHub Release assets and generate installer scripts; `pluxx publish --npm` covers the npm-backed OpenCode wrapper path:
+  - `docs/release-distribution-proof-map.md`
 - the self-hosted Pluxx plugin exists as a real source project in `example/pluxx`
 - the repo-local Codex dogfood plugin exists in `plugins/pluxx`
 - the self-hosted Pluxx plugin has now been rebuilt, installed, and `verify-install` checked from the canonical source project across the core four:
@@ -272,7 +279,7 @@ The repo already proves a lot.
   - Claude Code, Cursor, and OpenCode now generate host-native readiness behavior from that shared primitive
   - Codex now bundles translated hook output at `hooks/hooks.json`, with `.codex/hooks.generated.json` retained as a companion/debug mirror
   - Codex now gets explicit generated readiness guidance through `.codex/readiness.generated.json`, alongside bundled `hooks/hooks.json` and the companion `.codex/hooks.generated.json`
-  - `doctor --consumer`, `verify-install`, and `lint` now distinguish Codex plugin-bundled hooks from general project or user hook config: plugin bundles need `[features].plugin_hooks = true`, `hooks` remains the general non-plugin hook flag and defaults on, and `codex_hooks` is deprecated rather than a plugin-bundled hook fallback
+  - `doctor --consumer`, `verify-install`, and `lint` now check the canonical `[features].hooks = true` hook flag for Codex plugin-bundled hooks; `codex_hooks` is deprecated rather than current guidance
   - `doctor --consumer` and `verify-install` now also warn when the checked project is not trusted in the user Codex config, because project-local hooks may stay disabled until Codex trusts that project
   - Claude bundles now fail `doctor --consumer` and `verify-install` when the manifest redundantly points `hooks` at the standard `./hooks/hooks.json` file that current Claude auto-loads anyway
   - hook-bearing Claude installs now also warn when a checked Claude settings layer sets `disableAllHooks = true`, because current Claude CLI `2.1.140` probes showed that suppressing `SessionStart` settings-hook execution across user, project, and local layers
@@ -310,6 +317,8 @@ The repo already proves a lot.
   - `npm test` passed
   - `npm run release:check` passed
 - the latest published npm package is `@orchid-labs/pluxx@0.1.21`
+- marketplace submission APIs, a managed trust/distribution control plane, automatic rollback/unpublish orchestration, and real authenticated publish plus rollback proof remain explicit release gaps, not hidden shipped capabilities:
+  - `docs/release-distribution-proof-map.md`
 - OpenCode-native agent output is now permission-first:
   - legacy agent `tools` input is translated forward where possible
   - native OpenCode `skill` and `task` permission keys are treated as real first-class surfaces

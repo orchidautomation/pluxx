@@ -1,6 +1,6 @@
 export const RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG = 'hooks'
 export const ALTERNATE_CODEX_HOOKS_FEATURE_FLAG = 'codex_hooks'
-export const PLUGIN_BUNDLED_CODEX_HOOKS_FEATURE_FLAG = 'plugin_hooks'
+export const PLUGIN_BUNDLED_CODEX_HOOKS_FEATURE_FLAG = 'hooks'
 
 export interface CodexHooksFeatureState {
   pluginBundled: boolean

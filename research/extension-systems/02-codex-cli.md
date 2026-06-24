@@ -194,7 +194,7 @@ Per-agent config: `[agents.<name>]` blocks with `config_file = "..."` and `descr
 
 ---
 
-## 6. Hooks (feature-gated — mixed `codex_hooks` / `hooks` contract)
+## 6. Hooks (feature-gated — canonical `hooks`, deprecated `codex_hooks`)
 
 ### 6.1 Enable
 ```toml
@@ -202,7 +202,7 @@ Per-agent config: `[agents.<name>]` blocks with `config_file = "..."` and `descr
 hooks = true
 ```
 
-Current Codex config surfaces still expose both `hooks` and `codex_hooks` under `[features]`. Current `codex exec --help` also exposes `--enable <FEATURE>`, which means the current CLI path for hooks is `--enable hooks`, not `--enable-hooks`. In maintained local May 13, 2026 probes, trusted interactive `UserPromptSubmit` timed out without a project-local hook side effect under either config flag, the `codex_hooks` prompt path emitted `"[features].codex_hooks is deprecated. Use [features].hooks instead."`, and the optional maintained CLI-flag scenarios still no-op under `--enable hooks`.
+Current Codex docs use `[features].hooks = true` as the canonical feature key. The `codex_hooks` key is deprecated. Current `codex exec --help` also exposes `--enable <FEATURE>`, which means the current CLI path for hooks is `--enable hooks`, not `--enable-hooks`. In maintained local May 13, 2026 probes, trusted interactive `UserPromptSubmit` timed out without a project-local hook side effect under either historical config spelling, the `codex_hooks` prompt path emitted `"[features].codex_hooks is deprecated. Use [features].hooks instead."`, and the optional maintained CLI-flag scenarios still no-op under `--enable hooks`.
 
 The maintained interactive probe now also has a targeted reviewed `SessionStart` rerun on May 13, 2026 via `--include-reviewed-session-start`, and that rerun still ended `runner-timed-out` with no project-local hook side effect and no `/hooks` review gate. So the current local reviewed interactive path remains negative evidence rather than an unrerun placeholder.
 
@@ -214,12 +214,17 @@ The maintained interactive probe now also has a targeted reviewed `SessionStart`
 | Event | Scope | Matcher | Purpose |
 |---|---|---|---|
 | `SessionStart` | Session | `source` (`startup` / `resume`) | Session lifecycle init |
+| `SubagentStart` | Subagent | none | Subagent lifecycle init |
 | `UserPromptSubmit` | Turn | none | Modify or log prompts |
 | `PreToolUse` | Turn | `tool_name` | Block / modify tool call |
+| `PermissionRequest` | Turn | `tool_name` | Decide or log permission requests |
 | `PostToolUse` | Turn | `tool_name` | Review tool results |
+| `PreCompact` | Session | none | Run before compaction |
+| `PostCompact` | Session | none | Run after compaction |
+| `SubagentStop` | Subagent | none | Subagent lifecycle completion |
 | `Stop` | Turn | none | Control continuation |
 
-**No** `SessionEnd`, `Notification`, `SubagentStart`, compact, file-change, etc. (much smaller event set than Claude Code's 26).
+**No** `SessionEnd`, `Notification`, file-change, or worktree lifecycle event equivalents. The event set is now ten documented events, still smaller than Claude Code's 26-event hook catalog.
 
 ### 6.4 JSON input (common fields)
 `session_id`, `transcript_path`, `cwd`, `hook_event_name`, `model`, and `turn_id` (turn-scoped events only).
@@ -453,7 +458,7 @@ Source: [developers.openai.com/codex/cli/slash-commands](https://developers.open
 2. **Custom prompts (`~/.codex/prompts/`) are deprecated** — use Skills going forward.
 3. Custom prompts are **top-level only** (no nested directories scanned).
 4. **Hooks are feature-gated and still require a feature flag** + **no Windows** currently. Maintained local probes on May 13, 2026 showed both `hooks` and `codex_hooks` timing out without a project-local hook side effect in trusted interactive `UserPromptSubmit` and `SessionStart` scenarios, the current CLI feature path `--enable hooks` still no-oping in maintained headless and interactive probes, and the local runtime deprecating `codex_hooks` in favor of `hooks`.
-5. Codex hooks expose **only 5 events** (Claude Code has 26).
+5. Codex hooks now expose **10 documented events** (Claude Code has 26).
 6. Subagents are **TOML**, not markdown.
 7. Skills path is `.agents/skills/` (shared cross-agent convention), not `.codex/skills/`.
 8. Plugins use `.codex-plugin/plugin.json` (note: `.codex-plugin/`, distinct from Claude Code's `.claude-plugin/`).

@@ -1,6 +1,6 @@
 # Core-Four Provider Docs Audit
 
-Last updated: 2026-05-13
+Last updated: 2026-06-24
 
 ## Doc Links
 
@@ -19,7 +19,7 @@ Last updated: 2026-05-13
   - [docs/todo/queue.md](./todo/queue.md)
   - [docs/roadmap.md](./roadmap.md)
 
-This doc records the May 2026 first-party provider-doc audit refresh across:
+This doc records the May 2026 first-party provider-doc audit refresh plus the June 24, 2026 Firecrawl spot refresh across:
 
 - Claude Code
 - Cursor
@@ -36,9 +36,18 @@ This is the source audit that compares official docs against Pluxx's current ass
 
 Method:
 
-- one Firecrawl-backed subagent per host
+- one Firecrawl-backed official-doc research pass per host
 - official provider docs only
 - compare documented host surfaces against Pluxx's current machine-readable rules and public docs
+
+June 24, 2026 Firecrawl source receipts:
+
+| Host | Official source receipts | Refresh notes |
+|---|---|---|
+| Claude Code | `https://docs.anthropic.com/en/docs/claude-code/plugins`, `https://docs.anthropic.com/en/docs/claude-code/skills` | Confirmed plugin bundles cover skills, agents, hooks, MCP servers, LSP servers, monitors, commands, and settings; skills and commands continue converging. |
+| Cursor | `https://cursor.com/docs/plugins`, `https://cursor.com/docs/skills`, `https://cursor.com/docs/hooks` | Confirmed Cursor plugins package rules, skills, agents, commands, MCP servers, and hooks, with marketplace review and project/user/team scoping. |
+| Codex | `https://developers.openai.com/codex/hooks`, `https://developers.openai.com/codex/plugins`, `https://developers.openai.com/codex/skills`, `https://developers.openai.com/codex/mcp`, `https://developers.openai.com/codex/subagents` | Confirmed the official ten-event hook list and plugin-bundled hooks; current docs use `[features].hooks` as the canonical feature key and describe `codex_hooks` as deprecated. |
+| OpenCode | `https://opencode.ai/docs/plugins/`, `https://opencode.ai/docs/config/`, `https://opencode.ai/docs/mcp-servers/`, `https://opencode.ai/docs/agents/`, `https://opencode.ai/docs/skills/` | Confirmed OpenCode plugins are JS/TS modules with event handlers, config/plugin directories, npm plugin loading, agents, skills, commands, and MCP surfaces. |
 
 ## Executive Summary
 
@@ -186,7 +195,8 @@ Confirmed by official docs:
 - plugin skills are bundled under `skills/`
 - non-plugin skills are discovered through `.agents/skills` directories
 - `agents/openai.yaml` is optional metadata for plugin skills
-- hook config exists at project and user paths, while plugin bundles can also carry `hooks/hooks.json`; official docs now split activation between the general `[features].hooks` flag, which defaults on for non-plugin hook config, and `[features].plugin_hooks = true`, which is required for plugin-bundled hooks. The deprecated `[features].codex_hooks` alias still appears in local runtime behavior, and current `codex exec --help` exposes `--enable <FEATURE>` for the CLI path, but maintained local probes on May 13, 2026 still failed to execute the project-local hook under the general flag, deprecated alias, or `--enable hooks`.
+- hook config exists at project and user paths, while plugin bundles can also carry `hooks/hooks.json`; the current documented Codex hook events are `SessionStart`, `SubagentStart`, `PreToolUse`, `PermissionRequest`, `PostToolUse`, `PreCompact`, `PostCompact`, `UserPromptSubmit`, `SubagentStop`, and `Stop`
+- plugin-bundled hook activation still needs the canonical `[features].hooks = true` feature key plus enabled plugin state, user review, project trust, and runtime support. The deprecated `[features].codex_hooks` alias still appears in local runtime behavior, and current `codex exec --help` exposes `--enable <FEATURE>` for the CLI path, but maintained local probes on May 13, 2026 still failed to execute the project-local hook under the canonical flag, deprecated alias, or `--enable hooks`.
 - Codex documents `stdio` and streamable HTTP MCP transports
 - Codex documents bearer-token and OAuth MCP auth
 - `.app.json` is a real optional plugin surface
@@ -197,8 +207,8 @@ Confirmed by official docs:
 
 Current repo gaps:
 
-- the main machine-readable Codex transport and hook-event gaps have now been corrected in `src/validation/platform-rules.ts`
-- the current remaining drift is no longer about bundled-vs-external hooks; it is about proving real runtime activation across Codex versions now that plugin-bundled hooks have a separate `[features].plugin_hooks = true` gate, the local runtime still exposes the general hook flag plus deprecated `codex_hooks` alias for project/user hooks, current CLI help routes feature activation through `--enable <FEATURE>`, and the maintained probes still time out or no-op without a project-local hook signal under the general flag, deprecated alias, or `--enable hooks`
+- the main machine-readable Codex transport and hook-event gaps have now been corrected in `src/validation/platform-rules.ts`, including the current ten-event official hook list
+- the current remaining drift is no longer about bundled-vs-external hooks or generated event names; it is about proving real runtime activation across Codex versions now that plugin-bundled hooks depend on the canonical `[features].hooks = true` feature key, enabled plugin state, review, trust, and runtime support, while the local runtime still exposes the deprecated `codex_hooks` alias. Current CLI help routes feature activation through `--enable <FEATURE>`, and the maintained probes still time out or no-op without a project-local hook signal under the canonical flag, deprecated alias, or `--enable hooks`
 - current live probes also show docs-vs-runtime caveats for Codex subagents: `sandbox_mode` is documented and emitted, but both the maintained headless probe and the maintained trusted interactive probe still let a child agent declared as `read-only` write `sandbox-proof.txt`; discovered `.agents/skills` inheritance is live-proven, yet a parent `[[skills.config]] enabled = false` entry was ignored in the maintained headless probe and an agent-local `[[skills.config]]` entry did not preload an undiscovered `skills/` path
 - current live probes now also show a sharper Codex MCP caveat: project-scoped, user-scoped, and inline-agent MCP config all reached `initialize`, `notifications/initialized`, and `tools/list` in headless `codex exec`, but the default root-scoped paths were still auto-cancelled with `user cancelled MCP tool call` before any server-side `tools/call`, while the default inline-agent path fell back to `MCP_PROOF_MARKER_MISSING`. The maintained suite now also proves five explicit approval unlock paths: project-scoped root MCP, user-scoped root MCP, agent-local inline `mcp_servers`, a custom agent inheriting an approved project-scoped root MCP server, and a custom agent inheriting an approved user-scoped root MCP server can all reach real server-side `tools/call` once `[mcp_servers.<id>.tools.<tool>] approval_mode = "approve"` is present. All three approved custom-agent runs still avoid a root `mcp_tool_call` item and instead surface child `agents_states` moving through `pending_init` to `completed`; project-scoped servers still do not appear in `codex mcp list`, and user-scoped servers do appear there. Pluxx already uses the root-config proof by generating `.codex/config.generated.toml` when canonical top-level MCP allow rules can be materialized safely
 - several conservative Codex listing limits are now encoded as Pluxx advisory heuristics rather than official-doc-backed hard facts:

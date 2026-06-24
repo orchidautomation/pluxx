@@ -1,6 +1,6 @@
 # Proof And Install
 
-Last updated: 2026-05-19
+Last updated: 2026-06-24
 
 ## Doc Links
 
@@ -13,6 +13,7 @@ Last updated: 2026-05-19
   - [docs/docs-ops-authenticated-publish-path.md](./docs-ops-authenticated-publish-path.md)
   - [docs/exa-research-example.md](./exa-research-example.md)
   - [docs/orchid-docs-ops-codex-walkthrough.md](./orchid-docs-ops-codex-walkthrough.md)
+  - [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md)
   - [docs/core-four-install-update-lifecycle.md](./core-four-install-update-lifecycle.md)
   - [docs/strategy/docs-ingestion-scaffold-before-after.md](./strategy/docs-ingestion-scaffold-before-after.md)
   - [docs/core-four-provider-docs-audit.md](./core-four-provider-docs-audit.md)
@@ -25,6 +26,8 @@ This is the shortest current repo-native path to:
 - understand what Pluxx already proves
 - install the released self-hosted plugin in your host of choice
 - run the strongest current demos in the right order
+
+For the fuller release/distribution boundary, including publish commands and deferred marketplace/trust-layer work, use [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md).
 
 ## The Story In One Screen
 
@@ -79,6 +82,18 @@ If you need the public story in the fewest moving parts, use these four proof pa
 | Flagship authenticated publish split | [docs-ops-authenticated-publish-path](./docs-ops-authenticated-publish-path.md) | read-only Orchid access is not being mislabeled as a publish path |
 | Exa distribution proof | [exa-research-example](./exa-research-example.md) | Exa-style research workflows can ship natively across the core four from one maintained source project |
 | Docs-ingestion improvement | [docs-ingestion scaffold before/after](./strategy/docs-ingestion-scaffold-before-after.md) | sourced product/docs context materially improves the generated scaffold |
+
+## Current Distribution Boundary
+
+Today, Pluxx ships the OSS authoring and local/self-hosted distribution lane:
+
+- build native bundles for Claude Code, Cursor, Codex, and OpenCode
+- install those bundles locally with `pluxx install`
+- verify host-visible state with `pluxx verify-install`
+- package GitHub Release assets and installer scripts with `pluxx publish --github-release`
+- publish the npm-backed OpenCode wrapper path with `pluxx publish --npm`
+
+It does not yet ship marketplace submission APIs, a managed trust/distribution control plane, automatic rollback/unpublish orchestration, or a real authenticated publish plus rollback proof against a private authoring target.
 
 ## Install The Released Pluxx Plugin
 

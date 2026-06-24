@@ -295,7 +295,7 @@ describe('behavioral smoke suite', () => {
     writeFileSync(resolve(binDir, 'opencode'), '#!/bin/sh\nprintf "not executable"\n')
     chmodSync(resolve(binDir, 'opencode'), 0o644)
 
-    process.env.PATH = `${binDir}:${ORIGINAL_PATH}`
+    process.env.PATH = binDir
 
     const config = { name: 'runner-error-example' } as PluginConfig
     const result = await runBehavioralSuite(rootDir, config, ['opencode'])

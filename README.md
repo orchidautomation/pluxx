@@ -16,6 +16,8 @@ Raw MCP access is usually not enough. Most products still need workflow grouping
 
 If you want the fastest way to see what is already real, start with these:
 
+- [Release distribution proof map](./docs/release-distribution-proof-map.md)
+  - the current source of truth for what Pluxx ships today, the local build/install/sync/prove lane for the primary fronts, and what still belongs to marketplace or trust-layer work
 - [Proof and install guide](./docs/proof-and-install.md)
   - the shortest public path to the current demos plus one-command install paths for the released self-hosted plugin
 - [Self-hosted core-four proof](./docs/pluxx-self-hosted-core-four-proof.md)
@@ -88,9 +90,10 @@ Pluxx is currently centered on the core four:
 - Codex
 - OpenCode
 
-Other targets still exist as generated secondary/beta outputs, but the product and docs are intentionally optimized around the core four.
+Other targets still exist as generated secondary/beta outputs, but the product and docs are intentionally optimized around the core four. Gemini CLI is one of those beta generator targets today: it is fixture-tested, but it is not in the current release-smoked core-four installer lane.
 
 For the detailed compatibility and verification matrix, see [docs/compatibility.md](./docs/compatibility.md).
+For the release/distribution/proof lane, see [docs/release-distribution-proof-map.md](./docs/release-distribution-proof-map.md).
 
 ## Quick Start
 
@@ -162,6 +165,7 @@ Need deterministic checks?
 Need local installs too?
   pluxx build --install
   pluxx test --install
+  pluxx verify-install --target codex
   pluxx uninstall
 
 Need release installers or a GitHub release?

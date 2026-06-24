@@ -2,6 +2,8 @@
 
 This is the maintainer flow for shipping new versions of `@orchid-labs/pluxx`.
 
+For plugin bundle distribution from a Pluxx source project, use [Release Distribution Proof Map](./release-distribution-proof-map.md) and [pluxx publish v1 contract](./publish-v1-contract.md). This file is about releasing the Pluxx CLI package itself.
+
 ## What Happens Automatically
 
 This repo now has a tag-based GitHub Actions workflow at [`.github/workflows/release.yml`](../.github/workflows/release.yml).
@@ -17,6 +19,8 @@ When you push a tag like `v0.1.1`, GitHub Actions will:
 That means GitHub pushes do **not** update npm by themselves. Only a versioned tag release does.
 
 Do not publish this package from a local shell. The package lifecycle now refuses local `npm publish` and only allows the trusted GitHub release workflow on a matching `vX.Y.Z` tag. This keeps npm provenance intact and avoids depending on local npm auth.
+
+That package-release rule is separate from `pluxx publish`, which packages a user's built plugin bundles and generated installers for distribution.
 
 ## One-Time Setup
 
