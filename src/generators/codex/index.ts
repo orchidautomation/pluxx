@@ -339,7 +339,7 @@ export class CodexGenerator extends Generator {
         if (!entry.command) continue
 
         nextWrapperIndex += 1
-        const relativePath = `hooks/pluxx-hook-command-${nextWrapperIndex}.sh`
+        const relativePath = `hooks/pluxx-hook-command-${nextWrapperIndex}.mjs`
         await this.writeFile(
           relativePath,
           buildHookCommandWrapperScript(entry.command.replace('${PLUGIN_ROOT}', '${PLUXX_PLUGIN_ROOT}'), 'CODEX_PLUGIN_ROOT'),
@@ -351,7 +351,7 @@ export class CodexGenerator extends Generator {
 
         mappedEntries.push(this.buildCodexCommandHookGroup(
           codexEvent,
-          `bash "\${CODEX_PLUGIN_ROOT}/${relativePath}"`,
+          `node "\${CODEX_PLUGIN_ROOT}/${relativePath}"`,
           matcher,
           entry.timeout,
         ))

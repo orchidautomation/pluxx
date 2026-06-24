@@ -72,6 +72,8 @@ Generated `pluxx publish --github-release` Codex curl installers also handle thi
 
 Those consumer checks now also warn when the checked project is not trusted in the user Codex config, because Codex can keep project-local hooks disabled until that trust entry exists. `verify-install` now carries those `doctor --consumer` issue details through directly, so operators see the specific warning code, explanation, and fix instead of only a warning count.
 
+Generated command-hook wrappers are now Node launchers at `hooks/pluxx-hook-command-*.mjs`, not shell-invoked wrapper scripts. They quote plugin-root paths, preserve LF line endings, and discover Bash before running Bash-style hook bodies. On Windows, Git Bash or another `bash` on `PATH` is still required for Bash command hooks; when it is missing, the wrapper prints an explicit Pluxx diagnostic that names the missing Bash requirement and the hook command.
+
 If the installed Codex bundle also includes `.codex/config.generated.toml`, `doctor --consumer` and `verify-install` now inspect the checked project and user `config.toml` layers for matching per-tool `approval_mode = "approve"` stanzas. When those generated approvals have not been merged yet, Pluxx warns explicitly instead of assuming the companion file was actually applied. This is still an external merge step, not plugin-bundled enforcement.
 
 The newest live Codex proof on 2026-05-13 narrowed the remaining gap further:

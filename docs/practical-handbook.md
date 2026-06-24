@@ -296,6 +296,12 @@ Use `--trust` if the plugin includes command hooks and you have already reviewed
 
 Use `--dry-run` to preview local install locations and trust implications.
 
+### Hook portability notes
+
+Generated Claude Code, Cursor, and Codex command hooks run through Pluxx-owned `hooks/pluxx-hook-command-*.mjs` launchers. The launcher resolves the installed plugin root, hydrates install-time user config, keeps generated files LF-terminated, and quotes plugin-root command paths so installs under directories with spaces keep working.
+
+Command hook bodies still run through Bash so existing Bash-style hooks behave consistently on macOS, Linux, and Git Bash for Windows. On Windows, install Git Bash or put `bash` on `PATH`; if Bash is unavailable, the generated launcher exits with an explicit Pluxx diagnostic instead of failing as an opaque host shell error.
+
 ### Manual sharing
 
 If you are not relying on `pluxx install`, the thing you share is the platform bundle inside the matching `dist/<platform>/` directory.
