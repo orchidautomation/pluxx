@@ -594,6 +594,100 @@ describe('verifyInstall', () => {
     expect(result.checks[0].errors).toBeGreaterThan(0)
   })
 
+  it('fails when Codex cache has the current version but stale bundle contents', async () => {
+    mkdirSync(resolve(DIST_DIR, 'codex/.codex-plugin'), { recursive: true })
+    mkdirSync(resolve(DIST_DIR, 'codex/skills/current'), { recursive: true })
+    writeFileSync(
+      resolve(DIST_DIR, 'codex/.codex-plugin/plugin.json'),
+      JSON.stringify({
+        name: 'verify-plugin',
+        version: '0.2.0',
+        skills: './skills/',
+      }),
+    )
+    writeFileSync(resolve(DIST_DIR, 'codex/skills/current/SKILL.md'), '# Current\n')
+
+    await installPlugin(DIST_DIR, 'verify-plugin', ['codex'])
+
+    const staleCache = resolve(HOME_DIR, '.codex/plugins/cache/local-plugins/verify-plugin/0.2.0')
+    mkdirSync(resolve(staleCache, '.codex-plugin'), { recursive: true })
+    mkdirSync(resolve(staleCache, 'skills/old'), { recursive: true })
+    writeFileSync(
+      resolve(staleCache, '.codex-plugin/plugin.json'),
+      JSON.stringify({
+        name: 'verify-plugin',
+        version: '0.2.0',
+        skills: './skills/',
+      }),
+    )
+    writeFileSync(resolve(staleCache, 'skills/old/SKILL.md'), '# Old cache\n')
+
+    const result = await verifyInstall(makeConfig(), {
+      rootDir: ROOT,
+      targets: ['codex'],
+    })
+
+    expect(result.ok).toBe(false)
+    expect(result.checks[0]).toMatchObject({
+      platform: 'codex',
+      built: true,
+      installed: true,
+      stale: true,
+      ok: false,
+    })
+    expect(result.checks[0].staleReason).toContain('cached bundle contents do not match the active local install')
+    expect(result.checks[0].errors).toBeGreaterThan(0)
+  })
+
+  it('fails when Codex cache has the current version but symlink targets drift', async () => {
+    mkdirSync(resolve(DIST_DIR, 'codex/.codex-plugin'), { recursive: true })
+    mkdirSync(resolve(DIST_DIR, 'codex/skills/current'), { recursive: true })
+    mkdirSync(resolve(DIST_DIR, 'codex/assets'), { recursive: true })
+    writeFileSync(
+      resolve(DIST_DIR, 'codex/.codex-plugin/plugin.json'),
+      JSON.stringify({
+        name: 'verify-plugin',
+        version: '0.2.0',
+        skills: './skills/',
+      }),
+    )
+    writeFileSync(resolve(DIST_DIR, 'codex/skills/current/SKILL.md'), '# Current\n')
+    symlinkSync('current-target', resolve(DIST_DIR, 'codex/assets/runtime-link'))
+
+    await installPlugin(DIST_DIR, 'verify-plugin', ['codex'])
+
+    const staleCache = resolve(HOME_DIR, '.codex/plugins/cache/local-plugins/verify-plugin/0.2.0')
+    mkdirSync(resolve(staleCache, '.codex-plugin'), { recursive: true })
+    mkdirSync(resolve(staleCache, 'skills/current'), { recursive: true })
+    mkdirSync(resolve(staleCache, 'assets'), { recursive: true })
+    writeFileSync(
+      resolve(staleCache, '.codex-plugin/plugin.json'),
+      JSON.stringify({
+        name: 'verify-plugin',
+        version: '0.2.0',
+        skills: './skills/',
+      }),
+    )
+    writeFileSync(resolve(staleCache, 'skills/current/SKILL.md'), '# Current\n')
+    symlinkSync('stale-target', resolve(staleCache, 'assets/runtime-link'))
+
+    const result = await verifyInstall(makeConfig(), {
+      rootDir: ROOT,
+      targets: ['codex'],
+    })
+
+    expect(result.ok).toBe(false)
+    expect(result.checks[0]).toMatchObject({
+      platform: 'codex',
+      built: true,
+      installed: true,
+      stale: true,
+      ok: false,
+    })
+    expect(result.checks[0].staleReason).toContain('cached bundle contents do not match the active local install')
+    expect(result.checks[0].errors).toBeGreaterThan(0)
+  })
+
   it('passes after reinstall clears a stale Codex active cache for the installed plugin', async () => {
     mkdirSync(resolve(DIST_DIR, 'codex/.codex-plugin'), { recursive: true })
     writeFileSync(

@@ -252,6 +252,7 @@ As of 2026-06-24:
   - `verify-install`
   - platform-change-ops stress fixture
   - docs-ops and self-hosted Pluxx install proof
+  - `verify-install` now treats the Codex active cache as stale when a same-version cache copy does not match the active local install contents, not only when the manifest version differs
   - installed-MCP discovery now disambiguates duplicate Claude same-name servers across project `.mcp.json`, top-level `~/.claude.json`, and nested local `projects[...]` scope entries with path-qualified selectors
   - nested Claude `projects[...]` MCP entries are now preserved as distinct discovered/importable sources instead of collapsing inside one `~/.claude.json` file
 - Current gaps:
@@ -270,7 +271,7 @@ As of 2026-06-24:
   - the next evidence gap is more polish than missing generator behavior, especially for in-app walkthrough quality
 - Strong proof:
   - install/uninstall tests
-  - stale-cache detection
+  - stale-cache detection, including Codex same-version cache content drift against the active local install
   - release smoke
   - Codex and Claude install/update docs
   - the self-hosted `example/pluxx` source project now has maintained behavioral smoke cases for `verify-install` and Codex-hook-focused `translate-hosts`

@@ -1,3 +1,4 @@
+import { createHash } from 'crypto'
 import { existsSync, lstatSync, readdirSync, readFileSync, readlinkSync, realpathSync, statSync } from 'fs'
 import { resolve } from 'path'
 import type { PluginConfig, TargetPlatform } from '../schema'
@@ -135,12 +136,66 @@ function findCodexCacheCandidates(pluginName: string): Array<{ path: string; ver
   return candidates.sort((a, b) => b.mtimeMs - a.mtimeMs)
 }
 
-function detectCodexCacheStaleness(pluginName: string, builtVersion: string | undefined): string | undefined {
+function hashInstalledBundle(rootDir: string): string {
+  const hash = createHash('sha256')
+
+  const visit = (currentDir: string, relativePrefix = ''): void => {
+    for (const entry of readdirSync(currentDir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const absolutePath = resolve(currentDir, entry.name)
+      const relativePath = relativePrefix ? `${relativePrefix}/${entry.name}` : entry.name
+
+      if (entry.isDirectory()) {
+        visit(absolutePath, relativePath)
+        continue
+      }
+
+      const stats = lstatSync(absolutePath)
+      if (stats.isSymbolicLink()) {
+        hash.update(relativePath)
+        hash.update('\0symlink\0')
+        hash.update(readlinkSync(absolutePath))
+        hash.update('\0')
+        continue
+      }
+
+      if (!entry.isFile()) continue
+      hash.update(relativePath)
+      hash.update('\0file\0')
+      hash.update(readFileSync(absolutePath))
+      hash.update('\0')
+    }
+  }
+
+  visit(rootDir)
+  return hash.digest('hex')
+}
+
+function detectCodexCacheStaleness(pluginName: string, builtVersion: string | undefined, consumerPath: string): string | undefined {
   if (!builtVersion) return undefined
 
   const candidates = findCodexCacheCandidates(pluginName)
   if (candidates.length === 0) return undefined
-  if (candidates.some((candidate) => candidate.version === builtVersion)) return undefined
+
+  const matchingVersionCandidates = candidates.filter((candidate) => candidate.version === builtVersion)
+  if (matchingVersionCandidates.length > 0) {
+    let installedSignature: string | undefined
+    try {
+      installedSignature = hashInstalledBundle(consumerPath)
+    } catch {
+      return undefined
+    }
+
+    for (const candidate of matchingVersionCandidates) {
+      try {
+        if (hashInstalledBundle(candidate.path) === installedSignature) return undefined
+      } catch {
+        // Ignore malformed cache entries and continue checking other candidates.
+      }
+    }
+
+    const newestMatchingVersion = matchingVersionCandidates[0]
+    return `Codex active cache appears stale at ${newestMatchingVersion.path}; cached version ${newestMatchingVersion.version ?? 'unknown'} matches the built version but the cached bundle contents do not match the active local install at ${consumerPath}. Use Plugins > Refresh if available, or restart/reinstall Codex to load the current plugin bundle.`
+  }
 
   const newest = candidates[0]
   return `Codex active cache appears stale at ${newest.path}; cached version ${newest.version ?? 'unknown'} does not match built version ${builtVersion}. Use Plugins > Refresh if available, or restart/reinstall Codex to load the current plugin bundle.`
@@ -167,7 +222,7 @@ function detectStaleInstall(target: PlannedInstallTarget, pluginName: string, co
   }
 
   if (target.platform === 'codex') {
-    return detectCodexCacheStaleness(pluginName, builtVersion)
+    return detectCodexCacheStaleness(pluginName, builtVersion, consumerPath)
   }
 
   return undefined
