@@ -110,6 +110,8 @@ Those should be documented and revisited later, not treated as the core product 
 
 Pluxx is published on npm as `@orchid-labs/pluxx`, and both the published CLI and normal maintainer flows now run on Node `>=18`.
 
+The package-level source of truth is [docs/runtime-contract.md](./runtime-contract.md).
+
 The important practical distinction is:
 
 - the CLI is the real execution engine
@@ -126,6 +128,7 @@ What is **not** true yet:
 
 - `npx pluxx ...` is not the public install path, because the published package name is scoped as `@orchid-labs/pluxx`
 - `node ./bin/pluxx.js ...` from this repo still expects a prior `npm run build`
+- old proof notes that mention `bun scripts/...` are historical probe receipts, not a current end-user runtime requirement
 
 ## How Pluxx Works Today
 

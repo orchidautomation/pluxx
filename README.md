@@ -232,12 +232,14 @@ Pluxx owns the deterministic scaffold, validation, and host compilation layer. Y
 - upgrade the active global CLI with: `pluxx upgrade`
 - published CLI runtime: Node `>=18`
 - source builds and maintainer workflows also run on Node `>=18`
+- runtime contract: [docs/runtime-contract.md](./docs/runtime-contract.md)
 
 ## Read Next
 
 - [Getting started](./docs/getting-started.md)
 - [Create a Pluxx plugin](./docs/create-a-pluxx-plugin.md)
 - [How it works](./docs/how-it-works.md)
+- [Runtime contract](./docs/runtime-contract.md)
 - [Self-hosted core-four proof](./docs/pluxx-self-hosted-core-four-proof.md)
 - [Docs Ops core-four proof](./docs/docs-ops-core-four-proof.md)
 - [Proof and install guide](./docs/proof-and-install.md)

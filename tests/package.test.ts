@@ -40,7 +40,11 @@ describe('package metadata', () => {
     expect(pkg.exports['.'].import).toBe('./dist/index.js')
     expect(pkg.engines.node).toBe('>=18')
     expect(pkg.engines.bun).toBeUndefined()
+    expect(pkg.dependencies.bun).toBeUndefined()
+    expect(pkg.devDependencies.bun).toBeUndefined()
     expect(pkg.scripts.build).toContain('scripts/build.mjs')
+    expect(pkg.scripts.test).toBe('node scripts/run-vitest-exclusive.mjs')
+    expect(pkg.scripts['release:check']).toContain('node scripts/verify-node-package-runtime.mjs')
     expect(pkg.scripts.prepublishOnly).toMatch(/npm run build/)
   })
 

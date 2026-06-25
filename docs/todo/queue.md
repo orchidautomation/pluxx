@@ -16,6 +16,7 @@ Last updated: 2026-06-24
   - [docs/docs-ops-core-four-proof.md](../docs-ops-core-four-proof.md)
   - [docs/exa-research-example.md](../exa-research-example.md)
   - [docs/release-distribution-proof-map.md](../release-distribution-proof-map.md)
+  - [docs/runtime-contract.md](../runtime-contract.md)
   - [docs/core-four-primitive-proof-ledger.md](../core-four-primitive-proof-ledger.md)
   - [docs/pluxx-plugin-surface-audit.md](../pluxx-plugin-surface-audit.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](../pluxx-self-hosted-core-four-proof.md)
@@ -176,7 +177,7 @@ The initial author-once hardening tranche is also materially done.
 The public baseline is also real.
 
 - npm package is live as `@orchid-labs/pluxx`
-- the latest published npm package is `@orchid-labs/pluxx@0.1.21`
+- the latest published npm package is `@orchid-labs/pluxx@0.1.22`
 - published CLI runtime is Node `>=18`
 - published CLI lifecycle ergonomics are now stronger for global installs:
   - `pluxx --version`
@@ -456,7 +457,7 @@ Open work:
 
 Goal:
 
-- keep the next npm release routine now that `0.1.21` is published and the code path plus packaged tarball pass the release gate
+- keep the next npm release routine now that `0.1.22` is published and the code path plus packaged tarball pass the release gate
 
 Open work:
 
@@ -464,8 +465,8 @@ Open work:
 - [x] run tests and release smoke
 - [x] restore example/release-smoke parity for `examples/prospeo-mcp`
 - [x] rerun the full release gate, including tarball install and `npm exec`
-- [x] publish and verify `@orchid-labs/pluxx@0.1.21`
-- [ ] for the next cut, bump `package.json` from `0.1.21` to the next version
+- [x] publish and verify `@orchid-labs/pluxx@0.1.22`
+- [ ] for the next cut, bump `package.json` from `0.1.22` to the next version
 - [ ] rerun `npm run release:check` before tagging
 - [ ] commit and push release-prep fixes on `main`
 - [ ] push the matching `vX.Y.Z` tag to trigger the GitHub Actions npm publish
