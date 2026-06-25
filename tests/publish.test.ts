@@ -633,7 +633,7 @@ describe('runPublish', () => {
 
       expect(run.status).toBe(0)
       expect(run.stderr).toBe('')
-      expect(run.stdout).toContain('Found existing plugin config; reusing saved install values.')
+      expect(run.stdout).toContain('Found existing publish-plugin config; reusing saved install values.')
       if (platform === 'codex') {
         expect(run.installedUserConfig?.values?.['instantly-api-key']).toBeUndefined()
         expect(run.installedUserConfig?.env?.SENDLENS_INSTANTLY_API_KEY).toBeUndefined()
@@ -646,20 +646,29 @@ describe('runPublish', () => {
   })
 
   it('lets explicit env vars override saved generated-installer user config', () => {
-    const run = runGeneratedInstaller('codex', {
-      existingUserConfig: {
-        values: { 'instantly-api-key': 'old-saved-key' },
-        env: { SENDLENS_INSTANTLY_API_KEY: 'old-saved-key' },
-      },
-      env: { SENDLENS_INSTANTLY_API_KEY: 'fresh-env-key' },
-    })
+    const platforms: TargetPlatform[] = ['claude-code', 'cursor', 'codex', 'opencode']
 
-    expect(run.status).toBe(0)
-    expect(run.stderr).toBe('')
-    expect(run.stdout).not.toContain('Found existing plugin config; reusing saved install values.')
-    expect(run.installedUserConfig?.values?.['instantly-api-key']).toBeUndefined()
-    expect(run.installedUserConfig?.env?.SENDLENS_INSTANTLY_API_KEY).toBeUndefined()
-    expect(run.installedUserConfig?.envRefs?.SENDLENS_INSTANTLY_API_KEY).toBe('SENDLENS_INSTANTLY_API_KEY')
+    for (const platform of platforms) {
+      const run = runGeneratedInstaller(platform, {
+        existingUserConfig: {
+          values: { 'instantly-api-key': 'old-saved-key' },
+          env: { SENDLENS_INSTANTLY_API_KEY: 'old-saved-key' },
+        },
+        env: { SENDLENS_INSTANTLY_API_KEY: 'fresh-env-key' },
+      })
+
+      expect(run.status).toBe(0)
+      expect(run.stderr).toBe('')
+      expect(run.stdout).not.toContain('reusing saved install values')
+      if (platform === 'codex') {
+        expect(run.installedUserConfig?.values?.['instantly-api-key']).toBeUndefined()
+        expect(run.installedUserConfig?.env?.SENDLENS_INSTANTLY_API_KEY).toBeUndefined()
+        expect(run.installedUserConfig?.envRefs?.SENDLENS_INSTANTLY_API_KEY).toBe('SENDLENS_INSTANTLY_API_KEY')
+      } else {
+        expect(run.installedUserConfig?.values?.['instantly-api-key']).toBe('fresh-env-key')
+        expect(run.installedUserConfig?.env?.SENDLENS_INSTANTLY_API_KEY).toBe('fresh-env-key')
+      }
+    }
   })
 
   it('lets PLUXX_RECONFIGURE skip saved generated-installer user config', () => {
@@ -676,7 +685,7 @@ describe('runPublish', () => {
 
     expect(run.status).toBe(0)
     expect(run.stderr).toBe('')
-    expect(run.stdout).not.toContain('Found existing plugin config; reusing saved install values.')
+    expect(run.stdout).not.toContain('reusing saved install values')
     expect(run.installerContent).toContain('PLUXX_RECONFIGURE')
     expect(run.installedUserConfig?.values?.['instantly-api-key']).toBeUndefined()
     expect(run.installedUserConfig?.env?.SENDLENS_INSTANTLY_API_KEY).toBeUndefined()
@@ -745,11 +754,30 @@ describe('runPublish', () => {
 
     expect(secondRun.status).toBe(0)
     expect(secondRun.stderr).toBe('')
-    expect(secondRun.stdout).toContain('Found existing plugin config; reusing saved install values.')
+    expect(secondRun.stdout).toContain('Found existing publish-plugin config; reusing saved install values.')
     expect(reinstalledMcp).toContain(SECRET_REFERENCE_ENV_VAR)
     expect(reinstalledMcp).toContain(SECRET_REFERENCE_WORKSPACE_ENV_VAR)
     expect(reinstalledMcp).not.toContain(SECRET_REFERENCE_SENTINEL)
     expect(reinstalledMcp).not.toContain(SECRET_REFERENCE_WORKSPACE_SENTINEL)
+  })
+
+  it('rejects required placeholder-looking saved generated-installer secret values', () => {
+    const platforms: TargetPlatform[] = ['claude-code', 'cursor', 'codex', 'opencode']
+
+    for (const platform of platforms) {
+      const run = runGeneratedInstaller(platform, {
+        existingUserConfig: {
+          values: { 'instantly-api-key': 'your api key here' },
+          env: { SENDLENS_INSTANTLY_API_KEY: 'your api key here' },
+        },
+      })
+
+      expect(run.status).toBe(1)
+      expect(run.stdout).not.toContain('reusing saved install values')
+      expect(run.stderr).toContain('Ignoring placeholder-looking saved config for SENDLENS_INSTANTLY_API_KEY.')
+      expect(run.stderr).toContain('Refusing placeholder-looking saved config for SENDLENS_INSTANTLY_API_KEY.')
+      expect(run.installedUserConfig).toBeUndefined()
+    }
   })
 
   it('ignores placeholder-looking saved generated-installer secret values', () => {
@@ -762,7 +790,7 @@ describe('runPublish', () => {
     })
 
     expect(run.status).toBe(0)
-    expect(run.stdout).not.toContain('Found existing plugin config; reusing saved install values.')
+    expect(run.stdout).not.toContain('reusing saved install values')
     expect(run.stderr).toContain('Ignoring placeholder-looking saved config for SENDLENS_INSTANTLY_API_KEY.')
     expect(run.installedUserConfig?.values?.['instantly-api-key']).toBeUndefined()
     expect(run.installedUserConfig?.env?.SENDLENS_INSTANTLY_API_KEY).toBeUndefined()

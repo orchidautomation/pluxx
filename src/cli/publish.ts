@@ -553,17 +553,23 @@ process.exit(1)
 NODE
 }
 
+pluxx_can_prompt_config() {
+  [[ -r /dev/tty && -w /dev/tty ]] && { [[ -t 0 ]] || [[ -t 1 ]] || [[ -t 2 ]]; }
+}
+
 pluxx_prompt_secret_config() {
   local key="$1"
   local env_var="$2"
   local label="$3"
   local required="$4"
   local current_value="\${!env_var:-}"
+  local saved_value_invalid=0
 
   if [[ -z "$current_value" && "\${PLUXX_RECONFIGURE:-0}" != "1" ]]; then
     local saved_value=""
     if saved_value="$(pluxx_saved_config_value "$key" "$env_var")"; then
       if pluxx_is_placeholder_secret "$saved_value"; then
+        saved_value_invalid=1
         echo "Ignoring placeholder-looking saved config for $env_var." >&2
       else
         current_value="$saved_value"
@@ -573,11 +579,15 @@ pluxx_prompt_secret_config() {
   fi
 
   if [[ -z "$current_value" && "$required" == "1" ]]; then
-    if [[ -t 0 || -r /dev/tty ]]; then
+    if pluxx_can_prompt_config; then
       read -r -s -p "$label [$env_var]: " current_value </dev/tty
       echo >/dev/tty
     else
-      echo "Missing required config: export $env_var before running this installer." >&2
+      if [[ "$saved_value_invalid" == "1" ]]; then
+        echo "Refusing placeholder-looking saved config for $env_var. Set a real value and rerun the installer." >&2
+      else
+        echo "Missing required config: export $env_var before running this installer." >&2
+      fi
       exit 1
     fi
   fi
@@ -606,7 +616,7 @@ pluxx_prompt_text_config() {
   fi
 
   if [[ -z "$current_value" && "$required" == "1" ]]; then
-    if [[ -t 0 || -r /dev/tty ]]; then
+    if pluxx_can_prompt_config; then
       read -r -p "$label [$env_var]: " current_value </dev/tty
     else
       echo "Missing required config: export $env_var before running this installer." >&2
@@ -620,7 +630,7 @@ pluxx_prompt_text_config() {
 ${promptLines.join('\n')}
 
 if [[ "$PLUXX_REUSED_USER_CONFIG" == "1" ]]; then
-  echo "Found existing plugin config; reusing saved install values."
+  echo "Found existing $PLUGIN_NAME config; reusing saved install values."
 fi
 
 export PLUXX_USER_CONFIG_SPEC
