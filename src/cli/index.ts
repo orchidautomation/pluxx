@@ -79,6 +79,7 @@ import { printVerifyInstallResult, verifyInstall } from './verify-install'
 import { runBehavioralSuite } from './behavioral'
 import type { BehavioralSuiteResult } from './behavioral'
 import { planTextFileAction, writeTextFile } from '../text-files'
+import { applyCodexCompanion } from './codex-apply'
 import {
   discoverInstalledMcpServers,
   formatInstalledMcpSource,
@@ -273,6 +274,9 @@ export async function main() {
       break
     case 'discover-mcp':
       await runDiscoverMcp()
+      break
+    case 'codex':
+      await runCodex()
       break
     case 'autopilot':
       await runAutopilot()
@@ -3393,6 +3397,54 @@ async function runVerifyInstall() {
   }
 }
 
+async function runCodex() {
+  const subcommand = args[1]
+  if (subcommand === 'apply') {
+    const consumerRoot = readOption(args, '--consumer') ?? args[2]
+    if (!consumerRoot || consumerRoot.startsWith('-')) {
+      console.error('Usage: pluxx codex apply --consumer <installed-codex-bundle> [--config <config.toml>|--project-root <path>|--user] [--hooks-only|--mcp-approvals-only] [--dry-run] [--json]')
+      process.exit(1)
+    }
+
+    const hooksOnly = readFlag(args, '--hooks-only')
+    const approvalsOnly = readFlag(args, '--mcp-approvals-only')
+    if (hooksOnly && approvalsOnly) {
+      throw new Error('Use either --hooks-only or --mcp-approvals-only, not both.')
+    }
+
+    const result = applyCodexCompanion({
+      consumerRoot,
+      configPath: readOption(args, '--config'),
+      projectRoot: readOption(args, '--project-root'),
+      userConfig: readFlag(args, '--user'),
+      includeHooks: !approvalsOnly,
+      includeMcpApprovals: !hooksOnly,
+      dryRun: runtime.dryRun,
+    })
+
+    if (runtime.jsonOutput) {
+      printJson(result)
+      return
+    }
+
+    if (!runtime.quiet) {
+      console.log(`${runtime.dryRun ? 'Dry run: ' : ''}${result.changed ? 'Codex config changes planned' : 'Codex config already up to date'}: ${result.configPath}`)
+      for (const action of result.actions) {
+        console.log(`  [${action.status}] ${action.detail}`)
+      }
+      if (result.changed && runtime.dryRun) {
+        console.log('Run without --dry-run to apply these changes, then rerun `pluxx verify-install --target codex`.')
+      } else if (result.changed) {
+        console.log('Applied. Reload Codex, then rerun `pluxx verify-install --target codex`.')
+      }
+    }
+    return
+  }
+
+  console.error('Usage: pluxx codex apply --consumer <installed-codex-bundle> [--config <config.toml>|--project-root <path>|--user] [--hooks-only|--mcp-approvals-only] [--dry-run] [--json]')
+  process.exit(1)
+}
+
 async function runUninstall() {
   const targets = parseTargetFlagValues(args)
 
@@ -3450,6 +3502,7 @@ Usage:
   pluxx agent prepare                     Generate agent context + boundary files for host agents
   pluxx agent prompt <kind>               Generate a prompt pack (taxonomy, instructions, review)
   pluxx agent run <kind> --runner <id>    Execute a prompt pack via Claude, Cursor, Codex, or OpenCode headlessly
+  pluxx codex apply --consumer <path>     Apply generated Codex hook/config companions to active config
   pluxx discover-mcp [--host <hosts...>] List installed MCP servers from local host configs
   pluxx mcp proxy ...                     Run a local MCP proxy with optional record/replay tapes
   pluxx autopilot --from-mcp ...          Run import + agent refinement + verification in one command
@@ -3513,6 +3566,7 @@ Examples:
   pluxx agent run taxonomy --runner codex
   pluxx agent run taxonomy --runner codex --verbose-runner
   pluxx agent run review --runner opencode --attach http://localhost:4096 --no-verify
+  pluxx codex apply --consumer ./dist/codex --project-root . --dry-run
   pluxx autopilot --from-mcp https://example.com/mcp --runner codex --website https://example.com --docs https://docs.example.com --ingest-provider auto
   pluxx mcp proxy --from-mcp "node ./server.js" --record .pluxx/tapes/dev.json
   pluxx mcp proxy --replay .pluxx/tapes/dev.json
