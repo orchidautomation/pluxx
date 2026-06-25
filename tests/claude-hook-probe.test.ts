@@ -379,6 +379,23 @@ describe('claude hook probe', () => {
     expect(result.managedAllowManagedHooksOnly).toBe(true)
   })
 
+  it('reports hook-executed only for managed settings when allowManagedHooksOnly suppresses all lower settings scopes', async () => {
+    const result = await runScenario({
+      name: 'managed-settings-allow-managed-only-suppresses-lower-settings',
+      managedHook: true,
+      userHook: true,
+      projectHook: true,
+      localHook: true,
+      managedAllowManagedHooksOnly: true,
+    }, {
+      managedSettingsShadow: true,
+    })
+
+    expect(result.status).toBe('hook-executed')
+    expect(result.sideEffects.map((effect) => effect.name)).toEqual(['managed'])
+    expect(result.managedAllowManagedHooksOnly).toBe(true)
+  })
+
   it('reports hook-executed for a managed-scope plugin hook when allowManagedHooksOnly is enabled', async () => {
     const result = await runScenario({
       name: 'managed-settings-allow-managed-only-plugin',

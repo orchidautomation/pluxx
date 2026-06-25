@@ -153,6 +153,14 @@ export function getManagedClaudeHookProbeShadowScenarios(): ClaudeHookProbeScena
       managedAllowManagedHooksOnly: true,
     },
     {
+      name: 'managed-settings-allow-managed-only-suppresses-lower-settings',
+      managedHook: true,
+      userHook: true,
+      projectHook: true,
+      localHook: true,
+      managedAllowManagedHooksOnly: true,
+    },
+    {
       name: 'managed-settings-allow-managed-only-plugin',
       pluginHook: true,
       pluginScope: 'managed',
@@ -551,6 +559,15 @@ function classifyClaudeProbeStatus(
   duplicateHooksError: boolean,
 ): ClaudeHookProbeStatus {
   if (duplicateHooksError) return 'duplicate-hook-load-error'
+  if (scenario.managedDisableAllHooks || scenario.managedAllowManagedHooksOnly) {
+    if (scenario.managedHook && sideEffects.some((effect) => effect.name === 'managed')) {
+      return 'hook-executed'
+    }
+    if (scenario.pluginHook && getScenarioPluginScope(scenario) === 'managed' && sideEffects.some((effect) => effect.name === 'plugin')) {
+      return 'hook-executed'
+    }
+    return 'no-hook-side-effect'
+  }
   if (sideEffects.length > 0) return 'hook-executed'
   if ((scenario.pluginHook || scenario.includeStandardManifestHooks) && execution.loadedPlugins.length === 0) {
     return 'plugin-not-loaded'
