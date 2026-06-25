@@ -293,9 +293,24 @@ interface AgentOverrides {
   reviewCriteria?: string
 }
 
+interface AgentContextIngestionProvider {
+  name: ResolvedAgentIngestProvider
+  fetchSource(
+    url: string,
+    kind: 'website' | 'docs',
+    role: AgentContextSource['role'],
+    note?: string,
+  ): Promise<AgentContextSource | null>
+  expandSources(
+    sources: AgentContextSource[],
+    seenUrls: Set<string>,
+  ): Promise<AgentContextSource[]>
+}
+
 interface AgentContextFetchStrategy {
   requestedProvider: AgentIngestProvider
   resolvedProvider: ResolvedAgentIngestProvider
+  provider: AgentContextIngestionProvider
   fallbackToLocalOnError: boolean
 }
 
@@ -1056,17 +1071,8 @@ async function collectAgentContextPackInternal(
     }
   }
 
-  const firecrawlExpandedSources = await expandFirecrawlContextSources(sources, seenUrls, ingestStrategy)
-  for (const source of firecrawlExpandedSources) {
-    const identity = normalizeUrlIdentity(source.resolvedUrl ?? source.requestedUrl ?? source.label)
-    if (seenUrls.has(identity)) continue
-    sources.push(source)
-    records.push(buildContextSourceRecord(source, true))
-    seenUrls.add(identity)
-  }
-
-  const localExpandedSources = await expandLocalContextSources(sources, seenUrls, ingestStrategy)
-  for (const source of localExpandedSources) {
+  const expandedSources = await expandContextSources(sources, seenUrls, ingestStrategy)
+  for (const source of expandedSources) {
     const identity = normalizeUrlIdentity(source.resolvedUrl ?? source.requestedUrl ?? source.label)
     if (seenUrls.has(identity)) continue
     sources.push(source)
@@ -1174,20 +1180,27 @@ async function fetchContextSource(
   role: AgentContextSource['role'],
   options: RemoteContextFetchOptions,
 ): Promise<AgentContextSource | null> {
-  if (options.strategy.resolvedProvider === 'firecrawl') {
-    const firecrawlSource = await fetchContextSourceWithFirecrawl(url, kind, role, options.note)
+  if (options.strategy.provider.name === 'firecrawl') {
+    const firecrawlSource = await options.strategy.provider.fetchSource(url, kind, role, options.note)
+    if (!firecrawlSource) {
+      return LOCAL_AGENT_CONTEXT_INGESTION_PROVIDER.fetchSource(url, kind, role, appendAgentContextNote(
+        options.note,
+        'Firecrawl scrape returned no source; fell back to local fetch.',
+      ))
+    }
+
     if (firecrawlSource.status === 'ok' || !options.strategy.fallbackToLocalOnError) {
       return firecrawlSource
     }
 
     const fallbackReason = firecrawlSource.summary.replace(/^Unavailable:\s*/i, '').replace(/\.$/, '')
-    return fetchContextSourceLocally(url, kind, role, appendAgentContextNote(
+    return LOCAL_AGENT_CONTEXT_INGESTION_PROVIDER.fetchSource(url, kind, role, appendAgentContextNote(
       options.note,
       `Firecrawl scrape failed (${fallbackReason}); fell back to local fetch.`,
     ))
   }
 
-  return fetchContextSourceLocally(url, kind, role, options.note)
+  return options.strategy.provider.fetchSource(url, kind, role, options.note)
 }
 
 async function fetchContextSourceLocally(
@@ -1335,15 +1348,30 @@ async function fetchContextSourceWithFirecrawl(
   }
 }
 
-async function expandFirecrawlContextSources(
+async function expandContextSources(
   sources: AgentContextSource[],
   seenUrls: Set<string>,
   ingestStrategy: AgentContextFetchStrategy,
 ): Promise<AgentContextSource[]> {
-  if (ingestStrategy.resolvedProvider !== 'firecrawl') {
-    return []
+  const primarySources = await ingestStrategy.provider.expandSources(sources, seenUrls)
+  if (!ingestStrategy.fallbackToLocalOnError || ingestStrategy.provider.name === 'local') {
+    return primarySources
   }
 
+  const primaryIdentities = primarySources.map((source) => normalizeUrlIdentity(source.resolvedUrl ?? source.requestedUrl ?? source.label))
+  const fallbackSeenUrls = new Set([...seenUrls, ...primaryIdentities])
+  const localFallbackSources = await LOCAL_AGENT_CONTEXT_INGESTION_PROVIDER.expandSources(
+    [...sources, ...primarySources],
+    fallbackSeenUrls,
+  )
+
+  return [...primarySources, ...localFallbackSources]
+}
+
+async function expandFirecrawlContextSources(
+  sources: AgentContextSource[],
+  seenUrls: Set<string>,
+): Promise<AgentContextSource[]> {
   const roots = prioritizeExpansionRoots(sources, 'firecrawl')
   if (roots.length === 0) {
     return []
@@ -1373,12 +1401,7 @@ async function expandFirecrawlContextSources(
 async function expandLocalContextSources(
   sources: AgentContextSource[],
   seenUrls: Set<string>,
-  ingestStrategy: AgentContextFetchStrategy,
 ): Promise<AgentContextSource[]> {
-  if (ingestStrategy.resolvedProvider !== 'local') {
-    return []
-  }
-
   const roots = prioritizeExpansionRoots(sources, 'local')
   if (roots.length === 0) {
     return []
@@ -1861,6 +1884,18 @@ interface FirecrawlBatchData {
   }
 }
 
+const LOCAL_AGENT_CONTEXT_INGESTION_PROVIDER: AgentContextIngestionProvider = {
+  name: 'local',
+  fetchSource: fetchContextSourceLocally,
+  expandSources: expandLocalContextSources,
+}
+
+const FIRECRAWL_AGENT_CONTEXT_INGESTION_PROVIDER: AgentContextIngestionProvider = {
+  name: 'firecrawl',
+  fetchSource: fetchContextSourceWithFirecrawl,
+  expandSources: expandFirecrawlContextSources,
+}
+
 function resolveAgentContextFetchStrategy(
   requestedProvider: AgentIngestProvider | undefined,
 ): AgentContextFetchStrategy {
@@ -1869,6 +1904,7 @@ function resolveAgentContextFetchStrategy(
     return {
       requestedProvider: requested,
       resolvedProvider: 'local',
+      provider: LOCAL_AGENT_CONTEXT_INGESTION_PROVIDER,
       fallbackToLocalOnError: false,
     }
   }
@@ -1880,6 +1916,7 @@ function resolveAgentContextFetchStrategy(
     return {
       requestedProvider: requested,
       resolvedProvider: 'firecrawl',
+      provider: FIRECRAWL_AGENT_CONTEXT_INGESTION_PROVIDER,
       fallbackToLocalOnError: false,
     }
   }
@@ -1888,6 +1925,7 @@ function resolveAgentContextFetchStrategy(
     return {
       requestedProvider: requested,
       resolvedProvider: 'firecrawl',
+      provider: FIRECRAWL_AGENT_CONTEXT_INGESTION_PROVIDER,
       fallbackToLocalOnError: true,
     }
   }
@@ -1895,6 +1933,7 @@ function resolveAgentContextFetchStrategy(
   return {
     requestedProvider: requested,
     resolvedProvider: 'local',
+    provider: LOCAL_AGENT_CONTEXT_INGESTION_PROVIDER,
     fallbackToLocalOnError: false,
   }
 }

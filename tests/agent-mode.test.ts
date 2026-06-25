@@ -1752,6 +1752,105 @@ exit 1
     }
   })
 
+  it('uses local link expansion after auto-selected Firecrawl falls back', async () => {
+    const originalFetch = globalThis.fetch
+    const originalFirecrawlKey = process.env.FIRECRAWL_API_KEY
+    process.env.FIRECRAWL_API_KEY = 'fc-test-key'
+
+    globalThis.fetch = (async (input, init) => {
+      const request = new Request(input, init)
+      if (request.url === 'https://api.firecrawl.dev/v2/scrape') {
+        return new Response(JSON.stringify({ success: false, error: 'upstream unavailable' }), {
+          status: 502,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+
+      if (request.url === 'https://playkit.sh/') {
+        return new Response(
+          '<!doctype html><html><head><title>PlayKit</title><meta name="description" content="Clay expertise in every AI conversation."></head><body><main><h1>PlayKit</h1><a href="https://docs.playkit.sh/">Docs</a><p>Clay expertise in every AI conversation.</p></main></body></html>',
+          {
+            status: 200,
+            headers: { 'Content-Type': 'text/html; charset=utf-8' },
+          },
+        )
+      }
+
+      if (request.url === 'https://docs.playkit.sh/' || request.url === 'https://docs.playkit.sh/docs') {
+        return new Response(
+          '<!doctype html><html><head><title>PlayKit Docs</title><meta name="description" content="Clay expertise in every AI conversation."></head><body><main><h1>PlayKit Docs</h1><a href="/docs/authentication">Authentication</a><a href="/docs/quickstart">Quickstart</a><p>Connect Clay before using API tools.</p></main></body></html>',
+          {
+            status: 200,
+            headers: { 'Content-Type': 'text/html; charset=utf-8' },
+          },
+        )
+      }
+
+      if (request.url === 'https://docs.playkit.sh/docs/authentication') {
+        return new Response(
+          '<!doctype html><html><head><title>Authentication</title><meta name="description" content="Set the X-API-Key header before using hosted PlayKit MCP."></head><body><main><h1>Authentication</h1><h2>API Key Header</h2><p>Set the X-API-Key header before using hosted PlayKit MCP.</p></main></body></html>',
+          {
+            status: 200,
+            headers: { 'Content-Type': 'text/html; charset=utf-8' },
+          },
+        )
+      }
+
+      if (request.url === 'https://docs.playkit.sh/docs/quickstart') {
+        return new Response(
+          '<!doctype html><html><head><title>Quickstart</title><meta name="description" content="Install PlayKit MCP and connect Clay in a few minutes."></head><body><main><h1>Quickstart</h1><h2>Quick Setup</h2><p>Install PlayKit MCP and connect Clay in a few minutes.</p></main></body></html>',
+          {
+            status: 200,
+            headers: { 'Content-Type': 'text/html; charset=utf-8' },
+          },
+        )
+      }
+
+      throw new Error(`Unexpected fetch to ${request.url}`)
+    }) as typeof fetch
+
+    try {
+      const plan = await planAgentPrepare(TEST_DIR, {
+        websiteUrl: 'https://playkit.sh/',
+        ingestProvider: 'auto',
+      })
+      await applyAgentPreparePlan(TEST_DIR, plan)
+
+      const context = readFileSync(resolve(TEST_DIR, AGENT_CONTEXT_PATH), 'utf-8')
+      const sources = JSON.parse(readFileSync(resolve(TEST_DIR, AGENT_SOURCES_PATH), 'utf-8')) as {
+        ingestion?: {
+          requestedProvider: string
+          resolvedProvider: string
+          fallbackToLocalOnError: boolean
+        }
+        sources: Array<{ label: string; role: string; provider?: string; note?: string }>
+      }
+      const docsContext = JSON.parse(readFileSync(resolve(TEST_DIR, AGENT_DOCS_CONTEXT_PATH), 'utf-8')) as {
+        authHints: string[]
+        setupHints: string[]
+      }
+
+      expect(sources.ingestion).toEqual({
+        requestedProvider: 'auto',
+        resolvedProvider: 'firecrawl',
+        fallbackToLocalOnError: true,
+      })
+      expect(sources.sources.some((source) => source.role === 'discovered-page' && source.label === 'https://docs.playkit.sh/docs/authentication')).toBe(true)
+      expect(sources.sources.some((source) => source.role === 'discovered-page' && source.provider === 'local' && source.note === 'Discovered via local link expansion.')).toBe(true)
+      expect(docsContext.authHints.some((hint) => hint.includes('X-API-Key'))).toBe(true)
+      expect(docsContext.setupHints.some((hint) => /Install Play ?Kit MCP/.test(hint) || hint.includes('Connect Clay before using API tools'))).toBe(true)
+      expect(context).toContain('https://docs.playkit.sh/docs/authentication')
+      expect(context).toContain('Discovered via local link expansion.')
+    } finally {
+      globalThis.fetch = originalFetch
+      if (originalFirecrawlKey === undefined) {
+        delete process.env.FIRECRAWL_API_KEY
+      } else {
+        process.env.FIRECRAWL_API_KEY = originalFirecrawlKey
+      }
+    }
+  })
+
   it('fails fast when firecrawl is explicitly requested without a key', async () => {
     const originalFirecrawlKey = process.env.FIRECRAWL_API_KEY
     delete process.env.FIRECRAWL_API_KEY
