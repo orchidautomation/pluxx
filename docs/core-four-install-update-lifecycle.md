@@ -20,6 +20,8 @@ For the official-doc-backed host capability audit, use [Core-Four Provider Docs 
 
 For the current release/distribution/proof boundary, use [Release Distribution Proof Map](./release-distribution-proof-map.md).
 
+For the parser-backed reference shape that future install-link and ownership work should reuse, use [Install Reference Syntax](./install-reference-syntax.md).
+
 ## Host Install And Discovery Capability Matrix
 
 This is the code-owned source of truth for issue #306: install method, local path, reload behavior, cache semantics, discovery surface, and brand/listing support per primary host.

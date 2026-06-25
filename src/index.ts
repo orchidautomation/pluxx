@@ -98,6 +98,17 @@ export {
   type GeneratedBundleCheckReport,
 } from './bundle-check'
 export {
+  INSTALL_REFERENCE_SCHEMES,
+  formatInstallReference,
+  parseInstallReference,
+  type GitHubInstallReference,
+  type InstallReferenceScheme,
+  type LocalInstallReference,
+  type NpmInstallReference,
+  type ParsedInstallReference,
+  type TeamInstallReference,
+} from './install-reference'
+export {
   printVerifyInstallResult,
   verifyInstall,
   type VerifyInstallCheck,
