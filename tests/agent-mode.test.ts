@@ -1274,11 +1274,21 @@ exit 1
                     <a href="/docs/authentication">Authentication</a>
                     <a href="/docs/quickstart">Quickstart</a>
                     <a href="/docs/knowledge-tools">Knowledge Tools</a>
+                    <a href="/docs/overview">Overview</a>
+                    <a href="/docs/guides">Guides</a>
+                    <a href="/docs/tables">Tables</a>
+                    <a href="/docs/actions">Actions</a>
+                    <a href="/docs/admin">Admin</a>
+                    <a href="/docs/billing">Billing</a>
+                    <a href="/docs/settings">Settings</a>
+                    <a href="/docs/support">Support</a>
                   </nav>
                 </aside>
-                <article>
+                <article class="prose">
                   <h1>PlayKit Docs</h1>
-                  <p>Choose a guide from the docs navigation.</p>
+                  <p>Choose a guide from the docs navigation after reviewing the product overview and workflow model.</p>
+                  <p>PlayKit helps operators answer Clay questions, plan enrichments, and inspect table workflows before they spend credits.</p>
+                  <p>The primary docs content is intentionally longer than the short sidebar labels so text scoring prefers this nested prose container.</p>
                 </article>
               </main>
             </body>

@@ -1564,7 +1564,7 @@ function extractLocalMappedLinks(
   const $ = cheerio.load(html)
   // Docs sites often place valid follow-up pages in sidebars inside <main>.
   // Keep pruning limited to text summarization so expansion does not lose them.
-  const primary = selectLocalMainContent($)
+  const primary = selectLocalLinkDiscoveryContent($)
   const links: FirecrawlMappedLink[] = []
   primary.find('a[href]').each((_, element) => {
     const rawHref = $(element).attr('href')?.trim()
@@ -1595,6 +1595,11 @@ function extractLocalMappedLinks(
   return normalizeFirecrawlMappedLinks(
     uniqueStrings(links.map((link) => JSON.stringify(link))).map((entry) => JSON.parse(entry) as FirecrawlMappedLink),
   )
+}
+
+function selectLocalLinkDiscoveryContent($: CheerioRoot): CheerioSelection {
+  const main = $('main, [role="main"]').first()
+  return main.length > 0 ? main : selectLocalMainContent($)
 }
 
 function normalizeFirecrawlMappedLinks(
