@@ -89,6 +89,8 @@ Generated command-hook wrappers are now Node launchers at `hooks/pluxx-hook-comm
 
 If the installed Codex bundle also includes `.codex/config.generated.toml`, `doctor --consumer` and `verify-install` now inspect the checked project and user `config.toml` layers for matching per-tool `approval_mode = "approve"` stanzas. When those generated approvals have not been merged yet, Pluxx warns explicitly instead of assuming the companion file was actually applied. This is still an external merge step, not plugin-bundled enforcement.
 
+Use `pluxx codex apply --consumer <installed-codex-bundle> --project-root <project>` to make that external merge step explicit. The command applies the canonical `[features].hooks = true` prerequisite for hook-bearing bundles and merges generated MCP approval stanzas from `.codex/config.generated.toml` into the selected active Codex config. Use `--dry-run` first to preview the target config path and planned changes, then reload Codex and rerun `pluxx verify-install --target codex`.
+
 The newest live Codex proof on 2026-05-13 narrowed the remaining gap further:
 
 - Pluxx now emits the official nested Codex hook shape at `hooks/hooks.json`
