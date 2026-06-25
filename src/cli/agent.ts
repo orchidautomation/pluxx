@@ -3,6 +3,8 @@ import { chmod, copyFile, mkdir, mkdtemp, readFile, rm } from 'fs/promises'
 import { homedir, tmpdir } from 'os'
 import { relative, resolve } from 'path'
 import { spawn } from 'child_process'
+import * as cheerio from 'cheerio/lib/slim'
+import TurndownService from 'turndown'
 import { planTextFileAction, readTextFile, writeTextFile } from '../text-files'
 import { loadConfig } from '../config/load'
 import { getCanonicalCommandMetadata, readCanonicalCommandFiles } from '../commands'
@@ -34,6 +36,9 @@ export type AgentRunner = typeof AGENT_RUNNERS[number]
 export type AgentIngestProvider = typeof AGENT_INGEST_PROVIDERS[number]
 export type ResolvedAgentIngestProvider = Exclude<AgentIngestProvider, 'auto'>
 
+type CheerioRoot = cheerio.CheerioAPI
+type CheerioSelection = cheerio.Cheerio<any>
+
 const AGENT_PROMPT_PATHS: Record<AgentPromptKind, string> = {
   taxonomy: '.pluxx/agent/taxonomy-prompt.md',
   instructions: '.pluxx/agent/instructions-prompt.md',
@@ -48,6 +53,35 @@ const AGENT_RUNNER_BINARIES: Record<AgentRunner, string> = {
 }
 
 const CURSOR_RUNNER_BINARIES = ['agent', 'cursor-agent'] as const
+const LOCAL_HTML_TURNDOWN = new TurndownService({
+  headingStyle: 'atx',
+  codeBlockStyle: 'fenced',
+  bulletListMarker: '-',
+})
+
+const LOCAL_HTML_NOISE_SELECTORS = [
+  'script',
+  'style',
+  'noscript',
+  'svg',
+  'template',
+  'iframe',
+  'canvas',
+  'header',
+  'nav',
+  'footer',
+  'aside',
+  'form',
+  'button',
+  'input',
+  'select',
+  'textarea',
+  '[hidden]',
+  '[aria-hidden="true"]',
+  '[role="navigation"]',
+  '[role="search"]',
+  '[data-pagefind-ignore]',
+].join(',')
 
 export interface AgentPreparePlannedFile {
   relativePath: string
@@ -1524,38 +1558,38 @@ function extractLocalMappedLinks(
   html: string,
   kind: 'website' | 'docs',
 ): FirecrawlMappedLink[] {
-  const cleanedHtml = stripNonContentHtml(html)
-  const primaryHtml = selectPrimaryHtmlFragment(cleanedHtml)
-  const matches = primaryHtml.matchAll(/<a\b[^>]*href=(["'])(.*?)\1[^>]*>([\s\S]*?)<\/a>/gi)
   const base = safeParseUrl(baseUrl)
   if (!base) return []
 
+  const $ = cheerio.load(html)
+  const primary = selectLocalMainContent($)
+  cleanLocalHtmlSelection($, primary)
   const links: FirecrawlMappedLink[] = []
-  for (const match of matches) {
-    const rawHref = match[2]?.trim()
+  primary.find('a[href]').each((_, element) => {
+    const rawHref = $(element).attr('href')?.trim()
     if (!rawHref || rawHref.startsWith('#') || rawHref.startsWith('javascript:') || rawHref.startsWith('mailto:') || rawHref.startsWith('tel:')) {
-      continue
+      return
     }
 
     const resolved = safeParseUrl(new URL(rawHref, baseUrl).toString())
     if (!resolved || !['http:', 'https:'].includes(resolved.protocol)) {
-      continue
+      return
     }
 
     if (kind === 'docs' && resolved.host !== base.host) {
-      continue
+      return
     }
     if (kind === 'website' && resolved.host !== base.host && !resolved.host.startsWith('docs.')) {
-      continue
+      return
     }
 
     resolved.hash = ''
-    const title = cleanHtmlText(match[3] ?? '')
+    const title = normalizeHtmlText($(element).text())
     links.push({
       url: resolved.toString(),
       title: title || undefined,
     })
-  }
+  })
 
   return normalizeFirecrawlMappedLinks(
     uniqueStrings(links.map((link) => JSON.stringify(link))).map((entry) => JSON.parse(entry) as FirecrawlMappedLink),
@@ -2123,80 +2157,108 @@ function summarizeHtml(html: string): {
   headings: string[]
   paragraphs: string[]
 } {
-  const cleanedHtml = stripNonContentHtml(html)
-  const primaryHtml = selectPrimaryHtmlFragment(cleanedHtml)
-  const title = matchHtmlTag(html, 'title')
-  const description = matchMetaDescription(html)
-  const headings = matchHtmlTags(primaryHtml, ['h1', 'h2', 'h3'])
-    .filter((value) => !isLikelyChromeHeading(value))
-    .slice(0, 5)
-  const paragraphs = filterLikelyContentText(matchHtmlTags(primaryHtml, ['p']))
-    .slice(0, 3)
-  const lines: string[] = []
+  const artifact = extractLocalHtmlMarkdownArtifact(html)
+  return summarizeMarkdownArtifact(artifact.markdown, {
+    title: artifact.title,
+    description: artifact.description,
+  })
+}
 
-  if (title) {
-    lines.push(`Title: ${title}`)
-  }
-  if (description) {
-    lines.push(`Description: ${description}`)
-  }
-  if (headings.length > 0) {
-    lines.push(`Headings: ${headings.join(' | ')}`)
-  }
-  if (paragraphs.length > 0) {
-    lines.push(`Excerpt: ${paragraphs.join(' ').slice(0, 900)}`)
-  }
+function extractLocalHtmlMarkdownArtifact(html: string): {
+  markdown: string
+  title?: string
+  description?: string
+} {
+  const $ = cheerio.load(html)
+  const title = normalizeHtmlText($('title').first().text()) || undefined
+  const description = normalizeHtmlText(
+    $('meta[name="description" i]').first().attr('content')
+    ?? $('meta[property="og:description" i]').first().attr('content')
+    ?? '',
+  ) || undefined
+  const primary = selectLocalMainContent($).clone()
+  cleanLocalHtmlSelection($, primary)
+  const primaryHtml = primary.html() ?? ''
+  const markdown = LOCAL_HTML_TURNDOWN.turndown(primaryHtml || normalizeHtmlText(primary.text()))
 
   return {
-    summary: lines.join('\n'),
-    title: title ?? undefined,
-    description: description ?? undefined,
-    headings,
-    paragraphs,
+    markdown,
+    title,
+    description,
   }
 }
 
-function stripNonContentHtml(html: string): string {
-  return html
-    .replace(/<!--[\s\S]*?-->/g, ' ')
-    .replace(/<(script|style|noscript|svg|template)[^>]*>[\s\S]*?<\/\1>/gi, ' ')
-}
-
-function selectPrimaryHtmlFragment(html: string): string {
-  const preferredPatterns = [
-    /<main\b[^>]*>([\s\S]*?)<\/main>/gi,
-    /<article\b[^>]*>([\s\S]*?)<\/article>/gi,
-    /<([a-z0-9:-]+)\b[^>]*\brole=["']main["'][^>]*>([\s\S]*?)<\/\1>/gi,
-    /<([a-z0-9:-]+)\b[^>]*\b(?:id|class)=["'][^"']*(?:content|docs|doc-content|article|main|prose)[^"']*["'][^>]*>([\s\S]*?)<\/\1>/gi,
+function selectLocalMainContent($: CheerioRoot): CheerioSelection {
+  const selectors = [
+    'main',
+    'article',
+    '[role="main"]',
+    '[data-mdx-content]',
+    '[data-docs-content]',
+    '.markdown-body',
+    '.prose',
+    '.doc-content',
+    '.docs-content',
+    '.documentation',
+    '#content',
+    '#docs-content',
+    '#main-content',
+    '[class*="main-content"]',
+    '[class*="docs-content"]',
+    '[class*="doc-content"]',
+    '[class*="markdown"]',
+    '[class*="prose"]',
   ]
 
-  let bestFragment = ''
+  let best: CheerioSelection = $('body').first()
   let bestScore = Number.NEGATIVE_INFINITY
 
-  for (const pattern of preferredPatterns) {
-    const matches = html.matchAll(pattern)
-    for (const match of matches) {
-      const fragment = match[2] ?? match[1] ?? ''
-      const score = scoreHtmlFragment(fragment)
+  for (const selector of selectors) {
+    $(selector).each((_, element) => {
+      const candidate = $(element)
+      const score = scoreLocalHtmlCandidate(candidate)
       if (score > bestScore) {
         bestScore = score
-        bestFragment = fragment
+        best = candidate
       }
-    }
+    })
   }
 
-  if (bestFragment) return bestFragment
-
-  const body = html.match(/<body\b[^>]*>([\s\S]*?)<\/body>/i)?.[1]
-  return body || html
+  return best.length > 0 ? best : $.root()
 }
 
-function scoreHtmlFragment(fragment: string): number {
-  const text = cleanHtmlText(fragment)
-  const paragraphCount = (fragment.match(/<p\b/gi) ?? []).length
-  const headingCount = (fragment.match(/<h[1-3]\b/gi) ?? []).length
-  const chromePenalty = isLikelyChromeText(text) ? 120 : 0
-  return text.length + paragraphCount * 120 + headingCount * 80 - chromePenalty
+function cleanLocalHtmlSelection($: CheerioRoot, selection: CheerioSelection): void {
+  selection.find(LOCAL_HTML_NOISE_SELECTORS).remove()
+  selection.find('[class], [id], [aria-label], [data-testid]').each((_, element) => {
+    const marker = [
+      $(element).attr('id'),
+      $(element).attr('class'),
+      $(element).attr('aria-label'),
+      $(element).attr('data-testid'),
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+
+    if (/(^|\b)(sidebar|side-nav|sidenav|toc|table-of-contents|breadcrumb|pagination|prev-next|navbar|nav-menu|cookie|banner|announcement|promo|search)(\b|$)/.test(marker)) {
+      $(element).remove()
+    }
+  })
+}
+
+function scoreLocalHtmlCandidate(selection: CheerioSelection): number {
+  const text = normalizeHtmlText(selection.text())
+  if (!text) return Number.NEGATIVE_INFINITY
+
+  const paragraphCount = selection.find('p,li').length
+  const headingCount = selection.find('h1,h2,h3').length
+  const codeCount = selection.find('pre,code').length
+  const linkCount = selection.find('a').length
+  const wordCount = text.split(/\s+/).length
+  const chromePenalty = isLikelyChromeText(text) ? 400 : 0
+  const linkPenalty = linkCount > paragraphCount + headingCount + codeCount + 6 ? 150 : 0
+
+  return wordCount * 8 + paragraphCount * 120 + headingCount * 90 + codeCount * 100 - chromePenalty - linkPenalty
 }
 
 function filterLikelyContentText(values: string[]): string[] {
@@ -2642,33 +2704,8 @@ function uniqueStrings<T extends string>(values: T[]): T[] {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean) as T[])]
 }
 
-function matchHtmlTag(html: string, tag: string): string | null {
-  const match = html.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, 'i'))
-  return match ? cleanHtmlText(match[1]) : null
-}
-
-function matchMetaDescription(html: string): string | null {
-  const match = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["'][^>]*>/i)
-  return match ? cleanHtmlText(match[1]) : null
-}
-
-function matchHtmlTags(html: string, tags: string[]): string[] {
-  const pattern = new RegExp(`<(?:${tags.join('|')})[^>]*>([\\s\\S]*?)</(?:${tags.join('|')})>`, 'ig')
-  const values: string[] = []
-  for (const match of html.matchAll(pattern)) {
-    const value = cleanHtmlText(match[1])
-    if (value) values.push(value)
-  }
-  return values
-}
-
-function cleanHtmlText(value: string): string {
-  return value
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
+function normalizeHtmlText(value: string | undefined): string {
+  return (value ?? '')
     .replace(/\s+/g, ' ')
     .trim()
 }

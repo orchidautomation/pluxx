@@ -224,6 +224,7 @@ Current behavior:
 - `auto` prefers Firecrawl when configured and otherwise keeps the local OSS path.
 - `firecrawl` is an explicit opt-in that fails fast when no Firecrawl key is configured.
 - `local` forces the built-in fetch + extraction path even if Firecrawl is available.
+- The local path now parses HTML with Cheerio, strips docs-site chrome before extraction, and converts the cleaned main-content fragment to Markdown with Turndown before structured signal extraction.
 - If `--docs` points at a deep page like `https://docs.firecrawl.dev/mcp-server`, Pluxx keeps that exact page and also infers the broader docs root when it can.
 - If only `--website` is provided, Pluxx probes a small set of likely docs roots such as `docs.<host>`, `/docs`, `/developers`, `/api`, and `/reference`.
 - Pluxx writes provenance to `.pluxx/sources.json`, including provider resolution.
@@ -251,6 +252,6 @@ The current snapshot is useful enough to steer product work already:
   - `docs/strategy/docs-ingestion-fixture-eval.md`
 - the scaffold-quality before/after demo is now also captured:
   - `docs/strategy/docs-ingestion-scaffold-before-after.md`
-- Firecrawl remains the clearest weak case for the local fallback because the JS-heavy surface still leaks noisy setup/workflow signals
+- In the latest committed fixture snapshot, Firecrawl remains the clearest weak case for the local fallback because the JS-heavy surface still leaks noisy setup/workflow signals; rerun the fixture comparison after the Cheerio/Turndown local cleanup slice before treating that old local score as current.
 - PlayKit shows the local path can work well when the docs root exposes strong setup and product language in server-rendered HTML
 - Sumble shows that even when docs detail is light, website + docs seeds can still recover useful product truth like product name and positioning

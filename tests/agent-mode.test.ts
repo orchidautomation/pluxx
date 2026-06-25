@@ -1189,11 +1189,15 @@ exit 1
                   <p>Search docs</p>
                 </nav>
               </header>
+              <aside class="table-of-contents">
+                <a href="/pricing">API key sidebar teaser</a>
+              </aside>
               <main>
                 <h1>Firecrawl MCP</h1>
                 <h2>Scrape pages</h2>
                 <p>Set the Firecrawl API key before using the hosted endpoint.</p>
                 <p>Use onlyMainContent when you want cleaner page bodies.</p>
+                <pre><code>env FIRECRAWL_API_KEY=fc-YOUR_API_KEY npx -y firecrawl-mcp</code></pre>
               </main>
               <footer>
                 <p>Privacy Policy</p>
@@ -1234,9 +1238,11 @@ exit 1
       expect(docsContext.workflowHints).toContain('Scrape pages')
       expect(docsContext.authHints).toContain('Set the Firecrawl API key before using the hosted endpoint.')
       expect(docsContext.setupHints.some((hint) => hint.includes('onlyMainContent') || hint.includes('only Main Content'))).toBe(true)
+      expect(docsContext.setupHints.some((hint) => hint.includes('npx -y firecrawl-mcp'))).toBe(true)
       expect(context).not.toContain('Pricing')
       expect(context).not.toContain('Privacy Policy')
       expect(context).not.toContain('Search docs')
+      expect(context).not.toContain('API key sidebar teaser')
     } finally {
       globalThis.fetch = originalFetch
     }
