@@ -1269,10 +1269,17 @@ exit 1
                 </nav>
               </header>
               <main>
-                <h1>PlayKit Docs</h1>
-                <a href="/docs/authentication">Authentication</a>
-                <a href="/docs/quickstart">Quickstart</a>
-                <a href="/docs/knowledge-tools">Knowledge Tools</a>
+                <aside class="docs-sidebar" aria-label="Docs navigation">
+                  <nav>
+                    <a href="/docs/authentication">Authentication</a>
+                    <a href="/docs/quickstart">Quickstart</a>
+                    <a href="/docs/knowledge-tools">Knowledge Tools</a>
+                  </nav>
+                </aside>
+                <article>
+                  <h1>PlayKit Docs</h1>
+                  <p>Choose a guide from the docs navigation.</p>
+                </article>
               </main>
             </body>
           </html>`,
