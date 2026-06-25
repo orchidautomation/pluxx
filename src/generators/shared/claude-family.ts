@@ -83,7 +83,10 @@ async function writeManifest(
     }
   }
   manifest.skills = './skills/'
-  if ((config.hooks || config.permissions) && options.includeStandardHooksManifest !== false) {
+  if (
+    (config.hooks || config.permissions || getRuntimeReadinessPlan(config.readiness).hasReadiness)
+    && options.includeStandardHooksManifest !== false
+  ) {
     manifest.hooks = './hooks/hooks.json'
   }
   if (config.mcp) {

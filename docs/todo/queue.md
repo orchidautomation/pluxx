@@ -74,6 +74,7 @@ The initial author-once hardening tranche is also materially done.
   - installed-bundle regression coverage now explicitly catches corrupted Cursor hook bundles, missing Cursor rules payloads, and stale installed Cursor versions
   - installed-bundle regression coverage now explicitly catches missing OpenCode host entry files, missing synced OpenCode skills, and stale installed OpenCode package versions
 - `pluxx test --install` verifies installed consumer bundle state after install, not just `dist/`
+- `pluxx build` now checks generated manifests and package outputs for source version drift and missing referenced bundle files before release
 - OpenCode translation is now more honestly native:
   - agent output prefers `permission` over deprecated legacy `tools`
   - native `skill` / `task` permission keys are modeled as real host surfaces

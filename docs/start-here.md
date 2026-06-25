@@ -144,6 +144,7 @@ The repo already proves a lot.
 - the primitive-by-host proof ledger now ties the core-four claim back to the matrix, reliability register, and maintained example proofs:
   - `docs/core-four-primitive-proof-ledger.md`
 - the core-four compiler work is materially shipped
+- `pluxx build` checks generated manifests and package outputs for source version drift and missing referenced bundle files before publish
 - `verify-install` exists and is tested
 - consumer-side `doctor --consumer` exists and is tested
 - `migrate`, `eval`, and `mcp proxy --record/--replay` are shipped

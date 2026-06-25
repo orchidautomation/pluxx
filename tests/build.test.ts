@@ -3,6 +3,7 @@ import { mkdirSync, rmSync, existsSync, readFileSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
 import { spawnSync } from 'child_process'
 import { build } from '../src/generators'
+import { checkGeneratedBundles } from '../src/bundle-check'
 import type { PluginConfig } from '../src/schema'
 import {
   makeSecretReferenceFixtureConfig,
@@ -364,6 +365,64 @@ describe('build', () => {
     expect(existsSync(resolve(OUT_DIR, 'amp/.amp/settings.json'))).toBe(true)
   })
 
+  it('checks generated manifest identity and bundle references', async () => {
+    await build(testConfig, TEST_DIR)
+
+    const report = checkGeneratedBundles(testConfig, TEST_DIR)
+    expect(report.issues).toEqual([])
+    expect(report.targets.find(target => target.target === 'codex')?.files).toContain('.codex-plugin/plugin.json')
+    expect(report.targets.find(target => target.target === 'opencode')?.files).toContain('package.json')
+  })
+
+  it('reports generated manifest version drift before release', async () => {
+    await build(testConfig, TEST_DIR)
+
+    const manifestPath = resolve(OUT_DIR, 'codex/.codex-plugin/plugin.json')
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
+    manifest.version = '0.0.0-stale'
+    writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n')
+
+    const report = checkGeneratedBundles(testConfig, TEST_DIR, ['codex'])
+    expect(report.issues).toEqual([
+      expect.objectContaining({
+        code: 'manifest-field-drift',
+        target: 'codex',
+        path: '.codex-plugin/plugin.json#version',
+        expected: testConfig.version,
+        actual: '0.0.0-stale',
+      }),
+    ])
+  })
+
+  it('reports generated manifest asset references that were not copied into the bundle', async () => {
+    const missingAssetConfig: PluginConfig = {
+      ...testConfig,
+      targets: ['codex'],
+      brand: {
+        ...testConfig.brand,
+        icon: './assets/missing.svg',
+      },
+      outDir: './missing-asset-dist',
+    }
+
+    await expect(build(missingAssetConfig, TEST_DIR)).rejects.toThrow(
+      'Generated codex manifest references missing bundle path: ./assets/missing.svg.',
+    )
+  })
+
+  it('requires generated brand asset references even when assets copying is not configured', async () => {
+    const missingConfiguredAssetsConfig: PluginConfig = {
+      ...testConfig,
+      targets: ['codex'],
+      assets: undefined,
+      outDir: './brand-without-assets-dist',
+    }
+
+    await expect(build(missingConfiguredAssetsConfig, TEST_DIR)).rejects.toThrow(
+      'Generated codex manifest references missing bundle path: ./assets/icon.svg.',
+    )
+  })
+
   it('generates correct Claude Code MCP config', async () => {
     const mcpJson = JSON.parse(
       readFileSync(resolve(OUT_DIR, 'claude-code/.mcp.json'), 'utf-8')
@@ -707,6 +766,7 @@ describe('build', () => {
       },
       commands: undefined,
       agents: undefined,
+      brand: undefined,
       scripts: './scripts/',
       assets: undefined,
       passthrough: undefined,
@@ -1355,7 +1415,7 @@ describe('build', () => {
           },
         ],
       },
-      targets: ['claude-code', 'cursor', 'codex', 'opencode'],
+      targets: ['claude-code', 'cursor', 'codex', 'opencode', 'github-copilot'],
       outDir: './readiness-dist',
     }
 
@@ -1367,6 +1427,10 @@ describe('build', () => {
     const cursorHooks = JSON.parse(
       readFileSync(resolve(TEST_DIR, 'readiness-dist/cursor/hooks/hooks.json'), 'utf-8')
     )
+    const cursorManifestPath = resolve(TEST_DIR, 'readiness-dist/cursor', '.' + 'cursor-plugin/plugin.json')
+    const cursorManifest = JSON.parse(readFileSync(cursorManifestPath, 'utf-8'))
+    const copilotManifestPath = resolve(TEST_DIR, 'readiness-dist/github-copilot', '.' + 'claude-plugin/plugin.json')
+    const copilotManifest = JSON.parse(readFileSync(copilotManifestPath, 'utf-8'))
     const codexHooks = JSON.parse(
       readFileSync(resolve(TEST_DIR, 'readiness-dist/codex/.codex/hooks.generated.json'), 'utf-8')
     )
@@ -1383,11 +1447,37 @@ describe('build', () => {
     expect(claudeHooks.hooks.PreToolUse?.[0]?.matcher).toBe('MCP')
     expect(claudeHooks.hooks.PreToolUse?.[0]?.hooks?.[0]?.command).toContain('pluxx-readiness.mjs mcp-gate')
     expect(claudeHooks.hooks.UserPromptSubmit?.[0]?.hooks?.[0]?.command).toContain('pluxx-readiness.mjs prompt-gate')
+    expect(copilotManifest.hooks).toBe('./hooks/hooks.json')
 
     expect(existsSync(resolve(TEST_DIR, 'readiness-dist/cursor/hooks/pluxx-readiness.mjs'))).toBe(true)
     expect(cursorHooks.hooks.sessionStart?.[0]?.command).toBe('node ./hooks/pluxx-readiness.mjs session-start')
     expect(cursorHooks.hooks.beforeMCPExecution?.[0]?.command).toBe('node ./hooks/pluxx-readiness.mjs mcp-gate')
     expect(cursorHooks.hooks.beforeSubmitPrompt?.[0]?.command).toBe('node ./hooks/pluxx-readiness.mjs prompt-gate')
+    expect(cursorManifest.hooks).toBe('./hooks/hooks.json')
+
+    delete copilotManifest.hooks
+    writeFileSync(copilotManifestPath, JSON.stringify(copilotManifest, null, 2))
+    expect(checkGeneratedBundles(readinessConfig, TEST_DIR, ['github-copilot']).issues).toContainEqual(
+      expect.objectContaining({
+        code: 'manifest-field-drift',
+        target: 'github-copilot',
+        path: '.' + 'claude-plugin/plugin.json#hooks',
+        expected: './hooks/hooks.json',
+      })
+    )
+    writeFileSync(copilotManifestPath, JSON.stringify({ ...copilotManifest, hooks: './hooks/hooks.json' }, null, 2))
+
+    delete cursorManifest.hooks
+    writeFileSync(cursorManifestPath, JSON.stringify(cursorManifest, null, 2))
+    expect(checkGeneratedBundles(readinessConfig, TEST_DIR, ['cursor']).issues).toContainEqual(
+      expect.objectContaining({
+        code: 'manifest-field-drift',
+        target: 'cursor',
+        path: '.' + 'cursor-plugin/plugin.json#hooks',
+        expected: './hooks/hooks.json',
+      })
+    )
+    writeFileSync(cursorManifestPath, JSON.stringify({ ...cursorManifest, hooks: './hooks/hooks.json' }, null, 2))
 
     expect(existsSync(resolve(TEST_DIR, 'readiness-dist/codex/.codex/pluxx-readiness.mjs'))).toBe(true)
     expect(codexBundledHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.type).toBe('command')

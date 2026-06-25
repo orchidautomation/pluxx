@@ -54,7 +54,7 @@ export class CursorGenerator extends Generator {
     if (this.config.commands) manifest.commands = './commands/'
     if (this.config.agents) manifest.agents = './agents/'
     if (this.config.platforms?.cursor?.rules?.length) manifest.rules = './rules/'
-    if (this.config.hooks || this.config.permissions) manifest.hooks = './hooks/hooks.json'
+    if (this.config.hooks || this.config.permissions || getRuntimeReadinessPlan(this.config.readiness).hasReadiness) manifest.hooks = './hooks/hooks.json'
     if (this.config.mcp) manifest.mcpServers = './mcp.json'
 
     await this.writeJson('.cursor-plugin/plugin.json', manifest)

@@ -43,6 +43,7 @@ Pluxx can ship the OSS authoring substrate today:
 
 - `@orchid-labs/pluxx` is published on npm and runs on Node `>=18`
 - one Pluxx source project can build native bundles under `dist/<target>/`
+- `pluxx build` checks generated manifests and package outputs for source version drift and missing referenced bundle files before publish
 - `pluxx install` can install built bundles locally for the primary fronts
 - `pluxx verify-install` checks the host-visible installed bundle, not only generated files in `dist/`
 - `pluxx test --install` runs source checks, build smoke, local install, and installed verification together
@@ -135,5 +136,7 @@ pluxx test --target claude-code cursor codex opencode
 pluxx test --install --trust
 pluxx publish --dry-run
 ```
+
+The `build` step includes the generated bundle check for targets with manifest or package outputs. It compares source config identity and version to generated output, verifies declared bundle paths, and returns a deterministic file list for tests and release diagnostics.
 
 Call it marketplace/trust-layer ready only after the remaining marketplace submission, managed distribution, authenticated publish/rollback, and provenance requirements are explicitly implemented and proven.
