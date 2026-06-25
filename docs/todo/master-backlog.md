@@ -136,6 +136,7 @@ Any person or agent should be able to enter the repo and answer:
   - richer canonical skill metadata now survives into emitted host companions:
     - Codex now writes `.codex/skills.generated.json`
     - OpenCode now writes `skills.generated.json`
+  - `pluxx build` now checks generated manifests and package outputs for source version drift and missing referenced bundle files before publish
 - [~] Keep [docs/core-four-reliability-register.md](../core-four-reliability-register.md) current as the concrete Claude Code and Codex failure register:
   - use it to separate generator defects from host-runtime issues and proof-harness issues
   - use it to drive the next proof-depth tranche for agents, hooks, settings/discovery, and distribution edges

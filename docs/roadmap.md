@@ -166,6 +166,7 @@ The closure plan is now narrower than it was before:
   - MCP migrate now merges generic and host-native MCP sources instead of first-file-wins, so native auth blobs such as platform auth and multi-header header maps survive under `platforms.<host>.mcpServers.<server>`
   - installed-MCP discovery now preserves those same native auth blobs, and `init --from-installed-mcp` carries them into generated `platforms.<host>.mcpServers.<server>` config with derived install-time `userConfig` entries for multi-header auth
   - richer canonical skill metadata now survives into emitted Codex/OpenCode skill companions instead of mostly living in Agent Mode and migrate
+  - `pluxx build` now checks generated manifests and package outputs for source version drift and missing referenced bundle files before publish
 - local full-suite proof is now also more explicit operationally:
   - `npm test` now acquires a same-worktree suite lock and fails fast instead of creating misleading cross-test flakes when multiple full proof jobs hit the same repo-local fixture paths
   - the follow-on is deeper fixture isolation so more proof paths can run independently without sharing cwd or repo-local temp state

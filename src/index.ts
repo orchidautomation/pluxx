@@ -92,6 +92,12 @@ export {
 } from './compiler-intent'
 export { formatPublishPlan, planPublish, runPublish, type PublishAssetPlan, type PublishCheck, type PublishPlan, type PublishPlanOptions, type PublishRunResult } from './cli/publish'
 export {
+  assertGeneratedBundlesCurrent,
+  checkGeneratedBundles,
+  type GeneratedBundleCheckIssue,
+  type GeneratedBundleCheckReport,
+} from './bundle-check'
+export {
   printVerifyInstallResult,
   verifyInstall,
   type VerifyInstallCheck,

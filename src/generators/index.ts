@@ -1,6 +1,7 @@
 import { rmSync, mkdirSync } from 'fs'
 import { resolve, relative } from 'path'
 import type { PluginConfig, TargetPlatform } from '../schema'
+import { assertGeneratedBundlesCurrent } from '../bundle-check'
 import { Generator } from './base'
 import { ClaudeCodeGenerator } from './claude-code'
 import { CursorGenerator } from './cursor'
@@ -112,6 +113,7 @@ export async function build(
 
   // Build all targets in parallel
   await Promise.all(generators.map(g => g.generate()))
+  assertGeneratedBundlesCurrent(config, rootDir, targets)
 }
 
 export { Generator }
