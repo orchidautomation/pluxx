@@ -1600,6 +1600,7 @@ Example prompt or command here
   } catch (error) {
     if (error instanceof PromptCancelledError) {
       console.log('Init cancelled')
+      process.exitCode = 1
       return
     }
 
@@ -2058,6 +2059,7 @@ ${formatAuthRequiredMessage('init', retryError, source)}`)
       if (!options.jsonOutput && !runtime.quiet) {
         clack.cancel(error.message)
       }
+      process.exitCode = 1
       return
     }
 

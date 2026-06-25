@@ -18,6 +18,7 @@ const SYNC_PATH = resolve(import.meta.dir, '../../src/cli/sync-from-mcp.ts')
 const originalStdinIsTTY = process.stdin.isTTY
 const originalStdoutIsTTY = process.stdout.isTTY
 const originalCI = process.env.CI
+const originalExitCode = process.exitCode
 
 type Issue = {
   level: 'error' | 'warning'
@@ -283,11 +284,12 @@ afterEach(() => {
   } else {
     process.env.CI = originalCI
   }
+  process.exitCode = originalExitCode
   mock.restore()
 })
 
 describe('isolated init --from-mcp CLI checks', () => {
-  it('treats clack cancellation as a clean exit', async () => {
+  it('treats clack cancellation as a failed init exit', async () => {
     const cwd = mkdtempSync(resolve(tmpdir(), 'pluxx-init-cancel-'))
 
     try {
@@ -309,6 +311,7 @@ describe('isolated init --from-mcp CLI checks', () => {
       expect(calls.cancel).toEqual(['Init cancelled'])
       expect(calls.error).toEqual([])
       expect(calls.warn).toEqual([])
+      expect(process.exitCode).toBe(1)
     } finally {
       rmSync(cwd, { recursive: true, force: true })
     }
