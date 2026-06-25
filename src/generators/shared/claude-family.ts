@@ -289,9 +289,9 @@ async function mapClaudeHookEntry(args: {
     const command = entry.command.replace('${PLUGIN_ROOT}', `\${${options.pluginRootVar}}`)
     const finalCommand = shouldWrapClaudeHookCommands
       ? await (async () => {
-        const relativePath = `hooks/pluxx-hook-command-${nextWrapperIndex()}.sh`
+        const relativePath = `hooks/pluxx-hook-command-${nextWrapperIndex()}.mjs`
         await writeFile(relativePath, buildHookCommandWrapperScript(command, options.pluginRootVar, 'CLAUDE_ENV_FILE'))
-        return `bash "\${${options.pluginRootVar}}/${relativePath}"`
+        return `node "\${${options.pluginRootVar}}/${relativePath}"`
       })()
       : command
 

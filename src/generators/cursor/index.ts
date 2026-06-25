@@ -148,12 +148,12 @@ export class CursorGenerator extends Generator {
           if (entry.model) hookDef.model = entry.model
         } else if (entry.command) {
           nextWrapperIndex += 1
-          const relativePath = `hooks/pluxx-hook-command-${nextWrapperIndex}.sh`
+          const relativePath = `hooks/pluxx-hook-command-${nextWrapperIndex}.mjs`
           await this.writeFile(
             relativePath,
             buildHookCommandWrapperScript(entry.command.replace('${PLUGIN_ROOT}', '.'), 'CURSOR_PLUGIN_ROOT'),
           )
-          hookDef.command = `bash ./${relativePath}`
+          hookDef.command = `node ./${relativePath}`
         }
         if (entry.timeout) hookDef.timeout = entry.timeout
         if (entry.matcher) hookDef.matcher = entry.matcher

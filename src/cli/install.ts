@@ -991,8 +991,22 @@ function findHookWrapperPaths(rootDir: string, command: string): string[] {
       if (!target) return false
       return existsSync(target)
         && basename(target).startsWith('pluxx-hook-command-')
-        && target.endsWith('.sh')
+        && (target.endsWith('.sh') || target.endsWith('.mjs'))
     })
+}
+
+function extractGeneratedHookWrapperCommand(wrapper: string): string {
+  const shellAssignment = wrapper.match(/^PLUXX_HOOK_COMMAND=(.*)$/m)?.[1]
+  if (shellAssignment) return shellAssignment
+
+  const nodeAssignment = wrapper.match(/^const COMMAND = (.*)$/m)?.[1]
+  if (!nodeAssignment) return ''
+
+  try {
+    return JSON.parse(nodeAssignment) as string
+  } catch {
+    return nodeAssignment
+  }
 }
 
 function findCodexCwdUnsafeHookCommands(rootDir: string, commands: string[]): string[] {
@@ -1006,7 +1020,7 @@ function findCodexCwdUnsafeHookCommands(rootDir: string, commands: string[]): st
 
     for (const wrapperPath of findHookWrapperPaths(rootDir, command)) {
       const wrapper = readFileSync(wrapperPath, 'utf-8')
-      const hookCommand = wrapper.match(/^PLUXX_HOOK_COMMAND=(.*)$/m)?.[1] ?? ''
+      const hookCommand = extractGeneratedHookWrapperCommand(wrapper)
       const wrapperRelativeTargets = extractRelativeBundleCommandTargets(hookCommand)
       if (wrapperRelativeTargets.length > 0 && !commandChangesToKnownPluginRoot(wrapper)) {
         issues.add(`${formatBundleRelativePath(rootDir, wrapperPath)} evaluates cwd-relative bundle target(s): ${wrapperRelativeTargets.join(', ')}`)
