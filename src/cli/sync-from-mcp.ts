@@ -1,11 +1,15 @@
 import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, readdirSync, rmdirSync, writeFileSync } from 'fs'
 import { dirname, isAbsolute, relative, resolve } from 'path'
+import { z } from 'zod'
 import { tmpdir } from 'os'
 import { loadConfig } from '../config/load'
 import { introspectMcpServer, type IntrospectedMcpTool } from '../mcp/introspect'
-import type { McpServer } from '../schema'
+import { McpServerSchema, UserConfigEntrySchema, type McpServer } from '../schema'
 import {
   MCP_SCAFFOLD_METADATA_PATH,
+  MCP_HOOK_MODES,
+  MCP_RUNTIME_AUTH_MODES,
+  MCP_SKILL_GROUPINGS,
   MCP_TAXONOMY_PATH,
   PLUXX_CUSTOM_START,
   PLUXX_CUSTOM_END,
@@ -39,8 +43,97 @@ export async function readMcpScaffoldMetadata(rootDir: string): Promise<McpScaff
     )
   }
 
-  return JSON.parse(readFileSync(filepath, 'utf-8')) as McpScaffoldMetadata
+  const raw = JSON.parse(readFileSync(filepath, 'utf-8'))
+  const result = McpScaffoldMetadataSchema.safeParse(raw)
+  if (!result.success) {
+    const details = result.error.issues
+      .map((issue) => {
+        const path = issue.path.length > 0 ? issue.path.join('.') : '<root>'
+        return `${path}: ${issue.message}`
+      })
+      .slice(0, 5)
+      .join('; ')
+    throw new Error(
+      `Invalid MCP scaffold metadata at ${MCP_SCAFFOLD_METADATA_PATH}: ${details}. `
+      + `Fix: rerun "pluxx init --from-mcp" or restore a valid ${MCP_SCAFFOLD_METADATA_PATH} before syncing.`,
+    )
+  }
+
+  return result.data as McpScaffoldMetadata
 }
+
+const IntrospectedServerInfoSchema = z.object({
+  name: z.string(),
+  title: z.string().optional(),
+  version: z.string().optional(),
+  description: z.string().optional(),
+  websiteUrl: z.string().optional(),
+}).passthrough()
+
+const IntrospectedToolSchema = z.object({
+  name: z.string(),
+  title: z.string().optional(),
+  description: z.string().optional(),
+  inputSchema: z.record(z.string(), z.unknown()).optional(),
+}).passthrough()
+
+const IntrospectedResourceSchema = z.object({
+  uri: z.string(),
+  name: z.string().optional(),
+  title: z.string().optional(),
+  description: z.string().optional(),
+  mimeType: z.string().optional(),
+}).passthrough()
+
+const IntrospectedResourceTemplateSchema = z.object({
+  uriTemplate: z.string(),
+  name: z.string(),
+  title: z.string().optional(),
+  description: z.string().optional(),
+  mimeType: z.string().optional(),
+}).passthrough()
+
+const IntrospectedPromptSchema = z.object({
+  name: z.string(),
+  title: z.string().optional(),
+  description: z.string().optional(),
+  arguments: z.array(z.object({
+    name: z.string(),
+    description: z.string().optional(),
+    required: z.boolean().optional(),
+  }).passthrough()).optional(),
+}).passthrough()
+
+const McpScaffoldMetadataSchema = z.object({
+  version: z.literal(1),
+  source: McpServerSchema,
+  serverInfo: IntrospectedServerInfoSchema,
+  settings: z.object({
+    pluginName: z.string(),
+    displayName: z.string(),
+    description: z.string().optional(),
+    skillGrouping: z.enum(MCP_SKILL_GROUPINGS),
+    requestedHookMode: z.enum(MCP_HOOK_MODES),
+    generatedHookMode: z.enum(MCP_HOOK_MODES),
+    generatedHookEvents: z.array(z.string()),
+    runtimeAuthMode: z.enum(MCP_RUNTIME_AUTH_MODES),
+  }).strict(),
+  userConfig: z.array(UserConfigEntrySchema),
+  tools: z.array(IntrospectedToolSchema),
+  resources: z.array(IntrospectedResourceSchema).optional(),
+  resourceTemplates: z.array(IntrospectedResourceTemplateSchema).optional(),
+  prompts: z.array(IntrospectedPromptSchema).optional(),
+  skills: z.array(z.object({
+    dirName: z.string(),
+    title: z.string(),
+    description: z.string().optional(),
+    toolNames: z.array(z.string()),
+    resourceUris: z.array(z.string()).optional(),
+    resourceTemplateUris: z.array(z.string()).optional(),
+    promptNames: z.array(z.string()).optional(),
+  }).strict()),
+  managedFiles: z.array(z.string()),
+}).strict()
 
 export async function syncFromMcp(options: SyncFromMcpOptions): Promise<SyncFromMcpResult> {
   const metadata = await readMcpScaffoldMetadata(options.rootDir)

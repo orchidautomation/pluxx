@@ -151,7 +151,7 @@ describe('init-from-mcp scaffold', () => {
 
   it('rejects invalid transport overrides', () => {
     expect(() => parseMcpSourceInput('https://mcp.example.com/v1', 'websocket')).toThrow(
-      'Transport must be one of: http, sse',
+      'Transport must be one of: http, sse. Try: use "--transport http" or "--transport sse".',
     )
   })
 

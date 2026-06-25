@@ -299,7 +299,7 @@ export function parseMcpSourceInput(input: string, transportOverride?: string): 
   }
 
   if (transportOverride && transportOverride !== 'http' && transportOverride !== 'sse') {
-    throw new Error('Transport must be one of: http, sse')
+    throw new Error('Transport must be one of: http, sse. Try: use "--transport http" or "--transport sse".')
   }
 
   try {

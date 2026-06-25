@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
 import { introspectMcpServer } from '../src/mcp/introspect'
-import { applyPersistedTaxonomy, detectSkillRenames, detectToolRenames, syncFromMcp } from '../src/cli/sync-from-mcp'
-import { writeMcpScaffold } from '../src/cli/init-from-mcp'
+import { applyPersistedTaxonomy, detectSkillRenames, detectToolRenames, readMcpScaffoldMetadata, syncFromMcp } from '../src/cli/sync-from-mcp'
+import { MCP_SCAFFOLD_METADATA_PATH, writeMcpScaffold } from '../src/cli/init-from-mcp'
 import { AGENT_CONTEXT_PATH, AGENT_PLAN_PATH } from '../src/cli/agent'
 
 const TEST_DIR = resolve(import.meta.dir, '.sync-from-mcp')
@@ -66,6 +66,62 @@ afterEach(() => {
 })
 
 describe('sync-from-mcp', () => {
+  it('rejects incomplete MCP scaffold metadata before syncing', async () => {
+    mkdirSync(resolve(TEST_DIR, '.pluxx'), { recursive: true })
+    writeFileSync(
+      resolve(TEST_DIR, MCP_SCAFFOLD_METADATA_PATH),
+      JSON.stringify({
+        version: 1,
+        source: {
+          transport: 'http',
+          url: 'https://mcp.example.com/mcp',
+        },
+        managedFiles: ['skills/example/SKILL.md'],
+      }, null, 2),
+    )
+
+    await expect(readMcpScaffoldMetadata(TEST_DIR)).rejects.toThrow(
+      'Invalid MCP scaffold metadata at .pluxx/mcp.json',
+    )
+    await expect(readMcpScaffoldMetadata(TEST_DIR)).rejects.toThrow(
+      'Fix: rerun "pluxx init --from-mcp"',
+    )
+  })
+
+  it('rejects corrupted managed file metadata before file operations', async () => {
+    mkdirSync(resolve(TEST_DIR, '.pluxx'), { recursive: true })
+    writeFileSync(
+      resolve(TEST_DIR, MCP_SCAFFOLD_METADATA_PATH),
+      JSON.stringify({
+        version: 1,
+        source: {
+          transport: 'http',
+          url: 'https://mcp.example.com/mcp',
+        },
+        serverInfo: {
+          name: 'stub-server',
+        },
+        settings: {
+          pluginName: 'stub-server',
+          displayName: 'Stub Server',
+          skillGrouping: 'workflow',
+          requestedHookMode: 'none',
+          generatedHookMode: 'none',
+          generatedHookEvents: [],
+          runtimeAuthMode: 'inline',
+        },
+        userConfig: [],
+        tools: [],
+        skills: [],
+        managedFiles: [42],
+      }, null, 2),
+    )
+
+    await expect(readMcpScaffoldMetadata(TEST_DIR)).rejects.toThrow(
+      'managedFiles.0: Expected string',
+    )
+  })
+
   it('does not treat identical descriptions as a rename without corroborating evidence', () => {
     const renames = detectToolRenames(
       [
