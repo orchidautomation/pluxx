@@ -6,12 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'url'
 
 const binDir = dirname(fileURLToPath(import.meta.url))
 const distCliPath = resolve(binDir, '..', 'dist', 'cli', 'index.js')
-const sourceCliPath = resolve(binDir, '..', 'src', 'cli', 'index.ts')
-const cliPath = existsSync(distCliPath)
-  ? distCliPath
-  : process.versions.bun
-    ? sourceCliPath
-    : null
+const cliPath = existsSync(distCliPath) ? distCliPath : null
 
 if (!cliPath) {
   console.error('pluxx CLI bundle not found.')

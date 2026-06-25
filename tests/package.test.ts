@@ -1,33 +1,20 @@
-import { afterAll, afterEach, describe, expect, it } from 'bun:test'
+import { describe, expect, it } from 'bun:test'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { resolve } from 'path'
 
 const ROOT = resolve(import.meta.dir, '..')
 const DIST_CLI_PATH = resolve(ROOT, 'dist/cli/index.js')
-const ORIGINAL_DIST_CLI_CONTENT = existsSync(DIST_CLI_PATH)
-  ? readFileSync(DIST_CLI_PATH, 'utf-8')
-  : null
 
-afterEach(() => {
-  if (ORIGINAL_DIST_CLI_CONTENT === null) {
+function restoreDistCli(snapshot: string | null): void {
+  if (snapshot === null) {
     rmSync(DIST_CLI_PATH, { force: true })
     return
   }
 
   mkdirSync(resolve(ROOT, 'dist/cli'), { recursive: true })
-  writeFileSync(DIST_CLI_PATH, ORIGINAL_DIST_CLI_CONTENT)
-})
-
-afterAll(() => {
-  if (ORIGINAL_DIST_CLI_CONTENT === null) {
-    rmSync(DIST_CLI_PATH, { force: true })
-    return
-  }
-
-  mkdirSync(resolve(ROOT, 'dist/cli'), { recursive: true })
-  writeFileSync(DIST_CLI_PATH, ORIGINAL_DIST_CLI_CONTENT)
-})
+  writeFileSync(DIST_CLI_PATH, snapshot)
+}
 
 describe('package metadata', () => {
   it('publishes a real launcher and compiled CLI entry metadata', () => {
@@ -56,24 +43,33 @@ describe('package metadata', () => {
     expect(launcher).toContain("resolve(binDir, '..', 'dist', 'cli', 'index.js')")
     expect(launcher).toContain('pluxx CLI bundle not found.')
     expect(launcher).toContain("await import(pathToFileURL(cliPath).href)")
+    expect(launcher).not.toContain('process.versions.bun')
+    expect(launcher).not.toContain("resolve(binDir, '..', 'src', 'cli', 'index.ts')")
   })
 
   it('routes execution through the published launcher under Node', async () => {
+    const originalDistCliContent = existsSync(DIST_CLI_PATH)
+      ? readFileSync(DIST_CLI_PATH, 'utf-8')
+      : null
     mkdirSync(resolve(ROOT, 'dist/cli'), { recursive: true })
     writeFileSync(DIST_CLI_PATH, 'export async function main() { console.log("stub cli ok") }\n')
 
-    const proc = Bun.spawn(['node', resolve(ROOT, 'bin/pluxx.js'), 'help'], {
-      stdout: 'pipe',
-      stderr: 'pipe',
-    })
+    try {
+      const proc = Bun.spawn(['node', resolve(ROOT, 'bin/pluxx.js'), 'help'], {
+        stdout: 'pipe',
+        stderr: 'pipe',
+      })
 
-    const stdout = await new Response(proc.stdout).text()
-    const stderr = await new Response(proc.stderr).text()
-    const exitCode = await proc.exited
+      const stdout = await new Response(proc.stdout).text()
+      const stderr = await new Response(proc.stderr).text()
+      const exitCode = await proc.exited
 
-    expect(exitCode).toBe(0)
-    expect(stdout).toContain('stub cli ok')
-    expect(stderr).toBe('')
+      expect(exitCode).toBe(0)
+      expect(stdout).toContain('stub cli ok')
+      expect(stderr).toBe('')
+    } finally {
+      restoreDistCli(originalDistCliContent)
+    }
   })
 
   it('loads a TypeScript pluxx.config.ts through the built Node CLI', async () => {

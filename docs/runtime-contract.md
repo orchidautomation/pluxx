@@ -34,6 +34,7 @@ Supported consumer invocation paths:
 - `node ./bin/pluxx.js ...` from this repo after `npm run build`
 
 The published package ships the Node launcher in `bin/` and the compiled runtime in `dist/`.
+The launcher intentionally does not load TypeScript source files or fall back to Bun at runtime.
 
 ## Config Loading
 
@@ -46,6 +47,7 @@ Config imports of `pluxx` or `@orchid-labs/pluxx` are rewritten to the package r
 Normal contributor workflows run through Node and npm:
 
 - `npm run build`
+- `npm run dev -- ...` for source-mode CLI work
 - `npm run typecheck`
 - `npm test`
 - `node scripts/verify-node-package-runtime.mjs`
