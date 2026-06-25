@@ -191,6 +191,7 @@ Any person or agent should be able to enter the repo and answer:
   - `doctor --consumer` and `verify-install` now also warn when a hook-bearing installed Codex plugin bundle is missing the canonical `[features].hooks = true` hook flag in the checked project or user config layers; `codex_hooks` is deprecated and no longer treated as current guidance
   - `doctor --consumer` and `verify-install` now also warn when the checked project is not trusted in the user Codex config for project-local hook loading
   - `verify-install` now prints the concrete installed-bundle Codex warning code, explanation, and fix inline instead of only surfacing a warning count
+  - `verify-install` now treats the Codex active cache as stale when a same-version cache copy does not match the active local install contents, not only when the manifest version differs
   - `bun scripts/probe-codex-hooks-runtime.ts --json` now gives maintained isolated headless evidence that `hooks-no-trust`, `hooks-trusted`, and `codex-hooks-trusted` all return `OK` without firing the hook side effect
   - the remaining Codex runtime gap is now narrower: the targeted maintained reviewed `SessionStart` rerun still timed out with no project-local hook side effect and no `/hooks` review gate, so the real open question is whether reviewed hooks can ever fire at all, especially headlessly
   - the compiler now also treats `runtime` more explicitly as internal MCP/auth, readiness, and payload subcontracts

@@ -179,6 +179,7 @@ The closure plan is now narrower than it was before:
   - hook-bearing Codex plugin installs now warn when the checked project and user Codex config both omit the canonical `[features].hooks = true` hook flag; `codex_hooks` is deprecated and no longer treated as current guidance
   - `bun scripts/probe-codex-hooks-interactive-runtime.ts --json` now gives maintained trusted interactive Codex hook evidence too: on May 13, 2026 both trusted `UserPromptSubmit` variants and both trusted `SessionStart` variants timed out with no project-local hook side effect and no `/hooks` review gate, while the `codex_hooks` prompt path emitted a deprecation message pointing users to `[features].hooks`
   - the optional `--include-enable-hooks-cli` hook scenarios now show that the current CLI feature path `--enable hooks` still does not execute the project-local hook in the June 24 headless probe or the earlier trusted interactive probes
+  - `verify-install` now treats the Codex active cache as stale when a same-version cache copy does not match the active local install contents, not only when the manifest version differs
   - hook-bearing Codex installs now also warn when the checked project is not trusted in the user Codex config for project-local hook loading
   - `verify-install` now prints the concrete installed-bundle Codex warning code, explanation, and fix inline instead of only surfacing a warning count
   - generated Codex hooks now use the official nested matcher-group schema instead of the older flat entry shape
