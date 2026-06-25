@@ -1,6 +1,6 @@
 # Core-Four Install And Update Lifecycle
 
-Last updated: 2026-06-24
+Last updated: 2026-06-25
 
 This doc explains the practical install, update, and reload behavior for the four primary Pluxx targets:
 
@@ -19,6 +19,19 @@ Use this doc when the question is not “what files does the host support?” bu
 For the official-doc-backed host capability audit, use [Core-Four Provider Docs Audit](./core-four-provider-docs-audit.md).
 
 For the current release/distribution/proof boundary, use [Release Distribution Proof Map](./release-distribution-proof-map.md).
+
+## Host Install And Discovery Capability Matrix
+
+This is the code-owned source of truth for issue #306: install method, local path, reload behavior, cache semantics, discovery surface, and brand/listing support per primary host.
+
+<!-- BEGIN GENERATED HOST INSTALL DISCOVERY CAPABILITIES -->
+| Host | Install method | Local install path | Reload / update pickup | Cache semantics | Discovery surface | Brand / listing support |
+|---|---|---|---|---|---|---|
+| Claude Code | Native Claude plugin install from a generated local marketplace, or the generated release installer. | ~/.claude/plugins/cache/pluxx-local-<plugin>/<plugin>/<version> after native install; legacy direct installs may still appear at ~/.claude/plugins/<plugin>. | Run /reload-plugins in the active Claude window. | Claude copies the selected marketplace plugin into a versioned plugin cache. Pluxx verifies that cache path rather than assuming the source bundle is live. | Claude plugin marketplace/listing commands and the active Claude plugin list after reload. | No shared manifest-backed brand fields from Pluxx brand today; instructions, skills, commands, and assets still ship inside the bundle. |
+| Cursor | Local plugin install or generated release installer that replaces the local bundle. | ~/.cursor/plugins/local/<plugin> | Use Developer: Reload Window or restart Cursor. | Pluxx installs the local bundle path directly; no separate Pluxx-managed active cache is modeled. | Cursor local plugin directory and host plugin UI after reload or restart. | Narrow shared-brand translation: homepage and logo can be emitted; richer listing copy is not a shared Cursor surface today. |
+| Codex | Local plugin install plus a local marketplace catalog entry, or the generated release installer. | ~/.codex/plugins/<plugin> plus a local marketplace catalog entry. | Use Plugins > Refresh when that UI action is available, otherwise restart Codex. | Codex may load a separate active cache under ~/.codex/plugins/cache/local-plugins/<plugin>/<version>. Pluxx clears local cache on install/uninstall and verify-install detects stale cache contents. | Codex Plugins view and plugin detail page. Plugin-bundled MCP servers may appear on the plugin detail page without appearing in the global MCP servers settings page. | Richest current shared-brand target: display name, descriptions, category, color, icon/logo, screenshots, default prompt, website, and policy links can be emitted into .codex-plugin/plugin.json interface metadata. |
+| OpenCode | Local plugin directory plus generated entry wrapper, generated release installer, or npm-backed wrapper package path. | ~/.config/opencode/plugins/<plugin> plus ~/.config/opencode/plugins/<plugin>.ts and synced skills under ~/.config/opencode/skills/<plugin>-<skill>. | Restart or reload OpenCode. | Pluxx writes the local plugin wrapper and synced skill files directly; no separate Pluxx-managed active cache is modeled. | OpenCode plugin loader, plugin wrapper file, and synced skill namespace. | No shared manifest-backed brand fields from Pluxx brand today; OpenCode receives functional plugin module, instructions, skills, and package metadata. |
+<!-- END GENERATED HOST INSTALL DISCOVERY CAPABILITIES -->
 
 ## Lifecycle Matrix
 

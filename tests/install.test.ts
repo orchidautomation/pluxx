@@ -211,7 +211,7 @@ describe('install', () => {
 
   it('reports host-specific reload guidance for the core four install surfaces', () => {
     expect(getInstallFollowupNotes(['claude-code', 'cursor', 'codex', 'opencode'])).toEqual([
-      'Claude Code note: if Claude is already open, run /reload-plugins in the session to pick up the new install.',
+      'Claude Code note: if Claude is already open, run /reload-plugins to pick up the new install.',
       'Cursor note: if Cursor is already open, use Developer: Reload Window or restart Cursor to pick up the new install.',
       'Codex note: if Codex is already open, use Plugins > Refresh if that action is available in your current UI, or restart Codex to pick up the new install. Plugin-bundled MCP servers may appear on the plugin detail page without appearing in the global MCP servers settings page.',
       'OpenCode note: if OpenCode is already open, restart or reload it so the plugin is picked up.',
