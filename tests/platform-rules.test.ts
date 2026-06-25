@@ -9,6 +9,8 @@ import {
   getPlatformRules,
 } from '../src/validation/platform-rules'
 import { PLUXX_COMPILER_BUCKETS } from '../src/schema'
+import { getAgentPrimitiveCapability } from '../src/agent-translation-registry'
+import { getCommandPrimitiveCapability } from '../src/command-translation-registry'
 
 describe('PLATFORM_VALIDATION_RULES', () => {
   it('has entries for all researched platforms', () => {
@@ -74,9 +76,25 @@ describe('CORE_FOUR_PRIMITIVE_CAPABILITIES', () => {
     ])
   })
 
+  it('derives command capability truth from the command translation registry', () => {
+    for (const platform of CORE_FOUR_PLATFORMS) {
+      expect(CORE_FOUR_PRIMITIVE_CAPABILITIES[platform].buckets.commands).toEqual(
+        getCommandPrimitiveCapability(platform),
+      )
+    }
+  })
+
   it('captures cursor agent translation through subagents', () => {
     expect(CORE_FOUR_PRIMITIVE_CAPABILITIES.cursor.buckets.agents.mode).toBe('translate')
     expect(CORE_FOUR_PRIMITIVE_CAPABILITIES.cursor.buckets.agents.nativeSurfaces).toContain('.cursor/agents/')
+  })
+
+  it('derives agent capability truth from the agent translation registry', () => {
+    for (const platform of CORE_FOUR_PLATFORMS) {
+      expect(CORE_FOUR_PRIMITIVE_CAPABILITIES[platform].buckets.agents).toEqual(
+        getAgentPrimitiveCapability(platform),
+      )
+    }
   })
 
   it('getCoreFourPrimitiveCapabilities returns the requested platform', () => {

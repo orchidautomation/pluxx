@@ -1,4 +1,6 @@
 import type { PluxxCompilerBucket, TargetPlatform } from '../schema'
+import { getAgentPrimitiveCapability } from '../agent-translation-registry'
+import { getCommandPrimitiveCapability } from '../command-translation-registry'
 import { CODEX_SUPPORTED_HOOK_EVENTS } from '../hook-events'
 import { getRuntimeReadinessExternalConfigNote } from '../runtime-readiness-registry'
 
@@ -795,14 +797,10 @@ export const CORE_FOUR_PRIMITIVE_CAPABILITIES: Record<CoreFourPlatform, CoreFour
         nativeSurfaces: ['skills/<skill>/SKILL.md'],
       },
       commands: {
-        mode: 'preserve',
-        nativeSurfaces: ['commands/*.md', 'skills/<skill>/SKILL.md'],
-        notes: 'Claude still supports command files, but the product is increasingly converging command workflows into skills.',
+        ...getCommandPrimitiveCapability('claude-code'),
       },
       agents: {
-        mode: 'preserve',
-        nativeSurfaces: ['agents/*.md'],
-        notes: 'Claude plugin agents are a first-class native surface with rich frontmatter.',
+        ...getAgentPrimitiveCapability('claude-code'),
       },
       hooks: {
         mode: 'preserve',
@@ -838,13 +836,10 @@ export const CORE_FOUR_PRIMITIVE_CAPABILITIES: Record<CoreFourPlatform, CoreFour
         notes: 'Cursor skills preserve workflow meaning but document a narrower frontmatter set than Claude.',
       },
       commands: {
-        mode: 'preserve',
-        nativeSurfaces: ['commands/*', 'slash commands'],
+        ...getCommandPrimitiveCapability('cursor'),
       },
       agents: {
-        mode: 'translate',
-        nativeSurfaces: ['agents/', '.cursor/agents/', '~/.cursor/agents/'],
-        notes: 'Cursor specialization and tool access often live more naturally in subagents than in skills.',
+        ...getAgentPrimitiveCapability('cursor'),
       },
       hooks: {
         mode: 'preserve',
@@ -878,14 +873,10 @@ export const CORE_FOUR_PRIMITIVE_CAPABILITIES: Record<CoreFourPlatform, CoreFour
         nativeSurfaces: ['skills/<skill>/SKILL.md'],
       },
       commands: {
-        mode: 'degrade',
-        nativeSurfaces: ['skills/', 'AGENTS.md', '.codex/commands.generated.json'],
-        notes: 'Current Codex docs do not document plugin-packaged slash-command parity, so Pluxx keeps canonical command intent through routing guidance plus a generated companion mirror.',
+        ...getCommandPrimitiveCapability('codex'),
       },
       agents: {
-        mode: 'translate',
-        nativeSurfaces: ['.codex/agents/*.toml', '~/.codex/agents/*.toml', 'subagent workflows'],
-        notes: 'Codex custom agents and subagents are real native surfaces, but they are not packaged the same way as Claude or Cursor plugin agents. Local May 13, 2026 headless probes now prove explicit invocation, built-in-name override, project-local precedence, and discovered `.agents/skills` inheritance. The same maintained headless suite also showed two config-depth caveats: a parent `[[skills.config]] enabled = false` entry did not disable a discovered project skill, and an agent-local `[[skills.config]]` entry did not preload an undiscovered `skills/` path. The maintained `bun scripts/probe-codex-mcp-runtime.ts --json` headless probe now also shows a more precise MCP approval split: default project-scoped and user-scoped root MCP both emit a real `mcp_tool_call` item but fail it with `user cancelled MCP tool call` before any server-side `tools/call`, while the default inline-agent path reaches startup plus `tools/list` and then falls back to `MCP_PROOF_MARKER_MISSING`. The same maintained suite now also proves five approved allow-paths: explicit `[mcp_servers.<id>.tools.<tool>] approval_mode = "approve"` works for project-scoped root MCP, user-scoped root MCP, agent-local inline `mcp_servers`, and custom agents that inherit an approved project-scoped or user-scoped root MCP server. All three approved custom-agent MCP paths still avoid a root `mcp_tool_call` item in the parent `codex exec --json` stream and instead surface child `agents_states` moving through `pending_init` to `completed`; project-scoped servers still do not appear in `codex mcp list`, and user-scoped servers do appear there. The maintained `bun scripts/probe-codex-agents-interactive-runtime.ts --json` trusted interactive probe also showed the same `sandbox_mode = "read-only"` child agent still wrote to the workspace there too, so these fields are not yet uniformly trustworthy runtime boundaries.',
+        ...getAgentPrimitiveCapability('codex'),
       },
       hooks: {
         mode: 'translate',
@@ -922,13 +913,10 @@ export const CORE_FOUR_PRIMITIVE_CAPABILITIES: Record<CoreFourPlatform, CoreFour
         nativeSurfaces: ['skills/<skill>/SKILL.md'],
       },
       commands: {
-        mode: 'preserve',
-        nativeSurfaces: ['commands/*.md', 'config command definitions'],
+        ...getCommandPrimitiveCapability('opencode'),
       },
       agents: {
-        mode: 'preserve',
-        nativeSurfaces: ['agents/*.md', 'config agent definitions'],
-        notes: 'OpenCode agents are first-class native surfaces. Prefer permission-first agent config for new builds; legacy tools remains compatibility input, not the preferred emitted shape.',
+        ...getAgentPrimitiveCapability('opencode'),
       },
       hooks: {
         mode: 'translate',

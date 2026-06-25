@@ -1,6 +1,15 @@
 import type { CanonicalCommandMetadata } from './commands'
 
-type CommandTranslationPlatform = 'codex'
+export type CommandTranslationPlatform = 'claude-code' | 'cursor' | 'codex' | 'opencode'
+type CommandDegradationPlatform = 'codex'
+
+type PrimitiveTranslationMode = 'preserve' | 'translate' | 'degrade' | 'drop'
+
+export interface CommandPrimitiveCapability {
+  mode: PrimitiveTranslationMode
+  nativeSurfaces: string[]
+  notes?: string
+}
 
 interface CommandFieldDescriptor {
   label: string
@@ -21,13 +30,41 @@ const CODEX_COMMAND_FIELD_DESCRIPTORS: CommandFieldDescriptor[] = [
 ]
 
 export const CODEX_COMMAND_GUIDANCE_SURFACES = ['skills/', 'AGENTS.md', '.codex/commands.generated.json'] as const
+const CODEX_COMMAND_GUIDANCE_NOTE = 'Current Codex docs do not document plugin-packaged slash-command parity, so Pluxx keeps canonical command intent through routing guidance plus a generated companion mirror.'
+
+const COMMAND_PRIMITIVE_CAPABILITIES: Record<CommandTranslationPlatform, CommandPrimitiveCapability> = {
+  'claude-code': {
+    mode: 'preserve',
+    nativeSurfaces: ['commands/*.md', 'skills/<skill>/SKILL.md'],
+    notes: 'Claude still supports command files, but the product is increasingly converging command workflows into skills.',
+  },
+  cursor: {
+    mode: 'preserve',
+    nativeSurfaces: ['commands/*', 'slash commands'],
+  },
+  codex: {
+    mode: 'degrade',
+    nativeSurfaces: [...CODEX_COMMAND_GUIDANCE_SURFACES],
+    notes: CODEX_COMMAND_GUIDANCE_NOTE,
+  },
+  opencode: {
+    mode: 'preserve',
+    nativeSurfaces: ['commands/*.md', 'config command definitions'],
+  },
+}
 
 export function getCodexCommandGuidanceNote(): string {
   return 'Codex does not currently document plugin-packaged slash-command parity. Pluxx keeps canonical command intent through AGENTS.md routing guidance and `.codex/commands.generated.json`.'
 }
 
-export function getTranslatedCommandFields(
+export function getCommandPrimitiveCapability(
   platform: CommandTranslationPlatform,
+): CommandPrimitiveCapability {
+  return COMMAND_PRIMITIVE_CAPABILITIES[platform]
+}
+
+export function getTranslatedCommandFields(
+  platform: CommandDegradationPlatform,
   metadata: CanonicalCommandMetadata,
 ): string[] {
   if (platform !== 'codex') return []
@@ -37,7 +74,7 @@ export function getTranslatedCommandFields(
 }
 
 export function getCommandTranslationMessage(
-  platform: CommandTranslationPlatform,
+  platform: CommandDegradationPlatform,
   degradedFields: string[],
 ): string | undefined {
   if (degradedFields.length === 0) return undefined
