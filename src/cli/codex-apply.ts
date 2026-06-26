@@ -19,8 +19,8 @@ export interface CodexCompanionApplyOptions {
 }
 
 export interface CodexCompanionApplyAction {
-  kind: 'hooks-feature' | 'mcp-approval'
-  status: 'added' | 'already-present' | 'skipped'
+  kind: 'hooks-feature' | 'mcp-approval' | 'hooks-companion' | 'readiness-companion' | 'permissions-companion'
+  status: 'applied' | 'already-present' | 'skipped' | 'unsafe' | 'unsupported'
   detail: string
 }
 
@@ -75,13 +75,16 @@ function buildCodexCompanionApplyPlan(options: CodexCompanionApplyOptions): Inte
   let changed = false
 
   if (includeHooks) {
-    if (codexBundleDeclaresHooks(consumerRoot)) {
+    const hookInspection = inspectCodexHookCompanions(consumerRoot)
+    actions.push(...hookInspection.actions)
+
+    if (hookInspection.declaresHooks) {
       const hookMerge = ensureCodexHooksFeature(configText)
       configText = hookMerge.text
       changed ||= hookMerge.changed
       actions.push({
         kind: 'hooks-feature',
-        status: hookMerge.changed ? 'added' : 'already-present',
+        status: hookMerge.changed ? 'applied' : 'already-present',
         detail: hookMerge.changed
           ? `Added [features].${RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG} = true for plugin-bundled Codex hooks.`
           : `[features].${RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG} = true is already present.`,
@@ -96,6 +99,8 @@ function buildCodexCompanionApplyPlan(options: CodexCompanionApplyOptions): Inte
   }
 
   if (includeMcpApprovals) {
+    actions.push(...inspectCodexPermissionsCompanion(consumerRoot))
+
     if (!existsSync(companionPath)) {
       actions.push({
         kind: 'mcp-approval',
@@ -109,7 +114,7 @@ function buildCodexCompanionApplyPlan(options: CodexCompanionApplyOptions): Inte
       changed ||= approvalMerge.changed
       actions.push({
         kind: 'mcp-approval',
-        status: approvalMerge.changed ? 'added' : 'already-present',
+        status: approvalMerge.changed ? 'applied' : 'already-present',
         detail: approvalMerge.changed
           ? `Applied ${approvalMerge.addedCount ?? 0} generated MCP approval stanza(s) and updated ${approvalMerge.updatedCount ?? 0} existing stanza(s) from .codex/config.generated.toml.`
           : 'Generated MCP approval stanzas are already present in active Codex config.',
@@ -234,6 +239,130 @@ function codexBundleDeclaresHooks(rootDir: string): boolean {
   } catch {
     return false
   }
+}
+
+interface CodexHooksCompanionPayload {
+  model?: unknown
+  hooks?: unknown
+  unsupported?: unknown
+}
+
+interface CodexReadinessCompanionPayload {
+  model?: unknown
+  translatedHooks?: Record<string, unknown> | null
+}
+
+interface CodexPermissionsCompanionPayload {
+  model?: unknown
+  rules?: unknown
+  skillPolicies?: unknown
+}
+
+function inspectCodexHookCompanions(rootDir: string): { declaresHooks: boolean; actions: CodexCompanionApplyAction[] } {
+  const actions: CodexCompanionApplyAction[] = []
+  const declaresHooks = codexBundleDeclaresHooks(rootDir)
+  const hooksCompanionPath = resolve(rootDir, '.codex/hooks.generated.json')
+  const readinessCompanionPath = resolve(rootDir, '.codex/readiness.generated.json')
+
+  if (existsSync(hooksCompanionPath)) {
+    const hooksCompanion = readJsonCompanion<CodexHooksCompanionPayload>(hooksCompanionPath, '.codex/hooks.generated.json')
+    if (hooksCompanion.model !== 'pluxx.codex-hooks.v1') {
+      actions.push({
+        kind: 'hooks-companion',
+        status: 'unsupported',
+        detail: `Unsupported .codex/hooks.generated.json model ${renderCompanionModel(hooksCompanion.model)}. Review the companion manually before assuming its hook metadata still matches this Pluxx apply flow.`,
+      })
+    } else {
+      const unsupportedEntries = Array.isArray(hooksCompanion.unsupported) ? hooksCompanion.unsupported : []
+      if (unsupportedEntries.length > 0) {
+        actions.push({
+          kind: 'hooks-companion',
+          status: 'unsupported',
+          detail: `Generated Codex hooks companion records ${unsupportedEntries.length} unsupported translated hook entr${unsupportedEntries.length === 1 ? 'y' : 'ies'}. Review .codex/hooks.generated.json manually for dropped events, types, or fields that cannot be activated through Codex config apply.`,
+        })
+      }
+    }
+  }
+
+  if (existsSync(readinessCompanionPath)) {
+    const readinessCompanion = readJsonCompanion<CodexReadinessCompanionPayload>(readinessCompanionPath, '.codex/readiness.generated.json')
+    if (readinessCompanion.model !== 'pluxx.readiness.v1') {
+      actions.push({
+        kind: 'readiness-companion',
+        status: 'unsupported',
+        detail: `Unsupported .codex/readiness.generated.json model ${renderCompanionModel(readinessCompanion.model)}. Review the readiness companion manually before relying on it.`,
+      })
+    } else {
+      const translatedHooks = readinessCompanion.translatedHooks && typeof readinessCompanion.translatedHooks === 'object'
+        ? Object.values(readinessCompanion.translatedHooks).filter((value) => typeof value === 'string' && value.trim() !== '')
+        : []
+      actions.push({
+        kind: 'readiness-companion',
+        status: 'skipped',
+        detail: `Readiness companion remains advisory after apply${translatedHooks.length > 0 ? ` (${translatedHooks.length} translated readiness hook${translatedHooks.length === 1 ? '' : 's'} detected)` : ''}. Pluxx can apply the known hook feature prerequisite, but Codex trust, review, and runtime support still need manual verification.`,
+      })
+    }
+  }
+
+  return { declaresHooks, actions }
+}
+
+function inspectCodexPermissionsCompanion(rootDir: string): CodexCompanionApplyAction[] {
+  const permissionsCompanionPath = resolve(rootDir, '.codex/permissions.generated.json')
+  if (!existsSync(permissionsCompanionPath)) return []
+
+  const permissionsCompanion = readJsonCompanion<CodexPermissionsCompanionPayload>(
+    permissionsCompanionPath,
+    '.codex/permissions.generated.json',
+  )
+  if (permissionsCompanion.model !== 'pluxx.permissions.v1') {
+    return [{
+      kind: 'permissions-companion',
+      status: 'unsupported',
+      detail: `Unsupported .codex/permissions.generated.json model ${renderCompanionModel(permissionsCompanion.model)}. Review the permissions companion manually before assuming its advisory selectors still match this Pluxx apply flow.`,
+    }]
+  }
+
+  const rules = Array.isArray(permissionsCompanion.rules) ? permissionsCompanion.rules : []
+  const skillPolicies = Array.isArray(permissionsCompanion.skillPolicies) ? permissionsCompanion.skillPolicies : []
+  const advisoryRules = rules.filter((rule) => isAdvisoryPermissionRule(rule))
+  if (advisoryRules.length === 0 && skillPolicies.length === 0) return []
+
+  const parts: string[] = []
+  if (advisoryRules.length > 0) {
+    parts.push(`${advisoryRules.length} advisory permission rule${advisoryRules.length === 1 ? '' : 's'}`)
+  }
+  if (skillPolicies.length > 0) {
+    parts.push(`${skillPolicies.length} migrated skill polic${skillPolicies.length === 1 ? 'y' : 'ies'}`)
+  }
+
+  return [{
+    kind: 'permissions-companion',
+    status: 'unsupported',
+    detail: `Generated Codex permissions companion still carries ${parts.join(' and ')} that cannot be auto-merged into active Codex config. Review .codex/permissions.generated.json manually after applying any materialized MCP approval stanzas.`,
+  }]
+}
+
+function readJsonCompanion<T>(filePath: string, label: string): T {
+  try {
+    return JSON.parse(readFileSync(filePath, 'utf-8')) as T
+  } catch (error) {
+    throw new Error(`${label} is malformed: ${error instanceof Error ? error.message : String(error)}`)
+  }
+}
+
+function renderCompanionModel(model: unknown): string {
+  return typeof model === 'string' ? `"${model}"` : JSON.stringify(model)
+}
+
+function isAdvisoryPermissionRule(rule: unknown): boolean {
+  if (!rule || typeof rule !== 'object') return true
+
+  const action = (rule as { action?: unknown }).action
+  const kind = (rule as { kind?: unknown }).kind
+  const pattern = (rule as { pattern?: unknown }).pattern
+  if (action !== 'allow' || kind !== 'MCP' || typeof pattern !== 'string') return true
+  return pattern.includes('*')
 }
 
 function readFeatureFlag(source: string): boolean | undefined {
