@@ -9,3 +9,6 @@ example/*/dist/
 examples/*/dist/
 tests/.install-fixture/
 *.swp
+
+# Agent scratch artifacts
+.agent-artifacts/
