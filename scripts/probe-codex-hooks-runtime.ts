@@ -4,6 +4,7 @@ const args = process.argv.slice(2)
 const jsonOutput = args.includes('--json')
 const keepTemp = args.includes('--keep-temp')
 const includeEnableHooksCli = args.includes('--include-enable-hooks-cli')
+const includeBypassHookTrust = args.includes('--include-bypass-hook-trust')
 const timeoutFlag = readFlagValue(args, '--timeout-ms')
 const binaryFlag = readFlagValue(args, '--binary')
 const authHomeFlag = readFlagValue(args, '--auth-home')
@@ -21,6 +22,14 @@ if (includeEnableHooksCli) {
     featureMode: 'none',
     trustProject: true,
     extraCliArgs: ['--enable', 'hooks'],
+  })
+}
+if (includeBypassHookTrust) {
+  scenarios.push({
+    name: 'hooks-trusted-bypass-hook-trust',
+    featureMode: 'hooks',
+    trustProject: true,
+    extraCliArgs: ['--dangerously-bypass-hook-trust'],
   })
 }
 

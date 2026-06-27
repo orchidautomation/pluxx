@@ -112,7 +112,6 @@ async function runCodexHookProbeScenario(
 
     writeFileSync(configPath, buildCodexProbeConfig(realWorkDir, scenario.featureMode, scenario.trustProject))
     writeFileSync(hooksPath, JSON.stringify({
-      version: 1,
       hooks: {
         SessionStart: [
           {

@@ -216,7 +216,6 @@ async function runCodexInteractiveHookProbeScenario(
 
     writeFileSync(configPath, buildCodexInteractiveHookConfig(realWorkDir, scenario.featureMode, scenario.trustProject))
     writeFileSync(hooksPath, JSON.stringify({
-      version: 1,
       hooks: {
         [scenario.eventName]: [
           {
