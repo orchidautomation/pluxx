@@ -16,3 +16,9 @@ This repo is prepared for the Orchid Agent Stack.
 - `qa/` stores QA notes, screenshots, and release/deploy evidence.
 
 Keep raw, private, temporary, or bulky agent outputs in `.agent-artifacts/`, which should be gitignored.
+
+Codex automatic Entire capture is not wired through repo-local `.codex/hooks.json`.
+The maintained Pluxx Codex hook probes currently show project-local Codex hooks can
+complete without executing side effects, even with `[features].hooks = true`,
+project trust, and `--enable hooks`. Use a proven host hook surface or an
+explicit Entire command until Codex hook activation is validated for this repo.
