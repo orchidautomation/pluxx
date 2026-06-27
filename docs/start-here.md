@@ -1,6 +1,6 @@
 # Start Here
 
-Last updated: 2026-06-24
+Last updated: 2026-06-27
 
 ## Doc Links
 
@@ -213,6 +213,11 @@ The repo already proves a lot.
 - that Platform Change Ops example has now also been installed and `verify-install` checked from the source project across Claude Code, Cursor, Codex, and OpenCode
 - native Claude install verification now follows Claude's real cache install path (`~/.claude/plugins/cache/<marketplace>/<plugin>/<version>`) instead of the old direct plugin-directory assumption
 - the new shared `src/skills.ts` parser is now the common skill reader for lint, Agent Mode, migrate, and Claude skill rewrites instead of four separate ad hoc parsers
+- the current next robustness slice is making Codex companion apply/verify first-class enough that generated readiness, hook, MCP approval, and companion config guidance becomes operational and verifiable rather than advisory only:
+  - `PLUXX-226`
+  - `PLUXX-264`
+  - `PLUXX-248`
+  - [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
 - canonical skill metadata is now richer than a frontmatter-only slice:
   - Agent Mode now sees adjacent support files such as `examples/`, helper `scripts/`, and neighboring references as part of the skill surface
   - migrate now preserves canonical skill titles and richer skill frontmatter through one shared metadata path instead of rebuilding that meaning ad hoc

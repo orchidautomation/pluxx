@@ -1,6 +1,6 @@
 # Pluxx Queue
 
-Last updated: 2026-06-24
+Last updated: 2026-06-27
 
 ## Doc Links
 
@@ -216,6 +216,10 @@ Goal:
 Open work:
 
 - keep [docs/start-here.md](../start-here.md), this queue, the master backlog, and Linear aligned
+- treat Codex companion apply/verify as the next concrete robustness slice:
+  - make generated readiness, hook, MCP approval, and companion config guidance operational instead of advisory only
+  - keep this aligned with `PLUXX-226`, `PLUXX-264`, `PLUXX-248`, and [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
+  - use install ownership tracking as the follow-on, not the immediate queue center
 - use [docs/core-four-reliability-register.md](../core-four-reliability-register.md) as the current Claude Code and Codex failure-mode inventory:
   - keep the documented break modes aligned with the actual proof stack
   - treat Cursor and OpenCode as secondary reliability follow-ons rather than flattening all four hosts into one identical work block
@@ -490,7 +494,7 @@ These are real, but not the current queue:
 Right now the priority order is:
 
 1. keep the product story and source-of-truth docs clean
-2. make the OSS authoring substrate obviously useful
+2. make the OSS authoring substrate obviously useful, starting with Codex companion apply/verify as the next small robustness slice
 3. prove richer plugin depth with a flagship example
 4. make the Pluxx plugin itself excellent
 5. use customer discovery to learn where the later trust layer should go

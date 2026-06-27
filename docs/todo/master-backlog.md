@@ -1,6 +1,6 @@
 # Master Backlog
 
-Last updated: 2026-06-24
+Last updated: 2026-06-27
 
 This is the most complete repo-native backlog for Pluxx.
 
@@ -89,6 +89,12 @@ Any person or agent should be able to enter the repo and answer:
   - marketplace submission APIs, managed trust/distribution, automatic rollback/unpublish, and real authenticated publish plus rollback proof remain open
 - [~] Keep [docs/core-four-primitive-proof-ledger.md](../core-four-primitive-proof-ledger.md) current as the primitive-by-host proof ledger for the core-four native shipping claim
 - [~] Close the remaining ticket-state drift where shipped work can still appear as backlog in Linear
+- [~] Make Codex companion apply/verify the next concrete robustness slice so generated readiness, hook, MCP approval, and companion config artifacts become operational and verifiable instead of advisory only:
+  - `PLUXX-226`
+  - `PLUXX-264`
+  - `PLUXX-248`
+  - [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
+  - install ownership tracking remains the follow-on slice, not the immediate center
 - [~] Keep the README top section, website hero, GitHub About metadata, and docs homepage messaging aligned
 - [ ] Remove or rewrite any stale docs that still describe already-shipped work as future work
 - [ ] Decide which docs are public product docs vs strategy docs vs internal-only GTM docs

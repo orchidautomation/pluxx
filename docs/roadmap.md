@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-06-24
+Last updated: 2026-06-27
 
 ## Doc Links
 
@@ -98,6 +98,10 @@ The closure plan is now narrower than it was before:
 - the next reliability pass should now run from [docs/core-four-reliability-register.md](./core-four-reliability-register.md):
   - Claude Code and Codex stay the priority hosts
   - the immediate focus is agents, hooks, settings/discovery, and distribution-edge proof rather than broad compiler rewrites
+- the next concrete OSS-authoring robustness slice is Codex companion apply/verify:
+  - make generated readiness, hook, MCP approval, and companion config artifacts operational and verifiable instead of advisory only
+  - keep the work aligned with `PLUXX-226`, `PLUXX-264`, `PLUXX-248`, and [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
+  - treat install ownership tracking as the follow-on slice
 - local stdio import quality is now stronger for the common "I already have an MCP" path:
   - `init --from-mcp` auto-recovers `passthrough` for project-relative runtimes such as `./build/index.js`
   - `lint` catches unbundled stdio runtime payloads earlier
