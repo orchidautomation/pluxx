@@ -44,6 +44,29 @@ interface InternalCodexCompanionApplyResult extends CodexCompanionApplyResult {
   nextText?: string
 }
 
+export function renderCodexCompanionApplyLines(
+  result: CodexCompanionApplyResult,
+  options: { dryRun: boolean },
+): string[] {
+  const lines = [
+    `${options.dryRun ? 'Dry run: ' : ''}${result.changed ? 'Codex companion apply changes planned' : 'Codex companion apply already up to date'}: ${result.configPath}`,
+    ...result.actions.map((action) => `  [${action.status}] ${action.detail}`),
+    'Lifecycle: generated Codex companions stay in the installed bundle; `pluxx codex apply` only merges active-config prerequisites.',
+    '  Hooks: applying `[features].hooks = true` enables the known prerequisite for plugin-bundled hooks, but runtime firing still depends on plugin state, trust, review, and current Codex behavior.',
+    '  MCP approvals: `.codex/config.generated.toml` can be merged into active config for the live-proven per-tool approval path, while `.codex/permissions.generated.json` remains the broader advisory mirror.',
+  ]
+
+  if (result.changed && options.dryRun) {
+    lines.push('Next: run without --dry-run to write the active config changes, then refresh/restart Codex and rerun `pluxx verify-install --target codex`.')
+  } else if (result.changed) {
+    lines.push('Applied. Refresh/restart Codex, then rerun `pluxx verify-install --target codex`.')
+  } else {
+    lines.push('Next: if you still need runtime confirmation, refresh/restart Codex and rerun `pluxx verify-install --target codex`.')
+  }
+
+  return lines
+}
+
 export function resolveCodexApplyConfigPath(options: Pick<CodexCompanionApplyOptions, 'configPath' | 'projectRoot' | 'userConfig'>): string {
   if (options.configPath) return resolve(options.configPath)
   if (options.userConfig) {

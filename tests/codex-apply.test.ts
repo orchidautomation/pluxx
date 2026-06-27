@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'bun:test'
-import { mkdtempSync, rmSync } from 'fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { resolve } from 'path'
 import {
   planCodexCompanionApply,
   ensureCodexHooksFeature,
   ensureCodexMcpApprovals,
+  renderCodexCompanionApplyLines,
 } from '../src/cli/codex-apply'
 
 describe('codex companion apply helpers', () => {
@@ -66,6 +67,46 @@ describe('codex companion apply helpers', () => {
 
     try {
       expect(() => planCodexCompanionApply({ consumerRoot: dir })).toThrow('No Codex plugin manifest')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('renders the Codex companion lifecycle boundary for dry-run output', () => {
+    const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-codex-apply-cli-'))
+    const consumerRoot = resolve(dir, 'consumer')
+    const projectRoot = resolve(dir, 'project')
+
+    mkdirSync(resolve(consumerRoot, '.codex-plugin'), { recursive: true })
+    mkdirSync(resolve(consumerRoot, '.codex'), { recursive: true })
+    mkdirSync(resolve(projectRoot, '.codex'), { recursive: true })
+
+    writeFileSync(
+      resolve(consumerRoot, '.codex-plugin/plugin.json'),
+      JSON.stringify({ name: 'verify-plugin', version: '0.1.0', hooks: 'hooks/hooks.json' }, null, 2),
+    )
+    mkdirSync(resolve(consumerRoot, 'hooks'), { recursive: true })
+    writeFileSync(resolve(consumerRoot, 'hooks/hooks.json'), '{}\n')
+    writeFileSync(
+      resolve(consumerRoot, '.codex/config.generated.toml'),
+      '[mcp_servers."hosted".tools."search"]\napproval_mode = "approve"\n',
+    )
+
+    try {
+      const result = planCodexCompanionApply({
+        consumerRoot,
+        projectRoot,
+        dryRun: true,
+      })
+
+      const output = renderCodexCompanionApplyLines(result, { dryRun: true }).join('\n')
+
+      expect(output).toContain('Codex companion apply changes planned')
+      expect(output).toContain('generated Codex companions stay in the installed bundle')
+      expect(output).toContain('Hooks: applying `[features].hooks = true` enables the known prerequisite for plugin-bundled hooks')
+      expect(output).toContain('`.codex/config.generated.toml` can be merged into active config')
+      expect(output).toContain('`.codex/permissions.generated.json` remains the broader advisory mirror')
+      expect(output).toContain('refresh/restart Codex and rerun `pluxx verify-install --target codex`')
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

@@ -14,7 +14,9 @@ Pluxx builds the Codex target into `dist/codex/`. Codex consumes:
 - `hooks/hooks.json` when the source plugin defines hooks or runtime readiness gates
 - `AGENTS.md`
 - `.codex/hooks.generated.json` as a hook translation companion
+- `.codex/readiness.generated.json` as readiness/debug guidance for bundled hook flows
 - `.codex/permissions.generated.json` as a companion mirror, not native enforcement
+- optional `.codex/config.generated.toml` as a generated starter snippet for the live-proven per-tool MCP approval path
 
 Codex does not currently document plugin-packaged slash commands as a first-class surface, so the main Codex user-facing contract is the plugin manifest, skills, MCP config, bundled hooks where configured, and `AGENTS.md`.
 
@@ -36,6 +38,21 @@ Pluxx installs Codex plugins into:
 - local marketplace entry: `~/.agents/plugins/marketplace.json`
 
 If the plugin defines local hook commands, add `--trust` or confirm the trust prompt during install.
+
+## Companion Lifecycle
+
+The Codex path is intentionally explicit:
+
+1. `pluxx build --target codex` generates the bundle and companion files.
+2. `pluxx install --target codex` installs the bundle, but Codex may still need `Plugins > Refresh` or a restart to pick up the active copy.
+3. `pluxx codex apply --consumer <installed-bundle> --project-root <project>` merges external active-config prerequisites such as `[features].hooks = true` and generated per-tool approval stanzas.
+4. `pluxx verify-install --target codex` checks the installed bundle, cache freshness, trust/config prerequisites, and companion-merge gaps.
+
+That apply step is important because Pluxx does not pretend bundle companions are self-enforcing runtime state:
+
+- `hooks/hooks.json` is bundled, while `.codex/hooks.generated.json` and `.codex/readiness.generated.json` stay as debug/explainability companions.
+- `.codex/config.generated.toml` is a starter snippet for active config, not an auto-loaded permissions layer.
+- `.codex/permissions.generated.json` remains an advisory mirror for broader permission intent.
 
 ## Agent-Driven Refinement
 

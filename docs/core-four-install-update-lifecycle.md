@@ -93,6 +93,27 @@ If the installed Codex bundle also includes `.codex/config.generated.toml`, `doc
 
 Use `pluxx codex apply --consumer <installed-codex-bundle> --project-root <project>` to make that external merge step explicit. The command applies the canonical `[features].hooks = true` prerequisite for hook-bearing bundles and merges generated MCP approval stanzas from `.codex/config.generated.toml` into the selected active Codex config. Use `--dry-run` first to preview the target config path and planned changes, then reload Codex and rerun `pluxx verify-install --target codex`.
 
+### Codex Companion Lifecycle
+
+Treat Codex as a bundled-plus-external lifecycle, not a single auto-applied plugin surface:
+
+1. Generate/build:
+   The bundle can contain `hooks/hooks.json`, `.codex/hooks.generated.json`, `.codex/readiness.generated.json`, `.codex/permissions.generated.json`, and sometimes `.codex/config.generated.toml`.
+2. Install/update:
+   `pluxx install --target codex` puts the bundle under `~/.codex/plugins/<plugin>` and Codex may continue reading a separate active cache until refresh or restart.
+3. Apply:
+   `pluxx codex apply` does not mutate the bundle. It only merges active-config prerequisites into project or user `config.toml`, mainly `[features].hooks = true` and generated per-tool MCP approval stanzas.
+4. Refresh/restart:
+   Use `Plugins > Refresh` when available, otherwise restart Codex so the running app picks up the current bundle and active config.
+5. Verify:
+   `pluxx verify-install --target codex` checks the installed bundle, stale-cache drift, trust/config prerequisites, and companion-merge gaps. It is the operational source of truth after install or apply.
+
+The manual-review boundary still matters:
+
+- `.codex/permissions.generated.json` is advisory, not auto-enforced runtime state.
+- `[features].hooks = true` is a prerequisite, not proof that hooks executed.
+- Verified bundle shape and merged approvals do not erase current runtime caveats around trust, hook review, and Codex runtime support.
+
 The newest live Codex proof on 2026-05-13 narrowed the remaining gap further:
 
 - Pluxx now emits the official nested Codex hook shape at `hooks/hooks.json`
