@@ -1,6 +1,6 @@
 # Start Here
 
-Last updated: 2026-06-24
+Last updated: 2026-06-27
 
 ## Doc Links
 
@@ -21,6 +21,7 @@ Last updated: 2026-06-24
   - [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md)
   - [docs/core-four-provider-docs-audit.md](./core-four-provider-docs-audit.md)
   - [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md)
+  - [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](./pluxx-self-hosted-core-four-proof.md)
   - [README.md](../README.md)
 - Update together:
@@ -113,6 +114,22 @@ Potential surfaces:
 - runtime health and governance
 
 This is important strategically, but it should not drive the near-term roadmap.
+
+## Current Next Ship
+
+The next concrete product slice is a first-class Codex companion apply and verify workflow.
+
+Generated Codex companion artifacts should become operational rather than only advisory:
+
+- apply safe, reviewable config stanzas for hooks, readiness, MCP approvals, and adjacent companion config
+- back up or diff target config before modifying it
+- print exactly what was applied, skipped, already present, or unsafe
+- verify active project/user config, plugin cache state, generated companion artifacts, and known Codex caveats
+- cover idempotency, stale config, malformed companion artifacts, and no-op behavior when companion files are absent
+
+The decision note is [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisions/2026-06-26-pluxx-next-ship-review.md).
+
+After that, install ownership tracking is the next follow-on because it supports conservative uninstall, prune, reinstall, and diagnostics.
 
 ## Who Pluxx Is For Right Now
 
@@ -213,6 +230,11 @@ The repo already proves a lot.
 - that Platform Change Ops example has now also been installed and `verify-install` checked from the source project across Claude Code, Cursor, Codex, and OpenCode
 - native Claude install verification now follows Claude's real cache install path (`~/.claude/plugins/cache/<marketplace>/<plugin>/<version>`) instead of the old direct plugin-directory assumption
 - the new shared `src/skills.ts` parser is now the common skill reader for lint, Agent Mode, migrate, and Claude skill rewrites instead of four separate ad hoc parsers
+- the current next robustness slice is making Codex companion apply/verify first-class enough that generated readiness, hook, MCP approval, and companion config guidance becomes operational and verifiable rather than advisory only:
+  - `PLUXX-226`
+  - `PLUXX-264`
+  - `PLUXX-248`
+  - [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
 - canonical skill metadata is now richer than a frontmatter-only slice:
   - Agent Mode now sees adjacent support files such as `examples/`, helper `scripts/`, and neighboring references as part of the skill surface
   - migrate now preserves canonical skill titles and richer skill frontmatter through one shared metadata path instead of rebuilding that meaning ad hoc

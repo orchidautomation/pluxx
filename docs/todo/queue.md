@@ -1,6 +1,6 @@
 # Pluxx Queue
 
-Last updated: 2026-06-24
+Last updated: 2026-06-27
 
 ## Doc Links
 
@@ -19,6 +19,7 @@ Last updated: 2026-06-24
   - [docs/runtime-contract.md](../runtime-contract.md)
   - [docs/core-four-primitive-proof-ledger.md](../core-four-primitive-proof-ledger.md)
   - [docs/pluxx-plugin-surface-audit.md](../pluxx-plugin-surface-audit.md)
+  - [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](../pluxx-self-hosted-core-four-proof.md)
   - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
   - [docs/core-four-reliability-register.md](../core-four-reliability-register.md)
@@ -216,6 +217,10 @@ Goal:
 Open work:
 
 - keep [docs/start-here.md](../start-here.md), this queue, the master backlog, and Linear aligned
+- treat Codex companion apply/verify as the next concrete robustness slice:
+  - make generated readiness, hook, MCP approval, and companion config guidance operational instead of advisory only
+  - keep this aligned with `PLUXX-226`, `PLUXX-264`, `PLUXX-248`, and [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
+  - use install ownership tracking as the follow-on, not the immediate queue center
 - use [docs/core-four-reliability-register.md](../core-four-reliability-register.md) as the current Claude Code and Codex failure-mode inventory:
   - keep the documented break modes aligned with the actual proof stack
   - treat Cursor and OpenCode as secondary reliability follow-ons rather than flattening all four hosts into one identical work block
@@ -223,6 +228,12 @@ Open work:
 - tighten the remaining top-level docs framing and entrypoint docs
 - keep [docs/release-distribution-proof-map.md](../release-distribution-proof-map.md) aligned with CLI release/publish behavior and proof docs
 - keep [docs/core-four-primitive-proof-ledger.md](../core-four-primitive-proof-ledger.md) aligned with the matrix, reliability register, and maintained example proofs
+- make Codex companion apply and verify the next concrete product slice:
+  - turn generated Codex companion artifacts into a safe operational workflow rather than only advisory files
+  - cover hooks, readiness, MCP approval stanzas, companion config diffs/backups, idempotency, stale config, malformed companion artifacts, and no-op behavior when companion files are absent
+  - keep this aligned with `PLUXX-226`, `PLUXX-264`, and `PLUXX-248`
+  - use [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md) as the decision note
+- after Codex companion apply/verify, ship install ownership tracking for conservative uninstall, prune, reinstall, and "what did Pluxx touch?" diagnostics
 - keep GTM-sensitive material out of the public repo
 - continue reconciling stale planning artifacts that still describe already-shipped work as future work
 - close the remaining Linear drift where shipped work like installed-MCP discovery is still marked as backlog
@@ -490,7 +501,7 @@ These are real, but not the current queue:
 Right now the priority order is:
 
 1. keep the product story and source-of-truth docs clean
-2. make the OSS authoring substrate obviously useful
+2. make the OSS authoring substrate obviously useful, starting with Codex companion apply/verify as the next small robustness slice
 3. prove richer plugin depth with a flagship example
 4. make the Pluxx plugin itself excellent
 5. use customer discovery to learn where the later trust layer should go

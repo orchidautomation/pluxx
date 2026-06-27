@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-06-24
+Last updated: 2026-06-27
 
 ## Doc Links
 
@@ -19,6 +19,7 @@ Last updated: 2026-06-24
   - [docs/runtime-contract.md](./runtime-contract.md)
   - [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md)
   - [docs/pluxx-plugin-surface-audit.md](./pluxx-plugin-surface-audit.md)
+  - [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](./pluxx-self-hosted-core-four-proof.md)
   - [docs/core-four-provider-docs-audit.md](./core-four-provider-docs-audit.md)
   - [docs/core-four-reliability-register.md](./core-four-reliability-register.md)
@@ -64,6 +65,17 @@ That means Pluxx should become excellent at:
 
 before it spends serious energy on an operated control plane.
 
+The current next ship decision is to make Codex companion apply and verify first-class:
+
+- apply generated Codex companion config safely, with reviewable diffs or backups
+- verify active project/user config, plugin cache state, generated companion artifacts, and known Codex caveats
+- cover idempotency, stale config, malformed companion artifacts, and absent companion files
+- align execution with `PLUXX-226`, `PLUXX-264`, and `PLUXX-248`
+
+See [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisions/2026-06-26-pluxx-next-ship-review.md).
+
+The follow-on slice is install ownership tracking for conservative uninstall, prune, reinstall, and "what did Pluxx touch?" diagnostics.
+
 ## Current Priority Order
 
 ### 1. Product clarity and source-of-truth coherence
@@ -98,6 +110,10 @@ The closure plan is now narrower than it was before:
 - the next reliability pass should now run from [docs/core-four-reliability-register.md](./core-four-reliability-register.md):
   - Claude Code and Codex stay the priority hosts
   - the immediate focus is agents, hooks, settings/discovery, and distribution-edge proof rather than broad compiler rewrites
+- the next concrete OSS-authoring robustness slice is Codex companion apply/verify:
+  - make generated readiness, hook, MCP approval, and companion config artifacts operational and verifiable instead of advisory only
+  - keep the work aligned with `PLUXX-226`, `PLUXX-264`, `PLUXX-248`, and [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
+  - treat install ownership tracking as the follow-on slice
 - local stdio import quality is now stronger for the common "I already have an MCP" path:
   - `init --from-mcp` auto-recovers `passthrough` for project-relative runtimes such as `./build/index.js`
   - `lint` catches unbundled stdio runtime payloads earlier

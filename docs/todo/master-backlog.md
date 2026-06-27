@@ -1,6 +1,6 @@
 # Master Backlog
 
-Last updated: 2026-06-24
+Last updated: 2026-06-27
 
 This is the most complete repo-native backlog for Pluxx.
 
@@ -32,6 +32,7 @@ This is not the same thing as the short queue.
   - [docs/runtime-contract.md](../runtime-contract.md)
   - [docs/core-four-primitive-proof-ledger.md](../core-four-primitive-proof-ledger.md)
   - [docs/pluxx-plugin-surface-audit.md](../pluxx-plugin-surface-audit.md)
+  - [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](../pluxx-self-hosted-core-four-proof.md)
   - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
   - [docs/core-four-reliability-register.md](../core-four-reliability-register.md)
@@ -89,11 +90,24 @@ Any person or agent should be able to enter the repo and answer:
   - marketplace submission APIs, managed trust/distribution, automatic rollback/unpublish, and real authenticated publish plus rollback proof remain open
 - [~] Keep [docs/core-four-primitive-proof-ledger.md](../core-four-primitive-proof-ledger.md) current as the primitive-by-host proof ledger for the core-four native shipping claim
 - [~] Close the remaining ticket-state drift where shipped work can still appear as backlog in Linear
+- [~] Make Codex companion apply/verify the next concrete robustness slice so generated readiness, hook, MCP approval, and companion config artifacts become operational and verifiable instead of advisory only:
+  - `PLUXX-226`
+  - `PLUXX-264`
+  - `PLUXX-248`
+  - [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
+  - install ownership tracking remains the follow-on slice, not the immediate center
 - [~] Keep the README top section, website hero, GitHub About metadata, and docs homepage messaging aligned
 - [ ] Remove or rewrite any stale docs that still describe already-shipped work as future work
 - [ ] Decide which docs are public product docs vs strategy docs vs internal-only GTM docs
 - [ ] Move account-specific GTM and customer notes out of the public repo
 - [ ] Define a simple rule for when repo docs should be updated alongside Linear
+- [ ] Ship the first-class Codex companion apply and verify workflow as the next concrete product slice:
+  - apply generated Codex companion config safely with reviewable diffs/backups
+  - verify active project/user config, plugin cache state, generated companion artifacts, and known Codex caveats
+  - cover idempotency, stale config, malformed companion artifacts, and absent companion files
+  - keep execution aligned with `PLUXX-226`, `PLUXX-264`, and `PLUXX-248`
+  - see [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
+- [ ] Follow Codex companion apply/verify with install ownership tracking so uninstall, prune, reinstall, and "what did Pluxx touch?" diagnostics can stay conservative
 - [~] Keep OpenClaw in the documented beta-target lane until native generator, doctor, and smoke proof exist:
   - [docs/openclaw-target-evaluation.md](../openclaw-target-evaluation.md)
 - [~] Turn the provider and branding audits into an explicit closure tracker for every mapped cross-host feature:
