@@ -19,6 +19,7 @@ Last updated: 2026-06-27
   - [docs/runtime-contract.md](./runtime-contract.md)
   - [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md)
   - [docs/pluxx-plugin-surface-audit.md](./pluxx-plugin-surface-audit.md)
+  - [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](./pluxx-self-hosted-core-four-proof.md)
   - [docs/core-four-provider-docs-audit.md](./core-four-provider-docs-audit.md)
   - [docs/core-four-reliability-register.md](./core-four-reliability-register.md)
@@ -63,6 +64,17 @@ That means Pluxx should become excellent at:
 - sync
 
 before it spends serious energy on an operated control plane.
+
+The current next ship decision is to make Codex companion apply and verify first-class:
+
+- apply generated Codex companion config safely, with reviewable diffs or backups
+- verify active project/user config, plugin cache state, generated companion artifacts, and known Codex caveats
+- cover idempotency, stale config, malformed companion artifacts, and absent companion files
+- align execution with `PLUXX-226`, `PLUXX-264`, and `PLUXX-248`
+
+See [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisions/2026-06-26-pluxx-next-ship-review.md).
+
+The follow-on slice is install ownership tracking for conservative uninstall, prune, reinstall, and "what did Pluxx touch?" diagnostics.
 
 ## Current Priority Order
 

@@ -19,6 +19,7 @@ Last updated: 2026-06-27
   - [docs/runtime-contract.md](../runtime-contract.md)
   - [docs/core-four-primitive-proof-ledger.md](../core-four-primitive-proof-ledger.md)
   - [docs/pluxx-plugin-surface-audit.md](../pluxx-plugin-surface-audit.md)
+  - [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](../pluxx-self-hosted-core-four-proof.md)
   - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
   - [docs/core-four-reliability-register.md](../core-four-reliability-register.md)
@@ -227,6 +228,12 @@ Open work:
 - tighten the remaining top-level docs framing and entrypoint docs
 - keep [docs/release-distribution-proof-map.md](../release-distribution-proof-map.md) aligned with CLI release/publish behavior and proof docs
 - keep [docs/core-four-primitive-proof-ledger.md](../core-four-primitive-proof-ledger.md) aligned with the matrix, reliability register, and maintained example proofs
+- make Codex companion apply and verify the next concrete product slice:
+  - turn generated Codex companion artifacts into a safe operational workflow rather than only advisory files
+  - cover hooks, readiness, MCP approval stanzas, companion config diffs/backups, idempotency, stale config, malformed companion artifacts, and no-op behavior when companion files are absent
+  - keep this aligned with `PLUXX-226`, `PLUXX-264`, and `PLUXX-248`
+  - use [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md) as the decision note
+- after Codex companion apply/verify, ship install ownership tracking for conservative uninstall, prune, reinstall, and "what did Pluxx touch?" diagnostics
 - keep GTM-sensitive material out of the public repo
 - continue reconciling stale planning artifacts that still describe already-shipped work as future work
 - close the remaining Linear drift where shipped work like installed-MCP discovery is still marked as backlog
