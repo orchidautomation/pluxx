@@ -79,7 +79,7 @@ import { printVerifyInstallResult, verifyInstall } from './verify-install'
 import { runBehavioralSuite } from './behavioral'
 import type { BehavioralSuiteResult } from './behavioral'
 import { planTextFileAction, writeTextFile } from '../text-files'
-import { applyCodexCompanion } from './codex-apply'
+import { applyCodexCompanion, renderCodexCompanionApplyLines } from './codex-apply'
 import {
   discoverInstalledMcpServers,
   formatInstalledMcpSource,
@@ -3428,14 +3428,8 @@ async function runCodex() {
     }
 
     if (!runtime.quiet) {
-      console.log(`${runtime.dryRun ? 'Dry run: ' : ''}${result.changed ? 'Codex config changes planned' : 'Codex config already up to date'}: ${result.configPath}`)
-      for (const action of result.actions) {
-        console.log(`  [${action.status}] ${action.detail}`)
-      }
-      if (result.changed && runtime.dryRun) {
-        console.log('Run without --dry-run to apply these changes, then rerun `pluxx verify-install --target codex`.')
-      } else if (result.changed) {
-        console.log('Applied. Reload Codex, then rerun `pluxx verify-install --target codex`.')
+      for (const line of renderCodexCompanionApplyLines(result, { dryRun: runtime.dryRun })) {
+        console.log(line)
       }
     }
     return
@@ -3502,7 +3496,7 @@ Usage:
   pluxx agent prepare                     Generate agent context + boundary files for host agents
   pluxx agent prompt <kind>               Generate a prompt pack (taxonomy, instructions, review)
   pluxx agent run <kind> --runner <id>    Execute a prompt pack via Claude, Cursor, Codex, or OpenCode headlessly
-  pluxx codex apply --consumer <path>     Apply generated Codex hook/config companions to active config
+  pluxx codex apply --consumer <path>     Merge generated Codex companion prerequisites into active config
   pluxx discover-mcp [--host <hosts...>] List installed MCP servers from local host configs
   pluxx mcp proxy ...                     Run a local MCP proxy with optional record/replay tapes
   pluxx autopilot --from-mcp ...          Run import + agent refinement + verification in one command
