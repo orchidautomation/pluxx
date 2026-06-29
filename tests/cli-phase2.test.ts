@@ -404,9 +404,34 @@ env = { STUB_API_KEY = "$STUB_API_KEY" }
 
       const summary = JSON.parse(stdout) as {
         dryRun: boolean
+        platforms: string[]
+        targetSelection: {
+          source: string
+          selectedTargets: string[]
+          explicitOverride: boolean
+        }
+        hostDetection: {
+          detectedHosts: string[]
+          hosts: Array<{
+            host: string
+            detected: boolean
+            evidence: unknown[]
+          }>
+        }
         installTargets: Array<{ platform: string; built: boolean }>
       }
       expect(summary.dryRun).toBe(true)
+      expect(summary.platforms).toEqual(['claude-code'])
+      expect(summary.targetSelection).toMatchObject({
+        source: 'config-targets',
+        selectedTargets: ['claude-code'],
+        explicitOverride: false,
+      })
+      expect(Array.isArray(summary.hostDetection.detectedHosts)).toBe(true)
+      expect(summary.hostDetection.hosts).toHaveLength(4)
+      expect(summary.hostDetection.hosts[0]?.host).toBe('claude-code')
+      expect(typeof summary.hostDetection.hosts[0]?.detected).toBe('boolean')
+      expect(Array.isArray(summary.hostDetection.hosts[0]?.evidence)).toBe(true)
       expect(summary.installTargets[0]?.platform).toBe('claude-code')
       expect(summary.installTargets[0]?.built).toBe(true)
       expect(existsSync(resolve(homeDir, '.claude/plugins/dry-run-plugin'))).toBe(false)

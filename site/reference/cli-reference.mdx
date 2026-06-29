@@ -196,6 +196,14 @@ Install built bundles into local host tooling for testing.
 npx @orchid-labs/pluxx install --target claude-code,codex
 ```
 
+Preview the install plan as JSON:
+
+```bash
+npx @orchid-labs/pluxx install --dry-run --json
+```
+
+Dry-run JSON includes `hostDetection` for Claude Code, Cursor, Codex, and OpenCode plus `targetSelection`. Detection is read-only and informational: explicit `--target` values remain authoritative, project config alone does not count as an installed host signal, and Pluxx never mutates host config just because a host was detected.
+
 If the plugin contains local hooks, pass `--trust` after reviewing them:
 
 ```bash

@@ -89,6 +89,7 @@ import {
   type DiscoveredInstalledMcpServer,
   type InstalledMcpHost,
 } from './discover-installed-mcp'
+import { buildHostTargetSelection, detectHostFamilies } from '../host-detection'
 
 const CLI_PACKAGE_NAME = '@orchid-labs/pluxx'
 const rawArgs = process.argv.slice(2)
@@ -3228,10 +3229,14 @@ async function runInstall() {
   if (runtime.dryRun) {
     const plan = planInstallPlugin(distDir, config.name, platforms)
     const hookCommands = listHookCommands(config.hooks)
+    const hostDetection = detectHostFamilies({ rootDir: process.cwd() })
+    const targetSelection = buildHostTargetSelection(config.targets, targets, hostDetection)
     const summary = {
       dryRun: true,
       pluginName: config.name,
       platforms,
+      targetSelection,
+      hostDetection,
       notes: getInstallFollowupNotes(platforms),
       trustRequired: hookCommands.length > 0,
       userConfig: plannedUserConfig.map((entry) => ({
@@ -3256,6 +3261,11 @@ async function runInstall() {
       plan.forEach((target) => {
         console.log(`  ${target.platform} -> ${target.description}${target.built ? '' : ' (not built)'}`)
       })
+      console.log(`  detected hosts: ${targetSelection.detectedHosts.join(', ') || 'none'}`)
+      if (targetSelection.suggestedTargets.length > 0) {
+        console.log(`  suggested targets: ${targetSelection.suggestedTargets.join(', ')}`)
+      }
+      console.log(`  target selection: ${targetSelection.note}`)
       if (plannedUserConfig.length > 0) {
         console.log('  userConfig:')
         plannedUserConfig.forEach((entry) => {
