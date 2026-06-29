@@ -180,7 +180,7 @@ The initial author-once hardening tranche is also materially done.
 The public baseline is also real.
 
 - npm package is live as `@orchid-labs/pluxx`
-- the latest published npm package is `@orchid-labs/pluxx@0.1.22`
+- the latest published npm package is `@orchid-labs/pluxx@0.1.23`
 - published CLI runtime is Node `>=18`
 - published CLI lifecycle ergonomics are now stronger for global installs:
   - `pluxx --version`
@@ -470,7 +470,7 @@ Open work:
 
 Goal:
 
-- keep the next npm release routine now that `0.1.22` is published and the code path plus packaged tarball pass the release gate
+- keep the next npm release routine now that `0.1.23` is published and the code path plus packaged tarball pass the release gate
 
 Open work:
 
@@ -478,12 +478,12 @@ Open work:
 - [x] run tests and release smoke
 - [x] restore example/release-smoke parity for `examples/prospeo-mcp`
 - [x] rerun the full release gate, including tarball install and `npm exec`
-- [x] publish and verify `@orchid-labs/pluxx@0.1.22`
-- [ ] for the next cut, bump `package.json` from `0.1.22` to the next version
-- [ ] rerun `npm run release:check` before tagging
-- [ ] commit and push release-prep fixes on `main`
-- [ ] push the matching `vX.Y.Z` tag to trigger the GitHub Actions npm publish
-- [ ] verify the npm version, GitHub release, and tarball artifact after the workflow completes
+- [x] publish and verify `@orchid-labs/pluxx@0.1.23`
+- [x] bump `package.json` and `package-lock.json` from `0.1.22` to `0.1.23`
+- [x] rerun the release gate before tagging
+- [x] commit and push release-prep fixes on `main`
+- [x] push the matching `v0.1.23` tag to trigger the GitHub Actions npm publish
+- [x] verify the npm version, GitHub release, and tarball artifact after the workflow completes
 
 ## Explicitly Deferred
 

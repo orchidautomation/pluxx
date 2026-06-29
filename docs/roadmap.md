@@ -217,7 +217,7 @@ The closure plan is now narrower than it was before:
 - the release gate is green again as of 2026-05-19:
   - `npm test` passed
   - `npm run release:check` passed
-- the latest published npm package is `@orchid-labs/pluxx@0.1.22`
+- the latest published npm package is `@orchid-labs/pluxx@0.1.23`
 - the release/distribution/proof boundary is now explicit:
   - [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md)
   - [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md)
@@ -374,11 +374,11 @@ This is for learning and proof, not for prematurely building the full trust laye
 
 ### 6. Next release
 
-The current public npm cut is `0.1.22`.
+The current public npm cut is `0.1.23`.
 
 The next npm cut should stay primarily an operations step rather than a code-confidence rescue step.
 
-- start from `0.1.22`
+- start from `0.1.23`
 - rerun `npm run release:check`
 - bump `package.json` and `package-lock.json` to the next version
 - commit and push release-prep fixes and source-of-truth updates
