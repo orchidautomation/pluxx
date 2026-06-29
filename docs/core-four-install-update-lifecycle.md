@@ -44,6 +44,43 @@ This is the code-owned source of truth for issue #306: install method, local pat
 | Codex | local plugin dir plus marketplace catalog entry | replace local bundle or rerun installer | use `Plugins > Refresh` if available in the current UI, otherwise restart Codex | plugin-bundled MCP servers may show on the plugin detail page without appearing in the global MCP servers page |
 | OpenCode | local plugin dir, entry wrapper, or config-based plugin loading | replace local bundle or update config/plugin reference | restart or reload OpenCode | the supplied docs do not document a dedicated hot-reload plugin command |
 
+## Host Detection Contract
+
+Pluxx owns reusable install-host detection for the core four. Downstream repos should not reimplement Claude Code, Cursor, Codex, or OpenCode detection just to decide which install command or generated installer affordance to show.
+
+The first detection surface is install planning:
+
+```bash
+pluxx install --dry-run --json
+```
+
+The JSON includes:
+
+- `hostDetection`: a deterministic core-four map with one result per host
+- `hostDetection.detectedHosts`: detected host families in stable core-four order
+- `hostDetection.hosts[].evidence`: concrete evidence items
+- `targetSelection`: the selected install targets plus whether they came from explicit `--target` flags or `pluxx.config` targets
+
+Detection evidence is intentionally conservative and read-only. It can include:
+
+- `cli`: host command found on `PATH`
+- `app`: known app bundle where that host has a practical local app signal
+- `user-config`: user-level host config
+- `project-config`: project-level host config
+- `installed-plugin`: existing host plugin output path or Pluxx-managed local plugin catalog path
+
+`project-config` evidence is reported for explainability, but it does not mark a host as detected by itself. A workspace may contain `.codex/`, `.cursor/`, or `.mcp.json` files even when the corresponding host is not installed on the user's machine. `hostDetection.detectedHosts` and install suggestions require machine-level evidence such as a CLI, app bundle, user config, or existing installed plugin path.
+
+Detection does not prove the host is currently running, authenticated, healthy, trusted, or ready to load a specific plugin. It also does not mutate host config.
+
+Explicit target selection remains authoritative. If a user runs:
+
+```bash
+pluxx install --target codex --dry-run --json
+```
+
+then `targetSelection.selectedTargets` stays `["codex"]` even if Pluxx also detects Cursor or OpenCode locally. Detection can suggest install targets for planning and generated installer UX, but it does not override `--target` or rewrite host configs just because a host exists.
+
 ## Important Distinction
 
 There are two different update cases:

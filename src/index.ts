@@ -109,6 +109,17 @@ export {
   type TeamInstallReference,
 } from './install-reference'
 export {
+  CORE_HOST_FAMILIES,
+  buildHostTargetSelection,
+  detectHostFamilies,
+  type HostDetectionEvidence,
+  type HostDetectionEvidenceType,
+  type HostDetectionOptions,
+  type HostDetectionReport,
+  type HostDetectionResult,
+  type HostTargetSelection,
+} from './host-detection'
+export {
   printVerifyInstallResult,
   verifyInstall,
   type VerifyInstallCheck,
