@@ -367,10 +367,7 @@ export class CodexGenerator extends Generator {
 
     if (Object.keys(hooks).length === 0 && unsupported.length === 0) return
 
-    await this.writeJson('hooks/hooks.json', {
-      version: 1,
-      hooks,
-    })
+    await this.writeJson('hooks/hooks.json', { hooks })
 
     await this.writeJson('.codex/hooks.generated.json', {
       model: 'pluxx.codex-hooks.v1',

@@ -777,7 +777,6 @@ describe('verifyInstall', () => {
     writeFileSync(
       resolve(DIST_DIR, 'codex/hooks/hooks.json'),
       JSON.stringify({
-        version: 1,
         hooks: {
           SessionStart: [
             {
@@ -931,7 +930,6 @@ describe('verifyInstall', () => {
     writeFileSync(
       resolve(DIST_DIR, 'codex/hooks/hooks.json'),
       JSON.stringify({
-        version: 1,
         hooks: {
           SessionStart: [
             {
@@ -986,7 +984,6 @@ describe('verifyInstall', () => {
     writeFileSync(
       resolve(DIST_DIR, 'codex/hooks/hooks.json'),
       JSON.stringify({
-        version: 1,
         hooks: {
           SessionStart: [
             {
@@ -1055,7 +1052,6 @@ describe('verifyInstall', () => {
     writeFileSync(
       resolve(DIST_DIR, 'codex/hooks/hooks.json'),
       JSON.stringify({
-        version: 1,
         hooks: {
           SessionStart: [
             {
@@ -1110,7 +1106,6 @@ describe('verifyInstall', () => {
     writeFileSync(
       resolve(DIST_DIR, 'codex/hooks/hooks.json'),
       JSON.stringify({
-        version: 1,
         hooks: {
           SessionStart: [
             {

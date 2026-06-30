@@ -783,6 +783,7 @@ describe('build', () => {
     expect(claudeHooks.hooks.PreToolUse?.[0]?.hooks?.[0]?.command).toBe('node "${CLAUDE_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
     expect(cursorHooks.hooks.preToolUse?.[0]?.command).toBe('node ./hooks/pluxx-hook-command-1.mjs')
     expect(codexHooks.hooks.PreToolUse?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
+    expect(codexHooks).not.toHaveProperty('version')
 
     const claudeWrapperPath = resolve(outDir, 'claude-code/hooks/pluxx-hook-command-1.mjs')
     const cursorWrapperPath = resolve(outDir, 'cursor/hooks/pluxx-hook-command-1.mjs')
@@ -1529,6 +1530,7 @@ describe('build', () => {
     expect(codexHooks.pluginBundleFeatureFlag).toBe('hooks')
     expect(codexHooks.generalFeatureFlag).toBe('hooks')
     expect(codexHooks.deprecatedGeneralFeatureFlag).toBe('codex_hooks')
+    expect(codexBundledHooks).not.toHaveProperty('version')
     expect(codexHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
     expect(codexHooks.hooks.UserPromptSubmit?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-2.mjs"')
     expect(readFileSync(resolve(OUT_DIR, 'codex/hooks/pluxx-hook-command-1.mjs'), 'utf-8')).toContain('${PLUXX_PLUGIN_ROOT}/scripts/validate.sh')
@@ -1567,6 +1569,7 @@ describe('build', () => {
     expect(codexBundledHooks.hooks.PreCompact?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-2.mjs"')
     expect(codexBundledHooks.hooks.PostCompact?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-3.mjs"')
     expect(codexBundledHooks.hooks.SubagentStop?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-4.mjs"')
+    expect(codexBundledHooks).not.toHaveProperty('version')
     expect(codexHooks.hooks.SubagentStart?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
     expect(codexHooks.hooks.PreCompact?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-2.mjs"')
     expect(codexHooks.hooks.PostCompact?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-3.mjs"')
