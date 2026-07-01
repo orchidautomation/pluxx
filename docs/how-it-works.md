@@ -570,6 +570,8 @@ Pluxx maps canonical hook names for plugin-packaged hook targets and validates C
 | `preToolUse` | `PreToolUse` | `preToolUse` | `PreToolUse` |
 | `beforeSubmitPrompt` | `UserPromptSubmit` | `beforeSubmitPrompt` | `UserPromptSubmit` |
 
+Generated command-hook wrappers keep bundle-owned scripts rooted at the installed plugin root and expose `PLUXX_HOOK_WORKSPACE_ROOT` only when the active agent workspace can be proven from explicit config, host workspace variables, or a JSON hook payload.
+
 ### Permissions Compilation
 
 Pluxx compiles canonical `permissions.{allow,ask,deny}` into each primary target with explicit fallback behavior:
