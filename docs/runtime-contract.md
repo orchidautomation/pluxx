@@ -42,6 +42,14 @@ The launcher intentionally does not load TypeScript source files or fall back to
 
 Config imports of `pluxx` or `@orchid-labs/pluxx` are rewritten to the package runtime entry so fixture projects and installed packages do not need a separate local package alias.
 
+## Generated Hook Command Runtime
+
+Generated command-hook wrappers run bundle-owned commands from the installed plugin root. They export the host/plugin root variable for the target plus the shared `PLUGIN_ROOT` and `PLUXX_PLUGIN_ROOT` variables so scripts can reference bundled files without depending on the host launch directory.
+
+Wrappers also expose `PLUXX_HOOK_WORKSPACE_ROOT` when Pluxx can prove the active agent workspace from an explicit setting, a known host workspace variable, or a JSON hook payload on stdin. If no workspace can be proven, the variable is omitted instead of falling back to the plugin root.
+
+When a wrapper reads a hook payload from stdin to discover the workspace, it forwards the same payload to the user hook command so existing hook commands can still parse host-provided event data.
+
 ## Contributor Tooling
 
 Normal contributor workflows run through Node and npm:
