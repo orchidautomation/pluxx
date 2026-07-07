@@ -95,7 +95,7 @@ Today, Pluxx ships the OSS authoring and local/self-hosted distribution lane:
 - build native bundles for Claude Code, Cursor, Codex, and OpenCode
 - install those bundles locally with `pluxx install`
 - verify host-visible state with `pluxx verify-install`
-- package GitHub Release assets and installer scripts with `pluxx publish --github-release`
+- package GitHub Release assets and installer scripts with `pluxx publish --github-release`, including a generated `install.sh --agents` front door for the core-four hosts
 - publish the npm-backed OpenCode wrapper path with `pluxx publish --npm`
 - keep core-four stdio MCP runtime variables launch-context aware without baking one workspace's values into global installs
 
@@ -204,7 +204,7 @@ curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example
 
 Current release note:
 
-- the latest published npm package is `@orchid-labs/pluxx@0.1.23`
+- the repo is preparing `@orchid-labs/pluxx@0.1.28`; verify npm and the matching tag live before claiming it as the public latest release
 - the published CLI runtime is Node `>=18`; see [runtime contract](./runtime-contract.md)
 - the published package includes the Claude plugin-agent manifest fix and packaged Node runtime verification
 - the public `pluxx test --install --trust --behavioral` path now matches the repo-local Exa proof state

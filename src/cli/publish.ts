@@ -178,6 +178,11 @@ function buildReleaseAssets(rootDir: string, config: PluginConfig, version: stri
   if (installerTargets.length > 0) {
     assets.push({
       kind: 'installer',
+      name: 'install.sh',
+      path: '(generated installer script)',
+    })
+    assets.push({
+      kind: 'installer',
       name: 'install-all.sh',
       path: '(generated installer script)',
     })
@@ -432,6 +437,13 @@ function buildReleaseManifest(config: PluginConfig, context: ReleaseArtifactCont
     assets: {
       archives,
       installers,
+      install: installers.length > 0
+        ? {
+            script: 'install.sh',
+            url: `${context.assetBaseURL}/install.sh`,
+            command: `bash <(curl -fsSL ${context.assetBaseURL}/install.sh) --agents -y`,
+          }
+        : undefined,
       installAll: installers.length > 0
         ? {
             script: 'install-all.sh',
@@ -467,6 +479,185 @@ done
 echo
 echo "Installed __DISPLAY_NAME__ across ${installerTargets.join(', ')}."
 `.replaceAll('__REPO__', 'REPO_PLACEHOLDER').replaceAll('__DISPLAY_NAME__', 'DISPLAY_PLACEHOLDER')
+}
+
+function renderTopLevelInstallScript(installerTargets: Array<typeof INSTALLER_TARGETS[number]>): string {
+  const targetCases = installerTargets.map((platform) => `    --${platform})
+      targets+=("${platform}")
+      shift
+      ;;`).join('\n')
+  const targetList = installerTargets.map((platform) => `"${platform}"`).join(' ')
+  const defaultTarget = installerTargets.includes('codex') ? 'codex' : installerTargets[0]
+
+  return `#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Install DISPLAY_PLACEHOLDER release assets.
+
+Usage:
+  bash <(curl -fsSL https://github.com/REPO_PLACEHOLDER/releases/latest/download/install.sh) --agents -y
+
+Options:
+  --agents, --all       Install supported agent plugin bundles.
+${installerTargets.map((platform) => `  --${platform.padEnd(18)} Install only the ${platform} plugin bundle.`).join('\n')}
+  -y, --yes             Noninteractive mode where supported by downstream installers.
+  --repo OWNER/REPO     Override the GitHub repository.
+  --version VERSION     Install a specific release version or tag.
+  --base-url URL        Override the release asset base URL.
+  -h, --help            Show this help.
+
+Environment:
+  PLUXX_PLUGIN_REPO     Default repository. Defaults to REPO_PLACEHOLDER.
+  PLUXX_PLUGIN_VERSION  Release version or tag. Defaults to latest.
+  PLUXX_RELEASE_BASE_URL
+                        Release asset base URL override.
+EOF
+}
+
+need_cmd() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "Missing required command: $1" >&2
+    exit 1
+  fi
+}
+
+repo="\${PLUXX_PLUGIN_REPO:-REPO_PLACEHOLDER}"
+version="\${PLUXX_PLUGIN_VERSION:-latest}"
+base_url="\${PLUXX_RELEASE_BASE_URL:-}"
+yes=0
+agents=0
+targets=()
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --agents|--all)
+      agents=1
+      shift
+      ;;
+${targetCases}
+    -y|--yes)
+      yes=1
+      shift
+      ;;
+    --repo)
+      repo="$2"
+      shift 2
+      ;;
+    --repo=*)
+      repo="\${1#*=}"
+      shift
+      ;;
+    --version)
+      version="$2"
+      shift 2
+      ;;
+    --version=*)
+      version="\${1#*=}"
+      shift
+      ;;
+    --base-url)
+      base_url="$2"
+      shift 2
+      ;;
+    --base-url=*)
+      base_url="\${1#*=}"
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      usage >&2
+      exit 1
+      ;;
+  esac
+done
+
+need_cmd curl
+need_cmd mktemp
+need_cmd bash
+
+if [ -z "$base_url" ]; then
+  if [ "$version" = "latest" ]; then
+    base_url="https://github.com/$repo/releases/latest/download"
+  else
+    tag="$version"
+    case "$tag" in
+      v*) ;;
+      *) tag="v$tag" ;;
+    esac
+    base_url="https://github.com/$repo/releases/download/$tag"
+  fi
+fi
+
+if [ "$agents" = "1" ]; then
+  targets=(${targetList})
+elif [ "\${#targets[@]}" -eq 0 ]; then
+  targets=("${defaultTarget}")
+fi
+
+if [ "$yes" = "1" ]; then
+  export PLUXX_CODEX_ENABLE_PLUGIN_HOOKS="\${PLUXX_CODEX_ENABLE_PLUGIN_HOOKS:-1}"
+fi
+export PLUXX_PLUGIN_VERSION="$version"
+
+tmp_dir="$(mktemp -d)"
+cleanup() {
+  rm -rf "$tmp_dir"
+}
+trap cleanup EXIT
+
+run_installer() {
+  local target="$1"
+  local installer="$tmp_dir/install-$target.sh"
+  local url="$base_url/install-$target.sh"
+  local installer_args=()
+
+  if [ "$agents" = "1" ] && [ "$target" = "claude-code" ] && ! command -v claude >/dev/null 2>&1; then
+    echo "Skipping Claude Code bundle because the claude CLI is not available on PATH." >&2
+    echo "Run with --claude-code to require Claude Code installation and fail if prerequisites are missing." >&2
+    return 0
+  fi
+
+  if [ "$yes" = "1" ]; then
+    installer_args+=(--yes)
+  fi
+
+  case "$target" in
+    claude-code)
+      export PLUXX_CLAUDE_BUNDLE_URL="\${PLUXX_CLAUDE_BUNDLE_URL:-$base_url/CLAUDE_BUNDLE_PLACEHOLDER}"
+      ;;
+    cursor)
+      export PLUXX_CURSOR_BUNDLE_URL="\${PLUXX_CURSOR_BUNDLE_URL:-$base_url/CURSOR_BUNDLE_PLACEHOLDER}"
+      ;;
+    codex)
+      export PLUXX_CODEX_BUNDLE_URL="\${PLUXX_CODEX_BUNDLE_URL:-$base_url/CODEX_BUNDLE_PLACEHOLDER}"
+      ;;
+    opencode)
+      export PLUXX_OPENCODE_BUNDLE_URL="\${PLUXX_OPENCODE_BUNDLE_URL:-$base_url/OPENCODE_BUNDLE_PLACEHOLDER}"
+      ;;
+    *)
+      echo "Unsupported target: $target" >&2
+      exit 1
+      ;;
+  esac
+
+  echo "Installing DISPLAY_PLACEHOLDER for $target..."
+  curl -fsSL "$url" -o "$installer"
+  chmod +x "$installer"
+  bash "$installer" "\${installer_args[@]}"
+}
+
+for target in "\${targets[@]}"; do
+  run_installer "$target"
+done
+
+echo "DISPLAY_PLACEHOLDER install complete."
+`
 }
 
 function collectInstallerUserConfigEntries(config: PluginConfig, platforms: TargetPlatform[]) {
@@ -1599,6 +1790,10 @@ function renderInstallerScript(
   config: PluginConfig,
   context: ReleaseArtifactContext,
 ): string {
+  if (asset.name === 'install.sh') {
+    return replaceInstallerPlaceholders(renderTopLevelInstallScript(context.installerTargets), config, context)
+  }
+
   if (asset.name === 'install-all.sh') {
     return replaceInstallerPlaceholders(renderInstallAllScript(context.installerTargets), config, context)
   }
@@ -1658,6 +1853,7 @@ function createReleaseArtifacts(
       .filter(
         (asset): asset is PublishAssetPlan & { platform: typeof INSTALLER_TARGETS[number] } =>
           asset.kind === 'installer'
+          && asset.name !== 'install.sh'
           && asset.name !== 'install-all.sh'
           && asset.platform !== undefined
           && isInstallerTarget(asset.platform),

@@ -47,7 +47,7 @@ Pluxx can ship the OSS authoring substrate today:
 - `pluxx install` can install built bundles locally for the primary fronts
 - `pluxx verify-install` checks the host-visible installed bundle, not only generated files in `dist/`
 - `pluxx test --install` runs source checks, build smoke, local install, and installed verification together
-- `pluxx publish --github-release` can package built bundles into GitHub Release assets and generate primary-front installer scripts
+- `pluxx publish --github-release` can package built bundles into GitHub Release assets and generate the `install.sh --agents` front door plus primary-front installer scripts
 - `pluxx publish --npm` covers the npm-backed OpenCode wrapper package path
 - `pluxx discover-mcp` and `pluxx init --from-installed-mcp` can import already configured MCP servers from Claude Code, Cursor, Codex, and OpenCode without copying literal secret values
 

@@ -476,6 +476,7 @@ describe('planPublish', () => {
       'publish-plugin-opencode-latest.tar.gz',
       'install-claude-code.sh',
       'install-opencode.sh',
+      'install.sh',
       'install-all.sh',
       'release-manifest.json',
       'SHA256SUMS.txt',
@@ -603,10 +604,74 @@ describe('runPublish', () => {
       'publish-plugin-opencode-latest.tar.gz',
       'install-claude-code.sh',
       'install-opencode.sh',
+      'install.sh',
       'install-all.sh',
       'release-manifest.json',
       'SHA256SUMS.txt',
     ]))
+  })
+
+  it('generates a top-level installer that routes supported agent hosts', () => {
+    const config: PluginConfig = {
+      ...makeConfig(),
+      targets: ['claude-code', 'cursor', 'codex', 'opencode'],
+    }
+
+    for (const platform of config.targets) {
+      prepareBuiltTarget(platform, GENERATED_INSTALLER_FIXTURE_FILES[platform])
+    }
+
+    let installerContent = ''
+    let manifestContent = ''
+    const result = runPublish(config, {
+      rootDir: ROOT,
+      requestedChannels: ['github-release'],
+      runCommand: (command, args, options) => {
+        if (command === 'tar') {
+          const proc = spawnSync(command, args, {
+            cwd: options?.cwd,
+            encoding: 'utf-8',
+          })
+          return {
+            status: proc.status,
+            stdout: proc.stdout ?? '',
+            stderr: proc.stderr ?? '',
+          }
+        }
+
+        if (command === 'git') return { status: 0, stdout: '', stderr: '' }
+        if (command === 'gh' && args[0] === 'release' && args[1] === 'view') return { status: 1, stdout: '', stderr: 'missing' }
+        if (command === 'gh' && args[0] === 'release' && args[1] === 'create') {
+          const installerPath = args.find((value) => typeof value === 'string' && value.endsWith('/install.sh'))
+          const manifestPath = args.find((value) => typeof value === 'string' && value.endsWith('/release-manifest.json'))
+          installerContent = readFileSync(installerPath!, 'utf-8')
+          manifestContent = readFileSync(manifestPath!, 'utf-8')
+          return { status: 0, stdout: 'created', stderr: '' }
+        }
+        return { status: 0, stdout: '', stderr: '' }
+      },
+    })
+
+    expect(result.ok).toBe(true)
+    expect(installerContent).toContain('--agents|--all')
+    expect(installerContent).toContain('--claude-code)')
+    expect(installerContent).toContain('--cursor)')
+    expect(installerContent).toContain('--codex)')
+    expect(installerContent).toContain('--opencode)')
+    expect(installerContent).toContain('targets=("claude-code" "cursor" "codex" "opencode")')
+    expect(installerContent).toContain('PLUXX_CODEX_ENABLE_PLUGIN_HOOKS')
+    expect(installerContent).toContain('PLUXX_CLAUDE_BUNDLE_URL="${PLUXX_CLAUDE_BUNDLE_URL:-$base_url/publish-plugin-claude-code-latest.tar.gz}"')
+    expect(installerContent).toContain('PLUXX_CURSOR_BUNDLE_URL="${PLUXX_CURSOR_BUNDLE_URL:-$base_url/publish-plugin-cursor-latest.tar.gz}"')
+    expect(installerContent).toContain('PLUXX_CODEX_BUNDLE_URL="${PLUXX_CODEX_BUNDLE_URL:-$base_url/publish-plugin-codex-latest.tar.gz}"')
+    expect(installerContent).toContain('PLUXX_OPENCODE_BUNDLE_URL="${PLUXX_OPENCODE_BUNDLE_URL:-$base_url/publish-plugin-opencode-latest.tar.gz}"')
+    expect(installerContent).toContain('Skipping Claude Code bundle because the claude CLI is not available on PATH.')
+
+    const manifest = JSON.parse(manifestContent)
+    expect(manifest.assets.install).toEqual({
+      script: 'install.sh',
+      url: 'https://github.com/orchidautomation/publish-plugin/releases/latest/download/install.sh',
+      command: 'bash <(curl -fsSL https://github.com/orchidautomation/publish-plugin/releases/latest/download/install.sh) --agents -y',
+    })
   })
 
   it('generates installers that prompt and materialize user config for consumers', () => {

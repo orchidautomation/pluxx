@@ -86,7 +86,7 @@ Any person or agent should be able to enter the repo and answer:
 - [~] Keep [docs/release-distribution-proof-map.md](../release-distribution-proof-map.md) current as the short ship-today vs release-gap source of truth:
   - primary release-smoked fronts are Claude Code, Cursor, Codex, and OpenCode
   - Gemini CLI remains a beta generator target until it has release-smoke and installer parity
-  - local build/install/verify, GitHub Release bundle installers, and npm-backed OpenCode package publishing are shipped
+  - local build/install/verify, GitHub Release `install.sh --agents` plus per-host bundle installers, and npm-backed OpenCode package publishing are shipped
   - marketplace submission APIs, managed trust/distribution, automatic rollback/unpublish, and real authenticated publish plus rollback proof remain open
 - [~] Keep [docs/core-four-primitive-proof-ledger.md](../core-four-primitive-proof-ledger.md) current as the primitive-by-host proof ledger for the core-four native shipping claim
 - [~] Close the remaining ticket-state drift where shipped work can still appear as backlog in Linear
@@ -417,12 +417,12 @@ Open work:
 - [x] Validate the current self-hosting flow end to end
 - [x] Run tests, release smoke, and the packaged-runtime release gate before the next cut
 - [x] Restore example parity for `examples/prospeo-mcp` so release smoke and the real package agree again
-- [x] Publish and verify `@orchid-labs/pluxx@0.1.23`
-- [x] Bump `package.json` and `package-lock.json` from `0.1.22` to `0.1.23`
+- [x] Bump `package.json` and `package-lock.json` from `0.1.27` to `0.1.28`
 - [x] Rerun the release gate before tagging
-- [x] Commit and push release-prep fixes to `main`
-- [x] Push the matching `v0.1.23` tag so the GitHub Actions release workflow publishes to npm
-- [x] Verify the published npm version and GitHub release artifacts after the workflow completes
+- [ ] Merge release-prep fixes to `main`
+- [ ] Push the matching `v0.1.28` tag so the GitHub Actions release workflow publishes to npm
+- [ ] Publish and verify `@orchid-labs/pluxx@0.1.28`
+- [ ] Verify the published npm version and GitHub release artifacts after the workflow completes
 
 ## Next
 
