@@ -536,6 +536,7 @@ Today, `publish` can generate installer assets such as:
 - `install-cursor.sh`
 - `install-codex.sh`
 - `install-opencode.sh`
+- `install.sh`
 - `install-all.sh`
 - release manifest and checksums
 
@@ -558,13 +559,13 @@ Not fully, and not yet as one polished universal product surface.
 pluxx install --target codex
 ```
 
-- `publish` can generate host-specific installer scripts plus `install-all.sh`
+- `publish` can generate a top-level `install.sh --agents` front door, host-specific installer scripts, and `install-all.sh`
 - Codex and Claude already have marketplace-oriented local install paths
 - the generated plugin metadata is rich enough to look native inside the host UI
 
 ### What Does Not Exist Yet
 
-- one single public "click this once and install everywhere" flow across all hosts
+- one hosted product-domain page for every plugin that points at the generated `install.sh` release asset
 - one canonical hosted install page that abstracts every host equally well
 - a fully polished one-click global install UX on the public docs/site
 

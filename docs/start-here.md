@@ -165,7 +165,7 @@ The repo already proves a lot.
 - `verify-install` exists and is tested
 - consumer-side `doctor --consumer` exists and is tested
 - `migrate`, `eval`, and `mcp proxy --record/--replay` are shipped
-- `pluxx publish --github-release` can package built primary-front bundles as GitHub Release assets and generate installer scripts; `pluxx publish --npm` covers the npm-backed OpenCode wrapper path:
+- `pluxx publish --github-release` can package built primary-front bundles as GitHub Release assets and generate installer scripts, including the `install.sh --agents` front door plus per-host installers; `pluxx publish --npm` covers the npm-backed OpenCode wrapper path:
   - `docs/release-distribution-proof-map.md`
 - the self-hosted Pluxx plugin exists as a real source project in `example/pluxx`
 - the repo-local Codex dogfood plugin exists in `plugins/pluxx`
@@ -346,7 +346,7 @@ The repo already proves a lot.
 - the current release gate is green again as of 2026-05-19:
   - `npm test` passed
   - `npm run release:check` passed
-- the latest published npm package is `@orchid-labs/pluxx@0.1.23`
+- the repo is preparing `@orchid-labs/pluxx@0.1.28`; verify npm and the matching tag live before claiming it as the public latest release
 - marketplace submission APIs, a managed trust/distribution control plane, automatic rollback/unpublish orchestration, and real authenticated publish plus rollback proof remain explicit release gaps, not hidden shipped capabilities:
   - `docs/release-distribution-proof-map.md`
 - OpenCode-native agent output is now permission-first:
@@ -514,14 +514,14 @@ Run two lanes in parallel:
 
 ### 6. Release State
 
-The current public release is `0.1.23`.
+The current release-prep cut is `0.1.28`.
+Do not treat it as the public release until the matching tag exists and npm reports it as latest.
 
-The release checklist for the current cut is complete:
+The release-prep checklist for the current cut is complete:
 
-- `package.json` and `package-lock.json` are at `0.1.23`
-- local `main` is tagged `v0.1.23`
-- npm reports `@orchid-labs/pluxx@0.1.23` as latest
-- the GitHub release workflow reran the release gate, including package runtime verification and release tarball pack
+- `package.json` and `package-lock.json` are at `0.1.28`
+- the release gate has passed locally, including package runtime verification and release tarball pack
+- after merge, push the matching `v0.1.28` tag and verify npm plus GitHub release artifacts after the workflow completes
 
 For the next release, start from the current version, rerun `npm run release:check`, bump the package version, push `main`, push the matching `vX.Y.Z` tag, and verify npm plus GitHub release artifacts after the workflow completes.
 

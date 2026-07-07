@@ -172,7 +172,7 @@ The initial author-once hardening tranche is also materially done.
   - [docs/release-distribution-proof-map.md](../release-distribution-proof-map.md)
   - primary release-smoked fronts: Claude Code, Cursor, Codex, OpenCode
   - Gemini CLI: beta generator target only today
-  - shipped distribution lane: local build/install/verify, GitHub Release bundle installers, and npm-backed OpenCode package publishing
+  - shipped distribution lane: local build/install/verify, GitHub Release `install.sh --agents` plus per-host bundle installers, and npm-backed OpenCode package publishing
   - remaining release gaps: marketplace submission APIs, managed trust/distribution control plane, automatic rollback/unpublish, and a real authenticated publish plus rollback proof
 - the core-four native shipping claim now has a primitive-by-host proof ledger:
   - [docs/core-four-primitive-proof-ledger.md](../core-four-primitive-proof-ledger.md)
@@ -180,7 +180,7 @@ The initial author-once hardening tranche is also materially done.
 The public baseline is also real.
 
 - npm package is live as `@orchid-labs/pluxx`
-- the latest published npm package is `@orchid-labs/pluxx@0.1.23`
+- the repo is preparing `@orchid-labs/pluxx@0.1.28`; verify npm and the matching tag live before claiming it as the public latest release
 - published CLI runtime is Node `>=18`
 - published CLI lifecycle ergonomics are now stronger for global installs:
   - `pluxx --version`
@@ -470,7 +470,7 @@ Open work:
 
 Goal:
 
-- keep the next npm release routine now that `0.1.23` is published and the code path plus packaged tarball pass the release gate
+- complete the `0.1.28` npm release routine now that the code path plus packaged tarball pass the release gate
 
 Open work:
 
@@ -478,12 +478,12 @@ Open work:
 - [x] run tests and release smoke
 - [x] restore example/release-smoke parity for `examples/prospeo-mcp`
 - [x] rerun the full release gate, including tarball install and `npm exec`
-- [x] publish and verify `@orchid-labs/pluxx@0.1.23`
-- [x] bump `package.json` and `package-lock.json` from `0.1.22` to `0.1.23`
+- [x] bump `package.json` and `package-lock.json` from `0.1.27` to `0.1.28`
 - [x] rerun the release gate before tagging
-- [x] commit and push release-prep fixes on `main`
-- [x] push the matching `v0.1.23` tag to trigger the GitHub Actions npm publish
-- [x] verify the npm version, GitHub release, and tarball artifact after the workflow completes
+- [ ] merge release-prep fixes to `main`
+- [ ] push the matching `v0.1.28` tag to trigger the GitHub Actions npm publish
+- [ ] publish and verify `@orchid-labs/pluxx@0.1.28`
+- [ ] verify the npm version, GitHub release, and tarball artifact after the workflow completes
 
 ## Explicitly Deferred
 
