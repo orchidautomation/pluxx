@@ -5,6 +5,14 @@ import { readCompilerIntent, type CompilerIntentFile } from '../compiler-intent'
 import { writeTextFile } from '../text-files'
 import { normalizePluginOwnedStdioPathForPlatform } from '../mcp-stdio-paths'
 import { getNativeJsonHeadersOverride } from '../mcp-native-overrides'
+import { collectRuntimeInheritedStdioEnvVars } from '../user-config'
+import {
+  buildMcpRuntimeEnvScript,
+  buildRuntimeWrappedStdioMcpCommand,
+  collectStdioServerRuntimeEnvVars,
+  filterRuntimeInheritedStdioEnvRecord,
+  MCP_RUNTIME_ENV_SCRIPT_RELATIVE_PATH,
+} from '../mcp-runtime-env'
 
 type McpRemoteServer = Exclude<McpServer, { transport: 'stdio' }>
 
@@ -124,13 +132,22 @@ export abstract class Generator {
     } = options
 
     const mcpServers: Record<string, unknown> = {}
+    const runtimeEnvVars = collectRuntimeInheritedStdioEnvVars(this.config, [this.platform])
 
     for (const [name, server] of Object.entries(this.config.mcp)) {
       if (server.transport === 'stdio') {
+        const serverRuntimeEnvVars = collectStdioServerRuntimeEnvVars(server.env, runtimeEnvVars)
+        const commandConfig = serverRuntimeEnvVars.size > 0
+          ? buildRuntimeWrappedStdioMcpCommand(server, this.platform, serverRuntimeEnvVars)
+          : {
+              command: normalizePluginOwnedStdioPathForPlatform(server.command, this.platform),
+              args: (server.args ?? []).map((value) => normalizePluginOwnedStdioPathForPlatform(value, this.platform)),
+            }
+        const env = filterRuntimeInheritedStdioEnvRecord(server.env, serverRuntimeEnvVars)
+
         mcpServers[name] = {
-          command: normalizePluginOwnedStdioPathForPlatform(server.command, this.platform),
-          args: (server.args ?? []).map((value) => normalizePluginOwnedStdioPathForPlatform(value, this.platform)),
-          env: server.env ?? {},
+          ...commandConfig,
+          ...(env ? { env } : {}),
         }
         continue
       }
@@ -180,6 +197,20 @@ export abstract class Generator {
     const mcpServers = this.buildMcpServers(options)
     if (!mcpServers) return
     await this.writeJson(relativePath, { mcpServers })
+    if (this.hasRuntimeInheritedStdioMcpEnv()) {
+      await this.writeFile(MCP_RUNTIME_ENV_SCRIPT_RELATIVE_PATH, buildMcpRuntimeEnvScript())
+    }
+  }
+
+  protected hasRuntimeInheritedStdioMcpEnv(): boolean {
+    if (!this.config.mcp) return false
+    const runtimeEnvVars = collectRuntimeInheritedStdioEnvVars(this.config, [this.platform])
+    if (runtimeEnvVars.size === 0) return false
+
+    return Object.values(this.config.mcp).some((server) => (
+      server.transport === 'stdio'
+      && collectStdioServerRuntimeEnvVars(server.env, runtimeEnvVars).size > 0
+    ))
   }
 
   private getMcpAuthHeaders(server: McpRemoteServer): Record<string, string> | undefined {

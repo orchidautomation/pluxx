@@ -20,6 +20,12 @@ interface DerivedUserConfigEntry extends UserConfigEntry {
 }
 
 const ENV_VAR_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/
+const CORE_HOST_RUNTIME_ENV_PLATFORMS = new Set<TargetPlatform>([
+  'claude-code',
+  'cursor',
+  'codex',
+  'opencode',
+])
 const PLACEHOLDER_SECRET_PATTERNS = [
   /\bdummy\b/i,
   /\bplaceholder\b/i,
@@ -66,6 +72,75 @@ export function extractEnvReference(value: string | undefined): string | undefin
   if (!value) return undefined
   const match = value.match(/^\$\{([A-Za-z_][A-Za-z0-9_]*)\}$/)
   return match?.[1]
+}
+
+function maybeEnvVarName(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  if (ENV_VAR_NAME.test(trimmed)) return trimmed
+  return extractEnvReference(trimmed)
+}
+
+function readRecord(value: unknown): Record<string, unknown> | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  return value as Record<string, unknown>
+}
+
+export function isCoreHostRuntimeEnvPlatform(platform: TargetPlatform): boolean {
+  return CORE_HOST_RUNTIME_ENV_PLATFORMS.has(platform)
+}
+
+export function collectRuntimeInheritedStdioEnvVars(
+  config: PluginConfig,
+  platforms: TargetPlatform[] = config.targets,
+): Set<string> {
+  if (!platforms.some(isCoreHostRuntimeEnvPlatform)) return new Set()
+
+  const stdioEnvVars = new Set<string>()
+  const nonRuntimeEnvVars = new Set<string>()
+
+  for (const server of Object.values(config.mcp ?? {})) {
+    if (server.transport === 'stdio') {
+      for (const rawValue of Object.values(server.env ?? {})) {
+        const envVar = extractEnvReference(rawValue)
+        if (envVar && ENV_VAR_NAME.test(envVar)) stdioEnvVars.add(envVar)
+      }
+      continue
+    }
+
+    if (server.auth && 'envVar' in server.auth && server.auth.envVar && ENV_VAR_NAME.test(server.auth.envVar)) {
+      nonRuntimeEnvVars.add(server.auth.envVar)
+    }
+  }
+
+  for (const platform of platforms) {
+    const platformConfig = readRecord((config.platforms as Record<string, unknown> | undefined)?.[platform])
+    const mcpServers = readRecord(platformConfig?.mcpServers)
+    if (!mcpServers) continue
+
+    for (const rawOverride of Object.values(mcpServers)) {
+      const override = readRecord(rawOverride)
+      if (!override) continue
+
+      for (const key of ['bearer_token_env_var', 'bearerTokenEnvVar'] as const) {
+        const envVar = maybeEnvVarName(override[key])
+        if (envVar) nonRuntimeEnvVars.add(envVar)
+      }
+
+      for (const recordKey of ['env_http_headers', 'envHttpHeaders', 'headers', 'http_headers', 'httpHeaders'] as const) {
+        const record = readRecord(override[recordKey])
+        if (!record) continue
+        for (const value of Object.values(record)) {
+          const envVar = maybeEnvVarName(value)
+          if (envVar) nonRuntimeEnvVars.add(envVar)
+        }
+      }
+    }
+  }
+
+  return new Set(
+    [...stdioEnvVars].filter((envVar) => !nonRuntimeEnvVars.has(envVar)),
+  )
 }
 
 export function isPlaceholderSecretValue(value: unknown): boolean {

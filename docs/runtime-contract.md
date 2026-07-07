@@ -1,6 +1,6 @@
 # Runtime Contract
 
-Last updated: 2026-06-24
+Last updated: 2026-07-07
 
 ## Doc Links
 
@@ -49,6 +49,22 @@ Generated command-hook wrappers run bundle-owned commands from the installed plu
 Wrappers also expose `PLUXX_HOOK_WORKSPACE_ROOT` when Pluxx can prove the active agent workspace from an explicit setting, a known host workspace variable, or a JSON hook payload on stdin. If no workspace can be proven, the variable is omitted instead of falling back to the plugin root.
 
 When a wrapper reads a hook payload from stdin to discover the workspace, it forwards the same payload to the user hook command so existing hook commands can still parse host-provided event data.
+
+## Generated MCP Stdio Runtime Env
+
+For Claude Code, Cursor, Codex, and OpenCode, Pluxx owns the compatibility layer for stdio MCP startup env. Plugin projects should express runtime-inherited values once in `mcp.<server>.env` using pure placeholders such as `${SENDLENS_INSTANTLY_API_KEY}`; downstream plugins should not add per-host Codex, Cursor, Claude Code, or OpenCode special cases.
+
+When those stdio env placeholders are runtime-inherited, generated core-four bundles start the MCP server through `runtime/pluxx-mcp-env.mjs`. That launcher:
+
+- runs the real MCP command from the installed plugin root
+- ignores stale installed `.pluxx-user.json` values for runtime-inherited stdio env vars
+- loads matching vars from the active launch workspace `.env` when one can be found
+- lets the normal process/global environment provide the fallback when the workspace does not define them
+- avoids treating the installed plugin/cache directory as the active workspace
+
+Workspace `.env` values intentionally win over global env values for runtime-inherited stdio vars. This keeps one global plugin install usable across multiple repos while still allowing a global `SENDLENS_INSTANTLY_API_KEY`-style fallback when the current repo has no local value.
+
+Remote/native MCP auth materialization remains separate: bearer/header auth that is expressed through host-native HTTP config is still materialized or preserved as env references according to the target host contract.
 
 ## Contributor Tooling
 

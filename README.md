@@ -142,6 +142,8 @@ npx @orchid-labs/pluxx init --from-installed-mcp codex:acme --yes
 
 Discovery reads Claude Code, Cursor, Codex, and OpenCode config locations and avoids copying literal secret values into the generated project.
 
+For core-four stdio MCPs, Pluxx owns the runtime variable launcher. Pure placeholder values in MCP stdio config stay runtime-inherited, so a globally installed plugin can be reused from different workspaces without baking one workspace's local config into Claude Code, Cursor, Codex, or OpenCode bundles.
+
 ## Command Cheat Sheet
 
 ```text

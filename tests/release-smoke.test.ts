@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
-import { existsSync, readFileSync } from 'fs'
+import { existsSync, mkdirSync, readFileSync, rmSync } from 'fs'
+import { tmpdir } from 'os'
 import { resolve } from 'path'
 
 const ROOT = resolve(import.meta.dir, '..')
@@ -19,6 +20,11 @@ const COMMAND_BEHAVIORAL_PROOF_PROJECTS = [
   'example/docs-ops',
   'example/platform-change-ops',
 ]
+const RELEASE_SMOKE_PROJECT_ENV: Record<string, Record<string, string>> = {
+  'examples/prospeo-mcp': {
+    PROSPEO_API_KEY: 'pluxx-release-smoke-prospeo-api-key',
+  },
+}
 
 interface BehavioralSmokeTarget {
   prompt: string
@@ -73,9 +79,9 @@ interface DoctorResult {
   }>
 }
 
-async function expectCoreFourConsumerDoctor(cwd: string): Promise<void> {
+async function expectCoreFourConsumerDoctor(cwd: string, env: Record<string, string>): Promise<void> {
   for (const platform of CORE_FOUR) {
-    const report = await runCliJson<DoctorResult>(cwd, 'doctor', '--consumer', '--json', `./dist/${platform}`)
+    const report = await runCliJsonWithEnv<DoctorResult>(cwd, env, 'doctor', '--consumer', '--json', `./dist/${platform}`)
     expect(report.ok).toBe(true)
     expect(report.errors).toBe(0)
     expect(report.checks.some((check) => check.code === 'consumer-platform-detected')).toBe(true)
@@ -124,8 +130,42 @@ function expectExplicitCommandBehavioralProof(projectPath: string): void {
 }
 
 async function runCliJson<T>(cwd: string, ...argv: string[]): Promise<T> {
-  const proc = Bun.spawn(['bun', CLI_PATH, ...argv], {
+  return runCliJsonWithEnv<T>(cwd, {}, ...argv)
+}
+
+function buildReleaseSmokeEnv(env: Record<string, string>): Record<string, string> {
+  const inheritedKeys = [
+    'PATH',
+    'SHELL',
+    'TMPDIR',
+    'TMP',
+    'TEMP',
+    'USER',
+    'LOGNAME',
+    'CI',
+    'NO_COLOR',
+    'FORCE_COLOR',
+    'NPM_CONFIG_CACHE',
+    'npm_config_cache',
+    'BUN_INSTALL',
+  ]
+  const output: Record<string, string> = {}
+
+  for (const key of inheritedKeys) {
+    const value = process.env[key]
+    if (typeof value === 'string') output[key] = value
+  }
+
+  return {
+    ...output,
+    ...env,
+  }
+}
+
+async function runCliJsonWithEnv<T>(cwd: string, env: Record<string, string>, ...argv: string[]): Promise<T> {
+  const proc = Bun.spawn([process.execPath, CLI_PATH, ...argv], {
     cwd,
+    env: buildReleaseSmokeEnv(env),
     stdout: 'pipe',
     stderr: 'pipe',
   })
@@ -134,24 +174,39 @@ async function runCliJson<T>(cwd: string, ...argv: string[]): Promise<T> {
   const stderr = await new Response(proc.stderr).text()
   const exitCode = await proc.exited
 
-  expect(exitCode).toBe(0)
-  expect(stderr).toBe('')
+  const command = `${process.execPath} ${[CLI_PATH, ...argv].join(' ')}`
+  expect(exitCode, `Command failed: ${command}\nstdout:\n${stdout}\nstderr:\n${stderr}`).toBe(0)
+  expect(stderr, `Command wrote stderr: ${command}\nstdout:\n${stdout}\nstderr:\n${stderr}`).toBe('')
 
   return JSON.parse(stdout) as T
 }
 
 describe('release smoke', () => {
   for (const projectPath of RELEASE_SMOKE_PROJECTS) {
-    it(`validates ${projectPath} across the core four with the real CLI`, { timeout: 600_000 }, async () => {
+    it(`validates ${projectPath} across the core four with the real CLI`, async () => {
       const cwd = resolve(ROOT, projectPath)
+      const isolatedHome = resolve(
+        tmpdir(),
+        'pluxx-release-smoke-home',
+        `${process.pid}`,
+        projectPath.replace(/[^A-Za-z0-9_.-]+/g, '-'),
+      )
+      rmSync(isolatedHome, { recursive: true, force: true })
+      mkdirSync(isolatedHome, { recursive: true })
+      const env = {
+        HOME: isolatedHome,
+        CODEX_HOME: resolve(isolatedHome, '.codex'),
+        ...RELEASE_SMOKE_PROJECT_ENV[projectPath],
+      }
 
-      const doctor = await runCliJson<DoctorResult>(cwd, 'doctor', '--json')
+      const doctor = await runCliJsonWithEnv<DoctorResult>(cwd, env, 'doctor', '--json')
       expect(doctor.ok).toBe(true)
       expect(doctor.errors).toBe(0)
       expect(doctor.checks.some((check) => check.code === 'config-valid')).toBe(true)
 
-      const result = await runCliJson<SmokeResult>(
+      const result = await runCliJsonWithEnv<SmokeResult>(
         cwd,
+        env,
         'test',
         '--json',
         '--target',
@@ -163,8 +218,8 @@ describe('release smoke', () => {
       expect(result.build?.targets).toEqual(CORE_FOUR)
       expect(result.smoke?.ok).toBe(true)
       expect(result.smoke?.checks.every((check) => check.ok)).toBe(true)
-      await expectCoreFourConsumerDoctor(cwd)
-    })
+      await expectCoreFourConsumerDoctor(cwd, env)
+    }, 600_000)
   }
 })
 

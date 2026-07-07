@@ -6,8 +6,10 @@ import type { PluginConfig, TargetPlatform, UserConfigEntry } from '../schema'
 import {
   buildInstalledUserConfigPayload,
   buildUserConfigEnvMap,
+  collectRuntimeInheritedStdioEnvVars,
   collectUserConfigEntries,
   defaultUserConfigEnvVar,
+  isCoreHostRuntimeEnvPlatform,
   isPlaceholderSecretValue,
   resolveUserConfigEntriesForTarget,
   type ResolvedUserConfigEntry,
@@ -16,6 +18,13 @@ import {
   materializeInstalledPluginOwnedStdioPathForPlatform,
   normalizePluginOwnedStdioPathForPlatform,
 } from '../mcp-stdio-paths'
+import {
+  buildMcpRuntimeEnvScript,
+  buildRuntimeWrappedStdioMcpCommand,
+  collectStdioServerRuntimeEnvVars,
+  filterRuntimeInheritedStdioEnvRecord,
+  MCP_RUNTIME_ENV_SCRIPT_RELATIVE_PATH,
+} from '../mcp-runtime-env'
 import { getInstallFollowupNotes as getDistributionInstallFollowupNotes } from '../distribution-lifecycle'
 import {
   collectNativeMcpAuthUserConfigEntries,
@@ -106,10 +115,16 @@ export function planInstallUserConfig(
   platforms: TargetPlatform[] = config.targets,
 ): PlannedUserConfigEntry[] {
   const baseEntries = collectUserConfigEntries(config, platforms)
+  const runtimeEnvVars = collectRuntimeInheritedStdioEnvVars(config, platforms)
   const entries = [
     ...baseEntries,
     ...collectNativeMcpAuthUserConfigEntries(config, platforms, baseEntries),
-  ]
+  ].filter((field) => {
+    const envVar = field.envVar ?? defaultUserConfigEnvVar(field.key)
+    if (!runtimeEnvVars.has(envVar)) return true
+    const applicableTargets = (field.targets ?? platforms).filter((target) => platforms.includes(target))
+    return applicableTargets.length === 0 || !applicableTargets.every(isCoreHostRuntimeEnvPlatform)
+  })
 
   return entries.map((field) => {
     const envVar = field.envVar ?? defaultUserConfigEnvVar(field.key)
@@ -651,6 +666,28 @@ function materializeEnvRecord(
   return output
 }
 
+function materializeStdioEnvRecord(
+  input: Record<string, string> | undefined,
+  env: Record<string, string>,
+  secretEnvVars: Set<string>,
+  runtimeEnvVars: Set<string>,
+): Record<string, string> | undefined {
+  const filteredInput = filterRuntimeInheritedStdioEnvRecord(input, runtimeEnvVars)
+  const output: Record<string, string> = {}
+
+  for (const [key, value] of Object.entries(filteredInput ?? {})) {
+    output[key] = materializeTemplateValue(value, env, secretEnvVars)
+  }
+
+  return Object.keys(output).length > 0 ? output : undefined
+}
+
+function ensureMcpRuntimeEnvScript(pluginDir: string): void {
+  const filepath = resolve(pluginDir, MCP_RUNTIME_ENV_SCRIPT_RELATIVE_PATH)
+  mkdirSync(dirname(filepath), { recursive: true })
+  writeFileSync(filepath, buildMcpRuntimeEnvScript(), { mode: 0o755 })
+}
+
 function patchInstalledMcpConfig(
   pluginDir: string,
   platform: TargetPlatform,
@@ -665,6 +702,7 @@ function patchInstalledMcpConfig(
       .filter((entry) => entry.field.type === 'secret' && entry.envVar)
       .map((entry) => entry.envVar as string),
   )
+  const runtimeEnvVars = collectRuntimeInheritedStdioEnvVars(config, [platform])
 
   if (platform === 'claude-code' || platform === 'cursor') {
     const filepath = resolve(pluginDir, platform === 'claude-code' ? '.mcp.json' : 'mcp.json')
@@ -677,10 +715,18 @@ function patchInstalledMcpConfig(
 
     for (const [name, server] of Object.entries(config.mcp)) {
       if (server.transport === 'stdio') {
+        const serverRuntimeEnvVars = collectStdioServerRuntimeEnvVars(server.env, runtimeEnvVars)
+        const commandConfig = serverRuntimeEnvVars.size > 0
+          ? buildRuntimeWrappedStdioMcpCommand(server, platform, serverRuntimeEnvVars, pluginDir)
+          : {
+              command: materializeInstalledPluginOwnedStdioPathForPlatform(server.command, platform, pluginDir),
+              args: (server.args ?? []).map((value) => materializeInstalledPluginOwnedStdioPathForPlatform(value, platform, pluginDir)),
+            }
+        const stdioEnv = materializeStdioEnvRecord(server.env, env, secretEnvVars, serverRuntimeEnvVars)
+        if (serverRuntimeEnvVars.size > 0) ensureMcpRuntimeEnvScript(pluginDir)
         mcpServers[name] = {
-          command: materializeInstalledPluginOwnedStdioPathForPlatform(server.command, platform, pluginDir),
-          args: (server.args ?? []).map((value) => materializeInstalledPluginOwnedStdioPathForPlatform(value, platform, pluginDir)),
-          env: materializeEnvRecord(server.env, env),
+          ...commandConfig,
+          ...(stdioEnv ? { env: stdioEnv } : {}),
         }
         continue
       }
@@ -718,10 +764,18 @@ function patchInstalledMcpConfig(
 
     for (const [name, server] of Object.entries(config.mcp)) {
       if (server.transport === 'stdio') {
+        const serverRuntimeEnvVars = collectStdioServerRuntimeEnvVars(server.env, runtimeEnvVars)
+        const commandConfig = serverRuntimeEnvVars.size > 0
+          ? buildRuntimeWrappedStdioMcpCommand(server, platform, serverRuntimeEnvVars, pluginDir)
+          : {
+              command: materializeInstalledPluginOwnedStdioPathForPlatform(server.command, platform, pluginDir),
+              args: (server.args ?? []).map((value) => materializeInstalledPluginOwnedStdioPathForPlatform(value, platform, pluginDir)),
+            }
+        const stdioEnv = materializeStdioEnvRecord(server.env, env, secretEnvVars, serverRuntimeEnvVars)
+        if (serverRuntimeEnvVars.size > 0) ensureMcpRuntimeEnvScript(pluginDir)
         mcpServers[name] = {
-          command: materializeInstalledPluginOwnedStdioPathForPlatform(server.command, platform, pluginDir),
-          args: (server.args ?? []).map((value) => materializeInstalledPluginOwnedStdioPathForPlatform(value, platform, pluginDir)),
-          env: materializeEnvRecord(server.env, env, secretEnvVars),
+          ...commandConfig,
+          ...(stdioEnv ? { env: stdioEnv } : {}),
         }
         continue
       }
@@ -779,13 +833,16 @@ function patchInstalledMcpConfig(
 
 function writeInstalledUserConfig(
   pluginDir: string,
+  config: PluginConfig,
   entries: ResolvedUserConfigEntry[],
   platform: TargetPlatform,
 ): void {
-  if (entries.length === 0) return
+  const runtimeEnvVars = collectRuntimeInheritedStdioEnvVars(config, [platform])
+  const persistentEntries = entries.filter((entry) => !entry.envVar || !runtimeEnvVars.has(entry.envVar))
+  if (persistentEntries.length === 0) return
 
   const filepath = resolve(pluginDir, '.pluxx-user.json')
-  const payload = buildInstalledUserConfigPayload(entries, {
+  const payload = buildInstalledUserConfigPayload(persistentEntries, {
     preserveSecretReferences: platform === 'codex',
   })
 
@@ -810,9 +867,11 @@ function materializeInstalledPlugin(
   config: PluginConfig,
   entries: ResolvedUserConfigEntry[],
 ): void {
-  if (entries.length > 0) {
-    writeInstalledUserConfig(pluginDir, entries, platform)
-    disableInstalledEnvValidation(pluginDir, entries)
+  const runtimeEnvVars = collectRuntimeInheritedStdioEnvVars(config, [platform])
+  const persistentEntries = entries.filter((entry) => !entry.envVar || !runtimeEnvVars.has(entry.envVar))
+  if (persistentEntries.length > 0) {
+    writeInstalledUserConfig(pluginDir, config, persistentEntries, platform)
+    disableInstalledEnvValidation(pluginDir, persistentEntries)
   }
   patchInstalledMcpConfig(pluginDir, platform, config, entries)
 }
