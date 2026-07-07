@@ -822,6 +822,64 @@ describe('doctorConsumer', () => {
     }
   })
 
+  it('fails when a matching Codex versioned cache bundle contains stale plaintext secret material', async () => {
+    const dir = createCodexConsumerFixture()
+    const originalHome = process.env.HOME
+    const homeDir = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-codex-cache-home-'))
+    process.env.HOME = homeDir
+    const staleValue = 'sendlens-stale-fixture-value'
+
+    try {
+      const cacheDir = resolve(homeDir, '.codex/plugins/cache/local-plugins/codex-consumer-fixture/0.1.0')
+      mkdirSync(resolve(cacheDir, '.codex-plugin'), { recursive: true })
+      writeFileSync(
+        resolve(cacheDir, '.codex-plugin/plugin.json'),
+        JSON.stringify({
+          name: 'codex-consumer-fixture',
+          version: '0.1.0',
+          mcpServers: './.mcp.json',
+        }, null, 2),
+      )
+      writeFileSync(
+        resolve(cacheDir, '.mcp.json'),
+        JSON.stringify({
+          mcpServers: {
+            sendlens: {
+              command: 'node',
+              args: ['./server.js'],
+              env: {
+                SENDLENS_INSTANTLY_API_KEY: staleValue,
+              },
+            },
+          },
+        }, null, 2),
+      )
+      writeFileSync(
+        resolve(cacheDir, '.pluxx-user.json'),
+        JSON.stringify({
+          values: {
+            'sendlens-instantly-api-key': staleValue,
+          },
+          env: {
+            SENDLENS_INSTANTLY_API_KEY: staleValue,
+          },
+        }, null, 2),
+      )
+
+      const report = await doctorConsumer(dir)
+      const cacheLeak = report.checks.find((check) => check.code === 'consumer-codex-cache-plaintext-secret-leak')
+      expect(report.ok).toBe(false)
+      expect(cacheLeak?.level).toBe('error')
+      expect(cacheLeak?.detail).toContain('.codex/plugins/cache/local-plugins/codex-consumer-fixture/0.1.0')
+      expect(cacheLeak?.detail).toContain('SENDLENS_INSTANTLY_API_KEY')
+      expect(report.checks.every((check) => !check.detail.includes(staleValue))).toBe(true)
+    } finally {
+      process.env.HOME = originalHome
+      rmSync(dir, { recursive: true, force: true })
+      rmSync(homeDir, { recursive: true, force: true })
+    }
+  })
+
   it('does not fail ordinary api/key named config values as plaintext secrets', async () => {
     const dir = createSafeConsumerFixture()
 
