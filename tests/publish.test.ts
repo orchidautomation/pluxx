@@ -137,6 +137,81 @@ function makeUserConfigInstallerConfig(platform: TargetPlatform, required = true
   }
 }
 
+function makeRuntimeStdioInstallerConfig(platform: TargetPlatform): PluginConfig {
+  return {
+    ...makeConfig(),
+    targets: [platform],
+    userConfig: [
+      {
+        key: 'workspace-marker',
+        title: 'Workspace Marker',
+        type: 'string',
+        required: true,
+        envVar: 'WORKSPACE_MARKER',
+      },
+      {
+        key: 'workspace-client',
+        title: 'Workspace Client',
+        type: 'string',
+        required: true,
+        envVar: 'WORKSPACE_CLIENT',
+      },
+      {
+        key: 'workspace-store-path',
+        title: 'Workspace Store Path',
+        type: 'string',
+        required: true,
+        envVar: 'WORKSPACE_STORE_PATH',
+      },
+    ],
+    mcp: {
+      workspace: {
+        transport: 'stdio',
+        command: 'bash',
+        args: ['./scripts/start-mcp.sh'],
+        env: {
+          WORKSPACE_MARKER: '${WORKSPACE_MARKER}',
+          WORKSPACE_CLIENT: '${WORKSPACE_CLIENT}',
+          WORKSPACE_STORE_PATH: '${WORKSPACE_STORE_PATH}',
+          PLUGIN_MODE: 'local',
+        },
+      },
+    },
+  }
+}
+
+function stdioMcpFileForPlatform(platform: TargetPlatform): Record<string, string> {
+  if (platform === 'opencode') return {}
+  const relativePath = platform === 'cursor' ? 'mcp.json' : '.mcp.json'
+  const runtimePath = platform === 'claude-code'
+    ? '${CLAUDE_PLUGIN_ROOT}/runtime/pluxx-mcp-env.mjs'
+    : './runtime/pluxx-mcp-env.mjs'
+  const startScriptPath = platform === 'claude-code'
+    ? '${CLAUDE_PLUGIN_ROOT}/scripts/start-mcp.sh'
+    : './scripts/start-mcp.sh'
+  return {
+    [relativePath]: JSON.stringify({
+      mcpServers: {
+        workspace: {
+          command: 'node',
+          args: [
+            runtimePath,
+            '["WORKSPACE_CLIENT","WORKSPACE_MARKER","WORKSPACE_STORE_PATH"]',
+            '--',
+            'bash',
+            startScriptPath,
+          ],
+          env: {
+            PLUGIN_MODE: 'local',
+          },
+        },
+      },
+    }, null, 2),
+    'scripts/start-mcp.sh': '#!/usr/bin/env bash\nexit 0\n',
+    'runtime/pluxx-mcp-env.mjs': '#!/usr/bin/env node\nprocess.exit(0)\n',
+  }
+}
+
 interface GeneratedInstallerRunOptions {
   config?: PluginConfig
   env?: Record<string, string>
@@ -642,6 +717,46 @@ describe('runPublish', () => {
         expect(run.installedUserConfig?.values?.['instantly-api-key']).toBe('saved-instantly-key')
         expect(run.installedUserConfig?.env?.SENDLENS_INSTANTLY_API_KEY).toBe('saved-instantly-key')
       }
+    }
+  })
+
+  it('does not bake core-host stdio runtime env into generated global installs', () => {
+    const platforms: TargetPlatform[] = ['claude-code', 'cursor', 'codex', 'opencode']
+
+    for (const platform of platforms) {
+      const run = runGeneratedInstaller(platform, {
+        config: makeRuntimeStdioInstallerConfig(platform),
+        existingUserConfig: {
+          values: {
+            'workspace-marker': 'stale-marker',
+            'workspace-client': 'stale-client',
+            'workspace-store-path': '/stale/workspace.duckdb',
+          },
+          env: {
+            WORKSPACE_MARKER: 'stale-marker',
+            WORKSPACE_CLIENT: 'stale-client',
+            WORKSPACE_STORE_PATH: '/stale/workspace.duckdb',
+          },
+        },
+        extraFiles: stdioMcpFileForPlatform(platform),
+      })
+
+      expect(run.status).toBe(0)
+      expect(run.stderr).toBe('')
+      expect(run.stdout).not.toContain('reusing saved install values')
+      expect(run.installerContent).not.toContain('pluxx_prompt_text_config "workspace-')
+      expect(run.installerContent).not.toContain('pluxx_prompt_secret_config "workspace-')
+      expect(JSON.stringify(run.installedUserConfig ?? {})).not.toContain('stale-')
+      expect(JSON.stringify(run.installedUserConfig ?? {})).not.toContain('/stale/workspace.duckdb')
+      expect(run.installedUserConfig).toBeUndefined()
+
+      if (platform === 'opencode') continue
+
+      const mcpPath = resolve(run.pluginInstallDir, platform === 'cursor' ? 'mcp.json' : '.mcp.json')
+      const installedMcp = JSON.parse(readFileSync(mcpPath, 'utf-8'))
+      expect(installedMcp.mcpServers.workspace.env).toEqual({
+        PLUGIN_MODE: 'local',
+      })
     }
   })
 

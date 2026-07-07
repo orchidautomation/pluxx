@@ -13,6 +13,14 @@ import { readCanonicalAgentFiles } from '../../agents'
 import { normalizePluginOwnedStdioPathForPlatform } from '../../mcp-stdio-paths'
 import { buildHookCommandWrapperScript } from '../../hook-command-env'
 import { getNativeJsonHeadersOverride } from '../../mcp-native-overrides'
+import { collectRuntimeInheritedStdioEnvVars } from '../../user-config'
+import {
+  buildMcpRuntimeEnvScript,
+  buildRuntimeWrappedStdioMcpCommand,
+  collectStdioServerRuntimeEnvVars,
+  filterRuntimeInheritedStdioEnvRecord,
+  MCP_RUNTIME_ENV_SCRIPT_RELATIVE_PATH,
+} from '../../mcp-runtime-env'
 
 export interface ClaudeFamilyOptions {
   manifestPath: string
@@ -43,7 +51,7 @@ export async function generateClaudeFamilyOutputs(args: {
 
   await Promise.all([
     writeManifest(config, rootDir, options, writeJson),
-    writeMcpConfig(config, platform, writeJson),
+    writeMcpConfig(config, platform, writeJson, writeFile),
     writeHooks(config, platform, options, writeJson, writeFile),
     writeInstructions(config, rootDir, options, writeFile),
   ])
@@ -100,20 +108,32 @@ async function writeMcpConfig(
   config: PluginConfig,
   platform: TargetPlatform,
   writeJson: (relativePath: string, data: unknown) => Promise<void>,
+  writeFile: (relativePath: string, content: string) => Promise<void>,
 ): Promise<void> {
   if (!config.mcp) return
 
   const mcpServers: Record<string, unknown> = {}
   const usesPlatformManagedAuth = platform === 'claude-code'
     && config.platforms?.['claude-code']?.mcpAuth === 'platform'
+  const runtimeEnvVars = collectRuntimeInheritedStdioEnvVars(config, [platform])
+  let wroteRuntimeLauncher = false
 
   for (const [name, server] of Object.entries(config.mcp)) {
     if (server.transport === 'stdio' && server.command) {
+      const serverRuntimeEnvVars = collectStdioServerRuntimeEnvVars(server.env, runtimeEnvVars)
+      const commandConfig = serverRuntimeEnvVars.size > 0
+        ? buildRuntimeWrappedStdioMcpCommand(server, platform, serverRuntimeEnvVars)
+        : {
+            command: normalizePluginOwnedStdioPathForPlatform(server.command, platform),
+            args: (server.args ?? []).map((value) => normalizePluginOwnedStdioPathForPlatform(value, platform)),
+          }
+      const env = filterRuntimeInheritedStdioEnvRecord(server.env, serverRuntimeEnvVars)
+
       mcpServers[name] = {
-        command: normalizePluginOwnedStdioPathForPlatform(server.command, platform),
-        args: (server.args ?? []).map((value) => normalizePluginOwnedStdioPathForPlatform(value, platform)),
-        env: server.env ?? {},
+        ...commandConfig,
+        ...(env ? { env } : {}),
       }
+      wroteRuntimeLauncher ||= serverRuntimeEnvVars.size > 0
     } else {
       const entry: Record<string, unknown> = {
         type: server.transport === 'sse' ? 'sse' : 'http',
@@ -146,6 +166,9 @@ async function writeMcpConfig(
   }
 
   await writeJson('.mcp.json', { mcpServers })
+  if (wroteRuntimeLauncher) {
+    await writeFile(MCP_RUNTIME_ENV_SCRIPT_RELATIVE_PATH, buildMcpRuntimeEnvScript())
+  }
 }
 
 async function writeHooks(

@@ -4,7 +4,7 @@ import { resolve } from 'path'
 import { spawnSync } from 'child_process'
 import { tmpdir } from 'os'
 import type { PluginConfig, TargetPlatform } from '../schema'
-import { collectUserConfigEntries, defaultUserConfigEnvVar } from '../user-config'
+import { collectRuntimeInheritedStdioEnvVars, collectUserConfigEntries, defaultUserConfigEnvVar } from '../user-config'
 import { getPublishReloadInstruction } from '../distribution-lifecycle'
 import { collectNativeMcpAuthUserConfigEntries } from '../mcp-native-overrides'
 
@@ -478,6 +478,8 @@ function collectInstallerUserConfigEntries(config: PluginConfig, platforms: Targ
 }
 
 function renderInstallerUserConfigSnippet(config: PluginConfig, platform: TargetPlatform, installDirVariable: string): string {
+  const runtimeEnvVars = [...collectRuntimeInheritedStdioEnvVars(config, [platform])]
+  const runtimeEnvVarSet = new Set(runtimeEnvVars)
   const entries = collectInstallerUserConfigEntries(config, [platform])
     .map((entry) => ({
       key: entry.key,
@@ -486,9 +488,13 @@ function renderInstallerUserConfigSnippet(config: PluginConfig, platform: Target
       required: entry.required !== false,
       envVar: entry.envVar ?? defaultUserConfigEnvVar(entry.key),
     }))
+    .filter((entry) => !runtimeEnvVarSet.has(entry.envVar))
 
   if (entries.length === 0) return ''
   const preserveSecretReferences = platform === 'codex'
+  const runtimeEnvPattern = runtimeEnvVars.length > 0
+    ? runtimeEnvVars.join('|')
+    : '__PLUXX_NO_RUNTIME_ENV_MATCH__'
 
   const promptLines = entries.map((entry) => {
     const functionName = entry.type === 'secret' ? 'pluxx_prompt_secret_config' : 'pluxx_prompt_text_config'
@@ -502,7 +508,9 @@ PLUXX_USER_CONFIG_JSON
 )"
 PLUXX_REUSED_USER_CONFIG=0
 PLUXX_PRESERVE_SECRET_REFS="${preserveSecretReferences ? '1' : '0'}"
+PLUXX_RUNTIME_ENV_VARS='${JSON.stringify(runtimeEnvVars)}'
 export PLUXX_PRESERVE_SECRET_REFS
+export PLUXX_RUNTIME_ENV_VARS
 
 pluxx_is_placeholder_secret() {
   case "$1" in
@@ -515,9 +523,24 @@ pluxx_is_placeholder_secret() {
   esac
 }
 
+pluxx_is_runtime_env_var() {
+  case "$1" in
+    ${runtimeEnvPattern})
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 pluxx_saved_config_value() {
   local key="$1"
   local env_var="$2"
+
+  if pluxx_is_runtime_env_var "$env_var"; then
+    return 1
+  fi
 
   if [[ -z "\${PLUXX_SAVED_USER_CONFIG_PATH:-}" || ! -f "$PLUXX_SAVED_USER_CONFIG_PATH" ]]; then
     return 1
@@ -642,6 +665,7 @@ const path = require('path')
 
 const installDir = process.env.PLUXX_INSTALL_DIR
 const spec = JSON.parse(process.env.PLUXX_USER_CONFIG_SPEC || '[]')
+const runtimeEnvVars = new Set(JSON.parse(process.env.PLUXX_RUNTIME_ENV_VARS || '[]'))
 const preserveSecretReferences = ${preserveSecretReferences ? 'true' : 'false'}
 
 if (installDir && spec.length > 0) {
@@ -658,6 +682,7 @@ if (installDir && spec.length > 0) {
   )
 
   for (const entry of spec) {
+    if (entry.envVar && runtimeEnvVars.has(entry.envVar)) continue
     if (entry.type === 'secret') {
       hasSecret = true
       if (preserveSecretReferences) {
@@ -675,24 +700,25 @@ if (installDir && spec.length > 0) {
     env[entry.envVar] = value
   }
 
-  fs.writeFileSync(
-    path.join(installDir, '.pluxx-user.json'),
-    JSON.stringify(
-      {
-        ...(Object.keys(values).length > 0 ? { values } : {}),
-        ...(Object.keys(env).length > 0 ? { env } : {}),
-        ...(Object.keys(envRefs).length > 0 ? { envRefs } : {}),
-        ...(hasSecret ? { secretStorage: preserveSecretReferences ? 'env-ref' : 'materialized' } : {}),
-        ...(preserveSecretReferences && secretKeys.length > 0 ? { secretKeys: [...new Set(secretKeys)].sort() } : {}),
-        ...(preserveSecretReferences && secretEnv.length > 0 ? { secretEnv: [...new Set(secretEnv)].sort() } : {}),
-      },
-      null,
-      2,
-    ) + '\\n',
-  )
+  const installedUserConfig = {
+    ...(Object.keys(values).length > 0 ? { values } : {}),
+    ...(Object.keys(env).length > 0 ? { env } : {}),
+    ...(Object.keys(envRefs).length > 0 ? { envRefs } : {}),
+    ...(hasSecret ? { secretStorage: preserveSecretReferences ? 'env-ref' : 'materialized' } : {}),
+    ...(preserveSecretReferences && secretKeys.length > 0 ? { secretKeys: [...new Set(secretKeys)].sort() } : {}),
+    ...(preserveSecretReferences && secretEnv.length > 0 ? { secretEnv: [...new Set(secretEnv)].sort() } : {}),
+  }
+  const hasInstalledUserConfig = Object.keys(installedUserConfig).length > 0
+
+  if (hasInstalledUserConfig) {
+    fs.writeFileSync(
+      path.join(installDir, '.pluxx-user.json'),
+      JSON.stringify(installedUserConfig, null, 2) + '\\n',
+    )
+  }
 
   const envScriptPath = path.join(installDir, 'scripts/check-env.sh')
-  if (fs.existsSync(envScriptPath)) {
+  if (hasInstalledUserConfig && fs.existsSync(envScriptPath)) {
     fs.writeFileSync(
       envScriptPath,
       '#!/usr/bin/env bash\\nset -euo pipefail\\n# pluxx install materialized required config for this local plugin install.\\nexit 0\\n',
@@ -716,6 +742,19 @@ if (installDir && spec.length > 0) {
     return next
   }
 
+  const materializeStdioEnvRecord = (record) => {
+    if (!record || typeof record !== 'object') return undefined
+    const next = {}
+    for (const [key, value] of Object.entries(record)) {
+      const runtimeReference = typeof value === 'string'
+        ? value.match(/^\\$\\{([A-Za-z_][A-Za-z0-9_]*)\\}$/)
+        : null
+      if (runtimeReference && runtimeEnvVars.has(runtimeReference[1])) continue
+      next[key] = materialize(value)
+    }
+    return Object.keys(next).length > 0 ? next : undefined
+  }
+
   for (const relativePath of ['.mcp.json', 'mcp.json']) {
     const filepath = path.join(installDir, relativePath)
     if (!fs.existsSync(filepath)) continue
@@ -723,9 +762,16 @@ if (installDir && spec.length > 0) {
     const payload = JSON.parse(fs.readFileSync(filepath, 'utf8'))
     for (const server of Object.values(payload.mcpServers || {})) {
       if (!server || typeof server !== 'object') continue
+      const isStdio = typeof server.command === 'string' || Array.isArray(server.args)
 
       if (server.env) {
-        server.env = materializeRecord(server.env)
+        if (isStdio) {
+          const nextEnv = materializeStdioEnvRecord(server.env)
+          if (nextEnv) server.env = nextEnv
+          else delete server.env
+        } else {
+          server.env = materializeRecord(server.env)
+        }
       }
 
       if (!preserveSecretReferences && server.bearer_token_env_var && env[server.bearer_token_env_var]) {

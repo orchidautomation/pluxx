@@ -931,31 +931,49 @@ describe('build', () => {
 
     expect(claudeMcp.mcpServers['local-server']).toEqual({
       command: 'node',
-      args: ['${CLAUDE_PLUGIN_ROOT}/mcp-server/dist/index.js', '--stdio'],
-      env: {
-        LOCAL_FIXTURE_TOKEN: '${LOCAL_FIXTURE_TOKEN}',
-      },
+      args: [
+        '${CLAUDE_PLUGIN_ROOT}/runtime/pluxx-mcp-env.mjs',
+        '["LOCAL_FIXTURE_TOKEN"]',
+        '--',
+        'node',
+        '${CLAUDE_PLUGIN_ROOT}/mcp-server/dist/index.js',
+        '--stdio',
+      ],
     })
     expect(cursorMcp.mcpServers['local-server']).toEqual({
       command: 'node',
-      args: ['./mcp-server/dist/index.js', '--stdio'],
-      env: {
-        LOCAL_FIXTURE_TOKEN: '${LOCAL_FIXTURE_TOKEN}',
-      },
+      args: [
+        './runtime/pluxx-mcp-env.mjs',
+        '["LOCAL_FIXTURE_TOKEN"]',
+        '--',
+        'node',
+        './mcp-server/dist/index.js',
+        '--stdio',
+      ],
     })
     expect(codexMcp.mcpServers['local-server']).toEqual({
       command: 'node',
-      args: ['./mcp-server/dist/index.js', '--stdio'],
-      env: {
-        LOCAL_FIXTURE_TOKEN: '${LOCAL_FIXTURE_TOKEN}',
-      },
+      args: [
+        './runtime/pluxx-mcp-env.mjs',
+        '["LOCAL_FIXTURE_TOKEN"]',
+        '--',
+        'node',
+        './mcp-server/dist/index.js',
+        '--stdio',
+      ],
     })
+    expect(existsSync(resolve(TEST_DIR, 'runtime-dist/claude-code/runtime/pluxx-mcp-env.mjs'))).toBe(true)
+    expect(existsSync(resolve(TEST_DIR, 'runtime-dist/cursor/runtime/pluxx-mcp-env.mjs'))).toBe(true)
+    expect(existsSync(resolve(TEST_DIR, 'runtime-dist/codex/runtime/pluxx-mcp-env.mjs'))).toBe(true)
+    expect(existsSync(resolve(TEST_DIR, 'runtime-dist/opencode/runtime/pluxx-mcp-env.mjs'))).toBe(true)
 
     expect(opencodeIndex).toContain('"bearer-server"')
     expect(opencodeIndex).toContain('"oauth-server"')
     expect(opencodeIndex).toContain('"local-server"')
     expect(opencodeIndex).toContain('"transport": "stdio"')
     expect(opencodeIndex).toContain('"command": "node"')
+    expect(opencodeIndex).toContain('const MCP_RUNTIME_ENV_VARS =')
+    expect(opencodeIndex).toContain('"local-server": [')
     expect(opencodeIndex).toContain('"LOCAL_FIXTURE_TOKEN": "${LOCAL_FIXTURE_TOKEN}"')
     expect(opencodeIndex).not.toContain('"type": "platform"')
   })
@@ -991,25 +1009,22 @@ describe('build', () => {
     )
 
     expect(claudeMcp.mcpServers['local-server']).toEqual({
-      command: 'bash',
-      args: ['${CLAUDE_PLUGIN_ROOT}/scripts/start-mcp.sh'],
-      env: {
-        LOCAL_FIXTURE_TOKEN: '${LOCAL_FIXTURE_TOKEN}',
-      },
+      command: 'node',
+      args: [
+        '${CLAUDE_PLUGIN_ROOT}/runtime/pluxx-mcp-env.mjs',
+        '["LOCAL_FIXTURE_TOKEN"]',
+        '--',
+        'bash',
+        '${CLAUDE_PLUGIN_ROOT}/scripts/start-mcp.sh',
+      ],
     })
     expect(cursorMcp.mcpServers['local-server']).toEqual({
-      command: 'bash',
-      args: ['./scripts/start-mcp.sh'],
-      env: {
-        LOCAL_FIXTURE_TOKEN: '${LOCAL_FIXTURE_TOKEN}',
-      },
+      command: 'node',
+      args: ['./runtime/pluxx-mcp-env.mjs', '["LOCAL_FIXTURE_TOKEN"]', '--', 'bash', './scripts/start-mcp.sh'],
     })
     expect(codexMcp.mcpServers['local-server']).toEqual({
-      command: 'bash',
-      args: ['./scripts/start-mcp.sh'],
-      env: {
-        LOCAL_FIXTURE_TOKEN: '${LOCAL_FIXTURE_TOKEN}',
-      },
+      command: 'node',
+      args: ['./runtime/pluxx-mcp-env.mjs', '["LOCAL_FIXTURE_TOKEN"]', '--', 'bash', './scripts/start-mcp.sh'],
     })
   })
 

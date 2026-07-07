@@ -9,6 +9,12 @@ import { getRuntimeReadinessCapability } from '../../runtime-readiness-registry'
 import { getCanonicalAgentMetadata, type AgentFrontmatterMap, type AgentFrontmatterValue, readCanonicalAgentFiles } from '../../agents'
 import { getCanonicalCommandMetadata, readCanonicalCommandFiles } from '../../commands'
 import { getCanonicalSkillMetadata, readCanonicalSkillFiles } from '../../skills'
+import { collectRuntimeInheritedStdioEnvVars } from '../../user-config'
+import {
+  buildMcpRuntimeEnvScript,
+  collectStdioServerRuntimeEnvVars,
+  MCP_RUNTIME_ENV_SCRIPT_RELATIVE_PATH,
+} from '../../mcp-runtime-env'
 
 type GeneratedHook = {
   command: string
@@ -55,6 +61,7 @@ export class OpenCodeGenerator extends Generator {
       this.generatePackageJson(),
       this.generatePluginWrapper(),
       this.generateReadinessRuntime(),
+      this.generateMcpRuntimeEnv(),
       this.generateSkillsCompanion(),
     ])
 
@@ -95,6 +102,7 @@ export class OpenCodeGenerator extends Generator {
     const pluginName = toPascalCase(this.config.name) + 'Plugin'
     const envVars = this.getRequiredEnvVars()
     const mcpDefinitions = this.getOpenCodeMcpDefinitions()
+    const mcpRuntimeEnvVars = this.getOpenCodeMcpRuntimeEnvVars()
     const commandDefinitions = this.getOpenCodeCommandDefinitions()
     const agentDefinitions = this.getOpenCodeAgentDefinitions()
     const hookPlan = this.getOpenCodeHookPlan()
@@ -118,6 +126,10 @@ export class OpenCodeGenerator extends Generator {
       `const REQUIRED_ENV_VARS = ${JSON.stringify(envVars, null, 2)}`,
       '',
       `const MCP_DEFINITIONS = ${JSON.stringify(mcpDefinitions, null, 2)}`,
+      '',
+      `const MCP_RUNTIME_ENV_VARS = ${JSON.stringify(mcpRuntimeEnvVars, null, 2)}`,
+      '',
+      `const MCP_RUNTIME_ENV_SCRIPT = ${JSON.stringify(MCP_RUNTIME_ENV_SCRIPT_RELATIVE_PATH)}`,
       '',
       `const TUI_COMMANDS = ${JSON.stringify(commandDefinitions, null, 2)}`,
       '',
@@ -164,6 +176,17 @@ export class OpenCodeGenerator extends Generator {
       `  return output`,
       `}`,
       '',
+      `const materializeStdioEnv = (input: Record<string, string> | undefined, userEnv: Record<string, string>, userEnvRefs: Record<string, string>, runtimeEnvVars: Set<string>): Record<string, string> | undefined => {`,
+      `  if (!input) return undefined`,
+      `  const output: Record<string, string> = {}`,
+      `  for (const [key, value] of Object.entries(input)) {`,
+      `    const runtimeReference = value.match(/^\\$\\{([A-Za-z_][A-Za-z0-9_]*)\\}$/)`,
+      `    if (runtimeReference && runtimeEnvVars.has(runtimeReference[1])) continue`,
+      `    output[key] = value.replace(/\\$\\{([A-Za-z_][A-Za-z0-9_]*)\\}/g, (_match, name) => resolveRuntimeValue(name, userEnv, userEnvRefs) ?? \`\\\${\${name}}\`)`,
+      `  }`,
+      `  return Object.keys(output).length > 0 ? output : undefined`,
+      `}`,
+      '',
       `const buildMcpConfig = (directory: string): NonNullable<Config["mcp"]> => {`,
       `  const config: NonNullable<Config["mcp"]> = {}`,
       `  const userConfig = loadUserConfig(directory)`,
@@ -172,10 +195,15 @@ export class OpenCodeGenerator extends Generator {
       '',
       `  for (const [name, definition] of Object.entries(MCP_DEFINITIONS)) {`,
       `    if (definition.transport === "stdio" && definition.command) {`,
+      `      const runtimeEnvVars = new Set(MCP_RUNTIME_ENV_VARS[name] ?? [])`,
+      `      const command = runtimeEnvVars.size > 0`,
+      `        ? ["node", resolve(directory, MCP_RUNTIME_ENV_SCRIPT), JSON.stringify([...runtimeEnvVars].sort()), "--", definition.command, ...(definition.args ?? [])]`,
+      `        : [definition.command, ...(definition.args ?? [])]`,
+      `      const environment = materializeStdioEnv(definition.env, userEnv, userEnvRefs, runtimeEnvVars)`,
       `      config[name] = {`,
       `        type: "local",`,
-      `        command: [definition.command, ...(definition.args ?? [])],`,
-      `        ...(definition.env ? { environment: materializeEnv(definition.env, userEnv, userEnvRefs) } : {}),`,
+      `        command,`,
+      `        ...(environment ? { environment } : {}),`,
       `      }`,
       `      continue`,
       `    }`,
@@ -433,6 +461,11 @@ export class OpenCodeGenerator extends Generator {
     await this.writeFile('runtime/pluxx-readiness.mjs', buildGeneratedReadinessScript(this.config.readiness))
   }
 
+  private async generateMcpRuntimeEnv(): Promise<void> {
+    if (!this.hasRuntimeInheritedStdioMcpEnv()) return
+    await this.writeFile(MCP_RUNTIME_ENV_SCRIPT_RELATIVE_PATH, buildMcpRuntimeEnvScript())
+  }
+
   private getRequiredEnvVars(): string[] {
     const vars = new Set<string>()
     if (this.config.mcp) {
@@ -443,6 +476,24 @@ export class OpenCodeGenerator extends Generator {
       }
     }
     return [...vars]
+  }
+
+  private getOpenCodeMcpRuntimeEnvVars(): Record<string, string[]> {
+    if (!this.config.mcp) return {}
+
+    const runtimeEnvVars = collectRuntimeInheritedStdioEnvVars(this.config, [this.platform])
+    if (runtimeEnvVars.size === 0) return {}
+
+    const output: Record<string, string[]> = {}
+    for (const [name, server] of Object.entries(this.config.mcp)) {
+      if (server.transport !== 'stdio') continue
+      const serverRuntimeEnvVars = collectStdioServerRuntimeEnvVars(server.env, runtimeEnvVars)
+      if (serverRuntimeEnvVars.size > 0) {
+        output[name] = [...serverRuntimeEnvVars].sort()
+      }
+    }
+
+    return output
   }
 
   private getOpenCodeMcpDefinitions(): Record<string, OpenCodeMcpDefinition> {

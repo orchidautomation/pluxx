@@ -457,6 +457,44 @@ describe('install', () => {
     expect(planned[0].source).toBe('env')
   })
 
+  it('does not require core-host stdio runtime env during install config planning', () => {
+    const config: PluginConfig = {
+      name: 'fixture',
+      version: '0.1.0',
+      description: 'Fixture',
+      author: { name: 'Test Author' },
+      license: 'MIT',
+      skills: './skills/',
+      userConfig: [
+        {
+          key: 'sendlens-token',
+          title: 'SendLens Token',
+          type: 'secret',
+          required: true,
+          envVar: 'SENDLENS_TOKEN',
+        },
+      ],
+      mcp: {
+        sendlens: {
+          transport: 'stdio',
+          command: 'bash',
+          args: ['./scripts/start-mcp.sh'],
+          env: {
+            SENDLENS_TOKEN: '${SENDLENS_TOKEN}',
+          },
+        },
+      },
+      targets: ['claude-code', 'cursor', 'codex', 'opencode', 'github-copilot'],
+      outDir: './dist',
+    }
+
+    const coreHostPlanned = planInstallUserConfig(config, ['claude-code', 'cursor', 'codex', 'opencode'])
+    expect(coreHostPlanned.map((entry) => entry.envVar)).not.toContain('SENDLENS_TOKEN')
+
+    const mixedPlanned = planInstallUserConfig(config, ['codex', 'github-copilot'])
+    expect(mixedPlanned.map((entry) => entry.envVar)).toContain('SENDLENS_TOKEN')
+  })
+
   it('derives install-time config requirements from preserved native MCP auth overrides', () => {
     process.env.METRICS_API_KEY = 'from-env'
     process.env.METRICS_WORKSPACE_ID = 'workspace-from-env'
@@ -602,7 +640,10 @@ describe('install', () => {
 
     const cursorMcp = JSON.parse(readFileSync(resolve(cursorInstall, 'mcp.json'), 'utf-8'))
     const codexMcp = JSON.parse(readFileSync(resolve(codexInstall, '.mcp.json'), 'utf-8'))
-    const codexUserConfig = JSON.parse(readFileSync(resolve(codexInstall, '.pluxx-user.json'), 'utf-8'))
+    const codexUserConfigPath = resolve(codexInstall, '.pluxx-user.json')
+    const codexUserConfig = existsSync(codexUserConfigPath)
+      ? JSON.parse(readFileSync(codexUserConfigPath, 'utf-8'))
+      : undefined
     const opencodeUserConfig = JSON.parse(readFileSync(resolve(opencodeInstall, '.pluxx-user.json'), 'utf-8'))
 
     expect(cursorMcp.mcpServers.fixture.headers.Authorization).toBe('Bearer shh-secret')
@@ -762,25 +803,29 @@ describe('install', () => {
     const codexInstall = resolve(HOME_DIR, INSTALL_PATHS.codex)
     const cursorMcp = JSON.parse(readFileSync(resolve(cursorInstall, 'mcp.json'), 'utf-8'))
     const codexMcp = JSON.parse(readFileSync(resolve(codexInstall, '.mcp.json'), 'utf-8'))
-    const codexUserConfig = JSON.parse(readFileSync(resolve(codexInstall, '.pluxx-user.json'), 'utf-8'))
+    const codexUserConfigPath = resolve(codexInstall, '.pluxx-user.json')
+    const codexUserConfig = existsSync(codexUserConfigPath)
+      ? JSON.parse(readFileSync(codexUserConfigPath, 'utf-8'))
+      : undefined
 
     expect(cursorMcp.mcpServers.sendlens).toEqual({
-      command: 'bash',
-      args: ['./scripts/start-mcp.sh'],
-      env: {
-        SENDLENS_TOKEN: 'shh-secret',
-      },
+      command: 'node',
+      args: ['./runtime/pluxx-mcp-env.mjs', '["SENDLENS_TOKEN"]', '--', 'bash', './scripts/start-mcp.sh'],
     })
     expect(codexMcp.mcpServers.sendlens).toEqual({
-      command: 'bash',
-      args: [resolve(codexInstall, 'scripts/start-mcp.sh')],
-      env: {
-        SENDLENS_TOKEN: '${SENDLENS_TOKEN}',
-      },
+      command: 'node',
+      args: [
+        resolve(codexInstall, 'runtime/pluxx-mcp-env.mjs'),
+        '["SENDLENS_TOKEN"]',
+        '--',
+        'bash',
+        resolve(codexInstall, 'scripts/start-mcp.sh'),
+      ],
     })
-    expect(codexUserConfig.envRefs?.SENDLENS_TOKEN).toBe('SENDLENS_TOKEN')
+    expect(existsSync(resolve(cursorInstall, 'runtime/pluxx-mcp-env.mjs'))).toBe(true)
+    expect(existsSync(resolve(codexInstall, 'runtime/pluxx-mcp-env.mjs'))).toBe(true)
     expect(JSON.stringify(codexMcp)).not.toContain('shh-secret')
-    expect(JSON.stringify(codexUserConfig)).not.toContain('shh-secret')
+    expect(codexUserConfig).toBeUndefined()
   })
 
   it('materializes plugin-owned Codex stdio MCP paths even without install-time user config', async () => {
@@ -835,7 +880,6 @@ describe('install', () => {
     expect(codexMcp.mcpServers.sendlens).toEqual({
       command: 'bash',
       args: [resolve(codexInstall, 'scripts/start-mcp.sh')],
-      env: {},
     })
   })
 

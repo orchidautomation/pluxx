@@ -149,6 +149,7 @@ This is the mechanical layer. It handles:
 - migration from existing host-native plugin surfaces
 - taxonomy persistence
 - install/runtime config modeling
+- core-four stdio MCP runtime variable launching for workspace-local values with global environment fallback
 - validation
 - build
 - install
