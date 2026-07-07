@@ -140,6 +140,11 @@ interface InstalledPlaintextSecretCandidate {
   labels: string[]
 }
 
+interface InstalledPlaintextSecretFinding {
+  relativePath: string
+  labels: string[]
+}
+
 interface CodexMcpApprovalProbe extends CodexConfigCandidate {
   exists: boolean
   approvals: CodexMcpApprovalEntry[]
@@ -265,7 +270,7 @@ function collectInstalledPlaintextSecretCandidates(rootDir: string): InstalledPl
   }
 }
 
-function checkInstalledPlaintextSecrets(checks: DoctorCheck[], rootDir: string): void {
+function collectInstalledPlaintextSecretFindings(rootDir: string): InstalledPlaintextSecretFinding[] {
   const literalCandidates = collectInstalledPlaintextSecretCandidates(rootDir)
   const findings = new Map<string, Set<string>>()
 
@@ -289,7 +294,22 @@ function checkInstalledPlaintextSecrets(checks: DoctorCheck[], rootDir: string):
     }
   }
 
-  if (findings.size === 0) {
+  return [...findings.entries()].map(([relativePath, labels]) => ({
+    relativePath,
+    labels: [...labels].sort(),
+  }))
+}
+
+function formatInstalledPlaintextSecretFindings(findings: InstalledPlaintextSecretFinding[]): string {
+  return findings
+    .map((finding) => `${finding.relativePath} (${finding.labels.join(', ')})`)
+    .join('; ')
+}
+
+function checkInstalledPlaintextSecrets(checks: DoctorCheck[], rootDir: string): void {
+  const findings = collectInstalledPlaintextSecretFindings(rootDir)
+
+  if (findings.length === 0) {
     addCheck(checks, {
       level: 'success',
       code: 'consumer-plaintext-secret-absent',
@@ -300,16 +320,92 @@ function checkInstalledPlaintextSecrets(checks: DoctorCheck[], rootDir: string):
     return
   }
 
-  const detail = [...findings.entries()]
-    .map(([path, labels]) => `${path} (${[...labels].sort().join(', ')})`)
-    .join('; ')
-
   addCheck(checks, {
     level: 'error',
     code: 'consumer-plaintext-secret-leak',
     title: 'Installed bundle contains plaintext secret material',
-    detail: `Detected plaintext secret material in installed files: ${detail}.`,
+    detail: `Detected plaintext secret material in installed files: ${formatInstalledPlaintextSecretFindings(findings)}.`,
     fix: 'Rotate the affected credential, remove the leaking install, reinstall after the Pluxx secret-reference fix, and rerun pluxx doctor --consumer.',
+  })
+}
+
+function readConsumerManifestName(rootDir: string, manifestPath: string): string | undefined {
+  try {
+    const manifest = JSON.parse(readFileSync(resolve(rootDir, manifestPath), 'utf-8')) as { name?: unknown }
+    return typeof manifest.name === 'string' && manifest.name.trim() ? manifest.name : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function findCodexLocalCacheBundlePaths(pluginName: string): string[] {
+  const home = process.env.HOME ?? homedir()
+  const cacheRoot = resolve(home, '.codex/plugins/cache')
+  if (!existsSync(cacheRoot)) return []
+
+  const bundlePaths: string[] = []
+  for (const marketplace of readdirSync(cacheRoot, { withFileTypes: true })) {
+    if (!marketplace.isDirectory()) continue
+    const pluginRoot = resolve(cacheRoot, marketplace.name, pluginName)
+    if (!existsSync(pluginRoot)) continue
+
+    for (const version of readdirSync(pluginRoot, { withFileTypes: true })) {
+      if (!version.isDirectory()) continue
+      const bundlePath = resolve(pluginRoot, version.name)
+      if (!existsSync(resolve(bundlePath, '.codex-plugin/plugin.json'))) continue
+      bundlePaths.push(bundlePath)
+    }
+  }
+
+  return bundlePaths.sort()
+}
+
+function checkInstalledCodexCachePlaintextSecrets(
+  checks: DoctorCheck[],
+  rootDir: string,
+  layout: ConsumerBundleLayout,
+): void {
+  if (layout.platform !== 'codex') return
+
+  const pluginName = readConsumerManifestName(rootDir, layout.manifestPath)
+  if (!pluginName) return
+
+  const cacheBundlePaths = findCodexLocalCacheBundlePaths(pluginName)
+  const cacheFindings: string[] = []
+  for (const bundlePath of cacheBundlePaths) {
+    let activeBundle = false
+    try {
+      activeBundle = realpathSync(bundlePath) === realpathSync(rootDir)
+    } catch {
+      activeBundle = false
+    }
+    if (activeBundle) continue
+
+    const findings = collectInstalledPlaintextSecretFindings(bundlePath)
+    if (findings.length === 0) continue
+
+    const home = process.env.HOME ?? homedir()
+    const displayPath = relative(home, bundlePath).replace(/\\/g, '/')
+    cacheFindings.push(`${displayPath}: ${formatInstalledPlaintextSecretFindings(findings)}`)
+  }
+
+  if (cacheFindings.length === 0) {
+    addCheck(checks, {
+      level: 'success',
+      code: 'consumer-codex-cache-plaintext-secret-absent',
+      title: 'Codex local plugin cache does not expose known plaintext secret material',
+      detail: `No known prompted secret values or maintained test-secret sentinels were detected in matching Codex cache bundles for "${pluginName}".`,
+      fix: 'No action needed.',
+    })
+    return
+  }
+
+  addCheck(checks, {
+    level: 'error',
+    code: 'consumer-codex-cache-plaintext-secret-leak',
+    title: 'Codex local plugin cache contains plaintext secret material',
+    detail: `Detected plaintext secret material in versioned Codex cache bundles: ${cacheFindings.join('; ')}.`,
+    fix: 'Rotate the affected credential, remove the stale cache under ~/.codex/plugins/cache, reinstall after the Pluxx secret-reference fix, and rerun pluxx doctor --consumer.',
   })
 }
 
@@ -2523,6 +2619,7 @@ export async function doctorConsumer(
   checkInstalledPermissionHook(checks, rootDir, layout)
   checkInstalledUserConfig(checks, rootDir)
   checkInstalledPlaintextSecrets(checks, rootDir)
+  checkInstalledCodexCachePlaintextSecrets(checks, rootDir, layout)
   checkInstalledEnvValidation(checks, rootDir)
   checkInstalledRuntimeScriptRoles(checks, rootDir)
   await checkInstalledMcpConfig(checks, rootDir, layout)
