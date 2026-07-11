@@ -3412,23 +3412,26 @@ async function runCodex() {
   if (subcommand === 'apply') {
     const consumerRoot = readOption(args, '--consumer') ?? args[2]
     if (!consumerRoot || consumerRoot.startsWith('-')) {
-      console.error('Usage: pluxx codex apply --consumer <installed-codex-bundle> [--config <config.toml>|--project-root <path>|--user] [--hooks-only|--mcp-approvals-only] [--dry-run] [--json]')
+      console.error('Usage: pluxx codex apply --consumer <installed-codex-bundle> [--config <config.toml>|--project-root <path>|--user] [--agents-only|--hooks-only|--mcp-approvals-only] [--dry-run] [--json]')
       process.exit(1)
     }
 
     const hooksOnly = readFlag(args, '--hooks-only')
     const approvalsOnly = readFlag(args, '--mcp-approvals-only')
-    if (hooksOnly && approvalsOnly) {
-      throw new Error('Use either --hooks-only or --mcp-approvals-only, not both.')
+    const agentsOnly = readFlag(args, '--agents-only')
+    if ([hooksOnly, approvalsOnly, agentsOnly].filter(Boolean).length > 1) {
+      throw new Error('Use only one of --agents-only, --hooks-only, or --mcp-approvals-only.')
     }
+    const applyAll = !hooksOnly && !approvalsOnly && !agentsOnly
 
     const result = applyCodexCompanion({
       consumerRoot,
       configPath: readOption(args, '--config'),
       projectRoot: readOption(args, '--project-root'),
       userConfig: readFlag(args, '--user'),
-      includeHooks: !approvalsOnly,
-      includeMcpApprovals: !hooksOnly,
+      includeHooks: applyAll || hooksOnly,
+      includeMcpApprovals: applyAll || approvalsOnly,
+      includeAgents: applyAll || agentsOnly,
       dryRun: runtime.dryRun,
     })
 
@@ -3445,7 +3448,7 @@ async function runCodex() {
     return
   }
 
-  console.error('Usage: pluxx codex apply --consumer <installed-codex-bundle> [--config <config.toml>|--project-root <path>|--user] [--hooks-only|--mcp-approvals-only] [--dry-run] [--json]')
+  console.error('Usage: pluxx codex apply --consumer <installed-codex-bundle> [--config <config.toml>|--project-root <path>|--user] [--agents-only|--hooks-only|--mcp-approvals-only] [--dry-run] [--json]')
   process.exit(1)
 }
 
@@ -3506,7 +3509,7 @@ Usage:
   pluxx agent prepare                     Generate agent context + boundary files for host agents
   pluxx agent prompt <kind>               Generate a prompt pack (taxonomy, instructions, review)
   pluxx agent run <kind> --runner <id>    Execute a prompt pack via Claude, Cursor, Codex, or OpenCode headlessly
-  pluxx codex apply --consumer <path>     Merge generated Codex companion prerequisites into active config
+  pluxx codex apply --consumer <path>     Register custom agents and merge generated Codex companion prerequisites
   pluxx discover-mcp [--host <hosts...>] List installed MCP servers from local host configs
   pluxx mcp proxy ...                     Run a local MCP proxy with optional record/replay tapes
   pluxx autopilot --from-mcp ...          Run import + agent refinement + verification in one command

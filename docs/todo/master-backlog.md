@@ -94,6 +94,7 @@ Any person or agent should be able to enter the repo and answer:
   - `PLUXX-226`
   - `PLUXX-264`
   - `PLUXX-248`
+  - `PLUXX-308` adds install-managed custom-agent registration, collision detection, active-state verification, and ownership-safe uninstall
   - [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
   - install ownership tracking remains the follow-on slice, not the immediate center
 - [~] Keep the README top section, website hero, GitHub About metadata, and docs homepage messaging aligned
@@ -102,6 +103,8 @@ Any person or agent should be able to enter the repo and answer:
 - [ ] Move account-specific GTM and customer notes out of the public repo
 - [ ] Define a simple rule for when repo docs should be updated alongside Linear
 - [ ] Ship the first-class Codex companion apply and verify workflow as the next concrete product slice:
+  - register plugin-generated custom agents under the active `CODEX_HOME/agents/<plugin>/` through install and `codex apply`
+  - verify missing, stale, conflicting, and unowned agent registrations
   - apply generated Codex companion config safely with reviewable diffs/backups
   - verify active project/user config, plugin cache state, generated companion artifacts, and known Codex caveats
   - cover idempotency, stale config, malformed companion artifacts, and absent companion files

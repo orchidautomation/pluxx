@@ -7,6 +7,7 @@ import {
 } from '../codex-permissions-companion'
 import { RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG } from '../codex-hooks-feature'
 import { parseTomlValue, splitTomlList, stripTomlComment } from '../toml-lite'
+import { syncCodexAgentRegistration } from '../codex-agent-install'
 
 export interface CodexCompanionApplyOptions {
   consumerRoot: string
@@ -15,11 +16,13 @@ export interface CodexCompanionApplyOptions {
   userConfig?: boolean
   includeHooks?: boolean
   includeMcpApprovals?: boolean
+  includeAgents?: boolean
+  codexHome?: string
   dryRun?: boolean
 }
 
 export interface CodexCompanionApplyAction {
-  kind: 'hooks-feature' | 'mcp-approval'
+  kind: 'hooks-feature' | 'mcp-approval' | 'agent-registration'
   status: 'added' | 'already-present' | 'skipped'
   detail: string
 }
@@ -51,7 +54,8 @@ export function renderCodexCompanionApplyLines(
   const lines = [
     `${options.dryRun ? 'Dry run: ' : ''}${result.changed ? 'Codex companion apply changes planned' : 'Codex companion apply already up to date'}: ${result.configPath}`,
     ...result.actions.map((action) => `  [${action.status}] ${action.detail}`),
-    'Lifecycle: generated Codex companions stay in the installed bundle; `pluxx codex apply` only merges active-config prerequisites.',
+    'Lifecycle: hook and MCP companions stay in the installed bundle; custom agents are registered under the active Codex home so the runtime can discover them.',
+    '  Agents: bundled `.codex/agents/*.toml` files are ownership-tracked under `~/.codex/agents/<plugin>/`; user-modified registrations are preserved on uninstall.',
     '  Hooks: applying `[features].hooks = true` enables the known prerequisite for plugin-bundled hooks, but runtime firing still depends on plugin state, trust, review, and current Codex behavior.',
     '  MCP approvals: `.codex/config.generated.toml` can be merged into active config for the live-proven per-tool approval path, while `.codex/permissions.generated.json` remains the broader advisory mirror.',
   ]
@@ -86,6 +90,7 @@ function buildCodexCompanionApplyPlan(options: CodexCompanionApplyOptions): Inte
   const configPath = resolveCodexApplyConfigPath(options)
   const includeHooks = options.includeHooks ?? true
   const includeMcpApprovals = options.includeMcpApprovals ?? true
+  const includeAgents = options.includeAgents ?? true
   const actions: CodexCompanionApplyAction[] = []
   const manifestPath = resolve(consumerRoot, '.codex-plugin/plugin.json')
   const companionPath = resolve(consumerRoot, '.codex/config.generated.toml')
@@ -95,13 +100,13 @@ function buildCodexCompanionApplyPlan(options: CodexCompanionApplyOptions): Inte
   }
 
   let configText = existsSync(configPath) ? readFileSync(configPath, 'utf-8') : ''
-  let changed = false
+  let configChanged = false
 
   if (includeHooks) {
     if (codexBundleDeclaresHooks(consumerRoot)) {
       const hookMerge = ensureCodexHooksFeature(configText)
       configText = hookMerge.text
-      changed ||= hookMerge.changed
+      configChanged ||= hookMerge.changed
       actions.push({
         kind: 'hooks-feature',
         status: hookMerge.changed ? 'added' : 'already-present',
@@ -129,7 +134,7 @@ function buildCodexCompanionApplyPlan(options: CodexCompanionApplyOptions): Inte
       const approvals = parseCodexApprovedMcpToolsFromToml(readFileSync(companionPath, 'utf-8'))
       const approvalMerge = ensureCodexMcpApprovals(configText, approvals)
       configText = approvalMerge.text
-      changed ||= approvalMerge.changed
+      configChanged ||= approvalMerge.changed
       actions.push({
         kind: 'mcp-approval',
         status: approvalMerge.changed ? 'added' : 'already-present',
@@ -140,14 +145,37 @@ function buildCodexCompanionApplyPlan(options: CodexCompanionApplyOptions): Inte
     }
   }
 
+  let agentChanged = false
+  if (includeAgents) {
+    const registration = syncCodexAgentRegistration({
+      consumerRoot,
+      codexHome: options.codexHome,
+      dryRun: true,
+    })
+    agentChanged = registration.changed
+    actions.push({
+      kind: 'agent-registration',
+      status: registration.required === 0
+        ? 'skipped'
+        : registration.changed
+          ? 'added'
+          : 'already-present',
+      detail: registration.required === 0
+        ? 'Installed Codex bundle does not include custom agents.'
+        : registration.changed
+          ? `Register ${registration.required} custom agent(s) under ${registration.agentRoot}.`
+          : `${registration.required} custom agent registration(s) are already current under ${registration.agentRoot}.`,
+    })
+  }
+
   return {
     ok: true,
     dryRun: options.dryRun ?? false,
     consumerRoot,
     configPath,
-    changed,
+    changed: configChanged || agentChanged,
     actions,
-    ...(changed ? { nextText: configText } : {}),
+    ...(configChanged ? { nextText: configText } : {}),
   }
 }
 
@@ -156,6 +184,12 @@ export function applyCodexCompanion(options: CodexCompanionApplyOptions): CodexC
   if (planned.changed && !options.dryRun && planned.nextText !== undefined) {
     mkdirSync(dirname(planned.configPath), { recursive: true })
     writeFileSync(planned.configPath, planned.nextText)
+  }
+  if ((options.includeAgents ?? true) && !options.dryRun) {
+    syncCodexAgentRegistration({
+      consumerRoot: planned.consumerRoot,
+      codexHome: options.codexHome,
+    })
   }
 
   return stripInternalApplyResult(planned)

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'bun:test'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { resolve } from 'path'
 import {
   planCodexCompanionApply,
+  applyCodexCompanion,
   ensureCodexHooksFeature,
   ensureCodexMcpApprovals,
   renderCodexCompanionApplyLines,
@@ -102,11 +103,47 @@ describe('codex companion apply helpers', () => {
       const output = renderCodexCompanionApplyLines(result, { dryRun: true }).join('\n')
 
       expect(output).toContain('Codex companion apply changes planned')
-      expect(output).toContain('generated Codex companions stay in the installed bundle')
+      expect(output).toContain('hook and MCP companions stay in the installed bundle')
+      expect(output).toContain('custom agents are registered under the active Codex home')
       expect(output).toContain('Hooks: applying `[features].hooks = true` enables the known prerequisite for plugin-bundled hooks')
       expect(output).toContain('`.codex/config.generated.toml` can be merged into active config')
       expect(output).toContain('`.codex/permissions.generated.json` remains the broader advisory mirror')
       expect(output).toContain('refresh/restart Codex and rerun `pluxx verify-install --target codex`')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('registers bundled custom agents through the companion apply path', () => {
+    const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-codex-apply-agents-'))
+    const consumerRoot = resolve(dir, 'consumer')
+    const codexHome = resolve(dir, 'codex-home')
+    mkdirSync(resolve(consumerRoot, '.codex-plugin'), { recursive: true })
+    mkdirSync(resolve(consumerRoot, '.codex/agents'), { recursive: true })
+    writeFileSync(
+      resolve(consumerRoot, '.codex-plugin/plugin.json'),
+      JSON.stringify({ name: 'agent-plugin', version: '0.1.0' }),
+    )
+    writeFileSync(
+      resolve(consumerRoot, '.codex/agents/reviewer.toml'),
+      'name = "reviewer"\ndescription = "Reviews evidence."\ndeveloper_instructions = "Review carefully."\n',
+    )
+
+    try {
+      const result = applyCodexCompanion({
+        consumerRoot,
+        codexHome,
+        includeHooks: false,
+        includeMcpApprovals: false,
+        includeAgents: true,
+      })
+
+      expect(result.changed).toBe(true)
+      expect(result.actions).toContainEqual(expect.objectContaining({
+        kind: 'agent-registration',
+        status: 'added',
+      }))
+      expect(existsSync(resolve(codexHome, 'agents/agent-plugin/reviewer.toml'))).toBe(true)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

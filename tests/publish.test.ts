@@ -417,6 +417,7 @@ function runGeneratedCodexInstaller(
           env: {
             ...process.env,
             ...options.env,
+            CODEX_HOME: options.env?.CODEX_HOME ?? resolve(ROOT, 'codex-home'),
             PLUXX_CODEX_BUNDLE_PATH: archivePath!,
             PLUXX_CODEX_INSTALL_DIR: resolve(ROOT, 'installed-codex'),
             PLUXX_CODEX_MARKETPLACE_PATH: resolve(ROOT, 'codex-marketplace.json'),
@@ -1122,5 +1123,19 @@ describe('runPublish', () => {
     expect(run.configText).toBeUndefined()
     expect(run.stdout).not.toContain('Enabled Codex plugin-bundled hooks')
     expect(run.stderr).not.toContain('hooks = true')
+  })
+
+  it('registers bundled Codex custom agents in the active Codex home', () => {
+    const run = runGeneratedCodexInstaller({
+      '.codex-plugin/plugin.json': JSON.stringify({ name: 'publish-plugin', version: '1.2.3' }),
+      '.codex/agents/reviewer.toml': 'name = "reviewer"\ndescription = "Reviews evidence."\ndeveloper_instructions = "Review carefully."\n',
+    })
+
+    expect(run.status).toBe(0)
+    expect(run.stderr).toBe('')
+    expect(run.stdout).toContain('Registered 1 Codex custom agent(s)')
+    expect(existsSync(resolve(ROOT, 'codex-home/agents/publish-plugin/reviewer.toml'))).toBe(true)
+    expect(existsSync(resolve(ROOT, 'codex-home/pluxx/agent-installs/publish-plugin.json'))).toBe(true)
+    expect(run.installerContent).toContain('Codex agent name collision')
   })
 })

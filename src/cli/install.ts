@@ -31,6 +31,10 @@ import {
   getNativeCodexMcpEntryOverride,
   getNativeJsonHeadersOverride,
 } from '../mcp-native-overrides'
+import {
+  removeCodexAgentRegistration,
+  syncCodexAgentRegistration,
+} from '../codex-agent-install'
 
 interface InstallTarget {
   platform: TargetPlatform
@@ -1498,6 +1502,14 @@ export async function installPlugin(
       continue
     }
 
+    if (target.platform === 'codex') {
+      syncCodexAgentRegistration({
+        consumerRoot: target.sourceDir,
+        pluginName,
+        dryRun: true,
+      })
+    }
+
     const targetConfigEntries = options.resolvedUserConfig
       ? resolveUserConfigEntriesForTarget(options.resolvedUserConfig, target.platform)
       : []
@@ -1536,6 +1548,7 @@ export async function installPlugin(
     if (target.platform === 'codex') {
       ensureCodexMarketplace(pluginName)
       clearCodexLocalCache(pluginName)
+      syncCodexAgentRegistration({ consumerRoot: target.pluginDir, pluginName })
     }
     if (!options.quiet) {
       console.log(`  ${target.platform} -> ${target.description}`)
@@ -1597,15 +1610,22 @@ export async function uninstallPlugin(
         removedTarget = true
       }
     }
+    if (target.platform === 'codex') {
+      const agentRemoval = removeCodexAgentRegistration({ pluginName })
+      if (agentRemoval.changed) removedTarget = true
+      if (agentRemoval.preserved.length > 0 && !options.quiet) {
+        console.warn(
+          `  preserved ${agentRemoval.preserved.length} user-modified Codex agent registration(s) under ${agentRemoval.agentRoot}`,
+        )
+      }
+      removeCodexMarketplacePlugin(pluginName)
+      clearCodexLocalCache(pluginName)
+    }
     if (removedTarget) {
       if (!options.quiet) {
         console.log(`  removed ${target.description}`)
       }
       removed++
-    }
-    if (target.platform === 'codex') {
-      removeCodexMarketplacePlugin(pluginName)
-      clearCodexLocalCache(pluginName)
     }
   }
 
