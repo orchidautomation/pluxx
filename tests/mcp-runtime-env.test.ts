@@ -120,6 +120,7 @@ describe('MCP runtime env launcher', () => {
       expect(JSON.parse(readFileSync(outputPath, 'utf-8'))).toEqual({
         apiKey: 'global-key',
         client: 'global-client',
+        workspaceRoot: realpathSync(workspaceRoot),
       })
     } finally {
       rmSync(rootDir, { recursive: true, force: true })
