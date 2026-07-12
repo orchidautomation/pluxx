@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-04-23T18:24:11.391Z",
+  "generatedAt": "2026-07-12T11:49:16.796Z",
   "firecrawlEnabled": true,
   "fixtureResults": [
     {
@@ -8,7 +8,7 @@
         "name": "firecrawl",
         "label": "Firecrawl",
         "fixtureKind": "example-project",
-        "projectPath": "/Users/brandonguerrero/Documents/Orchid Automation/Orchid Labs/pluxx/example/firecrawl-plugin",
+        "projectPath": "example/firecrawl-plugin",
         "websiteUrl": "https://www.firecrawl.dev",
         "docsUrl": "https://docs.firecrawl.dev/mcp-server"
       },
@@ -26,11 +26,17 @@
             "matchedCount": 0,
             "expectedCount": 8
           },
-          "sourceSummary": []
+          "sourceSummary": [],
+          "scaffoldDelta": {
+            "available": false,
+            "changedFiles": [],
+            "changedLines": 0
+          }
         },
         {
           "provider": "local",
-          "status": "ok",
+          "status": "error",
+          "error": "All requested remote sources failed.",
           "contextInputs": [
             "https://www.firecrawl.dev",
             "https://docs.firecrawl.dev/mcp-server",
@@ -41,76 +47,49 @@
             "resolvedProvider": "local",
             "fallbackToLocalOnError": false
           },
-          "docsContext": {
-            "version": 2,
-            "sourceLabels": [
-              "https://www.firecrawl.dev",
-              "https://docs.firecrawl.dev/mcp-server",
-              "https://docs.firecrawl.dev/"
-            ],
-            "providers": [
-              "local"
-            ],
-            "productName": "Firecrawl",
-            "shortDescription": "The API to search, scrape, and interact with the web at scale. Power AI agents with clean web data. Firecrawl delivers the entire internet to AI agents and builders.",
-            "setupHints": [],
-            "authHints": [],
-            "workflowHints": [
-              "Start scraping today",
-              "Aemon powers their AI R&D agent&#x27;s web research with Firecrawl&#x27;s search and scrape.",
-              "The API to search, scrape, and interact with the web at scale."
-            ],
-            "importantTerms": [
-              "Start scraping today",
-              "Use well-known tools",
-              "Firecrawl MCP Server",
-              "Introduction | Firecrawl"
-            ],
-            "warnings": []
-          },
           "matched": {
-            "productName": true,
-            "descriptionTerms": [
-              "web at scale",
-              "AI agents"
-            ],
-            "workflowTerms": [
-              "Search",
-              "Scrape"
-            ],
+            "productName": false,
+            "descriptionTerms": [],
+            "workflowTerms": [],
             "setupTerms": [],
             "authTerms": [],
-            "matchedCount": 5,
+            "matchedCount": 0,
             "expectedCount": 8
           },
           "sourceSummary": [
             {
               "label": "https://www.firecrawl.dev",
               "role": "seed",
-              "status": "ok",
+              "status": "error",
               "provider": "local",
-              "httpStatus": 200
+              "error": "Unavailable: Remote fetch exceeded 1048576 byte limit.."
             },
             {
               "label": "https://docs.firecrawl.dev/mcp-server",
               "role": "seed",
-              "status": "ok",
+              "status": "error",
               "provider": "local",
-              "httpStatus": 200
+              "error": "Unavailable: Remote fetch exceeded 1048576 byte limit.."
             },
             {
               "label": "https://docs.firecrawl.dev/",
               "role": "inferred-root",
-              "status": "ok",
+              "status": "error",
               "provider": "local",
               "note": "Inferred from https://docs.firecrawl.dev/mcp-server",
-              "httpStatus": 200
+              "error": "Unavailable: Remote fetch exceeded 1048576 byte limit.."
             }
-          ]
+          ],
+          "scaffoldDelta": {
+            "available": false,
+            "changedFiles": [],
+            "changedLines": 0
+          }
         },
         {
           "provider": "firecrawl",
-          "status": "ok",
+          "status": "error",
+          "error": "All requested remote sources failed.",
           "contextInputs": [
             "https://www.firecrawl.dev",
             "https://docs.firecrawl.dev/mcp-server",
@@ -121,102 +100,47 @@
             "resolvedProvider": "firecrawl",
             "fallbackToLocalOnError": false
           },
-          "docsContext": {
-            "version": 2,
-            "sourceLabels": [
-              "https://www.firecrawl.dev",
-              "https://docs.firecrawl.dev/mcp-server",
-              "https://docs.firecrawl.dev/"
-            ],
-            "providers": [
-              "firecrawl"
-            ],
-            "productName": "Firecrawl",
-            "shortDescription": "The API to search, scrape, and interact with the web at scale. Power AI agents with clean web data. Firecrawl delivers the entire internet to AI agents and builders.",
-            "setupHints": [
-              "No extra configuration needed — just pass the URL.",
-              "AI agents can get started using the onboarding skill at https://www.firecrawl.dev/agent-onboarding/SKILL.md which handles signup and API key creation in one smooth flow.",
-              "The skill file contains everything you need: auth setup, API usage, and all available capabilities (scrape, search, crawl, map, browse).",
-              "You can either use our remote hosted URL or run the server locally.",
-              "Open Cursor Settings Go to Features > MCP Servers Click ”+ Add New MCP Server” Enter the following: Name: “firecrawl-mcp” (or your preferred name) Type: “command” Command: env FIRECRAWL API KEY=your-api-key npx -y firecrawl-mcp",
-              "Remote hosted URL (recommended) claude mcp add firecrawl --url https://mcp.firecrawl.dev/your-api-key/v2/mcp"
-            ],
-            "authHints": [
-              "Fetch this skill to sign up your user, get an API key, and start building with Firecrawl.",
-              "Get an API key here",
-              "AI agents can get started using the onboarding skill at https://www.firecrawl.dev/agent-onboarding/SKILL.md which handles signup and API key creation in one smooth flow.",
-              "The skill file contains everything you need: auth setup, API usage, and all available capabilities (scrape, search, crawl, map, browse).",
-              "Get your API key from https://firecrawl.dev/app/api-keys",
-              "Open Cursor Settings Go to Features > MCP Servers Click ”+ Add New MCP Server” Enter the following: Name: “firecrawl-mcp” (or your preferred name) Type: “command” Command: env FIRECRAWL API KEY=your-api-key npx -y firecrawl-mcp"
-            ],
-            "workflowHints": [
-              "Search",
-              "Scrape",
-              "Scrape a website:",
-              "Why Firecrawl?",
-              "What can Firecrawl do?",
-              "Startscraping today",
-              "Running with npx",
-              "Running on Cursor"
-            ],
-            "importantTerms": [
-              "Startscraping today",
-              "Use well-known tools",
-              "Code you can trust",
-              "Frequently asked questions",
-              "Ready to build?",
-              "​ Features",
-              "​ Installation",
-              "​ Remote hosted URL"
-            ],
-            "warnings": [
-              "Example: https://firecrawl.your-domain.com If not provided, the cloud API will be used (requires API key)"
-            ]
-          },
           "matched": {
-            "productName": true,
-            "descriptionTerms": [
-              "web at scale",
-              "AI agents"
-            ],
-            "workflowTerms": [
-              "Search",
-              "Scrape"
-            ],
-            "setupTerms": [
-              "npx",
-              "Remote hosted URL"
-            ],
-            "authTerms": [
-              "API key"
-            ],
-            "matchedCount": 8,
+            "productName": false,
+            "descriptionTerms": [],
+            "workflowTerms": [],
+            "setupTerms": [],
+            "authTerms": [],
+            "matchedCount": 0,
             "expectedCount": 8
           },
           "sourceSummary": [
             {
               "label": "https://www.firecrawl.dev",
               "role": "seed",
-              "status": "ok",
+              "status": "error",
               "provider": "firecrawl",
-              "httpStatus": 200
+              "httpStatus": 402,
+              "error": "Unavailable: Firecrawl scrape failed with 402 Payment Required."
             },
             {
               "label": "https://docs.firecrawl.dev/mcp-server",
               "role": "seed",
-              "status": "ok",
+              "status": "error",
               "provider": "firecrawl",
-              "httpStatus": 200
+              "httpStatus": 402,
+              "error": "Unavailable: Firecrawl scrape failed with 402 Payment Required."
             },
             {
               "label": "https://docs.firecrawl.dev/",
               "role": "inferred-root",
-              "status": "ok",
+              "status": "error",
               "provider": "firecrawl",
               "note": "Inferred from https://docs.firecrawl.dev/mcp-server",
-              "httpStatus": 200
+              "httpStatus": 402,
+              "error": "Unavailable: Firecrawl scrape failed with 402 Payment Required."
             }
-          ]
+          ],
+          "scaffoldDelta": {
+            "available": false,
+            "changedFiles": [],
+            "changedLines": 0
+          }
         }
       ]
     },
@@ -225,7 +149,7 @@
         "name": "sumble",
         "label": "Sumble",
         "fixtureKind": "example-project",
-        "projectPath": "/Users/brandonguerrero/Documents/Orchid Automation/Orchid Labs/pluxx/example/sumble-plugin",
+        "projectPath": "example/sumble-plugin",
         "websiteUrl": "https://sumble.com",
         "docsUrl": "https://docs.sumble.com/api/mcp"
       },
@@ -243,7 +167,12 @@
             "matchedCount": 0,
             "expectedCount": 3
           },
-          "sourceSummary": []
+          "sourceSummary": [],
+          "scaffoldDelta": {
+            "available": true,
+            "changedFiles": [],
+            "changedLines": 0
+          }
         },
         {
           "provider": "local",
@@ -252,10 +181,9 @@
             "https://sumble.com",
             "https://docs.sumble.com/api/mcp",
             "https://docs.sumble.com/",
-            "https://docs.sumble.com/sales-functions/generate-pipeline",
-            "https://docs.sumble.com/sales-functions/close-deals",
-            "https://docs.sumble.com/sales-functions/grow-accounts",
-            "https://docs.sumble.com/api"
+            "https://docs.sumble.com/get-started/introduction",
+            "https://docs.sumble.com/get-started/get-started-with-sumble",
+            "https://docs.sumble.com/api/mcp.md"
           ],
           "ingestion": {
             "requestedProvider": "local",
@@ -264,14 +192,14 @@
           },
           "docsContext": {
             "version": 2,
+            "trust": "untrusted-remote",
             "sourceLabels": [
               "https://sumble.com",
               "https://docs.sumble.com/api/mcp",
               "https://docs.sumble.com/",
-              "https://docs.sumble.com/sales-functions/generate-pipeline",
-              "https://docs.sumble.com/sales-functions/close-deals",
-              "https://docs.sumble.com/sales-functions/grow-accounts",
-              "https://docs.sumble.com/api"
+              "https://docs.sumble.com/get-started/introduction",
+              "https://docs.sumble.com/get-started/get-started-with-sumble",
+              "https://docs.sumble.com/api/mcp.md"
             ],
             "providers": [
               "local"
@@ -279,33 +207,32 @@
             "productName": "Sumble",
             "shortDescription": "Sumble provides account intelligence data, enabling sales teams to do deep research. Use it to better inform your targeting and outreach.",
             "setupHints": [
-              "The Sumble API is a RESTful service for enriching CRM data, building lead generation tools, and running market research queries."
+              "Sumble is now listed in the Claude and Chat GPT app directories, so you can install it with one click on those platforms.",
+              "On Claude and Chat GPT you can install Sumble directly from the app directory.",
+              "Run the following command in your terminal to install the MCP claude mcp add --transport http sumble https://mcp.sumble.com --scope user Start Claude by running the claude command Go to /mcp and find the sumble mcp and click enter Complete auth and the MCP will be successfully setup"
             ],
-            "authHints": [],
+            "authHints": [
+              "Go to Chat GPT settings (cmd + , on mac) Navigate to 'Apps' Click on 'Create App' Enter Name: Sumble MCP Server URL: https://mcp.sumble.com Accept conditions and continue Complete the auth flow Use Sumble MCP in your Chat GPT chat",
+              "Go to Claude web app or desktop app (if desktop app - navigate to chat on the top) Go to preferences (or cmd + ,) > Connectors -> Add a custom connector Enter Name: Sumble Remote URL: https://mcp.sumble.com Complete the auth flow Use Sumble MCP in Claude chat",
+              "Run the following command in your terminal to install the MCP claude mcp add --transport http sumble https://mcp.sumble.com --scope user Start Claude by running the claude command Go to /mcp and find the sumble mcp and click enter Complete auth and the MCP will be successfully setup",
+              "With your API key in hand, you can query Sumble's organization search endpoint.",
+              "Go to Account > API Keys in the top-right menu.",
+              "Copy the token immediately."
+            ],
             "workflowHints": [
-              "Research primed accounts",
-              "MCP",
-              "Compatibility",
-              "Claude instructions",
-              "Cursor instructions",
-              "Claude Code instructions",
-              "Web application",
-              "Enterprise services"
+              "Go from signup to your first search result in minutes.",
+              "With your API key in hand, you can query Sumble's organization search endpoint.",
+              "Once you're logged in, you land on the organization search view.",
+              "From here, explore the full API section to find organizations by any combination of filters, enrich them with detailed data, search for people, and more."
             ],
             "importantTerms": [
               "Sumble",
-              "MCP",
-              "Compatibility",
-              "Claude instructions",
-              "Cursor instructions",
-              "Claude Code instructions",
               "MCP | Sumble Docs",
-              "Web application"
+              "Home | Sumble Docs",
+              "Introduction | Sumble Docs"
             ],
             "warnings": [
-              "Sumble MCP requires a custom MCP connection at the moment.",
-              "Requires the ability to create a custom connector",
-              "You can make more than one list if you want to keep track of difference accounts differently."
+              "If you lose it, delete the key and generate a new one."
             ]
           },
           "matched": {
@@ -344,7 +271,7 @@
               "httpStatus": 200
             },
             {
-              "label": "https://docs.sumble.com/sales-functions/generate-pipeline",
+              "label": "https://docs.sumble.com/get-started/introduction",
               "role": "discovered-page",
               "status": "ok",
               "provider": "local",
@@ -352,7 +279,7 @@
               "httpStatus": 200
             },
             {
-              "label": "https://docs.sumble.com/sales-functions/close-deals",
+              "label": "https://docs.sumble.com/get-started/get-started-with-sumble",
               "role": "discovered-page",
               "status": "ok",
               "provider": "local",
@@ -360,26 +287,27 @@
               "httpStatus": 200
             },
             {
-              "label": "https://docs.sumble.com/sales-functions/grow-accounts",
-              "role": "discovered-page",
-              "status": "ok",
-              "provider": "local",
-              "note": "Discovered via local link expansion.",
-              "httpStatus": 200
-            },
-            {
-              "label": "https://docs.sumble.com/api",
+              "label": "https://docs.sumble.com/api/mcp.md",
               "role": "discovered-page",
               "status": "ok",
               "provider": "local",
               "note": "Discovered via local link expansion.",
               "httpStatus": 200
             }
-          ]
+          ],
+          "scaffoldDelta": {
+            "available": true,
+            "changedFiles": [
+              "INSTRUCTIONS.md",
+              "pluxx.config.ts"
+            ],
+            "changedLines": 13
+          }
         },
         {
           "provider": "firecrawl",
-          "status": "ok",
+          "status": "error",
+          "error": "All requested remote sources failed.",
           "contextInputs": [
             "https://sumble.com",
             "https://docs.sumble.com/api/mcp",
@@ -390,83 +318,47 @@
             "resolvedProvider": "firecrawl",
             "fallbackToLocalOnError": false
           },
-          "docsContext": {
-            "version": 2,
-            "sourceLabels": [
-              "https://sumble.com",
-              "https://docs.sumble.com/api/mcp",
-              "https://docs.sumble.com/"
-            ],
-            "providers": [
-              "firecrawl"
-            ],
-            "productName": "Sumble",
-            "shortDescription": "Sumble provides account intelligence data, enabling sales teams to do deep research. Use it to better inform your targeting and outreach.",
-            "setupHints": [
-              "Run the following command in your terminal to install the MCP claude mcp add --transport http sumble https://mcp.sumble.com --scope user",
-              "Complete auth and the MCP will be successfully setup"
-            ],
-            "authHints": [
-              "Complete auth and the MCP will be successfully setup"
-            ],
-            "workflowHints": [
-              "Tech stack",
-              "Active projects",
-              "Org structure",
-              "Sumble Web",
-              "Sumble Signals",
-              "Sumble Enrich",
-              "Compatibility",
-              "Claude instructions"
-            ],
-            "importantTerms": [
-              "Tech stack",
-              "Active projects",
-              "Org structure",
-              "Company and people profiles",
-              "Access Sumble your way",
-              "Sumble Web",
-              "Sumble Signals",
-              "Sumble Enrich"
-            ],
-            "warnings": []
-          },
           "matched": {
-            "productName": true,
-            "descriptionTerms": [
-              "account intelligence",
-              "sales teams"
-            ],
+            "productName": false,
+            "descriptionTerms": [],
             "workflowTerms": [],
             "setupTerms": [],
             "authTerms": [],
-            "matchedCount": 3,
+            "matchedCount": 0,
             "expectedCount": 3
           },
           "sourceSummary": [
             {
               "label": "https://sumble.com",
               "role": "seed",
-              "status": "ok",
+              "status": "error",
               "provider": "firecrawl",
-              "httpStatus": 200
+              "httpStatus": 402,
+              "error": "Unavailable: Firecrawl scrape failed with 402 Payment Required."
             },
             {
               "label": "https://docs.sumble.com/api/mcp",
               "role": "seed",
-              "status": "ok",
+              "status": "error",
               "provider": "firecrawl",
-              "httpStatus": 200
+              "httpStatus": 402,
+              "error": "Unavailable: Firecrawl scrape failed with 402 Payment Required."
             },
             {
               "label": "https://docs.sumble.com/",
               "role": "inferred-root",
-              "status": "ok",
+              "status": "error",
               "provider": "firecrawl",
               "note": "Inferred from https://docs.sumble.com/api/mcp",
-              "httpStatus": 200
+              "httpStatus": 402,
+              "error": "Unavailable: Firecrawl scrape failed with 402 Payment Required."
             }
-          ]
+          ],
+          "scaffoldDelta": {
+            "available": false,
+            "changedFiles": [],
+            "changedLines": 0
+          }
         }
       ]
     },
@@ -492,7 +384,12 @@
             "matchedCount": 0,
             "expectedCount": 2
           },
-          "sourceSummary": []
+          "sourceSummary": [],
+          "scaffoldDelta": {
+            "available": false,
+            "changedFiles": [],
+            "changedLines": 0
+          }
         },
         {
           "provider": "local",
@@ -509,6 +406,7 @@
           },
           "docsContext": {
             "version": 2,
+            "trust": "untrusted-remote",
             "sourceLabels": [
               "https://playkit.sh",
               "https://docs.playkit.sh",
@@ -520,25 +418,35 @@
             "productName": "PlayKit",
             "shortDescription": "Production-ready architectures. Credit-optimized workflows. Claygent prompts that work. The MCP that gives your AI agent Clay expertise. Save 60-90% on credits.",
             "setupHints": [
-              "Full setup guide, 24 tools reference, and troubleshooting.",
-              "Install the Play Kit plugin in one command to get 24 Clay MCP tools + 6 curated workflow skills — including /clay-doc , one command to document any Clay workflow.",
-              "Choose your client and install method."
+              "Full setup guide, 25 tools reference, and troubleshooting.",
+              "Remove and reinstall claude mcp remove playkit claude mcp add --transport http playkit https://mcp.playkit.sh/mcp --header \"X-API-Key: YOUR API KEY\""
             ],
-            "authHints": [],
+            "authHints": [
+              "claude mcp add --transport http playkit https://mcp.playkit.sh/mcp --header \"X-API-Key: YOUR API KEY\"",
+              "{ \"mcp Servers\": { \"playkit\": { \"type\": \"http\", \"url\": \"https://mcp.playkit.sh/mcp\", \"headers\": { \"X-API-Key\": \"YOUR API KEY\" } } } }",
+              "[mcp servers.playkit ] url = \"https://mcp.playkit.sh/mcp\" [mcp servers.playkit.env http headers ] \"X-API-Key\" = \"PLAYKIT API KEY\"",
+              "Remove and reinstall claude mcp remove playkit claude mcp add --transport http playkit https://mcp.playkit.sh/mcp --header \"X-API-Key: YOUR API KEY\"",
+              "claude mcp remove playkit && claude mcp add --transport http playkit https://mcp.playkit.sh/mcp --header \"X-API-Key: NEW KEY\""
+            ],
             "workflowHints": [
+              "design workflow",
               "Workflow Skills New",
-              "Setup Guide",
-              "Connect to Clay",
-              "Raw MCP Setup",
-              "Tribal knowledge buried in Slack threads and Linked In posts.",
-              "Every workflow, you’re asking yourself:",
-              "Knowledge tools work immediately."
+              "Knowledge Tools",
+              "Not answers. Confidence.",
+              "build table",
+              "claygent prompts",
+              "brainstorm play",
+              "compare providers"
             ],
             "importantTerms": [
-              "Setup Guide",
-              "Workflow Skills New",
-              "Connect to Clay",
-              "Raw MCP Setup"
+              "Not answers. Confidence.",
+              "design\\ workflow",
+              "build\\ table",
+              "claygent\\ prompts",
+              "brainstorm\\ play",
+              "compare\\ providers",
+              "write\\ outreach",
+              "find\\ integrations"
             ],
             "warnings": []
           },
@@ -576,11 +484,17 @@
               "note": "Inferred from https://docs.playkit.sh",
               "httpStatus": 200
             }
-          ]
+          ],
+          "scaffoldDelta": {
+            "available": false,
+            "changedFiles": [],
+            "changedLines": 0
+          }
         },
         {
           "provider": "firecrawl",
-          "status": "ok",
+          "status": "error",
+          "error": "All requested remote sources failed.",
           "contextInputs": [
             "https://playkit.sh",
             "https://docs.playkit.sh"
@@ -590,76 +504,38 @@
             "resolvedProvider": "firecrawl",
             "fallbackToLocalOnError": false
           },
-          "docsContext": {
-            "version": 2,
-            "sourceLabels": [
-              "https://playkit.sh",
-              "https://docs.playkit.sh"
-            ],
-            "providers": [
-              "firecrawl"
-            ],
-            "productName": "PlayKit",
-            "shortDescription": "Production-ready architectures. Credit-optimized workflows. Claygent prompts that work. The MCP that gives your AI agent Clay expertise. Save 60-90% on credits.",
-            "setupHints": [
-              "Full setup guide, 24 tools reference, and troubleshooting.",
-              "Most users should use the plugin install above instead.",
-              "The installer reads it from your shell env and wires it into the runner — the key is never written to disk.",
-              "After install, run /reload-plugins in Claude Code to pick up the new commands."
-            ],
-            "authHints": [
-              "[mcp servers.playkit.env http headers] \"X-API-Key\" = \"PLAYKIT API KEY\"",
-              "Export PLAYKIT API KEY first."
-            ],
-            "workflowHints": [
-              "design workflow",
-              "Workflow Skills New",
-              "Not answers. Confidence.",
-              "build table",
-              "claygent prompts",
-              "brainstorm play",
-              "compare providers",
-              "write outreach"
-            ],
-            "importantTerms": [
-              "Not answers. Confidence.",
-              "design\\ workflow",
-              "build\\ table",
-              "claygent\\ prompts",
-              "brainstorm\\ play",
-              "compare\\ providers",
-              "write\\ outreach",
-              "query\\ integrations"
-            ],
-            "warnings": []
-          },
           "matched": {
-            "productName": true,
-            "descriptionTerms": [
-              "Clay"
-            ],
+            "productName": false,
+            "descriptionTerms": [],
             "workflowTerms": [],
             "setupTerms": [],
             "authTerms": [],
-            "matchedCount": 2,
+            "matchedCount": 0,
             "expectedCount": 2
           },
           "sourceSummary": [
             {
               "label": "https://playkit.sh",
               "role": "seed",
-              "status": "ok",
+              "status": "error",
               "provider": "firecrawl",
-              "httpStatus": 200
+              "httpStatus": 402,
+              "error": "Unavailable: Firecrawl scrape failed with 402 Payment Required."
             },
             {
               "label": "https://docs.playkit.sh",
               "role": "seed",
-              "status": "ok",
+              "status": "error",
               "provider": "firecrawl",
-              "httpStatus": 200
+              "httpStatus": 402,
+              "error": "Unavailable: Firecrawl scrape failed with 402 Payment Required."
             }
-          ]
+          ],
+          "scaffoldDelta": {
+            "available": false,
+            "changedFiles": [],
+            "changedLines": 0
+          }
         }
       ]
     }

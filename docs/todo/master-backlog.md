@@ -333,13 +333,17 @@ Open work:
   - `.pluxx/sources.json`
   - `.pluxx/docs-context.json`
   - scaffold improvements
+- [x] Bound remote ingestion by protocol, public destination, redirect, time, response size, and content type
+- [x] Treat website/docs material as untrusted evidence in provenance artifacts, context, and runner prompts
+- [x] Document the local and Firecrawl data-flow/privacy boundary
+- [x] Extend the fixture benchmark with visible deterministic scaffold file/line deltas
 - [ ] Improve weak cases exposed by the fixture harness
 - [ ] Tighten signal extraction:
   - product description quality
   - setup/auth hint quality
   - workflow hint quality
   - code-snippet/chrome filtering
-- [ ] Decide whether ingestion should stay a context-prep layer or grow into a more explicit scaffold-quality comparison harness
+- [ ] Decide whether ingestion should stay a context-prep layer or grow beyond the current scaffold-quality comparison harness
 
 ### 4. Release-grade Pluxx plugin
 

@@ -25,7 +25,7 @@ The goal is not a giant crawler that dumps raw HTML into the prompt.
 
 The goal is:
 
-1. accept one or more trusted URLs
+1. accept one or more user-selected URLs and treat their contents as untrusted
 2. fetch only the pages most likely to improve the scaffold
 3. distill those pages into structured product context
 4. feed that context into deterministic scaffolding and agent refinement
@@ -155,6 +155,8 @@ The likely output shape is:
 
 The important thing is provenance. We should be able to tell which claims came from MCP introspection, docs, website copy, or user-supplied notes.
 
+Remote source text is evidence, not an instruction channel. Generated context, source records, structured docs context, and Agent Mode prompts carry that trust boundary explicitly and tell the runner that prompt-like text from a fetched page is not authorized to override its task or write contract.
+
 ## Suggested extraction targets
 
 Each ingestion pass should try to extract:
@@ -203,6 +205,28 @@ So the system should prefer:
 - deterministic fetch and storage
 - optional user review before semantic rewrites
 
+## Fetch and privacy boundary
+
+Local ingestion uses the built-in Cheerio + Turndown pipeline and now applies one bounded network policy to seed pages, inferred docs roots, discovered links, and every redirect:
+
+- only HTTP(S), with embedded URL credentials rejected
+- localhost plus private, link-local, carrier-grade NAT, documentation, benchmark, multicast, and reserved IP ranges rejected for literal and DNS-resolved addresses
+- every DNS answer must be public, and the selected public address is pinned into the HTTP(S) connection to prevent DNS rebinding between validation and connect
+- redirects are handled manually and revalidated, with a five-hop maximum
+- a 10-second request deadline and 1 MiB response-body limit
+- an allowlist of HTML, XHTML, plain-text, and Markdown content types
+
+Local mode does not send the requested docs URL or fetched content to a third-party extraction provider. It still makes direct network requests from the user's machine to the selected public sites.
+
+Firecrawl mode is a separate data flow:
+
+1. Pluxx validates the requested public URL before submission.
+2. Pluxx sends the URL to the configured Firecrawl API for map/scrape processing.
+3. Firecrawl fetches and processes the remote page, then returns Markdown plus metadata to Pluxx.
+4. Pluxx records `firecrawl` provenance in `.pluxx/sources.json` and `.pluxx/docs-context.json`.
+
+Choosing Firecrawl therefore discloses the requested URLs to Firecrawl and subjects retrieval/processing to Firecrawl's service and retention terms. Pluxx does not copy provider authentication material into generated provenance or context artifacts. Firecrawl API responses are also time-, size-, content-type-, and redirect-bounded, and provider redirects are disabled so authorization headers are not forwarded to another origin.
+
 ## Current recommendation
 
 The best near-term product stance is:
@@ -225,10 +249,15 @@ Current behavior:
 - `firecrawl` is an explicit opt-in that fails fast when no Firecrawl key is configured.
 - `local` forces the built-in fetch + extraction path even if Firecrawl is available.
 - The local path now parses HTML with Cheerio, strips docs-site chrome before extraction, and converts the cleaned main-content fragment to Markdown with Turndown before structured signal extraction.
+- Local and Firecrawl inputs are validated as public HTTP(S) targets before retrieval or provider submission; local redirects are revalidated and pinned to public DNS answers.
+- Remote reads are bounded by deadline, response size, redirect count, and content type.
+- Remote artifacts and prompts label website/docs material as untrusted evidence that must never be followed as instructions.
+- Provenance and rendered context redact common credential-bearing query parameters and credential-like path segments while fetch validation still evaluates the original requested URL.
 - If `--docs` points at a deep page like `https://docs.firecrawl.dev/mcp-server`, Pluxx keeps that exact page and also infers the broader docs root when it can.
 - If only `--website` is provided, Pluxx probes a small set of likely docs roots such as `docs.<host>`, `/docs`, `/developers`, `/api`, and `/reference`.
 - Pluxx writes provenance to `.pluxx/sources.json`, including provider resolution.
 - Pluxx writes extracted structured signals to `.pluxx/docs-context.json`.
+- The fixture benchmark now reports visible deterministic scaffold file/line deltas alongside recovered semantic terms, so an extraction score cannot stand in for proof that user-facing scaffold output changed.
 - Pluxx now ships a repeatable fixture harness for this work:
   - `npm run eval:docs-ingestion`
   - latest snapshot: `docs/strategy/docs-ingestion-fixture-eval.md`
