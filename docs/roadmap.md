@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-06-27
+Last updated: 2026-07-12
 
 ## Doc Links
 
@@ -321,6 +321,9 @@ The current focus is:
   - `docs/strategy/docs-ingestion-fixture-eval.md`
 - live before/after demo now captured:
   - `docs/strategy/docs-ingestion-scaffold-before-after.md`
+- bounded safe-fetch policy, untrusted-source boundary, and explicit local/Firecrawl provenance/privacy now part of the ingestion contract:
+  - `docs/strategy/docs-url-ingestion.md`
+- fixture evaluation now measures visible scaffold file/line deltas as well as recovered terms
 - better extracted signal quality
 
 ### 4. Release-grade Pluxx plugin

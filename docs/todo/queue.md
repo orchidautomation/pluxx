@@ -1,6 +1,6 @@
 # Pluxx Queue
 
-Last updated: 2026-06-27
+Last updated: 2026-07-12
 
 ## Doc Links
 
@@ -408,6 +408,9 @@ Open work:
   - [docs/strategy/docs-ingestion-fixture-eval.md](../strategy/docs-ingestion-fixture-eval.md)
 - treat the live scaffold before/after demo as captured:
   - [docs/strategy/docs-ingestion-scaffold-before-after.md](../strategy/docs-ingestion-scaffold-before-after.md)
+- treat bounded public-target fetching, redirect revalidation, untrusted-source labeling, and explicit local-vs-Firecrawl provenance/privacy as shipped behavior:
+  - [docs/strategy/docs-url-ingestion.md](../strategy/docs-url-ingestion.md)
+- use the fixture benchmark's visible scaffold file/line delta alongside recovered-term scores
 - use the fixture snapshots to improve the weak cases the harness now exposes
 - tighten signal extraction further:
   - product description quality

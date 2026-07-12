@@ -4,6 +4,10 @@ import { tmpdir } from 'os'
 import { resolve } from 'path'
 import { introspectMcpServer } from '../src/mcp/introspect'
 import { writeMcpScaffold } from '../src/cli/init-from-mcp'
+import {
+  createFetchBackedSafeRemoteFetchTestHooks,
+  setSafeRemoteFetchTestHooks,
+} from '../src/cli/safe-remote-fetch'
 
 const ROOT = resolve(import.meta.dir, '..')
 const CLI_INDEX_PATH = resolve(ROOT, 'src/cli/index.ts')
@@ -493,6 +497,7 @@ env = { STUB_API_KEY = "$STUB_API_KEY" }
       const originalLog = console.log
       const logged: string[] = []
       try {
+        setSafeRemoteFetchTestHooks(createFetchBackedSafeRemoteFetchTestHooks())
         console.log = (...args: unknown[]) => {
           logged.push(args.join(' '))
         }
@@ -579,6 +584,7 @@ env = { STUB_API_KEY = "$STUB_API_KEY" }
           fallbackToLocalOnError: false,
         })
       } finally {
+        setSafeRemoteFetchTestHooks(null)
         console.log = originalLog
         globalThis.fetch = originalFetch
       }

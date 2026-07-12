@@ -1,6 +1,6 @@
 # Start Here
 
-Last updated: 2026-06-27
+Last updated: 2026-07-12
 
 ## Doc Links
 
@@ -276,6 +276,8 @@ The repo already proves a lot.
 - docs/website ingestion has a provider model and writes deterministic artifacts:
   - `.pluxx/sources.json`
   - `.pluxx/docs-context.json`
+- remote docs ingestion now enforces public HTTP(S) targets, pinned DNS answers, redirect revalidation, time/body/content-type bounds, explicit provider provenance, and an untrusted-evidence boundary in artifacts and runner prompts:
+  - `docs/strategy/docs-url-ingestion.md`
 - a real connector-backed Firecrawl comparison now exists on the current fixture set:
   - `docs/strategy/firecrawl-connector-docs-ingestion-proof.md`
 - the keyed local fixture harness rerun now also exists:
@@ -480,6 +482,7 @@ That means:
   - `docs/strategy/docs-ingestion-fixture-eval.md`
 - using the committed Sumble before/after demo to show the scaffold delta plainly:
   - `docs/strategy/docs-ingestion-scaffold-before-after.md`
+- using visible scaffold file/line deltas in the fixture benchmark instead of treating recovered terms alone as proof
 - improving weak fixtures and tightening extracted signal quality
 
 ### 4. Release-Grade Pluxx Plugin

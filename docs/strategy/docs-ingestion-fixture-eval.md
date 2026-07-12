@@ -1,6 +1,6 @@
 # Docs Ingestion Fixture Eval
 
-Generated: 2026-04-23T18:24:11.391Z
+Generated: 2026-07-12T11:49:16.796Z
 
 This snapshot compares the current sourced-context extraction paths across real MCP-shaped product fixtures.
 
@@ -8,12 +8,11 @@ This snapshot compares the current sourced-context extraction paths across real 
 - Baseline = existing scaffold context only (no website/docs inputs)
 - Local = website/docs inputs through Pluxx local extraction
 - Firecrawl = website/docs inputs through Firecrawl markdown extraction when a key is configured
+- Visible scaffold delta = changed user-facing scaffold files plus added/removed lines (LCS-based)
 
 ## Current Read
 
-- local sourced context improved the baseline on 3/3 fixtures in this snapshot
-- Firecrawl remains the clearest weak case for the local OSS fallback: product name and some workflow language land, but setup/auth extraction is still weak on that JS-heavy surface
-- The Firecrawl-backed path now clearly outperforms the local fallback on the Firecrawl fixture by recovering workflow, setup, and auth signals that the JS-heavy surface hides from the local extractor
+- local sourced context improved the baseline on 2/3 fixtures in this snapshot
 - PlayKit shows the local path can still work well when the docs root exposes strong setup and product language in server-rendered HTML
 - Sumble shows that even when docs-site detail is light, website + docs seeds can still recover useful product truth like product name and positioning
 
@@ -24,11 +23,11 @@ This snapshot compares the current sourced-context extraction paths across real 
 - Website: https://www.firecrawl.dev
 - Docs: https://docs.firecrawl.dev/mcp-server
 
-| Provider | Status | Matched Signals | Product | Workflow Hints | Setup Hints | Auth Hints | Notes |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| baseline | ok | 0/8 | — | — | — | — | no external sources captured |
-| local | ok | 5/8 | Firecrawl | Start scraping today / Aemon powers their AI R&D agent&#x27;s web research with Firecrawl&#x27;s search and scrape. / The API to search, scrape, and interact with the web at scale. | — | — | all sources fetched successfully |
-| firecrawl | ok | 8/8 | Firecrawl | Search / Scrape / Scrape a website: | No extra configuration needed — just pass the URL. / AI agents can get started using the onboarding skill at https://www.firecrawl.dev/agent-onboarding/SKILL.md which handles signup and API key creation in one smooth flow. / The skill file contains everything you need: auth setup, API usage, and all available capabilities (scrape, search, crawl, map, browse). | Fetch this skill to sign up your user, get an API key, and start building with Firecrawl. / Get an API key here / AI agents can get started using the onboarding skill at https://www.firecrawl.dev/agent-onboarding/SKILL.md which handles signup and API key creation in one smooth flow. | all sources fetched successfully |
+| Provider | Status | Matched Signals | Visible Scaffold Delta | Product | Workflow Hints | Setup Hints | Auth Hints | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| baseline | ok | 0/8 | n/a | — | — | — | — | no external sources captured |
+| local | error | 0/8 | n/a | — | — | — | — | All requested remote sources failed. seed:error (Remote fetch exceeded 1048576 byte limit..), seed:error (Remote fetch exceeded 1048576 byte limit..), inferred-root:error (Remote fetch exceeded 1048576 byte limit..) |
+| firecrawl | error | 0/8 | n/a | — | — | — | — | All requested remote sources failed. seed:error 402 (Firecrawl scrape failed with 402 Payment Required.), seed:error 402 (Firecrawl scrape failed with 402 Payment Required.), inferred-root:error 402 (Firecrawl scrape failed with 402 Payment Required.) |
 
 ## Sumble
 
@@ -37,11 +36,11 @@ This snapshot compares the current sourced-context extraction paths across real 
 - Website: https://sumble.com
 - Docs: https://docs.sumble.com/api/mcp
 
-| Provider | Status | Matched Signals | Product | Workflow Hints | Setup Hints | Auth Hints | Notes |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| baseline | ok | 0/3 | — | — | — | — | no external sources captured |
-| local | ok | 3/3 | Sumble | Research primed accounts / MCP / Compatibility | The Sumble API is a RESTful service for enriching CRM data, building lead generation tools, and running market research queries. | — | all sources fetched successfully |
-| firecrawl | ok | 3/3 | Sumble | Tech stack / Active projects / Org structure | Run the following command in your terminal to install the MCP claude mcp add --transport http sumble https://mcp.sumble.com --scope user / Complete auth and the MCP will be successfully setup | Complete auth and the MCP will be successfully setup | all sources fetched successfully |
+| Provider | Status | Matched Signals | Visible Scaffold Delta | Product | Workflow Hints | Setup Hints | Auth Hints | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| baseline | ok | 0/3 | 0 files / 0 lines | — | — | — | — | no external sources captured |
+| local | ok | 3/3 | 2 files / 13 lines (INSTRUCTIONS.md, pluxx.config.ts) | Sumble | Go from signup to your first search result in minutes. / With your API key in hand, you can query Sumble's organization search endpoint. / Once you're logged in, you land on the organization search view. | Sumble is now listed in the Claude and Chat GPT app directories, so you can install it with one click on those platforms. / On Claude and Chat GPT you can install Sumble directly from the app directory. / Run the following command in your terminal to install the MCP claude mcp add --transport http sumble https://mcp.sumble.com --scope user Start Claude by running the claude command Go to /mcp and find the sumble mcp and click enter Complete auth and the MCP will be successfully setup | Go to Chat GPT settings (cmd + , on mac) Navigate to 'Apps' Click on 'Create App' Enter Name: Sumble MCP Server URL: https://mcp.sumble.com Accept conditions and continue Complete the auth flow Use Sumble MCP in your Chat GPT chat / Go to Claude web app or desktop app (if desktop app - navigate to chat on the top) Go to preferences (or cmd + ,) > Connectors -> Add a custom connector Enter Name: Sumble Remote URL: https://mcp.sumble.com Complete the auth flow Use Sumble MCP in Claude chat / Run the following command in your terminal to install the MCP claude mcp add --transport http sumble https://mcp.sumble.com --scope user Start Claude by running the claude command Go to /mcp and find the sumble mcp and click enter Complete auth and the MCP will be successfully setup | all sources fetched successfully |
+| firecrawl | error | 0/3 | n/a | — | — | — | — | All requested remote sources failed. seed:error 402 (Firecrawl scrape failed with 402 Payment Required.), seed:error 402 (Firecrawl scrape failed with 402 Payment Required.), inferred-root:error 402 (Firecrawl scrape failed with 402 Payment Required.) |
 
 ## PlayKit
 
@@ -49,9 +48,9 @@ This snapshot compares the current sourced-context extraction paths across real 
 - Website: https://playkit.sh
 - Docs: https://docs.playkit.sh
 
-| Provider | Status | Matched Signals | Product | Workflow Hints | Setup Hints | Auth Hints | Notes |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| baseline | ok | 0/2 | — | — | — | — | no external sources captured |
-| local | ok | 2/2 | PlayKit | Workflow Skills New / Setup Guide / Connect to Clay | Full setup guide, 24 tools reference, and troubleshooting. / Install the Play Kit plugin in one command to get 24 Clay MCP tools + 6 curated workflow skills — including /clay-doc , one command to document any Clay workflow. / Choose your client and install method. | — | all sources fetched successfully |
-| firecrawl | ok | 2/2 | PlayKit | design workflow / Workflow Skills New / Not answers. Confidence. | Full setup guide, 24 tools reference, and troubleshooting. / Most users should use the plugin install above instead. / The installer reads it from your shell env and wires it into the runner — the key is never written to disk. | [mcp servers.playkit.env http headers] "X-API-Key" = "PLAYKIT API KEY" / Export PLAYKIT API KEY first. | all sources fetched successfully |
+| Provider | Status | Matched Signals | Visible Scaffold Delta | Product | Workflow Hints | Setup Hints | Auth Hints | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| baseline | ok | 0/2 | n/a | — | — | — | — | no external sources captured |
+| local | ok | 2/2 | n/a | PlayKit | design workflow / Workflow Skills New / Knowledge Tools | Full setup guide, 25 tools reference, and troubleshooting. / Remove and reinstall claude mcp remove playkit claude mcp add --transport http playkit https://mcp.playkit.sh/mcp --header "X-API-Key: YOUR API KEY" | claude mcp add --transport http playkit https://mcp.playkit.sh/mcp --header "X-API-Key: YOUR API KEY" / { "mcp Servers": { "playkit": { "type": "http", "url": "https://mcp.playkit.sh/mcp", "headers": { "X-API-Key": "YOUR API KEY" } } } } / [mcp servers.playkit ] url = "https://mcp.playkit.sh/mcp" [mcp servers.playkit.env http headers ] "X-API-Key" = "PLAYKIT API KEY" | all sources fetched successfully |
+| firecrawl | error | 0/2 | n/a | — | — | — | — | All requested remote sources failed. seed:error 402 (Firecrawl scrape failed with 402 Payment Required.), seed:error 402 (Firecrawl scrape failed with 402 Payment Required.) |
 
