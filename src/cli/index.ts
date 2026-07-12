@@ -90,6 +90,7 @@ import {
   type InstalledMcpHost,
 } from './discover-installed-mcp'
 import { buildHostTargetSelection, detectHostFamilies } from '../host-detection'
+import { applyFileMutations, createMutationManifest } from '../fs-transaction'
 
 const CLI_PACKAGE_NAME = '@orchid-labs/pluxx'
 const rawArgs = process.argv.slice(2)
@@ -160,6 +161,7 @@ interface InitFromMcpSummary {
   notes: string[]
   nextSteps: string[]
   dryRun?: boolean
+  mutation: ReturnType<typeof createMutationManifest>
 }
 
 interface AutopilotSummary {
@@ -1228,6 +1230,7 @@ function buildInitSummary(input: {
   ingestion?: AgentContextIngestionArtifact
   approveMcpTools?: boolean
   dryRun?: boolean
+  conflicts?: Array<{ path: string; reason: string }>
 }): InitFromMcpSummary {
   const installTarget = input.targets[0]
   const installCommand = input.hookMode === 'safe'
@@ -1290,6 +1293,13 @@ function buildInitSummary(input: {
     notes,
     nextSteps,
     dryRun: input.dryRun,
+    mutation: createMutationManifest({
+      files: [
+        ...input.createdFiles.map((path) => ({ path, action: 'create' as const })),
+        ...input.updatedFiles.map((path) => ({ path, action: 'update' as const })),
+      ],
+      conflicts: input.conflicts,
+    }),
   }
 }
 
@@ -1563,13 +1573,8 @@ ${mcpBlock}${brandBlock}
 })
 `
 
-    // Write config
-    await writeTextFile(resolve(process.cwd(), 'pluxx.config.ts'), template)
-
-    // Create skills directory with a starter SKILL.md
+    // Create the starter skill content, then publish both files as one transaction.
     const skillDir = `skills/${skillName}`
-    await mkdir(skillDir, { recursive: true })
-
     const skillContent = `---
 name: ${JSON.stringify(skillName)}
 description: ${JSON.stringify(description || `A starter skill for ${skillName}`)}
@@ -1589,8 +1594,23 @@ Describe how agents should use this skill.
 Example prompt or command here
 \`\`\`
 `
-
-    await writeTextFile(resolve(process.cwd(), `${skillDir}/SKILL.md`), skillContent)
+    const initDestinations = ['pluxx.config.ts', `${skillDir}/SKILL.md`]
+    const occupied = initDestinations.filter((path) => existsSync(resolve(process.cwd(), path)))
+    if (occupied.length > 0) {
+      throw new Error(`Init conflicts require resolution before apply: ${occupied.join(', ')}`)
+    }
+    applyFileMutations(process.cwd(), [
+      {
+        path: 'pluxx.config.ts',
+        action: 'create',
+        content: template,
+      },
+      {
+        path: `${skillDir}/SKILL.md`,
+        action: 'create',
+        content: skillContent,
+      },
+    ])
 
     console.log('')
     console.log('  Created:')
@@ -1940,12 +1960,16 @@ ${formatAuthRequiredMessage('init', retryError, source)}`)
     const contextArtifactFiles = await planInitContextArtifactFiles(process.cwd(), sourcedContextPack)
     createdFiles.push(...contextArtifactFiles.filter((file) => file.action === 'create').map((file) => file.relativePath))
     updatedFiles.push(...contextArtifactFiles.filter((file) => file.action === 'update').map((file) => file.relativePath))
+    const initConflicts = [...plan.files, ...contextArtifactFiles]
+      .filter((file) => file.action === 'update')
+      .filter((file) => !file.relativePath.endsWith('.md') && !file.relativePath.startsWith('.pluxx/'))
+      .map((file) => ({ path: file.relativePath, reason: 'destination-exists' }))
 
     if (!runtime.dryRun) {
-      await applyMcpScaffoldPlan(process.cwd(), plan)
-      for (const file of contextArtifactFiles) {
-        await writeTextFile(resolve(process.cwd(), file.relativePath), file.content)
+      if (initConflicts.length > 0) {
+        throw new Error(`Init conflicts require resolution before apply: ${initConflicts.map((conflict) => conflict.path).join(', ')}`)
       }
+      await applyMcpScaffoldPlan(process.cwd(), plan, {}, contextArtifactFiles)
     }
 
     const lintResult = runtime.dryRun
@@ -1973,6 +1997,7 @@ ${formatAuthRequiredMessage('init', retryError, source)}`)
       ingestion: sourcedContextPack?.ingestion,
       approveMcpTools: options.approveMcpTools,
       dryRun: runtime.dryRun,
+      conflicts: initConflicts,
     })
 
     if (options.jsonOutput) {
@@ -1991,6 +2016,9 @@ ${formatAuthRequiredMessage('init', retryError, source)}`)
     }
     if (summary.updatedFiles.length > 0) {
       clack.log.info(`Update: ${summary.updatedFiles.join(', ')}`)
+    }
+    if (summary.mutation.conflicts.length > 0) {
+      clack.log.warn(`Conflicts: ${summary.mutation.conflicts.map((conflict) => `${conflict.path} (${conflict.reason})`).join(', ')}`)
     }
 
     if (!runtime.dryRun) {
@@ -2134,6 +2162,15 @@ async function runSync() {
     printJson({
       ...result,
       dryRun: runtime.dryRun,
+      mutation: createMutationManifest({
+        files: [
+          ...result.addedFiles.map((path) => ({ path, action: 'create' as const })),
+          ...result.updatedFiles.map((path) => ({ path, action: 'update' as const })),
+          ...result.removedFiles.map((path) => ({ path, action: 'delete' as const })),
+        ],
+        renames: result.renamedFiles,
+        conflicts: result.conflicts,
+      }),
     })
     return
   }
@@ -3466,14 +3503,29 @@ async function runUninstall() {
 async function runMigrate() {
   const inputPath = args[1]
   if (!inputPath) {
-    console.error('Usage: pluxx migrate <path>')
+    console.error('Usage: pluxx migrate <path> [--dry-run] [--json]')
     console.error('')
     console.error('  Import an existing single-platform plugin into a pluxx.config.ts.')
     console.error('  Pass the path to a plugin directory containing .claude-plugin/,')
     console.error('  .cursor-plugin/, .codex-plugin/, or a package.json with @opencode-ai/plugin.')
     process.exit(1)
   }
-  await migrate(inputPath)
+  const summary = await migrate(inputPath, {
+    dryRun: runtime.dryRun,
+    quiet: runtime.jsonOutput || runtime.quiet,
+  })
+  if (runtime.jsonOutput) {
+    printJson(summary)
+  } else if (runtime.dryRun && !runtime.quiet) {
+    console.log('Dry run: planned migration changes')
+    console.log(`  Create: ${summary.mutation.creates.length}`)
+    console.log(`  Update: ${summary.mutation.updates.length}`)
+    console.log(`  Delete: ${summary.mutation.deletes.length}`)
+    console.log(`  Conflicts: ${summary.mutation.conflicts.length}`)
+    for (const conflict of summary.mutation.conflicts) {
+      console.log(`    ! ${conflict.path}: ${conflict.reason}`)
+    }
+  }
 }
 
 async function runMcp() {

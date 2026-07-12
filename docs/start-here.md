@@ -1,6 +1,6 @@
 # Start Here
 
-Last updated: 2026-06-27
+Last updated: 2026-07-12
 
 ## Doc Links
 
@@ -164,6 +164,11 @@ The repo already proves a lot.
   - `docs/core-four-primitive-proof-ledger.md`
 - the core-four compiler work is materially shipped
 - `pluxx build` checks generated manifests and package outputs for source version drift and missing referenced bundle files before publish
+- authoring and build mutations now stage before publication:
+  - `build` validates a same-filesystem staged output tree before replacing `dist`, restoring the prior tree if publication fails
+  - `init`, `sync`, and `migrate` apply versioned create/update/delete/rename/conflict manifests through rollback-capable file transactions
+  - dry-run JSON remains backward compatible and adds a versioned `mutation` object; ambiguous sync renames and occupied init/migrate destinations are reported as conflicts instead of guessed or overwritten
+  - hard process interruptions retain recovery journals/backups when automatic rollback cannot finish
 - `verify-install` exists and is tested
 - consumer-side `doctor --consumer` exists and is tested
 - `migrate`, `eval`, and `mcp proxy --record/--replay` are shipped

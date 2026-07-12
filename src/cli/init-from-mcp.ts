@@ -12,6 +12,7 @@ import type {
 import { collectUserConfigEntries } from '../user-config'
 import { collectNativeMcpAuthUserConfigEntries } from '../mcp-native-overrides'
 import { planTextFileAction, readTextFileIfExists, writeTextFile } from '../text-files'
+import { applyFileMutations, type MutationHooks } from '../fs-transaction'
 
 export interface McpScaffoldOptions {
   rootDir: string
@@ -345,15 +346,23 @@ export async function writeMcpScaffold(options: McpScaffoldOptions): Promise<Mcp
   }
 }
 
-export async function applyMcpScaffoldPlan(rootDir: string, plan: McpScaffoldPlan): Promise<void> {
-  for (const file of plan.files) {
-    const filePath = resolve(rootDir, file.relativePath)
-    const parentDir = file.relativePath.split('/').slice(0, -1).join('/')
-    if (parentDir) {
-      await mkdir(resolve(rootDir, parentDir), { recursive: true })
-    }
-    await writeTextFile(filePath, file.content)
-  }
+export async function applyMcpScaffoldPlan(
+  rootDir: string,
+  plan: McpScaffoldPlan,
+  hooks: MutationHooks = {},
+  additionalFiles: McpScaffoldPlannedFile[] = [],
+): Promise<void> {
+  applyFileMutations(
+    rootDir,
+    [...plan.files, ...additionalFiles]
+      .filter((file) => file.action !== 'unchanged')
+      .map((file) => ({
+        path: file.relativePath,
+        action: file.action as 'create' | 'update',
+        content: file.content,
+      })),
+    hooks,
+  )
 }
 
 export async function planMcpScaffold(options: McpScaffoldOptions): Promise<McpScaffoldPlan> {

@@ -1,5 +1,6 @@
 import { basename, dirname, relative, resolve } from 'path'
-import { existsSync, readdirSync, mkdirSync, cpSync, readFileSync, writeFileSync } from 'fs'
+import { existsSync, readdirSync, mkdirSync, mkdtempSync, cpSync, readFileSync, readlinkSync, rmSync, statSync, writeFileSync } from 'fs'
+import { tmpdir } from 'os'
 import {
   MCP_SCAFFOLD_METADATA_PATH,
   MCP_TAXONOMY_PATH,
@@ -16,6 +17,15 @@ import { getCanonicalSkillMetadata, parseSkillMarkdown, readCanonicalSkillFiles,
 import { buildNativeMcpPlatformOverrides } from '../mcp-native-overrides'
 import { parseTomlValue, stripTomlComment } from '../toml-lite'
 import { writeTextFile } from '../text-files'
+import {
+  applyFileMutations,
+  copyProjectForStaging,
+  createMutationManifest,
+  readFileMutation,
+  type FileMutation,
+  type MutationHooks,
+  type MutationManifest,
+} from '../fs-transaction'
 
 type DetectedPlatform = 'claude-code' | 'cursor' | 'codex' | 'opencode'
 
@@ -1731,6 +1741,7 @@ function copyDirectories(
   outputDir: string,
   sourcePaths: CanonicalSourcePaths,
   passthrough: string[],
+  log: (message: string) => void,
 ): string[] {
   const copied: string[] = []
   const toCopy = ['skills', 'commands', 'agents', 'scripts', 'assets'] as const
@@ -1742,7 +1753,7 @@ function copyDirectories(
     const src = resolve(pluginDir, normalizedSource)
     const dest = resolve(outputDir, dir)
     if (existsSync(dest)) {
-      console.log(`  skip ./${dir}/ (already exists)`)
+      log(`  skip ./${dir}/ (already exists)`)
       continue
     }
     const copiedCodexAgents = dir === 'agents' && normalizedSource === '.codex/agents'
@@ -1762,7 +1773,7 @@ function copyDirectories(
     const src = resolve(pluginDir, normalized)
     const dest = resolve(outputDir, normalized)
     if (existsSync(dest)) {
-      console.log(`  skip ./${normalized}/ (already exists)`)
+      log(`  skip ./${normalized}/ (already exists)`)
       continue
     }
     cpSync(src, dest, { recursive: true })
@@ -2048,57 +2059,173 @@ function mergePlatformOverrideMaps(
 
 // ── Main Migrate Function ───────────────────────────────────────
 
-export async function migrate(inputPath: string): Promise<void> {
-  const pluginDir = resolve(inputPath)
-  const outputDir = process.cwd()
+export interface MigrateOptions {
+  dryRun?: boolean
+  quiet?: boolean
+  mutationHooks?: MutationHooks
+}
 
-  if (!existsSync(pluginDir)) {
-    console.error(`Error: Path does not exist: ${pluginDir}`)
-    process.exit(1)
+export interface MigrateSummary {
+  platform?: DetectedPlatform
+  warnings: string[]
+  dryRun: boolean
+  mutation: MutationManifest
+}
+
+const MIGRATE_SNAPSHOT_IGNORES = new Set(['.git', 'node_modules', 'dist'])
+
+function snapshotFiles(rootDir: string, currentDir = rootDir): string[] {
+  if (!existsSync(currentDir)) return []
+  const files: string[] = []
+  for (const entry of readdirSync(currentDir, { withFileTypes: true })) {
+    if (currentDir === rootDir && MIGRATE_SNAPSHOT_IGNORES.has(entry.name)) continue
+    const absolutePath = resolve(currentDir, entry.name)
+    if (entry.isDirectory()) {
+      files.push(...snapshotFiles(rootDir, absolutePath))
+    } else if (entry.isFile()) {
+      files.push(relative(rootDir, absolutePath))
+    }
+  }
+  return files.sort()
+}
+
+function snapshotSymlinks(rootDir: string, currentDir = rootDir): Map<string, string> {
+  if (!existsSync(currentDir)) return new Map()
+  const links = new Map<string, string>()
+  for (const entry of readdirSync(currentDir, { withFileTypes: true })) {
+    if (currentDir === rootDir && MIGRATE_SNAPSHOT_IGNORES.has(entry.name)) continue
+    const absolutePath = resolve(currentDir, entry.name)
+    if (entry.isDirectory()) {
+      for (const [path, target] of snapshotSymlinks(rootDir, absolutePath)) links.set(path, target)
+    } else if (entry.isSymbolicLink()) {
+      links.set(relative(rootDir, absolutePath), readlinkSync(absolutePath))
+    }
+  }
+  return links
+}
+
+function planStagedFileMutations(rootDir: string, stagedRoot: string): FileMutation[] {
+  const candidates = new Set([...snapshotFiles(rootDir), ...snapshotFiles(stagedRoot)])
+  return [...candidates].flatMap((path) => {
+    const currentPath = resolve(rootDir, path)
+    const stagedPath = resolve(stagedRoot, path)
+    const currentExists = existsSync(currentPath)
+    const stagedExists = existsSync(stagedPath)
+    if (!currentExists && !stagedExists) return []
+    if (currentExists && stagedExists) {
+      if (!statSync(currentPath).isFile() || !statSync(stagedPath).isFile()) return []
+      if (readFileSync(currentPath).equals(readFileSync(stagedPath))) return []
+    }
+    return [readFileMutation(rootDir, stagedRoot, path)]
+  })
+}
+
+export async function migrate(inputPath: string, options: MigrateOptions = {}): Promise<MigrateSummary> {
+  const outputDir = process.cwd()
+  const configPath = resolve(outputDir, 'pluxx.config.ts')
+  if (existsSync(configPath)) {
+    const conflict = { path: 'pluxx.config.ts', reason: 'destination-exists' }
+    if (options.dryRun) {
+      return {
+        warnings: [],
+        dryRun: true,
+        mutation: createMutationManifest({ conflicts: [conflict] }),
+      }
+    }
+    throw new Error(`pluxx.config.ts already exists in ${outputDir}. Remove it first or run from a different directory.`)
   }
 
-  console.log(`Scanning ${pluginDir} ...`)
+  const tempRoot = mkdtempSync(resolve(tmpdir(), 'pluxx-migrate-stage-'))
+  const stagedRoot = resolve(tempRoot, 'project')
+  try {
+    if (existsSync(outputDir)) {
+      copyProjectForStaging(outputDir, stagedRoot)
+    } else {
+      mkdirSync(stagedRoot, { recursive: true })
+    }
+    const messages: string[] = []
+    const log = (message: string) => {
+      messages.push(message)
+      if (!options.quiet) console.log(message)
+    }
+    const result = await migrateInPlace(inputPath, stagedRoot, log)
+    const mutations = planStagedFileMutations(outputDir, stagedRoot)
+    const destinationConflicts = messages.flatMap((message) => {
+      const match = message.match(/^\s*skip \.\/(.+?)(?:\/)? \(already exists\)$/)
+      if (!match) return []
+      const path = match[1].replace(/^\.\//, '')
+      return existsSync(resolve(outputDir, path)) ? [{ path, reason: 'destination-exists' }] : []
+    })
+    const currentLinks = snapshotSymlinks(outputDir)
+    const stagedLinks = snapshotSymlinks(stagedRoot)
+    const symlinkConflicts = [...new Set([...currentLinks.keys(), ...stagedLinks.keys()])]
+      .filter((path) => currentLinks.get(path) !== stagedLinks.get(path))
+      .map((path) => ({ path, reason: 'symbolic-link-mutation-not-supported' }))
+    const conflicts = [...destinationConflicts, ...symlinkConflicts]
+    const mutation = createMutationManifest({ files: mutations, conflicts })
+    if (conflicts.length > 0 && !options.dryRun) {
+      throw new Error(`Migration conflicts require resolution before apply: ${conflicts.map((conflict) => conflict.path).join(', ')}`)
+    }
+    if (!options.dryRun) {
+      applyFileMutations(outputDir, mutations, options.mutationHooks)
+    }
+    return {
+      platform: result.platform,
+      warnings: result.warnings,
+      dryRun: options.dryRun ?? false,
+      mutation,
+    }
+  } finally {
+    rmSync(tempRoot, { recursive: true, force: true })
+  }
+}
+
+async function migrateInPlace(
+  inputPath: string,
+  outputDir: string,
+  log: (message: string) => void,
+): Promise<MigrateResult> {
+  const pluginDir = resolve(inputPath)
+
+  if (!existsSync(pluginDir)) {
+    throw new Error(`Path does not exist: ${pluginDir}`)
+  }
+
+  log(`Scanning ${pluginDir} ...`)
 
   // 1. Detect platform
   const detection = detectPlatform(pluginDir)
   if (!detection) {
-    console.error('Error: Could not detect plugin platform.')
-    console.error('Expected one of:')
-    console.error('  .claude-plugin/plugin.json')
-    console.error('  or a manifest-less Claude plugin with CLAUDE.md')
-    console.error('  .cursor-plugin/plugin.json')
-    console.error('  .codex-plugin/plugin.json')
-    console.error('  package.json with @opencode-ai/plugin dependency')
-    process.exit(1)
+    throw new Error('Could not detect plugin platform. Expected .claude-plugin/plugin.json, CLAUDE.md, .cursor-plugin/plugin.json, .codex-plugin/plugin.json, or package.json with @opencode-ai/plugin.')
   }
 
-  console.log(`Detected: ${detection.platform} plugin`)
+  log(`Detected: ${detection.platform} plugin`)
 
   // 2. Parse manifest
   const manifest = parseManifest(detection)
-  console.log(`  name: ${manifest.name ?? '(none)'}`)
-  console.log(`  version: ${manifest.version ?? '(none)'}`)
+  log(`  name: ${manifest.name ?? '(none)'}`)
+  log(`  version: ${manifest.version ?? '(none)'}`)
 
   // 3. Parse MCP
   const parsedMcp = parseMcp(pluginDir, detection)
   const mcp = parsedMcp.servers
   const mcpCount = Object.keys(mcp).length
   if (mcpCount > 0) {
-    console.log(`  mcp servers: ${Object.keys(mcp).join(', ')}`)
+    log(`  mcp servers: ${Object.keys(mcp).join(', ')}`)
   }
 
   // 4. Parse hooks
   const hooks = parseHooks(pluginDir, detection)
   const hookCount = Object.keys(hooks).length
   if (hookCount > 0) {
-    console.log(`  hooks: ${Object.keys(hooks).join(', ')}`)
+    log(`  hooks: ${Object.keys(hooks).join(', ')}`)
   }
 
   // 5. Find instructions
   const instructionSources = findInstructionSources(pluginDir, detection)
   const instructions = instructionSources.primary
   if (instructions) {
-    console.log(`  instructions: ${instructions}`)
+    log(`  instructions: ${instructions}`)
   }
   if (instructionSources.platformOverrides) {
     manifest.platforms = mergePlatformOverrideMaps(manifest.platforms, instructionSources.platformOverrides)
@@ -2113,7 +2240,7 @@ export async function migrate(inputPath: string): Promise<void> {
         rules: cursorRules,
       },
     }
-    console.log(`  cursor rules: ${cursorRules.length}`)
+    log(`  cursor rules: ${cursorRules.length}`)
   }
   if (openCodeDistributionSources.platformOverrides) {
     manifest.platforms = mergePlatformOverrideMaps(manifest.platforms, openCodeDistributionSources.platformOverrides)
@@ -2132,13 +2259,13 @@ export async function migrate(inputPath: string): Promise<void> {
     .map(([, sourcePath]) => stripRelativePrefix(sourcePath!))
     .concat(passthrough.map((entry) => entry.replace(/^\.\//, '').replace(/\/$/, '')))
   if (dirNames.length > 0) {
-    console.log(`  directories: ${dirNames.join(', ')}`)
+    log(`  directories: ${dirNames.join(', ')}`)
   }
   if (persistedSkills.length > 0) {
-    console.log(`  migrated skills: ${persistedSkills.map((skill) => skill.dirName).join(', ')}`)
+    log(`  migrated skills: ${persistedSkills.map((skill) => skill.dirName).join(', ')}`)
   }
   if (inferredPermissions.permissions?.allow?.length) {
-    console.log(`  inferred permissions: ${inferredPermissions.permissions.allow.join(', ')}`)
+    log(`  inferred permissions: ${inferredPermissions.permissions.allow.join(', ')}`)
   }
 
   const codexAgentWarnings = sourcePaths.agents
@@ -2181,18 +2308,16 @@ export async function migrate(inputPath: string): Promise<void> {
   const configPath = resolve(outputDir, 'pluxx.config.ts')
 
   if (existsSync(configPath)) {
-    console.error(`\nError: pluxx.config.ts already exists in ${outputDir}`)
-    console.error('Remove it first or run from a different directory.')
-    process.exit(1)
+    throw new Error(`pluxx.config.ts already exists in ${outputDir}. Remove it first or run from a different directory.`)
   }
 
   await writeTextFile(configPath, configContent)
-  console.log(`\nGenerated pluxx.config.ts`)
+  log(`\nGenerated pluxx.config.ts`)
 
   // 9. Copy directories
-  const copied = copyDirectories(pluginDir, outputDir, sourcePaths, passthrough)
+  const copied = copyDirectories(pluginDir, outputDir, sourcePaths, passthrough, log)
   if (copied.length > 0) {
-    console.log(`Copied: ${copied.map(d => `./${d}/`).join(', ')}`)
+    log(`Copied: ${copied.map(d => `./${d}/`).join(', ')}`)
   }
 
   sanitizeMigratedSkillFrontmatter(outputDir)
@@ -2204,16 +2329,21 @@ export async function migrate(inputPath: string): Promise<void> {
     if (!existsSync(destInstr)) {
       const content = readFileSync(srcInstr, 'utf-8')
       await writeTextFile(destInstr, content)
-      console.log(`Copied: ${instructions}`)
+      log(`Copied: ${instructions}`)
+    } else {
+      log(`  skip ./${instructions} (already exists)`)
     }
   }
   for (const copiedPath of result.extraCopyPaths) {
     const srcPath = resolve(pluginDir, copiedPath)
     const destPath = resolve(outputDir, copiedPath)
-    if (existsSync(destPath)) continue
+    if (existsSync(destPath)) {
+      log(`  skip ./${copiedPath} (already exists)`)
+      continue
+    }
     const content = readFileSync(srcPath, 'utf-8')
     await writeTextFile(destPath, content)
-    console.log(`Copied: ${copiedPath}`)
+    log(`Copied: ${copiedPath}`)
   }
 
   // 11. Create synthetic migration metadata/taxonomy so Agent Mode and evals work.
@@ -2233,20 +2363,21 @@ export async function migrate(inputPath: string): Promise<void> {
     ...(result.compilerIntent ? [PLUXX_COMPILER_INTENT_PATH] : []),
     MCP_SCAFFOLD_METADATA_PATH,
   ]
-  console.log(`Generated: ${generatedPluxxFiles.join(', ')}`)
+  log(`Generated: ${generatedPluxxFiles.join(', ')}`)
 
   if (result.warnings.length > 0) {
-    console.log('')
-    console.log('Migration warnings:')
+    log('')
+    log('Migration warnings:')
     for (const warning of result.warnings) {
-      console.log(`  - ${warning}`)
+      log(`  - ${warning}`)
     }
   }
 
-  console.log('')
-  console.log('Migration complete! Next steps:')
-  console.log('  1. Review pluxx.config.ts and fill in any TODOs')
-  console.log('  2. Run: pluxx doctor')
-  console.log('  3. Run: pluxx eval')
-  console.log('  4. Run: pluxx build')
+  log('')
+  log('Migration complete! Next steps:')
+  log('  1. Review pluxx.config.ts and fill in any TODOs')
+  log('  2. Run: pluxx doctor')
+  log('  3. Run: pluxx eval')
+  log('  4. Run: pluxx build')
+  return result
 }
