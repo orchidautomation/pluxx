@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-06-27
+Last updated: 2026-07-12
 
 ## Doc Links
 
@@ -77,6 +77,8 @@ See [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisi
 The follow-on slice is install ownership tracking for conservative uninstall, prune, reinstall, and "what did Pluxx touch?" diagnostics.
 
 ## Current Priority Order
+
+Proof governance now distinguishes unit, bundle-contract, fake-home install, installed-runtime, and real-host behavior evidence. Canonical version/freshness checks run in CI through [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json); historical April/May proof stays available without being treated as current.
 
 ### 1. Product clarity and source-of-truth coherence
 
@@ -215,14 +217,14 @@ The closure plan is now narrower than it was before:
 - the self-hosted `example/pluxx` source project now also carries maintained behavioral smoke cases for:
   - `verify-install`
   - `translate-hosts` with a Codex hooks focus
-- the release gate is green again as of 2026-05-19:
+- historical release-gate evidence from 2026-05-19 remains available but is not current proof:
   - `npm test` passed
   - `npm run release:check` passed
-- the repo is preparing `@orchid-labs/pluxx@0.1.28`; verify npm and the matching tag live before claiming it as the public latest release
+- the canonical repository release is `@orchid-labs/pluxx@0.1.31` with expected tag `v0.1.31`
 - the release/distribution/proof boundary is now explicit:
   - [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md)
   - [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md)
-  - current primary release-smoked fronts remain Claude Code, Cursor, Codex, and OpenCode
+  - current primary bundle-contract and fake-home fronts remain Claude Code, Cursor, Codex, and OpenCode
   - Gemini CLI remains a beta generator target until it has release-smoke and installer parity
   - `pluxx publish --github-release` covers primary-front release assets, the generated `install.sh --agents` front door, and per-host installers; `pluxx publish --npm` covers the npm-backed OpenCode wrapper path
   - marketplace submission APIs, a managed trust/distribution control plane, automatic rollback/unpublish orchestration, and real authenticated publish plus rollback proof remain open release gaps
@@ -375,8 +377,7 @@ This is for learning and proof, not for prematurely building the full trust laye
 
 ### 6. Next release
 
-The current release-prep npm cut is `0.1.28`.
-Verify npm and the matching tag live before claiming it as the public latest release.
+The canonical repository release is `0.1.31` / `v0.1.31`. The next npm cut begins from that source of truth and must regenerate or explicitly demote proof receipts before making current host claims.
 
 The next npm cut should stay primarily an operations step rather than a code-confidence rescue step.
 

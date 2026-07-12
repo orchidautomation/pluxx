@@ -1,6 +1,6 @@
 # Release Distribution Proof Map
 
-Last updated: 2026-06-24
+Last updated: 2026-07-12
 
 ## Doc Links
 
@@ -25,6 +25,8 @@ Last updated: 2026-06-24
   - [docs/roadmap.md](./roadmap.md)
 
 This is the short release/distribution map for what Pluxx can ship today, what is locally proven, and what still belongs to later marketplace or trust-layer work.
+
+Proof state is governed by [proof-freshness.md](./proof-freshness.md) and the machine-readable [proof manifest](./proof-manifest.json). The canonical repository release is `0.1.31` / `v0.1.31`. Older environment runs linked below are historical unless a current receipt says otherwise.
 
 ## Current Primary Fronts
 
@@ -51,7 +53,7 @@ Pluxx can ship the OSS authoring substrate today:
 - `pluxx publish --npm` covers the npm-backed OpenCode wrapper package path
 - `pluxx discover-mcp` and `pluxx init --from-installed-mcp` can import already configured MCP servers from Claude Code, Cursor, Codex, and OpenCode without copying literal secret values
 
-The strongest current proof assets are:
+The strongest proof assets are listed below. Their current versus historical status comes from the proof manifest, not from the age or wording of the page alone:
 
 - [Self-hosted core-four proof](./pluxx-self-hosted-core-four-proof.md)
 - [Docs Ops core-four proof](./docs-ops-core-four-proof.md)
@@ -77,7 +79,7 @@ pluxx sync --from-mcp <source>
 | Codex | `pluxx build --target codex` | `pluxx install --target codex --trust` | `pluxx verify-install --target codex` | use `Plugins > Refresh` if available, otherwise restart |
 | OpenCode | `pluxx build --target opencode` | `pluxx install --target opencode --trust` | `pluxx verify-install --target opencode` | restart or reload OpenCode |
 
-Whole-lane checks:
+Whole-lane repository checks (bundle-contract and fake-home tiers, not real-host behavior):
 
 ```bash
 pluxx build --target claude-code cursor codex opencode

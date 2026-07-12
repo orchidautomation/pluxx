@@ -21,7 +21,9 @@
     "eval:docs-ingestion": "tsx scripts/evaluate-docs-ingestion.ts",
     "generate:compatibility": "tsx scripts/generate-compatibility-matrix.ts",
     "pack:check": "node scripts/run-npm-pack.mjs --dry-run",
-    "release:check": "npm run build && npm run typecheck && npm test && node scripts/verify-node-package-runtime.mjs && node scripts/run-npm-pack.mjs --dry-run",
+    "proof:check": "node --import tsx scripts/check-proof-freshness.ts",
+    "proof:receipt": "node --import tsx scripts/generate-proof-receipt.ts",
+    "release:check": "npm run proof:check && npm run build && npm run typecheck && npm test && node scripts/verify-node-package-runtime.mjs && node scripts/run-npm-pack.mjs --dry-run",
     "test": "node scripts/run-vitest-exclusive.mjs",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "node scripts/ensure-github-release-publish.mjs && npm run build"
