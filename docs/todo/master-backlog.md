@@ -454,9 +454,10 @@ These are already part of the strategy direction and should stay in view:
 
 ### 10. Eval depth and regression confidence
 
-- [~] Keep `pluxx eval` meaningful as a product surface, not just a maintainer nicety
-- [ ] Expand regression coverage where prompt-pack quality still feels too subjective
-- [ ] Use the flagship plugin and docs-ingestion flow as stable eval fixtures
+- [x] Separate deterministic scaffold contracts from semantic quality scoring in `pluxx eval`
+- [x] Add configurable semantic warning/failure thresholds and adversarial incoherence coverage
+- [x] Use the self-hosted plugin, flagship plugin, and docs-ingestion projects as maintained semantic regression inputs
+- [ ] Add model-assisted evaluation only if deterministic rubric evidence proves insufficient for a future failure class
 
 ### 11. Migration and sync depth
 

@@ -12,3 +12,4 @@ tests/.install-fixture/
 
 # Agent scratch artifacts
 .agent-artifacts/
+.pluxx/behavioral-receipts/

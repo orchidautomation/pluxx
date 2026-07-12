@@ -416,9 +416,10 @@ These matter, but they are not the immediate center:
 
 ### Eval and regression confidence
 
-- stronger `pluxx eval` coverage
-- more stable fixtures around prompt-pack quality
-- reference-plugin and docs-ingestion fixtures
+- `pluxx eval` now separates scaffold contracts from an eight-criterion deterministic semantic rubric
+- warning and failure thresholds are configurable per project
+- adversarial incoherence, the self-hosted plugin, the flagship plugin, and docs-ingestion projects are maintained regression inputs
+- model-assisted grading remains optional future depth, not a prerequisite for deterministic release confidence
 
 ### Migration and sync depth
 

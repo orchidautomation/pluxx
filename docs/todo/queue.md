@@ -292,8 +292,14 @@ Open work:
   - installed behavioral proof is now materially stronger:
     - the behavioral harness supports expected-failure cases and host-specific runner args for maintained smoke fixtures
     - maintained smoke fixtures can now declare an explicit `commandId` plus required output markers, so command-proof cases fail when the prompt does not reference the command or the output shape stays vague
+    - receipts now identify target, command/skill/agent, assertions, and artifact outcomes instead of reducing proof to marker matches
+    - `example/pluxx` now maintains import, refine, prove, translate, troubleshoot, and publish-dry-run workflow cases
     - `example/docs-ops`, `example/exa-plugin`, and `example/platform-change-ops` now each carry maintained behavioral smoke configs with command-specific assertions instead of relying only on ad hoc walkthroughs
     - `doctor --consumer` and `verify-install` now execute generated Claude/Cursor bundled permission-hook scripts and fail if those installed decisions are invalid
+  - semantic eval is now a separate evidence-bearing layer over scaffold contract checks:
+    - eight deterministic criteria cover tool coverage through cross-file consistency
+    - warning/failure thresholds are configurable in project config
+    - adversarial incoherence and maintained manual/flagship/docs-ingestion regressions are covered in tests
   - agent translation explainability is now less duplicated:
     - `src/agent-translation-registry.ts` now drives degraded-field messaging for Cursor, Codex, and OpenCode
     - generated Cursor and Codex agent surfaces now emit the same translation story that `lint` uses
