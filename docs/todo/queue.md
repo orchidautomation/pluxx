@@ -178,8 +178,8 @@ The initial author-once hardening tranche is also materially done.
   - [docs/release-distribution-proof-map.md](../release-distribution-proof-map.md)
   - primary bundle-contract and fake-home fronts: Claude Code, Cursor, Codex, OpenCode
   - Gemini CLI: beta generator target only today
-  - shipped distribution lane: local build/install/verify, GitHub Release `install.sh --agents` plus per-host bundle installers, and npm-backed OpenCode package publishing
-  - remaining release gaps: marketplace submission APIs, managed trust/distribution control plane, automatic rollback/unpublish, and a real authenticated publish plus rollback proof
+  - shipped distribution lane: local build/install/verify, tagged and bounded-download GitHub Release installers with checksum verification, install-scoped locking, ownership-aware staged/signal-safe rollback, release-identity and remote-byte validation, partial npm/GitHub reconciliation, and npm-backed OpenCode package publishing
+  - remaining release gaps include marketplace submission APIs, managed trust/distribution control plane, automatic remote rollback/unpublish, and live credentialed publish/rollback proof
 - the core-four native shipping claim now has a primitive-by-host proof ledger:
   - [docs/core-four-primitive-proof-ledger.md](../core-four-primitive-proof-ledger.md)
 
@@ -191,7 +191,7 @@ The public baseline is also real.
 - published CLI runtime is Node `>=18`
 - published CLI lifecycle ergonomics are now stronger for global installs:
   - `pluxx --version`
-  - `pluxx upgrade`
+  - `pluxx upgrade`, with invocation-source/version comparison, active PATH verification, downgrade warning, and rollback instructions
 - docs site is live
 - Mintlify docs reflect the core compiler story more honestly
 - `migrate`, `eval`, `doctor --consumer`, and `mcp proxy --record/--replay` are shipped
@@ -228,7 +228,7 @@ Open work:
 - treat Codex companion apply/verify as the next concrete robustness slice:
   - make generated readiness, hook, MCP approval, and companion config guidance operational instead of advisory only
   - keep this aligned with `PLUXX-226`, `PLUXX-264`, `PLUXX-248`, and [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
-  - use install ownership tracking as the follow-on, not the immediate queue center
+  - build the companion workflow on the shipped install-ownership layer rather than reopening ownership as future work
 - use [docs/core-four-reliability-register.md](../core-four-reliability-register.md) as the current Claude Code and Codex failure-mode inventory:
   - keep the documented break modes aligned with the actual proof stack
   - treat Cursor and OpenCode as secondary reliability follow-ons rather than flattening all four hosts into one identical work block
@@ -343,7 +343,7 @@ Open work:
 - close the now-clearer translation follow-ons behind the shipped readiness/runtime work:
   - keep pushing the richer `skills` metadata layer into more native host emission and proof consumers beyond Codex/OpenCode companions
   - keep pushing the richer `commands` IR into more native host emission and install-time proof instead of mostly companion and context surfaces
-  - add more installed behavioral proof for delegated agents, reload/discovery quirks, and publish/recovery flows
+  - add live environment proof for delegated agents, reload/discovery quirks, and publish/recovery flows beyond deterministic failure/reconciliation fixtures
   - continue simplifying the plugin-guided average-user path so more of the current proof state is obvious without maintainer-level CLI literacy
 
 ### 2. Flagship depth example

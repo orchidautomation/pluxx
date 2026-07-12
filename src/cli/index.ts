@@ -90,6 +90,7 @@ import {
   type InstalledMcpHost,
 } from './discover-installed-mcp'
 import { buildHostTargetSelection, detectHostFamilies } from '../host-detection'
+import { executeUpgrade, planUpgrade } from './upgrade'
 import { applyFileMutations, createMutationManifest } from '../fs-transaction'
 
 const CLI_PACKAGE_NAME = '@orchid-labs/pluxx'
@@ -231,16 +232,6 @@ interface AutopilotSummary {
 
 type AutopilotMode = typeof AUTOPILOT_MODES[number]
 
-interface UpgradeCommandSummary {
-  dryRun: boolean
-  packageName: string
-  currentVersion: string
-  requestedVersion: string
-  specifier: string
-  command: string[]
-  note: string
-}
-
 interface AutopilotPassDecision {
   enabled: boolean
   reason: string
@@ -252,6 +243,10 @@ export async function main() {
       await runVersionCommand()
       break
     case 'upgrade':
+      if (isHelpRequested(args.slice(1))) {
+        printUpgradeHelp()
+        break
+      }
       await runUpgradeCommand()
       break
     case 'build':
@@ -353,23 +348,16 @@ function getCliPackageVersion(): string {
   return raw.version.trim()
 }
 
-function resolveNpmExecutable(): string {
-  return process.platform === 'win32' ? 'npm.cmd' : 'npm'
-}
-
-function buildUpgradeSummary(): UpgradeCommandSummary {
+function buildUpgradeSummary() {
   const requestedVersion = readOption(args, '--version') ?? 'latest'
-  const specifier = `${CLI_PACKAGE_NAME}@${requestedVersion}`
-
-  return {
-    dryRun: runtime.dryRun,
+  return planUpgrade({
     packageName: CLI_PACKAGE_NAME,
     currentVersion: getCliPackageVersion(),
+    invocationPath: process.argv[1] ?? '',
+    dryRun: runtime.dryRun,
     requestedVersion,
-    specifier,
-    command: [resolveNpmExecutable(), 'install', '-g', specifier],
-    note: 'This updates the global npm install used by `pluxx` on your PATH. Repo-local and `npx` invocations are separate entrypoints.',
-  }
+    resolveRequestedVersion: !readFlag(args, '--offline'),
+  })
 }
 
 async function runVersionCommand() {
@@ -395,37 +383,26 @@ async function runUpgradeCommand() {
       console.log(`Dry run: would run \`${summary.command.join(' ')}\``)
       console.log(summary.note)
       console.log(`Current version: ${summary.currentVersion}`)
+      console.log(`Invocation source: ${summary.invocationSource} (${summary.invocationPath})`)
+      console.log(`Version comparison: ${summary.comparison}${summary.resolvedVersion ? ` -> ${summary.resolvedVersion}` : ''}`)
+      if (summary.warning) console.warn(summary.warning)
+      console.log(`Rollback command: ${summary.rollbackCommand.join(' ')}`)
     }
     return
   }
 
-  const install = spawnSync(summary.command[0], summary.command.slice(1), runtime.jsonOutput
-    ? {
-        env: process.env,
-        encoding: 'utf-8',
-        stdio: 'pipe',
-      }
-    : {
-        env: process.env,
-        stdio: 'inherit',
-      })
-
-  if (install.status !== 0) {
+  if (summary.warning && !runtime.quiet && !runtime.jsonOutput) console.warn(summary.warning)
+  const result = executeUpgrade(summary)
+  if (!result.ok) {
     if (runtime.jsonOutput) {
-      printJson({
-        ...summary,
-        ok: false,
-        stdout: typeof install.stdout === 'string' ? install.stdout : '',
-        stderr: typeof install.stderr === 'string' ? install.stderr : '',
-        exitCode: install.status ?? 1,
-      })
+      printJson(result)
+    } else {
+      console.error(`Invocation source: ${summary.invocationSource} (${summary.invocationPath})`)
+      console.error(`Version comparison: ${summary.comparison}${summary.resolvedVersion ? ` -> ${summary.resolvedVersion}` : ''}`)
+      console.error(result.detail)
+      console.error(`Rollback command: ${result.rollbackCommand.join(' ')}`)
     }
     throw new Error(`Failed to upgrade ${CLI_PACKAGE_NAME}.`)
-  }
-
-  const result = {
-    ...summary,
-    ok: true,
   }
 
   if (runtime.jsonOutput) {
@@ -435,7 +412,10 @@ async function runUpgradeCommand() {
 
   if (!runtime.quiet) {
     console.log(`Upgraded ${summary.packageName} with \`${summary.command.join(' ')}\`.`)
-    console.log('Run `pluxx --version` to verify the active version on your PATH.')
+    console.log(`Invocation source: ${summary.invocationSource} (${summary.invocationPath})`)
+    console.log(`Version comparison: ${summary.comparison}${summary.resolvedVersion ? ` -> ${summary.resolvedVersion}` : ''}`)
+    console.log(result.detail)
+    console.log(`Rollback command: ${result.rollbackCommand.join(' ')}`)
     console.log(summary.note)
   }
 }
@@ -3668,6 +3648,24 @@ Examples:
   pluxx publish --dry-run                 Preview npm/GitHub release publish checks
   pluxx publish --github-release --version 1.0.0  Create release installers and a GitHub release
   pluxx publish --npm --tag next          Publish the npm package under a non-latest dist-tag
+`)
+}
+
+function printUpgradeHelp() {
+  console.log(`
+pluxx upgrade — upgrade and verify the active global Pluxx CLI
+
+Usage:
+  pluxx upgrade [--version x.y.z] [--dry-run] [--offline] [--json]
+
+Options:
+  --version x.y.z  Install an exact semantic version instead of latest
+  --dry-run        Resolve and report the planned upgrade without installing
+  --offline        Skip npm registry resolution while planning
+  --json           Print machine-readable plan or execution details
+
+The result reports the invocation source, version comparison, active PATH identity,
+and the exact rollback command for the currently installed version.
 `)
 }
 

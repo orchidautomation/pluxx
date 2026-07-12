@@ -52,7 +52,7 @@ describe('CLI lifecycle helpers', () => {
   })
 
   it('plans a global npm upgrade in dry-run mode', async () => {
-    const proc = spawnCli(['upgrade', '--dry-run', '--json'])
+    const proc = spawnCli(['upgrade', '--dry-run', '--offline', '--json'])
     const stdout = await new Response(proc.stdout).text()
     const stderr = await new Response(proc.stderr).text()
     const exitCode = await proc.exited
@@ -121,6 +121,18 @@ describe('CLI lifecycle helpers', () => {
     expect(stdout).toContain('pluxx publish — package and release a built plugin or CLI')
     expect(stdout).toContain('pluxx publish --github-release --version 1.0.0')
     expect(stdout).not.toContain('No pluxx config found')
+    expect(stderr).toBe('')
+  })
+
+  it('prints upgrade help without resolving or installing', async () => {
+    const proc = spawnCli(['upgrade', '--help'])
+    const stdout = await new Response(proc.stdout).text()
+    const stderr = await new Response(proc.stderr).text()
+    const exitCode = await proc.exited
+
+    expect(exitCode).toBe(0)
+    expect(stdout).toContain('pluxx upgrade — upgrade and verify the active global Pluxx CLI')
+    expect(stdout).toContain('--offline')
     expect(stderr).toBe('')
   })
 })

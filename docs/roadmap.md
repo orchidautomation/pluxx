@@ -232,8 +232,8 @@ The closure plan is now narrower than it was before:
   - [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md)
   - current primary bundle-contract and fake-home fronts remain Claude Code, Cursor, Codex, and OpenCode
   - Gemini CLI remains a beta generator target until it has release-smoke and installer parity
-  - `pluxx publish --github-release` covers primary-front release assets, the generated `install.sh --agents` front door, and per-host installers; `pluxx publish --npm` covers the npm-backed OpenCode wrapper path
-  - marketplace submission APIs, a managed trust/distribution control plane, automatic rollback/unpublish orchestration, and real authenticated publish plus rollback proof remain open release gaps
+  - `pluxx publish --github-release` covers primary-front release assets, tagged and bounded-download installers with checksum verification, install-scoped locking, ownership-aware staged/signal-safe rollback, release-identity and remote-byte validation, and partial-state reconciliation; `pluxx publish --npm` covers the npm-backed OpenCode wrapper path
+  - marketplace submission APIs, a managed trust/distribution control plane, automatic remote rollback/unpublish orchestration, and live credentialed publish/rollback proof remain open release gaps
 - OpenClaw should stay in scope only as a beta-target lane until a native generator, validator/doctor path, and behavioral smoke proof exist:
   - [docs/openclaw-target-evaluation.md](./openclaw-target-evaluation.md)
 
@@ -302,7 +302,7 @@ The current status is stronger than a pure scaffold:
 - the next compiler-hardening follow-ons are now narrower than the earlier gap list:
   - push richer skill metadata into more native host emission and proof consumers
   - push richer command IR into more native host emission and install-time proof
-  - add more installed behavioral proof for delegated agents, reload/discovery quirks, and publish/recovery flows
+  - add live environment proof for delegated agents, reload/discovery quirks, and publish/recovery flows beyond deterministic failure/reconciliation fixtures
 
 This is the strongest next proof surface for:
 

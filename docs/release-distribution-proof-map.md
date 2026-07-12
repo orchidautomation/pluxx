@@ -49,8 +49,9 @@ Pluxx can ship the OSS authoring substrate today:
 - `pluxx install` can install built bundles locally for the primary fronts
 - `pluxx verify-install` checks the host-visible installed bundle, not only generated files in `dist/`
 - `pluxx test --install` runs source checks, build smoke, local install, and installed verification together
-- `pluxx publish --github-release` can package built bundles into GitHub Release assets and generate the `install.sh --agents` front door plus primary-front installer scripts
-- `pluxx publish --npm` covers the npm-backed OpenCode wrapper package path
+- `pluxx publish --github-release` packages built bundles and generates primary-front installers that pin the tagged release, use bounded download retries/timeouts, verify release checksums, reject unsafe archives, enforce install-scoped locking and ownership before replacement, stage setup, and restore the prior bundle plus owned companion state when post-swap work fails or is interrupted; post-publish verification downloads remote assets and compares their bytes with the generated local files
+- `pluxx publish --npm` covers the npm-backed OpenCode wrapper package path; publish validates source/built/package version identity, compares exact packed-tarball SRI before reconciling immutable npm versions, and reconciles existing GitHub releases to the exact asset set
+- `pluxx upgrade` reports invocation source and version direction, verifies the active PATH binary/version, and prints an exact rollback command
 - `pluxx discover-mcp` and `pluxx init --from-installed-mcp` can import already configured MCP servers from Claude Code, Cursor, Codex, and OpenCode without copying literal secret values
 
 The strongest proof assets are listed below. Their current versus historical status comes from the proof manifest, not from the age or wording of the page alone:
@@ -119,7 +120,7 @@ These are still release gaps, not hidden capabilities:
 
 - marketplace-specific submission APIs, store review workflows, and one-click marketplace listing management
 - an operated trust/distribution control plane with org rollout, policy channels, adoption analytics, and fleet health
-- automatic rollback or unpublish orchestration
+- automatic remote rollback or unpublish orchestration (generated installers do preserve/restore the previous local bundle around staged install failure)
 - signing, notarization, SBOM generation, or managed provenance beyond npm/GitHub release primitives
 - real authenticated publish plus rollback proof against a safe private authoring target
 - Gemini CLI release-smoke and generated installer parity with the primary fronts

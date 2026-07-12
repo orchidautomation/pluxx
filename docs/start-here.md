@@ -133,7 +133,7 @@ Generated Codex companion artifacts should become operational rather than only a
 
 The decision note is [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisions/2026-06-26-pluxx-next-ship-review.md).
 
-Core-four local installs now use a shared transactional ownership layer. Copied bundles are staged and validated before an atomic sibling swap, the previous bundle stays recoverable until post-install work succeeds, ownership records hash installed files, reinstall refuses modified or unowned content, uninstall removes only unchanged owned files, and `verify-install` reports same-version content drift. Generated GitHub Release installers use the same stage/backup/rollback and ownership contract.
+Core-four local installs now use a shared transactional ownership layer. Copied bundles are staged and validated before an atomic sibling swap, the previous bundle stays recoverable until post-install work succeeds, ownership records hash installed files, reinstall refuses modified or unowned content, uninstall removes only unchanged owned files, and `verify-install` reports same-version content drift. Generated GitHub Release installers pin their tagged release and add install-scoped locking, bounded downloads, signal-safe recovery, and the same stage/backup/rollback and ownership contract.
 
 Codex companion config now has a conservative inverse too: `pluxx codex apply` records the exact before/after config state it owns, and `pluxx codex unapply` restores the prior state only while the applied config remains unchanged. If the user edits active config after apply, unapply preserves it and asks for manual reconciliation instead of overwriting unrelated changes.
 
@@ -159,9 +159,9 @@ The repo already proves a lot.
 - the public website is live at `https://pluxx.dev`
 - the docs site is live at `https://docs.pluxx.dev`
 - the published CLI runs on Node `>=18`
-- the published CLI now has first-class lifecycle helpers for global installs:
+- the CLI has first-class lifecycle helpers for global installs:
   - `pluxx --version`
-  - `pluxx upgrade`
+  - `pluxx upgrade`, including invocation-source/version comparison, active PATH verification, downgrade warning, and rollback instructions
 - the primary release-smoked fronts are Claude Code, Cursor, Codex, and OpenCode; Gemini CLI is generated and fixture-tested as a beta target, but it is not yet part of the core-four release-smoke or installer lane:
   - `docs/release-distribution-proof-map.md`
 - the primitive-by-host proof ledger now ties the core-four claim back to the matrix, reliability register, and maintained example proofs:
@@ -177,7 +177,7 @@ The repo already proves a lot.
 - consumer-side `doctor --consumer` exists and is tested
 - `migrate`, `eval`, and `mcp proxy --record/--replay` are shipped
   - new MCP recordings use a strictly validated schema-v2 tape with default recursive credential redaction; replay remains compatible with valid schema-v1 tapes, preserves expected entries after mismatches, and fails on malformed or incomplete runs
-- `pluxx publish --github-release` can package built primary-front bundles as GitHub Release assets and generate installer scripts, including the `install.sh --agents` front door plus per-host installers; `pluxx publish --npm` covers the npm-backed OpenCode wrapper path:
+- `pluxx publish --github-release` packages built primary-front bundles and generates checksum-verifying, ownership-aware, staged/rollback-safe installers, including the `install.sh --agents` front door plus per-host installers; publish validates release identity and reconciles partial npm/GitHub state; `pluxx publish --npm` covers the npm-backed OpenCode wrapper path:
   - `docs/release-distribution-proof-map.md`
 - the self-hosted Pluxx plugin exists as a real source project in `example/pluxx`
 - the repo-local Codex dogfood plugin exists in `plugins/pluxx`
@@ -370,6 +370,7 @@ The repo already proves a lot.
 - the canonical repository release is `@orchid-labs/pluxx@0.1.31` with expected tag `v0.1.31`
 - marketplace submission APIs, a managed trust/distribution control plane, automatic rollback/unpublish orchestration, and real authenticated publish plus rollback proof remain explicit release gaps, not hidden shipped capabilities:
   - `docs/release-distribution-proof-map.md`
+  - “automatic rollback” here means remote release rollback/unpublish; generated local installers now restore the prior bundle when staged setup fails
 - OpenCode-native agent output is now permission-first:
   - legacy agent `tools` input is translated forward where possible
   - native OpenCode `skill` and `task` permission keys are treated as real first-class surfaces
