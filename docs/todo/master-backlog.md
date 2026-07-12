@@ -166,6 +166,10 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
   - `npm test` now fails fast when another full-suite run is already active in the same worktree
   - the follow-on work is removing more repo-local shared fixture and cwd assumptions so worktree-local serialization is no longer carrying as much reliability weight
   - the current worktree release gate is green again with a passing `npm test`, package runtime verification, dry-run pack, and `npm run release:check` as of 2026-05-17
+- [x] Harden local MCP record/replay tapes as a safe deterministic proof surface:
+  - schema-v2 recordings recursively redact common sensitive keys plus source, URL, and recognized credential values before persistence
+  - strict validation rejects malformed/incomplete tapes and unsupported schemas with explicit migration guidance
+  - replay preserves expected interactions after mismatches, reports unused entries, and remains compatible with valid schema-v1 tapes
 - [x] Use [author-once-hardening.md](./author-once-hardening.md) as the initiative-level TODO for closing the main author-once gap between:
   - the author-once vision
   - the currently shipped compiler, proof, and onboarding reality

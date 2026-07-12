@@ -26,6 +26,19 @@ However, some workflows may involve:
 
 Those systems have their own privacy and retention policies.
 
+## MCP record/replay tapes
+
+`pluxx mcp proxy --record` writes local replay tapes for debugging and CI. Current recordings use a versioned schema and apply Pluxx's default recursive credential-redaction policy before the file is written. The policy covers common sensitive keys, authorization values, URL credentials and sensitive query parameters, and source-command credential flags. Pluxx does not provide a raw-recording mode.
+
+Redaction does not determine whether arbitrary tool content is private. A tool result may contain customer records, private documents, personal data, or confidential text under an ordinary field name. Treat every tape as potentially sensitive:
+
+- use synthetic values in tests and examples
+- review the serialized tape before committing or sharing it
+- keep tapes out of public repositories unless their contents are intentionally publishable
+- delete local tapes when they are no longer needed
+
+Replay reads the local tape you select. It does not upload the tape to a Pluxx-operated service.
+
 ## User responsibility
 
 You are responsible for reviewing:
@@ -34,6 +47,7 @@ You are responsible for reviewing:
 - the host agents and models you invoke
 - any credentials or environment variables you provide
 - any third-party services you use alongside Pluxx
+- any MCP replay tapes you retain, commit, upload, or share
 
 ## Contact
 

@@ -169,6 +169,7 @@ The repo already proves a lot.
 - `verify-install` exists and is tested
 - consumer-side `doctor --consumer` exists and is tested
 - `migrate`, `eval`, and `mcp proxy --record/--replay` are shipped
+  - new MCP recordings use a strictly validated schema-v2 tape with default recursive credential redaction; replay remains compatible with valid schema-v1 tapes, preserves expected entries after mismatches, and fails on malformed or incomplete runs
 - `pluxx publish --github-release` can package built primary-front bundles as GitHub Release assets and generate installer scripts, including the `install.sh --agents` front door plus per-host installers; `pluxx publish --npm` covers the npm-backed OpenCode wrapper path:
   - `docs/release-distribution-proof-map.md`
 - the self-hosted Pluxx plugin exists as a real source project in `example/pluxx`

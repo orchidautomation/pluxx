@@ -189,6 +189,9 @@ The closure plan is now narrower than it was before:
 - local full-suite proof is now also more explicit operationally:
   - `npm test` now acquires a same-worktree suite lock and fails fast instead of creating misleading cross-test flakes when multiple full proof jobs hit the same repo-local fixture paths
   - the follow-on is deeper fixture isolation so more proof paths can run independently without sharing cwd or repo-local temp state
+- local MCP proof is now safer and more deterministic:
+  - new recordings use a versioned schema and default recursive credential redaction before persistence
+  - replay strictly validates tapes, does not consume an expectation on mismatch, reports unused interactions, and supports valid schema-v1 tapes
 - installed consumer-bundle integrity is stricter:
   - generated-shape Claude bundles now fail `doctor --consumer` and `verify-install` when `hooks/hooks.json` is malformed or points at missing bundle-owned targets, even though the Claude manifest omits `hooks`
   - Claude bundles now also fail `doctor --consumer` and `verify-install` when the manifest redundantly points `hooks` at the standard `./hooks/hooks.json` file that current Claude auto-loads anyway
