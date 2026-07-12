@@ -256,7 +256,7 @@ describe('verifyInstall', () => {
       platform: 'cursor',
       built: true,
       installed: true,
-      stale: false,
+      stale: true,
       ok: false,
     })
     expect(result.checks[0].errors).toBeGreaterThan(0)
@@ -294,7 +294,7 @@ describe('verifyInstall', () => {
       platform: 'cursor',
       built: true,
       installed: true,
-      stale: false,
+      stale: true,
       ok: false,
     })
     expect(result.checks[0].errors).toBeGreaterThan(0)

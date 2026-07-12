@@ -116,7 +116,12 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
   - cover idempotency, stale config, malformed companion artifacts, and absent companion files
   - keep execution aligned with `PLUXX-226`, `PLUXX-264`, and `PLUXX-248`
   - see [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
-- [ ] Follow Codex companion apply/verify with install ownership tracking so uninstall, prune, reinstall, and "what did Pluxx touch?" diagnostics can stay conservative
+- [x] Add transactional install ownership so reinstall, uninstall, and "what did Pluxx touch?" diagnostics stay conservative:
+  - shared core-four ownership records hash installed files and validate paths before mutation
+  - copied installs and generated release installers use stage, backup, atomic swap, and rollback
+  - modified and unowned files block replacement and survive uninstall
+  - non-Codex verification catches same-version content drift
+  - Codex config apply/unapply restores only unchanged owned state and preserves later user edits
 - [~] Keep OpenClaw in the documented beta-target lane until native generator, doctor, and smoke proof exist:
   - [docs/openclaw-target-evaluation.md](../openclaw-target-evaluation.md)
 - [~] Turn the provider and branding audits into an explicit closure tracker for every mapped cross-host feature:

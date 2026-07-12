@@ -6,6 +6,7 @@ import { doctorConsumer, type DoctorCheck, type DoctorLevel } from './doctor'
 import { planInstallPlugin, resolveInstalledConsumerPath, type PlannedInstallTarget } from './install'
 import { getVerifyInstallStaleAction } from '../distribution-lifecycle'
 import { verifyCodexAgentRegistration } from '../codex-agent-install'
+import { hashInstallBundle, listInstallOwnershipDrift, readInstallOwnership } from '../install-ownership'
 
 type VerifyInstallIssueLevel = Exclude<DoctorLevel, 'success'>
 
@@ -248,6 +249,22 @@ function detectStaleInstall(target: PlannedInstallTarget, pluginName: string, co
   const installedVersion = readInstalledManifestVersion(consumerPath, target.platform)
   if (builtVersion && installedVersion && builtVersion !== installedVersion) {
     return `installed version ${installedVersion} does not match built version ${builtVersion}`
+  }
+
+  const ownership = readInstallOwnership(pluginName, target.platform, consumerPath)
+  if (ownership) {
+    const drift = listInstallOwnershipDrift(ownership)
+    if (drift.length > 0) {
+      return `installed version ${installedVersion ?? 'unknown'} matches the built version, but installed content no longer matches Pluxx ownership: ${drift.join('; ')}`
+    }
+  } else if (target.platform !== 'codex') {
+    try {
+      if (!lstatSync(consumerPath).isSymbolicLink() && hashInstallBundle(target.sourceDir) !== hashInstallBundle(consumerPath)) {
+        return `installed version ${installedVersion ?? 'unknown'} matches the built version, but installed bundle contents differ from the current build`
+      }
+    } catch {
+      // Consumer diagnostics below report unreadable or malformed bundles.
+    }
   }
 
   if (target.platform === 'codex') {

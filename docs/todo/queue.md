@@ -241,7 +241,12 @@ Open work:
   - cover hooks, readiness, MCP approval stanzas, companion config diffs/backups, idempotency, stale config, malformed companion artifacts, and no-op behavior when companion files are absent
   - keep this aligned with `PLUXX-226`, `PLUXX-264`, and `PLUXX-248`
   - use [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md) as the decision note
-- after Codex companion apply/verify, ship install ownership tracking for conservative uninstall, prune, reinstall, and "what did Pluxx touch?" diagnostics
+- [x] Ship transactional core-four install ownership for conservative reinstall, uninstall, and content diagnostics:
+  - local copied installs and generated release installers stage and validate before a sibling swap
+  - the prior bundle remains available for rollback until post-install work succeeds
+  - modified or unowned installed files are preserved instead of silently replaced or deleted
+  - `verify-install` distinguishes version equality from content equality
+  - Codex config apply/unapply is ownership-backed and conservative
 - keep GTM-sensitive material out of the public repo
 - continue reconciling stale planning artifacts that still describe already-shipped work as future work
 - close the remaining Linear drift where shipped work like installed-MCP discovery is still marked as backlog

@@ -74,7 +74,7 @@ The current next ship decision is to make Codex companion apply and verify first
 
 See [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisions/2026-06-26-pluxx-next-ship-review.md).
 
-The follow-on slice is install ownership tracking for conservative uninstall, prune, reinstall, and "what did Pluxx touch?" diagnostics.
+The transactional install-ownership slice is now implemented across the core-four local and generated release-installer paths. It stages and validates candidate bundles, retains rollback backups through post-install work, hashes owned files, preserves modified/unowned content, adds conservative Codex config unapply, and makes verification content-aware even when versions match.
 
 The v0.1.31 audit remediation also closes a core authoring-safety gap: `init`, `sync`, `migrate`, and `build` now stage and validate mutations before publication, restore prior state after thrown apply failures, retain recovery metadata for unresolved interruptions, and expose additive versioned mutation/conflict manifests.
 
@@ -117,7 +117,7 @@ The closure plan is now narrower than it was before:
 - the next concrete OSS-authoring robustness slice is Codex companion apply/verify:
   - make generated readiness, hook, MCP approval, and companion config artifacts operational and verifiable instead of advisory only
   - keep the work aligned with `PLUXX-226`, `PLUXX-264`, `PLUXX-248`, and [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
-  - treat install ownership tracking as the follow-on slice
+  - transactional install ownership now covers conservative reinstall/uninstall, rollback, and content drift across the core four
 - local stdio import quality is now stronger for the common "I already have an MCP" path:
   - `init --from-mcp` auto-recovers `passthrough` for project-relative runtimes such as `./build/index.js`
   - `lint` catches unbundled stdio runtime payloads earlier
