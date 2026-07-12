@@ -1105,6 +1105,11 @@ if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(pluginName)) {
   throw new Error('Cannot register Codex agents for an invalid plugin name.')
 }
 
+fs.rmSync(path.join(codexHome, 'plugins/cache/local-plugins', pluginName), {
+  recursive: true,
+  force: true,
+})
+
 const sourceRoot = path.join(installDir, '.codex/agents')
 const globalAgentRoot = path.join(codexHome, 'agents')
 const agentRoot = path.join(globalAgentRoot, pluginName)

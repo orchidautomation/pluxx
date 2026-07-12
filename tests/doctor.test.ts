@@ -809,6 +809,22 @@ describe('doctorConsumer', () => {
     }
   })
 
+  it('does not scan dependency source trees for maintained secret sentinels', async () => {
+    const dir = createSafeConsumerFixture()
+
+    try {
+      const dependencyFile = resolve(dir, 'node_modules/effect/src/Redacted.ts')
+      mkdirSync(resolve(dependencyFile, '..'), { recursive: true })
+      writeFileSync(dependencyFile, `export const documentationExample = "${'secret'}-key"\n`)
+
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(true)
+      expect(report.checks.some((check) => check.code === 'consumer-plaintext-secret-leak')).toBe(false)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('fails when an installed bundle contains plaintext secret material', async () => {
     const dir = createConsumerFixture()
 

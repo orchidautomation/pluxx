@@ -283,9 +283,12 @@ function collectInstalledPlaintextSecretFindings(rootDir: string): InstalledPlai
       if (!content.includes(candidate.value)) continue
       for (const label of candidate.labels) labels.add(label)
     }
-    for (const sentinel of TEST_SECRET_SENTINELS) {
-      if (sentinel.pattern.test(content)) {
-        labels.add(sentinel.label)
+    const isDependencySource = relativePath.split('/').includes('node_modules')
+    if (!isDependencySource) {
+      for (const sentinel of TEST_SECRET_SENTINELS) {
+        if (sentinel.pattern.test(content)) {
+          labels.add(sentinel.label)
+        }
       }
     }
 
