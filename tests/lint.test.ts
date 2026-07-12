@@ -113,10 +113,7 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'mcp-url-protocol')).toBe(true)
     expect(result.issues.some(issue => issue.code === 'brand-color-hex')).toBe(true)
     expect(result.issues.some(issue => issue.code === 'codex-default-prompts-count')).toBe(true)
-    expect(result.issues.some(issue => issue.code === 'skill-name-format')).toBe(true)
-    expect(result.issues.some(issue => issue.code === 'skill-name-dir-mismatch')).toBe(true)
-    expect(result.issues.some(issue => issue.code === 'skill-description-truncation')).toBe(true)
-    expect(result.issues.some(issue => issue.code === 'yaml-quote-special-chars')).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'skill-frontmatter-yaml')).toBe(true)
   })
 
   it('reports skill-description-length error when description exceeds hard max', async () => {
@@ -1041,7 +1038,7 @@ describe('lintProject', () => {
 
     const result = await lintProject(projectDir)
     expect(result.issues.some(issue => issue.code === 'primitive-degrade-summary' && issue.platform === 'codex' && issue.message.includes('commands'))).toBe(true)
-    expect(result.issues.some(issue => issue.code === 'primitive-translate-summary' && issue.platform === 'opencode' && issue.message.includes('hooks'))).toBe(true)
+    expect(result.issues.some(issue => issue.code === 'primitive-degrade-summary' && issue.platform === 'opencode' && issue.message.includes('hooks'))).toBe(true)
     expect(result.issues.some(issue => issue.code === 'codex-commands-routing-guidance')).toBe(true)
   })
 
@@ -2023,5 +2020,46 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'opencode-skill-frontmatter-translation' && issue.message.includes('arguments'))).toBe(true)
     expect(result.issues.some(issue => issue.code === 'opencode-skill-frontmatter-translation' && issue.message.includes('user-invocable'))).toBe(true)
     expect(result.issues.some(issue => issue.code === 'opencode-skill-frontmatter-translation' && issue.message.includes('effort'))).toBe(true)
+  })
+
+  it('reports supported skill fields that use unsupported YAML shapes with source locations', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/invalid-shape'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'yaml-shape-fixture',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        targets: ['claude-code', 'cursor', 'codex', 'opencode'],
+      }, null, 2),
+    )
+
+    writeFileSync(
+      resolve(projectDir, 'skills/invalid-shape/SKILL.md'),
+      [
+        '---',
+        'name: invalid-shape',
+        'description:',
+        '  summary: Nested descriptions are unsupported.',
+        'allowed-tools:',
+        '  Read: true',
+        '---',
+        '',
+        '# Invalid Shape',
+      ].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    const shapeIssues = result.issues.filter(issue => issue.code === 'skill-frontmatter-shape')
+    expect(shapeIssues).toHaveLength(2)
+    expect(shapeIssues.map(issue => issue.message)).toEqual(expect.arrayContaining([
+      expect.stringContaining('description'),
+      expect.stringContaining('allowed-tools'),
+    ]))
+    expect(shapeIssues.every(issue => issue.message.includes('line '))).toBe(true)
   })
 })

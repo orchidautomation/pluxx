@@ -10,7 +10,7 @@ import {
 } from '../command-translation-registry'
 import { collectPermissionRules, permissionRulesNeedToolLevelDowngrade } from '../permissions'
 import { getRuntimeReadinessPlan } from '../readiness'
-import { readSkillMarkdownFile, walkSkillFiles, type ParsedSkillMarkdown } from '../skills'
+import { readSkillMarkdownFile, walkSkillFiles, type ParsedSkillMarkdown, type SkillFrontmatterDiagnostic } from '../skills'
 import { getCanonicalCommandMetadata, readCanonicalCommandFiles } from '../commands'
 import {
   getRuntimeReadinessCapability,
@@ -168,6 +168,26 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>
 }
 
+function pushSkillFrontmatterDiagnostics(
+  issues: LintIssue[],
+  diagnostics: SkillFrontmatterDiagnostic[],
+  skillFile: string,
+  level: LintLevel,
+): void {
+  for (const diagnostic of diagnostics) {
+    const location = diagnostic.source
+      ? ` at line ${diagnostic.source.line}, column ${diagnostic.source.column}`
+      : ''
+    pushIssue(issues, {
+      level,
+      code: diagnostic.code,
+      message: `${diagnostic.message}${location}`,
+      file: skillFile,
+      platform: 'Agent Skills',
+    })
+  }
+}
+
 function lintSkillFile(
   skillFile: string,
   targets: TargetPlatform[],
@@ -177,6 +197,11 @@ function lintSkillFile(
   const { parsed } = getParsedFrontmatterFile(skillFile, frontmatterCache)
 
   if (!parsed.hasValidFrontmatter) {
+    if (parsed.frontmatterDiagnostics.length > 0) {
+      pushSkillFrontmatterDiagnostics(issues, parsed.frontmatterDiagnostics, skillFile, 'error')
+      return
+    }
+
     pushIssue(issues, {
       level: 'error',
       code: 'skill-frontmatter',
@@ -186,6 +211,8 @@ function lintSkillFile(
     })
     return
   }
+
+  pushSkillFrontmatterDiagnostics(issues, parsed.frontmatterDiagnostics, skillFile, 'warning')
 
   const nameField = parsed.frontmatterFields.get('name')
   const descriptionField = parsed.frontmatterFields.get('description')

@@ -157,7 +157,8 @@ The closure plan is now narrower than it was before:
   - `src/commands.ts` now preserves `when_to_use`, argument arrays, examples, explicit skill routing, agent routing, and context hints
   - Codex and OpenCode command companions now carry that richer metadata instead of flattening commands back to `argument-hint` plus template only
   - `init --from-mcp` now emits `when_to_use`, canonical `arguments`, and explicit `skill` routing into generated command frontmatter
-  - `src/skills.ts` now exposes canonical support-file metadata for `examples/`, helper `scripts/`, and neighboring references
+  - `src/skills.ts` now parses frontmatter as YAML, reports unsupported shapes with source locations, and exposes canonical support-file metadata for `examples/`, helper `scripts/`, and neighboring references
+  - audited skill and hook field outcomes now drive generator companions, lint/doctor summaries, primitive bucket modes, and generated compatibility docs from one registry
   - Agent Mode manual-project context now consumes those richer command and skill seams directly
   - Codex command routing guidance in `AGENTS.md` now reads from the same shared command translation seam as `.codex/commands.generated.json`
   - skill-frontmatter translation notes for Codex and OpenCode now explicitly cover `when_to_use`, `user-invocable`, `model`, and `effort`

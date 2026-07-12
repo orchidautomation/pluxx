@@ -1,6 +1,7 @@
 import type { PluxxCompilerBucket, TargetPlatform } from '../schema'
 import { getAgentPrimitiveCapability } from '../agent-translation-registry'
 import { getCommandPrimitiveCapability } from '../command-translation-registry'
+import { derivePrimitiveCapability } from '../field-translation-registry'
 import { CODEX_SUPPORTED_HOOK_EVENTS } from '../hook-events'
 import { getRuntimeReadinessExternalConfigNote } from '../runtime-readiness-registry'
 
@@ -793,8 +794,7 @@ export const CORE_FOUR_PRIMITIVE_CAPABILITIES: Record<CoreFourPlatform, CoreFour
         notes: 'Claude has a native persistent instructions surface and plugin-level guidance model.',
       },
       skills: {
-        mode: 'preserve',
-        nativeSurfaces: ['skills/<skill>/SKILL.md'],
+        ...derivePrimitiveCapability('skills', 'claude-code'),
       },
       commands: {
         ...getCommandPrimitiveCapability('claude-code'),
@@ -803,8 +803,7 @@ export const CORE_FOUR_PRIMITIVE_CAPABILITIES: Record<CoreFourPlatform, CoreFour
         ...getAgentPrimitiveCapability('claude-code'),
       },
       hooks: {
-        mode: 'preserve',
-        nativeSurfaces: ['hooks/hooks.json', '.claude-plugin/plugin.json', 'settings hooks', 'skill/agent frontmatter hooks'],
+        ...derivePrimitiveCapability('hooks', 'claude-code'),
       },
       permissions: {
         mode: 'translate',
@@ -831,9 +830,7 @@ export const CORE_FOUR_PRIMITIVE_CAPABILITIES: Record<CoreFourPlatform, CoreFour
         nativeSurfaces: ['rules/', 'AGENTS.md'],
       },
       skills: {
-        mode: 'preserve',
-        nativeSurfaces: ['skills/<skill>/SKILL.md'],
-        notes: 'Cursor skills preserve workflow meaning but document a narrower frontmatter set than Claude.',
+        ...derivePrimitiveCapability('skills', 'cursor'),
       },
       commands: {
         ...getCommandPrimitiveCapability('cursor'),
@@ -842,8 +839,7 @@ export const CORE_FOUR_PRIMITIVE_CAPABILITIES: Record<CoreFourPlatform, CoreFour
         ...getAgentPrimitiveCapability('cursor'),
       },
       hooks: {
-        mode: 'preserve',
-        nativeSurfaces: ['hooks/hooks.json', '.cursor/hooks.json', '~/.cursor/hooks.json'],
+        ...derivePrimitiveCapability('hooks', 'cursor'),
       },
       permissions: {
         mode: 'translate',
@@ -869,8 +865,7 @@ export const CORE_FOUR_PRIMITIVE_CAPABILITIES: Record<CoreFourPlatform, CoreFour
         nativeSurfaces: ['AGENTS.md', 'AGENTS.override.md'],
       },
       skills: {
-        mode: 'preserve',
-        nativeSurfaces: ['skills/<skill>/SKILL.md'],
+        ...derivePrimitiveCapability('skills', 'codex'),
       },
       commands: {
         ...getCommandPrimitiveCapability('codex'),
@@ -879,9 +874,7 @@ export const CORE_FOUR_PRIMITIVE_CAPABILITIES: Record<CoreFourPlatform, CoreFour
         ...getAgentPrimitiveCapability('codex'),
       },
       hooks: {
-        mode: 'translate',
-        nativeSurfaces: ['hooks/hooks.json', '.codex/hooks.json', '~/.codex/hooks.json'],
-        notes: 'Hooks are native. Pluxx bundles translated Codex hooks in the plugin with the documented `[features].hooks = true` feature key, and still tracks broader project/user hook config paths where `codex_hooks` is deprecated. Plugin-bundled execution still also depends on enabled plugin state, review, trust, and runtime support.',
+        ...derivePrimitiveCapability('hooks', 'codex'),
       },
       permissions: {
         mode: 'translate',
@@ -909,8 +902,7 @@ export const CORE_FOUR_PRIMITIVE_CAPABILITIES: Record<CoreFourPlatform, CoreFour
         notes: 'OpenCode instructions are native, but the surface is config- and code-driven rather than manifest markdown only.',
       },
       skills: {
-        mode: 'preserve',
-        nativeSurfaces: ['skills/<skill>/SKILL.md'],
+        ...derivePrimitiveCapability('skills', 'opencode'),
       },
       commands: {
         ...getCommandPrimitiveCapability('opencode'),
@@ -919,9 +911,7 @@ export const CORE_FOUR_PRIMITIVE_CAPABILITIES: Record<CoreFourPlatform, CoreFour
         ...getAgentPrimitiveCapability('opencode'),
       },
       hooks: {
-        mode: 'translate',
-        nativeSurfaces: ['plugin JS/TS event handlers'],
-        notes: 'OpenCode hook behavior is native, but code-first rather than hooks.json-driven.',
+        ...derivePrimitiveCapability('hooks', 'opencode'),
       },
       permissions: {
         mode: 'preserve',

@@ -53,6 +53,21 @@ export {
 } from './schema'
 export { getPlatformCompatibilityMatrix, renderCompatibilityMatrixMarkdown, type PlatformCompatibilityRow } from './compatibility/matrix'
 export {
+  FIELD_TRANSLATION_REGISTRY,
+  CORE_FOUR_TRANSLATION_PLATFORMS,
+  derivePrimitiveCapability,
+  getFieldTranslationEntries,
+  getFieldTranslationEntry,
+  getFieldTranslationOutcome,
+  isCoreFourTranslationPlatform,
+  type CoreFourTranslationPlatform,
+  type DerivedPrimitiveCapability,
+  type FieldTranslationEntry,
+  type FieldTranslationMode,
+  type FieldTranslationOutcome,
+  type FieldTranslationPrimitive,
+} from './field-translation-registry'
+export {
   getEnabledRuntimeReadinessBindings,
   getRuntimeReadinessCapability,
   getRuntimeReadinessExternalConfigNote,
