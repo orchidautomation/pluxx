@@ -366,7 +366,7 @@ async function walkProjectFiles(
       const absolutePath = safeProjectPath(root, relativePath)
       const details = await lstat(absolutePath)
       if (details.isSymbolicLink()) {
-        if (options.kind === 'enforcement') {
+        if (!isExcludedPath(relativePath, false, options)) {
           files.push({ path: relativePath, mode: details.mode & 0o777, type: 'symlink' })
         }
         continue
@@ -400,7 +400,7 @@ function isExcludedPath(relativePath: string, isDirectory: boolean, options: Wal
 
 function checkpointExclusions(kind: CheckpointKind): string[] {
   return kind === 'durable'
-    ? ['.git/', 'node_modules/', 'dist/', `${DURABLE_CHECKPOINT_DIR}/`, 'gitignored files', 'local-only files', 'symbolic links']
+    ? ['.git/', 'node_modules/', 'dist/', `${DURABLE_CHECKPOINT_DIR}/`, 'gitignored files', 'local-only files']
     : ['.git/', 'node_modules/', `${DURABLE_CHECKPOINT_DIR}/`]
 }
 

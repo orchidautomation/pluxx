@@ -3,6 +3,7 @@ import { tmpdir } from 'os'
 import { dirname, resolve } from 'path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
+  checkpointMatchesWorkspace,
   createDurableCheckpoint,
   createEnforcementCheckpoint,
   deleteCheckpoint,
@@ -73,7 +74,7 @@ describe('workspace checkpoints', () => {
     expect(existsSync(third.directory)).toBe(false)
   })
 
-  it('does not follow symbolic links', async () => {
+  it('captures symbolic links without following them', async () => {
     const root = makeRoot('pluxx-checkpoint-links-')
     const outside = makeRoot('pluxx-checkpoint-outside-')
     write(root, 'captured.txt', 'inside\n')
@@ -81,9 +82,26 @@ describe('workspace checkpoints', () => {
     symlinkSync(resolve(outside, 'outside.txt'), resolve(root, 'linked-file.txt'))
 
     const checkpoint = await createDurableCheckpoint(root, 'links')
+    const link = checkpoint.manifest.files.find((file) => file.path === 'linked-file.txt')
 
-    expect(checkpoint.manifest.files.map((file) => file.path)).not.toContain('linked-file.txt')
+    expect(link).toMatchObject({ path: 'linked-file.txt', type: 'symlink' })
+    expect(await readCheckpointFile(checkpoint.directory, 'linked-file.txt')).toEqual(Buffer.from(resolve(outside, 'outside.txt')))
     expect(readlinkSync(resolve(root, 'linked-file.txt'))).toBe(resolve(outside, 'outside.txt'))
+  })
+
+  it('removes symlinks created after a durable checkpoint', async () => {
+    const root = makeRoot('pluxx-checkpoint-new-link-')
+    const outside = makeRoot('pluxx-checkpoint-new-link-outside-')
+    write(root, 'captured.txt', 'inside\n')
+    write(outside, 'outside.txt', 'outside\n')
+    const checkpoint = await createDurableCheckpoint(root, 'before-link')
+    symlinkSync(resolve(outside, 'outside.txt'), resolve(root, 'linked-file.txt'))
+
+    expect(await checkpointMatchesWorkspace(root, checkpoint.directory)).toBe(false)
+    await restoreCheckpoint(root, checkpoint.directory)
+
+    expect(existsSync(resolve(root, 'linked-file.txt'))).toBe(false)
+    expect(readFileSync(resolve(outside, 'outside.txt'), 'utf8')).toBe('outside\n')
   })
 
   it('restores captured files and removes new included files', async () => {
