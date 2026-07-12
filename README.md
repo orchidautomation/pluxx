@@ -191,6 +191,11 @@ Need deterministic MCP replay?
   pluxx mcp proxy --from-mcp <source> --record tape.json
   pluxx mcp proxy --replay tape.json
 
+  Recordings use a versioned schema and recursively redact common credential
+  keys plus source and URL credentials by default. Raw recording is not
+  supported. Review tapes before sharing because arbitrary private tool
+  content may not look like a credential.
+
 Need to refresh from the MCP later?
   pluxx sync
 ```
@@ -206,7 +211,7 @@ Pluxx includes more than scaffold generation:
 - `pluxx eval` checks scaffold and prompt-pack quality
 - `pluxx migrate <path>` imports an existing host-native plugin into a Pluxx project
 - `pluxx doctor --consumer <bundle>` inspects built or installed plugin bundles from the user side
-- `pluxx mcp proxy --record` and `--replay` give you deterministic MCP tapes for debugging and CI
+- `pluxx mcp proxy --record` and `--replay` give you strictly validated, default-redacted deterministic MCP tapes for debugging and CI
 
 ## Authoring Model
 

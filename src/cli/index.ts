@@ -3511,7 +3511,7 @@ Usage:
   pluxx agent run <kind> --runner <id>    Execute a prompt pack via Claude, Cursor, Codex, or OpenCode headlessly
   pluxx codex apply --consumer <path>     Register custom agents and merge generated Codex companion prerequisites
   pluxx discover-mcp [--host <hosts...>] List installed MCP servers from local host configs
-  pluxx mcp proxy ...                     Run a local MCP proxy with optional record/replay tapes
+  pluxx mcp proxy ...                     Run a local MCP proxy with redacted, versioned record/replay tapes
   pluxx autopilot --from-mcp ...          Run import + agent refinement + verification in one command
   pluxx init [name] [--from-mcp <source>|--from-installed-mcp <selector>] Create a new pluxx.config.ts
   pluxx sync [--from-mcp <source>]        Refresh MCP-derived scaffold files

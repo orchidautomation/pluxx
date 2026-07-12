@@ -1,6 +1,6 @@
 # Pluxx Queue
 
-Last updated: 2026-06-27
+Last updated: 2026-07-12
 
 ## Doc Links
 
@@ -189,6 +189,7 @@ The public baseline is also real.
 - docs site is live
 - Mintlify docs reflect the core compiler story more honestly
 - `migrate`, `eval`, `doctor --consumer`, and `mcp proxy --record/--replay` are shipped
+  - MCP record/replay now writes schema-v2 tapes with default recursive credential redaction, strictly validates replay input, keeps mismatched expectations recoverable, reports unused interactions, and retains valid schema-v1 replay compatibility
 - the self-hosted Pluxx plugin exists:
   - canonical source project: `example/pluxx`
   - repo-local Codex dogfood surface: `plugins/pluxx`
