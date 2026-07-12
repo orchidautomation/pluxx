@@ -75,6 +75,28 @@ afterEach(() => {
 })
 
 describe('verifyInstall', () => {
+  it('finds an installed Claude release bundle in a non-development marketplace cache', async () => {
+    mkdirSync(resolve(DIST_DIR, 'claude-code/.claude-plugin'), { recursive: true })
+    mkdirSync(resolve(DIST_DIR, 'claude-code/skills/research'), { recursive: true })
+    writeFileSync(
+      resolve(DIST_DIR, 'claude-code/.claude-plugin/plugin.json'),
+      JSON.stringify({ name: 'verify-plugin', version: '0.1.0', skills: './skills/' }),
+    )
+    writeFileSync(resolve(DIST_DIR, 'claude-code/skills/research/SKILL.md'), '# Research\n')
+
+    const releaseBundle = resolve(HOME_DIR, '.claude', 'plugins', 'cache', 'verify-plugin-releases', 'verify-plugin', '0.1.0')
+    mkdirSync(resolve(releaseBundle, '..'), { recursive: true })
+    cpSync(resolve(DIST_DIR, 'claude-code'), releaseBundle, { recursive: true })
+
+    const result = await verifyInstall(makeClaudeConfig(), {
+      rootDir: ROOT,
+      targets: ['claude-code'],
+    })
+
+    expect(result.ok).toBe(true)
+    expect(result.checks[0]?.consumerPath).toBe(releaseBundle)
+  })
+
   it('passes for an installed codex bundle in its native local path', async () => {
     mkdirSync(resolve(DIST_DIR, 'codex/.codex-plugin'), { recursive: true })
     writeFileSync(

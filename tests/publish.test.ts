@@ -1144,6 +1144,19 @@ describe('runPublish', () => {
     expect(run.installerContent).toContain('Codex agent name collision')
   })
 
+  it('clears the target plugin stale Codex active cache in generated installers', () => {
+    const staleCache = resolve(ROOT, 'codex-home/plugins/cache/local-plugins/publish-plugin/1.2.2')
+    mkdirSync(staleCache, { recursive: true })
+    writeFileSync(resolve(staleCache, 'stale.txt'), 'stale\n')
+
+    const run = runGeneratedCodexInstaller({
+      '.codex-plugin/plugin.json': JSON.stringify({ name: 'publish-plugin', version: '1.2.3' }),
+    })
+
+    expect(run.status).toBe(0)
+    expect(existsSync(resolve(ROOT, 'codex-home/plugins/cache/local-plugins/publish-plugin'))).toBe(false)
+  })
+
   it('allows generated installers to move unchanged owned Codex agent registrations', () => {
     const previousContent = 'name = "reviewer"\ndescription = "Reviews evidence."\ndeveloper_instructions = "Review carefully."\n'
     const oldAgentPath = resolve(ROOT, 'codex-home/agents/publish-plugin/reviewer.toml')

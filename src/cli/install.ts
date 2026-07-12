@@ -1,5 +1,5 @@
 import { resolve, dirname, basename, relative } from 'path'
-import { existsSync, symlinkSync, mkdirSync, rmSync, readFileSync, writeFileSync, cpSync, readdirSync } from 'fs'
+import { existsSync, symlinkSync, mkdirSync, rmSync, readFileSync, writeFileSync, cpSync, readdirSync, statSync } from 'fs'
 import { spawnSync } from 'child_process'
 import * as readline from 'readline'
 import type { PluginConfig, TargetPlatform, UserConfigEntry } from '../schema'
@@ -925,7 +925,25 @@ function resolveClaudeInstalledCachePath(pluginName: string, version: string | u
   if (!version) return undefined
 
   const home = process.env.HOME ?? '~'
-  return resolve(home, '.claude/plugins/cache', getClaudeMarketplaceName(pluginName), pluginName, version)
+  const cacheRoot = resolve(home, '.claude/plugins/cache')
+  const expectedPath = resolve(cacheRoot, getClaudeMarketplaceName(pluginName), pluginName, version)
+  if (existsSync(expectedPath)) return expectedPath
+  if (!existsSync(cacheRoot)) return expectedPath
+
+  const candidates: Array<{ path: string; mtimeMs: number }> = []
+  for (const marketplace of readdirSync(cacheRoot, { withFileTypes: true })) {
+    if (!marketplace.isDirectory()) continue
+    const candidatePath = resolve(cacheRoot, marketplace.name, pluginName, version)
+    if (!existsSync(candidatePath)) continue
+    if (readBundleManifestVersion(candidatePath, 'claude-code') !== version) continue
+    try {
+      candidates.push({ path: candidatePath, mtimeMs: statSync(candidatePath).mtimeMs })
+    } catch {
+      // Ignore unreadable marketplace cache candidates.
+    }
+  }
+
+  return candidates.sort((a, b) => b.mtimeMs - a.mtimeMs)[0]?.path ?? expectedPath
 }
 
 function resolveExpectedInstalledConsumerPath(target: PlannedInstallTarget, pluginName: string): string {
