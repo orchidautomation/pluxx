@@ -3180,6 +3180,15 @@ async function runTestCommand() {
         for (const check of behavioralResult.checks) {
           const prefix = check.ok ? '  PASS' : '  FAIL'
           console.log(`${prefix} ${check.platform}/${check.caseName}: ${check.responsePreview || '(no response preview)'}`)
+          const workflowIds = [
+            check.commandId ? `command=${check.commandId}` : undefined,
+            check.skillId ? `skill=${check.skillId}` : undefined,
+            check.agentId ? `agent=${check.agentId}` : undefined,
+          ].filter(Boolean)
+          const assertionCount = check.receipt.assertions.requiredText.length
+            + check.receipt.assertions.forbiddenText.length
+            + 1
+          console.log(`    Receipt: target=${check.receipt.target}${workflowIds.length ? ` ${workflowIds.join(' ')}` : ''} assertions=${assertionCount} artifacts=${check.receipt.artifacts.length}`)
           if (!check.ok) {
             for (const failure of check.failures) {
               console.log(`    - ${failure}`)

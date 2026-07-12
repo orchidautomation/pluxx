@@ -248,6 +248,8 @@ The repo already proves a lot.
 - installed behavioral proof is now stronger than simple file-shape verification:
   - the behavioral harness now supports host-specific runner args plus expected-failure cases without treating intentional nonzero exits as harness failures
   - maintained smoke fixtures can now declare an explicit `commandId` plus required output markers, so command-proof cases fail if the prompt does not reference the command or the response shape is too vague
+  - behavioral receipts now preserve the host target, command/skill/agent identity, response assertions, and factual project-relative artifact checks
+  - the self-hosted plugin keeps maintained import, refine, prove, translate, troubleshoot, and publish-dry-run cases, with publish proof remaining separate from a real release
   - `example/docs-ops`, `example/exa-plugin`, and `example/platform-change-ops` now each carry maintained behavioral smoke fixtures with command-specific output assertions instead of relying only on "did not bail" checks or one-off walkthroughs
   - `doctor --consumer` and `verify-install` now execute bundled Claude and Cursor permission-hook scripts and fail if the generated decisions are not actually usable
 - primitive-by-primitive core-four reliability tracking is now explicit instead of spread across proof docs and translation tables:
@@ -256,6 +258,10 @@ The repo already proves a lot.
   - `npm test` now acquires a worktree-local suite lock before running the full Vitest pass
   - `tests/run-vitest-exclusive.test.ts` now proves both active-lock refusal and stale-lock cleanup
   - deeper fixture isolation is still follow-on work
+- `pluxx eval` now separates exact generated-scaffold contracts from deterministic semantic quality scoring:
+  - the semantic rubric covers tool coverage, routing, taxonomy, examples, arguments, delegation, setup truth, and cross-file consistency
+  - project config can set explicit warning and failure thresholds
+  - heading-complete but incoherent fixtures fail, while maintained manual, flagship, and docs-ingestion projects remain regression inputs
 - agent explainability is now less generator-local:
   - `src/agent-translation-registry.ts` now backs degraded-field messaging for Cursor, Codex, and OpenCode instead of parallel per-target strings
   - generated Cursor and Codex agent surfaces now emit the same registry-backed translation notes that `lint` uses

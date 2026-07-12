@@ -418,6 +418,15 @@ export const PluginConfigSchema = z.object({
   agents: z.string().optional(),
   instructions: z.string().optional(),
 
+  // Deterministic semantic evaluation policy
+  eval: z.object({
+    warningThreshold: z.number().min(0).max(100).default(80),
+    failureThreshold: z.number().min(0).max(100).default(60),
+  }).refine(
+    policy => policy.failureThreshold <= policy.warningThreshold,
+    'eval.failureThreshold must be less than or equal to eval.warningThreshold',
+  ).optional(),
+
   // MCP servers
   mcp: z.record(z.string(), McpServerSchema).optional(),
 

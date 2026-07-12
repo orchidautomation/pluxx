@@ -203,7 +203,7 @@ Full docs tree:
 
 Pluxx includes more than scaffold generation:
 
-- `pluxx eval` checks scaffold and prompt-pack quality
+- `pluxx eval` reports deterministic scaffold contracts separately from an evidence-bearing semantic rubric for tool coverage, routing, taxonomy, examples, arguments, delegation, setup truth, and cross-file consistency; projects can set warning/failure thresholds with `eval.warningThreshold` and `eval.failureThreshold`
 - `pluxx migrate <path>` imports an existing host-native plugin into a Pluxx project
 - `pluxx doctor --consumer <bundle>` inspects built or installed plugin bundles from the user side
 - `pluxx mcp proxy --record` and `--replay` give you deterministic MCP tapes for debugging and CI

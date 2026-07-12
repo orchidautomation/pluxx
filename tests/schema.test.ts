@@ -11,6 +11,38 @@ import {
   getPluginCompilerBuckets,
 } from '../src/schema'
 
+const BASE_PLUGIN_CONFIG = {
+  name: 'semantic-eval-fixture',
+  version: '0.1.0',
+  description: 'Semantic eval schema fixture.',
+  author: { name: 'Test Author' },
+  skills: './skills/',
+}
+
+describe('PluginConfigSchema semantic eval policy', () => {
+  it('applies defaults and accepts ordered thresholds', () => {
+    expect(PluginConfigSchema.parse({ ...BASE_PLUGIN_CONFIG, eval: {} }).eval).toEqual({
+      warningThreshold: 80,
+      failureThreshold: 60,
+    })
+    expect(PluginConfigSchema.parse({
+      ...BASE_PLUGIN_CONFIG,
+      eval: { warningThreshold: 90, failureThreshold: 70 },
+    }).eval).toEqual({ warningThreshold: 90, failureThreshold: 70 })
+  })
+
+  it('rejects out-of-range or inverted thresholds', () => {
+    expect(PluginConfigSchema.safeParse({
+      ...BASE_PLUGIN_CONFIG,
+      eval: { warningThreshold: 101, failureThreshold: 60 },
+    }).success).toBe(false)
+    expect(PluginConfigSchema.safeParse({
+      ...BASE_PLUGIN_CONFIG,
+      eval: { warningThreshold: 60, failureThreshold: 80 },
+    }).success).toBe(false)
+  })
+})
+
 describe('McpServerSchema transport validation', () => {
   it('requires command and forbids url for stdio transport', () => {
     expect(

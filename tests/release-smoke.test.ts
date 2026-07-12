@@ -20,6 +20,13 @@ const COMMAND_BEHAVIORAL_PROOF_PROJECTS = [
   'example/docs-ops',
   'example/platform-change-ops',
 ]
+const PLUXX_CODEX_ONLY_WORKFLOWS = new Set([
+  'import-mcp',
+  'refine-plugin',
+  'prove-plugin',
+  'troubleshoot-install',
+  'publish-dry-run',
+])
 const RELEASE_SMOKE_PROJECT_ENV: Record<string, Record<string, string>> = {
   'examples/prospeo-mcp': {
     PROSPEO_API_KEY: 'pluxx-release-smoke-prospeo-api-key',
@@ -36,6 +43,8 @@ interface BehavioralSmokeTarget {
 interface BehavioralSmokeCase {
   name: string
   commandId?: string
+  skillId?: string
+  agentId?: string
   targets: Partial<Record<typeof CORE_FOUR[number], BehavioralSmokeTarget>>
 }
 
@@ -116,9 +125,12 @@ function expectExplicitCommandBehavioralProof(projectPath: string): void {
     expect(typeof behavioralCase.commandId).toBe('string')
     expect(behavioralCase.commandId?.length).toBeGreaterThan(0)
 
-    for (const platform of CORE_FOUR) {
+    const expectedPlatforms = projectPath === 'example/pluxx' && PLUXX_CODEX_ONLY_WORKFLOWS.has(behavioralCase.name)
+      ? ['codex']
+      : CORE_FOUR
+    expect(Object.keys(behavioralCase.targets).sort()).toEqual([...expectedPlatforms].sort())
+    for (const platform of expectedPlatforms) {
       const target = behavioralCase.targets[platform]
-      expect(target).toBeDefined()
       expect(typeof target?.prompt).toBe('string')
       expect(promptReferencesCommand(target!.prompt, behavioralCase.commandId!)).toBe(true)
       expect(Array.isArray(target?.require)).toBe(true)

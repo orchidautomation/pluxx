@@ -688,7 +688,7 @@ describe('migrate', () => {
       expect(preparePlan.skillCount).toBe(1)
 
       const evalReport = await runEvalSuite({ rootDir: outputDir })
-      expect(evalReport.ok).toBe(true)
+      expect(evalReport.ok, JSON.stringify(evalReport, null, 2)).toBe(true)
 
       const migratedConfig = await loadConfig(outputDir)
       await build(migratedConfig, outputDir)

@@ -14,6 +14,7 @@ Use this skill when the user wants to package and distribute the current plugin 
    - `pluxx lint`
    - `pluxx test`
 2. Run:
+   - `pluxx publish --dry-run --json` first and inspect the planned targets and artifacts
    - `pluxx publish`
    - include release flags when the user asks for a specific release path
 3. Summarize the release outputs:
@@ -25,6 +26,7 @@ Use this skill when the user wants to package and distribute the current plugin 
 ## Rules
 
 - Do not skip validation when the scaffold changed materially.
+- Keep dry-run proof separate from an actual publish. Never turn a proof request into a release.
 - Be honest when the project is still only locally credible and not yet release-ready.
 - If publishing is blocked, return the blockers before any release summary.
 
