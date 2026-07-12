@@ -86,10 +86,11 @@ describe('workspace checkpoints', () => {
 
     expect(link).toMatchObject({ path: 'linked-file.txt', type: 'symlink' })
     expect(await readCheckpointFile(checkpoint.directory, 'linked-file.txt')).toEqual(Buffer.from(resolve(outside, 'outside.txt')))
+    expect(checkpoint.manifest.files.map((file) => file.path)).not.toContain('linked-file.txt/outside.txt')
     expect(readlinkSync(resolve(root, 'linked-file.txt'))).toBe(resolve(outside, 'outside.txt'))
   })
 
-  it('removes symlinks created after a durable checkpoint', async () => {
+  it('detects and removes symlinks created after a durable checkpoint', async () => {
     const root = makeRoot('pluxx-checkpoint-new-link-')
     const outside = makeRoot('pluxx-checkpoint-new-link-outside-')
     write(root, 'captured.txt', 'inside\n')
@@ -102,6 +103,7 @@ describe('workspace checkpoints', () => {
 
     expect(existsSync(resolve(root, 'linked-file.txt'))).toBe(false)
     expect(readFileSync(resolve(outside, 'outside.txt'), 'utf8')).toBe('outside\n')
+    await expect(checkpointMatchesWorkspace(root, checkpoint.directory)).resolves.toBe(true)
   })
 
   it('restores captured files and removes new included files', async () => {
