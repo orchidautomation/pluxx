@@ -31,12 +31,12 @@ const AGENT_PRIMITIVE_CAPABILITIES: Record<AgentTranslationPlatform, AgentPrimit
   'claude-code': {
     mode: 'preserve',
     nativeSurfaces: ['agents/*.md'],
-    notes: 'Claude plugin agents are a first-class native surface with rich frontmatter.',
+    notes: 'Claude plugin agents are a first-class native surface under plugin-root agents/. Plugin-shipped agents support a documented subset of agent frontmatter; unsupported fields such as color are omitted.',
   },
   cursor: {
     mode: 'translate',
     nativeSurfaces: ['agents/', '.cursor/agents/', '~/.cursor/agents/'],
-    notes: 'Cursor specialization and tool access often live more naturally in subagents than in skills.',
+    notes: 'Cursor plugin agents are a first-class native surface under plugin-root agents/. Pluxx emits native readonly and is_background fields when canonical intent maps cleanly, then uses generated notes for richer fields.',
   },
   codex: {
     mode: 'translate',
@@ -46,15 +46,17 @@ const AGENT_PRIMITIVE_CAPABILITIES: Record<AgentTranslationPlatform, AgentPrimit
   opencode: {
     mode: 'preserve',
     nativeSurfaces: ['agents/*.md', 'config agent definitions'],
-    notes: 'OpenCode agents are first-class native surfaces. Prefer permission-first agent config for new builds; legacy tools remains compatibility input, not the preferred emitted shape.',
+    notes: 'OpenCode agents are first-class native surfaces. Pluxx plugins register generated definitions through the plugin config hook. Prefer permission-first agent config and the native top_p key; legacy tools remains compatibility input.',
   },
 }
 
 const AGENT_TRANSLATION_PROFILES: Record<AgentTranslationPlatform, AgentTranslationProfile> = {
   'claude-code': {
-    degradedFields: [],
+    degradedFields: [
+      { key: 'color', present: (metadata) => !!metadata.color },
+    ],
     guidanceSurfaces: ['agents/*.md'],
-    message: () => '',
+    message: (fields) => `Agent fields ${fields.map((field) => `"${field}"`).join(', ')} are not supported in Claude plugin-shipped agent frontmatter and are omitted from the generated agent file.`,
   },
   cursor: {
     degradedFields: [
@@ -69,13 +71,12 @@ const AGENT_TRANSLATION_PROFILES: Record<AgentTranslationPlatform, AgentTranslat
       { key: 'topP', present: (metadata) => typeof metadata.topP === 'number' },
       { key: 'skills', present: (metadata) => !!metadata.skills },
       { key: 'memory', present: (metadata) => !!metadata.memory },
-      { key: 'background', present: (metadata) => HAS_BOOLEAN(metadata.background) },
       { key: 'isolation', present: (metadata) => !!metadata.isolation },
       { key: 'permission', present: (metadata) => !!metadata.permission },
       { key: 'tools', present: (metadata) => metadata.tools !== undefined },
     ],
     guidanceSurfaces: ['subagent framing', 'generated notes'],
-    message: (fields) => `Agent fields ${fields.map((field) => `"${field}"`).join(', ')} are not preserved as first-class Cursor agent frontmatter today. Pluxx translates that intent through subagent framing and generated notes instead.`,
+    message: (fields) => `Agent fields ${fields.map((field) => `"${field}"`).join(', ')} are not fully preserved as first-class Cursor agent frontmatter today. Pluxx emits native readonly and is_background fields where the canonical intent maps cleanly, then translates the remaining intent through subagent framing and generated notes.`,
   },
   codex: {
     degradedFields: [

@@ -236,6 +236,14 @@ export class CursorGenerator extends Generator {
         frontmatter.push(`model: ${JSON.stringify(metadata.model)}`)
       }
 
+      if (isCursorReadonly(agent.frontmatter, metadata.sandboxMode)) {
+        frontmatter.push('readonly: true')
+      }
+
+      if (typeof metadata.background === 'boolean') {
+        frontmatter.push(`is_background: ${metadata.background}`)
+      }
+
       frontmatter.push('---')
 
       const translatedNotes = buildCursorAgentTranslationNotes(agent.frontmatter, metadata)
@@ -250,6 +258,29 @@ export class CursorGenerator extends Generator {
       )
     }
   }
+}
+
+function isCursorReadonly(
+  frontmatter: AgentFrontmatterMap,
+  sandboxMode: string | undefined,
+): boolean {
+  if (sandboxMode === 'read-only') return true
+
+  const permission = asCursorMap(frontmatter.permission)
+  const bashPermission = asCursorMap(permission?.bash)
+  const deniesEdit = permission?.edit === 'deny'
+  const deniesBash = permission?.bash === 'deny' || bashPermission?.['*'] === 'deny'
+  if (deniesEdit && deniesBash) return true
+
+  const tools = asCursorMap(frontmatter.tools)
+  const deniesLegacyEdit = tools?.write === false || tools?.edit === false || tools?.patch === false
+  const deniesLegacyBash = tools?.bash === false || tools?.shell === false
+  return deniesLegacyEdit && deniesLegacyBash
+}
+
+function asCursorMap(value: unknown): AgentFrontmatterMap | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  return value as AgentFrontmatterMap
 }
 
 function buildCursorAgentTranslationNotes(
