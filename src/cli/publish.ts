@@ -1171,8 +1171,18 @@ if (fs.existsSync(ownershipPath)) {
   }
 }
 
+const replaceableOwnedPaths = new Set()
+for (const agent of previous.agents) {
+  const ownedPath = resolveAgentPath(agent.relativePath)
+  if (!fs.existsSync(ownedPath)) continue
+  if (hash(fs.readFileSync(ownedPath, 'utf8')) === agent.sha256) {
+    replaceableOwnedPaths.add(ownedPath)
+  }
+}
+
 const expectedPaths = new Map(agents.map((agent) => [agent.name, resolveAgentPath(agent.relativePath)]))
 for (const filepath of walkToml(globalAgentRoot)) {
+  if (replaceableOwnedPaths.has(filepath)) continue
   const name = readString(fs.readFileSync(filepath, 'utf8'), 'name')
   const expectedPath = expectedPaths.get(name)
   if (expectedPath && filepath !== expectedPath) {
