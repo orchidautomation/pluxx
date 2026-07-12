@@ -66,10 +66,12 @@ beforeEach(() => {
   mkdirSync(DIST_DIR, { recursive: true })
   mkdirSync(HOME_DIR, { recursive: true })
   process.env.HOME = HOME_DIR
+  process.env.CODEX_HOME = resolve(HOME_DIR, '.codex')
 })
 
 afterEach(() => {
   rmSync(ROOT, { recursive: true, force: true })
+  delete process.env.CODEX_HOME
 })
 
 describe('verifyInstall', () => {
@@ -100,6 +102,27 @@ describe('verifyInstall', () => {
       ok: true,
       errors: 0,
     })
+  })
+
+  it('fails when a bundled Codex custom agent is missing from the active registry', async () => {
+    mkdirSync(resolve(DIST_DIR, 'codex/.codex-plugin'), { recursive: true })
+    mkdirSync(resolve(DIST_DIR, 'codex/.codex/agents'), { recursive: true })
+    writeFileSync(
+      resolve(DIST_DIR, 'codex/.codex-plugin/plugin.json'),
+      JSON.stringify({ name: 'verify-plugin', version: '0.1.0' }),
+    )
+    writeFileSync(
+      resolve(DIST_DIR, 'codex/.codex/agents/reviewer.toml'),
+      'name = "reviewer"\ndescription = "Reviews evidence."\ndeveloper_instructions = "Review carefully."\n',
+    )
+
+    await installPlugin(DIST_DIR, 'verify-plugin', ['codex'])
+    rmSync(resolve(HOME_DIR, '.codex/agents/verify-plugin/reviewer.toml'))
+
+    const result = await verifyInstall(makeConfig(), { rootDir: ROOT, targets: ['codex'] })
+
+    expect(result.ok).toBe(false)
+    expect(result.checks[0]?.issues.some((issue) => issue.code === 'codex-agent-registration-missing')).toBe(true)
   })
 
   it('passes for an installed cursor bundle in its native local path', async () => {

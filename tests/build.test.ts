@@ -1114,6 +1114,7 @@ describe('build', () => {
       readFileSync(resolve(OUT_DIR, 'cursor/mcp.json'), 'utf-8')
     )
     const cursorAgent = readFileSync(resolve(OUT_DIR, 'cursor/agents/escalation.md'), 'utf-8')
+    const cursorMcpResearcher = readFileSync(resolve(OUT_DIR, 'cursor/agents/mcp-researcher.md'), 'utf-8')
 
     expect(cursorManifest.commands).toBe('./commands/')
     expect(cursorManifest.agents).toBe('./agents/')
@@ -1126,6 +1127,9 @@ describe('build', () => {
     expect(cursorMcp.mcpServers['test-server'].headers.Authorization).toContain('TEST_API_KEY')
     expect(cursorAgent).toContain('Cursor translation note: stay read-only unless the parent task explicitly asks for file edits.')
     expect(cursorAgent).toContain('Cursor translation note: only delegate further subtasks when the work clearly benefits from another specialist.')
+    expect(cursorAgent).toContain('is_background: true')
+    expect(cursorAgent).not.toContain('readonly: true')
+    expect(cursorMcpResearcher).toContain('readonly: true')
   })
 
   it('drops unsupported Cursor hook events from generated hook bundles', async () => {
@@ -1261,7 +1265,7 @@ describe('build', () => {
       steps: 5,
       disable: false,
       color: 'accent',
-      topP: 0.2,
+      top_p: 0.2,
       permission: {
         edit: 'deny',
         bash: 'deny',
@@ -1807,7 +1811,8 @@ describe('build', () => {
     expect(codexAgent).toContain('"steps"')
     expect(opencodeIndex).toContain('"alias-agent"')
     expect(opencodeIndex).toContain('"steps": 7')
-    expect(opencodeIndex).toContain('"topP": 0.35')
+    expect(opencodeIndex).toContain('"top_p": 0.35')
+    expect(opencodeIndex).not.toContain('"topP": 0.35')
   })
 
   it('carries compiler-intent skill policies into the Codex permissions companion when present', async () => {
@@ -1937,7 +1942,7 @@ describe('build', () => {
     expect(claudeEscalationAgent).toContain('memory: "project"')
     expect(claudeEscalationAgent).toContain('background: true')
     expect(claudeEscalationAgent).toContain('isolation: "worktree"')
-    expect(claudeEscalationAgent).toContain('color: "purple"')
+    expect(claudeEscalationAgent).not.toContain('color: "purple"')
     expect(claudeEscalationAgent).toContain('disallowedTools: Write, Edit, MultiEdit')
     expect(claudeEscalationAgent).not.toContain('\nmode:')
     expect(claudeEscalationAgent).not.toContain('\nhidden:')

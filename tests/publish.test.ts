@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
+import { createHash } from 'crypto'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { spawnSync } from 'child_process'
 import { resolve } from 'path'
@@ -110,6 +111,10 @@ const GENERATED_INSTALLER_FIXTURE_FILES: Record<TargetPlatform, Record<string, s
 }
 
 let generatedInstallerRunCount = 0
+
+function sha256(content: string): string {
+  return createHash('sha256').update(content).digest('hex')
+}
 
 function prepareBuiltTargetAt(rootDir: string, platform: string, extraFiles: Record<string, string> = {}): void {
   const dir = resolve(rootDir, 'dist', platform)
@@ -417,6 +422,7 @@ function runGeneratedCodexInstaller(
           env: {
             ...process.env,
             ...options.env,
+            CODEX_HOME: options.env?.CODEX_HOME ?? resolve(ROOT, 'codex-home'),
             PLUXX_CODEX_BUNDLE_PATH: archivePath!,
             PLUXX_CODEX_INSTALL_DIR: resolve(ROOT, 'installed-codex'),
             PLUXX_CODEX_MARKETPLACE_PATH: resolve(ROOT, 'codex-marketplace.json'),
@@ -1122,5 +1128,47 @@ describe('runPublish', () => {
     expect(run.configText).toBeUndefined()
     expect(run.stdout).not.toContain('Enabled Codex plugin-bundled hooks')
     expect(run.stderr).not.toContain('hooks = true')
+  })
+
+  it('registers bundled Codex custom agents in the active Codex home', () => {
+    const run = runGeneratedCodexInstaller({
+      '.codex-plugin/plugin.json': JSON.stringify({ name: 'publish-plugin', version: '1.2.3' }),
+      '.codex/agents/reviewer.toml': 'name = "reviewer"\ndescription = "Reviews evidence."\ndeveloper_instructions = "Review carefully."\n',
+    })
+
+    expect(run.status).toBe(0)
+    expect(run.stderr).toBe('')
+    expect(run.stdout).toContain('Registered 1 Codex custom agent(s)')
+    expect(existsSync(resolve(ROOT, 'codex-home/agents/publish-plugin/reviewer.toml'))).toBe(true)
+    expect(existsSync(resolve(ROOT, 'codex-home/pluxx/agent-installs/publish-plugin.json'))).toBe(true)
+    expect(run.installerContent).toContain('Codex agent name collision')
+  })
+
+  it('allows generated installers to move unchanged owned Codex agent registrations', () => {
+    const previousContent = 'name = "reviewer"\ndescription = "Reviews evidence."\ndeveloper_instructions = "Review carefully."\n'
+    const oldAgentPath = resolve(ROOT, 'codex-home/agents/publish-plugin/reviewer.toml')
+    const ownershipPath = resolve(ROOT, 'codex-home/pluxx/agent-installs/publish-plugin.json')
+    mkdirSync(resolve(oldAgentPath, '..'), { recursive: true })
+    mkdirSync(resolve(ownershipPath, '..'), { recursive: true })
+    writeFileSync(oldAgentPath, previousContent)
+    writeFileSync(ownershipPath, JSON.stringify({
+      schema: 'pluxx.codex-agent-install.v1',
+      pluginName: 'publish-plugin',
+      agents: [
+        { name: 'reviewer', relativePath: 'reviewer.toml', sha256: sha256(previousContent) },
+      ],
+    }, null, 2) + '\n')
+
+    const run = runGeneratedCodexInstaller({
+      '.codex-plugin/plugin.json': JSON.stringify({ name: 'publish-plugin', version: '1.2.3' }),
+      '.codex/agents/nested/reviewer.toml': previousContent,
+    })
+
+    expect(run.status).toBe(0)
+    expect(run.stderr).toBe('')
+    expect(run.stdout).toContain('Registered 1 Codex custom agent(s)')
+    expect(run.stdout).toContain('removed 1 stale owned registration(s)')
+    expect(existsSync(oldAgentPath)).toBe(false)
+    expect(existsSync(resolve(ROOT, 'codex-home/agents/publish-plugin/nested/reviewer.toml'))).toBe(true)
   })
 })

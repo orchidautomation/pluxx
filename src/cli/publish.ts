@@ -1086,6 +1086,156 @@ fi
 `
 }
 
+function renderInstallerCodexAgentRegistrationSnippet(installDirVariable: string): string {
+  return `
+export PLUXX_INSTALL_DIR="${installDirVariable}"
+export PLUXX_CODEX_HOME_DIR="\${CODEX_HOME:-$HOME/.codex}"
+export PLUGIN_NAME
+
+node <<'NODE'
+const crypto = require('crypto')
+const fs = require('fs')
+const path = require('path')
+
+const installDir = process.env.PLUXX_INSTALL_DIR
+const codexHome = process.env.PLUXX_CODEX_HOME_DIR
+const pluginName = process.env.PLUGIN_NAME
+if (!installDir || !codexHome || !pluginName) process.exit(0)
+if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(pluginName)) {
+  throw new Error('Cannot register Codex agents for an invalid plugin name.')
+}
+
+const sourceRoot = path.join(installDir, '.codex/agents')
+const globalAgentRoot = path.join(codexHome, 'agents')
+const agentRoot = path.join(globalAgentRoot, pluginName)
+const ownershipPath = path.join(codexHome, 'pluxx/agent-installs', pluginName + '.json')
+const ownershipSchema = 'pluxx.codex-agent-install.v1'
+
+const walkToml = (root) => {
+  if (!fs.existsSync(root)) return []
+  const files = []
+  for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+    const filepath = path.join(root, entry.name)
+    if (entry.isDirectory()) files.push(...walkToml(filepath))
+    else if (entry.isFile() && entry.name.endsWith('.toml')) files.push(filepath)
+  }
+  return files.sort()
+}
+
+const hash = (content) => crypto.createHash('sha256').update(content).digest('hex')
+const readString = (content, key) => {
+  const match = content.match(new RegExp('^\\\\s*' + key + '\\\\s*=\\\\s*("(?:\\\\\\\\.|[^"\\\\\\\\])*")', 'm'))
+  if (!match) return undefined
+  try { return JSON.parse(match[1]) } catch { return undefined }
+}
+const hasAssignment = (content, key) => new RegExp('^\\\\s*' + key + '\\\\s*=', 'm').test(content)
+const safeRelative = (value) => {
+  if (typeof value !== 'string' || !value || path.isAbsolute(value)) return false
+  const normalized = value.replace(/\\\\/g, '/')
+  return normalized !== '..' && !normalized.startsWith('../') && !normalized.includes('/../')
+}
+const resolveAgentPath = (relativePath) => {
+  if (!safeRelative(relativePath)) throw new Error('Unsafe Codex agent ownership path: ' + relativePath)
+  const filepath = path.resolve(agentRoot, relativePath)
+  if (filepath === agentRoot || !filepath.startsWith(agentRoot + path.sep)) {
+    throw new Error('Unsafe Codex agent ownership path: ' + relativePath)
+  }
+  return filepath
+}
+
+const agents = []
+const sourceNames = new Set()
+for (const sourcePath of walkToml(sourceRoot)) {
+  const content = fs.readFileSync(sourcePath, 'utf8')
+  const name = readString(content, 'name')
+  const description = readString(content, 'description')
+  if (!name || !description || !hasAssignment(content, 'developer_instructions')) {
+    throw new Error('Invalid Codex custom agent at ' + sourcePath + ': name, description, and developer_instructions are required.')
+  }
+  if (sourceNames.has(name)) throw new Error('Duplicate bundled Codex agent name: ' + name)
+  sourceNames.add(name)
+  const relativePath = path.relative(sourceRoot, sourcePath).replace(/\\\\/g, '/')
+  agents.push({ name, relativePath, content, sha256: hash(content) })
+}
+
+let previous = { schema: ownershipSchema, pluginName, agents: [] }
+if (fs.existsSync(ownershipPath)) {
+  previous = JSON.parse(fs.readFileSync(ownershipPath, 'utf8'))
+  if (previous.schema !== ownershipSchema || previous.pluginName !== pluginName || !Array.isArray(previous.agents)) {
+    throw new Error('Invalid Codex agent ownership record: ' + ownershipPath)
+  }
+  for (const agent of previous.agents) {
+    if (!agent || typeof agent.name !== 'string' || !safeRelative(agent.relativePath) || !/^[a-f0-9]{64}$/.test(agent.sha256 || '')) {
+      throw new Error('Invalid Codex agent ownership entry: ' + ownershipPath)
+    }
+  }
+}
+
+const replaceableOwnedPaths = new Set()
+for (const agent of previous.agents) {
+  const ownedPath = resolveAgentPath(agent.relativePath)
+  if (!fs.existsSync(ownedPath)) continue
+  if (hash(fs.readFileSync(ownedPath, 'utf8')) === agent.sha256) {
+    replaceableOwnedPaths.add(ownedPath)
+  }
+}
+
+const expectedPaths = new Map(agents.map((agent) => [agent.name, resolveAgentPath(agent.relativePath)]))
+for (const filepath of walkToml(globalAgentRoot)) {
+  if (replaceableOwnedPaths.has(filepath)) continue
+  const name = readString(fs.readFileSync(filepath, 'utf8'), 'name')
+  const expectedPath = expectedPaths.get(name)
+  if (expectedPath && filepath !== expectedPath) {
+    throw new Error('Codex agent name collision for "' + name + '": ' + filepath)
+  }
+}
+
+const previousByPath = new Map(previous.agents.map((agent) => [agent.relativePath, agent]))
+for (const agent of agents) {
+  const destination = resolveAgentPath(agent.relativePath)
+  if (fs.existsSync(destination)) {
+    const currentHash = hash(fs.readFileSync(destination, 'utf8'))
+    const owned = previousByPath.get(agent.relativePath)
+    if (currentHash !== agent.sha256 && (!owned || owned.sha256 !== currentHash)) {
+      throw new Error('Refusing to replace modified or unowned Codex agent "' + agent.name + '" at ' + destination)
+    }
+  }
+  fs.mkdirSync(path.dirname(destination), { recursive: true })
+  fs.writeFileSync(destination, agent.content)
+}
+
+const nextPaths = new Set(agents.map((agent) => agent.relativePath))
+let removed = 0
+for (const owned of previous.agents) {
+  if (nextPaths.has(owned.relativePath)) continue
+  const destination = resolveAgentPath(owned.relativePath)
+  if (!fs.existsSync(destination)) continue
+  if (hash(fs.readFileSync(destination, 'utf8')) === owned.sha256) {
+    fs.rmSync(destination, { force: true })
+    removed += 1
+  } else {
+    console.warn('Preserved user-modified Codex agent at ' + destination)
+  }
+}
+
+if (agents.length > 0) {
+  fs.mkdirSync(path.dirname(ownershipPath), { recursive: true })
+  fs.writeFileSync(ownershipPath, JSON.stringify({
+    schema: ownershipSchema,
+    pluginName,
+    agents: agents.map(({ name, relativePath, sha256 }) => ({ name, relativePath, sha256 })),
+  }, null, 2) + '\\n')
+} else {
+  fs.rmSync(ownershipPath, { force: true })
+}
+
+if (agents.length > 0 || removed > 0) {
+  console.log('Registered ' + agents.length + ' Codex custom agent(s) under ' + agentRoot + (removed ? '; removed ' + removed + ' stale owned registration(s)' : ''))
+}
+NODE
+`
+}
+
 function renderInstallerCodexPluginHooksSnippet(installDirVariable: string): string {
   return `
 export PLUXX_INSTALL_DIR="${installDirVariable}"
@@ -1554,6 +1704,7 @@ cp -R "$BUNDLE_DIR" "$INSTALL_DIR"
 ${renderInstallerUserConfigSnippet(config, 'codex', '$INSTALL_DIR')}
 ${renderInstallerMcpPathMaterializationSnippet('codex', '$INSTALL_DIR')}
 ${renderInstallerRuntimeBootstrapSnippet('$INSTALL_DIR')}
+${renderInstallerCodexAgentRegistrationSnippet('$INSTALL_DIR')}
 ${renderInstallerCodexPluginHooksSnippet('$INSTALL_DIR')}
 
 mkdir -p "$(dirname "$MARKETPLACE_PATH")"

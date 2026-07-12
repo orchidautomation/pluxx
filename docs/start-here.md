@@ -121,6 +121,8 @@ The next concrete product slice is a first-class Codex companion apply and verif
 
 Generated Codex companion artifacts should become operational rather than only advisory:
 
+- register generated custom-agent TOML under the active `CODEX_HOME/agents/<plugin>/` because Codex does not discover it from plugin-local `.codex/agents/`
+- track hashes and ownership so reinstall, collision handling, verification, and uninstall remain conservative
 - apply safe, reviewable config stanzas for hooks, readiness, MCP approvals, and adjacent companion config
 - back up or diff target config before modifying it
 - print exactly what was applied, skipped, already present, or unsafe
@@ -129,7 +131,7 @@ Generated Codex companion artifacts should become operational rather than only a
 
 The decision note is [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisions/2026-06-26-pluxx-next-ship-review.md).
 
-After that, install ownership tracking is the next follow-on because it supports conservative uninstall, prune, reinstall, and diagnostics.
+The Codex agent-registration slice uses a narrow host-specific ownership record. General cross-host install ownership tracking remains the follow-on because it supports conservative uninstall, prune, reinstall, and diagnostics beyond this one companion surface.
 
 ## Who Pluxx Is For Right Now
 

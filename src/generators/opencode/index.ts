@@ -610,7 +610,7 @@ export class OpenCodeGenerator extends Generator {
         definition.color = metadata.color
       }
       if (typeof metadata.topP === 'number') {
-        definition.topP = metadata.topP
+        definition.top_p = metadata.topP
       }
       const legacyToolTranslation = translateLegacyOpenCodeTools(agent.frontmatter.tools)
       const permission = mergeOpenCodeMaps(

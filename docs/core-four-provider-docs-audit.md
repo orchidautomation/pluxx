@@ -1,6 +1,6 @@
 # Core-Four Provider Docs Audit
 
-Last updated: 2026-06-24
+Last updated: 2026-07-11
 
 ## Doc Links
 
@@ -20,7 +20,7 @@ Last updated: 2026-06-24
   - [docs/todo/queue.md](./todo/queue.md)
   - [docs/roadmap.md](./roadmap.md)
 
-This doc records the May 2026 first-party provider-doc audit refresh plus the June 24, 2026 Firecrawl spot refresh across:
+This doc records the May 2026 first-party provider-doc audit refresh, the June 24, 2026 Firecrawl spot refresh, and the July 11, 2026 agent-discovery refresh across:
 
 - Claude Code
 - Cursor
@@ -49,6 +49,14 @@ June 24, 2026 Firecrawl source receipts:
 | Cursor | `https://cursor.com/docs/plugins`, `https://cursor.com/docs/skills`, `https://cursor.com/docs/hooks` | Confirmed Cursor plugins package rules, skills, agents, commands, MCP servers, and hooks, with marketplace review and project/user/team scoping. |
 | Codex | `https://developers.openai.com/codex/hooks`, `https://developers.openai.com/codex/plugins`, `https://developers.openai.com/codex/skills`, `https://developers.openai.com/codex/mcp`, `https://developers.openai.com/codex/subagents` | Confirmed the official ten-event hook list and plugin-bundled hooks; current docs use `[features].hooks` as the canonical feature key and describe `codex_hooks` as deprecated. |
 | OpenCode | `https://opencode.ai/docs/plugins/`, `https://opencode.ai/docs/config/`, `https://opencode.ai/docs/mcp-servers/`, `https://opencode.ai/docs/agents/`, `https://opencode.ai/docs/skills/` | Confirmed OpenCode plugins are JS/TS modules with event handlers, config/plugin directories, npm plugin loading, agents, skills, commands, and MCP surfaces. |
+
+July 11, 2026 agent source receipts:
+
+| Host | Official source receipts | Agent-specific confirmation |
+|---|---|---|
+| Claude Code | `https://code.claude.com/docs/en/sub-agents`, `https://code.claude.com/docs/en/plugins-reference` | Plugin-root `agents/` is natively discovered. Plugin agents support `name`, `description`, `model`, `effort`, `maxTurns`, `tools`, `disallowedTools`, `skills`, `memory`, `background`, and `isolation`; plugin agents do not support `hooks`, `mcpServers`, or `permissionMode`. `color` is not in the documented plugin-agent field subset. |
+| Cursor | `https://cursor.com/docs/subagents.md`, `https://cursor.com/docs/plugins.md`, `https://cursor.com/docs/reference/plugins.md` | Plugin-root `agents/` is natively discovered. Agent frontmatter supports `name`, `description`, `model`, `readonly`, and `is_background`; local plugins install under `~/.cursor/plugins/local/<plugin>` and require restart or Developer: Reload Window. |
+| OpenCode | `https://opencode.ai/docs/agents/`, `https://opencode.ai/docs/plugins/` | Agents are native through `.opencode/agents/` or resolved `agent` config. Plugins can inject agent definitions through the `config` hook. Agent config is permission-first and uses `top_p`, while legacy `tools` is deprecated. |
 
 ## Executive Summary
 
@@ -103,7 +111,7 @@ Use [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md
 | Manifest / plugin entry | Optional `.claude-plugin/plugin.json`; plugin can also auto-discover surfaces without a manifest | Required `.cursor-plugin/plugin.json`; marketplace metadata in `.cursor-plugin/marketplace.json` | Required `.codex-plugin/plugin.json`; marketplaces live in repo or home catalogs | Code-first JS or TS plugin module model; local dirs and npm-distributed plugins via config |
 | Skills | Plugin skills at `skills/<name>/SKILL.md`; commands merged into skills; richest frontmatter of the four | Skills under `.cursor/skills/`, `~/.cursor/skills/`, `.agents/skills/`, `~/.agents/skills/`, plus compatibility dirs | Plugin-bundled `skills/`; non-plugin discovery through `.agents/skills` hierarchy; optional `agents/openai.yaml` metadata | Skills under `.opencode/skills/`, `~/.config/opencode/skills/`, plus `.claude/skills/` and `.agents/skills/` compatibility |
 | Commands | Native command surface still exists, but skills are now the primary model | Slash-command surface is real; plugin-bundled command assumptions need more care than our current docs use | No documented plugin-packaged custom command directory equivalent; commands still degrade to skills plus routing, with Pluxx keeping a `.codex/commands.generated.json` companion and `AGENTS.md` routing guidance | Native command system via markdown files or config-defined commands |
-| Agents / subagents | Plugin `agents/` supported, but plugin subagents explicitly do not support `hooks`, `mcpServers`, or `permissionMode` | Native subagents and compatibility dirs exist; subagents can spawn child subagents and inherit MCP tools | Project and user agents in `.codex/agents/` and `~/.codex/agents/`; app and CLI docs both expose subagent workflows | Agents are first-class through dirs and config, with primary and subagent modes plus permission-first control |
+| Agents / subagents | Plugin-root `agents/` is native; plugin subagents explicitly do not support `hooks`, `mcpServers`, or `permissionMode`, and the documented plugin field subset does not include `color` | Plugin-root `agents/` is native; current frontmatter includes `name`, `description`, `model`, `readonly`, and `is_background`; subagents inherit MCP tools | Project and user agents in `.codex/agents/` and `~/.codex/agents/`; app and CLI docs both expose subagent workflows | Agents are first-class through dirs and config; Pluxx injects generated definitions with the plugin `config` hook and emits permission-first config using `top_p` |
 | Hooks | `hooks/hooks.json`, inline manifest hooks, settings hooks, and skill or agent frontmatter hooks; official event list is much broader than the old simplified model | Project and user `hooks.json`; plugin hooks also exist; official Agent and Tab events are documented and reload on save | `hooks/hooks.json` in plugin bundles plus `.codex/hooks.json` and `~/.codex/hooks.json`; official docs cover plugin-bundled hooks and a narrower event set | Hooks are plugin runtime event handlers in JS or TS, not a standalone JSON file convention |
 | MCP | `.mcp.json` or inline manifest config; transports include `stdio`, `http`, `sse`; auth is richer than our current model | `.cursor/mcp.json` and `~/.cursor/mcp.json`; `stdio`, `sse`, `streamable http`; OAuth and static OAuth creds supported | `.codex/config.toml` and `.mcp.json`; `stdio` and streamable HTTP; bearer and OAuth auth; plugins can bundle `.mcp.json` | Config-native MCP under `opencode.json`; local and remote servers; auth and OAuth supported |
 | Instructions / rules | `CLAUDE.md`; larger procedures should move into skills; settings scopes affect where related config is enforced | `.cursor/rules/` plus `AGENTS.md` support; rules do not apply to Cursor Tab; nested `AGENTS.md` is supported | `AGENTS.md`, `AGENTS.override.md`, model instruction overrides, and fallback filenames | `AGENTS.md`, `CLAUDE.md` fallback, config `instructions`, and host config files |
@@ -135,6 +143,7 @@ Confirmed by official docs:
 - official plugin hook events are much broader than the older simplified list and include events like `InstructionsLoaded`, `CwdChanged`, `FileChanged`, `WorktreeCreate`, `WorktreeRemove`, `PreCompact`, `PostCompact`, `Elicitation`, `ElicitationResult`, and `SessionEnd`
 - plugin subagents exist, but do not inherit every capability from the main plugin surface
 - plugin subagents explicitly do not support `hooks`, `mcpServers`, or `permissionMode`
+- the documented plugin-agent field subset does not include `color`; Pluxx therefore omits canonical agent color instead of emitting unsupported frontmatter
 - MCP can be declared in `.mcp.json` or inline in plugin config
 - auth is broader than simple headers and env interpolation
 - install, update, and reload are explicit product surfaces, including `/reload-plugins`
@@ -166,6 +175,8 @@ Confirmed by official docs:
 - skills support supporting files and scripts
 - subagents are real and support compatibility with `.claude/agents/` and `.codex/agents/`
 - subagents can create child subagents
+- plugin-root `agents/` is a native discovery path
+- current native agent frontmatter includes `readonly` and `is_background`; Pluxx now emits them when canonical intent maps cleanly
 - MCP config lives in project and user `mcp.json`
 - Cursor documents `stdio`, `sse`, and streamable HTTP MCP transports
 - OAuth and static OAuth credentials are documented
@@ -238,6 +249,8 @@ Confirmed by official docs:
 - permissions are first-class host config and are keyed by tool name plus safety guards
 - native `skill` and `task` permission keys are documented
 - agent `tools` is deprecated in favor of `permission`, though still supported for backwards compatibility
+- agent sampling config uses `top_p`, not camel-case `topP`
+- Pluxx-generated OpenCode modules inject their agent definitions through the plugin `config` hook; this was confirmed against the resolved configuration of the installed OpenCode CLI without relying on copied markdown alone
 - instructions can come from `AGENTS.md`, `CLAUDE.md`, and config `instructions`
 - hooks are runtime plugin event handlers, not a standalone `hooks.json` convention
 - plugins can also add custom tools and respond to a much broader event bus than the older Pluxx docs implied

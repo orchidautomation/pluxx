@@ -33,7 +33,14 @@ These fields are the portable subset Pluxx should understand canonically:
 | delegated specialist | preserve in native agent frontmatter | translate into Cursor subagent markdown plus behavioral guidance | translate into native `.codex/agents/*.toml` plus developer-instruction guidance | preserve in native `config.agent` definitions |
 | hidden delegated specialist | preserve where supported | translate into body guidance because Cursor does not expose the same hidden flag in subagent frontmatter | translate into developer-instruction guidance | preserve in native `hidden` config |
 | no further delegation | preserve where supported | translate into explicit subagent note | translate into developer-instruction note | preserve in native `permission.task` |
-| read-only specialist | preserve where supported | translate into explicit subagent note | translate into developer-instruction note | preserve in native `permission.edit` |
+| read-only specialist | preserve where supported | emit native `readonly: true` when canonical read-only intent is unambiguous; retain guidance for narrower permission shapes | translate into developer-instruction note | preserve in native `permission.edit` |
+| background specialist | preserve where supported | emit native `is_background` | translate into developer-instruction guidance | translate into runtime guidance because OpenCode has no equivalent agent field |
+
+Host-specific constraints remain intentionally explicit:
+
+- Claude plugin-shipped agents live under plugin-root `agents/`. Their current documented frontmatter subset does not include `color`, `hooks`, `mcpServers`, or `permissionMode`, so Pluxx omits `color` and does not pretend those controls are portable plugin-agent fields.
+- Cursor plugin-shipped agents also live under plugin-root `agents/`. Pluxx maps canonical background intent to `is_background` and maps whole-agent read-only intent to `readonly: true`; partial tool restrictions still require behavioral guidance.
+- OpenCode agents can live in `.opencode/agents/`, but generated Pluxx plugins register their definitions through the plugin `config` hook so a single installed module carries the agents. Emitted definitions use permission-first controls and the documented `top_p` spelling.
 
 ## Portable Guarantees
 

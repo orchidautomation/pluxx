@@ -121,10 +121,6 @@ export class ClaudeCodeGenerator extends Generator {
       if (metadata.isolation) {
         frontmatter.push(`isolation: ${JSON.stringify(metadata.isolation)}`)
       }
-      if (metadata.color) {
-        frontmatter.push(`color: ${JSON.stringify(metadata.color)}`)
-      }
-
       frontmatter.push('---')
 
       const delegationNotes = buildDelegationBehaviorNotes(agent.frontmatter)

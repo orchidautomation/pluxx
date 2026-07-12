@@ -5,6 +5,7 @@ import type { PluginConfig, TargetPlatform } from '../schema'
 import { doctorConsumer, type DoctorCheck, type DoctorLevel } from './doctor'
 import { planInstallPlugin, resolveInstalledConsumerPath, type PlannedInstallTarget } from './install'
 import { getVerifyInstallStaleAction } from '../distribution-lifecycle'
+import { verifyCodexAgentRegistration } from '../codex-agent-install'
 
 type VerifyInstallIssueLevel = Exclude<DoctorLevel, 'success'>
 
@@ -45,6 +46,34 @@ function buildCheckFromReport(
     : undefined
   const stale = staleReason !== undefined
   const issues = listVerifyInstallIssues(report.checks)
+  if (target.platform === 'codex' && existsSync(consumerPath)) {
+    try {
+      const agentVerification = verifyCodexAgentRegistration({
+        consumerRoot: consumerPath,
+        pluginName,
+      })
+      for (const issue of agentVerification.issues) {
+        issues.push({
+          level: 'error',
+          code: issue.code,
+          title: 'Codex custom agent registration is not current',
+          detail: issue.detail,
+          fix: `Run pluxx codex apply --consumer "${consumerPath}" --agents-only, then restart Codex.`,
+          path: issue.path,
+        })
+      }
+    } catch (error) {
+      issues.push({
+        level: 'error',
+        code: 'codex-agent-registration-invalid',
+        title: 'Codex custom agent registration could not be verified',
+        detail: String(error),
+        fix: `Repair the bundled agent definitions, then rerun pluxx install --target codex.`,
+        path: consumerPath,
+      })
+    }
+  }
+  const agentErrors = issues.filter((issue) => issue.level === 'error' && issue.code.startsWith('codex-agent-registration-')).length
   return {
     platform: target.platform,
     installPath: consumerPath,
@@ -53,8 +82,8 @@ function buildCheckFromReport(
     installed: existsSync(consumerPath),
     stale,
     ...(staleReason ? { staleReason } : {}),
-    ok: report.errors === 0 && !stale,
-    errors: report.errors + (stale ? 1 : 0),
+    ok: report.errors === 0 && !stale && agentErrors === 0,
+    errors: report.errors + (stale ? 1 : 0) + agentErrors,
     warnings: report.warnings,
     infos: report.infos,
     issues,
@@ -303,7 +332,11 @@ function getVerifyInstallRecoveryActions(check: VerifyInstallCheck): string[] {
   }
 
   if (check.errors > 0 && actions.length === 0) {
-    actions.push(`run pluxx doctor --consumer "${check.consumerPath}" for the detailed host-specific failure`)
+    if (check.issues.some((issue) => issue.code.startsWith('codex-agent-registration-'))) {
+      actions.push(`run pluxx codex apply --consumer "${check.consumerPath}" --agents-only, then restart Codex`)
+    } else {
+      actions.push(`run pluxx doctor --consumer "${check.consumerPath}" for the detailed host-specific failure`)
+    }
   }
 
   return actions

@@ -54,10 +54,12 @@ beforeEach(() => {
   mkdirSync(DIST_DIR, { recursive: true })
   mkdirSync(HOME_DIR, { recursive: true })
   process.env.HOME = HOME_DIR
+  process.env.CODEX_HOME = resolve(HOME_DIR, '.codex')
 })
 
 afterEach(() => {
   rmSync(TEST_DIR, { recursive: true, force: true })
+  delete process.env.CODEX_HOME
 })
 
 describe('install', () => {
@@ -137,6 +139,31 @@ describe('install', () => {
     expect(existsSync(resolve(HOME_DIR, '.agents/plugins/marketplace.json'))).toBe(false)
   })
 
+  it('registers bundled Codex agents on install and removes owned registrations on uninstall', async () => {
+    mkdirSync(resolve(DIST_DIR, 'codex/.codex-plugin'), { recursive: true })
+    mkdirSync(resolve(DIST_DIR, 'codex/.codex/agents'), { recursive: true })
+    writeFileSync(
+      resolve(DIST_DIR, 'codex/.codex-plugin/plugin.json'),
+      JSON.stringify({ name: 'megamind', version: '1.0.0' }),
+    )
+    writeFileSync(
+      resolve(DIST_DIR, 'codex/.codex/agents/researcher.toml'),
+      'name = "researcher"\ndescription = "Research specialist."\ndeveloper_instructions = "Find evidence."\n',
+    )
+
+    await installPlugin(DIST_DIR, 'megamind', ['codex'], { useNativeClaudeInstall: false })
+
+    const registeredAgent = resolve(HOME_DIR, '.codex/agents/megamind/researcher.toml')
+    const ownershipRecord = resolve(HOME_DIR, '.codex/pluxx/agent-installs/megamind.json')
+    expect(readFileSync(registeredAgent, 'utf-8')).toContain('name = "researcher"')
+    expect(existsSync(ownershipRecord)).toBe(true)
+
+    await uninstallPlugin('megamind', ['codex'])
+
+    expect(existsSync(registeredAgent)).toBe(false)
+    expect(existsSync(ownershipRecord)).toBe(false)
+  })
+
   it('clears stale Codex local cache entries on install', async () => {
     mkdirSync(resolve(DIST_DIR, 'codex/.codex-plugin'), { recursive: true })
     writeFileSync(
@@ -213,7 +240,7 @@ describe('install', () => {
     expect(getInstallFollowupNotes(['claude-code', 'cursor', 'codex', 'opencode'])).toEqual([
       'Claude Code note: if Claude is already open, run /reload-plugins to pick up the new install.',
       'Cursor note: if Cursor is already open, use Developer: Reload Window or restart Cursor to pick up the new install.',
-      'Codex note: if Codex is already open, use Plugins > Refresh if that action is available in your current UI, or restart Codex to pick up the new install. Plugin-bundled MCP servers may appear on the plugin detail page without appearing in the global MCP servers settings page.',
+      'Codex note: Pluxx registers generated custom agents under the active CODEX_HOME/agents/<plugin>/ because plugin-local agent TOML is not a native plugin registration surface. If Codex is already open, use Plugins > Refresh if available or restart Codex. Plugin-bundled MCP servers may appear on the plugin detail page without appearing in the global MCP servers settings page.',
       'OpenCode note: if OpenCode is already open, restart or reload it so the plugin is picked up.',
     ])
   })
