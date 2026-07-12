@@ -32,6 +32,8 @@ For the fuller release/distribution boundary, including publish commands and def
 
 Proof labels and freshness come from [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json). The May self-hosted run and April Firecrawl connector run are preserved as historical environment evidence; they are not current host receipts for `0.1.31`.
 
+The current v0.1.31 receipts prove the `bundle-contract` and `fake-home-install` tiers. No current receipt claims installed-runtime or real-host behavior.
+
 ## The Story In One Screen
 
 ```text
