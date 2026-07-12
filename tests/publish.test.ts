@@ -749,12 +749,12 @@ describe('runPublish', () => {
     expect(installerContent).toContain('server.http_headers')
     expect(installerContent).toContain('preserveSecretReferences = true')
     expect(installerContent).toContain('Preparing local plugin runtime dependencies...')
-    expect(installerContent).toContain('bash "$INSTALL_DIR/scripts/bootstrap-runtime.sh"')
+    expect(installerContent).toContain('bash "$PLUXX_TX_STAGE/scripts/bootstrap-runtime.sh"')
     expect(installerContent).toContain('PLUXX_CODEX_ENABLE_PLUGIN_HOOKS')
     expect(installerContent).toContain('Codex requires [features].hooks = true')
     expect(installerContent).toContain('hooks = true')
     expect(installerContent).toContain('materializeInstalledStdioPath')
-    expect(installerContent).toContain("path.resolve(installDir, normalized)")
+    expect(installerContent).toContain("path.resolve(runtimeRoot, normalized)")
     expect(installerContent.indexOf('PLUXX_USER_CONFIG_SPEC')).toBeLessThan(
       installerContent.indexOf('Preparing local plugin runtime dependencies...'),
     )
@@ -962,7 +962,10 @@ describe('runPublish', () => {
       expect(run.stdout).not.toContain('reusing saved install values')
       expect(run.stderr).toContain('Ignoring placeholder-looking saved config for SENDLENS_INSTANTLY_API_KEY.')
       expect(run.stderr).toContain('Refusing placeholder-looking saved config for SENDLENS_INSTANTLY_API_KEY.')
-      expect(run.installedUserConfig).toBeUndefined()
+      expect(run.installedUserConfig).toEqual({
+        values: { 'instantly-api-key': 'your api key here' },
+        env: { SENDLENS_INSTANTLY_API_KEY: 'your api key here' },
+      })
     }
   })
 

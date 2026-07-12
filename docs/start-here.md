@@ -1,6 +1,6 @@
 # Start Here
 
-Last updated: 2026-06-27
+Last updated: 2026-07-12
 
 ## Doc Links
 
@@ -131,7 +131,9 @@ Generated Codex companion artifacts should become operational rather than only a
 
 The decision note is [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisions/2026-06-26-pluxx-next-ship-review.md).
 
-The Codex agent-registration slice uses a narrow host-specific ownership record. General cross-host install ownership tracking remains the follow-on because it supports conservative uninstall, prune, reinstall, and diagnostics beyond this one companion surface.
+Core-four local installs now use a shared transactional ownership layer. Copied bundles are staged and validated before an atomic sibling swap, the previous bundle stays recoverable until post-install work succeeds, ownership records hash installed files, reinstall refuses modified or unowned content, uninstall removes only unchanged owned files, and `verify-install` reports same-version content drift. Generated GitHub Release installers use the same stage/backup/rollback and ownership contract.
+
+Codex companion config now has a conservative inverse too: `pluxx codex apply` records the exact before/after config state it owns, and `pluxx codex unapply` restores the prior state only while the applied config remains unchanged. If the user edits active config after apply, unapply preserves it and asks for manual reconciliation instead of overwriting unrelated changes.
 
 ## Who Pluxx Is For Right Now
 

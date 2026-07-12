@@ -1,4 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
+import { createHash, randomBytes } from 'crypto'
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'fs'
 import { homedir } from 'os'
 import { dirname, resolve } from 'path'
 import {
@@ -34,6 +35,26 @@ export interface CodexCompanionApplyResult {
   configPath: string
   changed: boolean
   actions: CodexCompanionApplyAction[]
+}
+
+export interface CodexCompanionUnapplyResult {
+  ok: boolean
+  dryRun: boolean
+  consumerRoot: string
+  configPath: string
+  ownershipPath: string
+  changed: boolean
+  preserved: boolean
+  detail: string
+}
+
+interface CodexConfigOwnership {
+  schema: 'pluxx.codex-config-apply.v1'
+  pluginName: string
+  configPath: string
+  beforeSha256: string
+  afterSha256: string
+  beforeText: string
 }
 
 interface MergeResult {
@@ -182,8 +203,26 @@ function buildCodexCompanionApplyPlan(options: CodexCompanionApplyOptions): Inte
 export function applyCodexCompanion(options: CodexCompanionApplyOptions): CodexCompanionApplyResult {
   const planned = buildCodexCompanionApplyPlan(options)
   if (planned.changed && !options.dryRun && planned.nextText !== undefined) {
-    mkdirSync(dirname(planned.configPath), { recursive: true })
-    writeFileSync(planned.configPath, planned.nextText)
+    const beforeText = existsSync(planned.configPath) ? readFileSync(planned.configPath, 'utf-8') : ''
+    const pluginName = readCodexPluginName(planned.consumerRoot)
+    const ownershipPath = getCodexConfigOwnershipPath(pluginName, options.codexHome)
+    const ownership: CodexConfigOwnership = {
+      schema: 'pluxx.codex-config-apply.v1',
+      pluginName,
+      configPath: planned.configPath,
+      beforeSha256: hashText(beforeText),
+      afterSha256: hashText(planned.nextText),
+      beforeText,
+    }
+    const configMode = existsSync(planned.configPath) ? statSync(planned.configPath).mode & 0o777 : 0o600
+    try {
+      atomicWrite(planned.configPath, planned.nextText, configMode)
+      atomicWrite(ownershipPath, `${JSON.stringify(ownership, null, 2)}\n`, 0o600)
+    } catch (error) {
+      atomicWrite(planned.configPath, beforeText, configMode)
+      rmSync(ownershipPath, { force: true })
+      throw error
+    }
   }
   if ((options.includeAgents ?? true) && !options.dryRun) {
     syncCodexAgentRegistration({
@@ -193,6 +232,101 @@ export function applyCodexCompanion(options: CodexCompanionApplyOptions): CodexC
   }
 
   return stripInternalApplyResult(planned)
+}
+
+export function unapplyCodexCompanion(options: CodexCompanionApplyOptions): CodexCompanionUnapplyResult {
+  const consumerRoot = resolve(options.consumerRoot)
+  const pluginName = readCodexPluginName(consumerRoot)
+  const ownershipPath = getCodexConfigOwnershipPath(pluginName, options.codexHome)
+  if (!existsSync(ownershipPath)) {
+    return {
+      ok: true,
+      dryRun: options.dryRun ?? false,
+      consumerRoot,
+      configPath: resolveCodexApplyConfigPath(options),
+      ownershipPath,
+      changed: false,
+      preserved: false,
+      detail: 'No Pluxx-owned Codex config apply record exists.',
+    }
+  }
+  const expectedConfigPath = resolveCodexApplyConfigPath(options)
+  const ownership = readCodexConfigOwnership(ownershipPath, pluginName, expectedConfigPath)
+  const currentText = existsSync(ownership.configPath) ? readFileSync(ownership.configPath, 'utf-8') : ''
+  if (hashText(currentText) !== ownership.afterSha256) {
+    return {
+      ok: true,
+      dryRun: options.dryRun ?? false,
+      consumerRoot,
+      configPath: ownership.configPath,
+      ownershipPath,
+      changed: false,
+      preserved: true,
+      detail: 'Preserved active Codex config because it changed after Pluxx apply; remove the owned settings manually after reviewing the diff.',
+    }
+  }
+  if (!options.dryRun) {
+    const configMode = existsSync(ownership.configPath) ? statSync(ownership.configPath).mode & 0o777 : 0o600
+    atomicWrite(ownership.configPath, ownership.beforeText, configMode)
+    rmSync(ownershipPath, { force: true })
+  }
+  return {
+    ok: true,
+    dryRun: options.dryRun ?? false,
+    consumerRoot,
+    configPath: ownership.configPath,
+    ownershipPath,
+    changed: true,
+    preserved: false,
+    detail: 'Removed the unchanged Codex config state owned by Pluxx and restored the previous config.',
+  }
+}
+
+function hashText(value: string): string {
+  return createHash('sha256').update(value).digest('hex')
+}
+
+function atomicWrite(path: string, content: string, mode = 0o600): void {
+  mkdirSync(dirname(path), { recursive: true })
+  const temporary = `${path}.tmp-${process.pid}-${randomBytes(4).toString('hex')}`
+  writeFileSync(temporary, content, { mode })
+  renameSync(temporary, path)
+}
+
+function readCodexPluginName(consumerRoot: string): string {
+  const manifestPath = resolve(consumerRoot, '.codex-plugin/plugin.json')
+  try {
+    const parsed = JSON.parse(readFileSync(manifestPath, 'utf-8')) as { name?: unknown }
+    if (typeof parsed.name !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(parsed.name)) throw new Error('invalid plugin name')
+    return parsed.name
+  } catch (error) {
+    throw new Error(`Cannot identify Codex plugin from ${manifestPath}: ${String(error)}`)
+  }
+}
+
+function getCodexConfigOwnershipPath(pluginName: string, codexHome?: string): string {
+  const homeDir = process.env.HOME?.trim() || homedir()
+  const root = resolve(codexHome ?? process.env.CODEX_HOME?.trim() ?? resolve(homeDir, '.codex'))
+  return resolve(root, 'pluxx/config-applies', `${pluginName}.json`)
+}
+
+function readCodexConfigOwnership(path: string, pluginName: string, expectedConfigPath: string): CodexConfigOwnership {
+  try {
+    const parsed = JSON.parse(readFileSync(path, 'utf-8')) as Partial<CodexConfigOwnership>
+    if (
+      parsed.schema !== 'pluxx.codex-config-apply.v1'
+      || parsed.pluginName !== pluginName
+      || typeof parsed.configPath !== 'string'
+      || resolve(parsed.configPath) !== resolve(expectedConfigPath)
+      || typeof parsed.beforeText !== 'string'
+      || parsed.beforeSha256 !== hashText(parsed.beforeText)
+      || typeof parsed.afterSha256 !== 'string'
+      || !/^[a-f0-9]{64}$/.test(parsed.afterSha256)
+    ) throw new Error('unexpected ownership schema, identity, or hashes')
+    return parsed as CodexConfigOwnership
+  } catch (error) {
+    throw new Error(`Cannot use Codex config ownership record ${path}: ${String(error)}`)
+  }
 }
 
 export function ensureCodexHooksFeature(source: string): MergeResult {

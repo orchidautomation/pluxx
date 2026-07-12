@@ -1015,17 +1015,19 @@ export PLUXX_SAVED_USER_CONFIG_PATH
 `
 }
 
-function renderInstallerMcpPathMaterializationSnippet(platform: TargetPlatform, installDirVariable: string): string {
+function renderInstallerMcpPathMaterializationSnippet(platform: TargetPlatform, installDirVariable: string, runtimeRootVariable = installDirVariable): string {
   if (platform !== 'codex') return ''
 
   return `
 export PLUXX_INSTALL_DIR="${installDirVariable}"
+export PLUXX_RUNTIME_ROOT="${runtimeRootVariable}"
 
 node <<'NODE'
 const fs = require('fs')
 const path = require('path')
 
 const installDir = process.env.PLUXX_INSTALL_DIR
+const runtimeRoot = process.env.PLUXX_RUNTIME_ROOT || installDir
 
 if (installDir) {
   const materializeInstalledStdioPath = (value) => {
@@ -1035,11 +1037,11 @@ if (installDir) {
     const rootRef = normalized.match(/^\\$\\{(?:CLAUDE_PLUGIN_ROOT|CURSOR_PLUGIN_ROOT|PLUGIN_ROOT)\\}[\\\\/](.+)$/)
 
     if (rootRef) {
-      return path.resolve(installDir, rootRef[1])
+      return path.resolve(runtimeRoot, rootRef[1])
     }
 
     if (normalized.startsWith('./') || normalized.startsWith('../')) {
-      return path.resolve(installDir, normalized)
+      return path.resolve(runtimeRoot, normalized)
     }
 
     return value
@@ -1483,6 +1485,135 @@ fi
 `
 }
 
+function renderInstallerTransactionHelpers(platform: 'claude-code' | 'cursor' | 'codex' | 'opencode'): string {
+  return `
+PLUXX_TX_PLATFORM="${platform}"
+PLUXX_TX_STAGE=""
+PLUXX_TX_BACKUP=""
+PLUXX_TX_SWAPPED=0
+
+pluxx_tx_cleanup() {
+  if [[ "$PLUXX_TX_SWAPPED" == "1" ]]; then
+    rm -rf "$INSTALL_DIR"
+    if [[ -e "$PLUXX_TX_BACKUP" || -L "$PLUXX_TX_BACKUP" ]]; then
+      mv "$PLUXX_TX_BACKUP" "$INSTALL_DIR"
+    fi
+  fi
+  [[ -z "$PLUXX_TX_STAGE" ]] || rm -rf "$PLUXX_TX_STAGE"
+}
+
+pluxx_begin_install_transaction() {
+  local bundle_dir="$1"
+  local nonce="$$-$RANDOM"
+  PLUXX_TX_STAGE="$(dirname "$INSTALL_DIR")/.$PLUGIN_NAME.pluxx-stage-$nonce"
+  PLUXX_TX_BACKUP="$(dirname "$INSTALL_DIR")/.$PLUGIN_NAME.pluxx-backup-$nonce"
+  export INSTALL_DIR PLUGIN_NAME PLUXX_TX_PLATFORM PLUXX_TX_STAGE PLUXX_TX_BACKUP
+  export PLUXX_BUNDLE_DIR="$bundle_dir"
+  node <<'NODE'
+const crypto = require('crypto')
+const fs = require('fs')
+const path = require('path')
+const installDir = process.env.INSTALL_DIR
+const pluginName = process.env.PLUGIN_NAME
+const platform = process.env.PLUXX_TX_PLATFORM
+const stage = process.env.PLUXX_TX_STAGE
+const home = path.resolve(process.env.HOME)
+const resolvedInstallDir = path.resolve(installDir)
+const conventionalRoots = [path.join('.claude', 'plugins'), path.join('.cursor', 'plugins'), path.join('.codex', 'plugins'), path.join('.config', 'opencode')].map((value) => path.join(home, value))
+const ownershipRoot = conventionalRoots.some((root) => resolvedInstallDir === root || resolvedInstallDir.startsWith(root + path.sep))
+  ? path.join(home, '.pluxx/install-ownership')
+  : path.join(path.dirname(resolvedInstallDir), '.pluxx-install-ownership')
+const ownershipPath = path.join(ownershipRoot, pluginName, platform + '.json')
+const hash = (value) => crypto.createHash('sha256').update(value).digest('hex')
+const walk = (root) => {
+  if (!fs.existsSync(root)) return []
+  const result = []
+  const visit = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const filepath = path.join(dir, entry.name)
+      const relativePath = path.relative(root, filepath).replace(/\\\\/g, '/')
+      const stats = fs.lstatSync(filepath)
+      if (stats.isSymbolicLink()) result.push({ path: relativePath, kind: 'symlink', sha256: hash(fs.readlinkSync(filepath)) })
+      else if (stats.isDirectory()) visit(filepath)
+      else if (stats.isFile()) result.push({ path: relativePath, kind: 'file', sha256: hash(fs.readFileSync(filepath)) })
+    }
+  }
+  visit(root)
+  return result
+}
+if (fs.existsSync(installDir)) {
+  if (!fs.existsSync(ownershipPath)) {
+    const legacy = walk(installDir)
+    if (!legacy.every((entry) => entry.path === '.pluxx-user.json')) {
+      throw new Error('Refusing to replace unowned install at ' + installDir + '. Move it aside or uninstall it manually, then retry.')
+    }
+  } else {
+    const record = JSON.parse(fs.readFileSync(ownershipPath, 'utf8'))
+    if (record.schema !== 'pluxx.install-ownership.v1' || record.pluginName !== pluginName || record.platform !== platform || path.resolve(record.installPath) !== path.resolve(installDir) || !Array.isArray(record.entries)) {
+      throw new Error('Invalid install ownership record: ' + ownershipPath)
+    }
+    const expected = new Map(record.entries.map((entry) => [entry.path, entry]))
+    const actual = new Map(walk(installDir).map((entry) => [entry.path, entry]))
+    for (const [entryPath, entry] of expected) {
+      const current = actual.get(entryPath)
+      if (!current || current.kind !== entry.kind || current.sha256 !== entry.sha256) throw new Error('Refusing to replace modified installed file: ' + entryPath)
+    }
+    for (const entryPath of actual.keys()) if (!expected.has(entryPath)) throw new Error('Refusing to replace unowned installed file: ' + entryPath)
+  }
+}
+fs.cpSync(process.env.PLUXX_BUNDLE_DIR, stage, { recursive: true })
+NODE
+}
+
+pluxx_swap_install_transaction() {
+  if [[ -e "$INSTALL_DIR" || -L "$INSTALL_DIR" ]]; then mv "$INSTALL_DIR" "$PLUXX_TX_BACKUP"; fi
+  mv "$PLUXX_TX_STAGE" "$INSTALL_DIR"
+  PLUXX_TX_SWAPPED=1
+}
+
+pluxx_finalize_install_transaction() {
+  export INSTALL_DIR PLUGIN_NAME PLUXX_TX_PLATFORM
+  node <<'NODE'
+const crypto = require('crypto')
+const fs = require('fs')
+const path = require('path')
+const root = path.resolve(process.env.INSTALL_DIR)
+const hash = (value) => crypto.createHash('sha256').update(value).digest('hex')
+const entries = []
+const visit = (dir) => {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+    const filepath = path.join(dir, entry.name)
+    const relativePath = path.relative(root, filepath).replace(/\\\\/g, '/')
+    const stats = fs.lstatSync(filepath)
+    if (stats.isSymbolicLink()) entries.push({ path: relativePath, kind: 'symlink', sha256: hash(fs.readlinkSync(filepath)) })
+    else if (stats.isDirectory()) visit(filepath)
+    else if (stats.isFile()) entries.push({ path: relativePath, kind: 'file', sha256: hash(fs.readFileSync(filepath)) })
+  }
+}
+visit(root)
+const home = path.resolve(process.env.HOME)
+const conventionalRoots = [path.join('.claude', 'plugins'), path.join('.cursor', 'plugins'), path.join('.codex', 'plugins'), path.join('.config', 'opencode')].map((value) => path.join(home, value))
+const ownershipRoot = conventionalRoots.some((managedRoot) => root === managedRoot || root.startsWith(managedRoot + path.sep))
+  ? path.join(home, '.pluxx/install-ownership')
+  : path.join(path.dirname(root), '.pluxx-install-ownership')
+const ownershipPath = path.join(ownershipRoot, process.env.PLUGIN_NAME, process.env.PLUXX_TX_PLATFORM + '.json')
+fs.mkdirSync(path.dirname(ownershipPath), { recursive: true })
+fs.writeFileSync(ownershipPath, JSON.stringify({
+  schema: 'pluxx.install-ownership.v1',
+  pluginName: process.env.PLUGIN_NAME,
+  platform: process.env.PLUXX_TX_PLATFORM,
+  installPath: root,
+  kind: 'copy',
+  entries,
+}, null, 2) + '\\n', { mode: 0o600 })
+NODE
+  rm -rf "$PLUXX_TX_BACKUP"
+  PLUXX_TX_SWAPPED=0
+  PLUXX_TX_STAGE=""
+}
+`
+}
+
 function renderInstallClaudeCodeScript(config: PluginConfig): string {
   return `#!/usr/bin/env bash
 set -euo pipefail
@@ -1492,11 +1623,13 @@ PLUGIN_NAME="\${PLUXX_PLUGIN_NAME:-PLUGIN_PLACEHOLDER}"
 MARKETPLACE_NAME="\${PLUXX_CLAUDE_MARKETPLACE_NAME:-PLUGIN_PLACEHOLDER-releases}"
 BUNDLE_URL="\${PLUXX_CLAUDE_BUNDLE_URL:-https://github.com/\${REPO}/releases/latest/download/CLAUDE_BUNDLE_PLACEHOLDER}"
 INSTALL_ROOT="\${PLUXX_CLAUDE_MARKETPLACE_DIR:-$HOME/.claude/plugins/data/$MARKETPLACE_NAME}"
+INSTALL_DIR="$INSTALL_ROOT/plugins/$PLUGIN_NAME"
 SKIP_INSTALL="\${PLUXX_CLAUDE_SKIP_INSTALL:-0}"
 BUNDLE_PATH="\${PLUXX_CLAUDE_BUNDLE_PATH:-}"
 AUTHOR_NAME="\${PLUXX_PLUGIN_AUTHOR:-AUTHOR_PLACEHOLDER}"
 HOMEPAGE_URL="\${PLUXX_PLUGIN_HOMEPAGE:-HOMEPAGE_PLACEHOLDER}"
 DESCRIPTION_FALLBACK="\${PLUXX_PLUGIN_DESCRIPTION:-DESCRIPTION_PLACEHOLDER}"
+${renderInstallerTransactionHelpers('claude-code')}
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -1509,7 +1642,7 @@ need_cmd tar
 need_cmd mktemp
 need_cmd grep
 need_cmd sed
-${hasInstallerUserConfig(config, 'claude-code') ? 'need_cmd node' : ''}
+need_cmd node
 
 if [[ "$SKIP_INSTALL" != "1" ]]; then
   need_cmd curl
@@ -1518,6 +1651,7 @@ fi
 
 TMP_DIR="$(mktemp -d)"
 cleanup() {
+  pluxx_tx_cleanup
   rm -rf "$TMP_DIR"
 }
 trap cleanup EXIT
@@ -1544,12 +1678,12 @@ VERSION="$(grep -E '"version"' "$PLUGIN_MANIFEST" | head -n1 | sed -E 's/.*"vers
 DESCRIPTION="$(grep -E '"description"' "$PLUGIN_MANIFEST" | head -n1 | sed -E 's/.*"description"[[:space:]]*:[[:space:]]*"([^"]+)".*/\\1/')"
 
 mkdir -p "$INSTALL_ROOT/.claude-plugin" "$INSTALL_ROOT/plugins"
-${renderInstallerSavedUserConfigCaptureSnippet(config, 'claude-code', '$INSTALL_ROOT/plugins/$PLUGIN_NAME')}
-rm -rf "$INSTALL_ROOT/plugins/$PLUGIN_NAME"
-cp -R "$BUNDLE_DIR" "$INSTALL_ROOT/plugins/$PLUGIN_NAME"
-${renderInstallerUserConfigSnippet(config, 'claude-code', '$INSTALL_ROOT/plugins/$PLUGIN_NAME')}
-${renderInstallerMcpPathMaterializationSnippet('claude-code', '$INSTALL_ROOT/plugins/$PLUGIN_NAME')}
-${renderInstallerRuntimeBootstrapSnippet('$INSTALL_ROOT/plugins/$PLUGIN_NAME')}
+${renderInstallerSavedUserConfigCaptureSnippet(config, 'claude-code', '$INSTALL_DIR')}
+pluxx_begin_install_transaction "$BUNDLE_DIR"
+${renderInstallerUserConfigSnippet(config, 'claude-code', '$PLUXX_TX_STAGE')}
+${renderInstallerMcpPathMaterializationSnippet('claude-code', '$PLUXX_TX_STAGE', '$INSTALL_DIR')}
+${renderInstallerRuntimeBootstrapSnippet('$PLUXX_TX_STAGE')}
+pluxx_swap_install_transaction
 
 cat > "$INSTALL_ROOT/.claude-plugin/marketplace.json" <<JSON
 {
@@ -1574,6 +1708,7 @@ cat > "$INSTALL_ROOT/.claude-plugin/marketplace.json" <<JSON
 JSON
 
 if [[ "$SKIP_INSTALL" == "1" ]]; then
+  pluxx_finalize_install_transaction
   echo "Prepared Claude marketplace at: $INSTALL_ROOT"
   echo "Plugin bundle is at: $INSTALL_ROOT/plugins/$PLUGIN_NAME"
   exit 0
@@ -1587,6 +1722,7 @@ fi
 
 claude plugin uninstall "\${PLUGIN_NAME}@\${MARKETPLACE_NAME}" --scope user >/dev/null 2>&1 || true
 claude plugin install "\${PLUGIN_NAME}@\${MARKETPLACE_NAME}" --scope user
+pluxx_finalize_install_transaction
 
 echo
 echo "Installed \${PLUGIN_NAME}@\${MARKETPLACE_NAME} into Claude Code user scope."
@@ -1603,6 +1739,7 @@ PLUGIN_NAME="\${PLUXX_PLUGIN_NAME:-PLUGIN_PLACEHOLDER}"
 BUNDLE_URL="\${PLUXX_CURSOR_BUNDLE_URL:-https://github.com/\${REPO}/releases/latest/download/CURSOR_BUNDLE_PLACEHOLDER}"
 INSTALL_DIR="\${PLUXX_CURSOR_INSTALL_DIR:-$HOME/.cursor/plugins/local/$PLUGIN_NAME}"
 BUNDLE_PATH="\${PLUXX_CURSOR_BUNDLE_PATH:-}"
+${renderInstallerTransactionHelpers('cursor')}
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -1614,10 +1751,11 @@ need_cmd() {
 need_cmd tar
 need_cmd mktemp
 need_cmd curl
-${hasInstallerUserConfig(config, 'cursor') ? 'need_cmd node' : ''}
+need_cmd node
 
 TMP_DIR="$(mktemp -d)"
 cleanup() {
+  pluxx_tx_cleanup
   rm -rf "$TMP_DIR"
 }
 trap cleanup EXIT
@@ -1642,11 +1780,12 @@ fi
 
 mkdir -p "$(dirname "$INSTALL_DIR")"
 ${renderInstallerSavedUserConfigCaptureSnippet(config, 'cursor', '$INSTALL_DIR')}
-rm -rf "$INSTALL_DIR"
-cp -R "$BUNDLE_DIR" "$INSTALL_DIR"
-${renderInstallerUserConfigSnippet(config, 'cursor', '$INSTALL_DIR')}
-${renderInstallerMcpPathMaterializationSnippet('cursor', '$INSTALL_DIR')}
-${renderInstallerRuntimeBootstrapSnippet('$INSTALL_DIR')}
+pluxx_begin_install_transaction "$BUNDLE_DIR"
+${renderInstallerUserConfigSnippet(config, 'cursor', '$PLUXX_TX_STAGE')}
+${renderInstallerMcpPathMaterializationSnippet('cursor', '$PLUXX_TX_STAGE', '$INSTALL_DIR')}
+${renderInstallerRuntimeBootstrapSnippet('$PLUXX_TX_STAGE')}
+pluxx_swap_install_transaction
+pluxx_finalize_install_transaction
 
 echo "Installed $PLUGIN_NAME to $INSTALL_DIR"
 echo "${getPublishReloadInstruction('cursor')}"
@@ -1665,6 +1804,7 @@ MARKETPLACE_PATH="\${PLUXX_CODEX_MARKETPLACE_PATH:-$HOME/.agents/plugins/marketp
 BUNDLE_PATH="\${PLUXX_CODEX_BUNDLE_PATH:-}"
 MARKETPLACE_NAME="\${PLUXX_CODEX_MARKETPLACE_NAME:-$PLUGIN_NAME-local}"
 MARKETPLACE_DISPLAY_NAME="\${PLUXX_CODEX_MARKETPLACE_DISPLAY_NAME:-DISPLAY_PLACEHOLDER Local}"
+${renderInstallerTransactionHelpers('codex')}
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -1679,6 +1819,7 @@ need_cmd node
 
 TMP_DIR="$(mktemp -d)"
 cleanup() {
+  pluxx_tx_cleanup
   rm -rf "$TMP_DIR"
 }
 trap cleanup EXIT
@@ -1704,11 +1845,11 @@ fi
 
 mkdir -p "$(dirname "$INSTALL_DIR")"
 ${renderInstallerSavedUserConfigCaptureSnippet(config, 'codex', '$INSTALL_DIR')}
-rm -rf "$INSTALL_DIR"
-cp -R "$BUNDLE_DIR" "$INSTALL_DIR"
-${renderInstallerUserConfigSnippet(config, 'codex', '$INSTALL_DIR')}
-${renderInstallerMcpPathMaterializationSnippet('codex', '$INSTALL_DIR')}
-${renderInstallerRuntimeBootstrapSnippet('$INSTALL_DIR')}
+pluxx_begin_install_transaction "$BUNDLE_DIR"
+${renderInstallerUserConfigSnippet(config, 'codex', '$PLUXX_TX_STAGE')}
+${renderInstallerMcpPathMaterializationSnippet('codex', '$PLUXX_TX_STAGE', '$INSTALL_DIR')}
+${renderInstallerRuntimeBootstrapSnippet('$PLUXX_TX_STAGE')}
+pluxx_swap_install_transaction
 ${renderInstallerCodexAgentRegistrationSnippet('$INSTALL_DIR')}
 ${renderInstallerCodexPluginHooksSnippet('$INSTALL_DIR')}
 
@@ -1767,6 +1908,7 @@ fs.writeFileSync(
   ) + '\\n',
 )
 NODE
+pluxx_finalize_install_transaction
 
 echo "Installed $PLUGIN_NAME to $INSTALL_DIR"
 echo "Updated Codex marketplace catalog at $MARKETPLACE_PATH"
@@ -1786,6 +1928,7 @@ INSTALL_DIR="\${PLUXX_OPENCODE_INSTALL_DIR:-$PLUGIN_ROOT_DIR/$PLUGIN_NAME}"
 ENTRY_PATH="\${PLUXX_OPENCODE_ENTRY_PATH:-$PLUGIN_ROOT_DIR/$PLUGIN_NAME.ts}"
 SKILLS_ROOT="\${PLUXX_OPENCODE_SKILLS_ROOT:-$HOME/.config/opencode/skills}"
 BUNDLE_PATH="\${PLUXX_OPENCODE_BUNDLE_PATH:-}"
+${renderInstallerTransactionHelpers('opencode')}
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -1800,6 +1943,7 @@ need_cmd node
 
 TMP_DIR="$(mktemp -d)"
 cleanup() {
+  pluxx_tx_cleanup
   rm -rf "$TMP_DIR"
 }
 trap cleanup EXIT
@@ -1825,11 +1969,11 @@ fi
 
 mkdir -p "$(dirname "$INSTALL_DIR")" "$SKILLS_ROOT"
 ${renderInstallerSavedUserConfigCaptureSnippet(config, 'opencode', '$INSTALL_DIR')}
-rm -rf "$INSTALL_DIR"
-cp -R "$BUNDLE_DIR" "$INSTALL_DIR"
-${renderInstallerUserConfigSnippet(config, 'opencode', '$INSTALL_DIR')}
-${renderInstallerMcpPathMaterializationSnippet('opencode', '$INSTALL_DIR')}
-${renderInstallerRuntimeBootstrapSnippet('$INSTALL_DIR')}
+pluxx_begin_install_transaction "$BUNDLE_DIR"
+${renderInstallerUserConfigSnippet(config, 'opencode', '$PLUXX_TX_STAGE')}
+${renderInstallerMcpPathMaterializationSnippet('opencode', '$PLUXX_TX_STAGE', '$INSTALL_DIR')}
+${renderInstallerRuntimeBootstrapSnippet('$PLUXX_TX_STAGE')}
+pluxx_swap_install_transaction
 
 export ENTRY_PATH
 export PLUGIN_NAME
@@ -1915,6 +2059,7 @@ fs.writeFileSync(
 NODE
   done
 fi
+pluxx_finalize_install_transaction
 
 echo "Installed $PLUGIN_NAME plugin code to $INSTALL_DIR"
 echo "Installed OpenCode wrapper at $ENTRY_PATH"

@@ -35,6 +35,7 @@ import {
   removeCodexAgentRegistration,
   syncCodexAgentRegistration,
 } from '../codex-agent-install'
+import { removeOwnedInstall, transactionalInstall } from '../install-ownership'
 
 interface InstallTarget {
   platform: TargetPlatform
@@ -520,19 +521,22 @@ function runCommandDefault(command: string, args: string[]): CommandResult {
   }
 }
 
-function createSymlinkInstall(target: PlannedInstallTarget): void {
-  const parentDir = resolve(target.pluginDir, '..')
-  mkdirSync(parentDir, { recursive: true })
-
-  if (existsSync(target.pluginDir)) {
-    rmSync(target.pluginDir, { recursive: true, force: true })
-  }
-
-  symlinkSync(target.sourceDir, target.pluginDir)
+function createSymlinkInstall(target: PlannedInstallTarget, pluginName: string): void {
+  const manifestPath = manifestPathForPlatform(target.platform)
+  transactionalInstall({
+    pluginName,
+    platform: target.platform,
+    sourcePath: target.sourceDir,
+    installPath: target.pluginDir,
+    kind: 'symlink',
+    validate: manifestPath && existsSync(resolve(target.sourceDir, manifestPath))
+      ? path => assertInstalledBundleIntegrity(path, target.platform, `Staged ${target.platform} plugin bundle`)
+      : undefined,
+  })
 }
 
 function createOpenCodeSymlinkInstall(target: PlannedInstallTarget, pluginName: string): void {
-  createSymlinkInstall(target)
+  createSymlinkInstall(target, pluginName)
   writeOpenCodeEntryFile(target.pluginDir, pluginName)
   syncOpenCodeSkills(target.pluginDir, pluginName)
 }
@@ -632,19 +636,32 @@ function clearCodexLocalCache(pluginName: string): void {
   rmSync(cacheRoot, { recursive: true, force: true })
 }
 
-function createCopiedInstall(target: PlannedInstallTarget): void {
-  const parentDir = resolve(target.pluginDir, '..')
-  mkdirSync(parentDir, { recursive: true })
-
-  if (existsSync(target.pluginDir)) {
-    rmSync(target.pluginDir, { recursive: true, force: true })
+function createCopiedInstall(
+  target: PlannedInstallTarget,
+  pluginName: string,
+  prepare?: (stagePath: string) => void,
+  validate?: (path: string) => void,
+): void {
+  const manifestPath = manifestPathForPlatform(target.platform)
+  const validateBundle = (path: string): void => {
+    if (manifestPath && existsSync(resolve(path, manifestPath))) {
+      assertInstalledBundleIntegrity(path, target.platform, `Staged ${target.platform} plugin bundle`)
+    }
+    validate?.(path)
   }
-
-  cpSync(target.sourceDir, target.pluginDir, { recursive: true })
+  transactionalInstall({
+    pluginName,
+    platform: target.platform,
+    sourcePath: target.sourceDir,
+    installPath: target.pluginDir,
+    kind: 'copy',
+    prepare,
+    validate: validateBundle,
+  })
 }
 
 function createOpenCodeCopiedInstall(target: PlannedInstallTarget, pluginName: string): void {
-  createCopiedInstall(target)
+  createCopiedInstall(target, pluginName)
   writeOpenCodeEntryFile(target.pluginDir, pluginName)
   syncOpenCodeSkills(target.pluginDir, pluginName)
 }
@@ -697,6 +714,7 @@ function patchInstalledMcpConfig(
   platform: TargetPlatform,
   config: PluginConfig,
   entries: ResolvedUserConfigEntry[],
+  runtimeRoot = pluginDir,
 ): void {
   if (!config.mcp) return
 
@@ -721,10 +739,10 @@ function patchInstalledMcpConfig(
       if (server.transport === 'stdio') {
         const serverRuntimeEnvVars = collectStdioServerRuntimeEnvVars(server.env, runtimeEnvVars)
         const commandConfig = serverRuntimeEnvVars.size > 0
-          ? buildRuntimeWrappedStdioMcpCommand(server, platform, serverRuntimeEnvVars, pluginDir)
+          ? buildRuntimeWrappedStdioMcpCommand(server, platform, serverRuntimeEnvVars, runtimeRoot)
           : {
-              command: materializeInstalledPluginOwnedStdioPathForPlatform(server.command, platform, pluginDir),
-              args: (server.args ?? []).map((value) => materializeInstalledPluginOwnedStdioPathForPlatform(value, platform, pluginDir)),
+              command: materializeInstalledPluginOwnedStdioPathForPlatform(server.command, platform, runtimeRoot),
+              args: (server.args ?? []).map((value) => materializeInstalledPluginOwnedStdioPathForPlatform(value, platform, runtimeRoot)),
             }
         const stdioEnv = materializeStdioEnvRecord(server.env, env, secretEnvVars, serverRuntimeEnvVars)
         if (serverRuntimeEnvVars.size > 0) ensureMcpRuntimeEnvScript(pluginDir)
@@ -770,10 +788,10 @@ function patchInstalledMcpConfig(
       if (server.transport === 'stdio') {
         const serverRuntimeEnvVars = collectStdioServerRuntimeEnvVars(server.env, runtimeEnvVars)
         const commandConfig = serverRuntimeEnvVars.size > 0
-          ? buildRuntimeWrappedStdioMcpCommand(server, platform, serverRuntimeEnvVars, pluginDir)
+          ? buildRuntimeWrappedStdioMcpCommand(server, platform, serverRuntimeEnvVars, runtimeRoot)
           : {
-              command: materializeInstalledPluginOwnedStdioPathForPlatform(server.command, platform, pluginDir),
-              args: (server.args ?? []).map((value) => materializeInstalledPluginOwnedStdioPathForPlatform(value, platform, pluginDir)),
+              command: materializeInstalledPluginOwnedStdioPathForPlatform(server.command, platform, runtimeRoot),
+              args: (server.args ?? []).map((value) => materializeInstalledPluginOwnedStdioPathForPlatform(value, platform, runtimeRoot)),
             }
         const stdioEnv = materializeStdioEnvRecord(server.env, env, secretEnvVars, serverRuntimeEnvVars)
         if (serverRuntimeEnvVars.size > 0) ensureMcpRuntimeEnvScript(pluginDir)
@@ -870,6 +888,7 @@ function materializeInstalledPlugin(
   platform: TargetPlatform,
   config: PluginConfig,
   entries: ResolvedUserConfigEntry[],
+  runtimeRoot = pluginDir,
 ): void {
   const runtimeEnvVars = collectRuntimeInheritedStdioEnvVars(config, [platform])
   const persistentEntries = entries.filter((entry) => !entry.envVar || !runtimeEnvVars.has(entry.envVar))
@@ -877,7 +896,7 @@ function materializeInstalledPlugin(
     writeInstalledUserConfig(pluginDir, config, persistentEntries, platform)
     disableInstalledEnvValidation(pluginDir, persistentEntries)
   }
-  patchInstalledMcpConfig(pluginDir, platform, config, entries)
+  patchInstalledMcpConfig(pluginDir, platform, config, entries, runtimeRoot)
 }
 
 function codexInstallNeedsCopiedMaterialization(config?: PluginConfig): boolean {
@@ -1547,17 +1566,24 @@ export async function installPlugin(
           : undefined,
       )
     } else if (target.platform === 'opencode' && shouldMaterialize) {
-      createOpenCodeCopiedInstall(target, pluginName)
-      materializeInstalledPlugin(target.pluginDir, target.platform, options.config!, targetConfigEntries)
-      verifyOpenCodeInstall(target.pluginDir, pluginName)
+      createCopiedInstall(
+        target,
+        pluginName,
+        stagePath => materializeInstalledPlugin(stagePath, target.platform, options.config!, targetConfigEntries, target.pluginDir),
+      )
+      writeOpenCodeEntryFile(target.pluginDir, pluginName)
+      syncOpenCodeSkills(target.pluginDir, pluginName)
     } else if (target.platform === 'opencode') {
       createOpenCodeSymlinkInstall(target, pluginName)
       verifyOpenCodeInstall(target.pluginDir, pluginName)
     } else if (shouldMaterialize || shouldMaterializeCodexInstall) {
-      createCopiedInstall(target)
-      materializeInstalledPlugin(target.pluginDir, target.platform, options.config!, targetConfigEntries)
+      createCopiedInstall(
+        target,
+        pluginName,
+        stagePath => materializeInstalledPlugin(stagePath, target.platform, options.config!, targetConfigEntries, target.pluginDir),
+      )
     } else {
-      createSymlinkInstall(target)
+      createSymlinkInstall(target, pluginName)
     }
     const manifestPath = manifestPathForPlatform(target.platform)
     if (manifestPath && existsSync(resolve(target.pluginDir, manifestPath))) {
@@ -1613,10 +1639,10 @@ export async function uninstallPlugin(
       continue
     }
 
-    let removedTarget = false
-    if (existsSync(target.pluginDir)) {
-      rmSync(target.pluginDir, { recursive: true, force: true })
-      removedTarget = true
+    const ownedRemoval = removeOwnedInstall(pluginName, target.platform, target.pluginDir)
+    let removedTarget = ownedRemoval.changed
+    if (ownedRemoval.preserved.length > 0 && !options.quiet) {
+      console.warn(`  preserved ${ownedRemoval.preserved.length} modified or unowned installed path(s) under ${target.pluginDir}`)
     }
     if (target.platform === 'opencode') {
       const entryPath = getOpenCodeEntryPath(target.pluginDir)
