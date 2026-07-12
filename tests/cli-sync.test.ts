@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { resolve } from 'path'
 import { introspectMcpServer } from '../src/mcp/introspect'
 import { writeMcpScaffold } from '../src/cli/init-from-mcp'
+import { AGENT_CONTEXT_PATH } from '../src/cli/agent'
 
 const ROOT = resolve(import.meta.dir, '..')
 let testDir = ''
@@ -122,6 +123,8 @@ describe('CLI sync command', () => {
         'Keep this custom follow-up note.',
       ),
     )
+    mkdirSync(resolve(testDir, '.pluxx/agent'), { recursive: true })
+    writeFileSync(resolve(testDir, AGENT_CONTEXT_PATH), '# stale agent context\n')
 
     writeFileSync(
       statePath,
@@ -167,11 +170,14 @@ describe('CLI sync command', () => {
       updatedFiles: string[]
       removedFiles: string[]
       preservedFiles: string[]
+      mutation: { deletes: string[] }
     }
 
     expect(summary.addedFiles).toContain('skills/search-technologies/SKILL.md')
     expect(summary.preservedFiles).toContain('skills/find-people/SKILL.md')
     expect(summary.updatedFiles).toContain('./INSTRUCTIONS.md')
     expect(summary.removedFiles).toEqual(['commands/find-people.md'])
+    expect(summary.mutation.deletes).toContain(AGENT_CONTEXT_PATH)
+    expect(existsSync(resolve(testDir, AGENT_CONTEXT_PATH))).toBe(false)
   })
 })

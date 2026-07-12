@@ -2162,15 +2162,6 @@ async function runSync() {
     printJson({
       ...result,
       dryRun: runtime.dryRun,
-      mutation: createMutationManifest({
-        files: [
-          ...result.addedFiles.map((path) => ({ path, action: 'create' as const })),
-          ...result.updatedFiles.map((path) => ({ path, action: 'update' as const })),
-          ...result.removedFiles.map((path) => ({ path, action: 'delete' as const })),
-        ],
-        renames: result.renamedFiles,
-        conflicts: result.conflicts,
-      }),
     })
     return
   }
