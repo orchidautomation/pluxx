@@ -8,6 +8,7 @@ import {
   readInstallOwnership,
   removeOwnedInstall,
   transactionalInstall,
+  transactionalInstallGroup,
 } from '../src/install-ownership'
 
 const ROOT = resolve(import.meta.dir, '.install-ownership-fixture')
@@ -71,6 +72,53 @@ describe('install ownership transactions', () => {
       validate: () => { if (++calls === 2) throw new Error('consumer verification failed') },
     })).toThrow('consumer verification failed')
     expect(readFileSync(resolve(INSTALL, 'owned.txt'), 'utf-8')).toBe('owned\n')
+  })
+
+  it('rolls back every owned surface when a companion swap fails', () => {
+    const entryPath = resolve(HOME, '.cursor/plugins/local/fixture.ts')
+    transactionalInstallGroup({
+      pluginName: 'fixture',
+      platform: 'cursor',
+      targets: [
+        { sourcePath: SOURCE, installPath: INSTALL, kind: 'copy' },
+        { installPath: entryPath, kind: 'file', surface: 'entry', content: 'old entry\n' },
+      ],
+    })
+    writeFileSync(resolve(SOURCE, 'owned.txt'), 'candidate\n')
+    let entryValidations = 0
+
+    expect(() => transactionalInstallGroup({
+      pluginName: 'fixture',
+      platform: 'cursor',
+      targets: [
+        { sourcePath: SOURCE, installPath: INSTALL, kind: 'copy' },
+        {
+          installPath: entryPath,
+          kind: 'file',
+          surface: 'entry',
+          content: 'new entry\n',
+          validate: () => { if (++entryValidations === 2) throw new Error('companion verification failed') },
+        },
+      ],
+    })).toThrow('companion verification failed')
+    expect(readFileSync(resolve(INSTALL, 'owned.txt'), 'utf-8')).toBe('owned\n')
+    expect(readFileSync(entryPath, 'utf-8')).toBe('old entry\n')
+    expect(listInstallOwnershipDrift(readInstallOwnership('fixture', 'cursor', entryPath, 'entry')!)).toEqual([])
+  })
+
+  it('refuses to replace an unowned companion file', () => {
+    const entryPath = resolve(HOME, '.cursor/plugins/local/fixture.ts')
+    mkdirSync(resolve(entryPath, '..'), { recursive: true })
+    writeFileSync(entryPath, 'private entry\n')
+    expect(() => transactionalInstall({
+      pluginName: 'fixture',
+      platform: 'cursor',
+      installPath: entryPath,
+      kind: 'file',
+      surface: 'entry',
+      content: 'managed entry\n',
+    })).toThrow('unowned install')
+    expect(readFileSync(entryPath, 'utf-8')).toBe('private entry\n')
   })
 
   it('refuses reinstall over modified or unowned copied content', () => {

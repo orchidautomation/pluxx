@@ -1929,6 +1929,172 @@ ENTRY_PATH="\${PLUXX_OPENCODE_ENTRY_PATH:-$PLUGIN_ROOT_DIR/$PLUGIN_NAME.ts}"
 SKILLS_ROOT="\${PLUXX_OPENCODE_SKILLS_ROOT:-$HOME/.config/opencode/skills}"
 BUNDLE_PATH="\${PLUXX_OPENCODE_BUNDLE_PATH:-}"
 ${renderInstallerTransactionHelpers('opencode')}
+PLUXX_OPENCODE_COMPANION_STAGE=""
+PLUXX_OPENCODE_COMPANION_JOURNAL=""
+
+pluxx_opencode_companion_cleanup() {
+  [[ -n "$PLUXX_OPENCODE_COMPANION_JOURNAL" && -f "$PLUXX_OPENCODE_COMPANION_JOURNAL" ]] || return 0
+  export PLUXX_OPENCODE_COMPANION_JOURNAL
+  node <<'NODE'
+const fs = require('fs')
+const journal = JSON.parse(fs.readFileSync(process.env.PLUXX_OPENCODE_COMPANION_JOURNAL, 'utf8'))
+for (const move of [...journal.moves].reverse()) {
+  if (fs.existsSync(move.destination)) fs.rmSync(move.destination, { recursive: true, force: true })
+  if (fs.existsSync(move.backup)) fs.renameSync(move.backup, move.destination)
+}
+for (const ledger of journal.ledgers) {
+  if (ledger.backup && fs.existsSync(ledger.backup)) fs.copyFileSync(ledger.backup, ledger.path)
+  else fs.rmSync(ledger.path, { force: true })
+}
+fs.rmSync(process.env.PLUXX_OPENCODE_COMPANION_JOURNAL, { force: true })
+NODE
+}
+
+pluxx_commit_opencode_companions() {
+  export INSTALL_DIR ENTRY_PATH SKILLS_ROOT PLUGIN_NAME PLUXX_OPENCODE_COMPANION_STAGE PLUXX_OPENCODE_COMPANION_JOURNAL
+  node <<'NODE'
+const crypto = require('crypto')
+const fs = require('fs')
+const path = require('path')
+const hash = (value) => crypto.createHash('sha256').update(value).digest('hex')
+const walk = (root) => {
+  const entries = []
+  if (!fs.existsSync(root)) return entries
+  const visit = (directory) => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const filepath = path.join(directory, entry.name)
+      const relativePath = path.relative(root, filepath).replace(/\\\\/g, '/')
+      const stats = fs.lstatSync(filepath)
+      if (stats.isSymbolicLink()) entries.push({ path: relativePath, kind: 'symlink', sha256: hash(fs.readlinkSync(filepath)) })
+      else if (stats.isDirectory()) visit(filepath)
+      else if (stats.isFile()) entries.push({ path: relativePath, kind: 'file', sha256: hash(fs.readFileSync(filepath)) })
+    }
+  }
+  visit(root)
+  return entries
+}
+const pluginName = process.env.PLUGIN_NAME
+const installDir = path.resolve(process.env.INSTALL_DIR)
+const entryPath = path.resolve(process.env.ENTRY_PATH)
+const skillsRoot = path.resolve(process.env.SKILLS_ROOT)
+const stageRoot = path.resolve(process.env.PLUXX_OPENCODE_COMPANION_STAGE)
+const home = path.resolve(process.env.HOME)
+const conventionalRoot = path.join(home, '.config', 'opencode')
+const ownershipRoot = installDir === conventionalRoot || installDir.startsWith(conventionalRoot + path.sep)
+  ? path.join(home, '.pluxx/install-ownership')
+  : path.join(path.dirname(installDir), '.pluxx-install-ownership')
+const ledgerRoot = path.join(ownershipRoot, pluginName)
+const candidates = [{ surface: 'entry', source: path.join(stageRoot, 'entry.ts'), destination: entryPath, kind: 'file' }]
+const stagedSkills = path.join(stageRoot, 'skills')
+if (fs.existsSync(stagedSkills)) {
+  for (const name of fs.readdirSync(stagedSkills).sort()) {
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(name)) throw new Error('Unsafe OpenCode skill name: ' + name)
+    candidates.push({ surface: 'skill-' + name, source: path.join(stagedSkills, name), destination: path.join(skillsRoot, pluginName + '-' + name), kind: 'copy' })
+  }
+}
+const previous = new Map()
+if (fs.existsSync(ledgerRoot)) {
+  for (const name of fs.readdirSync(ledgerRoot)) {
+    if (!name.startsWith('opencode--') || !name.endsWith('.json')) continue
+    const surface = name.slice('opencode--'.length, -'.json'.length)
+    previous.set(surface, path.join(ledgerRoot, name))
+  }
+}
+for (const [surface, ledgerPath] of previous) {
+  if (candidates.some((candidate) => candidate.surface === surface)) continue
+  const record = JSON.parse(fs.readFileSync(ledgerPath, 'utf8'))
+  const destination = path.resolve(record.installPath || '')
+  if (!surface.startsWith('skill-') || !destination.startsWith(skillsRoot + path.sep) || !path.basename(destination).startsWith(pluginName + '-')) {
+    throw new Error('Invalid OpenCode companion ownership record: ' + ledgerPath)
+  }
+  candidates.push({ surface, destination, kind: record.kind, remove: true })
+}
+const entriesEqual = (expected, actual) => {
+  const expectedMap = new Map(expected.map((entry) => [entry.path, entry]))
+  const actualMap = new Map(actual.map((entry) => [entry.path, entry]))
+  if (expectedMap.size !== actualMap.size) return false
+  for (const [name, entry] of expectedMap) {
+    const current = actualMap.get(name)
+    if (!current || current.kind !== entry.kind || current.sha256 !== entry.sha256) return false
+  }
+  return true
+}
+for (const candidate of candidates) {
+  const ledgerPath = path.join(ledgerRoot, 'opencode--' + candidate.surface + '.json')
+  candidate.ledgerPath = ledgerPath
+  if (!fs.existsSync(candidate.destination)) {
+    if (fs.existsSync(ledgerPath)) throw new Error('Refusing to replace missing owned OpenCode companion: ' + candidate.destination)
+    continue
+  }
+  if (!fs.existsSync(ledgerPath)) throw new Error('Refusing to replace unowned OpenCode companion: ' + candidate.destination)
+  const record = JSON.parse(fs.readFileSync(ledgerPath, 'utf8'))
+  if (record.schema !== 'pluxx.install-ownership.v1' || record.pluginName !== pluginName || record.platform !== 'opencode' || record.surface !== candidate.surface || path.resolve(record.installPath || '') !== candidate.destination || record.kind !== candidate.kind) {
+    throw new Error('Invalid OpenCode companion ownership record: ' + ledgerPath)
+  }
+  const unchanged = candidate.kind === 'file'
+    ? fs.lstatSync(candidate.destination).isFile() && !fs.lstatSync(candidate.destination).isSymbolicLink() && hash(fs.readFileSync(candidate.destination)) === record.rootSha256
+    : fs.lstatSync(candidate.destination).isDirectory() && !fs.lstatSync(candidate.destination).isSymbolicLink() && entriesEqual(record.entries || [], walk(candidate.destination))
+  if (!unchanged) throw new Error('Refusing to replace modified OpenCode companion: ' + candidate.destination)
+}
+fs.mkdirSync(ledgerRoot, { recursive: true })
+const nonce = process.pid + '-' + crypto.randomBytes(5).toString('hex')
+const journal = { moves: [], ledgers: [] }
+fs.writeFileSync(process.env.PLUXX_OPENCODE_COMPANION_JOURNAL, JSON.stringify(journal))
+const saveJournal = () => fs.writeFileSync(process.env.PLUXX_OPENCODE_COMPANION_JOURNAL, JSON.stringify(journal))
+try {
+  for (const candidate of candidates) {
+    fs.mkdirSync(path.dirname(candidate.destination), { recursive: true })
+    const backup = path.join(path.dirname(candidate.destination), '.' + pluginName + '.pluxx-companion-backup-' + nonce + '-' + journal.moves.length)
+    journal.moves.push({ destination: candidate.destination, backup })
+    if (fs.existsSync(candidate.destination)) fs.renameSync(candidate.destination, backup)
+    if (!candidate.remove) fs.renameSync(candidate.source, candidate.destination)
+    saveJournal()
+  }
+  for (const candidate of candidates) {
+    const ledgerBackup = fs.existsSync(candidate.ledgerPath) ? candidate.ledgerPath + '.backup-' + nonce : undefined
+    if (ledgerBackup) fs.copyFileSync(candidate.ledgerPath, ledgerBackup)
+    journal.ledgers.push({ path: candidate.ledgerPath, backup: ledgerBackup })
+    if (candidate.remove) fs.rmSync(candidate.ledgerPath, { force: true })
+    else {
+      const record = {
+        schema: 'pluxx.install-ownership.v1', pluginName, platform: 'opencode', surface: candidate.surface,
+        installPath: candidate.destination, kind: candidate.kind,
+        ...(candidate.kind === 'file' ? { rootSha256: hash(fs.readFileSync(candidate.destination)) } : { entries: walk(candidate.destination) }),
+        entries: candidate.kind === 'file' ? [] : walk(candidate.destination),
+      }
+      const temporary = candidate.ledgerPath + '.tmp-' + nonce
+      fs.writeFileSync(temporary, JSON.stringify(record, null, 2) + '\\n', { mode: 0o600 })
+      fs.renameSync(temporary, candidate.ledgerPath)
+    }
+    saveJournal()
+  }
+} catch (error) {
+  for (const move of [...journal.moves].reverse()) {
+    if (fs.existsSync(move.destination)) fs.rmSync(move.destination, { recursive: true, force: true })
+    if (fs.existsSync(move.backup)) fs.renameSync(move.backup, move.destination)
+  }
+  for (const ledger of journal.ledgers) {
+    if (ledger.backup && fs.existsSync(ledger.backup)) fs.copyFileSync(ledger.backup, ledger.path)
+    else fs.rmSync(ledger.path, { force: true })
+  }
+  fs.rmSync(process.env.PLUXX_OPENCODE_COMPANION_JOURNAL, { force: true })
+  throw error
+}
+NODE
+}
+
+pluxx_finalize_opencode_companions() {
+  export PLUXX_OPENCODE_COMPANION_JOURNAL
+  node <<'NODE'
+const fs = require('fs')
+const journalPath = process.env.PLUXX_OPENCODE_COMPANION_JOURNAL
+const journal = JSON.parse(fs.readFileSync(journalPath, 'utf8'))
+for (const move of journal.moves) fs.rmSync(move.backup, { recursive: true, force: true })
+for (const ledger of journal.ledgers) if (ledger.backup) fs.rmSync(ledger.backup, { force: true })
+fs.rmSync(journalPath, { force: true })
+NODE
+  PLUXX_OPENCODE_COMPANION_JOURNAL=""
+}
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -1943,6 +2109,7 @@ need_cmd node
 
 TMP_DIR="$(mktemp -d)"
 cleanup() {
+  pluxx_opencode_companion_cleanup
   pluxx_tx_cleanup
   rm -rf "$TMP_DIR"
 }
@@ -1973,15 +2140,15 @@ pluxx_begin_install_transaction "$BUNDLE_DIR"
 ${renderInstallerUserConfigSnippet(config, 'opencode', '$PLUXX_TX_STAGE')}
 ${renderInstallerMcpPathMaterializationSnippet('opencode', '$PLUXX_TX_STAGE', '$INSTALL_DIR')}
 ${renderInstallerRuntimeBootstrapSnippet('$PLUXX_TX_STAGE')}
-pluxx_swap_install_transaction
-
-export ENTRY_PATH
-export PLUGIN_NAME
+PLUXX_OPENCODE_COMPANION_STAGE="$TMP_DIR/opencode-companions"
+PLUXX_OPENCODE_COMPANION_JOURNAL="$TMP_DIR/opencode-companions-journal.json"
+mkdir -p "$PLUXX_OPENCODE_COMPANION_STAGE/skills"
+export ENTRY_PATH PLUGIN_NAME PLUXX_OPENCODE_COMPANION_STAGE
 
 node <<'NODE'
 const fs = require('fs')
 
-const entryPath = process.env.ENTRY_PATH
+const entryPath = process.env.PLUXX_OPENCODE_COMPANION_STAGE + '/entry.ts'
 const pluginName = process.env.PLUGIN_NAME
 const exportName = pluginName
   .split(/[^A-Za-z0-9]+/)
@@ -2014,12 +2181,11 @@ const content = [
 fs.writeFileSync(entryPath, content)
 NODE
 
-if [[ -d "$INSTALL_DIR/skills" ]]; then
-  for skill_dir in "$INSTALL_DIR"/skills/*; do
+if [[ -d "$PLUXX_TX_STAGE/skills" ]]; then
+  for skill_dir in "$PLUXX_TX_STAGE"/skills/*; do
     [[ -d "$skill_dir" ]] || continue
     skill_name="$(basename "$skill_dir")"
-    installed_skill_dir="$SKILLS_ROOT/\${PLUGIN_NAME}-\${skill_name}"
-    rm -rf "$installed_skill_dir"
+    installed_skill_dir="$PLUXX_OPENCODE_COMPANION_STAGE/skills/\${skill_name}"
     cp -R "$skill_dir" "$installed_skill_dir"
 
     export SKILL_PATH="$installed_skill_dir/SKILL.md"
@@ -2059,7 +2225,10 @@ fs.writeFileSync(
 NODE
   done
 fi
+pluxx_swap_install_transaction
+pluxx_commit_opencode_companions
 pluxx_finalize_install_transaction
+pluxx_finalize_opencode_companions
 
 echo "Installed $PLUGIN_NAME plugin code to $INSTALL_DIR"
 echo "Installed OpenCode wrapper at $ENTRY_PATH"

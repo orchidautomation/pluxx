@@ -35,7 +35,12 @@ import {
   removeCodexAgentRegistration,
   syncCodexAgentRegistration,
 } from '../codex-agent-install'
-import { removeOwnedInstall, transactionalInstall } from '../install-ownership'
+import {
+  listInstallOwnership,
+  removeOwnedInstall,
+  transactionalInstall,
+  transactionalInstallGroup,
+} from '../install-ownership'
 
 interface InstallTarget {
   platform: TargetPlatform
@@ -373,13 +378,9 @@ function toPascalCase(value: string): string {
     .join('')
 }
 
-function writeOpenCodeEntryFile(pluginDir: string, pluginName: string): void {
-  const entryPath = getOpenCodeEntryPath(pluginDir)
+function buildOpenCodeEntryFile(pluginName: string): string {
   const exportName = toPascalCase(pluginName)
-
-  writeFileSync(
-    entryPath,
-    [
+  return [
       'import type { Plugin } from "@opencode-ai/plugin"',
       'import { join } from "path"',
       '',
@@ -399,8 +400,7 @@ function writeOpenCodeEntryFile(pluginDir: string, pluginName: string): void {
       `    directory: join(context.directory, "${pluginName}"),`,
       '  })',
       '',
-    ].join('\n'),
-  )
+    ].join('\n')
 }
 
 function getOpenCodeSkillRoot(): string {
@@ -432,28 +432,21 @@ function namespaceOpenCodeSkill(content: string, pluginName: string, fallbackNam
   return `${content.slice(0, frontmatterMatch.index)}---\n${nextFrontmatter}\n---\n${content.slice(frontmatterMatch[0].length)}`
 }
 
-function syncOpenCodeSkills(pluginDir: string, pluginName: string): void {
-  const sourceSkillsDir = resolve(pluginDir, 'skills')
-  if (!existsSync(sourceSkillsDir)) return
-
-  mkdirSync(getOpenCodeSkillRoot(), { recursive: true })
-
-  for (const entry of readdirSync(sourceSkillsDir, { withFileTypes: true })) {
-    if (!entry.isDirectory()) continue
-
-    const skillSourceDir = resolve(sourceSkillsDir, entry.name)
-    if (!existsSync(resolve(skillSourceDir, 'SKILL.md'))) continue
-
-    const installedSkillDir = getOpenCodeInstalledSkillDir(pluginName, entry.name)
-    rmSync(installedSkillDir, { recursive: true, force: true })
-    cpSync(skillSourceDir, installedSkillDir, { recursive: true })
-
-    const skillPath = resolve(installedSkillDir, 'SKILL.md')
-    writeFileSync(
-      skillPath,
-      namespaceOpenCodeSkill(readFileSync(skillPath, 'utf-8'), pluginName, entry.name),
-    )
-  }
+function getOpenCodeSkillInstallTargets(sourcePluginDir: string, pluginName: string) {
+  const sourceSkillsDir = resolve(sourcePluginDir, 'skills')
+  if (!existsSync(sourceSkillsDir)) return []
+  return readdirSync(sourceSkillsDir, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && existsSync(resolve(sourceSkillsDir, entry.name, 'SKILL.md')))
+    .map((entry) => ({
+      sourcePath: resolve(sourceSkillsDir, entry.name),
+      installPath: getOpenCodeInstalledSkillDir(pluginName, entry.name),
+      kind: 'copy' as const,
+      surface: `skill-${entry.name}`,
+      prepare: (stagePath: string): void => {
+        const skillPath = resolve(stagePath, 'SKILL.md')
+        writeFileSync(skillPath, namespaceOpenCodeSkill(readFileSync(skillPath, 'utf-8'), pluginName, entry.name))
+      },
+    }))
 }
 
 function verifyOpenCodeInstall(pluginDir: string, pluginName: string): void {
@@ -494,20 +487,6 @@ function verifyOpenCodeInstall(pluginDir: string, pluginName: string): void {
   }
 }
 
-function removeOpenCodeSkills(pluginName: string): boolean {
-  const root = getOpenCodeSkillRoot()
-  if (!existsSync(root)) return false
-
-  let removed = false
-  for (const entry of readdirSync(root, { withFileTypes: true })) {
-    if (!entry.name.startsWith(`${pluginName}-`)) continue
-    rmSync(resolve(root, entry.name), { recursive: true, force: true })
-    removed = true
-  }
-
-  return removed
-}
-
 export function getInstallFollowupNotes(platforms: TargetPlatform[]): string[] {
   return getDistributionInstallFollowupNotes(platforms)
 }
@@ -535,10 +514,35 @@ function createSymlinkInstall(target: PlannedInstallTarget, pluginName: string):
   })
 }
 
-function createOpenCodeSymlinkInstall(target: PlannedInstallTarget, pluginName: string): void {
-  createSymlinkInstall(target, pluginName)
-  writeOpenCodeEntryFile(target.pluginDir, pluginName)
-  syncOpenCodeSkills(target.pluginDir, pluginName)
+function createOpenCodeInstall(
+  target: PlannedInstallTarget,
+  pluginName: string,
+  kind: 'copy' | 'symlink',
+  prepare?: (stagePath: string) => void,
+): void {
+  const manifestPath = manifestPathForPlatform(target.platform)
+  transactionalInstallGroup({
+    pluginName,
+    platform: 'opencode',
+    targets: [
+      {
+        sourcePath: target.sourceDir,
+        installPath: target.pluginDir,
+        kind,
+        prepare,
+        validate: manifestPath && existsSync(resolve(target.sourceDir, manifestPath))
+          ? path => assertInstalledBundleIntegrity(path, target.platform, 'Staged opencode plugin bundle')
+          : undefined,
+      },
+      {
+        installPath: getOpenCodeEntryPath(target.pluginDir),
+        kind: 'file',
+        surface: 'entry',
+        content: buildOpenCodeEntryFile(pluginName),
+      },
+      ...getOpenCodeSkillInstallTargets(target.sourceDir, pluginName),
+    ],
+  })
 }
 
 function getCodexMarketplacePath(): string {
@@ -658,12 +662,6 @@ function createCopiedInstall(
     prepare,
     validate: validateBundle,
   })
-}
-
-function createOpenCodeCopiedInstall(target: PlannedInstallTarget, pluginName: string): void {
-  createCopiedInstall(target, pluginName)
-  writeOpenCodeEntryFile(target.pluginDir, pluginName)
-  syncOpenCodeSkills(target.pluginDir, pluginName)
 }
 
 function materializeTemplateValue(value: string, env: Record<string, string>, secretEnvVars = new Set<string>()): string {
@@ -1566,15 +1564,14 @@ export async function installPlugin(
           : undefined,
       )
     } else if (target.platform === 'opencode' && shouldMaterialize) {
-      createCopiedInstall(
+      createOpenCodeInstall(
         target,
         pluginName,
+        'copy',
         stagePath => materializeInstalledPlugin(stagePath, target.platform, options.config!, targetConfigEntries, target.pluginDir),
       )
-      writeOpenCodeEntryFile(target.pluginDir, pluginName)
-      syncOpenCodeSkills(target.pluginDir, pluginName)
     } else if (target.platform === 'opencode') {
-      createOpenCodeSymlinkInstall(target, pluginName)
+      createOpenCodeInstall(target, pluginName, 'symlink')
       verifyOpenCodeInstall(target.pluginDir, pluginName)
     } else if (shouldMaterialize || shouldMaterializeCodexInstall) {
       createCopiedInstall(
@@ -1639,19 +1636,30 @@ export async function uninstallPlugin(
       continue
     }
 
-    const ownedRemoval = removeOwnedInstall(pluginName, target.platform, target.pluginDir)
-    let removedTarget = ownedRemoval.changed
-    if (ownedRemoval.preserved.length > 0 && !options.quiet) {
-      console.warn(`  preserved ${ownedRemoval.preserved.length} modified or unowned installed path(s) under ${target.pluginDir}`)
+    const ownershipRecords = target.platform === 'opencode'
+      ? listInstallOwnership(pluginName, target.platform)
+      : []
+    const removals = target.platform === 'opencode' && ownershipRecords.length > 0
+      ? ownershipRecords.map((record) => removeOwnedInstall(pluginName, target.platform, record.installPath, record.surface))
+      : [removeOwnedInstall(pluginName, target.platform, target.pluginDir)]
+    let removedTarget = removals.some((removal) => removal.changed)
+    const preserved = removals.flatMap((removal) => removal.preserved)
+    if (preserved.length > 0 && !options.quiet) {
+      console.warn(`  preserved ${preserved.length} modified or unowned installed path(s) for ${target.description}`)
     }
     if (target.platform === 'opencode') {
-      const entryPath = getOpenCodeEntryPath(target.pluginDir)
-      if (existsSync(entryPath)) {
-        rmSync(entryPath, { force: true })
-        removedTarget = true
-      }
-      if (removeOpenCodeSkills(pluginName)) {
-        removedTarget = true
+      if (ownershipRecords.length === 0) {
+        const unownedCompanions = [getOpenCodeEntryPath(target.pluginDir)]
+        const skillRoot = getOpenCodeSkillRoot()
+        if (existsSync(skillRoot)) {
+          unownedCompanions.push(...readdirSync(skillRoot)
+            .filter((name) => name.startsWith(`${pluginName}-`))
+            .map((name) => resolve(skillRoot, name)))
+        }
+        const existingUnowned = unownedCompanions.filter(existsSync)
+        if (existingUnowned.length > 0 && !options.quiet) {
+          console.warn(`  preserved ${existingUnowned.length} unowned OpenCode companion path(s)`)
+        }
       }
     }
     if (target.platform === 'codex') {

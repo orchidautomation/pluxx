@@ -222,6 +222,7 @@ interface GeneratedInstallerRunOptions {
   env?: Record<string, string>
   existingUserConfig?: unknown
   extraFiles?: Record<string, string>
+  setupPaths?: (paths: ReturnType<typeof getGeneratedInstallerPaths>, rootDir: string) => void
 }
 
 interface GeneratedInstallerRunResult {
@@ -313,6 +314,7 @@ function runGeneratedInstaller(
       JSON.stringify(options.existingUserConfig, null, 2) + '\n',
     )
   }
+  options.setupPaths?.(paths, rootDir)
 
   let installerRun: GeneratedInstallerRunResult | undefined
   const result = runPublish(config, {
@@ -764,6 +766,25 @@ describe('runPublish', () => {
     expect(installerContent.indexOf('PLUXX_CODEX_ENABLE_PLUGIN_HOOKS')).toBeLessThan(
       installerContent.indexOf('Updated Codex marketplace catalog'),
     )
+  })
+
+  it('rolls back a generated OpenCode install when an unowned companion blocks the transaction', () => {
+    const run = runGeneratedInstaller('opencode', {
+      config: { ...makeConfig(), targets: ['opencode'] },
+      setupPaths: (paths) => {
+        mkdirSync(paths.pluginInstallDir, { recursive: true })
+        writeFileSync(resolve(paths.pluginInstallDir, '.pluxx-user.json'), '{}\n')
+        const entryPath = paths.env.PLUXX_OPENCODE_ENTRY_PATH
+        mkdirSync(resolve(entryPath, '..'), { recursive: true })
+        writeFileSync(entryPath, '// private wrapper\n')
+      },
+    })
+
+    expect(run.status).toBe(1)
+    expect(run.stderr).toContain('Refusing to replace unowned OpenCode companion')
+    expect(readFileSync(resolve(run.rootDir, 'publish-plugin.ts'), 'utf-8')).toBe('// private wrapper\n')
+    expect(readFileSync(resolve(run.pluginInstallDir, '.pluxx-user.json'), 'utf-8')).toBe('{}\n')
+    expect(existsSync(resolve(run.pluginInstallDir, 'package.json'))).toBe(false)
   })
 
   it('reuses saved generated-installer user config across core host updates', () => {

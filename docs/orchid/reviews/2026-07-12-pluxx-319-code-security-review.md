@@ -23,6 +23,10 @@ Atomic temp files initially used default creation permissions even though the ow
 
 The first implementation treated failure to delete a post-verification backup as transaction failure, which could restore the old bundle after the new ownership record had committed. Backup cleanup is now best effort after the new bundle and ledger are valid; a cleanup failure leaves the recoverable backup instead of rolling state backward inconsistently.
 
+### P1. OpenCode companion files were outside the ownership transaction
+
+PR review identified that the OpenCode wrapper and globally exported skill directories were still overwritten and removed independently of the primary bundle. Local installs now stage the bundle, wrapper, and every skill as one transaction with separate hash-bound ownership surfaces; a failure restores every prior path and ledger. Uninstall removes only unchanged owned companions and preserves modified or unowned paths. The generated release installer now applies the same preflight, journaled backup, rollback, and ownership behavior. Tests cover unowned companion refusal, cross-surface rollback, and conservative uninstall.
+
 ## Residual Risk
 
 - Generated installers embed the transaction helper because consumers may not have Pluxx installed. The helper is covered by executed installer fixtures, but it intentionally duplicates a narrow subset of `src/install-ownership.ts`; future schema changes must update both paths together.
