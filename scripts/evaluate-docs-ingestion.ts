@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { dirname, resolve } from 'path'
 import { fileURLToPath } from 'url'
@@ -10,6 +10,9 @@ import {
   type AgentDocsContextArtifact,
   type AgentIngestProvider,
 } from '../src/cli/agent'
+import { planMcpScaffold, type McpScaffoldMetadata, type PersistedSkill } from '../src/cli/init-from-mcp'
+import type { IntrospectedMcpServer } from '../src/mcp/introspect'
+import type { TargetPlatform } from '../src/schema'
 
 interface FixtureExpectation {
   productName?: string
@@ -36,11 +39,12 @@ interface SourceRecord {
   provider?: string
   note?: string
   httpStatus?: number
+  error?: string
 }
 
 interface VariantResult {
   provider: 'baseline' | 'local' | 'firecrawl'
-  status: 'ok' | 'skipped' | 'error'
+  status: 'ok' | 'degraded' | 'skipped' | 'error'
   skipReason?: string
   error?: string
   contextInputs: string[]
@@ -62,7 +66,13 @@ interface VariantResult {
     provider?: string
     note?: string
     httpStatus?: number
+    error?: string
   }>
+  scaffoldDelta: {
+    available: boolean
+    changedFiles: string[]
+    changedLines: number
+  }
 }
 
 interface FixtureResult {
@@ -81,6 +91,7 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const OUTPUT_JSON_PATH = resolve(REPO_ROOT, 'docs/strategy/docs-ingestion-fixture-eval.json')
 const OUTPUT_MD_PATH = resolve(REPO_ROOT, 'docs/strategy/docs-ingestion-fixture-eval.md')
 const FIRECRAWL_ENABLED = Boolean(process.env.FIRECRAWL_API_KEY || process.env.PLUXX_FIRECRAWL_API_KEY)
+const SCAFFOLD_TARGETS: TargetPlatform[] = ['claude-code', 'cursor', 'codex', 'opencode']
 
 const FIXTURES: FixtureDefinition[] = [
   {
@@ -137,7 +148,7 @@ async function main(): Promise<void> {
           name: fixture.name,
           label: fixture.label,
           fixtureKind: fixture.fixtureKind,
-          projectPath: fixture.projectPath,
+          projectPath: fixture.projectPath?.replace(`${REPO_ROOT}/`, ''),
           websiteUrl: fixture.websiteUrl,
           docsUrl: fixture.docsUrl,
         },
@@ -209,6 +220,7 @@ async function runVariant(
         expectedCount: countExpectedSignals(fixture.expectations),
       },
       sourceSummary: [],
+      scaffoldDelta: emptyScaffoldDelta(),
     }
   }
 
@@ -232,22 +244,31 @@ async function runVariant(
         }
       : undefined
     const contextInputs = plan.contextInputs
+    const sourceSummary = (sourcesPayload?.sources ?? []).map((source) => ({
+      label: source.label,
+      role: source.role,
+      status: source.status,
+      provider: source.provider,
+      note: source.note,
+      httpStatus: source.httpStatus,
+      error: source.error,
+    }))
+    const status = classifyProviderResult(provider, sourceSummary)
+    const hasScaffoldMetadata = existsSync(resolve(rootDir, '.pluxx/mcp.json'))
+    const scaffoldDelta = docsContext
+      ? await measureVisibleScaffoldDelta(rootDir, docsContext)
+      : emptyScaffoldDelta(provider === 'baseline' && hasScaffoldMetadata)
 
     return {
       provider,
-      status: 'ok',
+      status,
+      error: status === 'error' ? 'All requested remote sources failed.' : undefined,
       contextInputs,
       ingestion: sourcesPayload?.ingestion,
       docsContext,
       matched: evaluateMatches(docsContext, fixture.expectations),
-      sourceSummary: (sourcesPayload?.sources ?? []).map((source) => ({
-        label: source.label,
-        role: source.role,
-        status: source.status,
-        provider: source.provider,
-        note: source.note,
-        httpStatus: source.httpStatus,
-      })),
+      sourceSummary,
+      scaffoldDelta,
     }
   } catch (error) {
     return {
@@ -265,6 +286,7 @@ async function runVariant(
         expectedCount: countExpectedSignals(fixture.expectations),
       },
       sourceSummary: [],
+      scaffoldDelta: emptyScaffoldDelta(),
     }
   }
 }
@@ -316,6 +338,113 @@ function matchTerms(haystack: string | undefined, terms: string[]): string[] {
   return terms.filter((term) => lower.includes(term.toLowerCase()))
 }
 
+export function classifyProviderResult(
+  provider: VariantResult['provider'],
+  sources: Array<{ status: string }>,
+): VariantResult['status'] {
+  if (provider === 'baseline') return 'ok'
+  if (sources.length === 0 || sources.every((source) => source.status !== 'ok')) return 'error'
+  if (sources.some((source) => source.status !== 'ok')) return 'degraded'
+  return 'ok'
+}
+
+async function measureVisibleScaffoldDelta(
+  rootDir: string,
+  docsContext: AgentDocsContextArtifact | undefined,
+): Promise<VariantResult['scaffoldDelta']> {
+  const metadataPath = resolve(rootDir, '.pluxx/mcp.json')
+  if (!existsSync(metadataPath)) return emptyScaffoldDelta()
+
+  const metadata = JSON.parse(readFileSync(metadataPath, 'utf8')) as McpScaffoldMetadata
+  const introspection: IntrospectedMcpServer = {
+    protocolVersion: '2025-03-26',
+    serverInfo: metadata.serverInfo,
+    tools: metadata.tools,
+    resources: metadata.resources,
+    resourceTemplates: metadata.resourceTemplates,
+    prompts: metadata.prompts,
+  }
+  const persistedSkills: PersistedSkill[] = metadata.skills.map((skill) => ({
+    dirName: skill.dirName,
+    title: skill.title,
+    description: skill.description,
+    toolNames: skill.toolNames,
+  }))
+  const sharedOptions = {
+    rootDir,
+    pluginName: metadata.settings.pluginName,
+    authorName: 'Pluxx fixture eval',
+    targets: SCAFFOLD_TARGETS,
+    source: metadata.source,
+    introspection,
+    displayName: metadata.settings.displayName,
+    websiteUrl: metadata.serverInfo.websiteUrl,
+    skillGrouping: metadata.settings.skillGrouping,
+    hookMode: metadata.settings.requestedHookMode,
+    runtimeAuthMode: metadata.settings.runtimeAuthMode,
+    persistedSkills,
+  } as const
+  const baseline = await planMcpScaffold(sharedOptions)
+  const enriched = await planMcpScaffold({
+    ...sharedOptions,
+    description: docsContext.shortDescription,
+    sourcedContext: {
+      workflowHints: docsContext.workflowHints,
+      setupHints: docsContext.setupHints,
+      authHints: docsContext.authHints,
+      warnings: docsContext.warnings,
+    },
+  })
+  const baselineFiles = new Map(baseline.files.map((file) => [normalizeScaffoldPath(file.relativePath), file.content]))
+  const enrichedFiles = new Map(enriched.files.map((file) => [normalizeScaffoldPath(file.relativePath), file.content]))
+  const visiblePaths = uniqueVisibleScaffoldPaths([...baselineFiles.keys(), ...enrichedFiles.keys()])
+  const changedFiles = visiblePaths.filter((path) => baselineFiles.get(path) !== enrichedFiles.get(path))
+  const changedLines = changedFiles.reduce((total, path) => total + countChangedLines(
+    baselineFiles.get(path) ?? '',
+    enrichedFiles.get(path) ?? '',
+  ), 0)
+
+  return { available: true, changedFiles, changedLines }
+}
+
+function emptyScaffoldDelta(available: boolean = false): VariantResult['scaffoldDelta'] {
+  return { available, changedFiles: [], changedLines: 0 }
+}
+
+function uniqueVisibleScaffoldPaths(paths: string[]): string[] {
+  return [...new Set(paths)]
+    .filter((path) => path === 'INSTRUCTIONS.md' || path === 'pluxx.config.ts' || path.startsWith('skills/') || path.startsWith('commands/'))
+    .sort()
+}
+
+function normalizeScaffoldPath(path: string): string {
+  return path.replace(/^\.\//, '').replace(/\\/g, '/')
+}
+
+export function countChangedLines(before: string, after: string): number {
+  const beforeLines = before.split('\n')
+  const afterLines = after.split('\n')
+  const lcsLengths = Array.from({ length: afterLines.length + 1 }, () => 0)
+  for (const beforeLine of beforeLines) {
+    let diagonal = 0
+    for (let index = 1; index <= afterLines.length; index += 1) {
+      const previousRow = lcsLengths[index]!
+      lcsLengths[index] = beforeLine === afterLines[index - 1]
+        ? diagonal + 1
+        : Math.max(lcsLengths[index]!, lcsLengths[index - 1]!)
+      diagonal = previousRow
+    }
+  }
+  const unchangedLines = lcsLengths[afterLines.length]!
+  return (beforeLines.length - unchangedLines) + (afterLines.length - unchangedLines)
+}
+
+function formatScaffoldDelta(delta: VariantResult['scaffoldDelta']): string {
+  if (!delta.available) return 'n/a'
+  if (delta.changedFiles.length === 0) return '0 files / 0 lines'
+  return `${delta.changedFiles.length} files / ${delta.changedLines} lines (${delta.changedFiles.join(', ')})`
+}
+
 function renderMarkdownReport(input: {
   version: number
   generatedAt: string
@@ -333,6 +462,7 @@ function renderMarkdownReport(input: {
     `- Baseline = existing scaffold context only (no website/docs inputs)`,
     `- Local = website/docs inputs through Pluxx local extraction`,
     `- Firecrawl = website/docs inputs through Firecrawl markdown extraction when a key is configured`,
+    `- Visible scaffold delta = changed user-facing scaffold files plus added/removed lines (LCS-based)`,
     '',
   ]
 
@@ -356,16 +486,16 @@ function renderMarkdownReport(input: {
     lines.push(`- Website: ${fixture.websiteUrl}`)
     lines.push(`- Docs: ${fixture.docsUrl}`)
     lines.push('')
-    lines.push('| Provider | Status | Matched Signals | Product | Workflow Hints | Setup Hints | Auth Hints | Notes |')
-    lines.push('| --- | --- | --- | --- | --- | --- | --- | --- |')
+    lines.push('| Provider | Status | Matched Signals | Visible Scaffold Delta | Product | Workflow Hints | Setup Hints | Auth Hints | Notes |')
+    lines.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- |')
     for (const result of results) {
       const notes = result.status === 'skipped'
         ? result.skipReason ?? 'skipped'
         : result.status === 'error'
-          ? result.error ?? 'error'
+          ? `${result.error ?? 'error'} ${summarizeSourceNotes(result.sourceSummary)}`.trim()
           : summarizeSourceNotes(result.sourceSummary)
       lines.push(
-        `| ${result.provider} | ${result.status} | ${result.matched.matchedCount}/${result.matched.expectedCount} | ${result.docsContext?.productName ?? '—'} | ${formatList(result.docsContext?.workflowHints)} | ${formatList(result.docsContext?.setupHints)} | ${formatList(result.docsContext?.authHints)} | ${escapePipe(notes)} |`,
+        `| ${result.provider} | ${result.status} | ${result.matched.matchedCount}/${result.matched.expectedCount} | ${formatScaffoldDelta(result.scaffoldDelta)} | ${result.docsContext?.productName ?? '—'} | ${formatList(result.docsContext?.workflowHints)} | ${formatList(result.docsContext?.setupHints)} | ${formatList(result.docsContext?.authHints)} | ${escapePipe(notes)} |`,
       )
     }
     lines.push('')
@@ -426,7 +556,7 @@ function summarizeSourceNotes(sources: VariantResult['sourceSummary']): string {
   const errored = sources.filter((source) => source.status !== 'ok')
   if (errored.length === 0) return 'all sources fetched successfully'
   return errored
-    .map((source) => `${source.role}:${source.status}${source.httpStatus ? ` ${source.httpStatus}` : ''}`)
+    .map((source) => `${source.role}:${source.status}${source.httpStatus ? ` ${source.httpStatus}` : ''}${source.error ? ` (${source.error.replace(/^Unavailable:\s*/i, '').slice(0, 120)})` : ''}`)
     .join(', ')
 }
 
@@ -439,4 +569,6 @@ function escapePipe(value: string): string {
   return value.replace(/\|/g, '\\|')
 }
 
-await main()
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  await main()
+}

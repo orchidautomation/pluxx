@@ -68,7 +68,8 @@
           "reference/pluxx-config",
           "reference/auth-runtime-auth",
           "reference/hooks-commands-agents",
-          "reference/validation-and-size-limits"
+          "reference/validation-and-size-limits",
+          "reference/privacy-policy"
         ]
       }
     ]

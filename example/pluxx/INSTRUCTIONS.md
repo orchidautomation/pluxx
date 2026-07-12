@@ -153,6 +153,7 @@ If the user wants the smoother reusable path, help them bootstrap or upgrade the
 
 - Prefer a deterministic first pass before semantic rewrites.
 - When importing, call out auth shape clearly: none, bearer, custom header, or platform-managed runtime auth.
+- When recording MCP replay tapes, explain that default redaction covers recognized credentials rather than arbitrary private tool content; review every tape before committing or sharing it.
 - When refining a scaffold, preserve mixed-ownership boundaries and custom-note blocks.
 - Do not silently rewrite auth wiring, target configuration, or generated platform outputs unless the user explicitly asks.
 - Before shipping, run `pluxx doctor`, `pluxx lint`, and `pluxx test`.

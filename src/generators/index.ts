@@ -1,5 +1,5 @@
-import { rmSync, mkdirSync } from 'fs'
-import { resolve, relative } from 'path'
+import { rmSync, mkdirSync, mkdtempSync } from 'fs'
+import { basename, dirname, resolve, relative } from 'path'
 import type { PluginConfig, TargetPlatform } from '../schema'
 import { assertGeneratedBundlesCurrent } from '../bundle-check'
 import { Generator } from './base'
@@ -14,6 +14,7 @@ import { GeminiCliGenerator } from './gemini-cli'
 import { RooCodeGenerator } from './roo-code'
 import { ClineGenerator } from './cline'
 import { AmpGenerator } from './amp'
+import { copyDirectoryForStaging, publishStagedDirectory, type MutationHooks } from '../fs-transaction'
 
 const GENERATORS: Record<TargetPlatform, new (config: PluginConfig, rootDir: string) => Generator> = {
   'claude-code': ClaudeCodeGenerator,
@@ -34,6 +35,8 @@ export interface BuildOptions {
   targets?: TargetPlatform[]
   /** Clean output directory before building */
   clean?: boolean
+  /** Internal reliability seam used to inject publication failures in tests. */
+  mutationHooks?: MutationHooks
 }
 
 function assertPathWithinRoot(rootDir: string, configPath: string, configKey: string): void {
@@ -98,22 +101,34 @@ export async function build(
 
   validateConfiguredPaths(config, rootDir)
 
-  if (options.clean !== false) {
-    rmSync(outDir, { recursive: true, force: true })
+  mkdirSync(dirname(outDir), { recursive: true })
+  const stageDir = mkdtempSync(resolve(dirname(outDir), `.${basename(outDir)}.pluxx-stage-`))
+  if (options.clean === false) {
+    rmSync(stageDir, { recursive: true, force: true })
+    copyDirectoryForStaging(outDir, stageDir)
   }
-  mkdirSync(outDir, { recursive: true })
+  mkdirSync(stageDir, { recursive: true })
+  const stagedConfig: PluginConfig = {
+    ...config,
+    outDir: relative(rootDir, stageDir),
+  }
 
-  const generators = targets.map(target => {
-    const GeneratorClass = GENERATORS[target]
-    if (!GeneratorClass) {
-      throw new Error(`Unknown target platform: ${target}`)
-    }
-    return new GeneratorClass(config, rootDir)
-  })
-
-  // Build all targets in parallel
-  await Promise.all(generators.map(g => g.generate()))
-  assertGeneratedBundlesCurrent(config, rootDir, targets)
+  try {
+    const generators = targets.map(target => {
+      const GeneratorClass = GENERATORS[target]
+      if (!GeneratorClass) {
+        throw new Error(`Unknown target platform: ${target}`)
+      }
+      return new GeneratorClass(stagedConfig, rootDir)
+    })
+    // Build all targets in parallel, validate the complete staged tree, then publish.
+    await Promise.all(generators.map(g => g.generate()))
+    assertGeneratedBundlesCurrent(stagedConfig, rootDir, targets)
+    publishStagedDirectory(outDir, stageDir, options.mutationHooks)
+  } catch (error) {
+    rmSync(stageDir, { recursive: true, force: true })
+    throw error
+  }
 }
 
 export { Generator }

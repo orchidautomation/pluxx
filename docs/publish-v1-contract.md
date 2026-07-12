@@ -143,11 +143,12 @@ When both channels are enabled, failure handling should report per-channel outco
 
 - requested version, source config version, generated host manifests, and npm package metadata must agree before remote mutation
 - generated top-level installers verify downloaded per-host installer scripts against `SHA256SUMS.txt`
-- generated per-host installers verify manifest identity and archive checksum, reject absolute/traversal paths and link archive members, and only then extract
+- generated per-host installers pin their tagged release, use bounded retries/timeouts, verify manifest identity and archive checksum, reject absolute/traversal paths and link archive members, and only then extract
+- generated installers take an install-scoped lock, recover the prior bundle and ownership/companion state across signal interruption or post-swap failure, and refuse concurrent swaps
 - config and runtime bootstrap run against a staged candidate; the previous install remains live until staging succeeds and is restored when commit-time work fails
 - npm publication compares the exact packed tarball SRI with the registry's `dist.integrity`; it skips an immutable version only when those bytes match
 - GitHub publication creates a missing release or reconciles an existing release to the exact asset set, removing stale extras
-- enabled channels are queried after mutation; incomplete verification makes the command fail
+- enabled channels are always queried after mutation; incomplete or byte-mismatched verification makes the command fail, and transport/auth lookup errors never count as a missing remote version or release
 
 ## Explicit non-goals for v1
 

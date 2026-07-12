@@ -39,12 +39,19 @@ export interface UpgradeExecutionResult extends UpgradePlan {
   detail: string
 }
 
+const UPGRADE_COMMAND_TIMEOUT_MS = 120_000
+
 function defaultRunner(command: string, args: string[]): UpgradeCommandResult {
-  const result = spawnSync(command, args, { encoding: 'utf-8', env: process.env })
+  const result = spawnSync(command, args, {
+    encoding: 'utf-8',
+    env: process.env,
+    timeout: UPGRADE_COMMAND_TIMEOUT_MS,
+    killSignal: 'SIGTERM',
+  })
   return {
     status: result.status,
     stdout: result.stdout ?? '',
-    stderr: result.stderr ?? '',
+    stderr: result.error?.message || result.stderr || '',
   }
 }
 
@@ -56,18 +63,45 @@ export function classifyUpgradeInvocationSource(filepath: string): UpgradeInvoca
   return 'unknown'
 }
 
-function parseVersion(value: string | undefined): [number, number, number] | undefined {
-  const match = value?.match(/^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/)
-  return match ? [Number(match[1]), Number(match[2]), Number(match[3])] : undefined
+interface ParsedVersion {
+  core: [bigint, bigint, bigint]
+  prerelease: string[]
+}
+
+function parseVersion(value: string | undefined): ParsedVersion | undefined {
+  const match = value?.match(/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/)
+  if (!match) return undefined
+  const prerelease = match[4]?.split('.') ?? []
+  if (prerelease.some((identifier) => /^\d+$/.test(identifier) && identifier.length > 1 && identifier.startsWith('0'))) return undefined
+  return {
+    core: [BigInt(match[1]), BigInt(match[2]), BigInt(match[3])],
+    prerelease,
+  }
 }
 
 export function compareUpgradeVersions(current: string, target: string | undefined): UpgradeComparison {
   const left = parseVersion(current)
   const right = parseVersion(target)
   if (!left || !right) return 'unknown'
-  for (let index = 0; index < left.length; index += 1) {
-    if (right[index] > left[index]) return 'upgrade'
-    if (right[index] < left[index]) return 'downgrade'
+  for (let index = 0; index < left.core.length; index += 1) {
+    if (right.core[index] > left.core[index]) return 'upgrade'
+    if (right.core[index] < left.core[index]) return 'downgrade'
+  }
+  if (left.prerelease.length === 0 && right.prerelease.length === 0) return 'current'
+  if (left.prerelease.length === 0) return 'downgrade'
+  if (right.prerelease.length === 0) return 'upgrade'
+  const length = Math.max(left.prerelease.length, right.prerelease.length)
+  for (let index = 0; index < length; index += 1) {
+    const current = left.prerelease[index]
+    const target = right.prerelease[index]
+    if (current === undefined) return 'upgrade'
+    if (target === undefined) return 'downgrade'
+    if (current === target) continue
+    const currentNumeric = /^\d+$/.test(current)
+    const targetNumeric = /^\d+$/.test(target)
+    if (currentNumeric && targetNumeric) return BigInt(target) > BigInt(current) ? 'upgrade' : 'downgrade'
+    if (currentNumeric !== targetNumeric) return targetNumeric ? 'downgrade' : 'upgrade'
+    return target > current ? 'upgrade' : 'downgrade'
   }
   return 'current'
 }
@@ -91,7 +125,7 @@ export function planUpgrade(options: {
   const requestedVersion = options.requestedVersion ?? 'latest'
   const requestedIsValid = requestedVersion === 'latest' || Boolean(parseVersion(requestedVersion))
   const specifier = `${options.packageName}@${requestedVersion}`
-  const viewed = options.resolveRequestedVersion === false || !requestedIsValid
+  const viewed = options.resolveRequestedVersion === false || !requestedIsValid || requestedVersion !== 'latest'
     ? undefined
     : runCommand('npm', ['view', specifier, 'version', '--json'])
   const resolvedVersion = viewed ? parseViewedVersion(viewed) : parseVersion(requestedVersion) ? requestedVersion : undefined
@@ -171,11 +205,12 @@ export function executeUpgrade(
   }
   const install = runCommand(plan.command[0], plan.command.slice(1))
   if (install.status !== 0) {
+    const failure = install.stderr || install.stdout || 'Upgrade failed.'
     return {
       ...plan,
       ok: false,
       installExitCode: install.status ?? 1,
-      detail: install.stderr || install.stdout || `Upgrade failed. Roll back with: ${plan.rollbackCommand.join(' ')}`,
+      detail: `${failure.trim()} Roll back with: ${plan.rollbackCommand.join(' ')}`,
     }
   }
 

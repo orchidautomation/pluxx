@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
 import { introspectMcpServer } from '../src/mcp/introspect'
-import { applyPersistedTaxonomy, detectSkillRenames, detectToolRenames, readMcpScaffoldMetadata, syncFromMcp } from '../src/cli/sync-from-mcp'
+import { applyPersistedTaxonomy, detectSkillRenames, detectToolRenameConflicts, detectToolRenames, planSyncFromMcp, readMcpScaffoldMetadata, syncFromMcp } from '../src/cli/sync-from-mcp'
 import { MCP_SCAFFOLD_METADATA_PATH, writeMcpScaffold } from '../src/cli/init-from-mcp'
 import { AGENT_CONTEXT_PATH, AGENT_PLAN_PATH } from '../src/cli/agent'
 
@@ -139,6 +139,120 @@ describe('sync-from-mcp', () => {
     )
 
     expect(renames.size).toBe(0)
+  })
+
+  it('surfaces equally plausible tool renames as conflicts instead of guessing', () => {
+    const conflicts = detectToolRenameConflicts(
+      [{
+        name: 'FindAccount',
+        description: 'Find an account record.',
+        inputSchema: { required: ['accountId'] },
+      }],
+      [
+        {
+          name: 'FindAccounts',
+          description: 'Find account records.',
+          inputSchema: { required: ['accountId'] },
+        },
+        {
+          name: 'FindAccounte',
+          description: 'Find account entries.',
+          inputSchema: { required: ['accountId'] },
+        },
+      ],
+    )
+
+    expect(conflicts).toEqual([{
+      path: 'tools/FindAccount',
+      reason: 'ambiguous-rename',
+      candidates: ['FindAccounte', 'FindAccounts'],
+    }])
+  })
+
+  it('reports file actions alongside ambiguous rename conflicts', async () => {
+    writeFileSync(STATE_PATH, JSON.stringify({
+      serverInfo: { name: 'stub-server', title: 'Stub Server', version: '1.0.0' },
+      tools: [{
+        name: 'FindAccount',
+        description: 'Find an account record.',
+        inputSchema: { required: ['accountId'] },
+      }],
+    }, null, 2))
+    const source = { transport: 'stdio' as const, command: 'bun', args: [STUB_SERVER_PATH, STATE_PATH] }
+    await writeMcpScaffold({
+      rootDir: TEST_DIR,
+      pluginName: 'stub-server',
+      authorName: 'Test Author',
+      displayName: 'Stub Server',
+      targets: ['codex'],
+      source,
+      introspection: await introspectMcpServer(source),
+      skillGrouping: 'tool',
+      hookMode: 'none',
+    })
+
+    writeFileSync(STATE_PATH, JSON.stringify({
+      serverInfo: { name: 'stub-server', title: 'Stub Server', version: '1.1.0' },
+      tools: [
+        { name: 'FindAccounts', description: 'Find account records.', inputSchema: { required: ['accountId'] } },
+        { name: 'FindAccounte', description: 'Find account entries.', inputSchema: { required: ['accountId'] } },
+      ],
+    }, null, 2))
+
+    const result = await planSyncFromMcp({ rootDir: TEST_DIR })
+    expect(result.mutation.conflicts).toContainEqual({
+      path: 'tools/FindAccount',
+      reason: 'ambiguous-rename',
+      candidates: ['FindAccounte', 'FindAccounts'],
+    })
+    expect(result.mutation.creates.length).toBeGreaterThan(0)
+    expect(result.mutation.deletes.length).toBeGreaterThan(0)
+    expect(existsSync(resolve(TEST_DIR, 'skills/find-accounts/SKILL.md'))).toBe(false)
+  })
+
+  it('restores the original project when final sync application fails', async () => {
+    writeFileSync(STATE_PATH, JSON.stringify({
+      serverInfo: { name: 'stub-server', title: 'Stub Server', version: '1.0.0' },
+      instructions: 'Initial instructions.',
+      tools: [{ name: 'FindOrganizations', description: 'Search organizations.' }],
+    }, null, 2))
+    const source = { transport: 'stdio' as const, command: 'bun', args: [STUB_SERVER_PATH, STATE_PATH] }
+    const introspection = await introspectMcpServer(source)
+    await writeMcpScaffold({
+      rootDir: TEST_DIR,
+      pluginName: 'stub-server',
+      authorName: 'Test Author',
+      displayName: 'Stub Server',
+      targets: ['codex'],
+      source,
+      introspection,
+      skillGrouping: 'tool',
+      hookMode: 'none',
+    })
+    const beforeInstructions = readFileSync(resolve(TEST_DIR, 'INSTRUCTIONS.md'), 'utf-8')
+
+    writeFileSync(STATE_PATH, JSON.stringify({
+      serverInfo: { name: 'stub-server', title: 'Stub Server', version: '1.1.0' },
+      instructions: 'Updated instructions.',
+      tools: [
+        { name: 'FindOrganizations', description: 'Search organizations with filters.' },
+        { name: 'SearchTechnologies', description: 'Search technologies.' },
+      ],
+    }, null, 2))
+
+    await expect(syncFromMcp({
+      rootDir: TEST_DIR,
+      mutationHooks: {
+        injectFailure(phase, detail) {
+          if (phase === 'entry-applied' && detail === './INSTRUCTIONS.md') {
+            throw new Error('injected sync failure')
+          }
+        },
+      },
+    })).rejects.toThrow('Original files were restored')
+
+    expect(readFileSync(resolve(TEST_DIR, 'INSTRUCTIONS.md'), 'utf-8')).toBe(beforeInstructions)
+    expect(existsSync(resolve(TEST_DIR, 'skills/search-technologies/SKILL.md'))).toBe(false)
   })
 
   it('matches skills 1:1 before transferring custom content', () => {

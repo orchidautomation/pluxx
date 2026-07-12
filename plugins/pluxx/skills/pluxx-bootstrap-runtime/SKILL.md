@@ -15,8 +15,11 @@ Use this skill when the machine is missing `pluxx`, is on a stale version, or wh
 2. If `pluxx` is missing, explain the best install path:
    - `npm install -g @orchid-labs/pluxx@latest`
 3. If `pluxx` is present but stale, prefer:
-   - `pluxx upgrade`
-   - or `pluxx upgrade --version x.y.z`
+   - preview with `pluxx upgrade --dry-run --json`
+   - report the resolved target, comparison, invocation source, and rollback command
+   - obtain approval before the global npm mutation
+   - run `pluxx upgrade --json` or `pluxx upgrade --version x.y.z --json`
+   - verify that `activePathAfter`, `activePackageAfter`, and `activeVersionAfter` match the requested Pluxx runtime
 4. Explain when `npx @orchid-labs/pluxx` is the better fallback:
    - ephemeral use
    - no global install desired
@@ -31,6 +34,8 @@ Use this skill when the machine is missing `pluxx`, is on a stale version, or wh
 
 - Do not hide the difference between a global install and an `npx` fallback.
 - Prefer `pluxx upgrade` over repeating raw npm commands when the CLI already exists.
+- Do not execute an upgrade until the user has seen the resolved target and rollback command.
+- If verification fails after npm reports success, surface the rollback command and do not claim the runtime is upgraded.
 - If Node or npm is missing, say that clearly instead of pretending Pluxx can self-install without it.
 - If the host plugin is present but the underlying CLI is missing, call that out directly as a runtime prerequisite problem.
 

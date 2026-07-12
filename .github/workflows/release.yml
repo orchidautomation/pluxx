@@ -65,12 +65,20 @@ jobs:
           set -euo pipefail
           EXPECTED_VERSION="${{ steps.version.outputs.package_version }}"
           EXPECTED_INTEGRITY="${{ steps.pack.outputs.package_integrity }}"
-          EXISTING_INTEGRITY="$(npm view "@orchid-labs/pluxx@${EXPECTED_VERSION}" dist.integrity 2>/dev/null || true)"
-          if [[ -n "$EXISTING_INTEGRITY" ]]; then
+          set +e
+          EXISTING_OUTPUT="$(npm view "@orchid-labs/pluxx@${EXPECTED_VERSION}" dist.integrity 2>&1)"
+          EXISTING_STATUS=$?
+          set -e
+          if [[ "$EXISTING_STATUS" -eq 0 ]]; then
+            EXISTING_INTEGRITY="$EXISTING_OUTPUT"
             test "$EXISTING_INTEGRITY" = "$EXPECTED_INTEGRITY"
             echo "@orchid-labs/pluxx@${EXPECTED_VERSION} already exists with matching integrity; skipping immutable npm publish."
-          else
+          elif grep -Eiq 'E404|404 Not Found|is not in this registry' <<<"$EXISTING_OUTPUT"; then
             npm publish "./${{ steps.pack.outputs.package_file }}" --provenance --access public
+          else
+            echo "Unable to inspect the npm registry before publishing:" >&2
+            echo "$EXISTING_OUTPUT" >&2
+            exit "$EXISTING_STATUS"
           fi
 
       - name: Verify npm publication
@@ -79,8 +87,14 @@ jobs:
           set -euo pipefail
           EXPECTED_VERSION="${{ steps.version.outputs.package_version }}"
           EXPECTED_INTEGRITY="${{ steps.pack.outputs.package_integrity }}"
-          PUBLISHED_VERSION="$(npm view "@orchid-labs/pluxx@${EXPECTED_VERSION}" version)"
-          PUBLISHED_INTEGRITY="$(npm view "@orchid-labs/pluxx@${EXPECTED_VERSION}" dist.integrity)"
+          for attempt in 1 2 3 4 5 6; do
+            if PUBLISHED_VERSION="$(npm view "@orchid-labs/pluxx@${EXPECTED_VERSION}" version)" \
+              && PUBLISHED_INTEGRITY="$(npm view "@orchid-labs/pluxx@${EXPECTED_VERSION}" dist.integrity)"; then
+              break
+            fi
+            if [[ "$attempt" -eq 6 ]]; then exit 1; fi
+            sleep 5
+          done
           test "$PUBLISHED_VERSION" = "$EXPECTED_VERSION"
           test "$PUBLISHED_INTEGRITY" = "$EXPECTED_INTEGRITY"
 

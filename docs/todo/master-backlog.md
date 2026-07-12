@@ -1,6 +1,6 @@
 # Master Backlog
 
-Last updated: 2026-06-27
+Last updated: 2026-07-12
 
 This is the most complete repo-native backlog for Pluxx.
 
@@ -80,13 +80,19 @@ Any person or agent should be able to enter the repo and answer:
 
 ## Now
 
+Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) defines the five evidence tiers and freshness rules, while [proof-manifest.json](../proof-manifest.json) keeps machine-readable receipts and current/historical claim state aligned with `package.json`.
+
 ### 1. Product clarity and front-door coherence
 
 - [~] Keep [start-here.md](../start-here.md), [queue.md](./queue.md), this file, and Linear aligned
+- [x] Make `init`, `sync`, `migrate`, and `build` mutations atomic and recoverable:
+  - stage and validate before publishing final source or `dist` paths
+  - roll back thrown mid-apply failures and retain actionable recovery metadata for unresolved interruptions
+  - expose additive versioned mutation manifests and refuse ambiguous rename or occupied-destination conflicts
 - [~] Keep [docs/release-distribution-proof-map.md](../release-distribution-proof-map.md) current as the short ship-today vs release-gap source of truth:
   - primary release-smoked fronts are Claude Code, Cursor, Codex, and OpenCode
   - Gemini CLI remains a beta generator target until it has release-smoke and installer parity
-  - local build/install/verify, checksum-verifying and staged/rollback-safe GitHub Release installers, release-identity validation, partial npm/GitHub reconciliation, and npm-backed OpenCode package publishing are shipped
+  - local build/install/verify, tagged and bounded-download GitHub Release installers with checksum verification, install-scoped locking, ownership-aware staged/signal-safe rollback, release-identity and remote-byte validation, partial npm/GitHub reconciliation, and npm-backed OpenCode package publishing are shipped
   - marketplace submission APIs, managed trust/distribution, automatic remote rollback/unpublish, and live credentialed publish/rollback proof remain open
 - [~] Keep [docs/core-four-primitive-proof-ledger.md](../core-four-primitive-proof-ledger.md) current as the primitive-by-host proof ledger for the core-four native shipping claim
 - [~] Close the remaining ticket-state drift where shipped work can still appear as backlog in Linear
@@ -96,7 +102,7 @@ Any person or agent should be able to enter the repo and answer:
   - `PLUXX-248`
   - `PLUXX-308` adds install-managed custom-agent registration, collision detection, active-state verification, and ownership-safe uninstall
   - [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
-  - install ownership tracking remains the follow-on slice, not the immediate center
+  - the shipped install-ownership layer is the foundation for this companion workflow, not a remaining follow-on
 - [~] Keep the README top section, website hero, GitHub About metadata, and docs homepage messaging aligned
 - [ ] Remove or rewrite any stale docs that still describe already-shipped work as future work
 - [ ] Decide which docs are public product docs vs strategy docs vs internal-only GTM docs
@@ -110,7 +116,12 @@ Any person or agent should be able to enter the repo and answer:
   - cover idempotency, stale config, malformed companion artifacts, and absent companion files
   - keep execution aligned with `PLUXX-226`, `PLUXX-264`, and `PLUXX-248`
   - see [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
-- [ ] Follow Codex companion apply/verify with install ownership tracking so uninstall, prune, reinstall, and "what did Pluxx touch?" diagnostics can stay conservative
+- [x] Add transactional install ownership so reinstall, uninstall, and "what did Pluxx touch?" diagnostics stay conservative:
+  - shared core-four ownership records hash installed files and validate paths before mutation
+  - copied installs and generated release installers use stage, backup, atomic swap, and rollback
+  - modified and unowned files block replacement and survive uninstall
+  - non-Codex verification catches same-version content drift
+  - Codex config apply/unapply restores only unchanged owned state and preserves later user edits
 - [~] Keep OpenClaw in the documented beta-target lane until native generator, doctor, and smoke proof exist:
   - [docs/openclaw-target-evaluation.md](../openclaw-target-evaluation.md)
 - [~] Turn the provider and branding audits into an explicit closure tracker for every mapped cross-host feature:
@@ -118,6 +129,8 @@ Any person or agent should be able to enter the repo and answer:
 - [~] Use [docs/primitive-compiler-hardening-architecture.md](../primitive-compiler-hardening-architecture.md) as the current execution spec for:
   - canonical IR boundary work
   - shared translation registry rollout
+    - audited skill and hook fields now share one executable registry across generators, lint, doctor, compatibility summaries, and generated docs
+    - remaining registry rollout covers the other primitive buckets without reintroducing bucket-level contradictions
   - runtime/distribution internal seam hardening
   - first hook-registry slice is now in place for event support and field-preservation truth
   - prompt/failClosed/loop_limit lint explainability now also routes through the shared hook registry, and Claude prompt-hook warnings are event-aware instead of claiming all prompt hooks degrade
@@ -127,7 +140,7 @@ Any person or agent should be able to enter the repo and answer:
   - native Codex agent migrate now preserves `sandbox_mode` across the TOML -> canonical markdown -> rebuilt TOML path
   - commands IR now preserves `argument-hint`, `when_to_use`, argument arrays, examples, explicit skill routing, agent routing, and context hints through Codex, OpenCode, and Agent Mode
   - `init --from-mcp` now emits `when_to_use`, canonical `arguments`, and explicit `skill` routing into generated command frontmatter
-  - the shared `src/skills.ts` seam now also emits canonical support-file metadata for `examples/`, helper `scripts/`, and neighboring references
+  - the shared `src/skills.ts` seam now uses real YAML parsing, exposes normalized metadata with source provenance, and emits canonical support-file metadata for `examples/`, helper `scripts/`, and neighboring references
   - command and skill translation wording in `lint` now routes through shared registries instead of hand-written per-target strings
   - Codex command routing guidance and `.codex/commands.generated.json` now read from the same richer command seam, reducing drift between AGENTS.md guidance and companion metadata
   - Codex/OpenCode skill-frontmatter translation notes now explicitly cover `when_to_use`, `user-invocable`, `model`, and `effort`
@@ -162,6 +175,10 @@ Any person or agent should be able to enter the repo and answer:
   - `npm test` now fails fast when another full-suite run is already active in the same worktree
   - the follow-on work is removing more repo-local shared fixture and cwd assumptions so worktree-local serialization is no longer carrying as much reliability weight
   - the current worktree release gate is green again with a passing `npm test`, package runtime verification, dry-run pack, and `npm run release:check` as of 2026-05-17
+- [x] Harden local MCP record/replay tapes as a safe deterministic proof surface:
+  - schema-v2 recordings recursively redact common sensitive keys plus source, URL, and recognized credential values before persistence
+  - strict validation rejects malformed/incomplete tapes and unsupported schemas with explicit migration guidance
+  - replay preserves expected interactions after mismatches, reports unused entries, and remains compatible with valid schema-v1 tapes
 - [x] Use [author-once-hardening.md](./author-once-hardening.md) as the initiative-level TODO for closing the main author-once gap between:
   - the author-once vision
   - the currently shipped compiler, proof, and onboarding reality
@@ -329,13 +346,17 @@ Open work:
   - `.pluxx/sources.json`
   - `.pluxx/docs-context.json`
   - scaffold improvements
+- [x] Bound remote ingestion by protocol, public destination, redirect, time, response size, and content type
+- [x] Treat website/docs material as untrusted evidence in provenance artifacts, context, and runner prompts
+- [x] Document the local and Firecrawl data-flow/privacy boundary
+- [x] Extend the fixture benchmark with visible deterministic scaffold file/line deltas
 - [ ] Improve weak cases exposed by the fixture harness
 - [ ] Tighten signal extraction:
   - product description quality
   - setup/auth hint quality
   - workflow hint quality
   - code-snippet/chrome filtering
-- [ ] Decide whether ingestion should stay a context-prep layer or grow into a more explicit scaffold-quality comparison harness
+- [ ] Decide whether ingestion should stay a context-prep layer or grow beyond the current scaffold-quality comparison harness
 
 ### 4. Release-grade Pluxx plugin
 
@@ -446,9 +467,10 @@ These are already part of the strategy direction and should stay in view:
 
 ### 10. Eval depth and regression confidence
 
-- [~] Keep `pluxx eval` meaningful as a product surface, not just a maintainer nicety
-- [ ] Expand regression coverage where prompt-pack quality still feels too subjective
-- [ ] Use the flagship plugin and docs-ingestion flow as stable eval fixtures
+- [x] Separate deterministic scaffold contracts from semantic quality scoring in `pluxx eval`
+- [x] Add configurable semantic warning/failure thresholds and adversarial incoherence coverage
+- [x] Use the self-hosted plugin, flagship plugin, and docs-ingestion projects as maintained semantic regression inputs
+- [ ] Add model-assisted evaluation only if deterministic rubric evidence proves insufficient for a future failure class
 
 ### 11. Migration and sync depth
 

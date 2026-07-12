@@ -3,6 +3,7 @@
     {
       "name": "verify-install",
       "commandId": "verify-install",
+      "skillId": "pluxx-verify-install",
       "targets": {
         "claude-code": {
           "prompt": "/pluxx:verify-install claude-code. Return sections titled Passed targets: and Smallest next step:.",
@@ -51,8 +52,69 @@
       }
     },
     {
+      "name": "import-mcp",
+      "commandId": "import-mcp",
+      "skillId": "pluxx-import-mcp",
+      "targets": {
+        "codex": {
+          "prompt": "Use Pluxx command `import-mcp` to plan a dry-run import from https://example.com/mcp. Do not change the plugin. Write .pluxx/behavioral-receipts/import-mcp.json with {\"case\":\"import-mcp\",\"outcome\":\"planned\",\"dryRun\":true}. Return sections titled Planned command: and Validation gates:.",
+          "require": ["Planned command:", "Validation gates:", "--dry-run"],
+          "forbid": ["context too long", "skill bailed", "Import complete"],
+          "artifacts": [{
+            "path": ".pluxx/behavioral-receipts/import-mcp.json",
+            "state": "changed",
+            "require": ["\"case\":", "\"outcome\":", "\"dryRun\":true"]
+          }, {
+            "path": "skills/pluxx-import-mcp/SKILL.md",
+            "require": ["pluxx init --from-mcp", "--dry-run --json"]
+          }]
+        }
+      }
+    },
+    {
+      "name": "refine-plugin",
+      "commandId": "refine-plugin",
+      "skillId": "pluxx-refine-plugin",
+      "targets": {
+        "codex": {
+          "prompt": "Use Pluxx command `refine-plugin` to inspect this source project without changing it. Write .pluxx/behavioral-receipts/refine-plugin.json with {\"case\":\"refine-plugin\",\"outcome\":\"reviewed\",\"changed\":false}. Return sections titled Recommended pass: and Validation gates:.",
+          "require": ["Recommended pass:", "Validation gates:"],
+          "forbid": ["context too long", "skill bailed"],
+          "artifacts": [{
+            "path": ".pluxx/behavioral-receipts/refine-plugin.json",
+            "state": "changed",
+            "require": ["\"case\":", "\"outcome\":", "\"changed\":false"]
+          }, {
+            "path": "skills/pluxx-refine-plugin/SKILL.md",
+            "require": ["pluxx agent", "pluxx test"]
+          }]
+        }
+      }
+    },
+    {
+      "name": "prove-plugin",
+      "commandId": "prove-plugin",
+      "skillId": "pluxx-prove-plugin",
+      "targets": {
+        "codex": {
+          "prompt": "Use Pluxx command `prove-plugin` to plan proof for this source project without installing or publishing. Write .pluxx/behavioral-receipts/prove-plugin.json with {\"case\":\"prove-plugin\",\"outcome\":\"planned\",\"published\":false}. Return sections titled Proof matrix: and Missing evidence:.",
+          "require": ["Proof matrix:", "Missing evidence:"],
+          "forbid": ["context too long", "skill bailed", "Published"],
+          "artifacts": [{
+            "path": ".pluxx/behavioral-receipts/prove-plugin.json",
+            "state": "changed",
+            "require": ["\"case\":", "\"outcome\":", "\"published\":false"]
+          }, {
+            "path": "skills/pluxx-prove-plugin/SKILL.md",
+            "require": ["pluxx test", "verify-install"]
+          }]
+        }
+      }
+    },
+    {
       "name": "translate-hosts",
       "commandId": "translate-hosts",
+      "skillId": "pluxx-translate-hosts",
       "targets": {
         "claude-code": {
           "prompt": "/pluxx:translate-hosts hooks codex. Return sections titled Preserve/translate/degrade/drop: and Highest-value source-shape fix:.",
@@ -77,7 +139,7 @@
           ]
         },
         "codex": {
-          "prompt": "Use Pluxx command `translate-hosts` to review Codex hook translation truth. Return sections titled Preserve/translate/degrade/drop: and Highest-value source-shape fix:.",
+          "prompt": "Use Pluxx command `translate-hosts` to review Codex hook translation truth. Write .pluxx/behavioral-receipts/translate-hosts.json with {\"case\":\"translate-hosts\",\"target\":\"codex\",\"outcome\":\"reviewed\"}. Return sections titled Preserve/translate/degrade/drop: and Highest-value source-shape fix:.",
           "require": [
             "Preserve/translate/degrade/drop:",
             "Highest-value source-shape fix:"
@@ -85,7 +147,15 @@
           "forbid": [
             "context too long",
             "skill bailed"
-          ]
+          ],
+          "artifacts": [{
+            "path": ".pluxx/behavioral-receipts/translate-hosts.json",
+            "state": "changed",
+            "require": ["\"case\":", "\"target\":\"codex\"", "\"outcome\":"]
+          }, {
+            "path": "skills/pluxx-translate-hosts/SKILL.md",
+            "require": ["Preserve", "translate", "degrade", "drop"]
+          }]
         },
         "opencode": {
           "prompt": "/translate-hosts hooks codex. Return sections titled Preserve/translate/degrade/drop: and Highest-value source-shape fix:.",
@@ -97,6 +167,46 @@
             "context too long",
             "skill bailed"
           ]
+        }
+      }
+    },
+    {
+      "name": "troubleshoot-install",
+      "commandId": "troubleshoot-install",
+      "skillId": "pluxx-troubleshoot-install",
+      "targets": {
+        "codex": {
+          "prompt": "Use Pluxx command `troubleshoot-install` to diagnose a hypothetical stale Codex install without changing it. Write .pluxx/behavioral-receipts/troubleshoot-install.json with {\"case\":\"troubleshoot-install\",\"outcome\":\"diagnosed\",\"changed\":false}. Return sections titled Diagnostic command: and Smallest repair:.",
+          "require": ["Diagnostic command:", "Smallest repair:", "doctor --consumer"],
+          "forbid": ["context too long", "skill bailed", "Reinstalled"],
+          "artifacts": [{
+            "path": ".pluxx/behavioral-receipts/troubleshoot-install.json",
+            "state": "changed",
+            "require": ["\"case\":", "\"outcome\":", "\"changed\":false"]
+          }, {
+            "path": "skills/pluxx-troubleshoot-install/SKILL.md",
+            "require": ["doctor --consumer", "verify-install"]
+          }]
+        }
+      }
+    },
+    {
+      "name": "publish-dry-run",
+      "commandId": "publish-plugin",
+      "skillId": "pluxx-publish-plugin",
+      "targets": {
+        "codex": {
+          "prompt": "Use Pluxx command `publish-plugin` to plan a publish dry run without publishing. Write .pluxx/behavioral-receipts/publish-dry-run.json with {\"case\":\"publish-dry-run\",\"outcome\":\"planned\",\"published\":false}. Return sections titled Planned targets: and Planned artifacts:.",
+          "require": ["Planned targets:", "Planned artifacts:", "--dry-run"],
+          "forbid": ["context too long", "skill bailed", "Published successfully"],
+          "artifacts": [{
+            "path": ".pluxx/behavioral-receipts/publish-dry-run.json",
+            "state": "changed",
+            "require": ["\"case\":", "\"outcome\":", "\"published\":false"]
+          }, {
+            "path": "skills/pluxx-publish-plugin/SKILL.md",
+            "require": ["pluxx publish --dry-run --json", "Never turn a proof request into a release"]
+          }]
         }
       }
     }

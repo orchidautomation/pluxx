@@ -79,7 +79,7 @@ import { printVerifyInstallResult, verifyInstall } from './verify-install'
 import { runBehavioralSuite } from './behavioral'
 import type { BehavioralSuiteResult } from './behavioral'
 import { planTextFileAction, writeTextFile } from '../text-files'
-import { applyCodexCompanion, renderCodexCompanionApplyLines } from './codex-apply'
+import { applyCodexCompanion, renderCodexCompanionApplyLines, unapplyCodexCompanion } from './codex-apply'
 import {
   discoverInstalledMcpServers,
   formatInstalledMcpSource,
@@ -91,6 +91,7 @@ import {
 } from './discover-installed-mcp'
 import { buildHostTargetSelection, detectHostFamilies } from '../host-detection'
 import { executeUpgrade, planUpgrade } from './upgrade'
+import { applyFileMutations, createMutationManifest } from '../fs-transaction'
 
 const CLI_PACKAGE_NAME = '@orchid-labs/pluxx'
 const rawArgs = process.argv.slice(2)
@@ -161,6 +162,7 @@ interface InitFromMcpSummary {
   notes: string[]
   nextSteps: string[]
   dryRun?: boolean
+  mutation: ReturnType<typeof createMutationManifest>
 }
 
 interface AutopilotSummary {
@@ -241,6 +243,10 @@ export async function main() {
       await runVersionCommand()
       break
     case 'upgrade':
+      if (isHelpRequested(args.slice(1))) {
+        printUpgradeHelp()
+        break
+      }
       await runUpgradeCommand()
       break
     case 'build':
@@ -350,7 +356,7 @@ function buildUpgradeSummary() {
     invocationPath: process.argv[1] ?? '',
     dryRun: runtime.dryRun,
     requestedVersion,
-    resolveRequestedVersion: !runtime.dryRun,
+    resolveRequestedVersion: !readFlag(args, '--offline'),
   })
 }
 
@@ -1204,6 +1210,7 @@ function buildInitSummary(input: {
   ingestion?: AgentContextIngestionArtifact
   approveMcpTools?: boolean
   dryRun?: boolean
+  conflicts?: Array<{ path: string; reason: string }>
 }): InitFromMcpSummary {
   const installTarget = input.targets[0]
   const installCommand = input.hookMode === 'safe'
@@ -1266,6 +1273,13 @@ function buildInitSummary(input: {
     notes,
     nextSteps,
     dryRun: input.dryRun,
+    mutation: createMutationManifest({
+      files: [
+        ...input.createdFiles.map((path) => ({ path, action: 'create' as const })),
+        ...input.updatedFiles.map((path) => ({ path, action: 'update' as const })),
+      ],
+      conflicts: input.conflicts,
+    }),
   }
 }
 
@@ -1539,13 +1553,8 @@ ${mcpBlock}${brandBlock}
 })
 `
 
-    // Write config
-    await writeTextFile(resolve(process.cwd(), 'pluxx.config.ts'), template)
-
-    // Create skills directory with a starter SKILL.md
+    // Create the starter skill content, then publish both files as one transaction.
     const skillDir = `skills/${skillName}`
-    await mkdir(skillDir, { recursive: true })
-
     const skillContent = `---
 name: ${JSON.stringify(skillName)}
 description: ${JSON.stringify(description || `A starter skill for ${skillName}`)}
@@ -1565,8 +1574,23 @@ Describe how agents should use this skill.
 Example prompt or command here
 \`\`\`
 `
-
-    await writeTextFile(resolve(process.cwd(), `${skillDir}/SKILL.md`), skillContent)
+    const initDestinations = ['pluxx.config.ts', `${skillDir}/SKILL.md`]
+    const occupied = initDestinations.filter((path) => existsSync(resolve(process.cwd(), path)))
+    if (occupied.length > 0) {
+      throw new Error(`Init conflicts require resolution before apply: ${occupied.join(', ')}`)
+    }
+    applyFileMutations(process.cwd(), [
+      {
+        path: 'pluxx.config.ts',
+        action: 'create',
+        content: template,
+      },
+      {
+        path: `${skillDir}/SKILL.md`,
+        action: 'create',
+        content: skillContent,
+      },
+    ])
 
     console.log('')
     console.log('  Created:')
@@ -1916,12 +1940,16 @@ ${formatAuthRequiredMessage('init', retryError, source)}`)
     const contextArtifactFiles = await planInitContextArtifactFiles(process.cwd(), sourcedContextPack)
     createdFiles.push(...contextArtifactFiles.filter((file) => file.action === 'create').map((file) => file.relativePath))
     updatedFiles.push(...contextArtifactFiles.filter((file) => file.action === 'update').map((file) => file.relativePath))
+    const initConflicts = [...plan.files, ...contextArtifactFiles]
+      .filter((file) => file.action === 'update')
+      .filter((file) => !file.relativePath.endsWith('.md') && !file.relativePath.startsWith('.pluxx/'))
+      .map((file) => ({ path: file.relativePath, reason: 'destination-exists' }))
 
     if (!runtime.dryRun) {
-      await applyMcpScaffoldPlan(process.cwd(), plan)
-      for (const file of contextArtifactFiles) {
-        await writeTextFile(resolve(process.cwd(), file.relativePath), file.content)
+      if (initConflicts.length > 0) {
+        throw new Error(`Init conflicts require resolution before apply: ${initConflicts.map((conflict) => conflict.path).join(', ')}`)
       }
+      await applyMcpScaffoldPlan(process.cwd(), plan, {}, contextArtifactFiles)
     }
 
     const lintResult = runtime.dryRun
@@ -1949,6 +1977,7 @@ ${formatAuthRequiredMessage('init', retryError, source)}`)
       ingestion: sourcedContextPack?.ingestion,
       approveMcpTools: options.approveMcpTools,
       dryRun: runtime.dryRun,
+      conflicts: initConflicts,
     })
 
     if (options.jsonOutput) {
@@ -1967,6 +1996,9 @@ ${formatAuthRequiredMessage('init', retryError, source)}`)
     }
     if (summary.updatedFiles.length > 0) {
       clack.log.info(`Update: ${summary.updatedFiles.join(', ')}`)
+    }
+    if (summary.mutation.conflicts.length > 0) {
+      clack.log.warn(`Conflicts: ${summary.mutation.conflicts.map((conflict) => `${conflict.path} (${conflict.reason})`).join(', ')}`)
     }
 
     if (!runtime.dryRun) {
@@ -3156,6 +3188,15 @@ async function runTestCommand() {
         for (const check of behavioralResult.checks) {
           const prefix = check.ok ? '  PASS' : '  FAIL'
           console.log(`${prefix} ${check.platform}/${check.caseName}: ${check.responsePreview || '(no response preview)'}`)
+          const workflowIds = [
+            check.commandId ? `command=${check.commandId}` : undefined,
+            check.skillId ? `skill=${check.skillId}` : undefined,
+            check.agentId ? `agent=${check.agentId}` : undefined,
+          ].filter(Boolean)
+          const assertionCount = check.receipt.assertions.requiredText.length
+            + check.receipt.assertions.forbiddenText.length
+            + 1
+          console.log(`    Receipt: target=${check.receipt.target}${workflowIds.length ? ` ${workflowIds.join(' ')}` : ''} assertions=${assertionCount} artifacts=${check.receipt.artifacts.length}`)
           if (!check.ok) {
             for (const failure of check.failures) {
               console.log(`    - ${failure}`)
@@ -3385,11 +3426,24 @@ async function runVerifyInstall() {
 
 async function runCodex() {
   const subcommand = args[1]
-  if (subcommand === 'apply') {
+  if (subcommand === 'apply' || subcommand === 'unapply') {
     const consumerRoot = readOption(args, '--consumer') ?? args[2]
     if (!consumerRoot || consumerRoot.startsWith('-')) {
-      console.error('Usage: pluxx codex apply --consumer <installed-codex-bundle> [--config <config.toml>|--project-root <path>|--user] [--agents-only|--hooks-only|--mcp-approvals-only] [--dry-run] [--json]')
+      console.error(`Usage: pluxx codex ${subcommand} --consumer <installed-codex-bundle> [--config <config.toml>|--project-root <path>|--user] [--agents-only|--hooks-only|--mcp-approvals-only] [--dry-run] [--json]`)
       process.exit(1)
+    }
+
+    if (subcommand === 'unapply') {
+      const result = unapplyCodexCompanion({
+        consumerRoot,
+        configPath: readOption(args, '--config'),
+        projectRoot: readOption(args, '--project-root'),
+        userConfig: readFlag(args, '--user'),
+        dryRun: runtime.dryRun,
+      })
+      if (runtime.jsonOutput) printJson(result)
+      else if (!runtime.quiet) console.log(`${runtime.dryRun ? 'Dry run: ' : ''}${result.detail}`)
+      return
     }
 
     const hooksOnly = readFlag(args, '--hooks-only')
@@ -3424,7 +3478,7 @@ async function runCodex() {
     return
   }
 
-  console.error('Usage: pluxx codex apply --consumer <installed-codex-bundle> [--config <config.toml>|--project-root <path>|--user] [--agents-only|--hooks-only|--mcp-approvals-only] [--dry-run] [--json]')
+  console.error('Usage: pluxx codex <apply|unapply> --consumer <installed-codex-bundle> [--config <config.toml>|--project-root <path>|--user] [--agents-only|--hooks-only|--mcp-approvals-only] [--dry-run] [--json]')
   process.exit(1)
 }
 
@@ -3442,14 +3496,29 @@ async function runUninstall() {
 async function runMigrate() {
   const inputPath = args[1]
   if (!inputPath) {
-    console.error('Usage: pluxx migrate <path>')
+    console.error('Usage: pluxx migrate <path> [--dry-run] [--json]')
     console.error('')
     console.error('  Import an existing single-platform plugin into a pluxx.config.ts.')
     console.error('  Pass the path to a plugin directory containing .claude-plugin/,')
     console.error('  .cursor-plugin/, .codex-plugin/, or a package.json with @opencode-ai/plugin.')
     process.exit(1)
   }
-  await migrate(inputPath)
+  const summary = await migrate(inputPath, {
+    dryRun: runtime.dryRun,
+    quiet: runtime.jsonOutput || runtime.quiet,
+  })
+  if (runtime.jsonOutput) {
+    printJson(summary)
+  } else if (runtime.dryRun && !runtime.quiet) {
+    console.log('Dry run: planned migration changes')
+    console.log(`  Create: ${summary.mutation.creates.length}`)
+    console.log(`  Update: ${summary.mutation.updates.length}`)
+    console.log(`  Delete: ${summary.mutation.deletes.length}`)
+    console.log(`  Conflicts: ${summary.mutation.conflicts.length}`)
+    for (const conflict of summary.mutation.conflicts) {
+      console.log(`    ! ${conflict.path}: ${conflict.reason}`)
+    }
+  }
 }
 
 async function runMcp() {
@@ -3486,8 +3555,9 @@ Usage:
   pluxx agent prompt <kind>               Generate a prompt pack (taxonomy, instructions, review)
   pluxx agent run <kind> --runner <id>    Execute a prompt pack via Claude, Cursor, Codex, or OpenCode headlessly
   pluxx codex apply --consumer <path>     Register custom agents and merge generated Codex companion prerequisites
+  pluxx codex unapply --consumer <path>   Conservatively restore unchanged Codex config owned by the last apply
   pluxx discover-mcp [--host <hosts...>] List installed MCP servers from local host configs
-  pluxx mcp proxy ...                     Run a local MCP proxy with optional record/replay tapes
+  pluxx mcp proxy ...                     Run a local MCP proxy with redacted, versioned record/replay tapes
   pluxx autopilot --from-mcp ...          Run import + agent refinement + verification in one command
   pluxx init [name] [--from-mcp <source>|--from-installed-mcp <selector>] Create a new pluxx.config.ts
   pluxx sync [--from-mcp <source>]        Refresh MCP-derived scaffold files
@@ -3550,6 +3620,7 @@ Examples:
   pluxx agent run taxonomy --runner codex --verbose-runner
   pluxx agent run review --runner opencode --attach http://localhost:4096 --no-verify
   pluxx codex apply --consumer ./dist/codex --project-root . --dry-run
+  pluxx codex unapply --consumer ./dist/codex --project-root . --dry-run
   pluxx autopilot --from-mcp https://example.com/mcp --runner codex --website https://example.com --docs https://docs.example.com --ingest-provider auto
   pluxx mcp proxy --from-mcp "node ./server.js" --record .pluxx/tapes/dev.json
   pluxx mcp proxy --replay .pluxx/tapes/dev.json
@@ -3577,6 +3648,24 @@ Examples:
   pluxx publish --dry-run                 Preview npm/GitHub release publish checks
   pluxx publish --github-release --version 1.0.0  Create release installers and a GitHub release
   pluxx publish --npm --tag next          Publish the npm package under a non-latest dist-tag
+`)
+}
+
+function printUpgradeHelp() {
+  console.log(`
+pluxx upgrade — upgrade and verify the active global Pluxx CLI
+
+Usage:
+  pluxx upgrade [--version x.y.z] [--dry-run] [--offline] [--json]
+
+Options:
+  --version x.y.z  Install an exact semantic version instead of latest
+  --dry-run        Resolve and report the planned upgrade without installing
+  --offline        Skip npm registry resolution while planning
+  --json           Print machine-readable plan or execution details
+
+The result reports the invocation source, version comparison, active PATH identity,
+and the exact rollback command for the currently installed version.
 `)
 }
 

@@ -9,6 +9,7 @@ import { getRuntimeReadinessCapability } from '../../runtime-readiness-registry'
 import { getCanonicalAgentMetadata, type AgentFrontmatterMap, type AgentFrontmatterValue, readCanonicalAgentFiles } from '../../agents'
 import { getCanonicalCommandMetadata, readCanonicalCommandFiles } from '../../commands'
 import { getCanonicalSkillMetadata, readCanonicalSkillFiles } from '../../skills'
+import { getSkillTranslationSummary } from '../../skill-translation-registry'
 import { collectRuntimeInheritedStdioEnvVars } from '../../user-config'
 import {
   buildMcpRuntimeEnvScript,
@@ -435,6 +436,7 @@ export class OpenCodeGenerator extends Generator {
         return {
           id: metadata.dirName,
           title: metadata.title,
+          translation: getSkillTranslationSummary('opencode', skill.frontmatterNodes.keys()),
           ...(metadata.description ? { description: metadata.description } : {}),
           ...(metadata.whenToUse ? { whenToUse: metadata.whenToUse } : {}),
           ...(metadata.argumentHint ? { argumentHint: metadata.argumentHint } : {}),

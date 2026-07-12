@@ -1,6 +1,6 @@
 # Pluxx Queue
 
-Last updated: 2026-06-27
+Last updated: 2026-07-12
 
 ## Doc Links
 
@@ -76,6 +76,11 @@ The initial author-once hardening tranche is also materially done.
   - installed-bundle regression coverage now explicitly catches missing OpenCode host entry files, missing synced OpenCode skills, and stale installed OpenCode package versions
 - `pluxx test --install` verifies installed consumer bundle state after install, not just `dist/`
 - `pluxx build` now checks generated manifests and package outputs for source version drift and missing referenced bundle files before release
+- atomic authoring/build publication is now implemented for `init`, `sync`, `migrate`, and `build`:
+  - staged validation keeps final source and `dist` paths unchanged until commit
+  - thrown apply failures restore the prior state; unresolved hard-interruption recovery retains a journal and backup location
+  - additive versioned mutation manifests cover creates, updates, deletes, renames, and conflicts without removing existing JSON summary fields
+  - ambiguous sync renames and occupied init/migrate destinations fail conservatively
 - OpenCode translation is now more honestly native:
   - agent output prefers `permission` over deprecated legacy `tools`
   - native `skill` / `task` permission keys are modeled as real host surfaces
@@ -166,14 +171,14 @@ The initial author-once hardening tranche is also materially done.
 - example and packaged-runtime parity is current again:
   - `examples/prospeo-mcp` now includes its `scripts/` payload in built/installable outputs
   - the example now targets the official `@prospeo/prospeo-mcp-server` package instead of a stale repo-local runtime path
-- the repo release gate is green again as of 2026-05-19:
+- historical release-gate evidence from 2026-05-19 remains available but is not current proof:
   - `npm test`
   - `npm run release:check`
 - the release/distribution/proof lane now has a short source-of-truth map:
   - [docs/release-distribution-proof-map.md](../release-distribution-proof-map.md)
-  - primary release-smoked fronts: Claude Code, Cursor, Codex, OpenCode
+  - primary bundle-contract and fake-home fronts: Claude Code, Cursor, Codex, OpenCode
   - Gemini CLI: beta generator target only today
-  - shipped distribution lane: local build/install/verify, checksum-verifying and staged/rollback-safe GitHub Release installers, release-identity validation, partial npm/GitHub reconciliation, and npm-backed OpenCode package publishing
+  - shipped distribution lane: local build/install/verify, tagged and bounded-download GitHub Release installers with checksum verification, install-scoped locking, ownership-aware staged/signal-safe rollback, release-identity and remote-byte validation, partial npm/GitHub reconciliation, and npm-backed OpenCode package publishing
   - remaining release gaps include marketplace submission APIs, managed trust/distribution control plane, automatic remote rollback/unpublish, and live credentialed publish/rollback proof
 - the core-four native shipping claim now has a primitive-by-host proof ledger:
   - [docs/core-four-primitive-proof-ledger.md](../core-four-primitive-proof-ledger.md)
@@ -181,7 +186,8 @@ The initial author-once hardening tranche is also materially done.
 The public baseline is also real.
 
 - npm package is live as `@orchid-labs/pluxx`
-- the repo is preparing `@orchid-labs/pluxx@0.1.28`; verify npm and the matching tag live before claiming it as the public latest release
+- the canonical repository release is `@orchid-labs/pluxx@0.1.31` with expected tag `v0.1.31`
+- proof claims now use [docs/proof-freshness.md](../proof-freshness.md) and [docs/proof-manifest.json](../proof-manifest.json) so historical host runs cannot masquerade as current evidence
 - published CLI runtime is Node `>=18`
 - published CLI lifecycle ergonomics are now stronger for global installs:
   - `pluxx --version`
@@ -189,6 +195,7 @@ The public baseline is also real.
 - docs site is live
 - Mintlify docs reflect the core compiler story more honestly
 - `migrate`, `eval`, `doctor --consumer`, and `mcp proxy --record/--replay` are shipped
+  - MCP record/replay now writes schema-v2 tapes with default recursive credential redaction, strictly validates replay input, keeps mismatched expectations recoverable, reports unused interactions, and retains valid schema-v1 replay compatibility
 - the self-hosted Pluxx plugin exists:
   - canonical source project: `example/pluxx`
   - repo-local Codex dogfood surface: `plugins/pluxx`
@@ -221,7 +228,7 @@ Open work:
 - treat Codex companion apply/verify as the next concrete robustness slice:
   - make generated readiness, hook, MCP approval, and companion config guidance operational instead of advisory only
   - keep this aligned with `PLUXX-226`, `PLUXX-264`, `PLUXX-248`, and [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
-  - use install ownership tracking as the follow-on, not the immediate queue center
+  - build the companion workflow on the shipped install-ownership layer rather than reopening ownership as future work
 - use [docs/core-four-reliability-register.md](../core-four-reliability-register.md) as the current Claude Code and Codex failure-mode inventory:
   - keep the documented break modes aligned with the actual proof stack
   - treat Cursor and OpenCode as secondary reliability follow-ons rather than flattening all four hosts into one identical work block
@@ -234,7 +241,12 @@ Open work:
   - cover hooks, readiness, MCP approval stanzas, companion config diffs/backups, idempotency, stale config, malformed companion artifacts, and no-op behavior when companion files are absent
   - keep this aligned with `PLUXX-226`, `PLUXX-264`, and `PLUXX-248`
   - use [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md) as the decision note
-- after Codex companion apply/verify, ship install ownership tracking for conservative uninstall, prune, reinstall, and "what did Pluxx touch?" diagnostics
+- [x] Ship transactional core-four install ownership for conservative reinstall, uninstall, and content diagnostics:
+  - local copied installs and generated release installers stage and validate before a sibling swap
+  - the prior bundle remains available for rollback until post-install work succeeds
+  - modified or unowned installed files are preserved instead of silently replaced or deleted
+  - `verify-install` distinguishes version equality from content equality
+  - Codex config apply/unapply is ownership-backed and conservative
 - keep GTM-sensitive material out of the public repo
 - continue reconciling stale planning artifacts that still describe already-shipped work as future work
 - close the remaining Linear drift where shipped work like installed-MCP discovery is still marked as backlog
@@ -253,7 +265,12 @@ Open work:
   - shared registry rollout
   - runtime/distribution internal seam hardening
 - shared skill parsing is now materially less duplicated:
-  - `src/skills.ts` is the common reader for lint, Agent Mode, migrate, and Claude skill rewrites
+  - `src/skills.ts` is the common YAML-backed reader for lint, Agent Mode, migrate, and Claude skill rewrites
+  - valid multiline, quoted-comma, sequence, and nested metadata shapes normalize consistently with source locations
+  - unsupported shapes are lint-visible instead of silently disappearing
+- field-level translation truth is now compiler-owned for audited skills and hooks:
+  - generators, lint, doctor, compatibility summaries, and generated matrix docs share one registry
+  - primitive preserve/translate/degrade/drop labels are derived from field outcomes
 - use [docs/todo/author-once-hardening.md](./author-once-hardening.md) as the current initiative-level TODO for closing the remaining gap between:
   - the author-once product vision
   - the currently shipped compiler, proof, and install reality
@@ -286,8 +303,14 @@ Open work:
   - installed behavioral proof is now materially stronger:
     - the behavioral harness supports expected-failure cases and host-specific runner args for maintained smoke fixtures
     - maintained smoke fixtures can now declare an explicit `commandId` plus required output markers, so command-proof cases fail when the prompt does not reference the command or the output shape stays vague
+    - receipts now identify target, command/skill/agent, assertions, and artifact outcomes instead of reducing proof to marker matches
+    - `example/pluxx` now maintains import, refine, prove, translate, troubleshoot, and publish-dry-run workflow cases
     - `example/docs-ops`, `example/exa-plugin`, and `example/platform-change-ops` now each carry maintained behavioral smoke configs with command-specific assertions instead of relying only on ad hoc walkthroughs
     - `doctor --consumer` and `verify-install` now execute generated Claude/Cursor bundled permission-hook scripts and fail if those installed decisions are invalid
+  - semantic eval is now a separate evidence-bearing layer over scaffold contract checks:
+    - eight deterministic criteria cover tool coverage through cross-file consistency
+    - warning/failure thresholds are configurable in project config
+    - adversarial incoherence and maintained manual/flagship/docs-ingestion regressions are covered in tests
   - agent translation explainability is now less duplicated:
     - `src/agent-translation-registry.ts` now drives degraded-field messaging for Cursor, Codex, and OpenCode
     - generated Cursor and Codex agent surfaces now emit the same translation story that `lint` uses
@@ -408,6 +431,9 @@ Open work:
   - [docs/strategy/docs-ingestion-fixture-eval.md](../strategy/docs-ingestion-fixture-eval.md)
 - treat the live scaffold before/after demo as captured:
   - [docs/strategy/docs-ingestion-scaffold-before-after.md](../strategy/docs-ingestion-scaffold-before-after.md)
+- treat bounded public-target fetching, redirect revalidation, untrusted-source labeling, and explicit local-vs-Firecrawl provenance/privacy as shipped behavior:
+  - [docs/strategy/docs-url-ingestion.md](../strategy/docs-url-ingestion.md)
+- use the fixture benchmark's visible scaffold file/line delta alongside recovered-term scores
 - use the fixture snapshots to improve the weak cases the harness now exposes
 - tighten signal extraction further:
   - product description quality
@@ -467,11 +493,11 @@ Open work:
   - native bundles across the core four
   - install verification and truthful compatibility
 
-### 6. Next release
+### 6. Historical v0.1.28 release checklist
 
-Goal:
+Historical context:
 
-- complete the `0.1.28` npm release routine now that the code path plus packaged tarball pass the release gate
+- this checklist is retained as historical v0.1.28 release-prep context; it is not the current release plan
 
 Open work:
 
@@ -481,10 +507,7 @@ Open work:
 - [x] rerun the full release gate, including tarball install and `npm exec`
 - [x] bump `package.json` and `package-lock.json` from `0.1.27` to `0.1.28`
 - [x] rerun the release gate before tagging
-- [ ] merge release-prep fixes to `main`
-- [ ] push the matching `v0.1.28` tag to trigger the GitHub Actions npm publish
-- [ ] publish and verify `@orchid-labs/pluxx@0.1.28`
-- [ ] verify the npm version, GitHub release, and tarball artifact after the workflow completes
+- [x] superseded by the canonical `0.1.31` / `v0.1.31` repository release state
 
 ## Explicitly Deferred
 

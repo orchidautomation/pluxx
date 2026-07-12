@@ -405,9 +405,35 @@ describe('build', () => {
       outDir: './missing-asset-dist',
     }
 
+    mkdirSync(resolve(TEST_DIR, 'missing-asset-dist'), { recursive: true })
+    writeFileSync(resolve(TEST_DIR, 'missing-asset-dist/original.txt'), 'keep me\n')
+
     await expect(build(missingAssetConfig, TEST_DIR)).rejects.toThrow(
       'Generated codex manifest references missing bundle path: ./assets/missing.svg.',
     )
+    expect(readFileSync(resolve(TEST_DIR, 'missing-asset-dist/original.txt'), 'utf-8')).toBe('keep me\n')
+    expect(existsSync(resolve(TEST_DIR, 'missing-asset-dist/codex'))).toBe(false)
+  })
+
+  it('restores the previous dist when publication fails after backup', async () => {
+    const atomicConfig: PluginConfig = {
+      ...testConfig,
+      targets: ['codex'],
+      outDir: './atomic-dist',
+    }
+    mkdirSync(resolve(TEST_DIR, 'atomic-dist'), { recursive: true })
+    writeFileSync(resolve(TEST_DIR, 'atomic-dist/original.txt'), 'keep me\n')
+
+    await expect(build(atomicConfig, TEST_DIR, {
+      mutationHooks: {
+        injectFailure(phase) {
+          if (phase === 'backup-created') throw new Error('injected publication failure')
+        },
+      },
+    })).rejects.toThrow('Original directory was restored')
+
+    expect(readFileSync(resolve(TEST_DIR, 'atomic-dist/original.txt'), 'utf-8')).toBe('keep me\n')
+    expect(existsSync(resolve(TEST_DIR, 'atomic-dist/codex'))).toBe(false)
   })
 
   it('requires generated brand asset references even when assets copying is not configured', async () => {
@@ -840,6 +866,7 @@ describe('build', () => {
         whenToUse?: string
         helperScripts?: string[]
         examplePaths?: string[]
+        translation?: Array<{ field: string; mode: string; nativeSurfaces: string[] }>
       }>
     }
     const opencodeSkills = JSON.parse(
@@ -850,6 +877,7 @@ describe('build', () => {
         whenToUse?: string
         helperScripts?: string[]
         examplePaths?: string[]
+        translation?: Array<{ field: string; mode: string; nativeSurfaces: string[] }>
       }>
     }
 
@@ -858,6 +886,19 @@ describe('build', () => {
     )
     expect(codexSkills.skills.find((skill) => skill.id === 'deep-research')?.helperScripts).toEqual(['scripts/assist.sh'])
     expect(opencodeSkills.skills.find((skill) => skill.id === 'deep-research')?.examplePaths).toEqual(['examples/sample.md'])
+    expect(codexSkills.skills.find((skill) => skill.id === 'deep-research')?.translation).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ field: 'name', mode: 'preserve' }),
+        expect.objectContaining({ field: 'when_to_use', mode: 'degrade' }),
+        expect.objectContaining({ field: 'allowed-tools', mode: 'degrade' }),
+      ]),
+    )
+    expect(opencodeSkills.skills.find((skill) => skill.id === 'deep-research')?.translation).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ field: 'paths', mode: 'degrade' }),
+        expect.objectContaining({ field: 'agent', mode: 'degrade' }),
+      ]),
+    )
   })
 
   it('hides command-wrapped Claude skills from direct slash invocation while keeping their names stable', async () => {

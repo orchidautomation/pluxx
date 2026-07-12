@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
 import { mkdirSync, rmSync, existsSync, lstatSync, readlinkSync, readFileSync, writeFileSync, cpSync } from 'fs'
-import { resolve } from 'path'
+import { dirname, resolve } from 'path'
 import { ensureHookTrust, getInstallFollowupNotes, installPlugin, listHookCommands, planInstallUserConfig, resolveInstallUserConfig, uninstallPlugin } from '../src/cli/install'
 import type { PluginConfig, TargetPlatform } from '../src/schema'
 
@@ -129,6 +129,20 @@ describe('install', () => {
     expect(readFileSync(resolve(opencodeSkill, 'SKILL.md'), 'utf-8')).toContain('name: megamind/client-intel')
   })
 
+  it('refuses to overwrite an unowned OpenCode companion and leaves the bundle untouched', async () => {
+    mkdirSync(resolve(DIST_DIR, 'opencode/skills/client-intel'), { recursive: true })
+    await Bun.write(resolve(DIST_DIR, 'opencode/index.ts'), 'export const MegamindPlugin = async () => ({});\n')
+    await Bun.write(resolve(DIST_DIR, 'opencode/skills/client-intel/SKILL.md'), '# Client Intel\n')
+    const entryPath = resolve(HOME_DIR, OPENCODE_ENTRY_PATH)
+    mkdirSync(dirname(entryPath), { recursive: true })
+    writeFileSync(entryPath, '// private wrapper\n')
+
+    await expect(installPlugin(DIST_DIR, 'megamind', ['opencode'], { useNativeClaudeInstall: false })).rejects.toThrow('unowned install')
+    expect(readFileSync(entryPath, 'utf-8')).toBe('// private wrapper\n')
+    expect(existsSync(resolve(HOME_DIR, INSTALL_PATHS.opencode))).toBe(false)
+    expect(existsSync(resolve(HOME_DIR, OPENCODE_SKILL_PATH))).toBe(false)
+  })
+
   it('removes Codex marketplace entries on uninstall', async () => {
     mkdirSync(resolve(DIST_DIR, 'codex'), { recursive: true })
     await installPlugin(DIST_DIR, 'megamind', ['codex'], { useNativeClaudeInstall: false })
@@ -226,6 +240,23 @@ describe('install', () => {
     expect(existsSync(resolve(HOME_DIR, INSTALL_PATHS.opencode))).toBe(false)
     expect(existsSync(resolve(HOME_DIR, OPENCODE_ENTRY_PATH))).toBe(false)
     expect(existsSync(resolve(HOME_DIR, OPENCODE_SKILL_PATH))).toBe(false)
+  })
+
+  it('preserves modified OpenCode companions during uninstall', async () => {
+    mkdirSync(resolve(DIST_DIR, 'opencode/skills/client-intel'), { recursive: true })
+    await Bun.write(resolve(DIST_DIR, 'opencode/index.ts'), 'export const MegamindPlugin = async () => ({});\n')
+    await Bun.write(resolve(DIST_DIR, 'opencode/skills/client-intel/SKILL.md'), '# Client Intel\n')
+    await installPlugin(DIST_DIR, 'megamind', ['opencode'], { useNativeClaudeInstall: false })
+    const entryPath = resolve(HOME_DIR, OPENCODE_ENTRY_PATH)
+    const skillPath = resolve(HOME_DIR, OPENCODE_SKILL_PATH, 'SKILL.md')
+    writeFileSync(entryPath, '// user edit\n')
+    writeFileSync(skillPath, '# User edit\n')
+
+    await uninstallPlugin('megamind', ['opencode'], { quiet: true })
+
+    expect(readFileSync(entryPath, 'utf-8')).toBe('// user edit\n')
+    expect(readFileSync(skillPath, 'utf-8')).toBe('# User edit\n')
+    expect(existsSync(resolve(HOME_DIR, INSTALL_PATHS.opencode))).toBe(false)
   })
 
   it('lists only command hooks for install trust warning', () => {

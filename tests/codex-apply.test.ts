@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { resolve } from 'path'
 import {
@@ -8,6 +8,7 @@ import {
   ensureCodexHooksFeature,
   ensureCodexMcpApprovals,
   renderCodexCompanionApplyLines,
+  unapplyCodexCompanion,
 } from '../src/cli/codex-apply'
 
 describe('codex companion apply helpers', () => {
@@ -144,6 +145,79 @@ describe('codex companion apply helpers', () => {
         status: 'added',
       }))
       expect(existsSync(resolve(codexHome, 'agents/agent-plugin/reviewer.toml'))).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('unapplies unchanged owned config idempotently and restores unrelated prior config', () => {
+    const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-codex-unapply-'))
+    const consumerRoot = resolve(dir, 'consumer')
+    const codexHome = resolve(dir, 'codex-home')
+    const projectRoot = resolve(dir, 'project')
+    const configPath = resolve(projectRoot, '.codex/config.toml')
+    mkdirSync(resolve(consumerRoot, '.codex-plugin'), { recursive: true })
+    mkdirSync(resolve(consumerRoot, 'hooks'), { recursive: true })
+    mkdirSync(resolve(configPath, '..'), { recursive: true })
+    writeFileSync(resolve(consumerRoot, '.codex-plugin/plugin.json'), JSON.stringify({ name: 'owned-config', hooks: 'hooks/hooks.json' }))
+    writeFileSync(resolve(consumerRoot, 'hooks/hooks.json'), '{}\n')
+    writeFileSync(configPath, 'model = "gpt-test"\n')
+
+    try {
+      applyCodexCompanion({ consumerRoot, projectRoot, codexHome, includeMcpApprovals: false, includeAgents: false })
+      expect(readFileSync(configPath, 'utf-8')).toContain('hooks = true')
+      const removed = unapplyCodexCompanion({ consumerRoot, projectRoot, codexHome })
+      expect(removed.changed).toBe(true)
+      expect(readFileSync(configPath, 'utf-8')).toBe('model = "gpt-test"\n')
+      expect(unapplyCodexCompanion({ consumerRoot, projectRoot, codexHome }).changed).toBe(false)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('preserves Codex config changed after apply instead of restoring over user edits', () => {
+    const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-codex-unapply-edited-'))
+    const consumerRoot = resolve(dir, 'consumer')
+    const codexHome = resolve(dir, 'codex-home')
+    const projectRoot = resolve(dir, 'project')
+    const configPath = resolve(projectRoot, '.codex/config.toml')
+    mkdirSync(resolve(consumerRoot, '.codex-plugin'), { recursive: true })
+    mkdirSync(resolve(consumerRoot, 'hooks'), { recursive: true })
+    writeFileSync(resolve(consumerRoot, '.codex-plugin/plugin.json'), JSON.stringify({ name: 'edited-config', hooks: 'hooks/hooks.json' }))
+    writeFileSync(resolve(consumerRoot, 'hooks/hooks.json'), '{}\n')
+
+    try {
+      applyCodexCompanion({ consumerRoot, projectRoot, codexHome, includeMcpApprovals: false, includeAgents: false })
+      writeFileSync(configPath, `${readFileSync(configPath, 'utf-8')}model = "user-choice"\n`)
+      const result = unapplyCodexCompanion({ consumerRoot, projectRoot, codexHome })
+      expect(result.changed).toBe(false)
+      expect(result.preserved).toBe(true)
+      expect(readFileSync(configPath, 'utf-8')).toContain('model = "user-choice"')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects a config ownership record redirected to another file', () => {
+    const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-codex-unapply-tampered-'))
+    const consumerRoot = resolve(dir, 'consumer')
+    const codexHome = resolve(dir, 'codex-home')
+    const projectRoot = resolve(dir, 'project')
+    const sentinel = resolve(dir, 'sentinel.txt')
+    mkdirSync(resolve(consumerRoot, '.codex-plugin'), { recursive: true })
+    mkdirSync(resolve(consumerRoot, 'hooks'), { recursive: true })
+    writeFileSync(resolve(consumerRoot, '.codex-plugin/plugin.json'), JSON.stringify({ name: 'tampered-config', hooks: 'hooks/hooks.json' }))
+    writeFileSync(resolve(consumerRoot, 'hooks/hooks.json'), '{}\n')
+    writeFileSync(sentinel, 'keep\n')
+
+    try {
+      applyCodexCompanion({ consumerRoot, projectRoot, codexHome, includeMcpApprovals: false, includeAgents: false })
+      const ownershipPath = resolve(codexHome, 'pluxx/config-applies/tampered-config.json')
+      const record = JSON.parse(readFileSync(ownershipPath, 'utf-8'))
+      record.configPath = sentinel
+      writeFileSync(ownershipPath, JSON.stringify(record))
+      expect(() => unapplyCodexCompanion({ consumerRoot, projectRoot, codexHome })).toThrow('unexpected ownership schema')
+      expect(readFileSync(sentinel, 'utf-8')).toBe('keep\n')
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

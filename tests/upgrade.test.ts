@@ -18,6 +18,11 @@ describe('upgrade planning', () => {
     expect(compareUpgradeVersions('1.2.3', '1.3.0')).toBe('upgrade')
     expect(compareUpgradeVersions('1.2.3', '1.2.3')).toBe('current')
     expect(compareUpgradeVersions('1.2.3', '1.2.2')).toBe('downgrade')
+    expect(compareUpgradeVersions('1.2.3-beta.2', '1.2.3-beta.10')).toBe('upgrade')
+    expect(compareUpgradeVersions('1.2.3-beta.1', '1.2.3')).toBe('upgrade')
+    expect(compareUpgradeVersions('1.2.3', '1.2.3-rc.1')).toBe('downgrade')
+    expect(compareUpgradeVersions('1.2.3+build.1', '1.2.3+build.2')).toBe('current')
+    expect(compareUpgradeVersions('1.2.9007199254740992', '1.2.9007199254740993')).toBe('upgrade')
   })
 
   it('resolves latest and emits a downgrade warning with rollback instructions', () => {
@@ -52,6 +57,43 @@ describe('upgrade planning', () => {
 })
 
 describe('upgrade execution', () => {
+  it('preserves install failure details and skips PATH inspection', () => {
+    const plan = planUpgrade({
+      packageName: '@orchid-labs/pluxx',
+      currentVersion: '1.2.3',
+      requestedVersion: '1.3.0',
+      invocationPath: '/workspace/pluxx/bin/pluxx.js',
+      runCommand: () => ({ status: 0, stdout: '/usr/local/bin/pluxx\n', stderr: '' }),
+    })
+    let calls = 0
+    const result = executeUpgrade(plan, () => {
+      calls += 1
+      return { status: 17, stdout: '', stderr: 'registry unavailable' }
+    })
+
+    expect(result.ok).toBe(false)
+    expect(result.installExitCode).toBe(17)
+    expect(result.detail).toContain('registry unavailable')
+    expect(result.detail).toContain('@orchid-labs/pluxx@1.2.3')
+    expect(calls).toBe(1)
+  })
+
+  it('synthesizes rollback guidance when npm fails silently', () => {
+    const plan = planUpgrade({
+      packageName: '@orchid-labs/pluxx',
+      currentVersion: '1.2.3',
+      requestedVersion: '1.3.0',
+      invocationPath: '/workspace/pluxx/bin/pluxx.js',
+      runCommand: () => ({ status: 0, stdout: '', stderr: '' }),
+    })
+    const result = executeUpgrade(plan, () => ({ status: null, stdout: '', stderr: '' }))
+
+    expect(result.ok).toBe(false)
+    expect(result.installExitCode).toBe(1)
+    expect(result.detail).toContain('Upgrade failed.')
+    expect(result.detail).toContain('@orchid-labs/pluxx@1.2.3')
+  })
+
   it('reports the active PATH binary and version after a verified upgrade', () => {
     const plan = planUpgrade({
       packageName: '@orchid-labs/pluxx',

@@ -1,6 +1,6 @@
 # Start Here
 
-Last updated: 2026-06-27
+Last updated: 2026-07-12
 
 ## Doc Links
 
@@ -38,6 +38,8 @@ If you want the broadest completeness checklist after reading this, use [docs/to
 If you want the shortest public proof and install path after this file, use [docs/proof-and-install.md](./proof-and-install.md).
 
 If you want the current release, distribution, and proof boundary, use [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md).
+
+If you need to know whether a proof claim is current, historical, repository-only, installed, or real-host evidence, use [docs/proof-freshness.md](./proof-freshness.md) and [docs/proof-manifest.json](./proof-manifest.json). Canonical repository version truth is `package.json` (`0.1.31`) with expected tag `v0.1.31`.
 
 If you want the primitive-by-host proof ledger behind the core-four native shipping claim, use [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md).
 
@@ -131,7 +133,9 @@ Generated Codex companion artifacts should become operational rather than only a
 
 The decision note is [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisions/2026-06-26-pluxx-next-ship-review.md).
 
-The Codex agent-registration slice uses a narrow host-specific ownership record. General cross-host install ownership tracking remains the follow-on because it supports conservative uninstall, prune, reinstall, and diagnostics beyond this one companion surface.
+Core-four local installs now use a shared transactional ownership layer. Copied bundles are staged and validated before an atomic sibling swap, the previous bundle stays recoverable until post-install work succeeds, ownership records hash installed files, reinstall refuses modified or unowned content, uninstall removes only unchanged owned files, and `verify-install` reports same-version content drift. Generated GitHub Release installers pin their tagged release and add install-scoped locking, bounded downloads, signal-safe recovery, and the same stage/backup/rollback and ownership contract.
+
+Codex companion config now has a conservative inverse too: `pluxx codex apply` records the exact before/after config state it owns, and `pluxx codex unapply` restores the prior state only while the applied config remains unchanged. If the user edits active config after apply, unapply preserves it and asks for manual reconciliation instead of overwriting unrelated changes.
 
 ## Who Pluxx Is For Right Now
 
@@ -164,10 +168,16 @@ The repo already proves a lot.
   - `docs/core-four-primitive-proof-ledger.md`
 - the core-four compiler work is materially shipped
 - `pluxx build` checks generated manifests and package outputs for source version drift and missing referenced bundle files before publish
+- authoring and build mutations now stage before publication:
+  - `build` validates a same-filesystem staged output tree before replacing `dist`, restoring the prior tree if publication fails
+  - `init`, `sync`, and `migrate` apply versioned create/update/delete/rename/conflict manifests through rollback-capable file transactions
+  - dry-run JSON remains backward compatible and adds a versioned `mutation` object; ambiguous sync renames and occupied init/migrate destinations are reported as conflicts instead of guessed or overwritten
+  - hard process interruptions retain recovery journals/backups when automatic rollback cannot finish
 - `verify-install` exists and is tested
 - consumer-side `doctor --consumer` exists and is tested
 - `migrate`, `eval`, and `mcp proxy --record/--replay` are shipped
-- `pluxx publish --github-release` packages built primary-front bundles and generates checksum-verifying, staged/rollback-safe installers; publish validates release identity and reconciles partial npm/GitHub state; `pluxx publish --npm` covers the npm-backed OpenCode wrapper path:
+  - new MCP recordings use a strictly validated schema-v2 tape with default recursive credential redaction; replay remains compatible with valid schema-v1 tapes, preserves expected entries after mismatches, and fails on malformed or incomplete runs
+- `pluxx publish --github-release` packages built primary-front bundles and generates checksum-verifying, ownership-aware, staged/rollback-safe installers, including the `install.sh --agents` front door plus per-host installers; publish validates release identity and reconciles partial npm/GitHub state; `pluxx publish --npm` covers the npm-backed OpenCode wrapper path:
   - `docs/release-distribution-proof-map.md`
 - the self-hosted Pluxx plugin exists as a real source project in `example/pluxx`
 - the repo-local Codex dogfood plugin exists in `plugins/pluxx`
@@ -231,7 +241,8 @@ The repo already proves a lot.
   - rich install/distribution metadata
 - that Platform Change Ops example has now also been installed and `verify-install` checked from the source project across Claude Code, Cursor, Codex, and OpenCode
 - native Claude install verification now follows Claude's real cache install path (`~/.claude/plugins/cache/<marketplace>/<plugin>/<version>`) instead of the old direct plugin-directory assumption
-- the new shared `src/skills.ts` parser is now the common skill reader for lint, Agent Mode, migrate, and Claude skill rewrites instead of four separate ad hoc parsers
+- the shared `src/skills.ts` reader now uses a real YAML parser for multiline scalars, quoted commas, arrays, and nested values; normalized metadata nodes retain line/column provenance, and invalid or unsupported shapes are explicit lint findings
+- audited skill and hook translation truth now lives in one field-level registry consumed by generators, lint/doctor summaries, compatibility rendering, and generated docs; primitive labels are derived from field outcomes so a `preserve` bucket cannot hide dropped or companion-only fields
 - the current next robustness slice is making Codex companion apply/verify first-class enough that generated readiness, hook, MCP approval, and companion config guidance becomes operational and verifiable rather than advisory only:
   - `PLUXX-226`
   - `PLUXX-264`
@@ -248,6 +259,8 @@ The repo already proves a lot.
 - installed behavioral proof is now stronger than simple file-shape verification:
   - the behavioral harness now supports host-specific runner args plus expected-failure cases without treating intentional nonzero exits as harness failures
   - maintained smoke fixtures can now declare an explicit `commandId` plus required output markers, so command-proof cases fail if the prompt does not reference the command or the response shape is too vague
+  - behavioral receipts now preserve the host target, command/skill/agent identity, response assertions, and factual project-relative artifact checks
+  - the self-hosted plugin keeps maintained import, refine, prove, translate, troubleshoot, and publish-dry-run cases, with publish proof remaining separate from a real release
   - `example/docs-ops`, `example/exa-plugin`, and `example/platform-change-ops` now each carry maintained behavioral smoke fixtures with command-specific output assertions instead of relying only on "did not bail" checks or one-off walkthroughs
   - `doctor --consumer` and `verify-install` now execute bundled Claude and Cursor permission-hook scripts and fail if the generated decisions are not actually usable
 - primitive-by-primitive core-four reliability tracking is now explicit instead of spread across proof docs and translation tables:
@@ -256,6 +269,10 @@ The repo already proves a lot.
   - `npm test` now acquires a worktree-local suite lock before running the full Vitest pass
   - `tests/run-vitest-exclusive.test.ts` now proves both active-lock refusal and stale-lock cleanup
   - deeper fixture isolation is still follow-on work
+- `pluxx eval` now separates exact generated-scaffold contracts from deterministic semantic quality scoring:
+  - the semantic rubric covers tool coverage, routing, taxonomy, examples, arguments, delegation, setup truth, and cross-file consistency
+  - project config can set explicit warning and failure thresholds
+  - heading-complete but incoherent fixtures fail, while maintained manual, flagship, and docs-ingestion projects remain regression inputs
 - agent explainability is now less generator-local:
   - `src/agent-translation-registry.ts` now backs degraded-field messaging for Cursor, Codex, and OpenCode instead of parallel per-target strings
   - generated Cursor and Codex agent surfaces now emit the same registry-backed translation notes that `lint` uses
@@ -276,6 +293,8 @@ The repo already proves a lot.
 - docs/website ingestion has a provider model and writes deterministic artifacts:
   - `.pluxx/sources.json`
   - `.pluxx/docs-context.json`
+- remote docs ingestion now enforces public HTTP(S) targets, pinned DNS answers, redirect revalidation, time/body/content-type bounds, explicit provider provenance, and an untrusted-evidence boundary in artifacts and runner prompts:
+  - `docs/strategy/docs-url-ingestion.md`
 - a real connector-backed Firecrawl comparison now exists on the current fixture set:
   - `docs/strategy/firecrawl-connector-docs-ingestion-proof.md`
 - the keyed local fixture harness rerun now also exists:
@@ -345,10 +364,10 @@ The repo already proves a lot.
 - example and packaged-runtime parity is current again:
   - `examples/prospeo-mcp` now bundles its `scripts/` payload into built outputs
   - the example now points at the official `@prospeo/prospeo-mcp-server` package instead of a stale repo-local runtime path
-- the current release gate is green again as of 2026-05-19:
+- historical release-gate evidence from 2026-05-19 remains available but is not current proof:
   - `npm test` passed
   - `npm run release:check` passed
-- the repo is preparing `@orchid-labs/pluxx@0.1.28`; verify npm and the matching tag live before claiming it as the public latest release
+- the canonical repository release is `@orchid-labs/pluxx@0.1.31` with expected tag `v0.1.31`
 - marketplace submission APIs, a managed trust/distribution control plane, automatic rollback/unpublish orchestration, and real authenticated publish plus rollback proof remain explicit release gaps, not hidden shipped capabilities:
   - `docs/release-distribution-proof-map.md`
   - “automatic rollback” here means remote release rollback/unpublish; generated local installers now restore the prior bundle when staged setup fails
@@ -481,6 +500,7 @@ That means:
   - `docs/strategy/docs-ingestion-fixture-eval.md`
 - using the committed Sumble before/after demo to show the scaffold delta plainly:
   - `docs/strategy/docs-ingestion-scaffold-before-after.md`
+- using visible scaffold file/line deltas in the fixture benchmark instead of treating recovered terms alone as proof
 - improving weak fixtures and tightening extracted signal quality
 
 ### 4. Release-Grade Pluxx Plugin
@@ -517,14 +537,7 @@ Run two lanes in parallel:
 
 ### 6. Release State
 
-The current release-prep cut is `0.1.28`.
-Do not treat it as the public release until the matching tag exists and npm reports it as latest.
-
-The release-prep checklist for the current cut is complete:
-
-- `package.json` and `package-lock.json` are at `0.1.28`
-- the release gate has passed locally, including package runtime verification and release tarball pack
-- after merge, push the matching `v0.1.28` tag and verify npm plus GitHub release artifacts after the workflow completes
+The canonical repository release is `0.1.31` with expected tag `v0.1.31`. `package.json` is the source of truth for repository docs, while [proof-manifest.json](./proof-manifest.json) records whether evidence is current or historical.
 
 For the next release, start from the current version, rerun `npm run release:check`, bump the package version, push `main`, push the matching `vX.Y.Z` tag, and verify npm plus GitHub release artifacts after the workflow completes.
 

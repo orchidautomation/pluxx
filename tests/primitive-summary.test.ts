@@ -38,7 +38,7 @@ describe('primitive summary', () => {
     expect(lines.some((line) => line.includes('hooks'))).toBe(true)
     expect(lines.some((line) => line.includes('permissions'))).toBe(true)
     expect(lines.some((line) => line.startsWith('  runtime'))).toBe(false)
-    expect(lines.some((line) => line.startsWith('  skills'))).toBe(false)
+    expect(lines.some((line) => line.startsWith('  skills'))).toBe(true)
     expect(lines.some((line) => line.includes('legend: keep=preserve xlat=translate weak=degrade drop=drop'))).toBe(true)
     expect(lines.some((line) => line.includes('details:'))).toBe(true)
     expect(lines.some((line) => line.includes('commands on codex') && line.includes('.codex/agents'))).toBe(false)
