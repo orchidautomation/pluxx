@@ -1,6 +1,8 @@
-# Current Proof And Demo Asset Pack
+# Proof And Demo Asset Pack
 
-Last updated: 2026-04-24
+Last updated: 2026-07-12
+
+Freshness note: this inventory mixes current repository/bundle evidence with explicitly historical host runs. Use [proof freshness](./proof-freshness.md) and [proof manifest](./proof-manifest.json) before presenting any item as current.
 
 This doc is the public-proof map for Pluxx.
 
@@ -13,7 +15,7 @@ Use it when you want the cleanest answer to:
 
 This is no longer a speculative launch memo.
 
-It is the current proof inventory plus the next capture plan.
+It is the proof inventory plus the next capture plan.
 
 If you want the shortest public-facing entrypoint instead of the fuller planning inventory, start with [docs/proof-and-install.md](./proof-and-install.md).
 
@@ -36,7 +38,7 @@ The first pass of that packaging now exists at:
 
 ## Proof That Already Exists
 
-### 1. Self-hosted Pluxx plugin across the core four
+### 1. Historical self-hosted Pluxx plugin across the core four
 
 Primary doc:
 
@@ -165,7 +167,7 @@ Best public use:
 - release notes
 - technical buyer confidence
 
-### 5. Connector-backed Firecrawl docs-ingestion proof
+### 5. Historical connector-backed Firecrawl docs-ingestion proof
 
 Primary doc:
 
@@ -174,7 +176,7 @@ Primary doc:
 
 What it proves:
 
-- a real Firecrawl-backed comparison now exists on the current fixture set
+- a historical Firecrawl-backed comparison exists for the April fixture set
 - Firecrawl materially improves extracted product/setup/auth/workflow context on those fixtures
 - the docs-ingestion lane now has a committed scaffold-quality before/after demo, not only eval snapshots
 - the remaining gap is now broader public packaging and continued fixture hardening, not basic proof-of-value
@@ -212,7 +214,7 @@ Missing artifact:
 
 Why it matters:
 
-- the current CLI/headless proof is now real across all four
+- historical CLI/headless proof exists across all four; current repository checks do not replace a new host receipt
 - the in-app flagship story is still most legible in Codex today
 
 ### 3. Live private publish / rollback proof
@@ -226,12 +228,12 @@ Why it matters:
 - the private publish lane is now modeled and mechanically guarded
 - the last missing flagship auth proof is a real private endpoint, not more source-project work
 
-## Best Current Demo Flow
+## Best Demo Flow
 
 If you need the strongest current narrative without waiting on Firecrawl, use this order:
 
 1. start with [README](../README.md) and [start-here](./start-here.md)
-2. show [Self-hosted core-four proof](./pluxx-self-hosted-core-four-proof.md)
+2. show [Self-hosted core-four proof](./pluxx-self-hosted-core-four-proof.md) as historical installed-runtime evidence
 3. show [Docs Ops core-four proof](./docs-ops-core-four-proof.md)
 4. show [Orchid Docs Ops Codex walkthrough](./orchid-docs-ops-codex-walkthrough.md)
 5. show the [Accordion before/after rewrite](../example/docs-ops/demo-rewrites/orchid-components-accordion.after.md)

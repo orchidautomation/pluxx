@@ -1,6 +1,6 @@
 # Master Backlog
 
-Last updated: 2026-06-27
+Last updated: 2026-07-12
 
 This is the most complete repo-native backlog for Pluxx.
 
@@ -79,6 +79,8 @@ Any person or agent should be able to enter the repo and answer:
 - where the business could go later
 
 ## Now
+
+Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) defines the five evidence tiers and freshness rules, while [proof-manifest.json](../proof-manifest.json) keeps machine-readable receipts and current/historical claim state aligned with `package.json`.
 
 ### 1. Product clarity and front-door coherence
 

@@ -14,6 +14,8 @@ Raw MCP access is usually not enough. Most products still need workflow grouping
 
 ## Current Proof
 
+Proof claims are tiered and freshness-checked. See [Proof freshness and evidence tiers](./docs/proof-freshness.md) and the machine-readable [proof manifest](./docs/proof-manifest.json); April/May host runs remain available as explicitly historical evidence.
+
 If you want the fastest way to see what is already real, start with these:
 
 - [Release distribution proof map](./docs/release-distribution-proof-map.md)

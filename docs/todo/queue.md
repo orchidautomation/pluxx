@@ -166,12 +166,12 @@ The initial author-once hardening tranche is also materially done.
 - example and packaged-runtime parity is current again:
   - `examples/prospeo-mcp` now includes its `scripts/` payload in built/installable outputs
   - the example now targets the official `@prospeo/prospeo-mcp-server` package instead of a stale repo-local runtime path
-- the repo release gate is green again as of 2026-05-19:
+- historical release-gate evidence from 2026-05-19 remains available but is not current proof:
   - `npm test`
   - `npm run release:check`
 - the release/distribution/proof lane now has a short source-of-truth map:
   - [docs/release-distribution-proof-map.md](../release-distribution-proof-map.md)
-  - primary release-smoked fronts: Claude Code, Cursor, Codex, OpenCode
+  - primary bundle-contract and fake-home fronts: Claude Code, Cursor, Codex, OpenCode
   - Gemini CLI: beta generator target only today
   - shipped distribution lane: local build/install/verify, GitHub Release `install.sh --agents` plus per-host bundle installers, and npm-backed OpenCode package publishing
   - remaining release gaps: marketplace submission APIs, managed trust/distribution control plane, automatic rollback/unpublish, and a real authenticated publish plus rollback proof
@@ -181,7 +181,8 @@ The initial author-once hardening tranche is also materially done.
 The public baseline is also real.
 
 - npm package is live as `@orchid-labs/pluxx`
-- the repo is preparing `@orchid-labs/pluxx@0.1.28`; verify npm and the matching tag live before claiming it as the public latest release
+- the canonical repository release is `@orchid-labs/pluxx@0.1.31` with expected tag `v0.1.31`
+- proof claims now use [docs/proof-freshness.md](../proof-freshness.md) and [docs/proof-manifest.json](../proof-manifest.json) so historical host runs cannot masquerade as current evidence
 - published CLI runtime is Node `>=18`
 - published CLI lifecycle ergonomics are now stronger for global installs:
   - `pluxx --version`
@@ -467,11 +468,11 @@ Open work:
   - native bundles across the core four
   - install verification and truthful compatibility
 
-### 6. Next release
+### 6. Historical v0.1.28 release checklist
 
-Goal:
+Historical context:
 
-- complete the `0.1.28` npm release routine now that the code path plus packaged tarball pass the release gate
+- this checklist is retained as historical v0.1.28 release-prep context; it is not the current release plan
 
 Open work:
 
@@ -481,10 +482,7 @@ Open work:
 - [x] rerun the full release gate, including tarball install and `npm exec`
 - [x] bump `package.json` and `package-lock.json` from `0.1.27` to `0.1.28`
 - [x] rerun the release gate before tagging
-- [ ] merge release-prep fixes to `main`
-- [ ] push the matching `v0.1.28` tag to trigger the GitHub Actions npm publish
-- [ ] publish and verify `@orchid-labs/pluxx@0.1.28`
-- [ ] verify the npm version, GitHub release, and tarball artifact after the workflow completes
+- [x] superseded by the canonical `0.1.31` / `v0.1.31` repository release state
 
 ## Explicitly Deferred
 

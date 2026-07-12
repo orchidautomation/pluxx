@@ -181,9 +181,9 @@ async function runCliJsonWithEnv<T>(cwd: string, env: Record<string, string>, ..
   return JSON.parse(stdout) as T
 }
 
-describe('release smoke', () => {
+describe('bundle contract and isolated fake-home install proof', () => {
   for (const projectPath of RELEASE_SMOKE_PROJECTS) {
-    it(`validates ${projectPath} across the core four with the real CLI`, async () => {
+    it(`validates ${projectPath} bundles and installed files across the core four`, async () => {
       const cwd = resolve(ROOT, projectPath)
       const isolatedHome = resolve(
         tmpdir(),

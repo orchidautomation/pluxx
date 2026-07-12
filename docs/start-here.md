@@ -1,6 +1,6 @@
 # Start Here
 
-Last updated: 2026-06-27
+Last updated: 2026-07-12
 
 ## Doc Links
 
@@ -38,6 +38,8 @@ If you want the broadest completeness checklist after reading this, use [docs/to
 If you want the shortest public proof and install path after this file, use [docs/proof-and-install.md](./proof-and-install.md).
 
 If you want the current release, distribution, and proof boundary, use [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md).
+
+If you need to know whether a proof claim is current, historical, repository-only, installed, or real-host evidence, use [docs/proof-freshness.md](./proof-freshness.md) and [docs/proof-manifest.json](./proof-manifest.json). Canonical repository version truth is `package.json` (`0.1.31`) with expected tag `v0.1.31`.
 
 If you want the primitive-by-host proof ledger behind the core-four native shipping claim, use [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md).
 
@@ -345,10 +347,10 @@ The repo already proves a lot.
 - example and packaged-runtime parity is current again:
   - `examples/prospeo-mcp` now bundles its `scripts/` payload into built outputs
   - the example now points at the official `@prospeo/prospeo-mcp-server` package instead of a stale repo-local runtime path
-- the current release gate is green again as of 2026-05-19:
+- historical release-gate evidence from 2026-05-19 remains available but is not current proof:
   - `npm test` passed
   - `npm run release:check` passed
-- the repo is preparing `@orchid-labs/pluxx@0.1.28`; verify npm and the matching tag live before claiming it as the public latest release
+- the canonical repository release is `@orchid-labs/pluxx@0.1.31` with expected tag `v0.1.31`
 - marketplace submission APIs, a managed trust/distribution control plane, automatic rollback/unpublish orchestration, and real authenticated publish plus rollback proof remain explicit release gaps, not hidden shipped capabilities:
   - `docs/release-distribution-proof-map.md`
 - OpenCode-native agent output is now permission-first:
@@ -516,14 +518,7 @@ Run two lanes in parallel:
 
 ### 6. Release State
 
-The current release-prep cut is `0.1.28`.
-Do not treat it as the public release until the matching tag exists and npm reports it as latest.
-
-The release-prep checklist for the current cut is complete:
-
-- `package.json` and `package-lock.json` are at `0.1.28`
-- the release gate has passed locally, including package runtime verification and release tarball pack
-- after merge, push the matching `v0.1.28` tag and verify npm plus GitHub release artifacts after the workflow completes
+The canonical repository release is `0.1.31` with expected tag `v0.1.31`. `package.json` is the source of truth for repository docs, while [proof-manifest.json](./proof-manifest.json) records whether evidence is current or historical.
 
 For the next release, start from the current version, rerun `npm run release:check`, bump the package version, push `main`, push the matching `vX.Y.Z` tag, and verify npm plus GitHub release artifacts after the workflow completes.
 
