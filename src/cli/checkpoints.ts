@@ -133,23 +133,46 @@ export async function checkpointMatchesWorkspace(
   const ignoreRules = checkpoint.manifest.kind === 'durable' ? await loadCheckpointIgnoreRules(checkpoint) : []
   const current = await walkProjectFiles(root, { kind: checkpoint.manifest.kind, ignoreRules })
   const currentInventory: CheckpointFile[] = []
+  let currentGitignoreDigest: string | undefined
   for (const file of current) {
     const content = file.type === 'symlink'
       ? Buffer.from(await readlink(safeProjectPath(root, file.path)))
       : await readFile(safeProjectPath(root, file.path))
+    if (checkpoint.manifest.kind === 'durable' && file.path === '.gitignore') {
+      currentGitignoreDigest = digestContent(withoutManagedCheckpointIgnore(content))
+    }
     currentInventory.push({
       path: file.path,
-      digest: createHash('sha256').update(content).digest('hex'),
+      digest: digestContent(content),
       size: content.byteLength,
       mode: file.mode,
       type: file.type,
     })
   }
+  const checkpointGitignore = checkpoint.manifest.files.find((file) => file.path === '.gitignore')
+  let checkpointGitignoreDigest: string | undefined
+  if (checkpoint.manifest.kind === 'durable' && checkpointGitignore) {
+    const content = await readFile(payloadPath(checkpoint.directory, checkpointGitignore.digest))
+    assertPayloadDigest(content, checkpointGitignore)
+    checkpointGitignoreDigest = digestContent(withoutManagedCheckpointIgnore(content))
+  }
+  if (currentGitignoreDigest !== checkpointGitignoreDigest) return false
   const comparable = (files: CheckpointFile[]) => files
     .filter((file) => file.path !== '.gitignore')
     .map((file) => `${file.path}\0${file.type}\0${file.mode}\0${file.digest}`)
     .sort()
   return JSON.stringify(comparable(currentInventory)) === JSON.stringify(comparable(checkpoint.manifest.files))
+}
+
+function withoutManagedCheckpointIgnore(content: Buffer): Buffer {
+  const lines = content.toString('utf8').match(/[^\n]*\n|[^\n]+$/g) ?? []
+  return Buffer.from(lines
+    .filter((line) => line.replace(/\r?\n$/, '').trim() !== `${DURABLE_CHECKPOINT_DIR}/`)
+    .join(''))
+}
+
+function digestContent(content: Buffer): string {
+  return createHash('sha256').update(content).digest('hex')
 }
 
 export async function loadCheckpoint(checkpointDirectory: string): Promise<WorkspaceCheckpoint> {

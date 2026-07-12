@@ -142,6 +142,16 @@ describe('workspace checkpoints', () => {
     expect(readFileSync(resolve(root, '.gitignore'), 'utf8')).toBe('existing-rule\n')
   })
 
+  it('allows the managed checkpoint ignore line but rejects unrelated ignore-policy drift', async () => {
+    const root = makeRoot('pluxx-checkpoint-gitignore-drift-')
+    write(root, '.gitignore', 'ignored.txt\n')
+    const checkpoint = await createDurableCheckpoint(root, 'initial')
+
+    await expect(checkpointMatchesWorkspace(root, checkpoint.directory)).resolves.toBe(true)
+    write(root, '.gitignore', 'different.txt\n.pluxx/checkpoints/\n')
+    await expect(checkpointMatchesWorkspace(root, checkpoint.directory)).resolves.toBe(false)
+  })
+
   it('uses disposable enforcement snapshots that include build output', async () => {
     const root = makeRoot('pluxx-checkpoint-enforcement-')
     write(root, 'src/index.ts', 'before\n')
