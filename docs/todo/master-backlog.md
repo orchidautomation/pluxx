@@ -86,8 +86,8 @@ Any person or agent should be able to enter the repo and answer:
 - [~] Keep [docs/release-distribution-proof-map.md](../release-distribution-proof-map.md) current as the short ship-today vs release-gap source of truth:
   - primary release-smoked fronts are Claude Code, Cursor, Codex, and OpenCode
   - Gemini CLI remains a beta generator target until it has release-smoke and installer parity
-  - local build/install/verify, GitHub Release `install.sh --agents` plus per-host bundle installers, and npm-backed OpenCode package publishing are shipped
-  - marketplace submission APIs, managed trust/distribution, automatic rollback/unpublish, and real authenticated publish plus rollback proof remain open
+  - local build/install/verify, checksum-verifying and staged/rollback-safe GitHub Release installers, release-identity validation, partial npm/GitHub reconciliation, and npm-backed OpenCode package publishing are shipped
+  - marketplace submission APIs, managed trust/distribution, automatic remote rollback/unpublish, and live credentialed publish/rollback proof remain open
 - [~] Keep [docs/core-four-primitive-proof-ledger.md](../core-four-primitive-proof-ledger.md) current as the primitive-by-host proof ledger for the core-four native shipping claim
 - [~] Close the remaining ticket-state drift where shipped work can still appear as backlog in Linear
 - [~] Make Codex companion apply/verify the next concrete robustness slice so generated readiness, hook, MCP approval, and companion config artifacts become operational and verifiable instead of advisory only:
@@ -232,7 +232,7 @@ Any person or agent should be able to enter the repo and answer:
 - [ ] Consolidate the remaining translation papercuts that the readiness work made more obvious:
   - keep pushing the richer `skills` metadata layer into more native host emission and proof consumers
   - keep pushing the richer `commands` IR into more native host emission and install-time proof
-  - add more installed behavioral proof for delegated agents, reload/discovery quirks, and publish/recovery flows
+  - add live environment proof for delegated agents, reload/discovery quirks, and publish/recovery flows beyond deterministic failure/reconciliation fixtures
   - continue simplifying the plugin-guided average-user path so the proof state is easier to use without maintainer-level CLI literacy
 - [ ] Close the highest-value open rows from the new reliability register:
   - deeper Codex custom-agent config-depth proof beyond the now-pinned headless-plus-interactive `sandbox_mode = "read-only"` mismatch, the newly pinned headless `skills.config` disable/preload caveats, the newly pinned `mcp_servers = {}` inheritance ceiling, the newly pinned invalid agent-local model failure path, and the now-pinned same-name user-local model precedence cases, including installed-plugin skill preload, whether canonical authoring should preserve agent-local MCP config instead of only warning during migrate, how far generated `.codex/config.generated.toml` approval stanzas should go now that project-root, user-root, inherited delegated, and explicit empty-agent-MCP override paths are live-proven while agent-local inline approval no longer activates in the latest probe, and whether other approval or sandbox combinations behave differently

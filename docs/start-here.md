@@ -155,9 +155,9 @@ The repo already proves a lot.
 - the public website is live at `https://pluxx.dev`
 - the docs site is live at `https://docs.pluxx.dev`
 - the published CLI runs on Node `>=18`
-- the published CLI now has first-class lifecycle helpers for global installs:
+- the CLI has first-class lifecycle helpers for global installs:
   - `pluxx --version`
-  - `pluxx upgrade`
+  - `pluxx upgrade`, including invocation-source/version comparison, active PATH verification, downgrade warning, and rollback instructions
 - the primary release-smoked fronts are Claude Code, Cursor, Codex, and OpenCode; Gemini CLI is generated and fixture-tested as a beta target, but it is not yet part of the core-four release-smoke or installer lane:
   - `docs/release-distribution-proof-map.md`
 - the primitive-by-host proof ledger now ties the core-four claim back to the matrix, reliability register, and maintained example proofs:
@@ -167,7 +167,7 @@ The repo already proves a lot.
 - `verify-install` exists and is tested
 - consumer-side `doctor --consumer` exists and is tested
 - `migrate`, `eval`, and `mcp proxy --record/--replay` are shipped
-- `pluxx publish --github-release` can package built primary-front bundles as GitHub Release assets and generate installer scripts, including the `install.sh --agents` front door plus per-host installers; `pluxx publish --npm` covers the npm-backed OpenCode wrapper path:
+- `pluxx publish --github-release` packages built primary-front bundles and generates checksum-verifying, staged/rollback-safe installers; publish validates release identity and reconciles partial npm/GitHub state; `pluxx publish --npm` covers the npm-backed OpenCode wrapper path:
   - `docs/release-distribution-proof-map.md`
 - the self-hosted Pluxx plugin exists as a real source project in `example/pluxx`
 - the repo-local Codex dogfood plugin exists in `plugins/pluxx`
@@ -351,6 +351,7 @@ The repo already proves a lot.
 - the repo is preparing `@orchid-labs/pluxx@0.1.28`; verify npm and the matching tag live before claiming it as the public latest release
 - marketplace submission APIs, a managed trust/distribution control plane, automatic rollback/unpublish orchestration, and real authenticated publish plus rollback proof remain explicit release gaps, not hidden shipped capabilities:
   - `docs/release-distribution-proof-map.md`
+  - “automatic rollback” here means remote release rollback/unpublish; generated local installers now restore the prior bundle when staged setup fails
 - OpenCode-native agent output is now permission-first:
   - legacy agent `tools` input is translated forward where possible
   - native OpenCode `skill` and `task` permission keys are treated as real first-class surfaces

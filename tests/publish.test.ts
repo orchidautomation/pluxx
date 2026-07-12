@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 import { createHash } from 'crypto'
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs'
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'fs'
 import { spawnSync } from 'child_process'
 import { resolve } from 'path'
 import type { PluginConfig, TargetPlatform } from '../src/schema'
@@ -222,6 +222,8 @@ interface GeneratedInstallerRunOptions {
   env?: Record<string, string>
   existingUserConfig?: unknown
   extraFiles?: Record<string, string>
+  mutateArchive?: (archivePath: string, releaseDir: string) => void
+  prepareRuntime?: (rootDir: string) => void
 }
 
 interface GeneratedInstallerRunResult {
@@ -313,10 +315,12 @@ function runGeneratedInstaller(
       JSON.stringify(options.existingUserConfig, null, 2) + '\n',
     )
   }
+  options.prepareRuntime?.(rootDir)
 
   let installerRun: GeneratedInstallerRunResult | undefined
   const result = runPublish(config, {
     rootDir,
+    verifyRemoteState: false,
     requestedChannels: ['github-release'],
     runCommand: (command, args, commandOptions) => {
       if (command === 'tar') {
@@ -338,6 +342,8 @@ function runGeneratedInstaller(
         const scriptName = platform === 'claude-code' ? 'install-claude-code.sh' : `install-${platform}.sh`
         const installerPath = args.find((value) => typeof value === 'string' && value.endsWith(`/${scriptName}`))
         const archivePath = args.find((value) => typeof value === 'string' && value.endsWith(`/${config.name}-${platform}-latest.tar.gz`))
+
+        options.mutateArchive?.(archivePath!, resolve(archivePath!, '..'))
 
         const env: Record<string, string> = {
           ...process.env,
@@ -397,6 +403,7 @@ function runGeneratedCodexInstaller(
   let installerRun: CodexInstallerRunResult | undefined
   const result = runPublish(config, {
     rootDir: ROOT,
+    verifyRemoteState: false,
     requestedChannels: ['github-release'],
     runCommand: (command, args, commandOptions) => {
       if (command === 'tar') {
@@ -454,9 +461,9 @@ afterEach(() => {
 describe('planPublish', () => {
   it('resolves target-aware default channels from built outputs', () => {
     const config = makeConfig()
-    prepareBuiltTarget('claude-code', { '.claude-plugin/plugin.json': '{}' })
+    prepareBuiltTarget('claude-code', { '.claude-plugin/plugin.json': JSON.stringify({ version: '1.2.3' }) })
     prepareBuiltTarget('opencode', {
-      'package.json': JSON.stringify({ name: '@orchid/publish-plugin-opencode' }),
+      'package.json': JSON.stringify({ name: '@orchid/publish-plugin-opencode', version: '1.2.3' }),
       'index.ts': 'export {}',
     })
 
@@ -492,7 +499,7 @@ describe('planPublish', () => {
 
   it('disables npm by default when no npm-backed target is built', () => {
     const config = makeConfig()
-    prepareBuiltTarget('claude-code', { '.claude-plugin/plugin.json': '{}' })
+    prepareBuiltTarget('claude-code', { '.claude-plugin/plugin.json': JSON.stringify({ version: '1.2.3' }) })
 
     const plan = planPublish(config, {
       rootDir: ROOT,
@@ -511,7 +518,7 @@ describe('planPublish', () => {
   it('reports failed prechecks for dirty git and missing npm auth', () => {
     const config = makeConfig()
     prepareBuiltTarget('opencode', {
-      'package.json': JSON.stringify({ name: '@orchid/publish-plugin-opencode' }),
+      'package.json': JSON.stringify({ name: '@orchid/publish-plugin-opencode', version: '1.2.3' }),
       'index.ts': 'export {}',
     })
 
@@ -529,24 +536,66 @@ describe('planPublish', () => {
     expect(plan.checks.some((check) => check.code === 'git-clean' && !check.ok)).toBe(true)
     expect(plan.checks.some((check) => check.code === 'npm-auth' && !check.ok)).toBe(true)
   })
+  it('rejects requested and built release version mismatches', () => {
+    const config = makeConfig()
+    prepareBuiltTarget('codex', {
+      '.codex-plugin/plugin.json': JSON.stringify({ name: config.name, version: '1.2.2' }),
+    })
+
+    const plan = planPublish({ ...config, targets: ['codex'] }, {
+      rootDir: ROOT,
+      version: '1.2.4',
+      dryRun: true,
+      requestedChannels: ['github-release'],
+      runCommand: () => ({ status: 0, stdout: '', stderr: '' }),
+    })
+
+    const identity = plan.checks.find((check) => check.code === 'release-identity')
+    expect(identity?.ok).toBe(false)
+    expect(identity?.detail).toContain('requested 1.2.4 != source config 1.2.3')
+    expect(identity?.detail).toContain('codex 1.2.2 != requested 1.2.4')
+  })
+
+  it('rejects missing or unreadable built release identities', () => {
+    const config = { ...makeConfig(), targets: ['codex', 'opencode'] as TargetPlatform[] }
+    prepareBuiltTarget('codex', { '.codex-plugin/plugin.json': '{not-json' })
+    prepareBuiltTarget('opencode', {
+      'package.json': JSON.stringify({ name: '@orchid/publish-plugin-opencode' }),
+      'index.ts': 'export {}',
+    })
+
+    const plan = planPublish(config, {
+      rootDir: ROOT,
+      dryRun: true,
+      runCommand: () => ({ status: 0, stdout: '', stderr: '' }),
+    })
+    const identity = plan.checks.find((check) => check.code === 'release-identity')
+
+    expect(identity?.ok).toBe(false)
+    expect(identity?.detail).toContain('codex built identity is missing or unreadable')
+    expect(identity?.detail).toContain('opencode built identity is missing or unreadable')
+    expect(identity?.detail).toContain('npm package version is missing or unreadable')
+  })
 })
 
 describe('runPublish', () => {
   it('executes npm publish for the npm channel when checks pass', () => {
     const config = makeConfig()
     prepareBuiltTarget('opencode', {
-      'package.json': JSON.stringify({ name: '@orchid/publish-plugin-opencode' }),
+      'package.json': JSON.stringify({ name: '@orchid/publish-plugin-opencode', version: '1.2.3' }),
       'index.ts': 'export {}',
     })
 
     const calls: Array<{ command: string; args: string[]; cwd?: string }> = []
     const result = runPublish(config, {
       rootDir: ROOT,
+      verifyRemoteState: false,
       requestedChannels: ['npm'],
       runCommand: (command, args, options) => {
         calls.push({ command, args, cwd: options?.cwd })
         if (command === 'git') return { status: 0, stdout: '', stderr: '' }
         if (command === 'npm' && args[0] === 'whoami') return { status: 0, stdout: 'orchidautomation\n', stderr: '' }
+        if (command === 'npm' && args[0] === 'pack') return { status: 0, stdout: '[{"filename":"plugin.tgz","integrity":"sha512-local"}]', stderr: '' }
         if (command === 'npm' && args[0] === 'publish') return { status: 0, stdout: 'published', stderr: '' }
         return { status: 0, stdout: '', stderr: '' }
       },
@@ -557,17 +606,126 @@ describe('runPublish', () => {
     expect(calls.some((call) => call.command === 'npm' && call.args[0] === 'publish')).toBe(true)
   })
 
+  it('reconciles an already-published immutable npm version without republishing', () => {
+    const config = { ...makeConfig(), targets: ['opencode'] as TargetPlatform[] }
+    prepareBuiltTarget('opencode', {
+      'package.json': JSON.stringify({ name: '@orchid/publish-plugin-opencode', version: '1.2.3' }),
+      'index.ts': 'export {}',
+    })
+    const calls: string[][] = []
+
+    const result = runPublish(config, {
+      rootDir: ROOT,
+      requestedChannels: ['npm'],
+      runCommand: (command, args) => {
+        calls.push([command, ...args])
+        if (command === 'npm' && args[0] === 'whoami') return { status: 0, stdout: 'tester\n', stderr: '' }
+        if (command === 'npm' && args[0] === 'pack') return { status: 0, stdout: '[{"filename":"plugin.tgz","integrity":"sha512-local"}]', stderr: '' }
+        if (command === 'npm' && args[0] === 'view') return { status: 0, stdout: '"sha512-local"\n', stderr: '' }
+        return { status: 0, stdout: '', stderr: '' }
+      },
+    })
+
+    expect(result.ok).toBe(true)
+    expect(result.execution?.npm?.action).toBe('already-published')
+    expect(calls.some((call) => call[0] === 'npm' && call[1] === 'publish')).toBe(false)
+  })
+
+  it('rejects an existing npm version with different artifact integrity', () => {
+    const config = { ...makeConfig(), targets: ['opencode'] as TargetPlatform[] }
+    prepareBuiltTarget('opencode', {
+      'package.json': JSON.stringify({ name: '@orchid/publish-plugin-opencode', version: '1.2.3' }),
+      'index.ts': 'export {}',
+    })
+
+    const result = runPublish(config, {
+      rootDir: ROOT,
+      verifyRemoteState: false,
+      requestedChannels: ['npm'],
+      runCommand: (command, args) => {
+        if (command === 'npm' && args[0] === 'whoami') return { status: 0, stdout: 'tester\n', stderr: '' }
+        if (command === 'npm' && args[0] === 'pack') return { status: 0, stdout: '[{"filename":"plugin.tgz","integrity":"sha512-local"}]', stderr: '' }
+        if (command === 'npm' && args[0] === 'view') return { status: 0, stdout: '"sha512-other"\n', stderr: '' }
+        return { status: 0, stdout: '', stderr: '' }
+      },
+    })
+
+    expect(result.ok).toBe(false)
+    expect(result.execution?.npm?.detail).toContain('different artifact integrity')
+  })
+
+  it('reconciles an existing GitHub release by uploading the complete asset set', () => {
+    const config = { ...makeConfig(), targets: ['codex'] as TargetPlatform[] }
+    prepareBuiltTarget('codex', GENERATED_INSTALLER_FIXTURE_FILES.codex)
+    const calls: string[][] = []
+
+    const result = runPublish(config, {
+      rootDir: ROOT,
+      verifyRemoteState: false,
+      requestedChannels: ['github-release'],
+      runCommand: (command, args, options) => {
+        calls.push([command, ...args])
+        if (command === 'tar') {
+          const proc = spawnSync(command, args, { cwd: options?.cwd, encoding: 'utf-8' })
+          return { status: proc.status, stdout: proc.stdout ?? '', stderr: proc.stderr ?? '' }
+        }
+        if (command === 'gh' && args[0] === 'release' && args[1] === 'view') {
+          return { status: 0, stdout: JSON.stringify({ assets: [{ name: 'install-removed.sh' }] }), stderr: '' }
+        }
+        return { status: 0, stdout: '', stderr: '' }
+      },
+    })
+
+    expect(result.ok).toBe(true)
+    expect(result.execution?.githubRelease?.action).toBe('reconciled')
+    const upload = calls.find((call) => call[0] === 'gh' && call[1] === 'release' && call[2] === 'upload')
+    expect(upload).toContain('--clobber')
+    expect(upload?.some((value) => value.endsWith('/SHA256SUMS.txt'))).toBe(true)
+    expect(calls.some((call) => call[0] === 'gh' && call[1] === 'release' && call[2] === 'delete-asset' && call[4] === 'install-removed.sh')).toBe(true)
+  })
+
+  it('fails when post-publish GitHub release verification is incomplete', () => {
+    const config = { ...makeConfig(), targets: ['codex'] as TargetPlatform[] }
+    prepareBuiltTarget('codex', GENERATED_INSTALLER_FIXTURE_FILES.codex)
+    let viewCount = 0
+
+    const result = runPublish(config, {
+      rootDir: ROOT,
+      requestedChannels: ['github-release'],
+      verifyRemoteState: true,
+      runCommand: (command, args, options) => {
+        if (command === 'tar') {
+          const proc = spawnSync(command, args, { cwd: options?.cwd, encoding: 'utf-8' })
+          return { status: proc.status, stdout: proc.stdout ?? '', stderr: proc.stderr ?? '' }
+        }
+        if (command === 'gh' && args[0] === 'release' && args[1] === 'view') {
+          viewCount += 1
+          return viewCount === 1
+            ? { status: 1, stdout: '', stderr: 'missing' }
+            : { status: 0, stdout: JSON.stringify({ tagName: 'v1.2.3', assets: [] }), stderr: '' }
+        }
+        return { status: 0, stdout: '', stderr: '' }
+      },
+    })
+
+    expect(result.ok).toBe(false)
+    expect(result.execution?.githubRelease?.verified).toBe(false)
+    expect(result.execution?.githubRelease?.detail).toContain('verification is incomplete')
+  })
+
   it('packages consumer-facing release assets for github releases', () => {
     const config = makeConfig()
     prepareBuiltTarget('claude-code', { '.claude-plugin/plugin.json': JSON.stringify({ name: 'publish-plugin', version: '1.2.3' }) })
     prepareBuiltTarget('opencode', {
-      'package.json': JSON.stringify({ name: '@orchid/publish-plugin-opencode' }),
+      'package.json': JSON.stringify({ name: '@orchid/publish-plugin-opencode', version: '1.2.3' }),
       'index.ts': 'export {}',
     })
 
     const calls: Array<{ command: string; args: string[]; cwd?: string }> = []
+    let installAllContent = ''
     const result = runPublish(config, {
       rootDir: ROOT,
+      verifyRemoteState: false,
       requestedChannels: ['github-release'],
       runCommand: (command, args, options) => {
         calls.push({ command, args, cwd: options?.cwd })
@@ -587,7 +745,11 @@ describe('runPublish', () => {
         if (command === 'git') return { status: 0, stdout: '', stderr: '' }
         if (command === 'gh' && args[0] === 'auth') return { status: 0, stdout: '', stderr: '' }
         if (command === 'gh' && args[0] === 'release' && args[1] === 'view') return { status: 1, stdout: '', stderr: 'missing' }
-        if (command === 'gh' && args[0] === 'release' && args[1] === 'create') return { status: 0, stdout: 'created', stderr: '' }
+        if (command === 'gh' && args[0] === 'release' && args[1] === 'create') {
+          const installAllPath = args.find((value) => value.endsWith('/install-all.sh'))
+          installAllContent = readFileSync(installAllPath!, 'utf-8')
+          return { status: 0, stdout: 'created', stderr: '' }
+        }
         return { status: 0, stdout: '', stderr: '' }
       },
     })
@@ -615,6 +777,9 @@ describe('runPublish', () => {
       'release-manifest.json',
       'SHA256SUMS.txt',
     ]))
+    expect(installAllContent).toContain("entry[2] === name")
+    expect(installAllContent).toContain("'Checksum mismatch for ' + name")
+    expect(installAllContent).toContain('bash "$TMP_DIR/install.sh" --agents "$@"')
   })
 
   it('generates a top-level installer that routes supported agent hosts', () => {
@@ -631,6 +796,7 @@ describe('runPublish', () => {
     let manifestContent = ''
     const result = runPublish(config, {
       rootDir: ROOT,
+      verifyRemoteState: false,
       requestedChannels: ['github-release'],
       runCommand: (command, args, options) => {
         if (command === 'tar') {
@@ -680,6 +846,243 @@ describe('runPublish', () => {
     })
   })
 
+  it('rejects a tampered release archive before replacing the installed bundle', () => {
+    const run = runGeneratedInstaller('cursor', {
+      existingUserConfig: {
+        values: { marker: 'previous-install' },
+      },
+      mutateArchive: (archivePath) => {
+        writeFileSync(archivePath, 'tampered', { flag: 'a' })
+      },
+    })
+
+    expect(run.status).toBe(1)
+    expect(run.stderr).toContain('Checksum mismatch for publish-plugin-cursor-latest.tar.gz')
+    expect(run.installedUserConfig?.values?.marker).toBe('previous-install')
+  })
+
+  it('rejects a tampered per-host installer before the top-level installer executes it', () => {
+    const config = { ...makeConfig(), targets: ['codex'] as TargetPlatform[] }
+    prepareBuiltTarget('codex', GENERATED_INSTALLER_FIXTURE_FILES.codex)
+    let topLevelRun: ReturnType<typeof spawnSync> | undefined
+
+    const result = runPublish(config, {
+      rootDir: ROOT,
+      verifyRemoteState: false,
+      requestedChannels: ['github-release'],
+      runCommand: (command, args, options) => {
+        if (command === 'tar') {
+          const proc = spawnSync(command, args, { cwd: options?.cwd, encoding: 'utf-8' })
+          return { status: proc.status, stdout: proc.stdout ?? '', stderr: proc.stderr ?? '' }
+        }
+        if (command === 'gh' && args[0] === 'release' && args[1] === 'view') return { status: 1, stdout: '', stderr: 'missing' }
+        if (command === 'gh' && args[0] === 'release' && args[1] === 'create') {
+          const topLevelPath = args.find((value) => value.endsWith('/install.sh'))!
+          const hostInstallerPath = args.find((value) => value.endsWith('/install-codex.sh'))!
+          const releaseDir = resolve(topLevelPath, '..')
+          writeFileSync(hostInstallerPath, '\n# tampered\n', { flag: 'a' })
+
+          const fakeBin = resolve(ROOT, 'fake-bin')
+          mkdirSync(fakeBin, { recursive: true })
+          const fakeCurl = resolve(fakeBin, 'curl')
+          writeFileSync(fakeCurl, `#!/usr/bin/env bash
+set -euo pipefail
+url=""
+out=""
+while [[ "$#" -gt 0 ]]; do
+  case "$1" in
+    -o) out="$2"; shift 2 ;;
+    http*) url="$1"; shift ;;
+    *) shift ;;
+  esac
+done
+cp "$TEST_RELEASE_DIR/$(basename "$url")" "$out"
+`)
+          chmodSync(fakeCurl, 0o755)
+          topLevelRun = spawnSync('bash', [topLevelPath, '--codex', '--base-url', 'https://release.test/assets'], {
+            encoding: 'utf-8',
+            env: {
+              ...process.env,
+              PATH: `${fakeBin}:${process.env.PATH}`,
+              TEST_RELEASE_DIR: releaseDir,
+            },
+          })
+          return { status: 0, stdout: 'created', stderr: '' }
+        }
+        return { status: 0, stdout: '', stderr: '' }
+      },
+    })
+
+    expect(result.ok).toBe(true)
+    expect(topLevelRun?.status).toBe(1)
+    expect(topLevelRun?.stderr).toContain('Checksum mismatch for install-codex.sh')
+  })
+
+  it('propagates a custom release base through top-level and per-host verification', () => {
+    const config = { ...makeConfig(), targets: ['codex'] as TargetPlatform[] }
+    prepareBuiltTarget('codex', GENERATED_INSTALLER_FIXTURE_FILES.codex)
+    let topLevelRun: ReturnType<typeof spawnSync> | undefined
+    const installDir = resolve(ROOT, 'custom-base-installed-codex')
+
+    const result = runPublish(config, {
+      rootDir: ROOT,
+      verifyRemoteState: false,
+      requestedChannels: ['github-release'],
+      runCommand: (command, args, options) => {
+        if (command === 'tar') {
+          const proc = spawnSync(command, args, { cwd: options?.cwd, encoding: 'utf-8' })
+          return { status: proc.status, stdout: proc.stdout ?? '', stderr: proc.stderr ?? '' }
+        }
+        if (command === 'gh' && args[0] === 'release' && args[1] === 'view') return { status: 1, stdout: '', stderr: 'missing' }
+        if (command === 'gh' && args[0] === 'release' && args[1] === 'create') {
+          const topLevelPath = args.find((value) => value.endsWith('/install.sh'))!
+          const releaseDir = resolve(topLevelPath, '..')
+          const fakeBin = resolve(ROOT, 'custom-base-fake-bin')
+          mkdirSync(fakeBin, { recursive: true })
+          const fakeCurl = resolve(fakeBin, 'curl')
+          writeFileSync(fakeCurl, `#!/usr/bin/env bash
+set -euo pipefail
+url=""
+out=""
+while [[ "$#" -gt 0 ]]; do
+  case "$1" in
+    -o) out="$2"; shift 2 ;;
+    http*) url="$1"; shift ;;
+    *) shift ;;
+  esac
+done
+cp "$TEST_RELEASE_DIR/$(basename "$url")" "$out"
+`)
+          chmodSync(fakeCurl, 0o755)
+          topLevelRun = spawnSync('bash', [topLevelPath, '--codex', '--base-url', 'https://custom.example/v1.2.3'], {
+            encoding: 'utf-8',
+            env: {
+              ...process.env,
+              HOME: resolve(ROOT, 'custom-base-home'),
+              PATH: `${fakeBin}:${process.env.PATH}`,
+              PLUXX_CODEX_INSTALL_DIR: installDir,
+              PLUXX_CODEX_MARKETPLACE_PATH: resolve(ROOT, 'custom-base-marketplace.json'),
+              PLUXX_CODEX_CONFIG_PATH: resolve(ROOT, 'custom-base-config.toml'),
+              PLUXX_CODEX_ENABLE_PLUGIN_HOOKS: '0',
+              TEST_RELEASE_DIR: releaseDir,
+            },
+          })
+          return { status: 0, stdout: 'created', stderr: '' }
+        }
+        return { status: 0, stdout: '', stderr: '' }
+      },
+    })
+
+    expect(result.ok).toBe(true)
+    expect(topLevelRun?.status).toBe(0)
+    expect(topLevelRun?.stderr).toBe('')
+    expect(topLevelRun?.stdout).toContain(`Installed publish-plugin to ${installDir}`)
+    expect(existsSync(resolve(installDir, '.codex-plugin/plugin.json'))).toBe(true)
+  })
+
+  it('keeps the previous install when staged runtime bootstrap fails', () => {
+    const run = runGeneratedInstaller('cursor', {
+      existingUserConfig: {
+        values: { marker: 'previous-install' },
+      },
+      extraFiles: {
+        'scripts/bootstrap-runtime.sh': '#!/usr/bin/env bash\nexit 42\n',
+      },
+      env: { SENDLENS_INSTANTLY_API_KEY: 'fresh-key' },
+    })
+
+    expect(run.status).toBe(42)
+    expect(run.installedUserConfig?.values?.marker).toBe('previous-install')
+    expect(run.stdout).toContain('Preparing local plugin runtime dependencies...')
+  })
+
+  it('restores bundle and owned Codex metadata after a post-swap registration failure', () => {
+    const originalMarketplace = '{"name":"original-marketplace","plugins":[]}\n'
+    const run = runGeneratedInstaller('codex', {
+      existingUserConfig: { values: { marker: 'previous-install' } },
+      extraFiles: {
+        '.codex/agents/reviewer.toml': 'name = "reviewer"\ndescription = "Review."\ndeveloper_instructions = "Review."\n',
+      },
+      env: { SENDLENS_INSTANTLY_API_KEY: 'fresh-key' },
+      prepareRuntime: (rootDir) => {
+        const globalAgent = resolve(rootDir, 'home/.codex/agents/unowned-reviewer.toml')
+        mkdirSync(resolve(globalAgent, '..'), { recursive: true })
+        writeFileSync(globalAgent, 'name = "reviewer"\ndescription = "Existing."\ndeveloper_instructions = "Existing."\n')
+        writeFileSync(resolve(rootDir, 'codex-marketplace.json'), originalMarketplace)
+      },
+    })
+
+    expect(run.status).toBe(1)
+    expect(run.stderr).toContain('Codex agent name collision')
+    expect(run.installedUserConfig?.values?.marker).toBe('previous-install')
+    expect(readFileSync(resolve(run.rootDir, 'codex-marketplace.json'), 'utf-8')).toBe(originalMarketplace)
+  })
+
+  it('rejects link members in a checksum-valid release archive', () => {
+    const run = runGeneratedInstaller('cursor', {
+      existingUserConfig: { values: { marker: 'previous-install' } },
+      mutateArchive: (archivePath, releaseDir) => {
+        const unsafeRoot = resolve(releaseDir, 'unsafe-archive')
+        const bundleRoot = resolve(unsafeRoot, 'cursor')
+        mkdirSync(bundleRoot, { recursive: true })
+        symlinkSync('../../outside', resolve(bundleRoot, 'escape-link'))
+        const tar = spawnSync('tar', ['-czf', archivePath, '-C', unsafeRoot, 'cursor'], { encoding: 'utf-8' })
+        expect(tar.status).toBe(0)
+
+        const sumsPath = resolve(releaseDir, 'SHA256SUMS.txt')
+        const archiveName = archivePath.split('/').pop()!
+        const digest = createHash('sha256').update(readFileSync(archivePath)).digest('hex')
+        const sums = readFileSync(sumsPath, 'utf-8')
+          .split('\n')
+          .map((line) => line.endsWith(`  ${archiveName}`) ? `${digest}  ${archiveName}` : line)
+          .join('\n')
+        writeFileSync(sumsPath, sums)
+      },
+    })
+
+    expect(run.status).toBe(1)
+    expect(run.stderr).toContain('Unsafe archive member type rejected')
+    expect(run.installedUserConfig?.values?.marker).toBe('previous-install')
+  })
+
+  it('rejects checksum-valid traversal, absolute, and hard-link archive members', () => {
+    for (const kind of ['traversal', 'absolute', 'hardlink']) {
+      const run = runGeneratedInstaller('cursor', {
+        existingUserConfig: { values: { marker: 'previous-install' } },
+        mutateArchive: (archivePath, releaseDir) => {
+          const python = spawnSync('python3', ['-c', `
+import io, sys, tarfile
+archive, kind = sys.argv[1], sys.argv[2]
+with tarfile.open(archive, 'w:gz') as tf:
+    info = tarfile.TarInfo('../escape.txt' if kind == 'traversal' else '/tmp/pluxx-escape' if kind == 'absolute' else 'cursor/escape-hardlink')
+    if kind == 'hardlink':
+        info.type = tarfile.LNKTYPE
+        info.linkname = '../../outside'
+        tf.addfile(info)
+    else:
+        payload = b'escape'
+        info.size = len(payload)
+        tf.addfile(info, io.BytesIO(payload))
+`, archivePath, kind], { encoding: 'utf-8' })
+          expect(python.status).toBe(0)
+
+          const sumsPath = resolve(releaseDir, 'SHA256SUMS.txt')
+          const archiveName = archivePath.split('/').pop()!
+          const digest = createHash('sha256').update(readFileSync(archivePath)).digest('hex')
+          const sums = readFileSync(sumsPath, 'utf-8')
+            .split('\n')
+            .map((line) => line.endsWith(`  ${archiveName}`) ? `${digest}  ${archiveName}` : line)
+            .join('\n')
+          writeFileSync(sumsPath, sums)
+        },
+      })
+
+      expect(run.status).toBe(1)
+      expect(run.stderr).toMatch(/Unsafe archive (path|member type) rejected/)
+      expect(run.installedUserConfig?.values?.marker).toBe('previous-install')
+    }
+  })
+
   it('generates installers that prompt and materialize user config for consumers', () => {
     const config: PluginConfig = {
       name: 'publish-plugin',
@@ -716,6 +1119,7 @@ describe('runPublish', () => {
     let installerContent = ''
     const result = runPublish(config, {
       rootDir: ROOT,
+      verifyRemoteState: false,
       requestedChannels: ['github-release'],
       runCommand: (command, args, options) => {
         if (command === 'tar') {
@@ -749,11 +1153,14 @@ describe('runPublish', () => {
     expect(installerContent).toContain('server.http_headers')
     expect(installerContent).toContain('preserveSecretReferences = true')
     expect(installerContent).toContain('Preparing local plugin runtime dependencies...')
-    expect(installerContent).toContain('bash "$INSTALL_DIR/scripts/bootstrap-runtime.sh"')
+    expect(installerContent).toContain('bash "$CANDIDATE_DIR/scripts/bootstrap-runtime.sh"')
     expect(installerContent).toContain('PLUXX_CODEX_ENABLE_PLUGIN_HOOKS')
     expect(installerContent).toContain('Codex requires [features].hooks = true')
     expect(installerContent).toContain('hooks = true')
     expect(installerContent).toContain('materializeInstalledStdioPath')
+    expect(installerContent).toContain("trap 'rollback_install 129' HUP")
+    expect(installerContent).toContain("trap 'rollback_install 130' INT")
+    expect(installerContent).toContain("trap 'rollback_install 143' TERM")
     expect(installerContent).toContain("path.resolve(installDir, normalized)")
     expect(installerContent.indexOf('PLUXX_USER_CONFIG_SPEC')).toBeLessThan(
       installerContent.indexOf('Preparing local plugin runtime dependencies...'),
@@ -887,7 +1294,7 @@ describe('runPublish', () => {
     const extraFiles = {
       '.codex-plugin/plugin.json': JSON.stringify({
         name: 'publish-plugin',
-        version: '1.0.0',
+        version: '1.2.3',
       }),
       '.mcp.json': JSON.stringify({
         mcpServers: {
@@ -962,7 +1369,7 @@ describe('runPublish', () => {
       expect(run.stdout).not.toContain('reusing saved install values')
       expect(run.stderr).toContain('Ignoring placeholder-looking saved config for SENDLENS_INSTANTLY_API_KEY.')
       expect(run.stderr).toContain('Refusing placeholder-looking saved config for SENDLENS_INSTANTLY_API_KEY.')
-      expect(run.installedUserConfig).toBeUndefined()
+      expect(run.installedUserConfig?.env?.SENDLENS_INSTANTLY_API_KEY).toBe('your api key here')
     }
   })
 

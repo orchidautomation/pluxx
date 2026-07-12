@@ -90,6 +90,7 @@ import {
   type InstalledMcpHost,
 } from './discover-installed-mcp'
 import { buildHostTargetSelection, detectHostFamilies } from '../host-detection'
+import { executeUpgrade, planUpgrade } from './upgrade'
 
 const CLI_PACKAGE_NAME = '@orchid-labs/pluxx'
 const rawArgs = process.argv.slice(2)
@@ -229,16 +230,6 @@ interface AutopilotSummary {
 
 type AutopilotMode = typeof AUTOPILOT_MODES[number]
 
-interface UpgradeCommandSummary {
-  dryRun: boolean
-  packageName: string
-  currentVersion: string
-  requestedVersion: string
-  specifier: string
-  command: string[]
-  note: string
-}
-
 interface AutopilotPassDecision {
   enabled: boolean
   reason: string
@@ -351,23 +342,16 @@ function getCliPackageVersion(): string {
   return raw.version.trim()
 }
 
-function resolveNpmExecutable(): string {
-  return process.platform === 'win32' ? 'npm.cmd' : 'npm'
-}
-
-function buildUpgradeSummary(): UpgradeCommandSummary {
+function buildUpgradeSummary() {
   const requestedVersion = readOption(args, '--version') ?? 'latest'
-  const specifier = `${CLI_PACKAGE_NAME}@${requestedVersion}`
-
-  return {
-    dryRun: runtime.dryRun,
+  return planUpgrade({
     packageName: CLI_PACKAGE_NAME,
     currentVersion: getCliPackageVersion(),
+    invocationPath: process.argv[1] ?? '',
+    dryRun: runtime.dryRun,
     requestedVersion,
-    specifier,
-    command: [resolveNpmExecutable(), 'install', '-g', specifier],
-    note: 'This updates the global npm install used by `pluxx` on your PATH. Repo-local and `npx` invocations are separate entrypoints.',
-  }
+    resolveRequestedVersion: !runtime.dryRun,
+  })
 }
 
 async function runVersionCommand() {
@@ -393,37 +377,26 @@ async function runUpgradeCommand() {
       console.log(`Dry run: would run \`${summary.command.join(' ')}\``)
       console.log(summary.note)
       console.log(`Current version: ${summary.currentVersion}`)
+      console.log(`Invocation source: ${summary.invocationSource} (${summary.invocationPath})`)
+      console.log(`Version comparison: ${summary.comparison}${summary.resolvedVersion ? ` -> ${summary.resolvedVersion}` : ''}`)
+      if (summary.warning) console.warn(summary.warning)
+      console.log(`Rollback command: ${summary.rollbackCommand.join(' ')}`)
     }
     return
   }
 
-  const install = spawnSync(summary.command[0], summary.command.slice(1), runtime.jsonOutput
-    ? {
-        env: process.env,
-        encoding: 'utf-8',
-        stdio: 'pipe',
-      }
-    : {
-        env: process.env,
-        stdio: 'inherit',
-      })
-
-  if (install.status !== 0) {
+  if (summary.warning && !runtime.quiet && !runtime.jsonOutput) console.warn(summary.warning)
+  const result = executeUpgrade(summary)
+  if (!result.ok) {
     if (runtime.jsonOutput) {
-      printJson({
-        ...summary,
-        ok: false,
-        stdout: typeof install.stdout === 'string' ? install.stdout : '',
-        stderr: typeof install.stderr === 'string' ? install.stderr : '',
-        exitCode: install.status ?? 1,
-      })
+      printJson(result)
+    } else {
+      console.error(`Invocation source: ${summary.invocationSource} (${summary.invocationPath})`)
+      console.error(`Version comparison: ${summary.comparison}${summary.resolvedVersion ? ` -> ${summary.resolvedVersion}` : ''}`)
+      console.error(result.detail)
+      console.error(`Rollback command: ${result.rollbackCommand.join(' ')}`)
     }
     throw new Error(`Failed to upgrade ${CLI_PACKAGE_NAME}.`)
-  }
-
-  const result = {
-    ...summary,
-    ok: true,
   }
 
   if (runtime.jsonOutput) {
@@ -433,7 +406,10 @@ async function runUpgradeCommand() {
 
   if (!runtime.quiet) {
     console.log(`Upgraded ${summary.packageName} with \`${summary.command.join(' ')}\`.`)
-    console.log('Run `pluxx --version` to verify the active version on your PATH.')
+    console.log(`Invocation source: ${summary.invocationSource} (${summary.invocationPath})`)
+    console.log(`Version comparison: ${summary.comparison}${summary.resolvedVersion ? ` -> ${summary.resolvedVersion}` : ''}`)
+    console.log(result.detail)
+    console.log(`Rollback command: ${result.rollbackCommand.join(' ')}`)
     console.log(summary.note)
   }
 }

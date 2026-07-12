@@ -32,6 +32,7 @@ export interface PublishPlanOptions {
   allowDirty?: boolean
   rootDir?: string
   runCommand?: CommandRunner
+  verifyRemoteState?: boolean
 }
 
 export interface PublishAssetPlan {
@@ -77,8 +78,8 @@ export interface PublishPlan {
 export interface PublishRunResult extends PublishPlan {
   ok: boolean
   execution?: {
-    npm?: { ok: boolean; detail?: string }
-    githubRelease?: { ok: boolean; detail?: string }
+    npm?: { ok: boolean; action: 'published' | 'already-published'; verified: boolean; detail?: string }
+    githubRelease?: { ok: boolean; action: 'created' | 'reconciled'; verified: boolean; detail?: string }
   }
 }
 
@@ -89,6 +90,13 @@ interface ReleaseArtifactContext {
   builtTargets: TargetPlatform[]
   installerTargets: Array<typeof INSTALLER_TARGETS[number]>
   assetBaseURL: string
+}
+
+interface PreparedNpmArtifact {
+  tempRoot: string
+  filepath?: string
+  integrity?: string
+  error?: string
 }
 
 const INSTALLER_TARGETS = ['claude-code', 'cursor', 'codex', 'opencode'] as const satisfies readonly TargetPlatform[]
@@ -132,6 +140,10 @@ function getBuiltTargets(rootDir: string, config: PluginConfig): TargetPlatform[
   return config.targets.filter((platform) =>
     existsSync(resolve(rootDir, config.outDir, platform)),
   )
+}
+
+function getPublishableBuiltTargets(rootDir: string, config: PluginConfig): TargetPlatform[] {
+  return getBuiltTargets(rootDir, config).filter(isInstallerTarget)
 }
 
 function getArchiveAssetName(pluginName: string, platform: TargetPlatform, version: string, variant: ReleaseArchiveVariant): string {
@@ -202,7 +214,7 @@ function buildReleaseAssets(rootDir: string, config: PluginConfig, version: stri
   return assets
 }
 
-function readNpmPackageName(rootDir: string, config: PluginConfig): { packageName?: string; packageDir?: string } {
+function readNpmPackageIdentity(rootDir: string, config: PluginConfig): { packageName?: string; packageVersion?: string; packageDir?: string } {
   const packageDir = resolve(rootDir, config.outDir, 'opencode')
   const packageJsonPath = resolve(packageDir, 'package.json')
   if (!existsSync(packageJsonPath)) {
@@ -210,15 +222,38 @@ function readNpmPackageName(rootDir: string, config: PluginConfig): { packageNam
   }
 
   try {
-    const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf-8')) as { name?: string }
+    const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf-8')) as { name?: string; version?: string }
     return {
       packageName: pkg.name,
+      packageVersion: pkg.version,
       packageDir,
     }
   } catch {
     return {
       packageDir,
     }
+  }
+}
+
+function readBuiltTargetVersion(rootDir: string, config: PluginConfig, platform: TargetPlatform): string | undefined {
+  const relativePath = platform === 'claude-code'
+    ? '.claude-plugin/plugin.json'
+    : platform === 'cursor'
+      ? '.cursor-plugin/plugin.json'
+      : platform === 'codex'
+        ? '.codex-plugin/plugin.json'
+        : platform === 'opencode'
+          ? 'package.json'
+          : undefined
+  if (!relativePath) return undefined
+
+  const filepath = resolve(rootDir, config.outDir, platform, relativePath)
+  if (!existsSync(filepath)) return undefined
+  try {
+    const payload = JSON.parse(readFileSync(filepath, 'utf-8')) as { version?: unknown }
+    return typeof payload.version === 'string' ? payload.version : undefined
+  } catch {
+    return undefined
   }
 }
 
@@ -260,10 +295,30 @@ function collectChecks(args: {
   allowDirty: boolean
   packageDir?: string
   packageName?: string
+  packageVersion?: string
   githubRepo?: string
+  publishVersion: string
   runCommand: CommandRunner
 }): PublishCheck[] {
-  const builtTargets = getBuiltTargets(args.rootDir, args.config)
+  const builtTargets = getPublishableBuiltTargets(args.rootDir, args.config)
+  const identityMismatches = [
+    ...(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(args.publishVersion)
+      ? []
+      : [`requested version is not valid semantic version: ${args.publishVersion}`]),
+    ...(args.publishVersion === args.config.version
+      ? []
+      : [`requested ${args.publishVersion} != source config ${args.config.version}`]),
+    ...builtTargets.flatMap((platform) => {
+      const builtVersion = readBuiltTargetVersion(args.rootDir, args.config, platform)
+      if (!builtVersion) return [`${platform} built identity is missing or unreadable`]
+      return builtVersion !== args.publishVersion ? [`${platform} ${builtVersion} != requested ${args.publishVersion}`] : []
+    }),
+    ...(args.npmEnabled && !args.packageVersion
+      ? ['npm package version is missing or unreadable']
+      : args.packageVersion && args.packageVersion !== args.publishVersion
+        ? [`npm package ${args.packageVersion} != requested ${args.publishVersion}`]
+        : []),
+  ]
   const checks: PublishCheck[] = [
     {
       name: 'artifacts-exist',
@@ -272,6 +327,14 @@ function collectChecks(args: {
       detail: builtTargets.length > 0
         ? `Built targets: ${builtTargets.join(', ')}`
         : `No built platform outputs found in ${args.config.outDir}/`,
+    },
+    {
+      name: 'release-identity',
+      ok: identityMismatches.length === 0,
+      code: 'release-identity',
+      detail: identityMismatches.length === 0
+        ? `Source and built release identities agree on ${args.publishVersion}.`
+        : identityMismatches.join('; '),
     },
   ]
 
@@ -336,7 +399,7 @@ function collectChecks(args: {
 export function planPublish(config: PluginConfig, options: PublishPlanOptions = {}): PublishPlan {
   const rootDir = options.rootDir ?? process.cwd()
   const runCommand = options.runCommand ?? runCommandDefault
-  const builtTargets = getBuiltTargets(rootDir, config)
+  const builtTargets = getPublishableBuiltTargets(rootDir, config)
   const { requested, explicit } = resolveRequestedChannels(options)
   const defaultNpm = builtTargets.some(isTargetNpmBacked)
   const defaultGithubRelease = builtTargets.length > 0
@@ -344,7 +407,7 @@ export function planPublish(config: PluginConfig, options: PublishPlanOptions = 
   const githubReleaseEnabled = explicit.githubRelease ? true : (requested.size === 0 ? defaultGithubRelease : false)
   const version = options.version ?? config.version
   const tag = options.tag ?? 'latest'
-  const { packageDir, packageName } = readNpmPackageName(rootDir, config)
+  const { packageDir, packageName, packageVersion } = readNpmPackageIdentity(rootDir, config)
   const githubRepo = githubReleaseEnabled
     ? resolveGithubRepo(rootDir, config, runCommand)
     : undefined
@@ -356,7 +419,9 @@ export function planPublish(config: PluginConfig, options: PublishPlanOptions = 
     allowDirty: options.allowDirty ?? false,
     packageDir,
     packageName,
+    packageVersion,
     githubRepo,
+    publishVersion: version,
     runCommand,
   })
 
@@ -459,7 +524,6 @@ function buildReleaseManifest(config: PluginConfig, context: ReleaseArtifactCont
 }
 
 function renderInstallAllScript(installerTargets: Array<typeof INSTALLER_TARGETS[number]>): string {
-  const scriptNames = installerTargets.map((platform) => getInstallerScriptName(platform))
   return `#!/usr/bin/env bash
 set -euo pipefail
 
@@ -470,14 +534,31 @@ cleanup() {
 }
 trap cleanup EXIT
 
-for script in ${scriptNames.map((name) => `"${name}"`).join(' ')}; do
-  curl -fsSL "https://github.com/\${REPO}/releases/latest/download/\${script}" -o "$TMP_DIR/\${script}"
-  chmod +x "$TMP_DIR/\${script}"
-  "$TMP_DIR/\${script}"
-done
+BASE_URL="\${PLUXX_RELEASE_BASE_URL:-https://github.com/\${REPO}/releases/latest/download}"
+curl -fsSL "$BASE_URL/release-manifest.json" -o "$TMP_DIR/release-manifest.json"
+curl -fsSL "$BASE_URL/SHA256SUMS.txt" -o "$TMP_DIR/SHA256SUMS.txt"
+curl -fsSL "$BASE_URL/install.sh" -o "$TMP_DIR/install.sh"
 
-echo
-echo "Installed __DISPLAY_NAME__ across ${installerTargets.join(', ')}."
+PLUXX_VERIFY_ROOT="$TMP_DIR" PLUXX_VERIFY_SUMS="$TMP_DIR/SHA256SUMS.txt" PLUXX_EXPECTED_PLUGIN="PLUGIN_PLACEHOLDER" node <<'NODE'
+const crypto = require('crypto')
+const fs = require('fs')
+const path = require('path')
+const entries = fs.readFileSync(process.env.PLUXX_VERIFY_SUMS, 'utf8')
+  .split(/\\r?\\n/)
+  .map((line) => line.match(/^([a-f0-9]{64})  (.+)$/))
+for (const name of ['release-manifest.json', 'install.sh']) {
+  const match = entries.find((entry) => entry && entry[2] === name)
+  if (!match) throw new Error('Release checksum inventory does not include ' + name)
+  const actual = crypto.createHash('sha256').update(fs.readFileSync(path.join(process.env.PLUXX_VERIFY_ROOT, name))).digest('hex')
+  if (actual !== match[1]) throw new Error('Checksum mismatch for ' + name)
+}
+const manifest = JSON.parse(fs.readFileSync(path.join(process.env.PLUXX_VERIFY_ROOT, 'release-manifest.json'), 'utf8'))
+if (manifest.version !== 1 || manifest.plugin?.name !== process.env.PLUXX_EXPECTED_PLUGIN) {
+  throw new Error('Release manifest identity mismatch')
+}
+NODE
+
+bash "$TMP_DIR/install.sh" --agents "$@"
 `.replaceAll('__REPO__', 'REPO_PLACEHOLDER').replaceAll('__DISPLAY_NAME__', 'DISPLAY_PLACEHOLDER')
 }
 
@@ -580,6 +661,7 @@ done
 need_cmd curl
 need_cmd mktemp
 need_cmd bash
+need_cmd node
 
 if [ -z "$base_url" ]; then
   if [ "$version" = "latest" ]; then
@@ -604,6 +686,7 @@ if [ "$yes" = "1" ]; then
   export PLUXX_CODEX_ENABLE_PLUGIN_HOOKS="\${PLUXX_CODEX_ENABLE_PLUGIN_HOOKS:-1}"
 fi
 export PLUXX_PLUGIN_VERSION="$version"
+export PLUXX_RELEASE_BASE_URL="$base_url"
 
 tmp_dir="$(mktemp -d)"
 cleanup() {
@@ -611,20 +694,51 @@ cleanup() {
 }
 trap cleanup EXIT
 
+release_manifest="$tmp_dir/release-manifest.json"
+release_checksums="$tmp_dir/SHA256SUMS.txt"
+curl -fsSL "$base_url/release-manifest.json" -o "$release_manifest"
+curl -fsSL "$base_url/SHA256SUMS.txt" -o "$release_checksums"
+
+verify_release_asset() {
+  local filepath="$1"
+  local asset_name="$2"
+  PLUXX_VERIFY_FILE="$filepath" PLUXX_VERIFY_NAME="$asset_name" PLUXX_VERIFY_SUMS="$release_checksums" node <<'NODE'
+const crypto = require('crypto')
+const fs = require('fs')
+const filepath = process.env.PLUXX_VERIFY_FILE
+const name = process.env.PLUXX_VERIFY_NAME
+const match = fs.readFileSync(process.env.PLUXX_VERIFY_SUMS, 'utf8')
+  .split(/\\r?\\n/)
+  .map((line) => line.match(/^([a-f0-9]{64})  (.+)$/))
+  .find((entry) => entry && entry[2] === name)
+if (!match) throw new Error('Release checksum inventory does not include ' + name)
+const actual = crypto.createHash('sha256').update(fs.readFileSync(filepath)).digest('hex')
+if (actual !== match[1]) throw new Error('Checksum mismatch for ' + name)
+NODE
+}
+
+verify_release_asset "$release_manifest" "release-manifest.json"
+PLUXX_RELEASE_MANIFEST="$release_manifest" PLUXX_EXPECTED_PLUGIN="PLUGIN_PLACEHOLDER" PLUXX_REQUESTED_VERSION="$version" node <<'NODE'
+const fs = require('fs')
+const manifest = JSON.parse(fs.readFileSync(process.env.PLUXX_RELEASE_MANIFEST, 'utf8'))
+if (manifest.version !== 1 || manifest.plugin?.name !== process.env.PLUXX_EXPECTED_PLUGIN) {
+  throw new Error('Release manifest identity mismatch')
+}
+const requested = process.env.PLUXX_REQUESTED_VERSION
+if (requested !== 'latest' && manifest.plugin?.version !== requested.replace(/^v/, '')) {
+  throw new Error('Release manifest version does not match requested version')
+}
+NODE
+
 run_installer() {
   local target="$1"
   local installer="$tmp_dir/install-$target.sh"
   local url="$base_url/install-$target.sh"
-  local installer_args=()
 
   if [ "$agents" = "1" ] && [ "$target" = "claude-code" ] && ! command -v claude >/dev/null 2>&1; then
     echo "Skipping Claude Code bundle because the claude CLI is not available on PATH." >&2
     echo "Run with --claude-code to require Claude Code installation and fail if prerequisites are missing." >&2
     return 0
-  fi
-
-  if [ "$yes" = "1" ]; then
-    installer_args+=(--yes)
   fi
 
   case "$target" in
@@ -648,8 +762,13 @@ run_installer() {
 
   echo "Installing DISPLAY_PLACEHOLDER for $target..."
   curl -fsSL "$url" -o "$installer"
+  verify_release_asset "$installer" "install-$target.sh"
   chmod +x "$installer"
-  bash "$installer" "\${installer_args[@]}"
+  if [ "$yes" = "1" ]; then
+    bash "$installer" --yes
+  else
+    bash "$installer"
+  fi
 }
 
 for target in "\${targets[@]}"; do
@@ -1245,6 +1364,7 @@ function renderInstallerCodexPluginHooksSnippet(installDirVariable: string): str
   return `
 export PLUXX_INSTALL_DIR="${installDirVariable}"
 
+trap - ERR
 set +e
 node <<'NODE'
 const fs = require('fs')
@@ -1272,6 +1392,7 @@ process.exit(hasPluginHooks ? 0 : 2)
 NODE
 PLUXX_CODEX_BUNDLE_HAS_HOOKS="$?"
 set -e
+trap rollback_install ERR
 
 if [[ "$PLUXX_CODEX_BUNDLE_HAS_HOOKS" == "0" ]]; then
   CODEX_HOME_DIR="\${CODEX_HOME:-$HOME/.codex}"
@@ -1483,9 +1604,195 @@ fi
 `
 }
 
+function renderReleaseAssetVerificationSnippet(args: {
+  archiveVariable: string
+  bundlePathVariable: string
+  expectedArchiveName: string
+  expectedPlatform: TargetPlatform
+}): string {
+  return `
+RELEASE_BASE_URL="\${PLUXX_RELEASE_BASE_URL:-https://github.com/\${REPO}/releases/latest/download}"
+RELEASE_MANIFEST_PATH="\${PLUXX_RELEASE_MANIFEST_PATH:-}"
+RELEASE_CHECKSUMS_PATH="\${PLUXX_RELEASE_CHECKSUMS_PATH:-}"
+
+if [[ -n "${args.bundlePathVariable}" ]]; then
+  LOCAL_RELEASE_DIR="$(dirname "${args.bundlePathVariable}")"
+  RELEASE_MANIFEST_PATH="\${RELEASE_MANIFEST_PATH:-$LOCAL_RELEASE_DIR/release-manifest.json}"
+  RELEASE_CHECKSUMS_PATH="\${RELEASE_CHECKSUMS_PATH:-$LOCAL_RELEASE_DIR/SHA256SUMS.txt}"
+fi
+
+RELEASE_MANIFEST="$TMP_DIR/release-manifest.json"
+RELEASE_CHECKSUMS="$TMP_DIR/SHA256SUMS.txt"
+
+if [[ -n "$RELEASE_MANIFEST_PATH" ]]; then
+  cp "$RELEASE_MANIFEST_PATH" "$RELEASE_MANIFEST"
+else
+  curl -fsSL "$RELEASE_BASE_URL/release-manifest.json" -o "$RELEASE_MANIFEST"
+fi
+
+if [[ -n "$RELEASE_CHECKSUMS_PATH" ]]; then
+  cp "$RELEASE_CHECKSUMS_PATH" "$RELEASE_CHECKSUMS"
+else
+  curl -fsSL "$RELEASE_BASE_URL/SHA256SUMS.txt" -o "$RELEASE_CHECKSUMS"
+fi
+
+verify_release_asset() {
+  local filepath="$1"
+  local asset_name="$2"
+  PLUXX_VERIFY_FILE="$filepath" PLUXX_VERIFY_NAME="$asset_name" PLUXX_VERIFY_SUMS="$RELEASE_CHECKSUMS" node <<'NODE'
+const crypto = require('crypto')
+const fs = require('fs')
+
+const filepath = process.env.PLUXX_VERIFY_FILE
+const assetName = process.env.PLUXX_VERIFY_NAME
+const sumsPath = process.env.PLUXX_VERIFY_SUMS
+const lines = fs.readFileSync(sumsPath, 'utf8').split(/\\r?\\n/)
+const match = lines.map((line) => line.match(/^([a-f0-9]{64})  (.+)$/)).find((entry) => entry && entry[2] === assetName)
+if (!match) throw new Error('Release checksum inventory does not include ' + assetName)
+const actual = crypto.createHash('sha256').update(fs.readFileSync(filepath)).digest('hex')
+if (actual !== match[1]) throw new Error('Checksum mismatch for ' + assetName)
+NODE
+}
+
+verify_release_asset "$RELEASE_MANIFEST" "release-manifest.json"
+verify_release_asset "${args.archiveVariable}" "${args.expectedArchiveName}"
+
+PLUXX_RELEASE_MANIFEST="$RELEASE_MANIFEST" PLUXX_EXPECTED_PLUGIN="$PLUGIN_NAME" PLUXX_EXPECTED_PLATFORM="${args.expectedPlatform}" PLUXX_EXPECTED_VERSION="VERSION_PLACEHOLDER" node <<'NODE'
+const fs = require('fs')
+const manifest = JSON.parse(fs.readFileSync(process.env.PLUXX_RELEASE_MANIFEST, 'utf8'))
+const expectedPlugin = process.env.PLUXX_EXPECTED_PLUGIN
+const expectedPlatform = process.env.PLUXX_EXPECTED_PLATFORM
+const expectedVersion = process.env.PLUXX_EXPECTED_VERSION
+if (manifest.version !== 1) throw new Error('Unsupported release manifest version')
+if (manifest.plugin?.name !== expectedPlugin) throw new Error('Release manifest plugin identity mismatch')
+if (manifest.plugin?.version !== expectedVersion) throw new Error('Release manifest version mismatch')
+const archive = manifest.assets?.archives?.find((entry) => entry.platform === expectedPlatform)
+if (!archive || archive.latestAsset !== '${args.expectedArchiveName}') {
+  throw new Error('Release manifest archive identity mismatch for ' + expectedPlatform)
+}
+NODE
+
+while IFS= read -r archive_entry; do
+  normalized="\${archive_entry#./}"
+  case "$normalized" in
+    ""|/*|..|../*|*/..|*/../*|*\\*)
+      echo "Unsafe archive path rejected: $archive_entry" >&2
+      exit 1
+      ;;
+  esac
+done < <(tar -tzf "${args.archiveVariable}")
+
+while IFS= read -r archive_detail; do
+  case "\${archive_detail:0:1}" in
+    -|d) ;;
+    *)
+      echo "Unsafe archive member type rejected: $archive_detail" >&2
+      exit 1
+      ;;
+  esac
+done < <(tar -tvzf "${args.archiveVariable}")
+`
+}
+
+function renderTransactionalInstallStart(installDirVariable: string): string {
+  return `
+INSTALL_PARENT="$(dirname "${installDirVariable}")"
+mkdir -p "$INSTALL_PARENT"
+CANDIDATE_DIR="$(mktemp -d "$INSTALL_PARENT/.\${PLUGIN_NAME}.candidate.XXXXXX")"
+BACKUP_DIR="$INSTALL_PARENT/.\${PLUGIN_NAME}.backup.$$"
+ROLLBACK_STATE_DIR="$TMP_DIR/rollback-state"
+INSTALL_SWAPPED=0
+HAD_PREVIOUS_INSTALL=0
+ROLLBACK_PATHS=()
+ROLLBACK_BACKUPS=()
+ROLLBACK_EXISTED=()
+
+backup_owned_path() {
+  local owned_path="$1"
+  local index="\${#ROLLBACK_PATHS[@]}"
+  local backup_path="$ROLLBACK_STATE_DIR/$index"
+  ROLLBACK_PATHS+=("$owned_path")
+  ROLLBACK_BACKUPS+=("$backup_path")
+  if [[ -e "$owned_path" ]]; then
+    mkdir -p "$(dirname "$backup_path")"
+    cp -R "$owned_path" "$backup_path"
+    ROLLBACK_EXISTED+=("1")
+  else
+    ROLLBACK_EXISTED+=("0")
+  fi
+}
+
+rollback_install() {
+  local previous_status=$?
+  local exit_code="\${1:-$previous_status}"
+  if [[ "$exit_code" == "0" ]]; then
+    exit_code=1
+  fi
+  if [[ "$INSTALL_SWAPPED" == "1" ]]; then
+    rm -rf "${installDirVariable}"
+    if [[ "$HAD_PREVIOUS_INSTALL" == "1" && -e "$BACKUP_DIR" ]]; then
+      mv "$BACKUP_DIR" "${installDirVariable}"
+    fi
+    local index
+    for ((index=\${#ROLLBACK_PATHS[@]} - 1; index>=0; index--)); do
+      local owned_path="\${ROLLBACK_PATHS[$index]}"
+      rm -rf "$owned_path"
+      if [[ "\${ROLLBACK_EXISTED[$index]}" == "1" ]]; then
+        mkdir -p "$(dirname "$owned_path")"
+        cp -R "\${ROLLBACK_BACKUPS[$index]}" "$owned_path"
+      fi
+    done
+    echo "Install failed; restored the previous $PLUGIN_NAME install." >&2
+  fi
+  exit "$exit_code"
+}
+
+cleanup_transaction_paths() {
+  rm -rf "$CANDIDATE_DIR"
+  if [[ "$INSTALL_SWAPPED" != "1" ]]; then
+    rm -rf "$BACKUP_DIR"
+  fi
+}
+trap 'cleanup_transaction_paths; cleanup' EXIT
+trap rollback_install ERR
+trap 'rollback_install 129' HUP
+trap 'rollback_install 130' INT
+trap 'rollback_install 143' TERM
+
+cp -R "$BUNDLE_DIR"/. "$CANDIDATE_DIR"
+`
+}
+
+function renderTransactionalInstallCommit(installDirVariable: string): string {
+  return `
+if [[ -e "${installDirVariable}" ]]; then
+  mv "${installDirVariable}" "$BACKUP_DIR"
+  HAD_PREVIOUS_INSTALL=1
+fi
+if ! mv "$CANDIDATE_DIR" "${installDirVariable}"; then
+  if [[ "$HAD_PREVIOUS_INSTALL" == "1" && -e "$BACKUP_DIR" ]]; then
+    mv "$BACKUP_DIR" "${installDirVariable}"
+  fi
+  echo "Failed to commit staged install; previous install restored." >&2
+  exit 1
+fi
+INSTALL_SWAPPED=1
+`
+}
+
+function renderTransactionalInstallFinish(): string {
+  return `
+rm -rf "$BACKUP_DIR"
+rm -rf "$ROLLBACK_STATE_DIR"
+INSTALL_SWAPPED=0
+trap - ERR
+trap - INT TERM HUP
+`
+}
+
 function renderInstallClaudeCodeScript(config: PluginConfig): string {
   return `#!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
 REPO="\${PLUXX_PLUGIN_REPO:-REPO_PLACEHOLDER}"
 PLUGIN_NAME="\${PLUXX_PLUGIN_NAME:-PLUGIN_PLACEHOLDER}"
@@ -1509,7 +1816,7 @@ need_cmd tar
 need_cmd mktemp
 need_cmd grep
 need_cmd sed
-${hasInstallerUserConfig(config, 'claude-code') ? 'need_cmd node' : ''}
+need_cmd node
 
 if [[ "$SKIP_INSTALL" != "1" ]]; then
   need_cmd curl
@@ -1530,6 +1837,7 @@ else
   curl -fsSL "$BUNDLE_URL" -o "$BUNDLE_ARCHIVE"
 fi
 
+${renderReleaseAssetVerificationSnippet({ archiveVariable: '$BUNDLE_ARCHIVE', bundlePathVariable: '$BUNDLE_PATH', expectedArchiveName: getArchiveAssetName(config.name, 'claude-code', config.version, 'latest'), expectedPlatform: 'claude-code' })}
 tar -xzf "$BUNDLE_ARCHIVE" -C "$TMP_DIR"
 
 BUNDLE_DIR="$TMP_DIR/claude-code"
@@ -1545,11 +1853,13 @@ DESCRIPTION="$(grep -E '"description"' "$PLUGIN_MANIFEST" | head -n1 | sed -E 's
 
 mkdir -p "$INSTALL_ROOT/.claude-plugin" "$INSTALL_ROOT/plugins"
 ${renderInstallerSavedUserConfigCaptureSnippet(config, 'claude-code', '$INSTALL_ROOT/plugins/$PLUGIN_NAME')}
-rm -rf "$INSTALL_ROOT/plugins/$PLUGIN_NAME"
-cp -R "$BUNDLE_DIR" "$INSTALL_ROOT/plugins/$PLUGIN_NAME"
-${renderInstallerUserConfigSnippet(config, 'claude-code', '$INSTALL_ROOT/plugins/$PLUGIN_NAME')}
-${renderInstallerMcpPathMaterializationSnippet('claude-code', '$INSTALL_ROOT/plugins/$PLUGIN_NAME')}
-${renderInstallerRuntimeBootstrapSnippet('$INSTALL_ROOT/plugins/$PLUGIN_NAME')}
+${renderTransactionalInstallStart('$INSTALL_ROOT/plugins/$PLUGIN_NAME')}
+${renderInstallerUserConfigSnippet(config, 'claude-code', '$CANDIDATE_DIR')}
+${renderInstallerMcpPathMaterializationSnippet('claude-code', '$CANDIDATE_DIR')}
+${renderInstallerRuntimeBootstrapSnippet('$CANDIDATE_DIR')}
+backup_owned_path "$INSTALL_ROOT/.claude-plugin/marketplace.json"
+backup_owned_path "$HOME/.claude/plugins/cache/$MARKETPLACE_NAME/$PLUGIN_NAME"
+${renderTransactionalInstallCommit('$INSTALL_ROOT/plugins/$PLUGIN_NAME')}
 
 cat > "$INSTALL_ROOT/.claude-plugin/marketplace.json" <<JSON
 {
@@ -1588,6 +1898,8 @@ fi
 claude plugin uninstall "\${PLUGIN_NAME}@\${MARKETPLACE_NAME}" --scope user >/dev/null 2>&1 || true
 claude plugin install "\${PLUGIN_NAME}@\${MARKETPLACE_NAME}" --scope user
 
+${renderTransactionalInstallFinish()}
+
 echo
 echo "Installed \${PLUGIN_NAME}@\${MARKETPLACE_NAME} into Claude Code user scope."
 echo "${getPublishReloadInstruction('claude-code')}"
@@ -1596,7 +1908,7 @@ echo "${getPublishReloadInstruction('claude-code')}"
 
 function renderInstallCursorScript(config: PluginConfig): string {
   return `#!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
 REPO="\${PLUXX_PLUGIN_REPO:-REPO_PLACEHOLDER}"
 PLUGIN_NAME="\${PLUXX_PLUGIN_NAME:-PLUGIN_PLACEHOLDER}"
@@ -1614,7 +1926,7 @@ need_cmd() {
 need_cmd tar
 need_cmd mktemp
 need_cmd curl
-${hasInstallerUserConfig(config, 'cursor') ? 'need_cmd node' : ''}
+need_cmd node
 
 TMP_DIR="$(mktemp -d)"
 cleanup() {
@@ -1630,6 +1942,7 @@ else
   curl -fsSL "$BUNDLE_URL" -o "$BUNDLE_ARCHIVE"
 fi
 
+${renderReleaseAssetVerificationSnippet({ archiveVariable: '$BUNDLE_ARCHIVE', bundlePathVariable: '$BUNDLE_PATH', expectedArchiveName: getArchiveAssetName(config.name, 'cursor', config.version, 'latest'), expectedPlatform: 'cursor' })}
 tar -xzf "$BUNDLE_ARCHIVE" -C "$TMP_DIR"
 
 BUNDLE_DIR="$TMP_DIR/cursor"
@@ -1642,11 +1955,12 @@ fi
 
 mkdir -p "$(dirname "$INSTALL_DIR")"
 ${renderInstallerSavedUserConfigCaptureSnippet(config, 'cursor', '$INSTALL_DIR')}
-rm -rf "$INSTALL_DIR"
-cp -R "$BUNDLE_DIR" "$INSTALL_DIR"
-${renderInstallerUserConfigSnippet(config, 'cursor', '$INSTALL_DIR')}
-${renderInstallerMcpPathMaterializationSnippet('cursor', '$INSTALL_DIR')}
-${renderInstallerRuntimeBootstrapSnippet('$INSTALL_DIR')}
+${renderTransactionalInstallStart('$INSTALL_DIR')}
+${renderInstallerUserConfigSnippet(config, 'cursor', '$CANDIDATE_DIR')}
+${renderInstallerMcpPathMaterializationSnippet('cursor', '$CANDIDATE_DIR')}
+${renderInstallerRuntimeBootstrapSnippet('$CANDIDATE_DIR')}
+${renderTransactionalInstallCommit('$INSTALL_DIR')}
+${renderTransactionalInstallFinish()}
 
 echo "Installed $PLUGIN_NAME to $INSTALL_DIR"
 echo "${getPublishReloadInstruction('cursor')}"
@@ -1655,7 +1969,7 @@ echo "${getPublishReloadInstruction('cursor')}"
 
 function renderInstallCodexScript(config: PluginConfig): string {
   return `#!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
 REPO="\${PLUXX_PLUGIN_REPO:-REPO_PLACEHOLDER}"
 PLUGIN_NAME="\${PLUXX_PLUGIN_NAME:-PLUGIN_PLACEHOLDER}"
@@ -1692,6 +2006,7 @@ else
   curl -fsSL "$BUNDLE_URL" -o "$BUNDLE_ARCHIVE"
 fi
 
+${renderReleaseAssetVerificationSnippet({ archiveVariable: '$BUNDLE_ARCHIVE', bundlePathVariable: '$BUNDLE_PATH', expectedArchiveName: getArchiveAssetName(config.name, 'codex', config.version, 'latest'), expectedPlatform: 'codex' })}
 tar -xzf "$BUNDLE_ARCHIVE" -C "$TMP_DIR"
 
 BUNDLE_DIR="$TMP_DIR/codex"
@@ -1704,11 +2019,18 @@ fi
 
 mkdir -p "$(dirname "$INSTALL_DIR")"
 ${renderInstallerSavedUserConfigCaptureSnippet(config, 'codex', '$INSTALL_DIR')}
-rm -rf "$INSTALL_DIR"
-cp -R "$BUNDLE_DIR" "$INSTALL_DIR"
-${renderInstallerUserConfigSnippet(config, 'codex', '$INSTALL_DIR')}
-${renderInstallerMcpPathMaterializationSnippet('codex', '$INSTALL_DIR')}
-${renderInstallerRuntimeBootstrapSnippet('$INSTALL_DIR')}
+${renderTransactionalInstallStart('$INSTALL_DIR')}
+${renderInstallerUserConfigSnippet(config, 'codex', '$CANDIDATE_DIR')}
+${renderInstallerMcpPathMaterializationSnippet('codex', '$CANDIDATE_DIR')}
+${renderInstallerRuntimeBootstrapSnippet('$CANDIDATE_DIR')}
+CODEX_HOME_DIR="\${CODEX_HOME:-$HOME/.codex}"
+CODEX_CONFIG_PATH="\${PLUXX_CODEX_CONFIG_PATH:-$CODEX_HOME_DIR/config.toml}"
+backup_owned_path "$CODEX_HOME_DIR/agents/$PLUGIN_NAME"
+backup_owned_path "$CODEX_HOME_DIR/pluxx/agent-installs/$PLUGIN_NAME.json"
+backup_owned_path "$CODEX_HOME_DIR/plugins/cache/local-plugins/$PLUGIN_NAME"
+backup_owned_path "$CODEX_CONFIG_PATH"
+backup_owned_path "$MARKETPLACE_PATH"
+${renderTransactionalInstallCommit('$INSTALL_DIR')}
 ${renderInstallerCodexAgentRegistrationSnippet('$INSTALL_DIR')}
 ${renderInstallerCodexPluginHooksSnippet('$INSTALL_DIR')}
 
@@ -1768,6 +2090,8 @@ fs.writeFileSync(
 )
 NODE
 
+${renderTransactionalInstallFinish()}
+
 echo "Installed $PLUGIN_NAME to $INSTALL_DIR"
 echo "Updated Codex marketplace catalog at $MARKETPLACE_PATH"
 echo "${getPublishReloadInstruction('codex')}"
@@ -1776,7 +2100,7 @@ echo "${getPublishReloadInstruction('codex')}"
 
 function renderInstallOpenCodeScript(config: PluginConfig): string {
   return `#!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
 REPO="\${PLUXX_PLUGIN_REPO:-REPO_PLACEHOLDER}"
 PLUGIN_NAME="\${PLUXX_PLUGIN_NAME:-PLUGIN_PLACEHOLDER}"
@@ -1813,6 +2137,7 @@ else
   curl -fsSL "$BUNDLE_URL" -o "$BUNDLE_ARCHIVE"
 fi
 
+${renderReleaseAssetVerificationSnippet({ archiveVariable: '$BUNDLE_ARCHIVE', bundlePathVariable: '$BUNDLE_PATH', expectedArchiveName: getArchiveAssetName(config.name, 'opencode', config.version, 'latest'), expectedPlatform: 'opencode' })}
 tar -xzf "$BUNDLE_ARCHIVE" -C "$TMP_DIR"
 
 BUNDLE_DIR="$TMP_DIR/opencode"
@@ -1825,11 +2150,18 @@ fi
 
 mkdir -p "$(dirname "$INSTALL_DIR")" "$SKILLS_ROOT"
 ${renderInstallerSavedUserConfigCaptureSnippet(config, 'opencode', '$INSTALL_DIR')}
-rm -rf "$INSTALL_DIR"
-cp -R "$BUNDLE_DIR" "$INSTALL_DIR"
-${renderInstallerUserConfigSnippet(config, 'opencode', '$INSTALL_DIR')}
-${renderInstallerMcpPathMaterializationSnippet('opencode', '$INSTALL_DIR')}
-${renderInstallerRuntimeBootstrapSnippet('$INSTALL_DIR')}
+${renderTransactionalInstallStart('$INSTALL_DIR')}
+${renderInstallerUserConfigSnippet(config, 'opencode', '$CANDIDATE_DIR')}
+${renderInstallerMcpPathMaterializationSnippet('opencode', '$CANDIDATE_DIR')}
+${renderInstallerRuntimeBootstrapSnippet('$CANDIDATE_DIR')}
+backup_owned_path "$ENTRY_PATH"
+if [[ -d "$CANDIDATE_DIR/skills" ]]; then
+  for skill_dir in "$CANDIDATE_DIR"/skills/*; do
+    [[ -d "$skill_dir" ]] || continue
+    backup_owned_path "$SKILLS_ROOT/\${PLUGIN_NAME}-$(basename "$skill_dir")"
+  done
+fi
+${renderTransactionalInstallCommit('$INSTALL_DIR')}
 
 export ENTRY_PATH
 export PLUGIN_NAME
@@ -1916,6 +2248,8 @@ NODE
   done
 fi
 
+${renderTransactionalInstallFinish()}
+
 echo "Installed $PLUGIN_NAME plugin code to $INSTALL_DIR"
 echo "Installed OpenCode wrapper at $ENTRY_PATH"
 echo "Synced namespaced skills into $SKILLS_ROOT"
@@ -1935,6 +2269,7 @@ function replaceInstallerPlaceholders(
     .replaceAll('AUTHOR_PLACEHOLDER', getAuthorName(config))
     .replaceAll('HOMEPAGE_PLACEHOLDER', getHomepageUrl(config, context.repo))
     .replaceAll('DESCRIPTION_PLACEHOLDER', config.brand?.shortDescription ?? config.description)
+    .replaceAll('VERSION_PLACEHOLDER', context.version)
     .replaceAll('CLAUDE_BUNDLE_PLACEHOLDER', getArchiveAssetName(config.name, 'claude-code', context.version, 'latest'))
     .replaceAll('CURSOR_BUNDLE_PLACEHOLDER', getArchiveAssetName(config.name, 'cursor', context.version, 'latest'))
     .replaceAll('CODEX_BUNDLE_PLACEHOLDER', getArchiveAssetName(config.name, 'codex', context.version, 'latest'))
@@ -1981,6 +2316,23 @@ function writeChecksumFile(tempRoot: string, files: string[]): string {
     .join('\n')
   writeFileSync(checksumPath, `${lines}\n`)
   return checksumPath
+}
+
+function prepareNpmArtifact(packageDir: string, runCommand: CommandRunner): PreparedNpmArtifact {
+  const tempRoot = mkdtempSync(resolve(tmpdir(), 'pluxx-npm-pack-'))
+  const packed = runCommand('npm', ['pack', '--json', '--pack-destination', tempRoot], { cwd: packageDir })
+  if (packed.status !== 0) {
+    return { tempRoot, error: packed.stderr || packed.stdout || 'npm pack failed' }
+  }
+  try {
+    const payload = JSON.parse(packed.stdout) as Array<{ filename?: unknown; integrity?: unknown }>
+    const filename = typeof payload[0]?.filename === 'string' ? payload[0].filename : undefined
+    const integrity = typeof payload[0]?.integrity === 'string' ? payload[0].integrity : undefined
+    if (!filename || !integrity) return { tempRoot, error: 'npm pack did not return filename and integrity.' }
+    return { tempRoot, filepath: resolve(tempRoot, filename), integrity }
+  } catch {
+    return { tempRoot, error: 'npm pack returned unreadable JSON.' }
+  }
 }
 
 function createReleaseArtifacts(
@@ -2123,19 +2475,47 @@ export function runPublish(config: PluginConfig, options: PublishPlanOptions = {
   }
 
   const execution: NonNullable<PublishRunResult['execution']> = {}
+  const verifyRemoteState = options.verifyRemoteState ?? true
 
   if (plan.channels.npm.enabled) {
     const npmChannel = plan.channels.npm
-    const result = runCommand(
-      'npm',
-      ['publish', '--tag', plan.tag, '--access', 'public'],
-      { cwd: npmChannel.packageDir },
-    )
-    execution.npm = {
-      ok: result.status === 0,
-      detail: result.status === 0
-        ? (result.stdout.trim() || 'npm publish complete')
-        : (result.stderr || result.stdout || 'npm publish failed'),
+    const prepared = prepareNpmArtifact(npmChannel.packageDir!, runCommand)
+    try {
+      const existing = prepared.error
+        ? { status: 1, stdout: '', stderr: prepared.error }
+        : runCommand('npm', ['view', `${npmChannel.packageName}@${plan.version}`, 'dist.integrity', '--json'], { cwd: npmChannel.packageDir })
+      const remoteIntegrity = existing.status === 0 ? existing.stdout.replace(/["\s]/g, '') : ''
+      const alreadyPublished = Boolean(prepared.integrity && remoteIntegrity === prepared.integrity)
+      const integrityConflict = existing.status === 0 && remoteIntegrity !== '' && !alreadyPublished
+      const result: CommandResult = prepared.error
+        ? { status: 1, stdout: '', stderr: prepared.error }
+        : integrityConflict
+          ? { status: 1, stdout: '', stderr: `npm already has ${npmChannel.packageName}@${plan.version} with different artifact integrity.` }
+          : alreadyPublished
+            ? existing
+            : runCommand(
+              'npm',
+              ['publish', prepared.filepath!, '--tag', plan.tag, '--access', 'public'],
+              { cwd: npmChannel.packageDir },
+            )
+      const verification = result.status === 0 && verifyRemoteState
+        ? runCommand('npm', ['view', `${npmChannel.packageName}@${plan.version}`, 'dist.integrity', '--json'], { cwd: npmChannel.packageDir })
+        : undefined
+      const verified = verification
+        ? verification.status === 0 && verification.stdout.replace(/["\s]/g, '') === prepared.integrity
+        : false
+      execution.npm = {
+        ok: result.status === 0 && (!verifyRemoteState || verified),
+        action: alreadyPublished ? 'already-published' : 'published',
+        verified,
+        detail: result.status === 0 && (!verifyRemoteState || verified)
+          ? (alreadyPublished ? `npm already has byte-identical immutable version ${plan.version}; skipped publish.` : (result.stdout.trim() || 'npm publish complete'))
+          : result.status === 0
+            ? `npm post-publish integrity verification failed for ${npmChannel.packageName}@${plan.version}.`
+            : (result.stderr || result.stdout || 'npm publish failed'),
+      }
+    } finally {
+      rmSync(prepared.tempRoot, { recursive: true, force: true })
     }
   }
 
@@ -2144,9 +2524,29 @@ export function runPublish(config: PluginConfig, options: PublishPlanOptions = {
     const { tempRoot, files } = createReleaseArtifacts(rootDir, config, plan, runCommand)
 
     try {
-      const existing = runCommand('gh', ['release', 'view', releaseTag], { cwd: rootDir })
+      const existing = runCommand('gh', ['release', 'view', releaseTag, '--json', 'assets'], { cwd: rootDir })
 
-      const result = existing.status === 0
+      const reconciled = existing.status === 0
+      let staleAssetError: CommandResult | undefined
+      if (reconciled) {
+        try {
+          const payload = JSON.parse(existing.stdout) as { assets?: Array<{ name?: string }> }
+          const expectedNames = new Set(files.map((filepath) => filepath.split('/').pop()!))
+          for (const asset of payload.assets ?? []) {
+            if (!asset.name || expectedNames.has(asset.name)) continue
+            const deleted = runCommand('gh', ['release', 'delete-asset', releaseTag, asset.name, '--yes'], { cwd: rootDir })
+            if (deleted.status !== 0) {
+              staleAssetError = deleted
+              break
+            }
+          }
+        } catch {
+          staleAssetError = { status: 1, stdout: '', stderr: 'Existing GitHub release asset inventory was unreadable.' }
+        }
+      }
+
+      const result = staleAssetError
+        ?? (reconciled
         ? runCommand('gh', ['release', 'upload', releaseTag, '--clobber', ...files], { cwd: rootDir })
         : runCommand(
           'gh',
@@ -2161,12 +2561,33 @@ export function runPublish(config: PluginConfig, options: PublishPlanOptions = {
             `Release generated by pluxx publish for ${config.name}@${plan.version}.`,
           ],
           { cwd: rootDir },
-        )
+        ))
+
+      const verification = result.status === 0 && verifyRemoteState
+        ? runCommand('gh', ['release', 'view', releaseTag, '--json', 'tagName,assets'], { cwd: rootDir })
+        : undefined
+      let verified = false
+      if (verification) {
+        try {
+          const payload = JSON.parse(verification.stdout) as { tagName?: string; assets?: Array<{ name?: string }> }
+          const actualAssets = new Set((payload.assets ?? []).map((asset) => asset.name))
+          verified = verification.status === 0
+            && payload.tagName === releaseTag
+            && actualAssets.size === files.length
+            && files.every((filepath) => actualAssets.has(filepath.split('/').pop()!))
+        } catch {
+          verified = false
+        }
+      }
 
       execution.githubRelease = {
-        ok: result.status === 0,
-        detail: result.status === 0
-          ? (result.stdout.trim() || `GitHub release ${releaseTag} updated`)
+        ok: result.status === 0 && (!verifyRemoteState || verified),
+        action: reconciled ? 'reconciled' : 'created',
+        verified,
+        detail: result.status === 0 && (!verifyRemoteState || verified)
+          ? (result.stdout.trim() || `GitHub release ${releaseTag} ${reconciled ? 'reconciled' : 'created'}`)
+          : result.status === 0
+            ? `GitHub release ${releaseTag} post-publish verification is incomplete.`
           : (result.stderr || result.stdout || 'GitHub release publish failed'),
       }
     } finally {
