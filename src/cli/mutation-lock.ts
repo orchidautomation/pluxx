@@ -34,20 +34,31 @@ export async function withWorkspaceMutationLock<T>(rootDir: string, task: () => 
 }
 
 async function clearStaleLock(lockPath: string): Promise<void> {
+  let contents: string
   try {
-    const parsed = JSON.parse(await readFile(lockPath, 'utf8')) as { pid?: unknown }
-    if (typeof parsed.pid === 'number' && Number.isSafeInteger(parsed.pid) && parsed.pid > 0) {
-      try {
-        process.kill(parsed.pid, 0)
-        return
-      } catch (error) {
-        if (!isCode(error, 'ESRCH')) return
-      }
-    }
-    await rm(lockPath, { force: true })
+    contents = await readFile(lockPath, 'utf8')
   } catch (error) {
-    if (!isCode(error, 'ENOENT')) throw error
+    if (isCode(error, 'ENOENT')) return
+    throw error
   }
+
+  let parsed: { pid?: unknown }
+  try {
+    parsed = JSON.parse(contents) as { pid?: unknown }
+  } catch {
+    await rm(lockPath, { force: true })
+    return
+  }
+
+  if (typeof parsed.pid === 'number' && Number.isSafeInteger(parsed.pid) && parsed.pid > 0) {
+    try {
+      process.kill(parsed.pid, 0)
+      return
+    } catch (error) {
+      if (!isCode(error, 'ESRCH')) return
+    }
+  }
+  await rm(lockPath, { force: true })
 }
 
 function isCode(error: unknown, code: string): boolean {

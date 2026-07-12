@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync } from 'fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { resolve } from 'path'
 import { describe, expect, it } from 'vitest'
@@ -25,6 +25,18 @@ describe('workspace mutation lock', () => {
       await expect(withWorkspaceMutationLock(root, async () => 'released')).resolves.toBe('released')
     } finally {
       release()
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it.each(['', '{"pid":'])('recovers from an incomplete lock file (%j)', async (contents) => {
+    const root = mkdtempSync(resolve(tmpdir(), 'pluxx-mutation-lock-'))
+    const lockPath = resolve(root, '.pluxx', 'mutation.lock')
+    mkdirSync(resolve(root, '.pluxx'), { recursive: true })
+    writeFileSync(lockPath, contents)
+    try {
+      await expect(withWorkspaceMutationLock(root, async () => 'recovered')).resolves.toBe('recovered')
+    } finally {
       rmSync(root, { recursive: true, force: true })
     }
   })
