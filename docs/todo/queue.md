@@ -76,6 +76,11 @@ The initial author-once hardening tranche is also materially done.
   - installed-bundle regression coverage now explicitly catches missing OpenCode host entry files, missing synced OpenCode skills, and stale installed OpenCode package versions
 - `pluxx test --install` verifies installed consumer bundle state after install, not just `dist/`
 - `pluxx build` now checks generated manifests and package outputs for source version drift and missing referenced bundle files before release
+- atomic authoring/build publication is now implemented for `init`, `sync`, `migrate`, and `build`:
+  - staged validation keeps final source and `dist` paths unchanged until commit
+  - thrown apply failures restore the prior state; unresolved hard-interruption recovery retains a journal and backup location
+  - additive versioned mutation manifests cover creates, updates, deletes, renames, and conflicts without removing existing JSON summary fields
+  - ambiguous sync renames and occupied init/migrate destinations fail conservatively
 - OpenCode translation is now more honestly native:
   - agent output prefers `permission` over deprecated legacy `tools`
   - native `skill` / `task` permission keys are modeled as real host surfaces

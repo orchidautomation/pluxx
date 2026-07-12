@@ -85,6 +85,10 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
 ### 1. Product clarity and front-door coherence
 
 - [~] Keep [start-here.md](../start-here.md), [queue.md](./queue.md), this file, and Linear aligned
+- [x] Make `init`, `sync`, `migrate`, and `build` mutations atomic and recoverable:
+  - stage and validate before publishing final source or `dist` paths
+  - roll back thrown mid-apply failures and retain actionable recovery metadata for unresolved interruptions
+  - expose additive versioned mutation manifests and refuse ambiguous rename or occupied-destination conflicts
 - [~] Keep [docs/release-distribution-proof-map.md](../release-distribution-proof-map.md) current as the short ship-today vs release-gap source of truth:
   - primary release-smoked fronts are Claude Code, Cursor, Codex, and OpenCode
   - Gemini CLI remains a beta generator target until it has release-smoke and installer parity

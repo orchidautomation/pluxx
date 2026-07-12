@@ -405,9 +405,35 @@ describe('build', () => {
       outDir: './missing-asset-dist',
     }
 
+    mkdirSync(resolve(TEST_DIR, 'missing-asset-dist'), { recursive: true })
+    writeFileSync(resolve(TEST_DIR, 'missing-asset-dist/original.txt'), 'keep me\n')
+
     await expect(build(missingAssetConfig, TEST_DIR)).rejects.toThrow(
       'Generated codex manifest references missing bundle path: ./assets/missing.svg.',
     )
+    expect(readFileSync(resolve(TEST_DIR, 'missing-asset-dist/original.txt'), 'utf-8')).toBe('keep me\n')
+    expect(existsSync(resolve(TEST_DIR, 'missing-asset-dist/codex'))).toBe(false)
+  })
+
+  it('restores the previous dist when publication fails after backup', async () => {
+    const atomicConfig: PluginConfig = {
+      ...testConfig,
+      targets: ['codex'],
+      outDir: './atomic-dist',
+    }
+    mkdirSync(resolve(TEST_DIR, 'atomic-dist'), { recursive: true })
+    writeFileSync(resolve(TEST_DIR, 'atomic-dist/original.txt'), 'keep me\n')
+
+    await expect(build(atomicConfig, TEST_DIR, {
+      mutationHooks: {
+        injectFailure(phase) {
+          if (phase === 'backup-created') throw new Error('injected publication failure')
+        },
+      },
+    })).rejects.toThrow('Original directory was restored')
+
+    expect(readFileSync(resolve(TEST_DIR, 'atomic-dist/original.txt'), 'utf-8')).toBe('keep me\n')
+    expect(existsSync(resolve(TEST_DIR, 'atomic-dist/codex'))).toBe(false)
   })
 
   it('requires generated brand asset references even when assets copying is not configured', async () => {

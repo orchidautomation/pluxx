@@ -76,6 +76,8 @@ See [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisi
 
 The follow-on slice is install ownership tracking for conservative uninstall, prune, reinstall, and "what did Pluxx touch?" diagnostics.
 
+The v0.1.31 audit remediation also closes a core authoring-safety gap: `init`, `sync`, `migrate`, and `build` now stage and validate mutations before publication, restore prior state after thrown apply failures, retain recovery metadata for unresolved interruptions, and expose additive versioned mutation/conflict manifests.
+
 ## Current Priority Order
 
 Proof governance now distinguishes unit, bundle-contract, fake-home install, installed-runtime, and real-host behavior evidence. Canonical version/freshness checks run in CI through [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json); historical April/May proof stays available without being treated as current.

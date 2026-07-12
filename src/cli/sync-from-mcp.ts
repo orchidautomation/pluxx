@@ -1,7 +1,16 @@
-import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, readdirSync, rmdirSync, writeFileSync } from 'fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, readdirSync, rmdirSync, writeFileSync } from 'fs'
 import { dirname, isAbsolute, relative, resolve } from 'path'
 import { z } from 'zod'
 import { tmpdir } from 'os'
+import {
+  applyFileMutations,
+  copyProjectForStaging,
+  createMutationManifest,
+  readFileMutation,
+  type MutationConflict,
+  type MutationHooks,
+  type MutationManifest,
+} from '../fs-transaction'
 import { loadConfig } from '../config/load'
 import { introspectMcpServer, type IntrospectedMcpTool } from '../mcp/introspect'
 import { McpServerSchema, UserConfigEntrySchema, type McpServer } from '../schema'
@@ -23,6 +32,7 @@ import {
 export interface SyncFromMcpOptions {
   rootDir: string
   source?: McpServer
+  mutationHooks?: MutationHooks
 }
 
 export interface SyncFromMcpResult {
@@ -33,6 +43,8 @@ export interface SyncFromMcpResult {
   removedFiles: string[]
   preservedFiles: string[]
   renamedFiles: Array<{ from: string; to: string }>
+  conflicts: MutationConflict[]
+  mutation: MutationManifest
 }
 
 export async function readMcpScaffoldMetadata(rootDir: string): Promise<McpScaffoldMetadata> {
@@ -137,6 +149,51 @@ const McpScaffoldMetadataSchema = z.object({
 
 export async function syncFromMcp(options: SyncFromMcpOptions): Promise<SyncFromMcpResult> {
   const metadata = await readMcpScaffoldMetadata(options.rootDir)
+  const tempRoot = mkdtempSync(resolve(tmpdir(), 'pluxx-sync-stage-'))
+  const stagedRoot = resolve(tempRoot, 'project')
+
+  try {
+    copyProjectForStaging(options.rootDir, stagedRoot)
+    const result = await syncFromMcpInPlace({
+      rootDir: stagedRoot,
+      source: options.source,
+    })
+    if (result.conflicts.length > 0) return result
+
+    const stagedMetadata = await readMcpScaffoldMetadata(stagedRoot)
+    const candidatePaths = new Set([
+      ...metadata.managedFiles,
+      ...stagedMetadata.managedFiles,
+      ...AGENT_PACK_FILES,
+    ])
+    const mutations = [...candidatePaths].flatMap((path) => {
+      const currentPath = resolveWithinRoot(options.rootDir, path)
+      const stagedPath = resolveWithinRoot(stagedRoot, path)
+      const currentExists = existsSync(currentPath)
+      const stagedExists = existsSync(stagedPath)
+      if (!currentExists && !stagedExists) return []
+      if (currentExists && stagedExists) {
+        if (readFileSync(currentPath, 'utf-8') === readFileSync(stagedPath, 'utf-8')) return []
+      }
+      return [readFileMutation(options.rootDir, stagedRoot, path)]
+    })
+
+    applyFileMutations(options.rootDir, mutations, options.mutationHooks)
+    return {
+      ...result,
+      mutation: createMutationManifest({
+        files: mutations,
+        renames: result.renamedFiles,
+        conflicts: result.conflicts,
+      }),
+    }
+  } finally {
+    rmSync(tempRoot, { recursive: true, force: true })
+  }
+}
+
+async function syncFromMcpInPlace(options: SyncFromMcpOptions): Promise<SyncFromMcpResult> {
+  const metadata = await readMcpScaffoldMetadata(options.rootDir)
   const config = await loadConfig(options.rootDir)
   const source = options.source ?? metadata.source
   const introspection = await introspectMcpServer(source)
@@ -144,6 +201,16 @@ export async function syncFromMcp(options: SyncFromMcpOptions): Promise<SyncFrom
 
   // Step 1: Detect renames between old and new tool lists
   const toolRenames = detectToolRenames(metadata.tools, introspection.tools)
+  const conflicts = detectToolRenameConflicts(metadata.tools, introspection.tools)
+  const conflictedToolNames = new Set(conflicts.flatMap((conflict) => [
+    conflict.path.replace(/^tools\//, ''),
+    ...(conflict.candidates ?? []),
+  ]))
+  for (const [oldName, newName] of toolRenames) {
+    if (conflictedToolNames.has(oldName) || conflictedToolNames.has(newName)) {
+      toolRenames.delete(oldName)
+    }
+  }
   const persistedSkills = readPersistedSkills(options.rootDir, metadata)
 
   // Step 3: Generate new scaffold
@@ -252,6 +319,16 @@ export async function syncFromMcp(options: SyncFromMcpOptions): Promise<SyncFrom
     removedFiles: removedFiles.sort(),
     preservedFiles: preservedFiles.sort(),
     renamedFiles: renamedFiles.sort((a, b) => a.from.localeCompare(b.from)),
+    conflicts,
+    mutation: createMutationManifest({
+      files: [
+        ...addedFiles.map((path) => ({ path, action: 'create' as const })),
+        ...updatedFiles.map((path) => ({ path, action: 'update' as const })),
+        ...removedFiles.map((path) => ({ path, action: 'delete' as const })),
+      ],
+      renames: renamedFiles,
+      conflicts,
+    }),
   }
 }
 
@@ -327,14 +404,55 @@ export async function planSyncFromMcp(options: SyncFromMcpOptions): Promise<Sync
   const projectDir = resolve(tempRoot, 'project')
 
   try {
-    cpSync(options.rootDir, projectDir, { recursive: true })
-    return await syncFromMcp({
+    copyProjectForStaging(options.rootDir, projectDir)
+    return await syncFromMcpInPlace({
       rootDir: projectDir,
       source: options.source,
     })
   } finally {
     rmSync(tempRoot, { recursive: true, force: true })
   }
+}
+
+export function detectToolRenameConflicts(
+  oldTools: IntrospectedMcpTool[],
+  newTools: IntrospectedMcpTool[],
+): MutationConflict[] {
+  const oldNames = new Set(oldTools.map((tool) => tool.name))
+  const newNames = new Set(newTools.map((tool) => tool.name))
+  const removedTools = oldTools.filter((tool) => !newNames.has(tool.name))
+  const addedTools = newTools.filter((tool) => !oldNames.has(tool.name))
+  const conflicts: MutationConflict[] = []
+
+  for (const oldTool of removedTools) {
+    const candidates = addedTools
+      .map((newTool) => ({ name: newTool.name, score: computeRenameScore(oldTool, newTool) }))
+      .filter((candidate) => candidate.score >= RENAME_SCORE_THRESHOLD)
+      .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+    if (candidates.length > 1 && candidates[0].score === candidates[1].score) {
+      conflicts.push({
+        path: `tools/${oldTool.name}`,
+        reason: 'ambiguous-rename',
+        candidates: candidates.filter((candidate) => candidate.score === candidates[0].score).map((candidate) => candidate.name),
+      })
+    }
+  }
+
+  for (const newTool of addedTools) {
+    const candidates = removedTools
+      .map((oldTool) => ({ name: oldTool.name, score: computeRenameScore(oldTool, newTool) }))
+      .filter((candidate) => candidate.score >= RENAME_SCORE_THRESHOLD)
+      .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+    if (candidates.length > 1 && candidates[0].score === candidates[1].score) {
+      conflicts.push({
+        path: `tools/${newTool.name}`,
+        reason: 'rename-destination-collision',
+        candidates: candidates.filter((candidate) => candidate.score === candidates[0].score).map((candidate) => candidate.name),
+      })
+    }
+  }
+
+  return conflicts.sort((a, b) => a.path.localeCompare(b.path))
 }
 
 function readPersistedSkills(rootDir: string, metadata: McpScaffoldMetadata): PersistedSkill[] {
@@ -667,6 +785,13 @@ export function formatSyncSummary(result: SyncFromMcpResult, rootDir: string): s
   if (result.renamedFiles.length > 0) {
     lines.push(`Renamed: ${result.renamedFiles.length}`)
     result.renamedFiles.forEach((rename) => lines.push(`  → ${rename.from} → ${rename.to}`))
+  }
+  if (result.conflicts.length > 0) {
+    lines.push(`Conflicts: ${result.conflicts.length}`)
+    result.conflicts.forEach((conflict) => {
+      const candidates = conflict.candidates?.length ? ` (${conflict.candidates.join(', ')})` : ''
+      lines.push(`  ! ${conflict.path}: ${conflict.reason}${candidates}`)
+    })
   }
   lines.push(`Added: ${result.addedFiles.length}`)
   result.addedFiles.forEach((file) => lines.push(`  + ${relative(rootDir, resolve(rootDir, file))}`))

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
-import { mkdirSync, rmSync, existsSync, readFileSync } from 'fs'
+import { mkdirSync, rmSync, existsSync, readFileSync, symlinkSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
 import { migrate } from '../src/cli/migrate'
 import { planAgentPrepare } from '../src/cli/agent'
@@ -645,6 +645,111 @@ async function runMigrate(sourceDir: string, outputDir: string): Promise<void> {
 }
 
 describe('migrate', () => {
+  it('dry-run predicts migration creates without writing final paths', async () => {
+    const sourceDir = await setupCodexHeaderSource()
+    const outputDir = resolve(TEST_DIR, 'out-migrate-dry-run')
+    mkdirSync(outputDir, { recursive: true })
+    const previousCwd = process.cwd()
+    process.chdir(outputDir)
+    try {
+      const dryRun = await migrate(sourceDir, { dryRun: true, quiet: true })
+      expect(dryRun.mutation.creates).toContain('pluxx.config.ts')
+      expect(dryRun.mutation.conflicts).toEqual([])
+      expect(existsSync(resolve(outputDir, 'pluxx.config.ts'))).toBe(false)
+
+      const applied = await migrate(sourceDir, { quiet: true })
+      expect(applied.mutation.creates).toEqual(dryRun.mutation.creates)
+      expect(existsSync(resolve(outputDir, 'pluxx.config.ts'))).toBe(true)
+    } finally {
+      process.chdir(previousCwd)
+    }
+  })
+
+  it('reports an existing config as a dry-run conflict', async () => {
+    const sourceDir = await setupCodexHeaderSource()
+    const outputDir = resolve(TEST_DIR, 'out-migrate-conflict')
+    mkdirSync(outputDir, { recursive: true })
+    writeFileSync(resolve(outputDir, 'pluxx.config.ts'), 'user config\n')
+    const previousCwd = process.cwd()
+    process.chdir(outputDir)
+    try {
+      const result = await migrate(sourceDir, { dryRun: true, quiet: true })
+      expect(result.mutation.conflicts).toEqual([{
+        path: 'pluxx.config.ts',
+        reason: 'destination-exists',
+      }])
+      expect(readFileSync(resolve(outputDir, 'pluxx.config.ts'), 'utf-8')).toBe('user config\n')
+    } finally {
+      process.chdir(previousCwd)
+    }
+  })
+
+  it('surfaces occupied migration destinations instead of silently merging them', async () => {
+    const sourceDir = await setupCodexHeaderSource()
+    const outputDir = resolve(TEST_DIR, 'out-migrate-dir-conflict')
+    mkdirSync(resolve(outputDir, 'skills/custom'), { recursive: true })
+    writeFileSync(resolve(outputDir, 'skills/custom/SKILL.md'), 'user skill\n')
+    const previousCwd = process.cwd()
+    process.chdir(outputDir)
+    try {
+      const result = await migrate(sourceDir, { dryRun: true, quiet: true })
+      expect(result.mutation.conflicts).toContainEqual({
+        path: 'skills',
+        reason: 'destination-exists',
+      })
+      expect(readFileSync(resolve(outputDir, 'skills/custom/SKILL.md'), 'utf-8')).toBe('user skill\n')
+    } finally {
+      process.chdir(previousCwd)
+    }
+  })
+
+  it('bounds symbolic-link migration as an explicit dry-run conflict', async () => {
+    const sourceDir = await setupClaudeReadmeSource()
+    const passthroughDir = resolve(sourceDir, 'mcp-server')
+    writeFileSync(resolve(passthroughDir, 'linked-target.txt'), 'linked content\n')
+    symlinkSync('linked-target.txt', resolve(passthroughDir, 'linked-file.txt'))
+    const outputDir = resolve(TEST_DIR, 'out-migrate-symlink-conflict')
+    mkdirSync(outputDir, { recursive: true })
+    const previousCwd = process.cwd()
+    process.chdir(outputDir)
+    try {
+      const result = await migrate(sourceDir, { dryRun: true, quiet: true })
+      expect(result.mutation.conflicts).toContainEqual({
+        path: 'mcp-server/linked-file.txt',
+        reason: 'symbolic-link-mutation-not-supported',
+      })
+      expect(existsSync(resolve(outputDir, 'mcp-server/linked-file.txt'))).toBe(false)
+    } finally {
+      process.chdir(previousCwd)
+    }
+  })
+
+  it('rolls back every migrated file when final application fails', async () => {
+    const sourceDir = await setupCodexHeaderSource()
+    const outputDir = resolve(TEST_DIR, 'out-migrate-rollback')
+    mkdirSync(outputDir, { recursive: true })
+    writeFileSync(resolve(outputDir, 'user-notes.md'), 'keep me\n')
+    const previousCwd = process.cwd()
+    process.chdir(outputDir)
+    try {
+      await expect(migrate(sourceDir, {
+        quiet: true,
+        mutationHooks: {
+          injectFailure(phase, detail) {
+            if (phase === 'entry-applied' && detail === 'pluxx.config.ts') {
+              throw new Error('injected migrate failure')
+            }
+          },
+        },
+      })).rejects.toThrow('Original files were restored')
+      expect(readFileSync(resolve(outputDir, 'user-notes.md'), 'utf-8')).toBe('keep me\n')
+      expect(existsSync(resolve(outputDir, 'pluxx.config.ts'))).toBe(false)
+      expect(existsSync(resolve(outputDir, '.pluxx/mcp.json'))).toBe(false)
+    } finally {
+      process.chdir(previousCwd)
+    }
+  })
+
   for (const platform of ['claude', 'cursor', 'codex', 'opencode'] as const) {
     it(`migrates Megamind ${platform} example into pluxx config`, async () => {
       const sourceDir = await setupMegamindSource(platform)
