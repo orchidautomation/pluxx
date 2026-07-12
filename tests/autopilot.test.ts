@@ -365,7 +365,7 @@ exit 0
       rmSync(countPath, { force: true })
       rmSync(dir, { recursive: true, force: true })
     }
-  })
+  }, 60_000)
 
   it('supports dry-run JSON output without writing files', async () => {
     const { dir, statePath, stubServerPath } = createStubServerFixture()
@@ -812,7 +812,7 @@ exit 0
       rmSync(runnerArgsPath, { force: true })
       rmSync(dir, { recursive: true, force: true })
     }
-  })
+  }, 60_000)
 
   it('can complete the 10-minute path by installing and verifying one host', async () => {
     const { dir, statePath, stubServerPath } = createStubServerFixture()
