@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { resolve } from 'path'
 import { describe, expect, it } from 'vitest'
@@ -15,6 +15,11 @@ describe('workspace mutation lock', () => {
     try {
       const first = withWorkspaceMutationLock(root, async () => {
         await withWorkspaceMutationLock(root, async () => undefined)
+        expect(JSON.parse(readFileSync(resolve(root, '.pluxx', 'mutation.lock'), 'utf8'))).toEqual(expect.objectContaining({
+          pid: process.pid,
+          createdAt: expect.any(String),
+        }))
+        expect(readdirSync(resolve(root, '.pluxx')).filter((entry) => entry.startsWith('.mutation.lock-'))).toEqual([])
         enter()
         await held
       })

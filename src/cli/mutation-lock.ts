@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from 'async_hooks'
-import { mkdir, open, readFile, rm } from 'fs/promises'
+import { randomUUID } from 'crypto'
+import { link, mkdir, open, readFile, rm } from 'fs/promises'
 import { resolve } from 'path'
 import { assertWorkspacePathNotSymlink } from '../text-files'
 
@@ -14,21 +15,30 @@ export async function withWorkspaceMutationLock<T>(rootDir: string, task: () => 
   await assertWorkspacePathNotSymlink(root, resolve(root, '.pluxx'))
   await mkdir(resolve(root, '.pluxx'), { recursive: true, mode: 0o700 })
   await clearStaleLock(lockPath)
-  let handle: Awaited<ReturnType<typeof open>>
+  const temporaryLockPath = resolve(root, '.pluxx', `.mutation.lock-${process.pid}-${randomUUID()}`)
   try {
-    handle = await open(lockPath, 'wx', 0o600)
-  } catch (error) {
-    if (isCode(error, 'EEXIST')) throw new Error('Another mutating Pluxx run is active in this workspace.')
-    throw error
+    const handle = await open(temporaryLockPath, 'wx', 0o600)
+    try {
+      await handle.writeFile(`${JSON.stringify({ pid: process.pid, createdAt: new Date().toISOString() })}\n`)
+      await handle.sync()
+    } finally {
+      await handle.close()
+    }
+    try {
+      await link(temporaryLockPath, lockPath)
+    } catch (error) {
+      if (isCode(error, 'EEXIST')) throw new Error('Another mutating Pluxx run is active in this workspace.')
+      throw error
+    }
+  } finally {
+    await rm(temporaryLockPath, { force: true })
   }
+
   try {
-    await handle.writeFile(`${JSON.stringify({ pid: process.pid, createdAt: new Date().toISOString() })}\n`)
-    await handle.sync()
     const held = new Set(lockContext.getStore() ?? [])
     held.add(root)
     return await lockContext.run(held, task)
   } finally {
-    await handle.close()
     await rm(lockPath, { force: true })
   }
 }
