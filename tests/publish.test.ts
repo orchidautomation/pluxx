@@ -713,6 +713,103 @@ describe('runPublish', () => {
     expect(result.execution?.githubRelease?.detail).toContain('verification is incomplete')
   })
 
+  it('verifies post-publish GitHub release assets when remote bytes match', () => {
+    const config = { ...makeConfig(), targets: ['codex'] as TargetPlatform[] }
+    prepareBuiltTarget('codex', GENERATED_INSTALLER_FIXTURE_FILES.codex)
+    let publishedAssets = new Map<string, Buffer>()
+    let viewCount = 0
+
+    const result = runPublish(config, {
+      rootDir: ROOT,
+      requestedChannels: ['github-release'],
+      verifyRemoteState: true,
+      runCommand: (command, args, options) => {
+        if (command === 'tar') {
+          const proc = spawnSync(command, args, { cwd: options?.cwd, encoding: 'utf-8' })
+          return { status: proc.status, stdout: proc.stdout ?? '', stderr: proc.stderr ?? '' }
+        }
+        if (command === 'gh' && args[0] === 'release' && args[1] === 'view') {
+          viewCount += 1
+          return viewCount === 1
+            ? { status: 1, stdout: '', stderr: 'missing' }
+            : {
+                status: 0,
+                stdout: JSON.stringify({
+                  tagName: 'v1.2.3',
+                  assets: [...publishedAssets.keys()].map((name) => ({ name })),
+                }),
+                stderr: '',
+              }
+        }
+        if (command === 'gh' && args[0] === 'release' && args[1] === 'create') {
+          const fileArgs = args.slice(3, args.indexOf('--title'))
+          publishedAssets = new Map(fileArgs.map((filepath) => [filepath.split('/').pop()!, readFileSync(filepath)]))
+          return { status: 0, stdout: 'created', stderr: '' }
+        }
+        if (command === 'gh' && args[0] === 'release' && args[1] === 'download') {
+          const downloadRoot = args[args.indexOf('--dir') + 1]!
+          for (const [name, content] of publishedAssets) writeFileSync(resolve(downloadRoot, name), content)
+          return { status: 0, stdout: '', stderr: '' }
+        }
+        return { status: 0, stdout: '', stderr: '' }
+      },
+    })
+
+    expect(result.ok).toBe(true)
+    expect(result.execution?.githubRelease?.verified).toBe(true)
+  })
+
+  it('fails post-publish GitHub release verification when remote asset bytes differ', () => {
+    const config = { ...makeConfig(), targets: ['codex'] as TargetPlatform[] }
+    prepareBuiltTarget('codex', GENERATED_INSTALLER_FIXTURE_FILES.codex)
+    let publishedAssets = new Map<string, Buffer>()
+    let viewCount = 0
+
+    const result = runPublish(config, {
+      rootDir: ROOT,
+      requestedChannels: ['github-release'],
+      verifyRemoteState: true,
+      runCommand: (command, args, options) => {
+        if (command === 'tar') {
+          const proc = spawnSync(command, args, { cwd: options?.cwd, encoding: 'utf-8' })
+          return { status: proc.status, stdout: proc.stdout ?? '', stderr: proc.stderr ?? '' }
+        }
+        if (command === 'gh' && args[0] === 'release' && args[1] === 'view') {
+          viewCount += 1
+          return viewCount === 1
+            ? { status: 1, stdout: '', stderr: 'missing' }
+            : {
+                status: 0,
+                stdout: JSON.stringify({
+                  tagName: 'v1.2.3',
+                  assets: [...publishedAssets.keys()].map((name) => ({ name })),
+                }),
+                stderr: '',
+              }
+        }
+        if (command === 'gh' && args[0] === 'release' && args[1] === 'create') {
+          const fileArgs = args.slice(3, args.indexOf('--title'))
+          publishedAssets = new Map(fileArgs.map((filepath) => [filepath.split('/').pop()!, readFileSync(filepath)]))
+          return { status: 0, stdout: 'created', stderr: '' }
+        }
+        if (command === 'gh' && args[0] === 'release' && args[1] === 'download') {
+          const downloadRoot = args[args.indexOf('--dir') + 1]!
+          let first = true
+          for (const [name, content] of publishedAssets) {
+            writeFileSync(resolve(downloadRoot, name), first ? Buffer.from('tampered remote bytes') : content)
+            first = false
+          }
+          return { status: 0, stdout: '', stderr: '' }
+        }
+        return { status: 0, stdout: '', stderr: '' }
+      },
+    })
+
+    expect(result.ok).toBe(false)
+    expect(result.execution?.githubRelease?.verified).toBe(false)
+    expect(result.execution?.githubRelease?.detail).toContain('verification is incomplete')
+  })
+
   it('packages consumer-facing release assets for github releases', () => {
     const config = makeConfig()
     prepareBuiltTarget('claude-code', { '.claude-plugin/plugin.json': JSON.stringify({ name: 'publish-plugin', version: '1.2.3' }) })

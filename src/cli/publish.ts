@@ -2416,6 +2416,53 @@ function createReleaseArtifacts(
   }
 }
 
+function verifyGithubReleaseAssets(
+  rootDir: string,
+  releaseTag: string,
+  files: string[],
+  runCommand: CommandRunner,
+): boolean {
+  const verification = runCommand('gh', ['release', 'view', releaseTag, '--json', 'tagName,assets'], { cwd: rootDir })
+  if (verification.status !== 0) return false
+
+  try {
+    const payload = JSON.parse(verification.stdout) as { tagName?: unknown; assets?: Array<{ name?: unknown }> }
+    const assetNames = (payload.assets ?? []).map((asset) => asset.name)
+    const expectedNames = files.map((filepath) => filepath.split('/').pop()!)
+    const actualAssets = new Set(assetNames)
+    if (
+      payload.tagName !== releaseTag
+      || assetNames.length !== files.length
+      || actualAssets.size !== files.length
+      || expectedNames.some((name) => !actualAssets.has(name))
+    ) {
+      return false
+    }
+
+    const downloadRoot = mkdtempSync(resolve(tmpdir(), 'pluxx-release-verify-'))
+    try {
+      const download = runCommand(
+        'gh',
+        ['release', 'download', releaseTag, '--dir', downloadRoot, '--clobber'],
+        { cwd: rootDir },
+      )
+      if (download.status !== 0) return false
+
+      return files.every((filepath) => {
+        const remotePath = resolve(downloadRoot, filepath.split('/').pop()!)
+        if (!existsSync(remotePath)) return false
+        const localDigest = createHash('sha256').update(readFileSync(filepath)).digest('hex')
+        const remoteDigest = createHash('sha256').update(readFileSync(remotePath)).digest('hex')
+        return localDigest === remoteDigest
+      })
+    } finally {
+      rmSync(downloadRoot, { recursive: true, force: true })
+    }
+  } catch {
+    return false
+  }
+}
+
 export function formatPublishPlan(plan: PublishPlan): string[] {
   const lines: string[] = [
     `Resolved version: ${plan.version}`,
@@ -2563,22 +2610,9 @@ export function runPublish(config: PluginConfig, options: PublishPlanOptions = {
           { cwd: rootDir },
         ))
 
-      const verification = result.status === 0 && verifyRemoteState
-        ? runCommand('gh', ['release', 'view', releaseTag, '--json', 'tagName,assets'], { cwd: rootDir })
-        : undefined
-      let verified = false
-      if (verification) {
-        try {
-          const payload = JSON.parse(verification.stdout) as { tagName?: string; assets?: Array<{ name?: string }> }
-          const actualAssets = new Set((payload.assets ?? []).map((asset) => asset.name))
-          verified = verification.status === 0
-            && payload.tagName === releaseTag
-            && actualAssets.size === files.length
-            && files.every((filepath) => actualAssets.has(filepath.split('/').pop()!))
-        } catch {
-          verified = false
-        }
-      }
+      const verified = result.status === 0 && verifyRemoteState
+        ? verifyGithubReleaseAssets(rootDir, releaseTag, files, runCommand)
+        : false
 
       execution.githubRelease = {
         ok: result.status === 0 && (!verifyRemoteState || verified),
