@@ -1,11 +1,18 @@
 import { existsSync, readdirSync, readFileSync } from 'fs'
-import { chmod, copyFile, mkdir, mkdtemp, readFile, rm } from 'fs/promises'
+import { chmod, copyFile, mkdir, mkdtemp, open, readFile, rm } from 'fs/promises'
 import { homedir, tmpdir } from 'os'
 import { relative, resolve } from 'path'
 import { spawn } from 'child_process'
 import * as cheerio from 'cheerio/lib/slim'
 import TurndownService from 'turndown'
-import { planTextFileAction, readTextFile, writeTextFile } from '../text-files'
+import {
+  appendUniqueLines,
+  assertWorkspacePathNotSymlink,
+  planTextFileAction,
+  readTextFile,
+  writePrivateTextFile,
+  writeTextFile,
+} from '../text-files'
 import { loadConfig } from '../config/load'
 import { getCanonicalCommandMetadata, readCanonicalCommandFiles } from '../commands'
 import { getCanonicalSkillMetadata, readCanonicalSkillFiles as readCanonicalSkillMarkdownFiles } from '../skills'
@@ -22,12 +29,22 @@ import {
 } from './init-from-mcp'
 import { applyPersistedTaxonomy } from './sync-from-mcp'
 import { type PluginConfig, getConfiguredCompilerBuckets } from '../schema'
+import {
+  createEnforcementCheckpoint,
+  deleteCheckpoint,
+  inventoryWorkspace,
+  readCheckpointFile,
+  restoreCheckpoint,
+  type WorkspaceCheckpoint,
+} from './checkpoints'
+import { withWorkspaceMutationLock } from './mutation-lock'
 
 export const AGENT_CONTEXT_PATH = '.pluxx/agent/context.md'
 export const AGENT_PLAN_PATH = '.pluxx/agent/plan.json'
 export const AGENT_SOURCES_PATH = '.pluxx/sources.json'
 export const AGENT_DOCS_CONTEXT_PATH = '.pluxx/docs-context.json'
 export const AGENT_OVERRIDES_PATH = 'pluxx.agent.md'
+export const AGENT_REVIEW_RESULT_PATH = '.pluxx/agent/review-result.json'
 export const AGENT_PROMPT_KINDS = ['taxonomy', 'instructions', 'review'] as const
 export const AGENT_RUNNERS = ['claude', 'opencode', 'codex', 'cursor'] as const
 export const AGENT_INGEST_PROVIDERS = ['auto', 'local', 'firecrawl'] as const
@@ -173,6 +190,38 @@ export interface AgentRunResult extends AgentRunSummary {
   ok: boolean
   runnerExitCode: number
   verification?: TestRunResult
+  boundary: AgentBoundaryResult
+  runnerOutput: AgentRunnerOutput
+  review?: AgentReviewResult
+}
+
+export interface AgentBoundaryResult {
+  ok: boolean
+  restored: boolean
+  unauthorizedPaths: string[]
+}
+
+export interface AgentRunnerOutput {
+  artifactPath: string
+  stdoutBytes: number
+  stderrBytes: number
+  finalMessageBytes: number
+  truncated: boolean
+}
+
+export interface AgentReviewFinding {
+  severity: 'error' | 'warning' | 'info'
+  title: string
+  path?: string
+  message: string
+  actionable: boolean
+}
+
+export interface AgentReviewResult {
+  status: 'clean' | 'actionable-findings' | 'inconclusive'
+  actionableCount: number
+  findings: AgentReviewFinding[]
+  parseError?: string
 }
 
 interface AgentPlanFile {
@@ -199,6 +248,7 @@ interface AgentModePlanFile {
   }
   contextInputs: string[]
   files: {
+    instructions?: string
     editable: AgentPlanFile[]
     protected: string[]
     generated: string[]
@@ -411,14 +461,7 @@ export async function planAgentPrepare(
 }
 
 export async function applyAgentPreparePlan(rootDir: string, plan: AgentPreparePlan): Promise<void> {
-  for (const file of plan.files) {
-    const filePath = resolve(rootDir, file.relativePath)
-    const parentDir = file.relativePath.split('/').slice(0, -1).join('/')
-    if (parentDir) {
-      await mkdir(resolve(rootDir, parentDir), { recursive: true })
-    }
-    await writeTextFile(filePath, file.content)
-  }
+  await withWorkspaceMutationLock(rootDir, () => writePlannedFiles(rootDir, plan.files))
 }
 
 export async function planAgentPrompt(
@@ -463,14 +506,7 @@ export async function planAgentPrompt(
 }
 
 export async function applyAgentPromptPlan(rootDir: string, plan: AgentPromptPlan): Promise<void> {
-  for (const file of plan.files) {
-    const filePath = resolve(rootDir, file.relativePath)
-    const parentDir = file.relativePath.split('/').slice(0, -1).join('/')
-    if (parentDir) {
-      await mkdir(resolve(rootDir, parentDir), { recursive: true })
-    }
-    await writeTextFile(filePath, file.content)
-  }
+  await withWorkspaceMutationLock(rootDir, () => writePlannedFiles(rootDir, plan.files))
 }
 
 export async function planAgentRun(
@@ -517,47 +553,251 @@ export async function runAgentPlan(
   plan: AgentRunPlan,
   options: {
     streamOutput?: boolean
+    timeoutMs?: number
   } = {},
+): Promise<AgentRunResult> {
+  return withWorkspaceMutationLock(rootDir, () => runAgentPlanUnlocked(rootDir, plan, options))
+}
+
+async function runAgentPlanUnlocked(
+  rootDir: string,
+  plan: AgentRunPlan,
+  options: { streamOutput?: boolean; timeoutMs?: number },
 ): Promise<AgentRunResult> {
   const preparePlan = await planAgentPrepare(rootDir, plan.prepareOptions ?? {})
   const promptPlan = await planAgentPrompt(rootDir, plan.kind, { allowMissingContext: true })
   await writePlannedFiles(rootDir, [...preparePlan.files, ...promptPlan.files])
+  const boundaryCheckpoint = await createEnforcementCheckpoint(rootDir)
   let createdFiles = [...preparePlan.createdFiles, ...promptPlan.createdFiles]
   let updatedFiles = [...preparePlan.updatedFiles, ...promptPlan.updatedFiles]
   let contextInputs = preparePlan.contextInputs
-
-  await ensureRunnerAvailable(plan.runner)
-  await ensureRunnerAuthenticated(plan.runner)
-  const executionContext = await prepareRunnerExecution(plan.runner)
-  let runnerExitCode: number
+  let discardCheckpoint = false
   try {
-    runnerExitCode = await executeCommand(plan.command, rootDir, {
-      streamOutput: options.streamOutput === true,
-      env: executionContext.env,
-    })
+    const capturedPlan = await readCheckpointFile(boundaryCheckpoint.directory, AGENT_PLAN_PATH)
+    if (!capturedPlan) throw new Error(`Checkpoint did not capture ${AGENT_PLAN_PATH}.`)
+    const enforcementPlan = JSON.parse(capturedPlan.toString('utf8')) as AgentModePlanFile
+    let execution: AgentCommandExecution
+    let boundary: AgentBoundaryResult
+    await ensureRunnerAvailable(plan.runner)
+    await ensureRunnerAuthenticated(plan.runner)
+    const executionContext = await prepareRunnerExecution(plan.runner)
+    try {
+      execution = await executeCommand(plan.command, rootDir, {
+        streamOutput: options.streamOutput === true,
+        env: executionContext.env,
+        timeoutMs: options.timeoutMs,
+      })
+    } finally {
+      await executionContext.cleanup?.()
+    }
+    boundary = await enforceAgentBoundary(rootDir, plan.kind, boundaryCheckpoint, enforcementPlan)
+    if (execution.exitCode !== 0 && !boundary.restored) {
+      await restoreCheckpoint(rootDir, boundaryCheckpoint.directory)
+      boundary.restored = true
+    }
+    if (execution.exitCode === 0 && boundary.ok && plan.kind === 'taxonomy') {
+      await applyPersistedTaxonomy(rootDir)
+      const refreshedPack = await refreshAgentPack(rootDir, plan.prepareOptions ?? {})
+      createdFiles = mergeUnique(createdFiles, refreshedPack.createdFiles)
+      updatedFiles = mergeUnique(updatedFiles, refreshedPack.updatedFiles)
+      contextInputs = refreshedPack.contextInputs
+    }
+    const review = plan.kind === 'review' && execution.exitCode === 0 && boundary.ok
+      ? parseAgentReviewResult(execution.output.finalMessage ?? execution.output.stdout)
+      : undefined
+    const runnerArtifactPath = `.pluxx/agent/${plan.kind}-run-result.json`
+    const runnerOutput: AgentRunnerOutput = {
+      artifactPath: runnerArtifactPath,
+      stdoutBytes: Buffer.byteLength(execution.output.stdout),
+      stderrBytes: Buffer.byteLength(execution.output.stderr),
+      finalMessageBytes: Buffer.byteLength(execution.output.finalMessage ?? ''),
+      truncated: execution.output.truncated,
+    }
+    const runnerOk = execution.exitCode === 0
+      && boundary.ok
+      && (plan.kind === 'review' ? review?.status === 'clean' : true)
+    const verification = runnerOk && plan.verify
+      ? await runTestSuite({ rootDir })
+      : undefined
+    if (verification && !verification.ok) {
+      await restoreCheckpoint(rootDir, boundaryCheckpoint.directory)
+      boundary.restored = true
+    }
+    await ensureAgentResultFilesIgnored(rootDir)
+    if (review) {
+      await writePrivateTextFile(rootDir, resolve(rootDir, AGENT_REVIEW_RESULT_PATH), `${JSON.stringify(review, null, 2)}\n`)
+    }
+    await writePrivateTextFile(rootDir, resolve(rootDir, runnerArtifactPath), `${JSON.stringify({
+      version: 1,
+      kind: plan.kind,
+      runner: plan.runner,
+      exitCode: execution.exitCode,
+      boundary,
+      output: runnerOutput,
+      review,
+    }, null, 2)}\n`)
+    discardCheckpoint = true
+    return {
+      ...plan,
+      createdFiles,
+      updatedFiles,
+      contextInputs,
+      ok: runnerOk && (verification?.ok ?? true),
+      runnerExitCode: execution.exitCode,
+      verification,
+      boundary,
+      runnerOutput,
+      review,
+    }
+  } catch (error) {
+    try {
+      await restoreCheckpoint(rootDir, boundaryCheckpoint.directory)
+      discardCheckpoint = true
+    } catch (restoreError) {
+      throw new AggregateError(
+        [error, restoreError],
+        `Agent run failed and recovery snapshot was retained at ${boundaryCheckpoint.directory}.`,
+      )
+    }
+    throw error
   } finally {
-    await executionContext.cleanup?.()
+    if (discardCheckpoint) await deleteCheckpoint(boundaryCheckpoint.directory)
   }
-  if (runnerExitCode === 0 && plan.kind === 'taxonomy') {
-    await applyPersistedTaxonomy(rootDir)
-    const refreshedPack = await refreshAgentPack(rootDir, plan.prepareOptions ?? {})
-    createdFiles = mergeUnique(createdFiles, refreshedPack.createdFiles)
-    updatedFiles = mergeUnique(updatedFiles, refreshedPack.updatedFiles)
-    contextInputs = refreshedPack.contextInputs
-  }
-  const verification = runnerExitCode === 0 && plan.verify
-    ? await runTestSuite({ rootDir })
-    : undefined
+}
 
-  return {
-    ...plan,
-    createdFiles,
-    updatedFiles,
-    contextInputs,
-    ok: runnerExitCode === 0 && (verification?.ok ?? true),
-    runnerExitCode,
-    verification,
+async function ensureAgentResultFilesIgnored(rootDir: string): Promise<void> {
+  await assertWorkspacePathNotSymlink(rootDir, resolve(rootDir, '.gitignore'))
+  await appendUniqueLines(resolve(rootDir, '.gitignore'), [
+    '.pluxx/agent/*-run-result.json',
+    AGENT_REVIEW_RESULT_PATH,
+  ])
+}
+
+async function enforceAgentBoundary(
+  rootDir: string,
+  kind: AgentPromptKind,
+  before: WorkspaceCheckpoint,
+  plan: AgentModePlanFile,
+): Promise<AgentBoundaryResult> {
+  const afterFiles = new Map((await inventoryWorkspace(rootDir)).map((file) => [file.path, file]))
+  const beforeFiles = new Map(before.manifest.files.map((file) => [file.path, file]))
+  const changedPaths = mergeUnique([...beforeFiles.keys()], [...afterFiles.keys()])
+    .filter((path) => {
+      const before = beforeFiles.get(path)
+      const after = afterFiles.get(path)
+      return before?.digest !== after?.digest || before?.mode !== after?.mode || before?.type !== after?.type
+    })
+    .sort()
+  const unauthorizedPaths: string[] = []
+
+  for (const path of changedPaths) {
+    const editable = getEffectiveEditableFile(kind, path, plan)
+    if (!editable) {
+      unauthorizedPaths.push(path)
+      continue
+    }
+    if (afterFiles.get(path)?.type !== 'file') {
+      unauthorizedPaths.push(path)
+      continue
+    }
+    if (!editable.managedSections?.length) continue
+    const beforeContent = (await readCheckpointFile(before.directory, path))?.toString('utf-8')
+    const afterContent = existsSync(resolve(rootDir, path))
+      ? await readFile(resolve(rootDir, path), 'utf-8')
+      : undefined
+    if (!beforeContent || !afterContent || !onlyManagedSectionsChanged(beforeContent, afterContent, editable.managedSections)) {
+      unauthorizedPaths.push(path)
+    }
   }
+
+  if (unauthorizedPaths.length > 0) {
+    await restoreCheckpoint(rootDir, before.directory)
+  }
+  return {
+      ok: unauthorizedPaths.length === 0,
+      restored: unauthorizedPaths.length > 0,
+      unauthorizedPaths,
+    }
+}
+
+function getEffectiveEditableFile(
+  kind: AgentPromptKind,
+  path: string,
+  plan: AgentModePlanFile,
+): AgentPlanFile | undefined {
+  if (kind === 'review') return undefined
+  if (kind === 'taxonomy') {
+    return path === MCP_TAXONOMY_PATH ? { path } : undefined
+  }
+  const configuredInstructions = plan.files.instructions
+    ? plan.files.editable.find((file) => file.path === plan.files.instructions)
+    : undefined
+  return configuredInstructions?.path === path ? configuredInstructions : undefined
+}
+
+function onlyManagedSectionsChanged(
+  before: string,
+  after: string,
+  sections: Array<{ start: string; end: string }>,
+): boolean {
+  const mask = (content: string): string | null => {
+    let masked = content
+    for (const section of sections) {
+      const start = masked.indexOf(section.start)
+      const end = masked.indexOf(section.end, start + section.start.length)
+      if (start < 0 || end < 0) return null
+      masked = `${masked.slice(0, start + section.start.length)}\n<pluxx-managed-content>\n${masked.slice(end)}`
+    }
+    return masked
+  }
+  const beforeMasked = mask(before)
+  return beforeMasked != null && beforeMasked === mask(after)
+}
+
+function parseAgentReviewResult(rawText: string): AgentReviewResult {
+  const bounded = rawText.slice(0, 256 * 1024)
+  const startMarker = 'PLUXX_REVIEW_RESULT_START'
+  const endMarker = 'PLUXX_REVIEW_RESULT_END'
+  const starts = [...bounded.matchAll(new RegExp(startMarker, 'g'))]
+  const ends = [...bounded.matchAll(new RegExp(endMarker, 'g'))]
+  if (starts.length !== 1 || ends.length !== 1 || (starts[0].index ?? 0) >= (ends[0].index ?? 0)) {
+    return { status: 'inconclusive', actionableCount: 0, findings: [], parseError: 'Expected exactly one structured review payload.' }
+  }
+  const payload = bounded.slice((starts[0].index ?? 0) + startMarker.length, ends[0].index).trim()
+  try {
+    const parsed = JSON.parse(payload) as { findings?: unknown }
+    if (!Array.isArray(parsed.findings) || parsed.findings.length > 100) throw new Error('findings must be an array with at most 100 entries')
+    const findings = parsed.findings.map(parseAgentReviewFinding)
+    const actionableCount = findings.filter((finding) => finding.actionable).length
+    return { status: actionableCount > 0 ? 'actionable-findings' : 'clean', actionableCount, findings }
+  } catch (error) {
+    return { status: 'inconclusive', actionableCount: 0, findings: [], parseError: error instanceof Error ? error.message : String(error) }
+  }
+}
+
+function parseAgentReviewFinding(value: unknown): AgentReviewFinding {
+  if (!value || typeof value !== 'object') throw new Error('Each finding must be an object')
+  const finding = value as Record<string, unknown>
+  if (!['error', 'warning', 'info'].includes(String(finding.severity))) throw new Error('Finding severity is invalid')
+  for (const key of ['title', 'message']) {
+    if (typeof finding[key] !== 'string' || finding[key].length === 0 || finding[key].length > 4000) throw new Error(`Finding ${key} is invalid`)
+  }
+  if (typeof finding.actionable !== 'boolean') throw new Error('Finding actionable must be boolean')
+  if (finding.severity === 'error' && finding.actionable !== true) {
+    throw new Error('Error-severity findings must be actionable')
+  }
+  if (finding.path != null && (typeof finding.path !== 'string' || finding.path.length > 500)) throw new Error('Finding path is invalid')
+  return {
+    severity: finding.severity as AgentReviewFinding['severity'],
+    title: sanitizeReviewText(finding.title as string),
+    path: typeof finding.path === 'string' ? sanitizeReviewText(finding.path) : undefined,
+    message: sanitizeReviewText(finding.message as string),
+    actionable: finding.actionable,
+  }
+}
+
+function sanitizeReviewText(value: string): string {
+  return value.replace(/[\u0000-\u001f\u007f-\u009f]/g, ' ').trim()
 }
 
 async function refreshAgentPack(
@@ -594,6 +834,7 @@ async function refreshAgentPack(
 async function writePlannedFiles(rootDir: string, files: AgentPreparePlannedFile[]): Promise<void> {
   for (const file of files) {
     const filePath = resolve(rootDir, file.relativePath)
+    await assertWorkspacePathNotSymlink(rootDir, filePath)
     const parentDir = file.relativePath.split('/').slice(0, -1).join('/')
     if (parentDir) {
       await mkdir(resolve(rootDir, parentDir), { recursive: true })
@@ -1028,6 +1269,7 @@ function buildAgentModePlanJson(
     },
     contextInputs: contextSources.map((source) => source.label),
     files: {
+      ...(config.instructions ? { instructions: normalizeRelativePath(config.instructions) } : {}),
       editable: editableFiles,
       protected: protectedFiles,
       generated: generatedFiles,
@@ -2765,7 +3007,7 @@ function buildAgentPrompt(
     return `${sharedIntro.join('\n')}Your job:\n1. Rewrite only the generated block in \`INSTRUCTIONS.md\`.\n2. Explain what the plugin is for, how the skills should be used, and which setup/admin/account/runtime boundaries matter.\n3. Use discovered tools, resources, resource templates, and prompt templates to produce short routing guidance, not a raw documentation dump.\n4. Keep wording aligned to the MCP's product narrative and branded language; avoid raw MCP server/tool identifiers except when technically required.\n5. Prefer the branded product name in user-facing copy; do not lead with internal MCP server identifiers.\n6. Replace stale scaffold claims with current discovery-backed language and keep command examples operational, concrete, and copy-paste runnable.\n7. When discovery implies a parameterized workflow, make the examples show realistic arguments instead of bare placeholder commands.\n8. Call out when a request should route to a specialist agent/subagent instead of the generic skill path.\n9. When a workflow already has related resources or prompt templates in the context, keep the wording and examples aligned to that surfaced workflow evidence.\n${buildPromptOverrideBlock(kind, input.overrides)}\nSuccess criteria:\n- instructions are concise, actionable, and product-shaped\n- wording is branded and product-facing, not raw MCP-internal naming\n- auth/setup/admin caveats are explicit when relevant\n- raw MCP server identifiers are omitted unless operationally necessary\n- the generated section reads like routing guidance, not pasted vendor docs\n- command examples use strong command UX (clear intent, realistic args, and runnable shapes)\n- specialist routing is explicit when certain work should go to an agent/subagent instead of a generic skill\n- workflow guidance stays coherent with related resource and prompt-template evidence in the context\n- the file remains safe for future \`pluxx sync --from-mcp\`\n`
   }
 
-  return `${sharedIntro.join('\n')}Your job:\n1. Review the current scaffold critically.\n2. Call out weak skill groupings, missing setup guidance, vague examples, product/category mismatches, raw documentation dumps, lexical skill names, stale scaffold assumptions, weak command UX, missing argument-bearing command entrypoints, missing specialist agent/subagent boundaries, lowest-common-denominator skill-only scaffolds, and misplaced Claude-only skill-frontmatter intent${input.sourceKind === 'mcp-derived' ? ', incoherent per-skill resource/prompt associations, or weak MCP metadata signals' : ', weak marketplace/listing copy, awkward installation guidance, or unclear operator boundaries'}.\n3. Separate scaffold quality findings from runtime-correctness findings.\n4. Propose only the highest-value changes needed to make the scaffold useful.\n${buildPromptOverrideBlock(kind, input.overrides)}\nSuccess criteria:\n- findings are concrete and tied to files\n- scaffold quality gaps are distinguished from runtime correctness\n- stale assumptions${input.sourceKind === 'mcp-derived' ? ', incoherent per-skill discovery associations,' : ','} command-UX weaknesses, and missing agent/subagent shaping are identified explicitly when present\n- suggested changes improve user-facing plugin quality\n- recommendations stay inside Pluxx-managed boundaries\n`
+  return `${sharedIntro.join('\n')}Your job:\n1. Review the current scaffold critically.\n2. Call out weak skill groupings, missing setup guidance, vague examples, product/category mismatches, raw documentation dumps, lexical skill names, stale scaffold assumptions, weak command UX, missing argument-bearing command entrypoints, missing specialist agent/subagent boundaries, lowest-common-denominator skill-only scaffolds, and misplaced Claude-only skill-frontmatter intent${input.sourceKind === 'mcp-derived' ? ', incoherent per-skill resource/prompt associations, or weak MCP metadata signals' : ', weak marketplace/listing copy, awkward installation guidance, or unclear operator boundaries'}.\n3. Separate scaffold quality findings from runtime-correctness findings.\n4. Propose only the highest-value changes needed to make the scaffold useful.\n5. End with exactly one structured payload between PLUXX_REVIEW_RESULT_START and PLUXX_REVIEW_RESULT_END. The payload must be JSON shaped as {"findings":[{"severity":"error|warning|info","title":"...","path":"optional/path","message":"...","actionable":true|false}]}. Use an empty findings array when the scaffold is clean.\n${buildPromptOverrideBlock(kind, input.overrides)}\nSuccess criteria:\n- findings are concrete and tied to files\n- scaffold quality gaps are distinguished from runtime correctness\n- stale assumptions${input.sourceKind === 'mcp-derived' ? ', incoherent per-skill discovery associations,' : ','} command-UX weaknesses, and missing agent/subagent shaping are identified explicitly when present\n- suggested changes improve user-facing plugin quality\n- recommendations stay inside Pluxx-managed boundaries\n- the final structured payload is valid, unique, and consistent with the prose findings\n`
 }
 
 function normalizeRelativePath(path: string): string {
@@ -3066,14 +3308,29 @@ async function commandSucceeds(command: string[]): Promise<boolean> {
   })
 }
 
+interface AgentCommandExecution {
+  exitCode: number
+  output: CapturedRunnerOutput
+}
+
+interface CapturedRunnerOutput {
+  stdout: string
+  stderr: string
+  finalMessage?: string
+  truncated: boolean
+}
+
+const MAX_RUNNER_OUTPUT_BYTES = 256 * 1024
+
 async function executeCommand(
   command: string[],
   cwd: string,
   options: {
     streamOutput?: boolean
     env?: NodeJS.ProcessEnv
+    timeoutMs?: number
   } = {},
-): Promise<number> {
+): Promise<AgentCommandExecution> {
   const runtimeCommand = [...command]
   let codexOutputDir: string | null = null
   let codexLastMessagePath: string | null = null
@@ -3087,13 +3344,24 @@ async function executeCommand(
     runtimeCommand.splice(2, 0, '--json', '--output-last-message', codexLastMessagePath)
   }
 
-  return await new Promise<number>((resolvePromise, reject) => {
+  return await new Promise<AgentCommandExecution>((resolvePromise, reject) => {
     const child = spawn(runtimeCommand[0], runtimeCommand.slice(1), {
       cwd,
       stdio: ['ignore', 'pipe', 'pipe'],
       env: options.env ?? process.env,
-      detached: codexLastMessagePath != null && process.platform !== 'win32',
+      detached: process.platform !== 'win32',
     })
+    const environmentTimeout = Number.parseInt(process.env.PLUXX_AGENT_TIMEOUT_MS ?? '', 10)
+    const timeoutMs = options.timeoutMs
+      ?? (Number.isSafeInteger(environmentTimeout) && environmentTimeout > 0 ? environmentTimeout : 15 * 60 * 1000)
+    let timedOut = false
+    let settled = false
+    let forceKillTimer: ReturnType<typeof setTimeout> | undefined
+    const deadlineTimer = setTimeout(() => {
+      timedOut = true
+      signalSpawnedProcess(child, 'SIGTERM')
+      forceKillTimer = setTimeout(() => signalSpawnedProcess(child, 'SIGKILL'), 2000)
+    }, timeoutMs)
     let killedAfterFinalMessage = false
     let forcedKillAfterFinalMessage = false
     let sawFinalMessageAt: number | null = null
@@ -3103,6 +3371,10 @@ async function executeCommand(
     let claudeStdoutBuffer = ''
     let claudeTurnCompleted = false
     let claudeTurnFailed = false
+    let capturedStdout = ''
+    let capturedStderr = ''
+    let capturedFinalMessage: string | undefined
+    let outputTruncated = false
     const sentinelInterval = (codexLastMessagePath || isClaudeStreamJson)
       ? setInterval(() => {
         const sawCompletionSignal = codexTurnCompleted
@@ -3129,23 +3401,61 @@ async function executeCommand(
       : null
 
     const finalize = async (result: number, error?: Error): Promise<void> => {
+      if (settled) return
+      settled = true
       if (sentinelInterval) clearInterval(sentinelInterval)
-      if (codexOutputDir) {
-        await rm(codexOutputDir, { recursive: true, force: true })
+      clearTimeout(deadlineTimer)
+      if (forceKillTimer) clearTimeout(forceKillTimer)
+      try {
+        if (codexLastMessagePath && existsSync(codexLastMessagePath)) {
+          const bounded = await readBoundedFile(codexLastMessagePath, MAX_RUNNER_OUTPUT_BYTES)
+          capturedFinalMessage = bounded.text
+          outputTruncated ||= bounded.truncated
+        }
+        if (codexOutputDir) {
+          await rm(codexOutputDir, { recursive: true, force: true })
+        }
+        if (error) {
+          reject(error)
+          return
+        }
+        resolvePromise({
+          exitCode: timedOut ? 124 : result,
+          output: {
+            stdout: capturedStdout,
+            stderr: capturedStderr,
+            finalMessage: capturedFinalMessage,
+            truncated: outputTruncated,
+          },
+        })
+      } catch (finalizeError) {
+        reject(finalizeError)
       }
-      if (error) {
-        reject(error)
-        return
+    }
+
+    const appendBounded = (current: string, text: string): string => {
+      const remaining = MAX_RUNNER_OUTPUT_BYTES - Buffer.byteLength(current)
+      if (remaining <= 0) {
+        outputTruncated = true
+        return current
       }
-      resolvePromise(result)
+      const next = Buffer.from(text)
+      if (next.byteLength > remaining) outputTruncated = true
+      return current + next.subarray(0, remaining).toString()
     }
 
     child.stdout?.on('data', (chunk) => {
       const text = chunk.toString()
+      capturedStdout = appendBounded(capturedStdout, text)
       if (codexLastMessagePath || isClaudeStreamJson) {
         const buffer = codexLastMessagePath ? codexStdoutBuffer + text : claudeStdoutBuffer + text
         const lines = buffer.split('\n')
-        const remainder = lines.pop() ?? ''
+        let remainder = lines.pop() ?? ''
+        if (Buffer.byteLength(remainder) > MAX_RUNNER_OUTPUT_BYTES) {
+          outputTruncated = true
+          remainder = ''
+          if (isClaudeStreamJson) claudeTurnFailed = true
+        }
         if (codexLastMessagePath) {
           codexStdoutBuffer = remainder
         } else {
@@ -3164,6 +3474,8 @@ async function executeCommand(
               }
             } else if (isClaudeStreamJson) {
               if (event.type === 'result') {
+                const resultText = (event as { result?: unknown }).result
+                if (typeof resultText === 'string') capturedFinalMessage = resultText.slice(0, MAX_RUNNER_OUTPUT_BYTES)
                 if (event.is_error || event.subtype === 'error') {
                   claudeTurnFailed = true
                 } else {
@@ -3179,6 +3491,7 @@ async function executeCommand(
       if (options.streamOutput) process.stdout.write(chunk)
     })
     child.stderr?.on('data', (chunk) => {
+      capturedStderr = appendBounded(capturedStderr, chunk.toString())
       if (options.streamOutput) process.stderr.write(chunk)
     })
 
@@ -3186,7 +3499,7 @@ async function executeCommand(
       void finalize(1, error)
     })
     child.on('close', (code) => {
-      const result = codexTurnFailed || claudeTurnFailed
+      const result = timedOut || codexTurnFailed || claudeTurnFailed
         ? 1
         : (killedAfterFinalMessage || codexTurnCompleted || claudeTurnCompleted ? 0 : (code ?? 1))
       void finalize(result)
@@ -3194,14 +3507,24 @@ async function executeCommand(
   })
 }
 
+async function readBoundedFile(path: string, maxBytes: number): Promise<{ text: string; truncated: boolean }> {
+  const handle = await open(path, 'r')
+  try {
+    const buffer = Buffer.alloc(maxBytes + 1)
+    const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0)
+    return {
+      text: buffer.subarray(0, Math.min(bytesRead, maxBytes)).toString('utf8'),
+      truncated: bytesRead > maxBytes,
+    }
+  } finally {
+    await handle.close()
+  }
+}
+
 function signalSpawnedProcess(
   child: ReturnType<typeof spawn>,
   signal: NodeJS.Signals,
 ): void {
-  if (child.exitCode != null || child.signalCode != null) {
-    return
-  }
-
   if (process.platform !== 'win32' && typeof child.pid === 'number') {
     try {
       process.kill(-child.pid, signal)
@@ -3210,6 +3533,8 @@ function signalSpawnedProcess(
       // Fall back to signaling the direct child if the process group is gone.
     }
   }
+
+  if (child.exitCode != null || child.signalCode != null) return
 
   try {
     child.kill(signal)

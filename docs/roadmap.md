@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-06-27
+Last updated: 2026-07-12
 
 ## Doc Links
 
@@ -77,6 +77,8 @@ See [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisi
 The follow-on slice is install ownership tracking for conservative uninstall, prune, reinstall, and "what did Pluxx touch?" diagnostics.
 
 ## Current Priority Order
+
+The active v0.1.31 audit-remediation slice now includes PLUXX-314 Autopilot reliability. Its merge gate is current serial test, CI, and review proof for checkpoint recovery, fail-stop Agent Mode boundaries, and structured review output; the implementation is not release truth until that PR lands.
 
 ### 1. Product clarity and source-of-truth coherence
 

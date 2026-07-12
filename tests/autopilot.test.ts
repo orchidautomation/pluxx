@@ -2,6 +2,7 @@ import { describe, expect, it, mock } from 'bun:test'
 import { chmodSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { resolve } from 'path'
+import { createDurableCheckpoint } from '../src/cli/checkpoints'
 
 const ROOT = resolve(import.meta.dir, '..')
 const CLI_INDEX_PATH = resolve(ROOT, 'src/cli/index.ts')
@@ -117,6 +118,255 @@ rl.on('line', (line) => {
 }
 
 describe('autopilot command', () => {
+  it('rolls back from durable state without requiring source, runner, or network access', async () => {
+    const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-autopilot-rollback-'))
+    const projectFile = resolve(dir, 'project.txt')
+
+    try {
+      writeFileSync(projectFile, 'before autopilot\n')
+      const checkpoint = await createDurableCheckpoint(dir, 'initial')
+      writeFileSync(projectFile, 'after autopilot\n')
+      mkdirSync(resolve(dir, '.pluxx'), { recursive: true })
+      writeFileSync(resolve(dir, '.pluxx/autopilot-state.json'), JSON.stringify({
+        version: 1,
+        initialCheckpoint: checkpoint.directory,
+      }))
+
+      const proc = spawnCli(['autopilot', '--rollback', '--json'], dir)
+      const stdout = await new Response(proc.stdout).text()
+      const stderr = await new Response(proc.stderr).text()
+      const exitCode = await proc.exited
+
+      expect(exitCode).toBe(0)
+      expect(stderr).toBe('')
+      expect(JSON.parse(stdout)).toEqual(expect.objectContaining({ ok: true, rolledBack: true }))
+      expect(readFileSync(projectFile, 'utf-8')).toBe('before autopilot\n')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects malformed persisted resume state before contacting a source', async () => {
+    const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-autopilot-invalid-state-'))
+    try {
+      mkdirSync(resolve(dir, '.pluxx'), { recursive: true })
+      writeFileSync(resolve(dir, '.pluxx/autopilot-state.json'), JSON.stringify({
+        version: 1,
+        behaviorFingerprint: 'fingerprint',
+        source: 'unreachable-source',
+        runner: 'claude',
+        mode: 'invalid-mode',
+        initialCheckpoint: 'initial',
+        latestCheckpoint: 'latest',
+        completedStages: ['baseline'],
+        checkpoints: { baseline: 'latest' },
+        updatedAt: new Date().toISOString(),
+      }))
+
+      const proc = spawnCli(['autopilot', '--resume', '--json'], dir)
+      const stderr = await new Response(proc.stderr).text()
+      const exitCode = await proc.exited
+
+      expect(exitCode).toBe(1)
+      expect(stderr).toContain('Invalid or unsupported Autopilot state')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('stops dependent passes after a runner failure', async () => {
+    const { dir, statePath, stubServerPath } = createStubServerFixture()
+    const binDir = resolve(dir, '.bin')
+    const runnerPath = resolve(binDir, 'claude')
+    const countPath = resolve(tmpdir(), `pluxx-runner-count-${Date.now()}`)
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(runnerPath, '#!/bin/sh\necho x >> "$COUNT_PATH"\nexit 17\n')
+    chmodSync(runnerPath, 0o755)
+    try {
+      const proc = spawnCli([
+        'autopilot', '--from-mcp', `bun ${stubServerPath} ${statePath}`,
+        '--runner', 'claude', '--mode', 'thorough', '--name', 'stub-server',
+        '--display-name', 'Stub Server', '--json', '--no-verify',
+      ], dir, {
+        PATH: `${binDir}:${Reflect.get(process, 'env').PATH ?? ''}`,
+        COUNT_PATH: countPath,
+      })
+      const stdout = await new Response(proc.stdout).text()
+      const stderr = await new Response(proc.stderr).text()
+      const exitCode = await proc.exited
+      expect(exitCode).toBe(1)
+      expect(stderr).toBe('')
+      const summary = JSON.parse(stdout) as {
+        baseline?: { doctor: { ok: boolean }; test: { ok: boolean } }
+        failureStage?: string
+        agent: { taxonomy: { runnerExitCode?: number }; instructions: { runnerExitCode?: number }; review?: { runnerExitCode?: number } }
+      }
+      expect(summary.baseline?.doctor.ok).toBe(true)
+      expect(summary.baseline?.test.ok).toBe(true)
+      expect(summary.failureStage).toBe('runner')
+      expect(summary.agent.taxonomy.runnerExitCode).toBe(17)
+      expect(summary.agent.instructions.runnerExitCode).toBeUndefined()
+      expect(summary.agent.review?.runnerExitCode).toBeUndefined()
+      expect(readFileSync(countPath, 'utf-8').trim().split('\n')).toHaveLength(1)
+      const state = JSON.parse(readFileSync(resolve(dir, '.pluxx/autopilot-state.json'), 'utf-8')) as {
+        version: number
+        completedStages: string[]
+        behaviorFingerprint: string
+      }
+      expect(state.version).toBe(1)
+      expect(state.completedStages).toContain('baseline')
+      expect(state.completedStages).not.toContain('taxonomy')
+      expect(state.behaviorFingerprint).toMatch(/^[a-f0-9]{64}$/)
+      expect(readFileSync(resolve(dir, '.gitignore'), 'utf-8')).toContain('.pluxx/autopilot-state.json')
+    } finally {
+      rmSync(countPath, { force: true })
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('restores a boundary violation and suppresses dependent passes', async () => {
+    const { dir, statePath, stubServerPath } = createStubServerFixture()
+    const binDir = resolve(dir, '.bin')
+    const runnerPath = resolve(binDir, 'claude')
+    const countPath = resolve(tmpdir(), `pluxx-boundary-count-${Date.now()}`)
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(runnerPath, '#!/bin/sh\necho run >> "$COUNT_PATH"\nprintf "\\nunauthorized boundary edit\\n" >> INSTRUCTIONS.md\nexit 0\n')
+    chmodSync(runnerPath, 0o755)
+    try {
+      const proc = spawnCli([
+        'autopilot', '--from-mcp', `bun ${stubServerPath} ${statePath}`,
+        '--runner', 'claude', '--mode', 'thorough', '--name', 'stub-server',
+        '--display-name', 'Stub Server', '--json', '--no-verify',
+      ], dir, {
+        PATH: `${binDir}:${Reflect.get(process, 'env').PATH ?? ''}`,
+        COUNT_PATH: countPath,
+      })
+      const stdout = await new Response(proc.stdout).text()
+      expect(await proc.exited).toBe(1)
+      const summary = JSON.parse(stdout)
+      expect(summary.failureStage).toBe('boundary')
+      expect(summary.agent.taxonomy.boundary).toEqual(expect.objectContaining({ ok: false, restored: true }))
+      expect(summary.agent.instructions.runnerExitCode).toBeUndefined()
+      expect(readFileSync(countPath, 'utf8').trim().split('\n')).toHaveLength(1)
+      expect(readFileSync(resolve(dir, 'INSTRUCTIONS.md'), 'utf8')).not.toContain('unauthorized boundary edit')
+    } finally {
+      rmSync(countPath, { force: true })
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('blocks post-agent verification when review findings are actionable', async () => {
+    const { dir, statePath, stubServerPath } = createStubServerFixture()
+    const binDir = resolve(dir, '.bin')
+    const runnerPath = resolve(binDir, 'claude')
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(runnerPath, `#!/bin/sh
+echo PLUXX_REVIEW_RESULT_START
+echo '{"findings":[{"severity":"error","title":"Fix boundary","message":"Required repair","actionable":true}]}'
+echo PLUXX_REVIEW_RESULT_END
+exit 0
+`)
+    chmodSync(runnerPath, 0o755)
+    try {
+      const proc = spawnCli([
+        'autopilot', '--from-mcp', `bun ${stubServerPath} ${statePath}`,
+        '--runner', 'claude', '--mode', 'thorough', '--name', 'stub-server',
+        '--display-name', 'Stub Server', '--json',
+      ], dir, { PATH: `${binDir}:${Reflect.get(process, 'env').PATH ?? ''}` })
+      const stdout = await new Response(proc.stdout).text()
+      const stderr = await new Response(proc.stderr).text()
+      const exitCode = await proc.exited
+      expect(exitCode).toBe(1)
+      expect(stderr).toBe('')
+      const summary = JSON.parse(stdout) as {
+        failureStage?: string
+        verification?: unknown
+        agent: { review?: { result?: { status: string; actionableCount: number } } }
+      }
+      expect(summary.failureStage).toBe('review')
+      expect(summary.verification).toBeUndefined()
+      expect(summary.agent.review?.result).toEqual(expect.objectContaining({ status: 'actionable-findings', actionableCount: 1 }))
+      const state = JSON.parse(readFileSync(resolve(dir, '.pluxx/autopilot-state.json'), 'utf-8')) as { completedStages: string[] }
+      expect(state.completedStages).toContain('instructions')
+      expect(state.completedStages).not.toContain('review')
+      expect(state.completedStages).not.toContain('verification')
+      expect(existsSync(resolve(dir, '.pluxx/agent/review-result.json'))).toBe(true)
+      expect(existsSync(resolve(dir, '.pluxx/agent/review-run-result.json'))).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('resumes from the last successful pass without reapplying completed stages', async () => {
+    const { dir, statePath, stubServerPath } = createStubServerFixture()
+    const binDir = resolve(dir, '.bin')
+    const runnerPath = resolve(binDir, 'claude')
+    const countPath = resolve(tmpdir(), `pluxx-resume-count-${Date.now()}`)
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(runnerPath, `#!/bin/sh
+count=0
+if [ -f "$COUNT_PATH" ]; then count=$(cat "$COUNT_PATH"); fi
+count=$((count + 1))
+echo "$count" > "$COUNT_PATH"
+if [ "$count" = "2" ]; then exit 19; fi
+echo PLUXX_REVIEW_RESULT_START
+echo '{"findings":[]}'
+echo PLUXX_REVIEW_RESULT_END
+exit 0
+`)
+    chmodSync(runnerPath, 0o755)
+    const baseArgs = [
+      'autopilot', '--from-mcp', `bun ${stubServerPath} ${statePath}`,
+      '--runner', 'claude', '--mode', 'thorough', '--name', 'stub-server',
+      '--display-name', 'Stub Server', '--json', '--no-verify',
+    ]
+    const launch = async (extra: string[] = []) => {
+      const proc = spawnCli([...baseArgs, ...extra], dir, {
+        PATH: `${binDir}:${Reflect.get(process, 'env').PATH ?? ''}`,
+        COUNT_PATH: countPath,
+      })
+      const stdout = await new Response(proc.stdout).text()
+      const stderr = await new Response(proc.stderr).text()
+      return { exitCode: await proc.exited, stdout, stderr }
+    }
+    try {
+      const first = await launch()
+      expect(first.exitCode).toBe(1)
+      expect(JSON.parse(first.stdout).agent.taxonomy.runnerExitCode).toBe(0)
+      expect(JSON.parse(first.stdout).agent.instructions.runnerExitCode).toBe(19)
+
+      const mismatchProc = spawnCli(['autopilot', '--resume', '--mode', 'quick', '--json'], dir, {
+        PATH: `${binDir}:${Reflect.get(process, 'env').PATH ?? ''}`,
+        COUNT_PATH: countPath,
+      })
+      const mismatchStderr = await new Response(mismatchProc.stderr).text()
+      expect(await mismatchProc.exited).toBe(1)
+      expect(mismatchStderr).toContain('resume inputs do not match')
+      expect(readFileSync(countPath, 'utf-8').trim()).toBe('2')
+
+      const resumeProc = spawnCli(['autopilot', '--resume', '--json'], dir, {
+        PATH: `${binDir}:${Reflect.get(process, 'env').PATH ?? ''}`,
+        COUNT_PATH: countPath,
+      })
+      const resumed = {
+        stdout: await new Response(resumeProc.stdout).text(),
+        stderr: await new Response(resumeProc.stderr).text(),
+        exitCode: await resumeProc.exited,
+      }
+      expect(resumed.exitCode).toBe(0)
+      expect(resumed.stderr).toBe('')
+      const summary = JSON.parse(resumed.stdout) as { ok: boolean; resumed?: boolean; agent: { taxonomy: { runnerExitCode?: number }; instructions: { runnerExitCode?: number } } }
+      expect(summary.ok).toBe(true)
+      expect(summary.resumed).toBe(true)
+      expect(summary.agent.taxonomy.runnerExitCode).toBeUndefined()
+      expect(summary.agent.instructions.runnerExitCode).toBe(0)
+      expect(readFileSync(countPath, 'utf-8').trim()).toBe('4')
+    } finally {
+      rmSync(countPath, { force: true })
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('supports dry-run JSON output without writing files', async () => {
     const { dir, statePath, stubServerPath } = createStubServerFixture()
 
@@ -399,13 +649,13 @@ describe('autopilot command', () => {
   it('runs the full autopilot flow with the OpenCode runner and attach mode', async () => {
     const { dir, statePath, stubServerPath } = createStubServerFixture()
     const binDir = resolve(dir, '.bin')
-    const runnerArgsPath = resolve(dir, 'opencode-runner-args.txt')
+    const runnerArgsPath = resolve(tmpdir(), `pluxx-opencode-runner-args-${Date.now()}.txt`)
     const opencodePath = resolve(binDir, 'opencode')
 
     mkdirSync(binDir, { recursive: true })
     writeFileSync(
       opencodePath,
-      '#!/bin/sh\nprintf "%s\\0" "$@" >> "$PLUXX_RUNNER_ARGS"\nexit 0\n',
+      '#!/bin/sh\nprintf "%s\\0" "$@" >> "$PLUXX_RUNNER_ARGS"\necho PLUXX_REVIEW_RESULT_START\necho \'{"findings":[]}\'\necho PLUXX_REVIEW_RESULT_END\nexit 0\n',
     )
     chmodSync(opencodePath, 0o755)
 
@@ -469,6 +719,7 @@ describe('autopilot command', () => {
       expect(runnerArgs.filter((arg) => arg === '--attach').length).toBe(3)
       expect(runnerArgs.filter((arg) => arg === 'http://localhost:4096').length).toBe(3)
     } finally {
+      rmSync(runnerArgsPath, { force: true })
       rmSync(dir, { recursive: true, force: true })
     }
   })
@@ -476,13 +727,13 @@ describe('autopilot command', () => {
   it('runs the full autopilot flow with a headless runner and verifies the scaffold', async () => {
     const { dir, statePath, stubServerPath } = createStubServerFixture()
     const binDir = resolve(dir, '.bin')
-    const runnerArgsPath = resolve(dir, 'runner-args.txt')
+    const runnerArgsPath = resolve(tmpdir(), `pluxx-runner-args-${Date.now()}.txt`)
     const claudePath = resolve(binDir, 'claude')
 
     mkdirSync(binDir, { recursive: true })
     writeFileSync(
       claudePath,
-      '#!/bin/sh\nprintf "%s\\0" "$@" >> "$PLUXX_RUNNER_ARGS"\nexit 0\n',
+      '#!/bin/sh\nprintf "%s\\0" "$@" >> "$PLUXX_RUNNER_ARGS"\necho PLUXX_REVIEW_RESULT_START\necho \'{"findings":[]}\'\necho PLUXX_REVIEW_RESULT_END\nexit 0\n',
     )
     chmodSync(claudePath, 0o755)
 
@@ -558,6 +809,7 @@ describe('autopilot command', () => {
       expect(runnerArgs.some((arg) => arg.includes('.pluxx/agent/instructions-prompt.md'))).toBe(true)
       expect(runnerArgs.some((arg) => arg.includes('.pluxx/agent/review-prompt.md'))).toBe(true)
     } finally {
+      rmSync(runnerArgsPath, { force: true })
       rmSync(dir, { recursive: true, force: true })
     }
   })
@@ -778,6 +1030,9 @@ EOF
     ;;
   *review-prompt.md*)
     if grep -q '\`skills/research/SKILL.md\`' "$PLUXX_REVIEW_PROMPT_PATH"; then
+      echo PLUXX_REVIEW_RESULT_START
+      echo '{"findings":[]}'
+      echo PLUXX_REVIEW_RESULT_END
       exit 0
     fi
     echo "stale review prompt" >&2
@@ -839,7 +1094,7 @@ exit 0
     }
   })
 
-  it('suppresses runner logs by default and streams them with --verbose-runner', { timeout: 60_000 }, async () => {
+  it('suppresses runner logs by default and streams them with --verbose-runner', async () => {
     const run = async (verboseRunner: boolean) => {
       const { dir, statePath, stubServerPath } = createStubServerFixture()
       const binDir = resolve(dir, '.bin')
@@ -849,7 +1104,7 @@ exit 0
       mkdirSync(binDir, { recursive: true })
       writeFileSync(
         claudePath,
-        `#!/bin/sh\necho "${marker}"\nexit 0\n`,
+        `#!/bin/sh\necho "${marker}"\necho PLUXX_REVIEW_RESULT_START\necho '{"findings":[]}'\necho PLUXX_REVIEW_RESULT_END\nexit 0\n`,
       )
       chmodSync(claudePath, 0o755)
 
@@ -896,7 +1151,7 @@ exit 0
 
     const verbose = await run(true)
     expect(verbose.stdout).toContain(verbose.marker)
-  })
+  }, 60_000)
 
   it('prints explicit auth guidance for OAuth-first remote MCPs', async () => {
     const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-autopilot-auth-'))

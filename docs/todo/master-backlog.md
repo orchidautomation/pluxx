@@ -1,6 +1,6 @@
 # Master Backlog
 
-Last updated: 2026-06-27
+Last updated: 2026-07-12
 
 This is the most complete repo-native backlog for Pluxx.
 
@@ -79,6 +79,15 @@ Any person or agent should be able to enter the repo and answer:
 - where the business could go later
 
 ## Now
+
+### 0. v0.1.31 audit remediation
+
+- [~] Land PLUXX-314 Autopilot reliability after focused PR proof:
+  - baseline doctor/test before semantic mutation
+  - checkpoint-backed fail-stop stages, compatible resume, and local rollback
+  - enforced taxonomy/instructions/review write boundaries
+  - structured review artifacts and fail-closed gating
+  - serial official `npm test` plus current CI/review evidence
 
 ### 1. Product clarity and front-door coherence
 

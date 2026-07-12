@@ -1,6 +1,6 @@
 # Pluxx Queue
 
-Last updated: 2026-06-27
+Last updated: 2026-07-12
 
 ## Doc Links
 
@@ -54,6 +54,14 @@ For broader context, use:
 - [Linear workspace](https://linear.app/orchid-automation)
 
 ## Current Truth
+
+PLUXX-314 Autopilot reliability is implemented on its focused remediation branch and is moving through PR proof:
+
+- deterministic baseline doctor/test runs before agent mutation
+- durable stage checkpoints with compatible `--resume` and local `--rollback`
+- pass-specific Agent Mode write boundaries with unauthorized-change restoration
+- structured, fail-closed review output before later verification
+- current proof must come from this branch's serial `npm test` and CI, not the older April/May audit baseline
 
 The core-four compiler sprint is done.
 

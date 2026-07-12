@@ -276,9 +276,10 @@ Agent Mode only works if the write contract is explicit.
 
 The host agent may edit:
 
-- the generated block in `INSTRUCTIONS.md`
-- the generated block in each `skills/*/SKILL.md`
-- files under `.pluxx/agent/`
+- `.pluxx/taxonomy.json` during taxonomy mode
+- the generated block in the configured instructions file during instructions mode
+
+Review mode is read-only. Manual projects without declared managed regions support review only; they do not grant the runner a write surface.
 
 The host agent must not edit unless explicitly requested:
 
@@ -289,6 +290,10 @@ The host agent must not edit unless explicitly requested:
 - `pluxx.agent.md`
 
 This lets agents do meaningful semantic work without turning the scaffold into an unreviewable mess.
+
+These boundaries are enforced around each runner invocation. Pluxx snapshots the project, compares the result with the pass-specific allowlist, and restores the snapshot when a runner exits unsuccessfully or changes an undeclared file, a custom region, configuration, or generated output. This protects against accidental or cooperative-runner drift; it is not an operating-system sandbox against a hostile process with the same local permissions.
+
+Each pass writes a structured status artifact to `.pluxx/agent/<pass>-run-result.json`. Review also writes validated findings to `.pluxx/agent/review-result.json`; actionable findings become a quality gate in Autopilot.
 
 ## Prompt Contract
 

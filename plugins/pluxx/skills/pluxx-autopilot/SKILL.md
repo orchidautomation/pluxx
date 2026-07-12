@@ -21,6 +21,8 @@ Use this skill when the user wants the one-shot path instead of a manually stage
 3. Run the one-shot path:
    - `pluxx autopilot --from-mcp ... --yes`
    - include runner, mode, and review flags when they matter
+   - use `pluxx autopilot --resume` for an interrupted compatible run
+   - use `pluxx autopilot --rollback` when the user wants to abandon an interrupted run; rollback is local and does not require source or runner access
 4. Summarize:
    - files created or updated
    - which agent passes ran
@@ -39,8 +41,13 @@ Use this skill when the user wants the one-shot path instead of a manually stage
 - If autopilot fails mid-run, say which stage failed:
   - auth
   - introspection
+  - baseline
   - runner
-  - verification
+  - boundary
+  - review
+  - post-agent-verification
+- Preserve Autopilot recovery metadata while resume or rollback is still needed, and do not publish its raw contents.
+- Resume only a compatible saved run. If behavior-affecting inputs changed, stop and start a new run instead of weakening the fingerprint check.
 
 ## Output
 

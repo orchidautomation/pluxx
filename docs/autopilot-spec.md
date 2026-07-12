@@ -143,8 +143,25 @@ This keeps the semantic layer honest.
 - `--json`
 - `--quiet`
 - `--yes`
-- `--skip-review`
-- `--skip-install-checks`
+- `--resume`
+- `--rollback`
+- `--review`
+- `--no-verify`
+
+## Reliability And Recovery Contract
+
+Autopilot creates a durable pre-run checkpoint, proves the deterministic scaffold with `doctor` and `test`, then checkpoints each successful agent stage. A failed baseline runs no agent. A failed runner, write-boundary violation, inconclusive review, actionable review finding, or post-agent verification failure stops dependent work and restores the preceding valid checkpoint.
+
+Use `pluxx autopilot --resume` to continue the saved run from its next incomplete stage. Resume validates the saved behavior fingerprint and requires the workspace to still match the last valid checkpoint instead of silently skipping stale work. A manual repair after a blocked review starts a new Autopilot run; it is not treated as an unchanged interrupted run. Use `pluxx autopilot --rollback` to restore the pre-Autopilot project without requiring the original MCP or runner to be available.
+
+State and structured result artifacts live under `.pluxx/`:
+
+- `.pluxx/autopilot-state.json`
+- `.pluxx/checkpoints/`
+- `.pluxx/agent/<pass>-run-result.json`
+- `.pluxx/agent/review-result.json`
+
+Runner output is summarized as bounded byte counts and status metadata. Review findings are preserved as validated structured records and printed in JSON/text summaries; raw runner streams are not copied into summaries.
 
 ## Output Contract
 
@@ -254,7 +271,6 @@ Phase 2:
 - support `--output-dir`
 - support `--install`
 - support project-level prompt overrides
-- support resumable autopilot runs
 
 ## Acceptance Criteria
 

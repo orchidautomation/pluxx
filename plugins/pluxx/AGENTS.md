@@ -64,7 +64,7 @@ The normal workflow is:
   Use when an existing MCP-derived scaffold needs to be refreshed safely.
 
 - `pluxx-autopilot`
-  Use when the user wants the one-shot import, refine, and verification path.
+  Use when the user wants the one-shot import, refine, and verification path, including checkpoint-backed resume or rollback after interruption.
 
 - `pluxx-publish-plugin`
   Use when the user wants to package the current plugin for release distribution.
@@ -178,6 +178,7 @@ A good Pluxx result should leave the user with:
 ### Notes
 
 - `pluxx autopilot` is the one-shot path.
+- Interrupted Autopilot runs expose local `--resume` and `--rollback` recovery; preserve their recovery metadata until the user is done with it.
 - `pluxx-bootstrap-runtime` is the operator path for installing or upgrading the underlying CLI runtime.
 - `pluxx init` plus manual refinement is usually the easier path to inspect and debug.
 - `pluxx-refine-plugin` is the guided refinement journey over the lower-level prepare/taxonomy/instructions/review workflows.
