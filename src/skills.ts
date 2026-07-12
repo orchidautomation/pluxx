@@ -1,5 +1,38 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'fs'
 import { relative, resolve } from 'path'
+import {
+  LineCounter,
+  isMap,
+  isScalar,
+  isSeq,
+  parseDocument,
+  stringify,
+  type Node,
+} from 'yaml'
+
+export interface SkillMetadataSource {
+  line: number
+  column: number
+  endLine: number
+  endColumn: number
+}
+
+export type SkillMetadataNodeKind = 'scalar' | 'sequence' | 'mapping' | 'null'
+
+export interface SkillFrontmatterNode {
+  key: string
+  value: unknown
+  rawValue: string
+  kind: SkillMetadataNodeKind
+  source: SkillMetadataSource
+}
+
+export interface SkillFrontmatterDiagnostic {
+  code: 'skill-frontmatter-yaml' | 'skill-frontmatter-shape'
+  message: string
+  key?: string
+  source?: SkillMetadataSource
+}
 
 export interface SkillFrontmatterField {
   key: string
@@ -12,6 +45,8 @@ export interface ParsedSkillMarkdown {
   hasValidFrontmatter: boolean
   frontmatterLines: string[]
   frontmatterFields: Map<string, SkillFrontmatterField>
+  frontmatterNodes: Map<string, SkillFrontmatterNode>
+  frontmatterDiagnostics: SkillFrontmatterDiagnostic[]
   body: string
   name?: string
   description?: string
@@ -61,19 +96,6 @@ export interface CanonicalSkillMetadata {
   referencePaths: string[]
 }
 
-function unquote(value: string): { value: string; quoted: boolean } {
-  const trimmed = value.trim()
-  if (trimmed.length >= 2) {
-    if (
-      (trimmed.startsWith('"') && trimmed.endsWith('"'))
-      || (trimmed.startsWith("'") && trimmed.endsWith("'"))
-    ) {
-      return { value: trimmed.slice(1, -1), quoted: true }
-    }
-  }
-  return { value: trimmed, quoted: false }
-}
-
 function firstHeading(content: string): string | undefined {
   for (const line of content.split(/\r?\n/)) {
     const match = /^#\s+(.+)$/.exec(line.trim())
@@ -98,7 +120,7 @@ function splitMarkdownFrontmatter(content: string): {
 
   let endIndex = -1
   for (let index = 1; index < lines.length; index += 1) {
-    if (lines[index].trim() === '---') {
+    if (lines[index] === '---') {
       endIndex = index
       break
     }
@@ -119,100 +141,183 @@ function splitMarkdownFrontmatter(content: string): {
   }
 }
 
-function parseFrontmatterFields(frontmatterLines: string[]): Map<string, SkillFrontmatterField> {
+const STRING_FIELDS = new Set([
+  'name',
+  'description',
+  'when_to_use',
+  'argument-hint',
+  'model',
+  'effort',
+  'context',
+  'agent',
+  'shell',
+])
+const BOOLEAN_FIELDS = new Set(['disable-model-invocation', 'user-invocable'])
+const STRING_ARRAY_FIELDS = new Set(['arguments', 'allowed-tools', 'paths'])
+
+function nodeKind(node: Node | null | undefined): SkillMetadataNodeKind {
+  if (!node) return 'null'
+  if (isScalar(node)) return 'scalar'
+  if (isSeq(node)) return 'sequence'
+  if (isMap(node)) return 'mapping'
+  return 'null'
+}
+
+function nodeSource(node: Node | null | undefined, lineCounter: LineCounter): SkillMetadataSource {
+  const range = node?.range ?? [0, 0, 0]
+  const start = lineCounter.linePos(range[0])
+  const end = lineCounter.linePos(range[1])
+  return {
+    line: start.line + 1,
+    column: start.col,
+    endLine: end.line + 1,
+    endColumn: end.col,
+  }
+}
+
+function displayValue(value: unknown): string {
+  if (typeof value === 'string') return value
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  return JSON.stringify(value)
+}
+
+function isQuotedScalar(rawValue: string): boolean {
+  const trimmed = rawValue.trim()
+  return (trimmed.startsWith('"') && trimmed.endsWith('"'))
+    || (trimmed.startsWith("'") && trimmed.endsWith("'"))
+}
+
+function isValidSkillFieldShape(key: string, value: unknown): boolean {
+  if (STRING_FIELDS.has(key)) return typeof value === 'string'
+  if (BOOLEAN_FIELDS.has(key)) return typeof value === 'boolean'
+  if (STRING_ARRAY_FIELDS.has(key)) {
+    const stringArray = Array.isArray(value) && value.every(item => typeof item === 'string')
+    return stringArray || (key === 'allowed-tools' && typeof value === 'string')
+  }
+  if (key === 'hooks') return value !== null && typeof value === 'object'
+  return true
+}
+
+function parseYamlFrontmatter(frontmatterLines: string[]): {
+  valid: boolean
+  fields: Map<string, SkillFrontmatterField>
+  nodes: Map<string, SkillFrontmatterNode>
+  diagnostics: SkillFrontmatterDiagnostic[]
+} {
+  const source = frontmatterLines.join('\n')
+  const lineCounter = new LineCounter()
+  const document = parseDocument(source, {
+    lineCounter,
+    prettyErrors: false,
+    strict: true,
+    uniqueKeys: true,
+  })
+  const parseMessages = [...document.errors, ...document.warnings]
+  const diagnostics: SkillFrontmatterDiagnostic[] = parseMessages.map((error) => {
+    const start = error.linePos?.[0]
+    return {
+      code: 'skill-frontmatter-yaml',
+      message: error.message,
+      ...(start
+        ? {
+            source: {
+              line: start.line + 1,
+              column: start.col,
+              endLine: (error.linePos?.[1]?.line ?? start.line) + 1,
+              endColumn: error.linePos?.[1]?.col ?? start.col,
+            },
+          }
+        : {}),
+    }
+  })
   const fields = new Map<string, SkillFrontmatterField>()
+  const nodes = new Map<string, SkillFrontmatterNode>()
 
-  for (const line of frontmatterLines) {
-    const trimmed = line.trim()
-    if (!trimmed || trimmed.startsWith('#')) continue
+  if (parseMessages.length > 0 || !isMap(document.contents)) {
+    if (parseMessages.length === 0) {
+      diagnostics.push({
+        code: 'skill-frontmatter-yaml',
+        message: 'Skill frontmatter must be a top-level YAML mapping.',
+        source: nodeSource(document.contents, lineCounter),
+      })
+    }
+    return { valid: false, fields, nodes, diagnostics }
+  }
 
-    const match = /^([A-Za-z0-9_-]+)\s*:\s*(.*)$/.exec(trimmed)
-    if (!match) continue
+  let values: Record<string, unknown>
+  try {
+    values = document.toJS({ maxAliasCount: 0 }) as Record<string, unknown>
+  } catch (error) {
+    diagnostics.push({
+      code: 'skill-frontmatter-yaml',
+      message: error instanceof Error ? error.message : 'Skill frontmatter could not be converted safely.',
+      source: nodeSource(document.contents, lineCounter),
+    })
+    return { valid: false, fields, nodes, diagnostics }
+  }
+  for (const pair of document.contents.items) {
+    if (!isScalar(pair.key) || typeof pair.key.value !== 'string') {
+      diagnostics.push({
+        code: 'skill-frontmatter-yaml',
+        message: 'Skill frontmatter keys must be strings.',
+        source: nodeSource(pair.key, lineCounter),
+      })
+      continue
+    }
 
-    const key = match[1]
-    const rawValue = match[2]
-    const parsed = unquote(rawValue)
+    const key = pair.key.value
+    const value = values[key]
+    const valueNode = pair.value as Node | null
+    const sourceRange = nodeSource(valueNode ?? pair.key, lineCounter)
+    const range = valueNode?.range
+    const rawValue = range ? source.slice(range[0], range[1]) : ''
+    const kind = nodeKind(valueNode)
+    nodes.set(key, { key, value, rawValue, kind, source: sourceRange })
     fields.set(key, {
       key,
-      value: parsed.value,
-      rawValue: rawValue.trim(),
-      quoted: parsed.quoted,
+      value: displayValue(value),
+      rawValue,
+      quoted: kind === 'scalar' && isQuotedScalar(rawValue),
     })
+
+    if (!isValidSkillFieldShape(key, value)) {
+      diagnostics.push({
+        code: 'skill-frontmatter-shape',
+        key,
+        message: `Skill frontmatter field "${key}" uses unsupported YAML ${kind} metadata.`,
+        source: sourceRange,
+      })
+    }
   }
 
-  return fields
+  return { valid: true, fields, nodes, diagnostics }
 }
 
-function parseAllowedTools(
-  hasValidFrontmatter: boolean,
-  frontmatterLines: string[],
-  frontmatterFields: Map<string, SkillFrontmatterField>,
-): string[] {
-  if (!hasValidFrontmatter || !frontmatterFields.has('allowed-tools')) return []
+function parseStringField(nodes: Map<string, SkillFrontmatterNode>, key: string): string | undefined {
+  const value = nodes.get(key)?.value
+  return typeof value === 'string' ? value : undefined
+}
 
-  const inlineField = frontmatterFields.get('allowed-tools')
-  const inlineValue = inlineField?.rawValue.trim() ?? ''
-  if (inlineValue) {
-    const raw = inlineValue.startsWith('[') && inlineValue.endsWith(']')
-      ? inlineValue.slice(1, -1)
-      : inlineValue
-    return raw
-      .split(',')
-      .map(part => unquote(part).value)
-      .map(part => part.trim())
-      .filter(Boolean)
+function parseBooleanField(nodes: Map<string, SkillFrontmatterNode>, key: string): boolean | undefined {
+  const value = nodes.get(key)?.value
+  return typeof value === 'boolean' ? value : undefined
+}
+
+function parseStringArrayField(nodes: Map<string, SkillFrontmatterNode>, key: string): string[] {
+  const value = nodes.get(key)?.value
+  return Array.isArray(value) && value.every(item => typeof item === 'string') ? value : []
+}
+
+function parseAllowedTools(nodes: Map<string, SkillFrontmatterNode>): string[] {
+  const node = nodes.get('allowed-tools')
+  const value = node?.value
+  if (Array.isArray(value) && value.every(item => typeof item === 'string')) return value
+  if (typeof value === 'string') {
+    if (node && isQuotedScalar(node.rawValue)) return [value]
+    return value.split(',').map(item => item.trim()).filter(Boolean)
   }
-
-  const lineIndex = frontmatterLines.findIndex((line) => /^allowed-tools:\s*$/i.test(line.trim()))
-  if (lineIndex === -1) return []
-
-  const tools: string[] = []
-  for (let index = lineIndex + 1; index < frontmatterLines.length; index += 1) {
-    const itemMatch = /^\s*-\s+(.+)$/.exec(frontmatterLines[index])
-    if (!itemMatch?.[1]) break
-    const value = unquote(itemMatch[1]).value.trim()
-    if (value) tools.push(value)
-  }
-
-  return tools
-}
-
-function parseBooleanField(frontmatterFields: Map<string, SkillFrontmatterField>, key: string): boolean | undefined {
-  const value = frontmatterFields.get(key)?.value.trim().toLowerCase()
-  if (value === 'true') return true
-  if (value === 'false') return false
-  return undefined
-}
-
-function parseInlineStringArray(rawValue: string): string[] {
-  const trimmed = rawValue.trim()
-  if (!trimmed.startsWith('[') || !trimmed.endsWith(']')) return []
-
-  const inner = trimmed.slice(1, -1).trim()
-  if (!inner) return []
-
-  return inner
-    .split(',')
-    .map(part => unquote(part).value.trim())
-    .filter(Boolean)
-}
-
-function parseStringArrayField(frontmatterFields: Map<string, SkillFrontmatterField>, key: string): string[] {
-  const rawValue = frontmatterFields.get(key)?.rawValue
-  if (!rawValue) return []
-  return parseInlineStringArray(rawValue)
-}
-
-function parseJsonField(frontmatterFields: Map<string, SkillFrontmatterField>, key: string): unknown {
-  const rawValue = frontmatterFields.get(key)?.rawValue?.trim()
-  if (!rawValue) return undefined
-  if (!(rawValue.startsWith('{') || rawValue.startsWith('['))) return undefined
-
-  try {
-    return JSON.parse(rawValue)
-  } catch {
-    return undefined
-  }
+  return []
 }
 
 export function parseSkillMarkdown(content: string): ParsedSkillMarkdown {
@@ -221,28 +326,39 @@ export function parseSkillMarkdown(content: string): ParsedSkillMarkdown {
     frontmatterLines,
     body,
   } = splitMarkdownFrontmatter(content)
-  const frontmatterFields = parseFrontmatterFields(frontmatterLines)
+  const yaml = hasValidFrontmatter
+    ? parseYamlFrontmatter(frontmatterLines)
+    : {
+        valid: false,
+        fields: new Map<string, SkillFrontmatterField>(),
+        nodes: new Map<string, SkillFrontmatterNode>(),
+        diagnostics: [] as SkillFrontmatterDiagnostic[],
+      }
+  const frontmatterFields = yaml.fields
+  const frontmatterNodes = yaml.nodes
 
   return {
-    hasValidFrontmatter,
+    hasValidFrontmatter: hasValidFrontmatter && yaml.valid,
     frontmatterLines,
     frontmatterFields,
+    frontmatterNodes,
+    frontmatterDiagnostics: yaml.diagnostics,
     body,
-    name: frontmatterFields.get('name')?.value,
-    description: frontmatterFields.get('description')?.value,
-    whenToUse: frontmatterFields.get('when_to_use')?.value,
-    argumentHint: frontmatterFields.get('argument-hint')?.value,
-    arguments: parseStringArrayField(frontmatterFields, 'arguments'),
-    disableModelInvocation: parseBooleanField(frontmatterFields, 'disable-model-invocation'),
-    userInvocable: parseBooleanField(frontmatterFields, 'user-invocable'),
-    allowedTools: parseAllowedTools(hasValidFrontmatter, frontmatterLines, frontmatterFields),
-    model: frontmatterFields.get('model')?.value,
-    effort: frontmatterFields.get('effort')?.value,
-    context: frontmatterFields.get('context')?.value,
-    agent: frontmatterFields.get('agent')?.value,
-    hooks: parseJsonField(frontmatterFields, 'hooks'),
-    paths: parseStringArrayField(frontmatterFields, 'paths'),
-    shell: frontmatterFields.get('shell')?.value,
+    name: parseStringField(frontmatterNodes, 'name'),
+    description: parseStringField(frontmatterNodes, 'description'),
+    whenToUse: parseStringField(frontmatterNodes, 'when_to_use'),
+    argumentHint: parseStringField(frontmatterNodes, 'argument-hint'),
+    arguments: parseStringArrayField(frontmatterNodes, 'arguments'),
+    disableModelInvocation: parseBooleanField(frontmatterNodes, 'disable-model-invocation'),
+    userInvocable: parseBooleanField(frontmatterNodes, 'user-invocable'),
+    allowedTools: parseAllowedTools(frontmatterNodes),
+    model: parseStringField(frontmatterNodes, 'model'),
+    effort: parseStringField(frontmatterNodes, 'effort'),
+    context: parseStringField(frontmatterNodes, 'context'),
+    agent: parseStringField(frontmatterNodes, 'agent'),
+    hooks: frontmatterNodes.get('hooks')?.value,
+    paths: parseStringArrayField(frontmatterNodes, 'paths'),
+    shell: parseStringField(frontmatterNodes, 'shell'),
     firstHeading: firstHeading(body),
   }
 }
@@ -292,6 +408,49 @@ export function readCanonicalSkillFiles(skillsDir: string | undefined): ParsedSk
 
 export function serializeSkillMarkdown(frontmatterLines: string[], body: string): string {
   return ['---', ...frontmatterLines, '---', body ? `\n${body.replace(/^\n/, '')}` : ''].join('\n')
+}
+
+function yamlScalar(value: string | boolean): string {
+  return typeof value === 'boolean' ? String(value) : stringify(value).trimEnd()
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function findTopLevelFieldRange(lines: string[], key: string): { start: number; end: number } | null {
+  const keyPattern = new RegExp(`^${escapeRegExp(key)}\\s*:`)
+  const start = lines.findIndex(line => keyPattern.test(line))
+  if (start === -1) return null
+  let end = start + 1
+  while (end < lines.length && !/^[A-Za-z0-9_-]+\s*:/.test(lines[end])) end += 1
+  return { start, end }
+}
+
+export function rewriteSkillFrontmatter(
+  content: string,
+  options: { set?: Record<string, string | boolean>; remove?: string[] },
+  parsedInput?: ParsedSkillMarkdown,
+): string {
+  const parsed = parsedInput ?? parseSkillMarkdown(content)
+  if (!parsed.hasValidFrontmatter) return content
+
+  const rewritten = [...parsed.frontmatterLines]
+  for (const key of options.remove ?? []) {
+    if (!parsed.frontmatterNodes.has(key)) continue
+    const range = findTopLevelFieldRange(rewritten, key)
+    if (!range) continue
+    rewritten.splice(range.start, range.end - range.start)
+  }
+
+  for (const [key, value] of Object.entries(options.set ?? {})) {
+    const range = findTopLevelFieldRange(rewritten, key)
+    const line = `${key}: ${yamlScalar(value)}`
+    if (!range) rewritten.push(line)
+    else rewritten.splice(range.start, range.end - range.start, line)
+  }
+
+  return serializeSkillMarkdown(rewritten, parsed.body)
 }
 
 function walkSupportFiles(dir: string): string[] {

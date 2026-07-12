@@ -1,6 +1,6 @@
 # Master Backlog
 
-Last updated: 2026-06-27
+Last updated: 2026-07-12
 
 This is the most complete repo-native backlog for Pluxx.
 
@@ -118,6 +118,8 @@ Any person or agent should be able to enter the repo and answer:
 - [~] Use [docs/primitive-compiler-hardening-architecture.md](../primitive-compiler-hardening-architecture.md) as the current execution spec for:
   - canonical IR boundary work
   - shared translation registry rollout
+    - audited skill and hook fields now share one executable registry across generators, lint, doctor, compatibility summaries, and generated docs
+    - remaining registry rollout covers the other primitive buckets without reintroducing bucket-level contradictions
   - runtime/distribution internal seam hardening
   - first hook-registry slice is now in place for event support and field-preservation truth
   - prompt/failClosed/loop_limit lint explainability now also routes through the shared hook registry, and Claude prompt-hook warnings are event-aware instead of claiming all prompt hooks degrade
@@ -127,7 +129,7 @@ Any person or agent should be able to enter the repo and answer:
   - native Codex agent migrate now preserves `sandbox_mode` across the TOML -> canonical markdown -> rebuilt TOML path
   - commands IR now preserves `argument-hint`, `when_to_use`, argument arrays, examples, explicit skill routing, agent routing, and context hints through Codex, OpenCode, and Agent Mode
   - `init --from-mcp` now emits `when_to_use`, canonical `arguments`, and explicit `skill` routing into generated command frontmatter
-  - the shared `src/skills.ts` seam now also emits canonical support-file metadata for `examples/`, helper `scripts/`, and neighboring references
+  - the shared `src/skills.ts` seam now uses real YAML parsing, exposes normalized metadata with source provenance, and emits canonical support-file metadata for `examples/`, helper `scripts/`, and neighboring references
   - command and skill translation wording in `lint` now routes through shared registries instead of hand-written per-target strings
   - Codex command routing guidance and `.codex/commands.generated.json` now read from the same richer command seam, reducing drift between AGENTS.md guidance and companion metadata
   - Codex/OpenCode skill-frontmatter translation notes now explicitly cover `when_to_use`, `user-invocable`, `model`, and `effort`

@@ -1,6 +1,6 @@
 # Start Here
 
-Last updated: 2026-06-27
+Last updated: 2026-07-12
 
 ## Doc Links
 
@@ -231,7 +231,8 @@ The repo already proves a lot.
   - rich install/distribution metadata
 - that Platform Change Ops example has now also been installed and `verify-install` checked from the source project across Claude Code, Cursor, Codex, and OpenCode
 - native Claude install verification now follows Claude's real cache install path (`~/.claude/plugins/cache/<marketplace>/<plugin>/<version>`) instead of the old direct plugin-directory assumption
-- the new shared `src/skills.ts` parser is now the common skill reader for lint, Agent Mode, migrate, and Claude skill rewrites instead of four separate ad hoc parsers
+- the shared `src/skills.ts` reader now uses a real YAML parser for multiline scalars, quoted commas, arrays, and nested values; normalized metadata nodes retain line/column provenance, and invalid or unsupported shapes are explicit lint findings
+- audited skill and hook translation truth now lives in one field-level registry consumed by generators, lint/doctor summaries, compatibility rendering, and generated docs; primitive labels are derived from field outcomes so a `preserve` bucket cannot hide dropped or companion-only fields
 - the current next robustness slice is making Codex companion apply/verify first-class enough that generated readiness, hook, MCP approval, and companion config guidance becomes operational and verifiable rather than advisory only:
   - `PLUXX-226`
   - `PLUXX-264`

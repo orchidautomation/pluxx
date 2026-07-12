@@ -1,6 +1,6 @@
 # Pluxx Queue
 
-Last updated: 2026-06-27
+Last updated: 2026-07-12
 
 ## Doc Links
 
@@ -253,7 +253,12 @@ Open work:
   - shared registry rollout
   - runtime/distribution internal seam hardening
 - shared skill parsing is now materially less duplicated:
-  - `src/skills.ts` is the common reader for lint, Agent Mode, migrate, and Claude skill rewrites
+  - `src/skills.ts` is the common YAML-backed reader for lint, Agent Mode, migrate, and Claude skill rewrites
+  - valid multiline, quoted-comma, sequence, and nested metadata shapes normalize consistently with source locations
+  - unsupported shapes are lint-visible instead of silently disappearing
+- field-level translation truth is now compiler-owned for audited skills and hooks:
+  - generators, lint, doctor, compatibility summaries, and generated matrix docs share one registry
+  - primitive preserve/translate/degrade/drop labels are derived from field outcomes
 - use [docs/todo/author-once-hardening.md](./author-once-hardening.md) as the current initiative-level TODO for closing the remaining gap between:
   - the author-once product vision
   - the currently shipped compiler, proof, and install reality

@@ -840,6 +840,7 @@ describe('build', () => {
         whenToUse?: string
         helperScripts?: string[]
         examplePaths?: string[]
+        translation?: Array<{ field: string; mode: string; nativeSurfaces: string[] }>
       }>
     }
     const opencodeSkills = JSON.parse(
@@ -850,6 +851,7 @@ describe('build', () => {
         whenToUse?: string
         helperScripts?: string[]
         examplePaths?: string[]
+        translation?: Array<{ field: string; mode: string; nativeSurfaces: string[] }>
       }>
     }
 
@@ -858,6 +860,19 @@ describe('build', () => {
     )
     expect(codexSkills.skills.find((skill) => skill.id === 'deep-research')?.helperScripts).toEqual(['scripts/assist.sh'])
     expect(opencodeSkills.skills.find((skill) => skill.id === 'deep-research')?.examplePaths).toEqual(['examples/sample.md'])
+    expect(codexSkills.skills.find((skill) => skill.id === 'deep-research')?.translation).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ field: 'name', mode: 'preserve' }),
+        expect.objectContaining({ field: 'when_to_use', mode: 'degrade' }),
+        expect.objectContaining({ field: 'allowed-tools', mode: 'degrade' }),
+      ]),
+    )
+    expect(opencodeSkills.skills.find((skill) => skill.id === 'deep-research')?.translation).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ field: 'paths', mode: 'degrade' }),
+        expect.objectContaining({ field: 'agent', mode: 'degrade' }),
+      ]),
+    )
   })
 
   it('hides command-wrapped Claude skills from direct slash invocation while keeping their names stable', async () => {

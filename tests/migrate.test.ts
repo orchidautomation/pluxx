@@ -251,7 +251,9 @@ async function setupClaudeReadmeSource() {
       'argument-hint: "[company]"',
       'arguments: [company]',
       'user-invocable: true',
-      'allowed-tools: mcp__leadkit__get_lead, Read',
+      'allowed-tools:',
+      '  - mcp__leadkit__get_lead',
+      '  - Read',
       'context: fork',
       'agent: Explore',
       'paths: ["accounts/**"]',
@@ -815,6 +817,8 @@ describe('migrate', () => {
     expect(compilerIntent.skillPolicies[0]?.permissions.allow).toEqual(['MCP(leadkit.get_lead)', 'Read(*)'])
     const migratedSkill = readFileSync(resolve(outputDir, 'skills/prospect-research/SKILL.md'), 'utf-8')
     expect(migratedSkill).not.toContain('allowed-tools:')
+    expect(migratedSkill).not.toContain('  - mcp__leadkit__get_lead')
+    expect(migratedSkill).not.toContain('  - Read')
   })
 
   it('imports Cursor native agents into the canonical agents directory', async () => {

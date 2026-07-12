@@ -1,9 +1,10 @@
 import type { TargetPlatform } from './schema'
 import { CODEX_SUPPORTED_HOOK_EVENTS, CURSOR_SUPPORTED_HOOK_EVENTS } from './hook-events'
+import { getFieldTranslationOutcome, isCoreFourTranslationPlatform, type FieldTranslationMode } from './field-translation-registry'
 
 export type HookFieldName = 'prompt' | 'matcher' | 'failClosed' | 'loop_limit'
 export type HookEntryType = 'command' | 'http' | 'mcp_tool' | 'prompt' | 'agent'
-export type HookFieldTranslationMode = 'preserve' | 'drop'
+export type HookFieldTranslationMode = FieldTranslationMode
 
 interface HookTranslationIssueDescriptor {
   code: string
@@ -19,16 +20,14 @@ interface HookPlatformRegistry {
   supportedEvents?: readonly string[]
   unsupportedEventReason?: string
   supportedTypes?: readonly HookEntryType[]
-  fields: Record<HookFieldName, HookFieldCapability>
+  fieldEvents?: Partial<Record<HookFieldName, readonly string[]>>
 }
 
 const HOOK_PLATFORM_REGISTRY: Partial<Record<TargetPlatform, HookPlatformRegistry>> = {
   'claude-code': {
     supportedTypes: ['command', 'http', 'mcp_tool', 'prompt', 'agent'],
-    fields: {
-      prompt: {
-        mode: 'preserve',
-        supportedEvents: [
+    fieldEvents: {
+      prompt: [
           'PermissionRequest',
           'PostToolBatch',
           'PostToolUse',
@@ -40,102 +39,27 @@ const HOOK_PLATFORM_REGISTRY: Partial<Record<TargetPlatform, HookPlatformRegistr
           'TaskCreated',
           'UserPromptExpansion',
           'UserPromptSubmit',
-        ],
-      },
-      matcher: { mode: 'preserve' },
-      failClosed: { mode: 'drop' },
-      loop_limit: { mode: 'drop' },
+      ],
     },
   },
   cursor: {
     supportedTypes: ['command', 'prompt'],
     supportedEvents: CURSOR_SUPPORTED_HOOK_EVENTS,
     unsupportedEventReason: `Cursor currently documents only ${CURSOR_SUPPORTED_HOOK_EVENTS.join(', ')} for hook configuration.`,
-    fields: {
-      prompt: { mode: 'preserve' },
-      matcher: { mode: 'preserve' },
-      failClosed: { mode: 'preserve' },
-      loop_limit: { mode: 'preserve', supportedEvents: ['stop', 'subagentStop'] },
+    fieldEvents: {
+      loop_limit: ['stop', 'subagentStop'],
     },
   },
   codex: {
     supportedTypes: ['command'],
     supportedEvents: CODEX_SUPPORTED_HOOK_EVENTS,
     unsupportedEventReason: `Codex currently documents only ${CODEX_SUPPORTED_HOOK_EVENTS.join(', ')} for hook configuration.`,
-    fields: {
-      prompt: { mode: 'drop' },
-      matcher: {
-        mode: 'preserve',
-        supportedEvents: ['SessionStart', 'PreToolUse', 'PermissionRequest', 'PostToolUse'],
-      },
-      failClosed: { mode: 'drop' },
-      loop_limit: { mode: 'drop' },
+    fieldEvents: {
+      matcher: [CODEX_SUPPORTED_HOOK_EVENTS[0], 'PreToolUse', 'PermissionRequest', 'PostToolUse'],
     },
   },
   opencode: {
     supportedTypes: ['command'],
-    fields: {
-      prompt: { mode: 'drop' },
-      matcher: { mode: 'preserve' },
-      failClosed: { mode: 'preserve' },
-      loop_limit: { mode: 'drop' },
-    },
-  },
-  'github-copilot': {
-    fields: {
-      prompt: { mode: 'drop' },
-      matcher: { mode: 'preserve' },
-      failClosed: { mode: 'drop' },
-      loop_limit: { mode: 'drop' },
-    },
-  },
-  openhands: {
-    fields: {
-      prompt: { mode: 'drop' },
-      matcher: { mode: 'preserve' },
-      failClosed: { mode: 'drop' },
-      loop_limit: { mode: 'drop' },
-    },
-  },
-  warp: {
-    fields: {
-      prompt: { mode: 'drop' },
-      matcher: { mode: 'drop' },
-      failClosed: { mode: 'drop' },
-      loop_limit: { mode: 'drop' },
-    },
-  },
-  'gemini-cli': {
-    fields: {
-      prompt: { mode: 'drop' },
-      matcher: { mode: 'drop' },
-      failClosed: { mode: 'drop' },
-      loop_limit: { mode: 'drop' },
-    },
-  },
-  'roo-code': {
-    fields: {
-      prompt: { mode: 'drop' },
-      matcher: { mode: 'drop' },
-      failClosed: { mode: 'drop' },
-      loop_limit: { mode: 'drop' },
-    },
-  },
-  cline: {
-    fields: {
-      prompt: { mode: 'drop' },
-      matcher: { mode: 'drop' },
-      failClosed: { mode: 'drop' },
-      loop_limit: { mode: 'drop' },
-    },
-  },
-  amp: {
-    fields: {
-      prompt: { mode: 'drop' },
-      matcher: { mode: 'drop' },
-      failClosed: { mode: 'drop' },
-      loop_limit: { mode: 'drop' },
-    },
   },
 }
 
@@ -167,7 +91,23 @@ export function getHookFieldCapability(
   platform: TargetPlatform,
   field: HookFieldName,
 ): HookFieldCapability {
-  return HOOK_PLATFORM_REGISTRY[platform]?.fields[field] ?? { mode: 'drop' }
+  if (!isCoreFourTranslationPlatform(platform)) {
+    if (field === 'matcher' && (platform === 'github-copilot' || platform === 'openhands')) {
+      return { mode: 'preserve' }
+    }
+    return { mode: 'drop' }
+  }
+  const outcome = getFieldTranslationOutcome(
+    'hooks',
+    field,
+    platform,
+  )
+  return {
+    mode: outcome?.mode ?? 'drop',
+    ...(HOOK_PLATFORM_REGISTRY[platform]?.fieldEvents?.[field]
+      ? { supportedEvents: HOOK_PLATFORM_REGISTRY[platform]?.fieldEvents?.[field] }
+      : {}),
+  }
 }
 
 export function isHookFieldPreserved(
@@ -176,7 +116,7 @@ export function isHookFieldPreserved(
   event?: string,
 ): boolean {
   const capability = getHookFieldCapability(platform, field)
-  if (capability.mode !== 'preserve') return false
+  if (capability.mode === 'drop' || capability.mode === 'translate') return false
   if (capability.supportedEvents && event) {
     return capability.supportedEvents.includes(event)
   }
@@ -196,23 +136,26 @@ export function getHookTypeTranslationIssue(
   type: Exclude<HookEntryType, 'command'>,
 ): HookTranslationIssueDescriptor | null {
   if (platform === 'cursor') {
+    const outcome = getFieldTranslationOutcome('hooks', type, 'cursor')
     return {
       code: 'cursor-hook-type-unsupported',
-      message: `Cursor does not document hook type "${type}". Pluxx currently preserves only command and prompt hooks on the Cursor hook surface.`,
+      message: `Cursor does not document ${type} hooks. ${outcome?.notes ?? 'The entry is unsupported.'}`,
     }
   }
 
   if (platform === 'codex') {
+    const outcome = getFieldTranslationOutcome('hooks', type, 'codex')
     return {
       code: 'codex-hook-type-drop',
-      message: `Codex currently bundles only command-hook entries from Pluxx. ${type} hooks will be dropped from the generated Codex bundle.`,
+      message: `Codex currently bundles only command-hook entries from Pluxx. ${type} hooks are ${outcome?.mode ?? 'drop'}. ${outcome?.notes ?? ''}`,
     }
   }
 
   if (platform === 'opencode') {
+    const outcome = getFieldTranslationOutcome('hooks', type, 'opencode')
     return {
       code: 'opencode-hook-type-drop',
-      message: `The current OpenCode runtime wrapper only emits command hooks. ${type} hooks will be dropped from the generated OpenCode plugin.`,
+      message: `The current OpenCode runtime wrapper only emits command hooks. ${type} hooks are ${outcome?.mode ?? 'drop'}. ${outcome?.notes ?? ''}`,
     }
   }
 
@@ -228,21 +171,21 @@ export function getPromptHookTranslationIssue(
     const supportedEvents = getHookFieldSupportedEvents(platform, 'prompt')
     return {
       code: 'claude-prompt-hook-degrade',
-      message: `Claude currently preserves prompt hooks only on ${supportedEvents.join(', ')}. Prompt hooks on ${event ?? 'other events'} will be dropped from generated Claude output.`,
+      message: `${getFieldTranslationOutcome('hooks', 'prompt', 'claude-code')?.notes} Supported events: ${supportedEvents.join(', ')}. Prompt hooks on ${event ?? 'other events'} will be dropped.`,
     }
   }
 
   if (platform === 'codex') {
     return {
       code: 'codex-prompt-hook-drop',
-      message: 'Codex currently receives only command-hook entries from Pluxx. Prompt hooks will be dropped from the generated Codex bundle.',
+      message: getFieldTranslationOutcome('hooks', 'prompt', 'codex')?.notes ?? 'Codex drops prompt hooks.',
     }
   }
 
   if (platform === 'opencode') {
     return {
       code: 'opencode-prompt-hook-drop',
-      message: 'The current OpenCode runtime wrapper only emits command hooks. Prompt hooks will be dropped from the generated OpenCode plugin.',
+      message: getFieldTranslationOutcome('hooks', 'prompt', 'opencode')?.notes ?? 'OpenCode drops prompt hooks.',
     }
   }
 
@@ -256,35 +199,35 @@ export function getHookFieldTranslationIssue(
   if (platform === 'claude-code' && field === 'failClosed') {
     return {
       code: 'claude-hook-failclosed-degrade',
-      message: 'Claude hook entries currently drop `failClosed` in generated output. Keep this behavior host-specific or verify the generated hook bundle carefully.',
+      message: getFieldTranslationOutcome('hooks', field, platform)?.notes ?? 'Claude drops `failClosed`.',
     }
   }
 
   if (platform === 'claude-code' && field === 'loop_limit') {
     return {
       code: 'claude-hook-loop-limit-degrade',
-      message: 'Claude outputs currently drop `loop_limit`. Recursive hook protection is not preserved there today.',
+      message: getFieldTranslationOutcome('hooks', field, platform)?.notes ?? 'Claude drops `loop_limit`.',
     }
   }
 
   if (platform === 'codex' && field === 'failClosed') {
     return {
       code: 'codex-hook-failclosed-drop',
-      message: 'Codex hook bundles currently drop `failClosed`. Strict failure behavior is not preserved in generated Codex output today.',
+      message: getFieldTranslationOutcome('hooks', field, platform)?.notes ?? 'Codex drops `failClosed`.',
     }
   }
 
   if (platform === 'codex' && field === 'loop_limit') {
     return {
       code: 'codex-hook-loop-limit-drop',
-      message: 'Codex hook bundles currently drop `loop_limit`. Current Codex output keeps command handlers, event matcher groups, and timeout where documented.',
+      message: getFieldTranslationOutcome('hooks', field, platform)?.notes ?? 'Codex drops `loop_limit`.',
     }
   }
 
   if (platform === 'opencode' && field === 'loop_limit') {
     return {
       code: 'opencode-hook-loop-limit-drop',
-      message: 'OpenCode runtime hooks currently drop `loop_limit`. Recursive hook protection is still Cursor-first in Pluxx.',
+      message: getFieldTranslationOutcome('hooks', field, platform)?.notes ?? 'OpenCode drops `loop_limit`.',
     }
   }
 

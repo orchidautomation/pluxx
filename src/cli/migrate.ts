@@ -12,7 +12,7 @@ import {
   type CompilerIntentFile,
   type CompilerIntentSkillPolicy,
 } from '../compiler-intent'
-import { getCanonicalSkillMetadata, parseSkillMarkdown, readCanonicalSkillFiles, serializeSkillMarkdown } from '../skills'
+import { getCanonicalSkillMetadata, parseSkillMarkdown, readCanonicalSkillFiles, rewriteSkillFrontmatter } from '../skills'
 import { buildNativeMcpPlatformOverrides } from '../mcp-native-overrides'
 import { parseTomlValue, stripTomlComment } from '../toml-lite'
 import { writeTextFile } from '../text-files'
@@ -1341,18 +1341,15 @@ function sanitizeMigratedSkillFrontmatter(outputDir: string): void {
     const skillPath = resolve(skillsDir, entry.name, 'SKILL.md')
     if (!existsSync(skillPath)) continue
 
-    const parsed = parseSkillMarkdown(readFileSync(skillPath, 'utf-8'))
+    const content = readFileSync(skillPath, 'utf-8')
+    const parsed = parseSkillMarkdown(content)
     if (!parsed.hasValidFrontmatter) continue
 
-    const sanitized = parsed.frontmatterLines.filter((line) => {
-      const match = /^([A-Za-z0-9_-]+)\s*:/.exec(line.trim())
-      if (!match) return true
-      return !HOST_NATIVE_SKILL_FRONTMATTER_KEYS.has(match[1])
-    })
+    const keysToRemove = [...HOST_NATIVE_SKILL_FRONTMATTER_KEYS]
+      .filter(key => parsed.frontmatterNodes.has(key))
+    if (keysToRemove.length === 0) continue
 
-    if (sanitized.length === parsed.frontmatterLines.length) continue
-
-    writeFileSync(skillPath, serializeSkillMarkdown(sanitized, parsed.body), 'utf-8')
+    writeFileSync(skillPath, rewriteSkillFrontmatter(content, { remove: keysToRemove }, parsed), 'utf-8')
   }
 }
 

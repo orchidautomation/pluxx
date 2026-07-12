@@ -6,7 +6,7 @@ import { basename, join } from 'path'
 import { getCanonicalAgentMetadata, type AgentFrontmatterMap, readCanonicalAgentFiles } from '../../agents'
 import { buildDelegationBehaviorNotes } from '../../delegation'
 import { getCanonicalCommandMetadata, readCanonicalCommandFiles } from '../../commands'
-import { parseSkillMarkdown, readCanonicalSkillFiles, serializeSkillMarkdown } from '../../skills'
+import { parseSkillMarkdown, readCanonicalSkillFiles, rewriteSkillFrontmatter } from '../../skills'
 
 export class ClaudeCodeGenerator extends Generator {
   readonly platform: TargetPlatform = 'claude-code'
@@ -227,27 +227,12 @@ function rewriteClaudeSkillVisibility(
     ].join('\n')
   }
 
-  const rewritten = [...parsed.frontmatterLines]
-  let sawName = false
-  let sawUserInvocable = false
-
-  for (let index = 0; index < rewritten.length; index += 1) {
-    const trimmed = rewritten[index].trim()
-    if (options.nameOverride && /^name:\s*/i.test(trimmed)) {
-      rewritten[index] = `name: ${options.nameOverride}`
-      sawName = true
-      continue
-    }
-    if (options.userInvocable === false && /^user-invocable:\s*/i.test(trimmed)) {
-      rewritten[index] = 'user-invocable: false'
-      sawUserInvocable = true
-    }
-  }
-
-  if (options.nameOverride && !sawName) rewritten.push(`name: ${options.nameOverride}`)
-  if (options.userInvocable === false && !sawUserInvocable) rewritten.push('user-invocable: false')
-
-  return serializeSkillMarkdown(rewritten, parsed.body)
+  return rewriteSkillFrontmatter(content, {
+    set: {
+      ...(options.nameOverride ? { name: options.nameOverride } : {}),
+      ...(options.userInvocable === false ? { 'user-invocable': false } : {}),
+    },
+  }, parsed)
 }
 
 function buildClaudeDisallowedTools(frontmatter: AgentFrontmatterMap): string[] {
