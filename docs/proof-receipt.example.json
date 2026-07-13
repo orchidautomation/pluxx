@@ -1,0 +1,20 @@
+{
+  "id": "vX.Y.Z-repository-check",
+  "tier": "bundle-contract",
+  "freshness": "current",
+  "commands": [
+    {
+      "command": "npm run build",
+      "outcome": "passed"
+    }
+  ],
+  "targets": [
+    {
+      "target": "repository",
+      "hostVersion": null,
+      "installedPath": null,
+      "sha256": null,
+      "outcome": "passed"
+    }
+  ]
+}

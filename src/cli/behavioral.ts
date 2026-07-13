@@ -1,6 +1,7 @@
-import { existsSync, readFileSync } from 'fs'
+import { existsSync, readFileSync, realpathSync, statSync } from 'fs'
 import { spawn } from 'child_process'
-import { resolve } from 'path'
+import { createHash } from 'crypto'
+import { isAbsolute, relative, resolve } from 'path'
 import type { PluginConfig, TargetPlatform } from '../schema'
 import { executeCodexExecCommand } from '../codex-exec-runner'
 
@@ -14,18 +15,31 @@ type BehavioralPlatform = typeof SUPPORTED_PLATFORMS[number]
 interface BehavioralCaseTargetConfig {
   prompt: string
   commandId?: string
+  skillId?: string
+  agentId?: string
   require?: string[]
   forbid?: string[]
   expectedExitCodes?: number[]
   expectFailure?: boolean
   runnerArgs?: string[]
   timeoutMs?: number
+  artifacts?: BehavioralArtifactAssertion[]
 }
 
 interface BehavioralCaseConfig {
   name: string
   commandId?: string
+  skillId?: string
+  agentId?: string
   targets: Partial<Record<BehavioralPlatform, BehavioralCaseTargetConfig>>
+}
+
+interface BehavioralArtifactAssertion {
+  path: string
+  exists?: boolean
+  state?: 'preexisting' | 'created' | 'changed'
+  require?: string[]
+  forbid?: string[]
 }
 
 interface BehavioralConfigFile {
@@ -41,6 +55,8 @@ export interface BehavioralCheckResult {
   platform: BehavioralPlatform
   prompt: string
   commandId?: string
+  skillId?: string
+  agentId?: string
   command: string[]
   ok: boolean
   exitCode: number
@@ -51,6 +67,39 @@ export interface BehavioralCheckResult {
   expectedExitCodes: number[]
   timeoutMs: number
   failures: string[]
+  receipt: BehavioralReceipt
+}
+
+export interface BehavioralArtifactResult {
+  path: string
+  expectedToExist: boolean
+  state: 'preexisting' | 'created' | 'changed'
+  exists: boolean
+  kind?: 'file' | 'directory'
+  bytes?: number
+  require?: string[]
+  forbid?: string[]
+  ok: boolean
+  failures: string[]
+}
+
+interface BehavioralArtifactSnapshot {
+  exists: boolean
+  fingerprint?: string
+  error?: string
+}
+
+export interface BehavioralReceipt {
+  target: BehavioralPlatform
+  commandId?: string
+  skillId?: string
+  agentId?: string
+  assertions: {
+    requiredText: string[]
+    forbiddenText: string[]
+    expectedExitCodes: number[]
+  }
+  artifacts: BehavioralArtifactResult[]
 }
 
 export interface BehavioralSuiteResult {
@@ -81,6 +130,8 @@ export async function runBehavioralSuite(
         config,
         behavioralCase.name,
         behavioralCase.commandId,
+        behavioralCase.skillId,
+        behavioralCase.agentId,
         platform,
         targetConfig,
       ))
@@ -128,6 +179,8 @@ async function runBehavioralCheck(
   config: PluginConfig,
   caseName: string,
   caseCommandId: string | undefined,
+  caseSkillId: string | undefined,
+  caseAgentId: string | undefined,
   platform: BehavioralPlatform,
   targetConfig: BehavioralCaseTargetConfig,
 ): Promise<BehavioralCheckResult> {
@@ -136,6 +189,8 @@ async function runBehavioralCheck(
     throw new Error(`Behavioral smoke case "${caseName}" for ${platform} is missing a prompt.`)
   }
   const commandId = targetConfig.commandId ?? caseCommandId
+  const skillId = targetConfig.skillId ?? caseSkillId
+  const agentId = targetConfig.agentId ?? caseAgentId
   if (commandId) {
     if (!behavioralPromptReferencesCommand(prompt, commandId)) {
       throw new Error(
@@ -157,6 +212,19 @@ async function runBehavioralCheck(
   const timeoutMs = Number.isFinite(targetConfig.timeoutMs) && (targetConfig.timeoutMs ?? 0) > 0
     ? Math.trunc(targetConfig.timeoutMs!)
     : DEFAULT_BEHAVIORAL_TIMEOUT_MS
+  const receiptBase = {
+    target: platform,
+    commandId,
+    skillId,
+    agentId,
+    assertions: {
+      requiredText: targetConfig.require ?? [],
+      forbiddenText: targetConfig.forbid ?? [],
+      expectedExitCodes,
+    },
+  }
+  const artifactAssertions = targetConfig.artifacts ?? []
+  const artifactSnapshots = snapshotArtifactAssertions(rootDir, artifactAssertions)
 
   let command: string[] = []
   let execution: {
@@ -169,11 +237,15 @@ async function runBehavioralCheck(
     execution = await executeBehavioralCommand(platform, command, rootDir, timeoutMs)
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
+    const artifacts = evaluateArtifactAssertions(rootDir, artifactAssertions, artifactSnapshots)
+    const artifactFailures = artifacts.flatMap(artifact => artifact.failures.map(failure => `${artifact.path}: ${failure}`))
     return {
       caseName,
       platform,
       prompt,
       commandId,
+      skillId,
+      agentId,
       command,
       ok: false,
       exitCode: 1,
@@ -183,7 +255,11 @@ async function runBehavioralCheck(
       forbid: targetConfig.forbid,
       expectedExitCodes,
       timeoutMs,
-      failures: [message],
+      failures: [message, ...artifactFailures],
+      receipt: {
+        ...receiptBase,
+        artifacts,
+      },
     }
   }
 
@@ -209,12 +285,16 @@ async function runBehavioralCheck(
       failures.push(`matched forbidden text: ${forbidden}`)
     }
   }
+  const artifacts = evaluateArtifactAssertions(rootDir, artifactAssertions, artifactSnapshots)
+  failures.push(...artifacts.flatMap(artifact => artifact.failures.map(failure => `${artifact.path}: ${failure}`)))
 
   return {
     caseName,
     platform,
     prompt,
     commandId,
+    skillId,
+    agentId,
     command,
     ok: failures.length === 0,
     exitCode: execution.exitCode,
@@ -225,7 +305,158 @@ async function runBehavioralCheck(
     expectedExitCodes,
     timeoutMs,
     failures,
+    receipt: {
+      ...receiptBase,
+      artifacts,
+    },
   }
+}
+
+function evaluateArtifactAssertions(
+  rootDir: string,
+  assertions: BehavioralArtifactAssertion[],
+  snapshots: BehavioralArtifactSnapshot[],
+): BehavioralArtifactResult[] {
+  return assertions.map((assertion, index) => {
+    const expectedToExist = assertion.exists !== false
+    const state = assertion.state ?? 'preexisting'
+    const snapshot = snapshots[index] ?? { exists: false, error: 'artifact preflight snapshot is missing' }
+    const failures: string[] = []
+    if (snapshot.error) failures.push(snapshot.error)
+    try {
+    if (!assertion.path.trim() || isAbsolute(assertion.path)) {
+      failures.push('artifact path must be a non-empty project-relative path')
+      return {
+        path: assertion.path,
+        expectedToExist,
+        state,
+        exists: false,
+        require: assertion.require,
+        forbid: assertion.forbid,
+        ok: false,
+        failures,
+      }
+    }
+
+    const artifactPath = resolve(rootDir, assertion.path)
+    const relativePath = relative(rootDir, artifactPath)
+    if (relativePath === '..' || relativePath.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`) || isAbsolute(relativePath)) {
+      failures.push('artifact path escapes the project root')
+      return {
+        path: assertion.path,
+        expectedToExist,
+        state,
+        exists: false,
+        require: assertion.require,
+        forbid: assertion.forbid,
+        ok: false,
+        failures,
+      }
+    }
+
+    const present = existsSync(artifactPath)
+    if (present !== expectedToExist) {
+      failures.push(expectedToExist ? 'expected artifact to exist' : 'expected artifact to be absent')
+    }
+
+    let kind: BehavioralArtifactResult['kind']
+    let bytes: number | undefined
+    if (present) {
+      const realRoot = realpathSync(rootDir)
+      const realArtifactPath = realpathSync(artifactPath)
+      const realRelativePath = relative(realRoot, realArtifactPath)
+      if (realRelativePath === '..' || realRelativePath.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`) || isAbsolute(realRelativePath)) {
+        failures.push('artifact path resolves outside the project root')
+        return {
+          path: assertion.path,
+          expectedToExist,
+          state,
+          exists: true,
+          require: assertion.require,
+          forbid: assertion.forbid,
+          ok: false,
+          failures,
+        }
+      }
+      const stat = statSync(artifactPath)
+      kind = stat.isDirectory() ? 'directory' : 'file'
+      bytes = stat.size
+      const currentFingerprint = fingerprintArtifact(artifactPath)
+      if (state === 'created' && snapshot.exists) {
+        failures.push('expected artifact to be created by the runner, but it existed before execution')
+      }
+      if (state === 'changed' && snapshot.exists && snapshot.fingerprint === currentFingerprint) {
+        failures.push('expected artifact to change during runner execution')
+      }
+      if ((assertion.require?.length || assertion.forbid?.length) && !stat.isFile()) {
+        failures.push('text assertions require a file artifact')
+      } else if (stat.isFile()) {
+        const content = readFileSync(artifactPath, 'utf-8')
+        for (const required of assertion.require ?? []) {
+          if (!includesNeedle(content, required)) failures.push(`missing required text: ${required}`)
+        }
+        for (const forbidden of assertion.forbid ?? []) {
+          if (includesNeedle(content, forbidden)) failures.push(`matched forbidden text: ${forbidden}`)
+        }
+      }
+    }
+
+    return {
+      path: assertion.path,
+      expectedToExist,
+      state,
+      exists: present,
+      kind,
+      bytes,
+      require: assertion.require,
+      forbid: assertion.forbid,
+      ok: failures.length === 0,
+      failures,
+    }
+    } catch (error) {
+      failures.push(`artifact evaluation failed: ${error instanceof Error ? error.message : String(error)}`)
+      return {
+        path: assertion.path,
+        expectedToExist,
+        state,
+        exists: false,
+        require: assertion.require,
+        forbid: assertion.forbid,
+        ok: false,
+        failures,
+      }
+    }
+  })
+}
+
+function snapshotArtifactAssertions(
+  rootDir: string,
+  assertions: BehavioralArtifactAssertion[],
+): BehavioralArtifactSnapshot[] {
+  return assertions.map((assertion) => {
+    try {
+      if (!assertion.path.trim() || isAbsolute(assertion.path)) return { exists: false }
+      const artifactPath = resolve(rootDir, assertion.path)
+      if (!existsSync(artifactPath)) return { exists: false }
+      const realRoot = realpathSync(rootDir)
+      const realArtifactPath = realpathSync(artifactPath)
+      const realRelativePath = relative(realRoot, realArtifactPath)
+      if (realRelativePath === '..' || realRelativePath.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`) || isAbsolute(realRelativePath)) {
+        return { exists: true, error: 'artifact path resolves outside the project root' }
+      }
+      return { exists: true, fingerprint: fingerprintArtifact(artifactPath) }
+    } catch (error) {
+      return { exists: false, error: `artifact preflight failed: ${error instanceof Error ? error.message : String(error)}` }
+    }
+  })
+}
+
+function fingerprintArtifact(path: string): string {
+  const stat = statSync(path)
+  if (stat.isFile()) {
+    return `file:${createHash('sha256').update(readFileSync(path)).digest('hex')}`
+  }
+  return `directory:${stat.size}:${stat.mtimeMs}`
 }
 
 async function buildBehavioralCommand(

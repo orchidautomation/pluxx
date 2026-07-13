@@ -45,4 +45,48 @@ describe('workspace mutation lock', () => {
       rmSync(root, { recursive: true, force: true })
     }
   })
+
+  it('recovers a lock owned by an exited process', async () => {
+    const root = mkdtempSync(resolve(tmpdir(), 'pluxx-mutation-lock-'))
+    const lockPath = resolve(root, '.pluxx', 'mutation.lock')
+    mkdirSync(resolve(root, '.pluxx'), { recursive: true })
+    const child = Bun.spawn(['/bin/sh', '-c', 'exit 0'])
+    await child.exited
+    writeFileSync(lockPath, `${JSON.stringify({ pid: child.pid, createdAt: new Date().toISOString() })}\n`)
+    try {
+      await expect(withWorkspaceMutationLock(root, async () => 'recovered')).resolves.toBe('recovered')
+      expect(readdirSync(resolve(root, '.pluxx')).filter((entry) => entry === 'mutation.lock')).toEqual([])
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('serializes stale-lock recovery so only one contender mutates', async () => {
+    const root = mkdtempSync(resolve(tmpdir(), 'pluxx-mutation-lock-'))
+    const lockPath = resolve(root, '.pluxx', 'mutation.lock')
+    mkdirSync(resolve(root, '.pluxx'), { recursive: true })
+    writeFileSync(lockPath, `${JSON.stringify({ pid: 2_147_483_647, createdAt: new Date().toISOString() })}\n`)
+    let entered = 0
+    let release!: () => void
+    let signalEntered!: () => void
+    const held = new Promise<void>((resolvePromise) => { release = resolvePromise })
+    const firstEntered = new Promise<void>((resolvePromise) => { signalEntered = resolvePromise })
+    const task = () => withWorkspaceMutationLock(root, async () => {
+      entered += 1
+      signalEntered()
+      await held
+    })
+    try {
+      const settled = Promise.allSettled([task(), task()])
+      await firstEntered
+      expect(entered).toBe(1)
+      release()
+      const results = await settled
+      expect(results.filter((result) => result.status === 'fulfilled')).toHaveLength(1)
+      expect(results.filter((result) => result.status === 'rejected')).toHaveLength(1)
+    } finally {
+      release()
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
 })

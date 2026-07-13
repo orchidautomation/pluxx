@@ -123,13 +123,46 @@ describe('autopilot command', () => {
     const projectFile = resolve(dir, 'project.txt')
 
     try {
+      writeFileSync(resolve(dir, '.gitignore'), 'existing-rule\n')
       writeFileSync(projectFile, 'before autopilot\n')
-      const checkpoint = await createDurableCheckpoint(dir, 'initial')
+      mkdirSync(resolve(dir, '.pluxx', 'agent'), { recursive: true })
+      writeFileSync(resolve(dir, '.pluxx', 'agent', 'taxonomy-run-result.json'), 'preexisting result\n')
+      const checkpoint = await createDurableCheckpoint(dir, 'initial', { includeAgentResults: true })
       writeFileSync(projectFile, 'after autopilot\n')
-      mkdirSync(resolve(dir, '.pluxx'), { recursive: true })
+      writeFileSync(resolve(dir, '.pluxx', 'agent', 'taxonomy-run-result.json'), 'current result\n')
+      writeFileSync(resolve(dir, '.pluxx', 'agent', 'instructions-run-result.json'), 'new result\n')
       writeFileSync(resolve(dir, '.pluxx/autopilot-state.json'), JSON.stringify({
         version: 1,
+        behaviorFingerprint: 'fingerprint',
+        source: 'unreachable-source',
+        runner: 'claude',
+        mode: 'standard',
+        behavior: {
+          source: 'unreachable-source',
+          runner: 'claude',
+          mode: 'standard',
+          pluginName: 'fixture',
+          displayName: 'Fixture',
+          authorName: '',
+          targets: ['codex'],
+          installTargets: [],
+          grouping: 'workflow',
+          requestedHookMode: 'none',
+          runtimeAuthMode: 'inline',
+          oauthWrapper: false,
+          approveMcpTools: false,
+          contextPaths: [],
+          reviewRequested: false,
+          verify: true,
+          installRequested: false,
+          trustRequested: false,
+          behavioralRequested: false,
+        },
         initialCheckpoint: checkpoint.directory,
+        latestCheckpoint: checkpoint.directory,
+        completedStages: [],
+        checkpoints: {},
+        updatedAt: new Date().toISOString(),
       }))
 
       const proc = spawnCli(['autopilot', '--rollback', '--json'], dir)
@@ -141,6 +174,11 @@ describe('autopilot command', () => {
       expect(stderr).toBe('')
       expect(JSON.parse(stdout)).toEqual(expect.objectContaining({ ok: true, rolledBack: true }))
       expect(readFileSync(projectFile, 'utf-8')).toBe('before autopilot\n')
+      expect(readFileSync(resolve(dir, '.gitignore'), 'utf-8')).toBe('existing-rule\n')
+      expect(existsSync(resolve(dir, '.pluxx', ['autopilot', 'state.json'].join('-')))).toBe(false)
+      expect(existsSync(resolve(dir, '.pluxx', 'checkpoints'))).toBe(false)
+      expect(readFileSync(resolve(dir, '.pluxx', 'agent', 'taxonomy-run-result.json'), 'utf-8')).toBe('preexisting result\n')
+      expect(existsSync(resolve(dir, '.pluxx', 'agent', 'instructions-run-result.json'))).toBe(false)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
@@ -199,12 +237,20 @@ describe('autopilot command', () => {
       const summary = JSON.parse(stdout) as {
         baseline?: { doctor: { ok: boolean }; test: { ok: boolean } }
         failureStage?: string
-        agent: { taxonomy: { runnerExitCode?: number }; instructions: { runnerExitCode?: number }; review?: { runnerExitCode?: number } }
+        agent: {
+          taxonomy: { runnerExitCode?: number; runnerOutput?: { artifactPath: string; truncated: boolean } }
+          instructions: { runnerExitCode?: number }
+          review?: { runnerExitCode?: number }
+        }
       }
       expect(summary.baseline?.doctor.ok).toBe(true)
       expect(summary.baseline?.test.ok).toBe(true)
       expect(summary.failureStage).toBe('runner')
       expect(summary.agent.taxonomy.runnerExitCode).toBe(17)
+      expect(summary.agent.taxonomy.runnerOutput).toEqual(expect.objectContaining({
+        artifactPath: '.pluxx/agent/taxonomy-run-result.json',
+        truncated: false,
+      }))
       expect(summary.agent.instructions.runnerExitCode).toBeUndefined()
       expect(summary.agent.review?.runnerExitCode).toBeUndefined()
       expect(readFileSync(countPath, 'utf-8').trim().split('\n')).toHaveLength(1)
@@ -218,6 +264,9 @@ describe('autopilot command', () => {
       expect(state.completedStages).not.toContain('taxonomy')
       expect(state.behaviorFingerprint).toMatch(/^[a-f0-9]{64}$/)
       expect(readFileSync(resolve(dir, '.gitignore'), 'utf-8')).toContain('.pluxx/autopilot-state.json')
+      expect(readFileSync(resolve(dir, '.gitignore'), 'utf-8')).toContain('.pluxx/agent/*-run-result.json')
+      expect(existsSync(resolve(dir, '.pluxx/transactions'))).toBe(false)
+      rmSync(stubServerPath, { force: true })
     } finally {
       rmSync(countPath, { force: true })
       rmSync(dir, { recursive: true, force: true })
@@ -292,10 +341,58 @@ exit 0
       expect(state.completedStages).not.toContain('verification')
       expect(existsSync(resolve(dir, '.pluxx/agent/review-result.json'))).toBe(true)
       expect(existsSync(resolve(dir, '.pluxx/agent/review-run-result.json'))).toBe(true)
+      const gitignore = readFileSync(resolve(dir, '.gitignore'), 'utf-8')
+      expect(gitignore).toContain('.pluxx/agent/*-run-result.json')
+      expect(gitignore).toContain('.pluxx/agent/review-result.json')
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  it('reports the stable verification discriminator and restores baseline after post-agent verification fails', async () => {
+    const { dir, statePath, stubServerPath } = createStubServerFixture()
+    const binDir = resolve(dir, '.bin')
+    const runnerPath = resolve(binDir, 'claude')
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(runnerPath, `#!/bin/sh
+case "$*" in
+*instructions-prompt.md*)
+  perl -0pi -e 's#<!-- pluxx:generated:start -->.*?<!-- pluxx:generated:end -->#<!-- pluxx:generated:start -->\\ninvalid instructions\\n<!-- pluxx:generated:end -->#s' INSTRUCTIONS.md
+  ;;
+esac
+echo PLUXX_REVIEW_RESULT_START
+echo '{"findings":[]}'
+echo PLUXX_REVIEW_RESULT_END
+exit 0
+`)
+    chmodSync(runnerPath, 0o755)
+    try {
+      const proc = spawnCli([
+        'autopilot', '--from-mcp', `bun ${stubServerPath} ${statePath}`,
+        '--runner', 'claude', '--mode', 'thorough', '--name', 'stub-server',
+        '--display-name', 'Stub Server', '--json',
+      ], dir, {
+        PATH: `${binDir}:${Reflect.get(process, 'env').PATH ?? ''}`,
+      })
+      const stdout = await new Response(proc.stdout).text()
+      expect(await proc.exited).toBe(1)
+      const summary = JSON.parse(stdout) as {
+        failureStage?: string
+        failurePhase?: string
+        verification?: { ok: boolean }
+      }
+      expect(summary.failureStage).toBe('verification')
+      expect(summary.failurePhase).toBe('post-agent-verification')
+      expect(summary.verification?.ok).toBe(false)
+      const state = JSON.parse(readFileSync(resolve(dir, '.pluxx/autopilot-state.json'), 'utf-8')) as {
+        completedStages: string[]
+      }
+      expect(state.completedStages).toEqual(['baseline'])
+      expect(readFileSync(resolve(dir, 'INSTRUCTIONS.md'), 'utf-8')).not.toContain('invalid instructions')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  }, 60_000)
 
   it('resumes from the last successful pass without reapplying completed stages', async () => {
     const { dir, statePath, stubServerPath } = createStubServerFixture()
@@ -334,6 +431,7 @@ exit 0
       expect(first.exitCode).toBe(1)
       expect(JSON.parse(first.stdout).agent.taxonomy.runnerExitCode).toBe(0)
       expect(JSON.parse(first.stdout).agent.instructions.runnerExitCode).toBe(19)
+      expect(existsSync(resolve(dir, '.pluxx/transactions'))).toBe(false)
 
       const mismatchProc = spawnCli(['autopilot', '--resume', '--mode', 'quick', '--json'], dir, {
         PATH: `${binDir}:${Reflect.get(process, 'env').PATH ?? ''}`,
@@ -361,6 +459,7 @@ exit 0
       expect(summary.agent.taxonomy.runnerExitCode).toBeUndefined()
       expect(summary.agent.instructions.runnerExitCode).toBe(0)
       expect(readFileSync(countPath, 'utf-8').trim()).toBe('4')
+      expect(existsSync(resolve(dir, '.pluxx/transactions'))).toBe(false)
     } finally {
       rmSync(countPath, { force: true })
       rmSync(dir, { recursive: true, force: true })

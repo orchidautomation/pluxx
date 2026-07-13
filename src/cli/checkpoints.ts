@@ -56,6 +56,11 @@ interface IgnoreRule {
 interface WalkOptions {
   kind: CheckpointKind
   ignoreRules: IgnoreRule[]
+  includeAgentResults?: boolean
+}
+
+interface DurableCheckpointOptions {
+  includeAgentResults?: boolean
 }
 
 const ALWAYS_EXCLUDED_ROOTS = new Set(['.git', 'node_modules'])
@@ -68,10 +73,17 @@ const DURABLE_LOCAL_ONLY_NAMES = new Set([
   'autopilot-state.json',
   'mutation.lock',
 ])
+const MANAGED_RECOVERY_IGNORE_LINES = new Set([
+  `${DURABLE_CHECKPOINT_DIR}/`,
+  '.pluxx/autopilot-state.json',
+  '.pluxx/agent/*-run-result.json',
+  '.pluxx/agent/review-result.json',
+])
 
 export async function createDurableCheckpoint(
   rootDir: string,
   label?: string,
+  options: DurableCheckpointOptions = {},
 ): Promise<WorkspaceCheckpoint> {
   const root = await resolveProjectRoot(rootDir)
   const checkpointRoot = resolve(root, DURABLE_CHECKPOINT_DIR)
@@ -83,7 +95,7 @@ export async function createDurableCheckpoint(
     `${new Date().toISOString().replace(/[:.]/g, '-')}${safeLabel ? `-${safeLabel}` : ''}-${randomUUID()}`,
   )
   try {
-    const checkpoint = await createCheckpoint(root, checkpointDirectory, 'durable', label)
+    const checkpoint = await createCheckpoint(root, checkpointDirectory, 'durable', label, options)
     await assertWorkspacePathNotSymlink(root, resolve(root, '.gitignore'))
     await appendUniqueLines(resolve(root, '.gitignore'), [`${DURABLE_CHECKPOINT_DIR}/`])
     return checkpoint
@@ -139,7 +151,7 @@ export async function checkpointMatchesWorkspace(
       ? Buffer.from(await readlink(safeProjectPath(root, file.path)))
       : await readFile(safeProjectPath(root, file.path))
     if (checkpoint.manifest.kind === 'durable' && file.path === '.gitignore') {
-      currentGitignoreDigest = digestContent(withoutManagedCheckpointIgnore(content))
+      currentGitignoreDigest = digestContent(withoutManagedRecoveryIgnores(content))
     }
     currentInventory.push({
       path: file.path,
@@ -154,7 +166,7 @@ export async function checkpointMatchesWorkspace(
   if (checkpoint.manifest.kind === 'durable' && checkpointGitignore) {
     const content = await readFile(payloadPath(checkpoint.directory, checkpointGitignore.digest))
     assertPayloadDigest(content, checkpointGitignore)
-    checkpointGitignoreDigest = digestContent(withoutManagedCheckpointIgnore(content))
+    checkpointGitignoreDigest = digestContent(withoutManagedRecoveryIgnores(content))
   }
   if (currentGitignoreDigest !== checkpointGitignoreDigest) return false
   const comparable = (files: CheckpointFile[]) => files
@@ -164,10 +176,10 @@ export async function checkpointMatchesWorkspace(
   return JSON.stringify(comparable(currentInventory)) === JSON.stringify(comparable(checkpoint.manifest.files))
 }
 
-function withoutManagedCheckpointIgnore(content: Buffer): Buffer {
+function withoutManagedRecoveryIgnores(content: Buffer): Buffer {
   const lines = content.toString('utf8').match(/[^\n]*\n|[^\n]+$/g) ?? []
   return Buffer.from(lines
-    .filter((line) => line.replace(/\r?\n$/, '').trim() !== `${DURABLE_CHECKPOINT_DIR}/`)
+    .filter((line) => !MANAGED_RECOVERY_IGNORE_LINES.has(line.replace(/\r?\n$/, '').trim()))
     .join(''))
 }
 
@@ -321,10 +333,11 @@ async function createCheckpoint(
   checkpointDirectory: string,
   kind: CheckpointKind,
   label?: string,
+  options: DurableCheckpointOptions = {},
 ): Promise<WorkspaceCheckpoint> {
   await mkdir(resolve(checkpointDirectory, 'payloads'), { recursive: true, mode: 0o700 })
   const ignoreRules = kind === 'durable' ? await loadIgnoreRules(root) : []
-  const files = await walkProjectFiles(root, { kind, ignoreRules })
+  const files = await walkProjectFiles(root, { kind, ignoreRules, includeAgentResults: options.includeAgentResults })
   const manifestFiles: CheckpointFile[] = []
 
   for (const file of files) {
@@ -415,7 +428,8 @@ function isExcludedPath(relativePath: string, isDirectory: boolean, options: Wal
   if (options.kind === 'durable') {
     if (DURABLE_EXCLUDED_ROOTS.has(rootName)) return true
     if (DURABLE_LOCAL_ONLY_NAMES.has(basename(normalized))) return true
-    if (normalized === '.pluxx/agent/review-result.json' || /^\.pluxx\/agent\/[^/]+-run-result\.json$/.test(normalized)) return true
+    if (!options.includeAgentResults
+      && (normalized === '.pluxx/agent/review-result.json' || /^\.pluxx\/agent\/[^/]+-run-result\.json$/.test(normalized))) return true
     if (matchesIgnoreRules(normalized, isDirectory, options.ignoreRules)) return true
   }
   return false

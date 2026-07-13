@@ -14,6 +14,8 @@ Raw MCP access is usually not enough. Most products still need workflow grouping
 
 ## Current Proof
 
+Proof claims are tiered and freshness-checked. See [Proof freshness and evidence tiers](./docs/proof-freshness.md) and the machine-readable [proof manifest](./docs/proof-manifest.json); April/May host runs remain available as explicitly historical evidence.
+
 If you want the fastest way to see what is already real, start with these:
 
 - [Release distribution proof map](./docs/release-distribution-proof-map.md)
@@ -191,6 +193,11 @@ Need deterministic MCP replay?
   pluxx mcp proxy --from-mcp <source> --record tape.json
   pluxx mcp proxy --replay tape.json
 
+  Recordings use a versioned schema and recursively redact common credential
+  keys plus source and URL credentials by default. Raw recording is not
+  supported. Review tapes before sharing because arbitrary private tool
+  content may not look like a credential.
+
 Need to refresh from the MCP later?
   pluxx sync
 ```
@@ -203,10 +210,10 @@ Full docs tree:
 
 Pluxx includes more than scaffold generation:
 
-- `pluxx eval` checks scaffold and prompt-pack quality
+- `pluxx eval` reports deterministic scaffold contracts separately from an evidence-bearing semantic rubric for tool coverage, routing, taxonomy, examples, arguments, delegation, setup truth, and cross-file consistency; projects can set warning/failure thresholds with `eval.warningThreshold` and `eval.failureThreshold`
 - `pluxx migrate <path>` imports an existing host-native plugin into a Pluxx project
 - `pluxx doctor --consumer <bundle>` inspects built or installed plugin bundles from the user side
-- `pluxx mcp proxy --record` and `--replay` give you deterministic MCP tapes for debugging and CI
+- `pluxx mcp proxy --record` and `--replay` give you strictly validated, default-redacted deterministic MCP tapes for debugging and CI
 
 ## Authoring Model
 

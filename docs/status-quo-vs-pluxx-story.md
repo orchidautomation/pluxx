@@ -290,6 +290,8 @@ It answers questions like:
 - do the instructions explain the product clearly?
 - did the migration preserve the important behavior?
 
+The evaluator reports exact scaffold contracts separately from semantic quality. Its deterministic rubric records evidence for tool coverage, routing, taxonomy coherence, realistic examples, arguments, delegation, setup truth, and cross-file consistency, then applies project-configured warning and failure thresholds.
+
 This is the difference between:
 
 - "the plugin exists"

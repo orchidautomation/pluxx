@@ -35,6 +35,7 @@ import {
 } from '../../hook-translation-registry'
 import { buildHookCommandWrapperScript } from '../../hook-command-env'
 import { getCanonicalSkillMetadata, readCanonicalSkillFiles } from '../../skills'
+import { getSkillTranslationSummary } from '../../skill-translation-registry'
 import { getNativeCodexMcpEntryOverride } from '../../mcp-native-overrides'
 import { warnDroppedHookFields } from '../hooks-warning'
 
@@ -482,6 +483,7 @@ export class CodexGenerator extends Generator {
         return {
           id: metadata.dirName,
           title: metadata.title,
+          translation: getSkillTranslationSummary('codex', skill.frontmatterNodes.keys()),
           ...(metadata.description ? { description: metadata.description } : {}),
           ...(metadata.whenToUse ? { whenToUse: metadata.whenToUse } : {}),
           ...(metadata.argumentHint ? { argumentHint: metadata.argumentHint } : {}),

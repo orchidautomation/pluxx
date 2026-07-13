@@ -77,8 +77,8 @@ export interface PublishPlan {
 export interface PublishRunResult extends PublishPlan {
   ok: boolean
   execution?: {
-    npm?: { ok: boolean; detail?: string }
-    githubRelease?: { ok: boolean; detail?: string }
+    npm?: { ok: boolean; action: 'published' | 'already-published' | 'failed'; verified: boolean; detail?: string }
+    githubRelease?: { ok: boolean; action: 'created' | 'reconciled' | 'failed'; verified: boolean; detail?: string }
   }
 }
 
@@ -89,6 +89,13 @@ interface ReleaseArtifactContext {
   builtTargets: TargetPlatform[]
   installerTargets: Array<typeof INSTALLER_TARGETS[number]>
   assetBaseURL: string
+}
+
+interface PreparedNpmArtifact {
+  tempRoot: string
+  filepath?: string
+  integrity?: string
+  error?: string
 }
 
 const INSTALLER_TARGETS = ['claude-code', 'cursor', 'codex', 'opencode'] as const satisfies readonly TargetPlatform[]
@@ -104,6 +111,14 @@ function runCommandDefault(command: string, args: string[], options?: { cwd?: st
     stdout: result.stdout ?? '',
     stderr: result.stderr ?? '',
   }
+}
+
+function isRemoteNotFound(result: CommandResult, channel: PublishChannel): boolean {
+  if (result.status === 0) return false
+  const detail = `${result.stderr}\n${result.stdout}`.toLowerCase()
+  return channel === 'npm'
+    ? detail.includes('e404') || detail.includes('404 not found') || detail.includes('is not in this registry')
+    : detail.includes('release not found') || detail.includes('http 404') || detail.trim() === 'missing'
 }
 
 function isTargetNpmBacked(platform: TargetPlatform): boolean {
@@ -132,6 +147,10 @@ function getBuiltTargets(rootDir: string, config: PluginConfig): TargetPlatform[
   return config.targets.filter((platform) =>
     existsSync(resolve(rootDir, config.outDir, platform)),
   )
+}
+
+function getPublishableBuiltTargets(rootDir: string, config: PluginConfig): TargetPlatform[] {
+  return getBuiltTargets(rootDir, config).filter(isInstallerTarget)
 }
 
 function getArchiveAssetName(pluginName: string, platform: TargetPlatform, version: string, variant: ReleaseArchiveVariant): string {
@@ -202,7 +221,7 @@ function buildReleaseAssets(rootDir: string, config: PluginConfig, version: stri
   return assets
 }
 
-function readNpmPackageName(rootDir: string, config: PluginConfig): { packageName?: string; packageDir?: string } {
+function readNpmPackageIdentity(rootDir: string, config: PluginConfig): { packageName?: string; packageVersion?: string; packageDir?: string } {
   const packageDir = resolve(rootDir, config.outDir, 'opencode')
   const packageJsonPath = resolve(packageDir, 'package.json')
   if (!existsSync(packageJsonPath)) {
@@ -210,15 +229,38 @@ function readNpmPackageName(rootDir: string, config: PluginConfig): { packageNam
   }
 
   try {
-    const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf-8')) as { name?: string }
+    const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf-8')) as { name?: string; version?: string }
     return {
       packageName: pkg.name,
+      packageVersion: pkg.version,
       packageDir,
     }
   } catch {
     return {
       packageDir,
     }
+  }
+}
+
+function readBuiltTargetVersion(rootDir: string, config: PluginConfig, platform: TargetPlatform): string | undefined {
+  const relativePath = platform === 'claude-code'
+    ? '.claude-plugin/plugin.json'
+    : platform === 'cursor'
+      ? '.cursor-plugin/plugin.json'
+      : platform === 'codex'
+        ? '.codex-plugin/plugin.json'
+        : platform === 'opencode'
+          ? 'package.json'
+          : undefined
+  if (!relativePath) return undefined
+
+  const filepath = resolve(rootDir, config.outDir, platform, relativePath)
+  if (!existsSync(filepath)) return undefined
+  try {
+    const payload = JSON.parse(readFileSync(filepath, 'utf-8')) as { version?: unknown }
+    return typeof payload.version === 'string' ? payload.version : undefined
+  } catch {
+    return undefined
   }
 }
 
@@ -260,10 +302,30 @@ function collectChecks(args: {
   allowDirty: boolean
   packageDir?: string
   packageName?: string
+  packageVersion?: string
   githubRepo?: string
+  publishVersion: string
   runCommand: CommandRunner
 }): PublishCheck[] {
-  const builtTargets = getBuiltTargets(args.rootDir, args.config)
+  const builtTargets = getPublishableBuiltTargets(args.rootDir, args.config)
+  const identityMismatches = [
+    ...(/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(args.publishVersion)
+      ? []
+      : [`requested version is not valid semantic version: ${args.publishVersion}`]),
+    ...(args.publishVersion === args.config.version
+      ? []
+      : [`requested ${args.publishVersion} != source config ${args.config.version}`]),
+    ...builtTargets.flatMap((platform) => {
+      const builtVersion = readBuiltTargetVersion(args.rootDir, args.config, platform)
+      if (!builtVersion) return [`${platform} built identity is missing or unreadable`]
+      return builtVersion !== args.publishVersion ? [`${platform} ${builtVersion} != requested ${args.publishVersion}`] : []
+    }),
+    ...(args.npmEnabled && !args.packageVersion
+      ? ['npm package version is missing or unreadable']
+      : args.packageVersion && args.packageVersion !== args.publishVersion
+        ? [`npm package ${args.packageVersion} != requested ${args.publishVersion}`]
+        : []),
+  ]
   const checks: PublishCheck[] = [
     {
       name: 'artifacts-exist',
@@ -272,6 +334,14 @@ function collectChecks(args: {
       detail: builtTargets.length > 0
         ? `Built targets: ${builtTargets.join(', ')}`
         : `No built platform outputs found in ${args.config.outDir}/`,
+    },
+    {
+      name: 'release-identity',
+      ok: identityMismatches.length === 0,
+      code: 'release-identity',
+      detail: identityMismatches.length === 0
+        ? `Source and built release identities agree on ${args.publishVersion}.`
+        : identityMismatches.join('; '),
     },
   ]
 
@@ -336,7 +406,7 @@ function collectChecks(args: {
 export function planPublish(config: PluginConfig, options: PublishPlanOptions = {}): PublishPlan {
   const rootDir = options.rootDir ?? process.cwd()
   const runCommand = options.runCommand ?? runCommandDefault
-  const builtTargets = getBuiltTargets(rootDir, config)
+  const builtTargets = getPublishableBuiltTargets(rootDir, config)
   const { requested, explicit } = resolveRequestedChannels(options)
   const defaultNpm = builtTargets.some(isTargetNpmBacked)
   const defaultGithubRelease = builtTargets.length > 0
@@ -344,7 +414,7 @@ export function planPublish(config: PluginConfig, options: PublishPlanOptions = 
   const githubReleaseEnabled = explicit.githubRelease ? true : (requested.size === 0 ? defaultGithubRelease : false)
   const version = options.version ?? config.version
   const tag = options.tag ?? 'latest'
-  const { packageDir, packageName } = readNpmPackageName(rootDir, config)
+  const { packageDir, packageName, packageVersion } = readNpmPackageIdentity(rootDir, config)
   const githubRepo = githubReleaseEnabled
     ? resolveGithubRepo(rootDir, config, runCommand)
     : undefined
@@ -356,7 +426,9 @@ export function planPublish(config: PluginConfig, options: PublishPlanOptions = 
     allowDirty: options.allowDirty ?? false,
     packageDir,
     packageName,
+    packageVersion,
     githubRepo,
+    publishVersion: version,
     runCommand,
   })
 
@@ -414,7 +486,7 @@ function buildReleaseManifest(config: PluginConfig, context: ReleaseArtifactCont
     platform,
     script: getInstallerScriptName(platform),
     url: `${context.assetBaseURL}/${getInstallerScriptName(platform)}`,
-    command: `curl -fsSL ${context.assetBaseURL}/${getInstallerScriptName(platform)} | bash`,
+    command: `curl -fsSL --connect-timeout 10 --max-time 120 --retry 3 --retry-all-errors --retry-delay 1 ${context.assetBaseURL}/${getInstallerScriptName(platform)} | bash`,
   }))
 
   const manifest = {
@@ -441,14 +513,14 @@ function buildReleaseManifest(config: PluginConfig, context: ReleaseArtifactCont
         ? {
             script: 'install.sh',
             url: `${context.assetBaseURL}/install.sh`,
-            command: `bash <(curl -fsSL ${context.assetBaseURL}/install.sh) --agents -y`,
+            command: `bash <(curl -fsSL --connect-timeout 10 --max-time 120 --retry 3 --retry-all-errors --retry-delay 1 ${context.assetBaseURL}/install.sh) --agents -y`,
           }
         : undefined,
       installAll: installers.length > 0
         ? {
             script: 'install-all.sh',
             url: `${context.assetBaseURL}/install-all.sh`,
-            command: `curl -fsSL ${context.assetBaseURL}/install-all.sh | bash`,
+            command: `curl -fsSL --connect-timeout 10 --max-time 120 --retry 3 --retry-all-errors --retry-delay 1 ${context.assetBaseURL}/install-all.sh | bash`,
           }
         : undefined,
       checksums: 'SHA256SUMS.txt',
@@ -459,7 +531,6 @@ function buildReleaseManifest(config: PluginConfig, context: ReleaseArtifactCont
 }
 
 function renderInstallAllScript(installerTargets: Array<typeof INSTALLER_TARGETS[number]>): string {
-  const scriptNames = installerTargets.map((platform) => getInstallerScriptName(platform))
   return `#!/usr/bin/env bash
 set -euo pipefail
 
@@ -470,14 +541,31 @@ cleanup() {
 }
 trap cleanup EXIT
 
-for script in ${scriptNames.map((name) => `"${name}"`).join(' ')}; do
-  curl -fsSL "https://github.com/\${REPO}/releases/latest/download/\${script}" -o "$TMP_DIR/\${script}"
-  chmod +x "$TMP_DIR/\${script}"
-  "$TMP_DIR/\${script}"
-done
+BASE_URL="\${PLUXX_RELEASE_BASE_URL:-https://github.com/\${REPO}/releases/latest/download}"
+curl -fsSL --connect-timeout 10 --max-time 120 --retry 3 --retry-all-errors --retry-delay 1 "$BASE_URL/release-manifest.json" -o "$TMP_DIR/release-manifest.json"
+curl -fsSL --connect-timeout 10 --max-time 120 --retry 3 --retry-all-errors --retry-delay 1 "$BASE_URL/SHA256SUMS.txt" -o "$TMP_DIR/SHA256SUMS.txt"
+curl -fsSL --connect-timeout 10 --max-time 120 --retry 3 --retry-all-errors --retry-delay 1 "$BASE_URL/install.sh" -o "$TMP_DIR/install.sh"
 
-echo
-echo "Installed __DISPLAY_NAME__ across ${installerTargets.join(', ')}."
+PLUXX_VERIFY_ROOT="$TMP_DIR" PLUXX_VERIFY_SUMS="$TMP_DIR/SHA256SUMS.txt" PLUXX_EXPECTED_PLUGIN="PLUGIN_PLACEHOLDER" node <<'NODE'
+const crypto = require('crypto')
+const fs = require('fs')
+const path = require('path')
+const entries = fs.readFileSync(process.env.PLUXX_VERIFY_SUMS, 'utf8')
+  .split(/\\r?\\n/)
+  .map((line) => line.match(/^([a-f0-9]{64})  (.+)$/))
+for (const name of ['release-manifest.json', 'install.sh']) {
+  const match = entries.find((entry) => entry && entry[2] === name)
+  if (!match) throw new Error('Release checksum inventory does not include ' + name)
+  const actual = crypto.createHash('sha256').update(fs.readFileSync(path.join(process.env.PLUXX_VERIFY_ROOT, name))).digest('hex')
+  if (actual !== match[1]) throw new Error('Checksum mismatch for ' + name)
+}
+const manifest = JSON.parse(fs.readFileSync(path.join(process.env.PLUXX_VERIFY_ROOT, 'release-manifest.json'), 'utf8'))
+if (manifest.version !== 1 || manifest.plugin?.name !== process.env.PLUXX_EXPECTED_PLUGIN) {
+  throw new Error('Release manifest identity mismatch')
+}
+NODE
+
+bash "$TMP_DIR/install.sh" --agents "$@"
 `.replaceAll('__REPO__', 'REPO_PLACEHOLDER').replaceAll('__DISPLAY_NAME__', 'DISPLAY_PLACEHOLDER')
 }
 
@@ -497,7 +585,7 @@ usage() {
 Install DISPLAY_PLACEHOLDER release assets.
 
 Usage:
-  bash <(curl -fsSL https://github.com/REPO_PLACEHOLDER/releases/latest/download/install.sh) --agents -y
+  bash <(curl -fsSL --connect-timeout 10 --max-time 120 --retry 3 --retry-all-errors --retry-delay 1 https://github.com/REPO_PLACEHOLDER/releases/latest/download/install.sh) --agents -y
 
 Options:
   --agents, --all       Install supported agent plugin bundles.
@@ -580,6 +668,7 @@ done
 need_cmd curl
 need_cmd mktemp
 need_cmd bash
+need_cmd node
 
 if [ -z "$base_url" ]; then
   if [ "$version" = "latest" ]; then
@@ -604,6 +693,7 @@ if [ "$yes" = "1" ]; then
   export PLUXX_CODEX_ENABLE_PLUGIN_HOOKS="\${PLUXX_CODEX_ENABLE_PLUGIN_HOOKS:-1}"
 fi
 export PLUXX_PLUGIN_VERSION="$version"
+export PLUXX_RELEASE_BASE_URL="$base_url"
 
 tmp_dir="$(mktemp -d)"
 cleanup() {
@@ -611,20 +701,51 @@ cleanup() {
 }
 trap cleanup EXIT
 
+release_manifest="$tmp_dir/release-manifest.json"
+release_checksums="$tmp_dir/SHA256SUMS.txt"
+curl -fsSL --connect-timeout 10 --max-time 120 --retry 3 --retry-all-errors --retry-delay 1 "$base_url/release-manifest.json" -o "$release_manifest"
+curl -fsSL --connect-timeout 10 --max-time 120 --retry 3 --retry-all-errors --retry-delay 1 "$base_url/SHA256SUMS.txt" -o "$release_checksums"
+
+verify_release_asset() {
+  local filepath="$1"
+  local asset_name="$2"
+  PLUXX_VERIFY_FILE="$filepath" PLUXX_VERIFY_NAME="$asset_name" PLUXX_VERIFY_SUMS="$release_checksums" node <<'NODE'
+const crypto = require('crypto')
+const fs = require('fs')
+const filepath = process.env.PLUXX_VERIFY_FILE
+const name = process.env.PLUXX_VERIFY_NAME
+const match = fs.readFileSync(process.env.PLUXX_VERIFY_SUMS, 'utf8')
+  .split(/\\r?\\n/)
+  .map((line) => line.match(/^([a-f0-9]{64})  (.+)$/))
+  .find((entry) => entry && entry[2] === name)
+if (!match) throw new Error('Release checksum inventory does not include ' + name)
+const actual = crypto.createHash('sha256').update(fs.readFileSync(filepath)).digest('hex')
+if (actual !== match[1]) throw new Error('Checksum mismatch for ' + name)
+NODE
+}
+
+verify_release_asset "$release_manifest" "release-manifest.json"
+PLUXX_RELEASE_MANIFEST="$release_manifest" PLUXX_EXPECTED_PLUGIN="PLUGIN_PLACEHOLDER" PLUXX_REQUESTED_VERSION="$version" node <<'NODE'
+const fs = require('fs')
+const manifest = JSON.parse(fs.readFileSync(process.env.PLUXX_RELEASE_MANIFEST, 'utf8'))
+if (manifest.version !== 1 || manifest.plugin?.name !== process.env.PLUXX_EXPECTED_PLUGIN) {
+  throw new Error('Release manifest identity mismatch')
+}
+const requested = process.env.PLUXX_REQUESTED_VERSION
+if (requested !== 'latest' && manifest.plugin?.version !== requested.replace(/^v/, '')) {
+  throw new Error('Release manifest version does not match requested version')
+}
+NODE
+
 run_installer() {
   local target="$1"
   local installer="$tmp_dir/install-$target.sh"
   local url="$base_url/install-$target.sh"
-  local installer_args=()
 
   if [ "$agents" = "1" ] && [ "$target" = "claude-code" ] && ! command -v claude >/dev/null 2>&1; then
     echo "Skipping Claude Code bundle because the claude CLI is not available on PATH." >&2
     echo "Run with --claude-code to require Claude Code installation and fail if prerequisites are missing." >&2
     return 0
-  fi
-
-  if [ "$yes" = "1" ]; then
-    installer_args+=(--yes)
   fi
 
   case "$target" in
@@ -647,9 +768,14 @@ run_installer() {
   esac
 
   echo "Installing DISPLAY_PLACEHOLDER for $target..."
-  curl -fsSL "$url" -o "$installer"
+  curl -fsSL --connect-timeout 10 --max-time 120 --retry 3 --retry-all-errors --retry-delay 1 "$url" -o "$installer"
+  verify_release_asset "$installer" "install-$target.sh"
   chmod +x "$installer"
-  bash "$installer" "\${installer_args[@]}"
+  if [ "$yes" = "1" ]; then
+    bash "$installer" --yes
+  else
+    bash "$installer"
+  fi
 }
 
 for target in "\${targets[@]}"; do
@@ -1015,17 +1141,19 @@ export PLUXX_SAVED_USER_CONFIG_PATH
 `
 }
 
-function renderInstallerMcpPathMaterializationSnippet(platform: TargetPlatform, installDirVariable: string): string {
+function renderInstallerMcpPathMaterializationSnippet(platform: TargetPlatform, installDirVariable: string, runtimeRootVariable = installDirVariable): string {
   if (platform !== 'codex') return ''
 
   return `
 export PLUXX_INSTALL_DIR="${installDirVariable}"
+export PLUXX_RUNTIME_ROOT="${runtimeRootVariable}"
 
 node <<'NODE'
 const fs = require('fs')
 const path = require('path')
 
 const installDir = process.env.PLUXX_INSTALL_DIR
+const runtimeRoot = process.env.PLUXX_RUNTIME_ROOT || installDir
 
 if (installDir) {
   const materializeInstalledStdioPath = (value) => {
@@ -1035,11 +1163,11 @@ if (installDir) {
     const rootRef = normalized.match(/^\\$\\{(?:CLAUDE_PLUGIN_ROOT|CURSOR_PLUGIN_ROOT|PLUGIN_ROOT)\\}[\\\\/](.+)$/)
 
     if (rootRef) {
-      return path.resolve(installDir, rootRef[1])
+      return path.resolve(runtimeRoot, rootRef[1])
     }
 
     if (normalized.startsWith('./') || normalized.startsWith('../')) {
-      return path.resolve(installDir, normalized)
+      return path.resolve(runtimeRoot, normalized)
     }
 
     return value
@@ -1245,6 +1373,7 @@ function renderInstallerCodexPluginHooksSnippet(installDirVariable: string): str
   return `
 export PLUXX_INSTALL_DIR="${installDirVariable}"
 
+trap - ERR
 set +e
 node <<'NODE'
 const fs = require('fs')
@@ -1272,6 +1401,7 @@ process.exit(hasPluginHooks ? 0 : 2)
 NODE
 PLUXX_CODEX_BUNDLE_HAS_HOOKS="$?"
 set -e
+trap rollback_install ERR
 
 if [[ "$PLUXX_CODEX_BUNDLE_HAS_HOOKS" == "0" ]]; then
   CODEX_HOME_DIR="\${CODEX_HOME:-$HOME/.codex}"
@@ -1483,20 +1613,338 @@ fi
 `
 }
 
+function renderReleaseAssetVerificationSnippet(args: {
+  archiveVariable: string
+  bundlePathVariable: string
+  expectedArchiveName: string
+  expectedPlatform: TargetPlatform
+}): string {
+  return `
+RELEASE_BASE_URL="\${PLUXX_RELEASE_BASE_URL:-https://github.com/\${REPO}/releases/download/vVERSION_PLACEHOLDER}"
+RELEASE_MANIFEST_PATH="\${PLUXX_RELEASE_MANIFEST_PATH:-}"
+RELEASE_CHECKSUMS_PATH="\${PLUXX_RELEASE_CHECKSUMS_PATH:-}"
+
+if [[ -n "${args.bundlePathVariable}" ]]; then
+  LOCAL_RELEASE_DIR="$(dirname "${args.bundlePathVariable}")"
+  RELEASE_MANIFEST_PATH="\${RELEASE_MANIFEST_PATH:-$LOCAL_RELEASE_DIR/release-manifest.json}"
+  RELEASE_CHECKSUMS_PATH="\${RELEASE_CHECKSUMS_PATH:-$LOCAL_RELEASE_DIR/SHA256SUMS.txt}"
+fi
+
+RELEASE_MANIFEST="$TMP_DIR/release-manifest.json"
+RELEASE_CHECKSUMS="$TMP_DIR/SHA256SUMS.txt"
+
+if [[ -n "$RELEASE_MANIFEST_PATH" ]]; then
+  cp "$RELEASE_MANIFEST_PATH" "$RELEASE_MANIFEST"
+else
+  curl -fsSL --connect-timeout 10 --max-time 120 --retry 3 --retry-all-errors --retry-delay 1 "$RELEASE_BASE_URL/release-manifest.json" -o "$RELEASE_MANIFEST"
+fi
+
+if [[ -n "$RELEASE_CHECKSUMS_PATH" ]]; then
+  cp "$RELEASE_CHECKSUMS_PATH" "$RELEASE_CHECKSUMS"
+else
+  curl -fsSL --connect-timeout 10 --max-time 120 --retry 3 --retry-all-errors --retry-delay 1 "$RELEASE_BASE_URL/SHA256SUMS.txt" -o "$RELEASE_CHECKSUMS"
+fi
+
+verify_release_asset() {
+  local filepath="$1"
+  local asset_name="$2"
+  PLUXX_VERIFY_FILE="$filepath" PLUXX_VERIFY_NAME="$asset_name" PLUXX_VERIFY_SUMS="$RELEASE_CHECKSUMS" node <<'NODE'
+const crypto = require('crypto')
+const fs = require('fs')
+
+const filepath = process.env.PLUXX_VERIFY_FILE
+const assetName = process.env.PLUXX_VERIFY_NAME
+const sumsPath = process.env.PLUXX_VERIFY_SUMS
+const lines = fs.readFileSync(sumsPath, 'utf8').split(/\\r?\\n/)
+const match = lines.map((line) => line.match(/^([a-f0-9]{64})  (.+)$/)).find((entry) => entry && entry[2] === assetName)
+if (!match) throw new Error('Release checksum inventory does not include ' + assetName)
+const actual = crypto.createHash('sha256').update(fs.readFileSync(filepath)).digest('hex')
+if (actual !== match[1]) throw new Error('Checksum mismatch for ' + assetName)
+NODE
+}
+
+verify_release_asset "$RELEASE_MANIFEST" "release-manifest.json"
+verify_release_asset "${args.archiveVariable}" "${args.expectedArchiveName}"
+
+PLUXX_RELEASE_MANIFEST="$RELEASE_MANIFEST" PLUXX_EXPECTED_PLUGIN="$PLUGIN_NAME" PLUXX_EXPECTED_PLATFORM="${args.expectedPlatform}" PLUXX_EXPECTED_VERSION="VERSION_PLACEHOLDER" node <<'NODE'
+const fs = require('fs')
+const manifest = JSON.parse(fs.readFileSync(process.env.PLUXX_RELEASE_MANIFEST, 'utf8'))
+const expectedPlugin = process.env.PLUXX_EXPECTED_PLUGIN
+const expectedPlatform = process.env.PLUXX_EXPECTED_PLATFORM
+const expectedVersion = process.env.PLUXX_EXPECTED_VERSION
+if (manifest.version !== 1) throw new Error('Unsupported release manifest version')
+if (manifest.plugin?.name !== expectedPlugin) throw new Error('Release manifest plugin identity mismatch')
+if (manifest.plugin?.version !== expectedVersion) throw new Error('Release manifest version mismatch')
+const archive = manifest.assets?.archives?.find((entry) => entry.platform === expectedPlatform)
+if (!archive || archive.latestAsset !== '${args.expectedArchiveName}') {
+  throw new Error('Release manifest archive identity mismatch for ' + expectedPlatform)
+}
+NODE
+
+while IFS= read -r archive_entry; do
+  normalized="\${archive_entry#./}"
+  case "$normalized" in
+    ""|/*|..|../*|*/..|*/../*|*\\*)
+      echo "Unsafe archive path rejected: $archive_entry" >&2
+      exit 1
+      ;;
+  esac
+done < <(tar -tzf "${args.archiveVariable}")
+
+while IFS= read -r archive_detail; do
+  case "\${archive_detail:0:1}" in
+    -|d) ;;
+    *)
+      echo "Unsafe archive member type rejected: $archive_detail" >&2
+      exit 1
+      ;;
+  esac
+done < <(tar -tvzf "${args.archiveVariable}")
+`
+}
+
+function renderInstallerTransactionHelpers(platform: 'claude-code' | 'cursor' | 'codex' | 'opencode'): string {
+  return `
+PLUXX_TX_PLATFORM="${platform}"
+PLUXX_TX_STAGE=""
+PLUXX_TX_BACKUP=""
+PLUXX_TX_SWAPPED=0
+PLUXX_TX_SWAP_STARTED=0
+PLUXX_TX_COMMITTED=0
+PLUXX_TX_HAD_INSTALL=0
+PLUXX_TX_LOCK=""
+PLUXX_TX_OWNERSHIP_PATH=""
+PLUXX_TX_OWNED_ROOT=""
+PLUXX_TX_OWNED_PATHS=()
+PLUXX_TX_OWNED_BACKUPS=()
+PLUXX_TX_OWNED_EXISTED=()
+
+pluxx_tx_backup_owned_path() {
+  local owned_path="$1"
+  if [[ -z "$PLUXX_TX_OWNED_ROOT" ]]; then
+    PLUXX_TX_OWNED_ROOT="$TMP_DIR/pluxx-owned-state"
+    mkdir -p "$PLUXX_TX_OWNED_ROOT"
+  fi
+  local index="\${#PLUXX_TX_OWNED_PATHS[@]}"
+  local backup_path="$PLUXX_TX_OWNED_ROOT/$index"
+  PLUXX_TX_OWNED_PATHS+=("$owned_path")
+  PLUXX_TX_OWNED_BACKUPS+=("$backup_path")
+  if [[ -e "$owned_path" || -L "$owned_path" ]]; then
+    cp -R "$owned_path" "$backup_path"
+    PLUXX_TX_OWNED_EXISTED+=("1")
+  else
+    PLUXX_TX_OWNED_EXISTED+=("0")
+  fi
+}
+
+pluxx_tx_restore_owned_paths() {
+  local count="\${#PLUXX_TX_OWNED_PATHS[@]}"
+  local index
+  for ((index=count - 1; index>=0; index--)); do
+    local owned_path="\${PLUXX_TX_OWNED_PATHS[$index]}"
+    rm -rf "$owned_path"
+    if [[ "\${PLUXX_TX_OWNED_EXISTED[$index]}" == "1" ]]; then
+      mkdir -p "$(dirname "$owned_path")"
+      cp -R "\${PLUXX_TX_OWNED_BACKUPS[$index]}" "$owned_path"
+    fi
+  done
+}
+
+pluxx_tx_discard_owned_paths() {
+  [[ -z "$PLUXX_TX_OWNED_ROOT" ]] || rm -rf "$PLUXX_TX_OWNED_ROOT"
+  PLUXX_TX_OWNED_ROOT=""
+  PLUXX_TX_OWNED_PATHS=()
+  PLUXX_TX_OWNED_BACKUPS=()
+  PLUXX_TX_OWNED_EXISTED=()
+}
+
+pluxx_tx_cleanup() {
+  if [[ "$PLUXX_TX_COMMITTED" == "1" ]]; then
+    [[ -z "$PLUXX_TX_BACKUP" ]] || rm -rf "$PLUXX_TX_BACKUP"
+  elif [[ "$PLUXX_TX_SWAP_STARTED" == "1" ]]; then
+    if [[ "$PLUXX_TX_HAD_INSTALL" == "1" && ( -e "$PLUXX_TX_BACKUP" || -L "$PLUXX_TX_BACKUP" ) ]]; then
+      rm -rf "$INSTALL_DIR"
+      mv "$PLUXX_TX_BACKUP" "$INSTALL_DIR"
+    elif [[ "$PLUXX_TX_HAD_INSTALL" == "0" && ! -e "$PLUXX_TX_STAGE" && ! -L "$PLUXX_TX_STAGE" ]]; then
+      rm -rf "$INSTALL_DIR"
+    fi
+    pluxx_tx_restore_owned_paths
+  fi
+  [[ -z "$PLUXX_TX_STAGE" ]] || rm -rf "$PLUXX_TX_STAGE"
+  pluxx_tx_discard_owned_paths
+  [[ -z "$PLUXX_TX_LOCK" ]] || rm -rf "$PLUXX_TX_LOCK"
+}
+
+pluxx_begin_install_transaction() {
+  local bundle_dir="$1"
+  local nonce="$$-$RANDOM"
+  PLUXX_TX_STAGE="$(dirname "$INSTALL_DIR")/.$PLUGIN_NAME.pluxx-stage-$nonce"
+  PLUXX_TX_BACKUP="$(dirname "$INSTALL_DIR")/.$PLUGIN_NAME.pluxx-backup-$nonce"
+  local lock_root="\${PLUXX_INSTALL_LOCK_ROOT:-$HOME/.pluxx/install-locks}"
+  local lock_path="$lock_root/$PLUGIN_NAME-$PLUXX_TX_PLATFORM.lock"
+  mkdir -p "$lock_root"
+  trap '' HUP INT TERM
+  if ! mkdir "$lock_path"; then
+    trap 'exit 129' HUP
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    echo "Another install transaction is active for $INSTALL_DIR. If no installer is running, inspect and remove $lock_path before retrying." >&2
+    exit 1
+  fi
+  PLUXX_TX_LOCK="$lock_path"
+  trap 'exit 129' HUP
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  local ownership_path_file="$TMP_DIR/pluxx-ownership-path"
+  export INSTALL_DIR PLUGIN_NAME PLUXX_TX_PLATFORM PLUXX_TX_STAGE PLUXX_TX_BACKUP
+  export PLUXX_TX_OWNERSHIP_PATH_FILE="$ownership_path_file"
+  export PLUXX_BUNDLE_DIR="$bundle_dir"
+  node <<'NODE'
+const crypto = require('crypto')
+const fs = require('fs')
+const path = require('path')
+const installDir = process.env.INSTALL_DIR
+const pluginName = process.env.PLUGIN_NAME
+const platform = process.env.PLUXX_TX_PLATFORM
+const stage = process.env.PLUXX_TX_STAGE
+const home = path.resolve(process.env.HOME)
+const resolvedInstallDir = path.resolve(installDir)
+const conventionalRoots = [path.join('.claude', 'plugins'), path.join('.cursor', 'plugins'), path.join('.codex', 'plugins'), path.join('.config', 'opencode')].map((value) => path.join(home, value))
+const ownershipRoot = conventionalRoots.some((root) => resolvedInstallDir === root || resolvedInstallDir.startsWith(root + path.sep))
+  ? path.join(home, '.pluxx/install-ownership')
+  : path.join(path.dirname(resolvedInstallDir), '.pluxx-install-ownership')
+const ownershipPath = path.join(ownershipRoot, pluginName, platform + '.json')
+const hash = (value) => crypto.createHash('sha256').update(value).digest('hex')
+const walk = (root) => {
+  if (!fs.existsSync(root)) return []
+  const result = []
+  const visit = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const filepath = path.join(dir, entry.name)
+      const relativePath = path.relative(root, filepath).replace(/\\\\/g, '/')
+      const stats = fs.lstatSync(filepath)
+      if (stats.isSymbolicLink()) result.push({ path: relativePath, kind: 'symlink', sha256: hash(fs.readlinkSync(filepath)) })
+      else if (stats.isDirectory()) visit(filepath)
+      else if (stats.isFile()) result.push({ path: relativePath, kind: 'file', sha256: hash(fs.readFileSync(filepath)) })
+    }
+  }
+  visit(root)
+  return result
+}
+if (fs.existsSync(installDir)) {
+  if (!fs.existsSync(ownershipPath)) {
+    const legacy = walk(installDir)
+    if (!legacy.every((entry) => entry.path === '.pluxx-user.json')) {
+      throw new Error('Refusing to replace unowned install at ' + installDir + '. Move it aside or uninstall it manually, then retry.')
+    }
+  } else {
+    const record = JSON.parse(fs.readFileSync(ownershipPath, 'utf8'))
+    if (record.schema !== 'pluxx.install-ownership.v1' || record.pluginName !== pluginName || record.platform !== platform || path.resolve(record.installPath) !== path.resolve(installDir) || !Array.isArray(record.entries)) {
+      throw new Error('Invalid install ownership record: ' + ownershipPath)
+    }
+    const expected = new Map(record.entries.map((entry) => [entry.path, entry]))
+    const actual = new Map(walk(installDir).map((entry) => [entry.path, entry]))
+    for (const [entryPath, entry] of expected) {
+      const current = actual.get(entryPath)
+      if (!current || current.kind !== entry.kind || current.sha256 !== entry.sha256) throw new Error('Refusing to replace modified installed file: ' + entryPath)
+    }
+    for (const entryPath of actual.keys()) if (!expected.has(entryPath)) throw new Error('Refusing to replace unowned installed file: ' + entryPath)
+  }
+}
+fs.cpSync(process.env.PLUXX_BUNDLE_DIR, stage, { recursive: true })
+fs.writeFileSync(process.env.PLUXX_TX_OWNERSHIP_PATH_FILE, ownershipPath)
+NODE
+  PLUXX_TX_OWNERSHIP_PATH="$(<"$ownership_path_file")"
+  pluxx_tx_backup_owned_path "$PLUXX_TX_OWNERSHIP_PATH"
+}
+
+pluxx_swap_install_transaction() {
+  if [[ -e "$INSTALL_DIR" || -L "$INSTALL_DIR" ]]; then PLUXX_TX_HAD_INSTALL=1; fi
+  PLUXX_TX_SWAP_STARTED=1
+  if [[ "$PLUXX_TX_HAD_INSTALL" == "1" ]]; then mv "$INSTALL_DIR" "$PLUXX_TX_BACKUP"; fi
+  mv "$PLUXX_TX_STAGE" "$INSTALL_DIR"
+  PLUXX_TX_SWAPPED=1
+}
+
+pluxx_commit_install_transaction() {
+  export INSTALL_DIR PLUGIN_NAME PLUXX_TX_PLATFORM
+  node <<'NODE'
+const crypto = require('crypto')
+const fs = require('fs')
+const path = require('path')
+const root = path.resolve(process.env.INSTALL_DIR)
+const hash = (value) => crypto.createHash('sha256').update(value).digest('hex')
+const entries = []
+const visit = (dir) => {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+    const filepath = path.join(dir, entry.name)
+    const relativePath = path.relative(root, filepath).replace(/\\\\/g, '/')
+    const stats = fs.lstatSync(filepath)
+    if (stats.isSymbolicLink()) entries.push({ path: relativePath, kind: 'symlink', sha256: hash(fs.readlinkSync(filepath)) })
+    else if (stats.isDirectory()) visit(filepath)
+    else if (stats.isFile()) entries.push({ path: relativePath, kind: 'file', sha256: hash(fs.readFileSync(filepath)) })
+  }
+}
+visit(root)
+const home = path.resolve(process.env.HOME)
+const conventionalRoots = [path.join('.claude', 'plugins'), path.join('.cursor', 'plugins'), path.join('.codex', 'plugins'), path.join('.config', 'opencode')].map((value) => path.join(home, value))
+const ownershipRoot = conventionalRoots.some((managedRoot) => root === managedRoot || root.startsWith(managedRoot + path.sep))
+  ? path.join(home, '.pluxx/install-ownership')
+  : path.join(path.dirname(root), '.pluxx-install-ownership')
+const ownershipPath = path.join(ownershipRoot, process.env.PLUGIN_NAME, process.env.PLUXX_TX_PLATFORM + '.json')
+fs.mkdirSync(path.dirname(ownershipPath), { recursive: true })
+const temporary = ownershipPath + '.tmp-' + process.pid + '-' + crypto.randomBytes(5).toString('hex')
+fs.writeFileSync(temporary, JSON.stringify({
+  schema: 'pluxx.install-ownership.v1',
+  pluginName: process.env.PLUGIN_NAME,
+  platform: process.env.PLUXX_TX_PLATFORM,
+  installPath: root,
+  kind: 'copy',
+  entries,
+}, null, 2) + '\\n', { mode: 0o600 })
+fs.renameSync(temporary, ownershipPath)
+NODE
+}
+
+pluxx_discard_install_transaction() {
+  PLUXX_TX_SWAP_STARTED=0
+  PLUXX_TX_SWAPPED=0
+  PLUXX_TX_HAD_INSTALL=0
+  PLUXX_TX_STAGE=""
+  if ! rm -rf "$PLUXX_TX_BACKUP"; then echo "Warning: could not remove install backup $PLUXX_TX_BACKUP" >&2; fi
+  pluxx_tx_discard_owned_paths
+  if ! rm -rf "$PLUXX_TX_LOCK"; then echo "Warning: could not remove install lock $PLUXX_TX_LOCK" >&2; fi
+  PLUXX_TX_LOCK=""
+  PLUXX_TX_COMMITTED=0
+}
+
+pluxx_finalize_install_transaction() {
+  pluxx_commit_install_transaction
+  PLUXX_TX_COMMITTED=1
+  pluxx_discard_install_transaction
+}
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+`
+}
+
 function renderInstallClaudeCodeScript(config: PluginConfig): string {
   return `#!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
 REPO="\${PLUXX_PLUGIN_REPO:-REPO_PLACEHOLDER}"
 PLUGIN_NAME="\${PLUXX_PLUGIN_NAME:-PLUGIN_PLACEHOLDER}"
 MARKETPLACE_NAME="\${PLUXX_CLAUDE_MARKETPLACE_NAME:-PLUGIN_PLACEHOLDER-releases}"
-BUNDLE_URL="\${PLUXX_CLAUDE_BUNDLE_URL:-https://github.com/\${REPO}/releases/latest/download/CLAUDE_BUNDLE_PLACEHOLDER}"
+BUNDLE_URL="\${PLUXX_CLAUDE_BUNDLE_URL:-https://github.com/\${REPO}/releases/download/vVERSION_PLACEHOLDER/CLAUDE_BUNDLE_PLACEHOLDER}"
 INSTALL_ROOT="\${PLUXX_CLAUDE_MARKETPLACE_DIR:-$HOME/.claude/plugins/data/$MARKETPLACE_NAME}"
+INSTALL_DIR="$INSTALL_ROOT/plugins/$PLUGIN_NAME"
 SKIP_INSTALL="\${PLUXX_CLAUDE_SKIP_INSTALL:-0}"
 BUNDLE_PATH="\${PLUXX_CLAUDE_BUNDLE_PATH:-}"
 AUTHOR_NAME="\${PLUXX_PLUGIN_AUTHOR:-AUTHOR_PLACEHOLDER}"
 HOMEPAGE_URL="\${PLUXX_PLUGIN_HOMEPAGE:-HOMEPAGE_PLACEHOLDER}"
 DESCRIPTION_FALLBACK="\${PLUXX_PLUGIN_DESCRIPTION:-DESCRIPTION_PLACEHOLDER}"
+${renderInstallerTransactionHelpers('claude-code')}
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -1509,7 +1957,7 @@ need_cmd tar
 need_cmd mktemp
 need_cmd grep
 need_cmd sed
-${hasInstallerUserConfig(config, 'claude-code') ? 'need_cmd node' : ''}
+need_cmd node
 
 if [[ "$SKIP_INSTALL" != "1" ]]; then
   need_cmd curl
@@ -1518,6 +1966,7 @@ fi
 
 TMP_DIR="$(mktemp -d)"
 cleanup() {
+  pluxx_tx_cleanup
   rm -rf "$TMP_DIR"
 }
 trap cleanup EXIT
@@ -1527,9 +1976,10 @@ BUNDLE_ARCHIVE="$TMP_DIR/${config.name}-claude-code.tar.gz"
 if [[ -n "$BUNDLE_PATH" ]]; then
   cp "$BUNDLE_PATH" "$BUNDLE_ARCHIVE"
 else
-  curl -fsSL "$BUNDLE_URL" -o "$BUNDLE_ARCHIVE"
+  curl -fsSL --connect-timeout 10 --max-time 120 --retry 3 --retry-all-errors --retry-delay 1 "$BUNDLE_URL" -o "$BUNDLE_ARCHIVE"
 fi
 
+${renderReleaseAssetVerificationSnippet({ archiveVariable: '$BUNDLE_ARCHIVE', bundlePathVariable: '$BUNDLE_PATH', expectedArchiveName: getArchiveAssetName(config.name, 'claude-code', config.version, 'latest'), expectedPlatform: 'claude-code' })}
 tar -xzf "$BUNDLE_ARCHIVE" -C "$TMP_DIR"
 
 BUNDLE_DIR="$TMP_DIR/claude-code"
@@ -1544,12 +1994,14 @@ VERSION="$(grep -E '"version"' "$PLUGIN_MANIFEST" | head -n1 | sed -E 's/.*"vers
 DESCRIPTION="$(grep -E '"description"' "$PLUGIN_MANIFEST" | head -n1 | sed -E 's/.*"description"[[:space:]]*:[[:space:]]*"([^"]+)".*/\\1/')"
 
 mkdir -p "$INSTALL_ROOT/.claude-plugin" "$INSTALL_ROOT/plugins"
-${renderInstallerSavedUserConfigCaptureSnippet(config, 'claude-code', '$INSTALL_ROOT/plugins/$PLUGIN_NAME')}
-rm -rf "$INSTALL_ROOT/plugins/$PLUGIN_NAME"
-cp -R "$BUNDLE_DIR" "$INSTALL_ROOT/plugins/$PLUGIN_NAME"
-${renderInstallerUserConfigSnippet(config, 'claude-code', '$INSTALL_ROOT/plugins/$PLUGIN_NAME')}
-${renderInstallerMcpPathMaterializationSnippet('claude-code', '$INSTALL_ROOT/plugins/$PLUGIN_NAME')}
-${renderInstallerRuntimeBootstrapSnippet('$INSTALL_ROOT/plugins/$PLUGIN_NAME')}
+${renderInstallerSavedUserConfigCaptureSnippet(config, 'claude-code', '$INSTALL_DIR')}
+pluxx_begin_install_transaction "$BUNDLE_DIR"
+${renderInstallerUserConfigSnippet(config, 'claude-code', '$PLUXX_TX_STAGE')}
+${renderInstallerMcpPathMaterializationSnippet('claude-code', '$PLUXX_TX_STAGE', '$INSTALL_DIR')}
+${renderInstallerRuntimeBootstrapSnippet('$PLUXX_TX_STAGE')}
+pluxx_tx_backup_owned_path "$INSTALL_ROOT/.claude-plugin/marketplace.json"
+pluxx_tx_backup_owned_path "$HOME/.claude/plugins/cache/$MARKETPLACE_NAME/$PLUGIN_NAME"
+pluxx_swap_install_transaction
 
 cat > "$INSTALL_ROOT/.claude-plugin/marketplace.json" <<JSON
 {
@@ -1574,6 +2026,7 @@ cat > "$INSTALL_ROOT/.claude-plugin/marketplace.json" <<JSON
 JSON
 
 if [[ "$SKIP_INSTALL" == "1" ]]; then
+  pluxx_finalize_install_transaction
   echo "Prepared Claude marketplace at: $INSTALL_ROOT"
   echo "Plugin bundle is at: $INSTALL_ROOT/plugins/$PLUGIN_NAME"
   exit 0
@@ -1587,6 +2040,7 @@ fi
 
 claude plugin uninstall "\${PLUGIN_NAME}@\${MARKETPLACE_NAME}" --scope user >/dev/null 2>&1 || true
 claude plugin install "\${PLUGIN_NAME}@\${MARKETPLACE_NAME}" --scope user
+pluxx_finalize_install_transaction
 
 echo
 echo "Installed \${PLUGIN_NAME}@\${MARKETPLACE_NAME} into Claude Code user scope."
@@ -1596,13 +2050,14 @@ echo "${getPublishReloadInstruction('claude-code')}"
 
 function renderInstallCursorScript(config: PluginConfig): string {
   return `#!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
 REPO="\${PLUXX_PLUGIN_REPO:-REPO_PLACEHOLDER}"
 PLUGIN_NAME="\${PLUXX_PLUGIN_NAME:-PLUGIN_PLACEHOLDER}"
-BUNDLE_URL="\${PLUXX_CURSOR_BUNDLE_URL:-https://github.com/\${REPO}/releases/latest/download/CURSOR_BUNDLE_PLACEHOLDER}"
+BUNDLE_URL="\${PLUXX_CURSOR_BUNDLE_URL:-https://github.com/\${REPO}/releases/download/vVERSION_PLACEHOLDER/CURSOR_BUNDLE_PLACEHOLDER}"
 INSTALL_DIR="\${PLUXX_CURSOR_INSTALL_DIR:-$HOME/.cursor/plugins/local/$PLUGIN_NAME}"
 BUNDLE_PATH="\${PLUXX_CURSOR_BUNDLE_PATH:-}"
+${renderInstallerTransactionHelpers('cursor')}
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -1614,10 +2069,11 @@ need_cmd() {
 need_cmd tar
 need_cmd mktemp
 need_cmd curl
-${hasInstallerUserConfig(config, 'cursor') ? 'need_cmd node' : ''}
+need_cmd node
 
 TMP_DIR="$(mktemp -d)"
 cleanup() {
+  pluxx_tx_cleanup
   rm -rf "$TMP_DIR"
 }
 trap cleanup EXIT
@@ -1627,9 +2083,10 @@ BUNDLE_ARCHIVE="$TMP_DIR/${config.name}-cursor.tar.gz"
 if [[ -n "$BUNDLE_PATH" ]]; then
   cp "$BUNDLE_PATH" "$BUNDLE_ARCHIVE"
 else
-  curl -fsSL "$BUNDLE_URL" -o "$BUNDLE_ARCHIVE"
+  curl -fsSL --connect-timeout 10 --max-time 120 --retry 3 --retry-all-errors --retry-delay 1 "$BUNDLE_URL" -o "$BUNDLE_ARCHIVE"
 fi
 
+${renderReleaseAssetVerificationSnippet({ archiveVariable: '$BUNDLE_ARCHIVE', bundlePathVariable: '$BUNDLE_PATH', expectedArchiveName: getArchiveAssetName(config.name, 'cursor', config.version, 'latest'), expectedPlatform: 'cursor' })}
 tar -xzf "$BUNDLE_ARCHIVE" -C "$TMP_DIR"
 
 BUNDLE_DIR="$TMP_DIR/cursor"
@@ -1642,11 +2099,12 @@ fi
 
 mkdir -p "$(dirname "$INSTALL_DIR")"
 ${renderInstallerSavedUserConfigCaptureSnippet(config, 'cursor', '$INSTALL_DIR')}
-rm -rf "$INSTALL_DIR"
-cp -R "$BUNDLE_DIR" "$INSTALL_DIR"
-${renderInstallerUserConfigSnippet(config, 'cursor', '$INSTALL_DIR')}
-${renderInstallerMcpPathMaterializationSnippet('cursor', '$INSTALL_DIR')}
-${renderInstallerRuntimeBootstrapSnippet('$INSTALL_DIR')}
+pluxx_begin_install_transaction "$BUNDLE_DIR"
+${renderInstallerUserConfigSnippet(config, 'cursor', '$PLUXX_TX_STAGE')}
+${renderInstallerMcpPathMaterializationSnippet('cursor', '$PLUXX_TX_STAGE', '$INSTALL_DIR')}
+${renderInstallerRuntimeBootstrapSnippet('$PLUXX_TX_STAGE')}
+pluxx_swap_install_transaction
+pluxx_finalize_install_transaction
 
 echo "Installed $PLUGIN_NAME to $INSTALL_DIR"
 echo "${getPublishReloadInstruction('cursor')}"
@@ -1655,16 +2113,17 @@ echo "${getPublishReloadInstruction('cursor')}"
 
 function renderInstallCodexScript(config: PluginConfig): string {
   return `#!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
 REPO="\${PLUXX_PLUGIN_REPO:-REPO_PLACEHOLDER}"
 PLUGIN_NAME="\${PLUXX_PLUGIN_NAME:-PLUGIN_PLACEHOLDER}"
-BUNDLE_URL="\${PLUXX_CODEX_BUNDLE_URL:-https://github.com/\${REPO}/releases/latest/download/CODEX_BUNDLE_PLACEHOLDER}"
+BUNDLE_URL="\${PLUXX_CODEX_BUNDLE_URL:-https://github.com/\${REPO}/releases/download/vVERSION_PLACEHOLDER/CODEX_BUNDLE_PLACEHOLDER}"
 INSTALL_DIR="\${PLUXX_CODEX_INSTALL_DIR:-$HOME/.codex/plugins/$PLUGIN_NAME}"
 MARKETPLACE_PATH="\${PLUXX_CODEX_MARKETPLACE_PATH:-$HOME/.agents/plugins/marketplace.json}"
 BUNDLE_PATH="\${PLUXX_CODEX_BUNDLE_PATH:-}"
 MARKETPLACE_NAME="\${PLUXX_CODEX_MARKETPLACE_NAME:-$PLUGIN_NAME-local}"
 MARKETPLACE_DISPLAY_NAME="\${PLUXX_CODEX_MARKETPLACE_DISPLAY_NAME:-DISPLAY_PLACEHOLDER Local}"
+${renderInstallerTransactionHelpers('codex')}
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -1679,6 +2138,7 @@ need_cmd node
 
 TMP_DIR="$(mktemp -d)"
 cleanup() {
+  pluxx_tx_cleanup
   rm -rf "$TMP_DIR"
 }
 trap cleanup EXIT
@@ -1689,9 +2149,10 @@ if [[ -n "$BUNDLE_PATH" ]]; then
   cp "$BUNDLE_PATH" "$BUNDLE_ARCHIVE"
 else
   need_cmd curl
-  curl -fsSL "$BUNDLE_URL" -o "$BUNDLE_ARCHIVE"
+  curl -fsSL --connect-timeout 10 --max-time 120 --retry 3 --retry-all-errors --retry-delay 1 "$BUNDLE_URL" -o "$BUNDLE_ARCHIVE"
 fi
 
+${renderReleaseAssetVerificationSnippet({ archiveVariable: '$BUNDLE_ARCHIVE', bundlePathVariable: '$BUNDLE_PATH', expectedArchiveName: getArchiveAssetName(config.name, 'codex', config.version, 'latest'), expectedPlatform: 'codex' })}
 tar -xzf "$BUNDLE_ARCHIVE" -C "$TMP_DIR"
 
 BUNDLE_DIR="$TMP_DIR/codex"
@@ -1704,11 +2165,18 @@ fi
 
 mkdir -p "$(dirname "$INSTALL_DIR")"
 ${renderInstallerSavedUserConfigCaptureSnippet(config, 'codex', '$INSTALL_DIR')}
-rm -rf "$INSTALL_DIR"
-cp -R "$BUNDLE_DIR" "$INSTALL_DIR"
-${renderInstallerUserConfigSnippet(config, 'codex', '$INSTALL_DIR')}
-${renderInstallerMcpPathMaterializationSnippet('codex', '$INSTALL_DIR')}
-${renderInstallerRuntimeBootstrapSnippet('$INSTALL_DIR')}
+pluxx_begin_install_transaction "$BUNDLE_DIR"
+${renderInstallerUserConfigSnippet(config, 'codex', '$PLUXX_TX_STAGE')}
+${renderInstallerMcpPathMaterializationSnippet('codex', '$PLUXX_TX_STAGE', '$INSTALL_DIR')}
+${renderInstallerRuntimeBootstrapSnippet('$PLUXX_TX_STAGE')}
+CODEX_HOME_DIR="\${CODEX_HOME:-$HOME/.codex}"
+CODEX_CONFIG_PATH="\${PLUXX_CODEX_CONFIG_PATH:-$CODEX_HOME_DIR/config.toml}"
+pluxx_tx_backup_owned_path "$CODEX_HOME_DIR/agents/$PLUGIN_NAME"
+pluxx_tx_backup_owned_path "$CODEX_HOME_DIR/pluxx/agent-installs/$PLUGIN_NAME.json"
+pluxx_tx_backup_owned_path "$CODEX_HOME_DIR/plugins/cache/local-plugins/$PLUGIN_NAME"
+pluxx_tx_backup_owned_path "$CODEX_CONFIG_PATH"
+pluxx_tx_backup_owned_path "$MARKETPLACE_PATH"
+pluxx_swap_install_transaction
 ${renderInstallerCodexAgentRegistrationSnippet('$INSTALL_DIR')}
 ${renderInstallerCodexPluginHooksSnippet('$INSTALL_DIR')}
 
@@ -1767,6 +2235,7 @@ fs.writeFileSync(
   ) + '\\n',
 )
 NODE
+pluxx_finalize_install_transaction
 
 echo "Installed $PLUGIN_NAME to $INSTALL_DIR"
 echo "Updated Codex marketplace catalog at $MARKETPLACE_PATH"
@@ -1776,16 +2245,196 @@ echo "${getPublishReloadInstruction('codex')}"
 
 function renderInstallOpenCodeScript(config: PluginConfig): string {
   return `#!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
 REPO="\${PLUXX_PLUGIN_REPO:-REPO_PLACEHOLDER}"
 PLUGIN_NAME="\${PLUXX_PLUGIN_NAME:-PLUGIN_PLACEHOLDER}"
-BUNDLE_URL="\${PLUXX_OPENCODE_BUNDLE_URL:-https://github.com/\${REPO}/releases/latest/download/OPENCODE_BUNDLE_PLACEHOLDER}"
+BUNDLE_URL="\${PLUXX_OPENCODE_BUNDLE_URL:-https://github.com/\${REPO}/releases/download/vVERSION_PLACEHOLDER/OPENCODE_BUNDLE_PLACEHOLDER}"
 PLUGIN_ROOT_DIR="\${PLUXX_OPENCODE_PLUGIN_ROOT_DIR:-$HOME/.config/opencode/plugins}"
 INSTALL_DIR="\${PLUXX_OPENCODE_INSTALL_DIR:-$PLUGIN_ROOT_DIR/$PLUGIN_NAME}"
 ENTRY_PATH="\${PLUXX_OPENCODE_ENTRY_PATH:-$PLUGIN_ROOT_DIR/$PLUGIN_NAME.ts}"
 SKILLS_ROOT="\${PLUXX_OPENCODE_SKILLS_ROOT:-$HOME/.config/opencode/skills}"
 BUNDLE_PATH="\${PLUXX_OPENCODE_BUNDLE_PATH:-}"
+${renderInstallerTransactionHelpers('opencode')}
+PLUXX_OPENCODE_COMPANION_STAGE=""
+PLUXX_OPENCODE_COMPANION_JOURNAL=""
+
+pluxx_opencode_companion_cleanup() {
+  [[ -n "$PLUXX_OPENCODE_COMPANION_JOURNAL" && -f "$PLUXX_OPENCODE_COMPANION_JOURNAL" ]] || return 0
+  if [[ "$PLUXX_TX_COMMITTED" == "1" ]]; then
+    pluxx_finalize_opencode_companions
+    return 0
+  fi
+  export PLUXX_OPENCODE_COMPANION_JOURNAL
+  node <<'NODE'
+const fs = require('fs')
+const journal = JSON.parse(fs.readFileSync(process.env.PLUXX_OPENCODE_COMPANION_JOURNAL, 'utf8'))
+for (const move of [...journal.moves].reverse()) {
+  if (fs.existsSync(move.destination)) fs.rmSync(move.destination, { recursive: true, force: true })
+  if (fs.existsSync(move.backup)) fs.renameSync(move.backup, move.destination)
+}
+for (const ledger of journal.ledgers) {
+  if (ledger.backup && fs.existsSync(ledger.backup)) fs.copyFileSync(ledger.backup, ledger.path)
+  else fs.rmSync(ledger.path, { force: true })
+}
+fs.rmSync(process.env.PLUXX_OPENCODE_COMPANION_JOURNAL, { force: true })
+NODE
+}
+
+pluxx_commit_opencode_companions() {
+  export INSTALL_DIR ENTRY_PATH SKILLS_ROOT PLUGIN_NAME PLUXX_OPENCODE_COMPANION_STAGE PLUXX_OPENCODE_COMPANION_JOURNAL
+  node <<'NODE'
+const crypto = require('crypto')
+const fs = require('fs')
+const path = require('path')
+const hash = (value) => crypto.createHash('sha256').update(value).digest('hex')
+const walk = (root) => {
+  const entries = []
+  if (!fs.existsSync(root)) return entries
+  const visit = (directory) => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const filepath = path.join(directory, entry.name)
+      const relativePath = path.relative(root, filepath).replace(/\\\\/g, '/')
+      const stats = fs.lstatSync(filepath)
+      if (stats.isSymbolicLink()) entries.push({ path: relativePath, kind: 'symlink', sha256: hash(fs.readlinkSync(filepath)) })
+      else if (stats.isDirectory()) visit(filepath)
+      else if (stats.isFile()) entries.push({ path: relativePath, kind: 'file', sha256: hash(fs.readFileSync(filepath)) })
+    }
+  }
+  visit(root)
+  return entries
+}
+const pluginName = process.env.PLUGIN_NAME
+const installDir = path.resolve(process.env.INSTALL_DIR)
+const entryPath = path.resolve(process.env.ENTRY_PATH)
+const skillsRoot = path.resolve(process.env.SKILLS_ROOT)
+const stageRoot = path.resolve(process.env.PLUXX_OPENCODE_COMPANION_STAGE)
+const home = path.resolve(process.env.HOME)
+const conventionalRoot = path.join(home, '.config', 'opencode')
+const ownershipRoot = installDir === conventionalRoot || installDir.startsWith(conventionalRoot + path.sep)
+  ? path.join(home, '.pluxx/install-ownership')
+  : path.join(path.dirname(installDir), '.pluxx-install-ownership')
+const ledgerRoot = path.join(ownershipRoot, pluginName)
+const candidates = [{ surface: 'entry', source: path.join(stageRoot, 'entry.ts'), destination: entryPath, kind: 'file' }]
+const stagedSkills = path.join(stageRoot, 'skills')
+if (fs.existsSync(stagedSkills)) {
+  for (const name of fs.readdirSync(stagedSkills).sort()) {
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(name)) throw new Error('Unsafe OpenCode skill name: ' + name)
+    candidates.push({ surface: 'skill-' + name, source: path.join(stagedSkills, name), destination: path.join(skillsRoot, pluginName + '-' + name), kind: 'copy' })
+  }
+}
+const previous = new Map()
+if (fs.existsSync(ledgerRoot)) {
+  for (const name of fs.readdirSync(ledgerRoot)) {
+    if (!name.startsWith('opencode--') || !name.endsWith('.json')) continue
+    const surface = name.slice('opencode--'.length, -'.json'.length)
+    previous.set(surface, path.join(ledgerRoot, name))
+  }
+}
+for (const [surface, ledgerPath] of previous) {
+  if (candidates.some((candidate) => candidate.surface === surface)) continue
+  const record = JSON.parse(fs.readFileSync(ledgerPath, 'utf8'))
+  const destination = path.resolve(record.installPath || '')
+  if (!surface.startsWith('skill-') || !destination.startsWith(skillsRoot + path.sep) || !path.basename(destination).startsWith(pluginName + '-')) {
+    throw new Error('Invalid OpenCode companion ownership record: ' + ledgerPath)
+  }
+  candidates.push({ surface, destination, kind: record.kind, remove: true })
+}
+const entriesEqual = (expected, actual) => {
+  const expectedMap = new Map(expected.map((entry) => [entry.path, entry]))
+  const actualMap = new Map(actual.map((entry) => [entry.path, entry]))
+  if (expectedMap.size !== actualMap.size) return false
+  for (const [name, entry] of expectedMap) {
+    const current = actualMap.get(name)
+    if (!current || current.kind !== entry.kind || current.sha256 !== entry.sha256) return false
+  }
+  return true
+}
+for (const candidate of candidates) {
+  const ledgerPath = path.join(ledgerRoot, 'opencode--' + candidate.surface + '.json')
+  candidate.ledgerPath = ledgerPath
+  if (!fs.existsSync(candidate.destination)) {
+    if (fs.existsSync(ledgerPath)) throw new Error('Refusing to replace missing owned OpenCode companion: ' + candidate.destination)
+    continue
+  }
+  if (!fs.existsSync(ledgerPath)) throw new Error('Refusing to replace unowned OpenCode companion: ' + candidate.destination)
+  const record = JSON.parse(fs.readFileSync(ledgerPath, 'utf8'))
+  if (record.schema !== 'pluxx.install-ownership.v1' || record.pluginName !== pluginName || record.platform !== 'opencode' || record.surface !== candidate.surface || path.resolve(record.installPath || '') !== candidate.destination || record.kind !== candidate.kind) {
+    throw new Error('Invalid OpenCode companion ownership record: ' + ledgerPath)
+  }
+  const unchanged = candidate.kind === 'file'
+    ? fs.lstatSync(candidate.destination).isFile() && !fs.lstatSync(candidate.destination).isSymbolicLink() && hash(fs.readFileSync(candidate.destination)) === record.rootSha256
+    : fs.lstatSync(candidate.destination).isDirectory() && !fs.lstatSync(candidate.destination).isSymbolicLink() && entriesEqual(record.entries || [], walk(candidate.destination))
+  if (!unchanged) throw new Error('Refusing to replace modified OpenCode companion: ' + candidate.destination)
+}
+fs.mkdirSync(ledgerRoot, { recursive: true })
+const nonce = process.pid + '-' + crypto.randomBytes(5).toString('hex')
+const journal = { moves: [], ledgers: [] }
+fs.writeFileSync(process.env.PLUXX_OPENCODE_COMPANION_JOURNAL, JSON.stringify(journal))
+const saveJournal = () => fs.writeFileSync(process.env.PLUXX_OPENCODE_COMPANION_JOURNAL, JSON.stringify(journal))
+try {
+  for (const candidate of candidates) {
+    fs.mkdirSync(path.dirname(candidate.destination), { recursive: true })
+    const backup = path.join(path.dirname(candidate.destination), '.' + pluginName + '.pluxx-companion-backup-' + nonce + '-' + journal.moves.length)
+    journal.moves.push({ destination: candidate.destination, backup })
+    if (fs.existsSync(candidate.destination)) fs.renameSync(candidate.destination, backup)
+    if (!candidate.remove) fs.renameSync(candidate.source, candidate.destination)
+    saveJournal()
+  }
+  for (const candidate of candidates) {
+    const ledgerBackup = fs.existsSync(candidate.ledgerPath) ? candidate.ledgerPath + '.backup-' + nonce : undefined
+    if (ledgerBackup) fs.copyFileSync(candidate.ledgerPath, ledgerBackup)
+    journal.ledgers.push({ path: candidate.ledgerPath, backup: ledgerBackup })
+    if (candidate.remove) fs.rmSync(candidate.ledgerPath, { force: true })
+    else {
+      const record = {
+        schema: 'pluxx.install-ownership.v1', pluginName, platform: 'opencode', surface: candidate.surface,
+        installPath: candidate.destination, kind: candidate.kind,
+        ...(candidate.kind === 'file' ? { rootSha256: hash(fs.readFileSync(candidate.destination)) } : { entries: walk(candidate.destination) }),
+        entries: candidate.kind === 'file' ? [] : walk(candidate.destination),
+      }
+      const temporary = candidate.ledgerPath + '.tmp-' + nonce
+      fs.writeFileSync(temporary, JSON.stringify(record, null, 2) + '\\n', { mode: 0o600 })
+      fs.renameSync(temporary, candidate.ledgerPath)
+    }
+    saveJournal()
+  }
+} catch (error) {
+  for (const move of [...journal.moves].reverse()) {
+    if (fs.existsSync(move.destination)) fs.rmSync(move.destination, { recursive: true, force: true })
+    if (fs.existsSync(move.backup)) fs.renameSync(move.backup, move.destination)
+  }
+  for (const ledger of journal.ledgers) {
+    if (ledger.backup && fs.existsSync(ledger.backup)) fs.copyFileSync(ledger.backup, ledger.path)
+    else fs.rmSync(ledger.path, { force: true })
+  }
+  fs.rmSync(process.env.PLUXX_OPENCODE_COMPANION_JOURNAL, { force: true })
+  throw error
+}
+NODE
+}
+
+pluxx_finalize_opencode_companions() {
+  local journal_path="$PLUXX_OPENCODE_COMPANION_JOURNAL"
+  PLUXX_OPENCODE_COMPANION_JOURNAL=""
+  export PLUXX_OPENCODE_FINAL_JOURNAL="$journal_path"
+  node <<'NODE'
+const fs = require('fs')
+const journalPath = process.env.PLUXX_OPENCODE_FINAL_JOURNAL
+try {
+  const journal = JSON.parse(fs.readFileSync(journalPath, 'utf8'))
+  for (const move of journal.moves) {
+    try { fs.rmSync(move.backup, { recursive: true, force: true }) } catch {}
+  }
+  for (const ledger of journal.ledgers) {
+    try { if (ledger.backup) fs.rmSync(ledger.backup, { force: true }) } catch {}
+  }
+  try { fs.rmSync(journalPath, { force: true }) } catch {}
+} catch {
+  // The new bundle and companions are already committed; stale backups are safer than rollback.
+}
+NODE
+}
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -1800,6 +2449,8 @@ need_cmd node
 
 TMP_DIR="$(mktemp -d)"
 cleanup() {
+  pluxx_opencode_companion_cleanup
+  pluxx_tx_cleanup
   rm -rf "$TMP_DIR"
 }
 trap cleanup EXIT
@@ -1810,9 +2461,10 @@ if [[ -n "$BUNDLE_PATH" ]]; then
   cp "$BUNDLE_PATH" "$BUNDLE_ARCHIVE"
 else
   need_cmd curl
-  curl -fsSL "$BUNDLE_URL" -o "$BUNDLE_ARCHIVE"
+  curl -fsSL --connect-timeout 10 --max-time 120 --retry 3 --retry-all-errors --retry-delay 1 "$BUNDLE_URL" -o "$BUNDLE_ARCHIVE"
 fi
 
+${renderReleaseAssetVerificationSnippet({ archiveVariable: '$BUNDLE_ARCHIVE', bundlePathVariable: '$BUNDLE_PATH', expectedArchiveName: getArchiveAssetName(config.name, 'opencode', config.version, 'latest'), expectedPlatform: 'opencode' })}
 tar -xzf "$BUNDLE_ARCHIVE" -C "$TMP_DIR"
 
 BUNDLE_DIR="$TMP_DIR/opencode"
@@ -1825,19 +2477,19 @@ fi
 
 mkdir -p "$(dirname "$INSTALL_DIR")" "$SKILLS_ROOT"
 ${renderInstallerSavedUserConfigCaptureSnippet(config, 'opencode', '$INSTALL_DIR')}
-rm -rf "$INSTALL_DIR"
-cp -R "$BUNDLE_DIR" "$INSTALL_DIR"
-${renderInstallerUserConfigSnippet(config, 'opencode', '$INSTALL_DIR')}
-${renderInstallerMcpPathMaterializationSnippet('opencode', '$INSTALL_DIR')}
-${renderInstallerRuntimeBootstrapSnippet('$INSTALL_DIR')}
-
-export ENTRY_PATH
-export PLUGIN_NAME
+pluxx_begin_install_transaction "$BUNDLE_DIR"
+${renderInstallerUserConfigSnippet(config, 'opencode', '$PLUXX_TX_STAGE')}
+${renderInstallerMcpPathMaterializationSnippet('opencode', '$PLUXX_TX_STAGE', '$INSTALL_DIR')}
+${renderInstallerRuntimeBootstrapSnippet('$PLUXX_TX_STAGE')}
+PLUXX_OPENCODE_COMPANION_STAGE="$TMP_DIR/opencode-companions"
+PLUXX_OPENCODE_COMPANION_JOURNAL="$TMP_DIR/opencode-companions-journal.json"
+mkdir -p "$PLUXX_OPENCODE_COMPANION_STAGE/skills"
+export ENTRY_PATH PLUGIN_NAME PLUXX_OPENCODE_COMPANION_STAGE
 
 node <<'NODE'
 const fs = require('fs')
 
-const entryPath = process.env.ENTRY_PATH
+const entryPath = process.env.PLUXX_OPENCODE_COMPANION_STAGE + '/entry.ts'
 const pluginName = process.env.PLUGIN_NAME
 const exportName = pluginName
   .split(/[^A-Za-z0-9]+/)
@@ -1870,12 +2522,11 @@ const content = [
 fs.writeFileSync(entryPath, content)
 NODE
 
-if [[ -d "$INSTALL_DIR/skills" ]]; then
-  for skill_dir in "$INSTALL_DIR"/skills/*; do
+if [[ -d "$PLUXX_TX_STAGE/skills" ]]; then
+  for skill_dir in "$PLUXX_TX_STAGE"/skills/*; do
     [[ -d "$skill_dir" ]] || continue
     skill_name="$(basename "$skill_dir")"
-    installed_skill_dir="$SKILLS_ROOT/\${PLUGIN_NAME}-\${skill_name}"
-    rm -rf "$installed_skill_dir"
+    installed_skill_dir="$PLUXX_OPENCODE_COMPANION_STAGE/skills/\${skill_name}"
     cp -R "$skill_dir" "$installed_skill_dir"
 
     export SKILL_PATH="$installed_skill_dir/SKILL.md"
@@ -1915,6 +2566,12 @@ fs.writeFileSync(
 NODE
   done
 fi
+pluxx_swap_install_transaction
+pluxx_commit_opencode_companions
+pluxx_commit_install_transaction
+PLUXX_TX_COMMITTED=1
+pluxx_finalize_opencode_companions
+pluxx_discard_install_transaction
 
 echo "Installed $PLUGIN_NAME plugin code to $INSTALL_DIR"
 echo "Installed OpenCode wrapper at $ENTRY_PATH"
@@ -1935,6 +2592,7 @@ function replaceInstallerPlaceholders(
     .replaceAll('AUTHOR_PLACEHOLDER', getAuthorName(config))
     .replaceAll('HOMEPAGE_PLACEHOLDER', getHomepageUrl(config, context.repo))
     .replaceAll('DESCRIPTION_PLACEHOLDER', config.brand?.shortDescription ?? config.description)
+    .replaceAll('VERSION_PLACEHOLDER', context.version)
     .replaceAll('CLAUDE_BUNDLE_PLACEHOLDER', getArchiveAssetName(config.name, 'claude-code', context.version, 'latest'))
     .replaceAll('CURSOR_BUNDLE_PLACEHOLDER', getArchiveAssetName(config.name, 'cursor', context.version, 'latest'))
     .replaceAll('CODEX_BUNDLE_PLACEHOLDER', getArchiveAssetName(config.name, 'codex', context.version, 'latest'))
@@ -1981,6 +2639,23 @@ function writeChecksumFile(tempRoot: string, files: string[]): string {
     .join('\n')
   writeFileSync(checksumPath, `${lines}\n`)
   return checksumPath
+}
+
+function prepareNpmArtifact(packageDir: string, runCommand: CommandRunner): PreparedNpmArtifact {
+  const tempRoot = mkdtempSync(resolve(tmpdir(), 'pluxx-npm-pack-'))
+  const packed = runCommand('npm', ['pack', '--json', '--pack-destination', tempRoot], { cwd: packageDir })
+  if (packed.status !== 0) {
+    return { tempRoot, error: packed.stderr || packed.stdout || 'npm pack failed' }
+  }
+  try {
+    const payload = JSON.parse(packed.stdout) as Array<{ filename?: unknown; integrity?: unknown }>
+    const filename = typeof payload[0]?.filename === 'string' ? payload[0].filename : undefined
+    const integrity = typeof payload[0]?.integrity === 'string' ? payload[0].integrity : undefined
+    if (!filename || !integrity) return { tempRoot, error: 'npm pack did not return filename and integrity.' }
+    return { tempRoot, filepath: resolve(tempRoot, filename), integrity }
+  } catch {
+    return { tempRoot, error: 'npm pack returned unreadable JSON.' }
+  }
 }
 
 function createReleaseArtifacts(
@@ -2064,6 +2739,53 @@ function createReleaseArtifacts(
   }
 }
 
+function verifyGithubReleaseAssets(
+  rootDir: string,
+  releaseTag: string,
+  files: string[],
+  runCommand: CommandRunner,
+): boolean {
+  const verification = runCommand('gh', ['release', 'view', releaseTag, '--json', 'tagName,assets'], { cwd: rootDir })
+  if (verification.status !== 0) return false
+
+  try {
+    const payload = JSON.parse(verification.stdout) as { tagName?: unknown; assets?: Array<{ name?: unknown }> }
+    const assetNames = (payload.assets ?? []).map((asset) => asset.name)
+    const expectedNames = files.map((filepath) => filepath.split('/').pop()!)
+    const actualAssets = new Set(assetNames)
+    if (
+      payload.tagName !== releaseTag
+      || assetNames.length !== files.length
+      || actualAssets.size !== files.length
+      || expectedNames.some((name) => !actualAssets.has(name))
+    ) {
+      return false
+    }
+
+    const downloadRoot = mkdtempSync(resolve(tmpdir(), 'pluxx-release-verify-'))
+    try {
+      const download = runCommand(
+        'gh',
+        ['release', 'download', releaseTag, '--dir', downloadRoot, '--clobber'],
+        { cwd: rootDir },
+      )
+      if (download.status !== 0) return false
+
+      return files.every((filepath) => {
+        const remotePath = resolve(downloadRoot, filepath.split('/').pop()!)
+        if (!existsSync(remotePath)) return false
+        const localDigest = createHash('sha256').update(readFileSync(filepath)).digest('hex')
+        const remoteDigest = createHash('sha256').update(readFileSync(remotePath)).digest('hex')
+        return localDigest === remoteDigest
+      })
+    } finally {
+      rmSync(downloadRoot, { recursive: true, force: true })
+    }
+  } catch {
+    return false
+  }
+}
+
 export function formatPublishPlan(plan: PublishPlan): string[] {
   const lines: string[] = [
     `Resolved version: ${plan.version}`,
@@ -2123,19 +2845,48 @@ export function runPublish(config: PluginConfig, options: PublishPlanOptions = {
   }
 
   const execution: NonNullable<PublishRunResult['execution']> = {}
-
   if (plan.channels.npm.enabled) {
     const npmChannel = plan.channels.npm
-    const result = runCommand(
-      'npm',
-      ['publish', '--tag', plan.tag, '--access', 'public'],
-      { cwd: npmChannel.packageDir },
-    )
-    execution.npm = {
-      ok: result.status === 0,
-      detail: result.status === 0
-        ? (result.stdout.trim() || 'npm publish complete')
-        : (result.stderr || result.stdout || 'npm publish failed'),
+    const prepared = prepareNpmArtifact(npmChannel.packageDir!, runCommand)
+    try {
+      const existing = prepared.error
+        ? { status: 1, stdout: '', stderr: prepared.error }
+        : runCommand('npm', ['view', `${npmChannel.packageName}@${plan.version}`, 'dist.integrity', '--json'], { cwd: npmChannel.packageDir })
+      const remoteIntegrity = existing.status === 0 ? existing.stdout.replace(/["\s]/g, '') : ''
+      const alreadyPublished = Boolean(prepared.integrity && remoteIntegrity === prepared.integrity)
+      const integrityConflict = existing.status === 0 && remoteIntegrity !== '' && !alreadyPublished
+      const lookupFailed = existing.status !== 0 && !isRemoteNotFound(existing, 'npm')
+      const result: CommandResult = prepared.error
+        ? { status: 1, stdout: '', stderr: prepared.error }
+        : lookupFailed
+          ? { status: existing.status, stdout: existing.stdout, stderr: `Unable to verify whether npm already has ${npmChannel.packageName}@${plan.version}: ${existing.stderr || existing.stdout}` }
+        : integrityConflict
+          ? { status: 1, stdout: '', stderr: `npm already has ${npmChannel.packageName}@${plan.version} with different artifact integrity.` }
+          : alreadyPublished
+            ? existing
+            : runCommand(
+              'npm',
+              ['publish', prepared.filepath!, '--tag', plan.tag, '--access', 'public'],
+              { cwd: npmChannel.packageDir },
+            )
+      const verification = result.status === 0
+        ? runCommand('npm', ['view', `${npmChannel.packageName}@${plan.version}`, 'dist.integrity', '--json'], { cwd: npmChannel.packageDir })
+        : undefined
+      const verified = verification
+        ? verification.status === 0 && verification.stdout.replace(/["\s]/g, '') === prepared.integrity
+        : false
+      execution.npm = {
+        ok: result.status === 0 && verified,
+        action: result.status === 0 ? (alreadyPublished ? 'already-published' : 'published') : 'failed',
+        verified,
+        detail: result.status === 0 && verified
+          ? (alreadyPublished ? `npm already has byte-identical immutable version ${plan.version}; skipped publish.` : (result.stdout.trim() || 'npm publish complete'))
+          : result.status === 0
+            ? `npm post-publish integrity verification failed for ${npmChannel.packageName}@${plan.version}.`
+            : (result.stderr || result.stdout || 'npm publish failed'),
+      }
+    } finally {
+      rmSync(prepared.tempRoot, { recursive: true, force: true })
     }
   }
 
@@ -2144,9 +2895,31 @@ export function runPublish(config: PluginConfig, options: PublishPlanOptions = {
     const { tempRoot, files } = createReleaseArtifacts(rootDir, config, plan, runCommand)
 
     try {
-      const existing = runCommand('gh', ['release', 'view', releaseTag], { cwd: rootDir })
+      const existing = runCommand('gh', ['release', 'view', releaseTag, '--json', 'assets'], { cwd: rootDir })
 
-      const result = existing.status === 0
+      const reconciled = existing.status === 0
+      let staleAssetError: CommandResult | undefined = existing.status !== 0 && !isRemoteNotFound(existing, 'github-release')
+        ? { status: existing.status, stdout: existing.stdout, stderr: `Unable to inspect GitHub release ${releaseTag}: ${existing.stderr || existing.stdout}` }
+        : undefined
+      if (reconciled) {
+        try {
+          const payload = JSON.parse(existing.stdout) as { assets?: Array<{ name?: string }> }
+          const expectedNames = new Set(files.map((filepath) => filepath.split('/').pop()!))
+          for (const asset of payload.assets ?? []) {
+            if (!asset.name || expectedNames.has(asset.name)) continue
+            const deleted = runCommand('gh', ['release', 'delete-asset', releaseTag, asset.name, '--yes'], { cwd: rootDir })
+            if (deleted.status !== 0) {
+              staleAssetError = deleted
+              break
+            }
+          }
+        } catch {
+          staleAssetError = { status: 1, stdout: '', stderr: 'Existing GitHub release asset inventory was unreadable.' }
+        }
+      }
+
+      const result = staleAssetError
+        ?? (reconciled
         ? runCommand('gh', ['release', 'upload', releaseTag, '--clobber', ...files], { cwd: rootDir })
         : runCommand(
           'gh',
@@ -2161,12 +2934,20 @@ export function runPublish(config: PluginConfig, options: PublishPlanOptions = {
             `Release generated by pluxx publish for ${config.name}@${plan.version}.`,
           ],
           { cwd: rootDir },
-        )
+        ))
+
+      const verified = result.status === 0
+        ? verifyGithubReleaseAssets(rootDir, releaseTag, files, runCommand)
+        : false
 
       execution.githubRelease = {
-        ok: result.status === 0,
-        detail: result.status === 0
-          ? (result.stdout.trim() || `GitHub release ${releaseTag} updated`)
+        ok: result.status === 0 && verified,
+        action: result.status === 0 ? (reconciled ? 'reconciled' : 'created') : 'failed',
+        verified,
+        detail: result.status === 0 && verified
+          ? (result.stdout.trim() || `GitHub release ${releaseTag} ${reconciled ? 'reconciled' : 'created'}`)
+          : result.status === 0
+            ? `GitHub release ${releaseTag} post-publish verification is incomplete.`
           : (result.stderr || result.stdout || 'GitHub release publish failed'),
       }
     } finally {

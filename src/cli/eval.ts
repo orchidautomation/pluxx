@@ -11,10 +11,12 @@ import {
   MCP_SCAFFOLD_METADATA_PATH,
   type McpScaffoldMetadata,
 } from './init-from-mcp'
+import { runSemanticEvaluation, type SemanticEvalSummary } from './semantic-eval'
 
 export type EvalLevel = 'error' | 'warning' | 'info' | 'success'
 
 export interface EvalCheck {
+  domain: 'contract' | 'semantic'
   level: EvalLevel
   code: string
   title: string
@@ -29,6 +31,7 @@ export interface EvalReport {
   warnings: number
   infos: number
   checks: EvalCheck[]
+  semantic: SemanticEvalSummary
 }
 
 export interface EvalRunOptions {
@@ -37,11 +40,11 @@ export interface EvalRunOptions {
 
 const AGENT_PROMPT_KINDS: AgentPromptKind[] = ['taxonomy', 'instructions', 'review']
 
-function addCheck(checks: EvalCheck[], check: EvalCheck): void {
-  checks.push(check)
+function addCheck(checks: EvalCheck[], check: Omit<EvalCheck, 'domain'> & { domain?: EvalCheck['domain'] }): void {
+  checks.push({ domain: check.domain ?? 'contract', ...check })
 }
 
-function summarizeChecks(checks: EvalCheck[]): EvalReport {
+function summarizeChecks(checks: EvalCheck[], semantic: SemanticEvalSummary): EvalReport {
   const errors = checks.filter((check) => check.level === 'error').length
   const warnings = checks.filter((check) => check.level === 'warning').length
   const infos = checks.filter((check) => check.level === 'info').length
@@ -52,6 +55,7 @@ function summarizeChecks(checks: EvalCheck[]): EvalReport {
     warnings,
     infos,
     checks,
+    semantic,
   }
 }
 
@@ -437,7 +441,7 @@ export async function runEvalSuite(options: EvalRunOptions = {}): Promise<EvalRe
   const checks: EvalCheck[] = []
 
   try {
-    await loadConfig(rootDir)
+    const config = await loadConfig(rootDir)
     const metadata = await loadMcpScaffoldMetadata(rootDir)
 
     if (!metadata) {
@@ -449,42 +453,73 @@ export async function runEvalSuite(options: EvalRunOptions = {}): Promise<EvalRe
         fix: 'Run this command inside an MCP-derived Pluxx project if you want scaffold and prompt-pack evals.',
         path: MCP_SCAFFOLD_METADATA_PATH,
       })
-      return summarizeChecks(checks)
-    }
-
-    const preparePlan = await planAgentPrepare(rootDir)
-    const contextContent = preparePlan.files.find((file) => file.relativePath === AGENT_CONTEXT_PATH)?.content ?? ''
-    const promptPlans = await Promise.all(
-      AGENT_PROMPT_KINDS.map((kind) => planAgentPrompt(rootDir, kind, { allowMissingContext: true })),
-    )
-    const promptContents = new Map<AgentPromptKind, string>(
-      promptPlans.map((plan) => [plan.kind, plan.files[0]?.content ?? '']),
-    )
-
-    const isMigratedBaseline = metadata.tools.length === 0
-
-    if (isMigratedBaseline) {
-      addCheck(checks, {
-        level: 'info',
-        code: 'eval-generated-scaffold-skipped',
-        title: 'Generated scaffold evals skipped for migrated baseline',
-        detail: 'This project has scaffold metadata but no MCP tool inventory, so file-level generated-section evals were skipped.',
-        fix: 'No action needed unless you want to rebuild the project around a fresh MCP-derived scaffold.',
-      })
     } else {
-      evaluateInstructions(rootDir, metadata, checks)
-      evaluateSkills(rootDir, metadata, checks)
-      evaluateCommands(rootDir, metadata, checks)
-      evaluateScaffoldArchitecture(metadata, checks)
+      const preparePlan = await planAgentPrepare(rootDir)
+      const contextContent = preparePlan.files.find((file) => file.relativePath === AGENT_CONTEXT_PATH)?.content ?? ''
+      const promptPlans = await Promise.all(
+        AGENT_PROMPT_KINDS.map((kind) => planAgentPrompt(rootDir, kind, { allowMissingContext: true })),
+      )
+      const promptContents = new Map<AgentPromptKind, string>(
+        promptPlans.map((plan) => [plan.kind, plan.files[0]?.content ?? '']),
+      )
+
+      const isMigratedBaseline = metadata.tools.length === 0
+
+      if (isMigratedBaseline) {
+        addCheck(checks, {
+          level: 'info',
+          code: 'eval-generated-scaffold-skipped',
+          title: 'Generated scaffold evals skipped for migrated baseline',
+          detail: 'This project has scaffold metadata but no MCP tool inventory, so file-level generated-section evals were skipped.',
+          fix: 'No action needed unless you want to rebuild the project around a fresh MCP-derived scaffold.',
+        })
+      } else {
+        evaluateInstructions(rootDir, metadata, checks)
+        evaluateSkills(rootDir, metadata, checks)
+        evaluateCommands(rootDir, metadata, checks)
+        evaluateScaffoldArchitecture(metadata, checks)
+      }
+
+      evaluateAgentContext(contextContent, metadata, checks)
+
+      for (const kind of AGENT_PROMPT_KINDS) {
+        evaluatePromptContent(kind, promptContents.get(kind) ?? '', metadata, checks)
+      }
     }
 
-    evaluateAgentContext(contextContent, metadata, checks)
-
-    for (const kind of AGENT_PROMPT_KINDS) {
-      evaluatePromptContent(kind, promptContents.get(kind) ?? '', metadata, checks)
+    const semantic = runSemanticEvaluation(rootDir, config, metadata)
+    for (const criterion of semantic.criteria) {
+      addCheck(checks, {
+        domain: 'semantic',
+        level: 'info',
+        code: `semantic-${criterion.id}`,
+        title: criterion.title,
+        detail: criterion.applicable
+          ? `Score ${criterion.score}/100. ${criterion.evidence.join(' ')}`
+          : `Not applicable. ${criterion.evidence.join(' ')}`,
+        fix: criterion.applicable && (criterion.score ?? 100) < semantic.warningThreshold
+          ? 'Strengthen the cited workflow evidence and rerun `pluxx eval`.'
+          : 'No action needed.',
+      })
     }
 
-    return summarizeChecks(checks)
+    const semanticLevel: EvalLevel = semantic.score < semantic.failureThreshold
+      ? 'error'
+      : semantic.score < semantic.warningThreshold
+        ? 'warning'
+        : 'success'
+    addCheck(checks, {
+      domain: 'semantic',
+      level: semanticLevel,
+      code: 'semantic-rubric-threshold',
+      title: 'Semantic rubric threshold',
+      detail: `Semantic score ${semantic.score}/100; warning below ${semantic.warningThreshold}, failure below ${semantic.failureThreshold}.`,
+      fix: semanticLevel === 'success'
+        ? 'No action needed.'
+        : 'Address the lowest-scoring semantic criteria or adjust project thresholds with an explicit rationale.',
+    })
+
+    return summarizeChecks(checks, semantic)
   } catch (error) {
     addCheck(checks, {
       level: 'error',
@@ -493,19 +528,25 @@ export async function runEvalSuite(options: EvalRunOptions = {}): Promise<EvalRe
       detail: error instanceof Error ? error.message : String(error),
       fix: 'Resolve the underlying project/config error, then rerun `pluxx eval`.',
     })
-    return summarizeChecks(checks)
+    return summarizeChecks(checks, {
+      score: 0,
+      warningThreshold: 80,
+      failureThreshold: 60,
+      criteria: [],
+    })
   }
 }
 
 export function printEvalReport(report: EvalReport): void {
   for (const check of report.checks) {
     const prefix = check.level.toUpperCase().padEnd(7, ' ')
+    const domain = check.domain.toUpperCase().padEnd(8, ' ')
     const pathLabel = check.path ? ` [${check.path}]` : ''
-    console.log(`${prefix} ${check.code}${pathLabel} ${check.title}`)
+    console.log(`${prefix} ${domain} ${check.code}${pathLabel} ${check.title}`)
     console.log(`         ${check.detail}`)
     console.log(`         Fix: ${check.fix}`)
   }
 
   console.log('')
-  console.log(`Eval summary: ${report.errors} error(s), ${report.warnings} warning(s), ${report.infos} info message(s)`)
+  console.log(`Eval summary: ${report.errors} error(s), ${report.warnings} warning(s), ${report.infos} info message(s); semantic ${report.semantic.score}/100`)
 }

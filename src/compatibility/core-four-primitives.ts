@@ -5,6 +5,7 @@ import {
   type CoreFourPlatform,
   type PrimitiveTranslationMode,
 } from '../validation/platform-rules'
+import { getFieldTranslationEntries, type FieldTranslationPrimitive } from '../field-translation-registry'
 
 const PLATFORM_LABELS: Record<CoreFourPlatform, string> = {
   'claude-code': 'Claude Code',
@@ -44,6 +45,27 @@ function formatBucketNotes(bucket: PluxxCompilerBucket): string[] {
   return lines
 }
 
+function formatFieldOutcomeCell(entry: ReturnType<typeof getFieldTranslationEntries>[number], platform: CoreFourPlatform): string {
+  const outcome = entry.platforms[platform]
+  const surfaces = outcome.nativeSurfaces.length > 0 ? outcome.nativeSurfaces.join(', ') : 'omitted'
+  return `\`${outcome.mode}\` -> ${surfaces}`
+}
+
+function formatFieldTruthSection(primitive: FieldTranslationPrimitive): string[] {
+  const lines = [
+    `### Audited \`${primitive}\` field outcomes`,
+    '',
+    '| Field | Claude Code | Cursor | Codex | OpenCode |',
+    '|---|---|---|---|---|',
+  ]
+
+  for (const entry of getFieldTranslationEntries(primitive)) {
+    lines.push(`| \`${entry.field}\` | ${CORE_FOUR_PLATFORMS.map(platform => formatFieldOutcomeCell(entry, platform)).join(' | ')} |`)
+  }
+
+  return [...lines, '']
+}
+
 export function renderCoreFourPrimitiveMatrixSection(): string {
   const lines = [
     CORE_FOUR_PRIMITIVE_SECTION_START,
@@ -70,6 +92,11 @@ export function renderCoreFourPrimitiveMatrixSection(): string {
     lines.push(`#### \`${bucket}\``, '')
     lines.push(...bucketNotes, '')
   }
+
+  lines.push('## Field-level translation truth', '')
+  lines.push('Primitive labels above are derived from these audited field outcomes. A primitive is only `preserve` when every audited field preserves.', '')
+  lines.push(...formatFieldTruthSection('skills'))
+  lines.push(...formatFieldTruthSection('hooks'))
 
   lines.push(CORE_FOUR_PRIMITIVE_SECTION_END)
 

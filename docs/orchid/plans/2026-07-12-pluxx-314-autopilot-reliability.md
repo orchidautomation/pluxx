@@ -54,8 +54,8 @@ stateDiagram-v2
     Review --> ReviewBlocked: actionable findings
     Review --> Verification: clean
     Verification --> Complete: passes
-    Verification --> Recoverable: restore prior stage checkpoint
-    Recoverable --> Verification: resume next incomplete stage
+    Verification --> Recoverable: restore verified baseline
+    Recoverable --> Taxonomy: resume from baseline
     ReviewBlocked --> Review: resume after repair
 ```
 
@@ -99,7 +99,7 @@ stateDiagram-v2
 
 **Approach:** Branch recovery flags before ordinary network/scaffold setup. Create an initial checkpoint before scaffold mutation, run doctor/test baseline, persist successful stages and their input/workspace fingerprints, run only the next eligible pass, gate on boundary/review results, restore the immediately preceding valid stage on failure, and report baseline/post-agent status distinctly.
 
-**Test scenarios:** Baseline failure runs no agents; taxonomy failure skips instructions/review/verification; instructions failure skips review; actionable review findings fail the gate; unauthorized mutations restore; resume skips successful passes; rollback restores the pre-Autopilot project; quick/standard/thorough decisions remain unchanged.
+**Test scenarios:** Baseline failure runs no agents; taxonomy failure skips instructions/review/verification; instructions failure skips review; actionable review findings fail the gate; unauthorized mutations restore; final verification failure restores the baseline; resume skips successful passes without the original MCP; rollback removes current recovery artifacts while preserving pre-existing diagnostics; stale-lock recovery admits one writer; quick/standard/thorough decisions remain unchanged.
 
 ### U4. Product and operator documentation
 

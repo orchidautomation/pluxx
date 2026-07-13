@@ -51,6 +51,8 @@ jobs:
           set -euo pipefail
           PACKAGE_FILE="$(npm pack)"
           echo "package_file=${PACKAGE_FILE}" >> "$GITHUB_OUTPUT"
+          PACKAGE_INTEGRITY="sha512-$(openssl dgst -sha512 -binary "$PACKAGE_FILE" | openssl base64 -A)"
+          echo "package_integrity=${PACKAGE_INTEGRITY}" >> "$GITHUB_OUTPUT"
 
       - name: Verify packaged Node runtime
         run: node scripts/verify-node-package-runtime.mjs --package-file "${{ steps.pack.outputs.package_file }}"
@@ -58,7 +60,43 @@ jobs:
       - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ''
-        run: npm publish --provenance --access public
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXPECTED_VERSION="${{ steps.version.outputs.package_version }}"
+          EXPECTED_INTEGRITY="${{ steps.pack.outputs.package_integrity }}"
+          set +e
+          EXISTING_OUTPUT="$(npm view "@orchid-labs/pluxx@${EXPECTED_VERSION}" dist.integrity 2>&1)"
+          EXISTING_STATUS=$?
+          set -e
+          if [[ "$EXISTING_STATUS" -eq 0 ]]; then
+            EXISTING_INTEGRITY="$EXISTING_OUTPUT"
+            test "$EXISTING_INTEGRITY" = "$EXPECTED_INTEGRITY"
+            echo "@orchid-labs/pluxx@${EXPECTED_VERSION} already exists with matching integrity; skipping immutable npm publish."
+          elif grep -Eiq 'E404|404 Not Found|is not in this registry' <<<"$EXISTING_OUTPUT"; then
+            npm publish "./${{ steps.pack.outputs.package_file }}" --provenance --access public
+          else
+            echo "Unable to inspect the npm registry before publishing:" >&2
+            echo "$EXISTING_OUTPUT" >&2
+            exit "$EXISTING_STATUS"
+          fi
+
+      - name: Verify npm publication
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXPECTED_VERSION="${{ steps.version.outputs.package_version }}"
+          EXPECTED_INTEGRITY="${{ steps.pack.outputs.package_integrity }}"
+          for attempt in 1 2 3 4 5 6; do
+            if PUBLISHED_VERSION="$(npm view "@orchid-labs/pluxx@${EXPECTED_VERSION}" version)" \
+              && PUBLISHED_INTEGRITY="$(npm view "@orchid-labs/pluxx@${EXPECTED_VERSION}" dist.integrity)"; then
+              break
+            fi
+            if [[ "$attempt" -eq 6 ]]; then exit 1; fi
+            sleep 5
+          done
+          test "$PUBLISHED_VERSION" = "$EXPECTED_VERSION"
+          test "$PUBLISHED_INTEGRITY" = "$EXPECTED_INTEGRITY"
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v3
@@ -66,3 +104,24 @@ jobs:
           generate_release_notes: true
           files: ${{ steps.pack.outputs.package_file }}
           name: v${{ steps.version.outputs.package_version }}
+          overwrite_files: true
+
+      - name: Verify GitHub release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="v${{ steps.version.outputs.package_version }}"
+          PACKAGE_FILE="${{ steps.pack.outputs.package_file }}"
+          EXPECTED_INTEGRITY="${{ steps.pack.outputs.package_integrity }}"
+          DOWNLOAD_DIR="$(mktemp -d)"
+          trap 'rm -rf "$DOWNLOAD_DIR"' EXIT
+
+          gh release view "$TAG" --json tagName,assets \
+            --jq '.tagName == "'"$TAG"'" and any(.assets[]; .name == "'"$PACKAGE_FILE"'")' \
+            | grep -qx true
+          gh release download "$TAG" --pattern "$PACKAGE_FILE" --dir "$DOWNLOAD_DIR"
+
+          RELEASE_INTEGRITY="sha512-$(openssl dgst -sha512 -binary "$DOWNLOAD_DIR/$PACKAGE_FILE" | openssl base64 -A)"
+          test "$RELEASE_INTEGRITY" = "$EXPECTED_INTEGRITY"

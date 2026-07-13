@@ -68,6 +68,45 @@ afterEach(() => {
 })
 
 describe('CLI init JSON summary', () => {
+  it('reports existing non-managed init destinations as dry-run conflicts', async () => {
+    const cwd = mkdtempSync(resolve(tmpdir(), 'pluxx-cli-init-conflict-'))
+    writeFileSync(resolve(cwd, 'pluxx.config.ts'), 'user config\n')
+    try {
+      const proc = Bun.spawn([
+        'bun',
+        resolve(ROOT, 'bin/pluxx.js'),
+        'init',
+        '--from-mcp',
+        `bun ${stubServerPath}`,
+        '--yes',
+        '--name',
+        'stub-server',
+        '--display-name',
+        'Stub Server',
+        '--author',
+        'Test Author',
+        '--targets',
+        'codex',
+        '--dry-run',
+        '--json',
+      ], { cwd, stdout: 'pipe', stderr: 'pipe' })
+      const stdout = await new Response(proc.stdout).text()
+      const stderr = await new Response(proc.stderr).text()
+      expect(await proc.exited, stderr).toBe(0)
+      const summary = JSON.parse(stdout) as {
+        mutation: { version: number; conflicts: Array<{ path: string; reason: string }> }
+      }
+      expect(summary.mutation.version).toBe(1)
+      expect(summary.mutation.conflicts).toContainEqual({
+        path: 'pluxx.config.ts',
+        reason: 'destination-exists',
+      })
+      expect(readFileSync(resolve(cwd, 'pluxx.config.ts'), 'utf-8')).toBe('user config\n')
+    } finally {
+      rmSync(cwd, { recursive: true, force: true })
+    }
+  })
+
   it('reports the applied hook mode instead of the requested no-op safe mode', async () => {
     const cwd = mkdtempSync(resolve(tmpdir(), 'pluxx-cli-init-'))
 

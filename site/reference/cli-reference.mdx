@@ -234,7 +234,9 @@ npx @orchid-labs/pluxx migrate ./existing-plugin
 
 ### `pluxx mcp proxy --from-mcp ... [--record ...]`
 
-Run a local stdio proxy in front of a live MCP. With `--record`, save a deterministic tape.
+Run a local stdio proxy in front of a live MCP. With `--record`, save a deterministic schema-v2 tape. Pluxx recursively redacts common sensitive keys, URL userinfo and sensitive query values, source-command credentials, and recognized authorization values before writing the file. Raw recording is not supported.
+
+**Privacy warning:** redaction is a credential-safety boundary, not a general content classifier. Tool results can contain private documents or customer data under ordinary field names. Review every tape before committing, uploading, or sharing it.
 
 ```bash
 npx @orchid-labs/pluxx mcp proxy \
@@ -245,6 +247,8 @@ npx @orchid-labs/pluxx mcp proxy \
 ### `pluxx mcp proxy --replay <tape.json>`
 
 Replay a recorded MCP session without hitting the live server again.
+
+Replay accepts existing schema-v1 tapes and current schema-v2 tapes, validates their structure strictly, preserves the expected interaction after a mismatch, and fails when the input ends with unused interactions. Unsupported schema versions return an explicit migration error.
 
 User story:
 

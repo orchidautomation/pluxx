@@ -88,10 +88,10 @@ The important compiler nuance is that two of these public buckets already need f
 | Bucket | Claude Code | Cursor | Codex | OpenCode |
 |---|---|---|---|---|
 | `instructions` | `preserve` -> CLAUDE.md | `preserve` -> rules/, AGENTS.md | `preserve` -> AGENTS.md, AGENTS.override.md | `translate` -> AGENTS.md, CLAUDE.md, config instructions, plugin code |
-| `skills` | `preserve` -> skills/<skill>/SKILL.md | `preserve` -> skills/<skill>/SKILL.md | `preserve` -> skills/<skill>/SKILL.md | `preserve` -> skills/<skill>/SKILL.md |
+| `skills` | `preserve` -> skills/<skill>/SKILL.md, skill frontmatter hooks | `degrade` -> skills/<skill>/SKILL.md, skills/<skill>/SKILL.md compatibility metadata, hooks/hooks.json | `degrade` -> skills/<skill>/SKILL.md, skills/<skill>/SKILL.md compatibility metadata, AGENTS.md, .codex/commands.generated.json, .codex/skills.generated.json, hooks/hooks.json | `degrade` -> skills/<skill>/SKILL.md, skills/<skill>/SKILL.md compatibility metadata, commands, plugin runtime guidance, skills.generated.json |
 | `commands` | `preserve` -> commands/*.md, skills/<skill>/SKILL.md | `preserve` -> commands/*, slash commands | `degrade` -> skills/, AGENTS.md, .codex/commands.generated.json | `preserve` -> commands/*.md, config command definitions |
 | `agents` | `preserve` -> agents/*.md | `translate` -> agents/, .cursor/agents/, ~/.cursor/agents/ | `translate` -> .codex/agents/*.toml, ~/.codex/agents/*.toml, subagent workflows | `preserve` -> agents/*.md, config agent definitions |
-| `hooks` | `preserve` -> hooks/hooks.json, .claude-plugin/plugin.json, settings hooks, skill/agent frontmatter hooks | `preserve` -> hooks/hooks.json, .cursor/hooks.json, ~/.cursor/hooks.json | `translate` -> hooks/hooks.json, .codex/hooks.json, ~/.codex/hooks.json | `translate` -> plugin JS/TS event handlers |
+| `hooks` | `degrade` -> hooks/hooks.json, settings hooks, frontmatter hooks | `degrade` -> hooks/hooks.json, .cursor/hooks.json | `degrade` -> hooks/hooks.json, .codex/hooks.json, generated command wrappers | `degrade` -> plugin JS/TS event handlers, plugin runtime event filters, plugin runtime event handlers |
 | `permissions` | `translate` -> agent frontmatter, hook decisions, runtime approvals | `translate` -> hooks allow/deny, .cursor/cli.json, ~/.cursor/cli-config.json, subagent tool access | `translate` -> approvals, sandbox policy, hook matchers, custom agent config | `preserve` -> config permission, per-agent overrides |
 | `runtime` | `preserve` -> .mcp.json, .claude-plugin/plugin.json, scripts/, assets/ | `preserve` -> mcp.json, .cursor/mcp.json, ~/.cursor/mcp.json, .cursor-plugin/plugin.json, scripts/, assets/ | `preserve` -> .mcp.json, .app.json, .codex/config.toml, scripts/, assets/ | `preserve` -> opencode.json, config mcp, plugin JS/TS runtime, scripts/, assets/ |
 | `distribution` | `translate` -> .claude-plugin/plugin.json, marketplaces, install scopes, user configuration, /reload-plugins | `preserve` -> .cursor-plugin/plugin.json, .cursor-plugin/marketplace.json, local marketplace install path, reload window / restart | `preserve` -> .codex-plugin/plugin.json, ~/.agents/plugins/marketplace.json, $REPO_ROOT/.agents/plugins/marketplace.json, cache install path, restart after update | `translate` -> .opencode/plugins/, ~/.config/opencode/plugins/, opencode.json, npm package, plugin JS/TS entrypoint |
@@ -105,7 +105,10 @@ Registry notes:
 
 #### `skills`
 
-- Cursor: Cursor skills preserve workflow meaning but document a narrower frontmatter set than Claude.
+- Claude Code: Derived from 18 audited skills fields; all preserve on claude-code.
+- Cursor: Derived from field outcomes. Weaker fields: when_to_use=degrade, argument-hint=degrade, arguments=degrade, user-invocable=degrade, paths=degrade, shell=degrade, allowed-tools=degrade, model=degrade, effort=degrade, context=degrade, agent=degrade, hooks=degrade.
+- Codex: Derived from field outcomes. Weaker fields: when_to_use=degrade, argument-hint=degrade, arguments=degrade, user-invocable=degrade, paths=degrade, shell=degrade, allowed-tools=degrade, model=degrade, effort=degrade, context=degrade, agent=degrade, hooks=degrade.
+- OpenCode: Derived from field outcomes. Weaker fields: when_to_use=degrade, argument-hint=degrade, arguments=degrade, user-invocable=degrade, paths=degrade, shell=degrade, allowed-tools=degrade, model=degrade, effort=degrade, context=degrade, agent=degrade, hooks=degrade.
 
 #### `commands`
 
@@ -121,8 +124,10 @@ Registry notes:
 
 #### `hooks`
 
-- Codex: Hooks are native. Pluxx bundles translated Codex hooks in the plugin with the documented `[features].hooks = true` feature key, and still tracks broader project/user hook config paths where `codex_hooks` is deprecated. Plugin-bundled execution still also depends on enabled plugin state, review, trust, and runtime support.
-- OpenCode: OpenCode hook behavior is native, but code-first rather than hooks.json-driven.
+- Claude Code: Derived from field outcomes. Weaker fields: prompt=degrade, failClosed=drop, loop_limit=drop.
+- Cursor: Derived from field outcomes. Weaker fields: event=degrade, http=drop, mcp_tool=drop, agent=drop, loop_limit=degrade.
+- Codex: Derived from field outcomes. Weaker fields: event=degrade, command=translate, prompt=drop, http=drop, mcp_tool=drop, agent=drop, matcher=degrade, failClosed=drop, loop_limit=drop, timeout=translate.
+- OpenCode: Derived from field outcomes. Weaker fields: event=translate, command=translate, prompt=drop, http=drop, mcp_tool=drop, agent=drop, matcher=translate, loop_limit=drop, timeout=translate.
 
 #### `permissions`
 
@@ -139,6 +144,48 @@ Registry notes:
 
 - Claude Code: Distribution surfaces are native, including plugin marketplaces and explicit reload behavior.
 - OpenCode: Distribution is native, but there is no single shared manifest analog to Claude, Cursor, or Codex.
+
+## Field-level translation truth
+
+Primitive labels above are derived from these audited field outcomes. A primitive is only `preserve` when every audited field preserves.
+
+### Audited `skills` field outcomes
+
+| Field | Claude Code | Cursor | Codex | OpenCode |
+|---|---|---|---|---|
+| `name` | `preserve` -> skills/<skill>/SKILL.md | `preserve` -> skills/<skill>/SKILL.md | `preserve` -> skills/<skill>/SKILL.md | `preserve` -> skills/<skill>/SKILL.md |
+| `description` | `preserve` -> skills/<skill>/SKILL.md | `preserve` -> skills/<skill>/SKILL.md | `preserve` -> skills/<skill>/SKILL.md | `preserve` -> skills/<skill>/SKILL.md |
+| `license` | `preserve` -> skills/<skill>/SKILL.md | `preserve` -> skills/<skill>/SKILL.md | `preserve` -> skills/<skill>/SKILL.md | `preserve` -> skills/<skill>/SKILL.md |
+| `compatibility` | `preserve` -> skills/<skill>/SKILL.md | `preserve` -> skills/<skill>/SKILL.md | `preserve` -> skills/<skill>/SKILL.md | `preserve` -> skills/<skill>/SKILL.md |
+| `metadata` | `preserve` -> skills/<skill>/SKILL.md | `preserve` -> skills/<skill>/SKILL.md | `preserve` -> skills/<skill>/SKILL.md | `preserve` -> skills/<skill>/SKILL.md |
+| `disable-model-invocation` | `preserve` -> skills/<skill>/SKILL.md | `preserve` -> skills/<skill>/SKILL.md | `preserve` -> skills/<skill>/SKILL.md | `preserve` -> skills/<skill>/SKILL.md |
+| `when_to_use` | `preserve` -> skills/<skill>/SKILL.md | `degrade` -> skills/<skill>/SKILL.md compatibility metadata | `degrade` -> skills/<skill>/SKILL.md compatibility metadata, AGENTS.md, .codex/commands.generated.json | `degrade` -> skills/<skill>/SKILL.md compatibility metadata, commands, plugin runtime guidance |
+| `argument-hint` | `preserve` -> skills/<skill>/SKILL.md | `degrade` -> skills/<skill>/SKILL.md compatibility metadata | `degrade` -> skills/<skill>/SKILL.md compatibility metadata | `degrade` -> skills/<skill>/SKILL.md compatibility metadata |
+| `arguments` | `preserve` -> skills/<skill>/SKILL.md | `degrade` -> skills/<skill>/SKILL.md compatibility metadata | `degrade` -> skills/<skill>/SKILL.md compatibility metadata | `degrade` -> skills/<skill>/SKILL.md compatibility metadata |
+| `user-invocable` | `preserve` -> skills/<skill>/SKILL.md | `degrade` -> skills/<skill>/SKILL.md compatibility metadata | `degrade` -> skills/<skill>/SKILL.md compatibility metadata | `degrade` -> skills/<skill>/SKILL.md compatibility metadata |
+| `paths` | `preserve` -> skills/<skill>/SKILL.md | `degrade` -> skills/<skill>/SKILL.md compatibility metadata | `degrade` -> skills/<skill>/SKILL.md compatibility metadata | `degrade` -> skills/<skill>/SKILL.md compatibility metadata |
+| `shell` | `preserve` -> skills/<skill>/SKILL.md | `degrade` -> skills/<skill>/SKILL.md compatibility metadata | `degrade` -> skills/<skill>/SKILL.md compatibility metadata | `degrade` -> skills/<skill>/SKILL.md compatibility metadata |
+| `allowed-tools` | `preserve` -> skills/<skill>/SKILL.md | `degrade` -> skills/<skill>/SKILL.md compatibility metadata | `degrade` -> skills/<skill>/SKILL.md compatibility metadata, .codex/skills.generated.json | `degrade` -> skills/<skill>/SKILL.md compatibility metadata, skills.generated.json |
+| `model` | `preserve` -> skills/<skill>/SKILL.md | `degrade` -> skills/<skill>/SKILL.md compatibility metadata | `degrade` -> skills/<skill>/SKILL.md compatibility metadata, .codex/skills.generated.json | `degrade` -> skills/<skill>/SKILL.md compatibility metadata, skills.generated.json |
+| `effort` | `preserve` -> skills/<skill>/SKILL.md | `degrade` -> skills/<skill>/SKILL.md compatibility metadata | `degrade` -> skills/<skill>/SKILL.md compatibility metadata, .codex/skills.generated.json | `degrade` -> skills/<skill>/SKILL.md compatibility metadata, skills.generated.json |
+| `context` | `preserve` -> skills/<skill>/SKILL.md | `degrade` -> skills/<skill>/SKILL.md compatibility metadata | `degrade` -> skills/<skill>/SKILL.md compatibility metadata, .codex/skills.generated.json | `degrade` -> skills/<skill>/SKILL.md compatibility metadata, skills.generated.json |
+| `agent` | `preserve` -> skills/<skill>/SKILL.md | `degrade` -> skills/<skill>/SKILL.md compatibility metadata | `degrade` -> skills/<skill>/SKILL.md compatibility metadata, .codex/skills.generated.json | `degrade` -> skills/<skill>/SKILL.md compatibility metadata, skills.generated.json |
+| `hooks` | `preserve` -> skill frontmatter hooks | `degrade` -> hooks/hooks.json | `degrade` -> hooks/hooks.json | `degrade` -> skills/<skill>/SKILL.md compatibility metadata |
+
+### Audited `hooks` field outcomes
+
+| Field | Claude Code | Cursor | Codex | OpenCode |
+|---|---|---|---|---|
+| `event` | `preserve` -> hooks/hooks.json, settings hooks, frontmatter hooks | `degrade` -> hooks/hooks.json, .cursor/hooks.json | `degrade` -> hooks/hooks.json, .codex/hooks.json | `translate` -> plugin JS/TS event handlers |
+| `command` | `preserve` -> hooks/hooks.json | `preserve` -> hooks/hooks.json | `translate` -> hooks/hooks.json, generated command wrappers | `translate` -> plugin JS/TS event handlers |
+| `prompt` | `degrade` -> hooks/hooks.json, frontmatter hooks | `preserve` -> hooks/hooks.json | `drop` -> omitted | `drop` -> omitted |
+| `http` | `preserve` -> hooks/hooks.json | `drop` -> omitted | `drop` -> omitted | `drop` -> omitted |
+| `mcp_tool` | `preserve` -> hooks/hooks.json | `drop` -> omitted | `drop` -> omitted | `drop` -> omitted |
+| `agent` | `preserve` -> hooks/hooks.json | `drop` -> omitted | `drop` -> omitted | `drop` -> omitted |
+| `matcher` | `preserve` -> hooks/hooks.json | `preserve` -> hooks/hooks.json | `degrade` -> hooks/hooks.json | `translate` -> plugin runtime event filters |
+| `failClosed` | `drop` -> omitted | `preserve` -> hooks/hooks.json | `drop` -> omitted | `preserve` -> plugin runtime event handlers |
+| `loop_limit` | `drop` -> omitted | `degrade` -> hooks/hooks.json | `drop` -> omitted | `drop` -> omitted |
+| `timeout` | `preserve` -> hooks/hooks.json | `preserve` -> hooks/hooks.json | `translate` -> hooks/hooks.json | `translate` -> plugin runtime event handlers |
 
 <!-- pluxx:core-four-primitives:end -->
 ## Practical Consequences

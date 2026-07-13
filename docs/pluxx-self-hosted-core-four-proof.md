@@ -2,6 +2,8 @@
 
 Last updated: 2026-05-12
 
+Proof status: **historical**. Tier: `installed-runtime`. Observed: 2026-05-12 against v0.1.28-era state. The run predates host-version, installed-path, and artifact-hash receipts and therefore must not be presented as current v0.1.31 evidence. See [proof freshness](./proof-freshness.md) and [proof manifest](./proof-manifest.json).
+
 ## Doc Links
 
 - Role: concrete local proof that the self-hosted Pluxx plugin builds, installs, and verifies across the core four
@@ -25,7 +27,7 @@ Use this doc when you want the shortest concrete answer to:
 - what exact commands were run
 - what did that proof actually establish
 
-This is the self-hosted Pluxx plugin proof.
+This is retained historical self-hosted Pluxx plugin proof.
 
 It is not the same thing as the flagship Docs Ops proof.
 

@@ -71,7 +71,7 @@ describe('lint command explainability', () => {
       expect(stderr).toBe('')
       expect(stdout).toContain('Core-four mapping:')
       expect(stdout).toContain('commands on codex: weakened to skills/, AGENTS.md')
-      expect(stdout).toContain('hooks on open: re-expressed via plugin JS/TS event handlers')
+      expect(stdout).toContain('hooks on open: weakened to plugin JS/TS event handlers')
       expect(stdout).toContain('permissions on codex: re-expressed via approvals, sandbox policy, hook matchers, custom agent config')
       expect(stdout).toContain('Lint summary: 0 error(s),')
     } finally {

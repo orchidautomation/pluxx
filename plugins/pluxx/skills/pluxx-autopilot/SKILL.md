@@ -45,7 +45,7 @@ Use this skill when the user wants the one-shot path instead of a manually stage
   - runner
   - boundary
   - review
-  - post-agent-verification
+  - verification (with `failurePhase: post-agent-verification` for failures after refinement)
 - Preserve Autopilot recovery metadata while resume or rollback is still needed, and do not publish its raw contents.
 - Resume only a compatible saved run. If behavior-affecting inputs changed, stop and start a new run instead of weakening the fingerprint check.
 

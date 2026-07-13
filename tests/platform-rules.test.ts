@@ -11,6 +11,7 @@ import {
 import { PLUXX_COMPILER_BUCKETS } from '../src/schema'
 import { getAgentPrimitiveCapability } from '../src/agent-translation-registry'
 import { getCommandPrimitiveCapability } from '../src/command-translation-registry'
+import { derivePrimitiveCapability, getFieldTranslationEntries } from '../src/field-translation-registry'
 
 describe('PLATFORM_VALIDATION_RULES', () => {
   it('has entries for all researched platforms', () => {
@@ -94,6 +95,37 @@ describe('CORE_FOUR_PRIMITIVE_CAPABILITIES', () => {
       expect(CORE_FOUR_PRIMITIVE_CAPABILITIES[platform].buckets.agents).toEqual(
         getAgentPrimitiveCapability(platform),
       )
+    }
+  })
+
+  it('derives skill and hook capability truth from audited field outcomes', () => {
+    for (const platform of CORE_FOUR_PLATFORMS) {
+      expect(CORE_FOUR_PRIMITIVE_CAPABILITIES[platform].buckets.skills).toEqual(
+        derivePrimitiveCapability('skills', platform),
+      )
+      expect(CORE_FOUR_PRIMITIVE_CAPABILITIES[platform].buckets.hooks).toEqual(
+        derivePrimitiveCapability('hooks', platform),
+      )
+    }
+
+    expect(CORE_FOUR_PRIMITIVE_CAPABILITIES['claude-code'].buckets.skills.mode).toBe('preserve')
+    expect(CORE_FOUR_PRIMITIVE_CAPABILITIES.cursor.buckets.skills.mode).toBe('degrade')
+    expect(CORE_FOUR_PRIMITIVE_CAPABILITIES['claude-code'].buckets.hooks.mode).toBe('degrade')
+    expect(CORE_FOUR_PRIMITIVE_CAPABILITIES.cursor.buckets.hooks.mode).toBe('degrade')
+  })
+
+  it('never labels a field-derived primitive preserve when an audited field is weaker', () => {
+    for (const primitive of ['skills', 'hooks'] as const) {
+      const entries = getFieldTranslationEntries(primitive)
+      for (const platform of CORE_FOUR_PLATFORMS) {
+        const capability = derivePrimitiveCapability(primitive, platform)
+        const weakerFields = entries.filter(entry => entry.platforms[platform].mode !== 'preserve')
+        if (capability.mode === 'preserve') {
+          expect(weakerFields).toEqual([])
+        } else {
+          expect(weakerFields.length).toBeGreaterThan(0)
+        }
+      }
     }
   })
 

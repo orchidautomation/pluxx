@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
-import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { resolve } from 'path'
 import type { PluginConfig } from '../src/schema'
@@ -184,6 +184,165 @@ describe('behavioral smoke suite', () => {
     expect(result.checks[0]?.ok).toBe(true)
     expect(result.checks[0]?.expectedExitCodes).toEqual([2])
     expect(result.checks[0]?.command).toContain('--model')
+  })
+
+  it('returns workflow receipts with factual artifact assertions', async () => {
+    const rootDir = makeTempDir('pluxx-behavioral-receipt-')
+    const binDir = resolve(rootDir, '.bin')
+    mkdirSync(binDir, { recursive: true })
+    mkdirSync(resolve(rootDir, '.pluxx'), { recursive: true })
+
+    writeFileSync(
+      resolve(rootDir, '.pluxx/behavioral-smoke.json'),
+      JSON.stringify({
+        cases: [
+          {
+            name: 'publish-dry-run',
+            commandId: 'publish-plugin',
+            skillId: 'pluxx-publish-plugin',
+            agentId: 'release-operator',
+            targets: {
+              opencode: {
+                prompt: 'Use command publish-plugin to create a dry-run publish receipt.',
+                require: ['Dry run complete'],
+                artifacts: [
+                  {
+                    path: 'proof/publish.json',
+                    state: 'created',
+                    require: ['"status":"dry-run"', '"published":false'],
+                  },
+                ],
+              },
+            },
+          },
+        ],
+      }, null, 2),
+    )
+
+    makeStubExecutable(
+      resolve(binDir, 'opencode'),
+      '#!/bin/sh\nmkdir -p proof\nprintf \'{"status":"dry-run","published":false}\\n\' > proof/publish.json\nprintf "Dry run complete\\n"\n',
+    )
+    process.env.PATH = `${binDir}:${ORIGINAL_PATH}`
+
+    const config = { name: 'pluxx' } as PluginConfig
+    const result = await runBehavioralSuite(rootDir, config, ['opencode'])
+    const check = result.checks[0]!
+
+    expect(result.ok).toBe(true)
+    expect(check.receipt.target).toBe('opencode')
+    expect(check.receipt.commandId).toBe('publish-plugin')
+    expect(check.receipt.skillId).toBe('pluxx-publish-plugin')
+    expect(check.receipt.agentId).toBe('release-operator')
+    expect(check.receipt.assertions.requiredText).toEqual(['Dry run complete'])
+    expect(check.receipt.artifacts[0]).toMatchObject({
+      path: 'proof/publish.json',
+      state: 'created',
+      exists: true,
+      kind: 'file',
+      ok: true,
+    })
+  })
+
+  it('fails receipts when artifact facts do not match', async () => {
+    const rootDir = makeTempDir('pluxx-behavioral-artifact-fail-')
+    const binDir = resolve(rootDir, '.bin')
+    mkdirSync(binDir, { recursive: true })
+    mkdirSync(resolve(rootDir, '.pluxx'), { recursive: true })
+
+    writeFileSync(
+      resolve(rootDir, '.pluxx/behavioral-smoke.json'),
+      JSON.stringify({
+        cases: [{
+          name: 'publish-dry-run',
+          targets: {
+            opencode: {
+              prompt: 'Create a dry-run publish receipt.',
+              artifacts: [{ path: 'proof/publish.json', require: ['"published":false'] }],
+            },
+          },
+        }],
+      }, null, 2),
+    )
+    makeStubExecutable(resolve(binDir, 'opencode'), '#!/bin/sh\nprintf "Dry run complete\\n"\n')
+    process.env.PATH = `${binDir}:${ORIGINAL_PATH}`
+
+    const result = await runBehavioralSuite(rootDir, { name: 'pluxx' } as PluginConfig, ['opencode'])
+
+    expect(result.ok).toBe(false)
+    expect(result.checks[0]?.receipt.artifacts[0]?.ok).toBe(false)
+    expect(result.checks[0]?.failures).toContain('proof/publish.json: expected artifact to exist')
+  })
+
+  it('fails a changed assertion when the runner leaves a pre-existing artifact untouched', async () => {
+    const rootDir = makeTempDir('pluxx-behavioral-artifact-unchanged-')
+    const binDir = resolve(rootDir, '.bin')
+    mkdirSync(binDir, { recursive: true })
+    mkdirSync(resolve(rootDir, '.pluxx'), { recursive: true })
+    writeFileSync(resolve(rootDir, 'receipt.json'), '{"outcome":"old"}')
+    writeFileSync(
+      resolve(rootDir, '.pluxx/behavioral-smoke.json'),
+      JSON.stringify({ cases: [{ name: 'unchanged', targets: { opencode: {
+        prompt: 'Run the workflow.',
+        artifacts: [{ path: 'receipt.json', state: 'changed', require: ['"outcome"'] }],
+      } } }] }),
+    )
+    makeStubExecutable(resolve(binDir, 'opencode'), '#!/bin/sh\nprintf "done\\n"\n')
+    process.env.PATH = `${binDir}:${ORIGINAL_PATH}`
+
+    const result = await runBehavioralSuite(rootDir, { name: 'pluxx' } as PluginConfig, ['opencode'])
+
+    expect(result.ok).toBe(false)
+    expect(result.checks[0]?.failures).toContain('receipt.json: expected artifact to change during runner execution')
+  })
+
+  it('keeps declared artifact outcomes when the runner cannot start', async () => {
+    const rootDir = makeTempDir('pluxx-behavioral-runner-error-artifact-')
+    mkdirSync(resolve(rootDir, '.pluxx'), { recursive: true })
+    writeFileSync(
+      resolve(rootDir, '.pluxx/behavioral-smoke.json'),
+      JSON.stringify({ cases: [{ name: 'runner-error', targets: { opencode: {
+        prompt: 'Run the workflow.',
+        artifacts: [{ path: 'receipt.json', state: 'created' }],
+      } } }] }),
+    )
+    process.env.PATH = makeTempDir('pluxx-empty-path-')
+
+    const result = await runBehavioralSuite(rootDir, { name: 'pluxx' } as PluginConfig, ['opencode'])
+
+    expect(result.ok).toBe(false)
+    expect(result.checks[0]?.receipt.artifacts[0]).toMatchObject({
+      path: 'receipt.json',
+      state: 'created',
+      exists: false,
+      ok: false,
+    })
+  })
+
+  it('refuses artifact symlinks that resolve outside the project root', async () => {
+    const rootDir = makeTempDir('pluxx-behavioral-artifact-boundary-')
+    const outsideDir = makeTempDir('pluxx-behavioral-artifact-outside-')
+    const binDir = resolve(rootDir, '.bin')
+    mkdirSync(binDir, { recursive: true })
+    mkdirSync(resolve(rootDir, '.pluxx'), { recursive: true })
+    writeFileSync(resolve(outsideDir, 'outside.txt'), 'outside project')
+    symlinkSync(resolve(outsideDir, 'outside.txt'), resolve(rootDir, 'receipt.txt'))
+    writeFileSync(
+      resolve(rootDir, '.pluxx/behavioral-smoke.json'),
+      JSON.stringify({
+        cases: [{
+          name: 'boundary',
+          targets: { opencode: { prompt: 'Check the receipt.', artifacts: [{ path: 'receipt.txt', require: ['outside'] }] } },
+        }],
+      }),
+    )
+    makeStubExecutable(resolve(binDir, 'opencode'), '#!/bin/sh\nprintf "done\\n"\n')
+    process.env.PATH = `${binDir}:${ORIGINAL_PATH}`
+
+    const result = await runBehavioralSuite(rootDir, { name: 'pluxx' } as PluginConfig, ['opencode'])
+
+    expect(result.ok).toBe(false)
+    expect(result.checks[0]?.failures).toContain('receipt.txt: artifact path resolves outside the project root')
   })
 
   it('times out hanging runner commands instead of blocking indefinitely', async () => {

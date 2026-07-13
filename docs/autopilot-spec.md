@@ -150,9 +150,9 @@ This keeps the semantic layer honest.
 
 ## Reliability And Recovery Contract
 
-Autopilot creates a durable pre-run checkpoint, proves the deterministic scaffold with `doctor` and `test`, then checkpoints each successful agent stage. A failed baseline runs no agent. A failed runner, write-boundary violation, inconclusive review, actionable review finding, or post-agent verification failure stops dependent work and restores the preceding valid checkpoint.
+Autopilot creates a durable pre-run checkpoint, proves the deterministic scaffold with `doctor` and `test`, then checkpoints each successful agent stage. A failed baseline runs no agent. A failed runner, write-boundary violation, inconclusive review, or actionable review finding stops dependent work and restores the preceding valid checkpoint. If final post-agent verification fails, Autopilot restores the verified baseline and clears the unverified pass completions so resume cannot skip back into a broken tree.
 
-Use `pluxx autopilot --resume` to continue the saved run from its next incomplete stage. Resume validates the saved behavior fingerprint and requires the workspace to still match the last valid checkpoint instead of silently skipping stale work. A manual repair after a blocked review starts a new Autopilot run; it is not treated as an unchanged interrupted run. Use `pluxx autopilot --rollback` to restore the pre-Autopilot project without requiring the original MCP or runner to be available.
+Use `pluxx autopilot --resume` to continue the saved run from its next incomplete stage. Resume reconstructs discovery from the saved `.pluxx/mcp.json`, so the original MCP does not need to be reachable. It validates the saved behavior fingerprint and requires the workspace to still match the last valid checkpoint instead of silently skipping stale work. A manual repair after a blocked review starts a new Autopilot run; it is not treated as an unchanged interrupted run. Use `pluxx autopilot --rollback` to restore the pre-Autopilot project without requiring the original MCP or runner to be available. Successful rollback removes recovery state, checkpoints, and result artifacts created by that run while restoring any result artifacts that existed before it.
 
 State and structured result artifacts live under `.pluxx/`:
 
@@ -161,7 +161,7 @@ State and structured result artifacts live under `.pluxx/`:
 - `.pluxx/agent/<pass>-run-result.json`
 - `.pluxx/agent/review-result.json`
 
-Runner output is summarized as bounded byte counts and status metadata. Review findings are preserved as validated structured records and printed in JSON/text summaries; raw runner streams are not copied into summaries.
+Each pass exposes `runnerOutput` with its artifact path, bounded byte counts, and truncation status in JSON; text output prints the artifact path and truncation flag. Review findings are preserved as validated structured records and printed in JSON/text summaries; raw runner streams are not copied into summaries. Existing consumers continue to receive `failureStage: "verification"`; `failurePhase: "post-agent-verification"` adds the more precise phase without changing that discriminator.
 
 ## Output Contract
 

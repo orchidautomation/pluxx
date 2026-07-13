@@ -74,11 +74,15 @@ The current next ship decision is to make Codex companion apply and verify first
 
 See [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisions/2026-06-26-pluxx-next-ship-review.md).
 
-The follow-on slice is install ownership tracking for conservative uninstall, prune, reinstall, and "what did Pluxx touch?" diagnostics.
+The transactional install-ownership slice is now implemented across the core-four local and generated release-installer paths. It stages and validates candidate bundles, retains rollback backups through post-install work, hashes owned files, preserves modified/unowned content, adds conservative Codex config unapply, and makes verification content-aware even when versions match.
+
+The v0.1.31 audit remediation also closes a core authoring-safety gap: `init`, `sync`, `migrate`, and `build` now stage and validate mutations before publication, restore prior state after thrown apply failures, retain recovery metadata for unresolved interruptions, and expose additive versioned mutation/conflict manifests.
 
 ## Current Priority Order
 
-The active v0.1.31 audit-remediation slice now includes PLUXX-314 Autopilot reliability. Its merge gate is current serial test, CI, and review proof for checkpoint recovery, fail-stop Agent Mode boundaries, and structured review output; the implementation is not release truth until that PR lands.
+Proof governance now distinguishes unit, bundle-contract, fake-home install, installed-runtime, and real-host behavior evidence. Canonical version/freshness checks run in CI through [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json); historical April/May proof stays available without being treated as current.
+
+The remaining active v0.1.31 audit-remediation slice is PLUXX-314 Autopilot reliability. Its merge gate is current serial test, CI, and review proof for checkpoint recovery, fail-stop Agent Mode boundaries, and structured review output; the implementation is not release truth until that PR lands.
 
 ### 1. Product clarity and source-of-truth coherence
 
@@ -115,7 +119,7 @@ The closure plan is now narrower than it was before:
 - the next concrete OSS-authoring robustness slice is Codex companion apply/verify:
   - make generated readiness, hook, MCP approval, and companion config artifacts operational and verifiable instead of advisory only
   - keep the work aligned with `PLUXX-226`, `PLUXX-264`, `PLUXX-248`, and [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
-  - treat install ownership tracking as the follow-on slice
+  - transactional install ownership now covers conservative reinstall/uninstall, rollback, and content drift across the core four
 - local stdio import quality is now stronger for the common "I already have an MCP" path:
   - `init --from-mcp` auto-recovers `passthrough` for project-relative runtimes such as `./build/index.js`
   - `lint` catches unbundled stdio runtime payloads earlier
@@ -157,7 +161,8 @@ The closure plan is now narrower than it was before:
   - `src/commands.ts` now preserves `when_to_use`, argument arrays, examples, explicit skill routing, agent routing, and context hints
   - Codex and OpenCode command companions now carry that richer metadata instead of flattening commands back to `argument-hint` plus template only
   - `init --from-mcp` now emits `when_to_use`, canonical `arguments`, and explicit `skill` routing into generated command frontmatter
-  - `src/skills.ts` now exposes canonical support-file metadata for `examples/`, helper `scripts/`, and neighboring references
+  - `src/skills.ts` now parses frontmatter as YAML, reports unsupported shapes with source locations, and exposes canonical support-file metadata for `examples/`, helper `scripts/`, and neighboring references
+  - audited skill and hook field outcomes now drive generator companions, lint/doctor summaries, primitive bucket modes, and generated compatibility docs from one registry
   - Agent Mode manual-project context now consumes those richer command and skill seams directly
   - Codex command routing guidance in `AGENTS.md` now reads from the same shared command translation seam as `.codex/commands.generated.json`
   - skill-frontmatter translation notes for Codex and OpenCode now explicitly cover `when_to_use`, `user-invocable`, `model`, and `effort`
@@ -188,6 +193,9 @@ The closure plan is now narrower than it was before:
 - local full-suite proof is now also more explicit operationally:
   - `npm test` now acquires a same-worktree suite lock and fails fast instead of creating misleading cross-test flakes when multiple full proof jobs hit the same repo-local fixture paths
   - the follow-on is deeper fixture isolation so more proof paths can run independently without sharing cwd or repo-local temp state
+- local MCP proof is now safer and more deterministic:
+  - new recordings use a versioned schema and default recursive credential redaction before persistence
+  - replay strictly validates tapes, does not consume an expectation on mismatch, reports unused interactions, and supports valid schema-v1 tapes
 - installed consumer-bundle integrity is stricter:
   - generated-shape Claude bundles now fail `doctor --consumer` and `verify-install` when `hooks/hooks.json` is malformed or points at missing bundle-owned targets, even though the Claude manifest omits `hooks`
   - Claude bundles now also fail `doctor --consumer` and `verify-install` when the manifest redundantly points `hooks` at the standard `./hooks/hooks.json` file that current Claude auto-loads anyway
@@ -217,17 +225,17 @@ The closure plan is now narrower than it was before:
 - the self-hosted `example/pluxx` source project now also carries maintained behavioral smoke cases for:
   - `verify-install`
   - `translate-hosts` with a Codex hooks focus
-- the release gate is green again as of 2026-05-19:
+- historical release-gate evidence from 2026-05-19 remains available but is not current proof:
   - `npm test` passed
   - `npm run release:check` passed
-- the repo is preparing `@orchid-labs/pluxx@0.1.28`; verify npm and the matching tag live before claiming it as the public latest release
+- the canonical repository release is `@orchid-labs/pluxx@0.1.31` with expected tag `v0.1.31`
 - the release/distribution/proof boundary is now explicit:
   - [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md)
   - [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md)
-  - current primary release-smoked fronts remain Claude Code, Cursor, Codex, and OpenCode
+  - current primary bundle-contract and fake-home fronts remain Claude Code, Cursor, Codex, and OpenCode
   - Gemini CLI remains a beta generator target until it has release-smoke and installer parity
-  - `pluxx publish --github-release` covers primary-front release assets, the generated `install.sh --agents` front door, and per-host installers; `pluxx publish --npm` covers the npm-backed OpenCode wrapper path
-  - marketplace submission APIs, a managed trust/distribution control plane, automatic rollback/unpublish orchestration, and real authenticated publish plus rollback proof remain open release gaps
+  - `pluxx publish --github-release` covers primary-front release assets, tagged and bounded-download installers with checksum verification, install-scoped locking, ownership-aware staged/signal-safe rollback, release-identity and remote-byte validation, and partial-state reconciliation; `pluxx publish --npm` covers the npm-backed OpenCode wrapper path
+  - marketplace submission APIs, a managed trust/distribution control plane, automatic remote rollback/unpublish orchestration, and live credentialed publish/rollback proof remain open release gaps
 - OpenClaw should stay in scope only as a beta-target lane until a native generator, validator/doctor path, and behavioral smoke proof exist:
   - [docs/openclaw-target-evaluation.md](./openclaw-target-evaluation.md)
 
@@ -296,7 +304,7 @@ The current status is stronger than a pure scaffold:
 - the next compiler-hardening follow-ons are now narrower than the earlier gap list:
   - push richer skill metadata into more native host emission and proof consumers
   - push richer command IR into more native host emission and install-time proof
-  - add more installed behavioral proof for delegated agents, reload/discovery quirks, and publish/recovery flows
+  - add live environment proof for delegated agents, reload/discovery quirks, and publish/recovery flows beyond deterministic failure/reconciliation fixtures
 
 This is the strongest next proof surface for:
 
@@ -323,6 +331,9 @@ The current focus is:
   - `docs/strategy/docs-ingestion-fixture-eval.md`
 - live before/after demo now captured:
   - `docs/strategy/docs-ingestion-scaffold-before-after.md`
+- bounded safe-fetch policy, untrusted-source boundary, and explicit local/Firecrawl provenance/privacy now part of the ingestion contract:
+  - `docs/strategy/docs-url-ingestion.md`
+- fixture evaluation now measures visible scaffold file/line deltas as well as recovered terms
 - better extracted signal quality
 
 ### 4. Release-grade Pluxx plugin
@@ -377,8 +388,7 @@ This is for learning and proof, not for prematurely building the full trust laye
 
 ### 6. Next release
 
-The current release-prep npm cut is `0.1.28`.
-Verify npm and the matching tag live before claiming it as the public latest release.
+The canonical repository release is `0.1.31` / `v0.1.31`. The next npm cut begins from that source of truth and must regenerate or explicitly demote proof receipts before making current host claims.
 
 The next npm cut should stay primarily an operations step rather than a code-confidence rescue step.
 
@@ -413,9 +423,10 @@ These matter, but they are not the immediate center:
 
 ### Eval and regression confidence
 
-- stronger `pluxx eval` coverage
-- more stable fixtures around prompt-pack quality
-- reference-plugin and docs-ingestion fixtures
+- `pluxx eval` now separates scaffold contracts from an eight-criterion deterministic semantic rubric
+- warning and failure thresholds are configurable per project
+- adversarial incoherence, the self-hosted plugin, the flagship plugin, and docs-ingestion projects are maintained regression inputs
+- model-assisted grading remains optional future depth, not a prerequisite for deterministic release confidence
 
 ### Migration and sync depth
 

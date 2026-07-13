@@ -1,0 +1,151 @@
+{
+  "schemaVersion": 1,
+  "canonicalVersion": "0.1.31",
+  "expectedTag": "v0.1.31",
+  "releaseState": "released",
+  "policy": {
+    "environmentReceiptMaxAgeDays": 30
+  },
+  "claims": [
+    {
+      "id": "v0.1.31-repository-validation",
+      "summary": "The reviewed v0.1.31 commit passes proof governance, typecheck, build, and the official serial suite.",
+      "tier": "bundle-contract",
+      "freshness": "current",
+      "evidencePath": "tests/proof-freshness.test.ts",
+      "receiptId": "v0.1.31-repository-validation"
+    },
+    {
+      "id": "v0.1.31-fake-home-install",
+      "summary": "Maintained examples pass core-four bundle and isolated fake-home install verification.",
+      "tier": "fake-home-install",
+      "freshness": "current",
+      "evidencePath": "tests/release-smoke.test.ts",
+      "receiptId": "v0.1.31-fake-home-install"
+    },
+    {
+      "id": "self-hosted-core-four-history",
+      "summary": "The May self-hosted core-four run remains useful historical installed-runtime evidence.",
+      "tier": "installed-runtime",
+      "freshness": "historical",
+      "evidencePath": "docs/pluxx-self-hosted-core-four-proof.md",
+      "receiptId": "v0.1.28-self-hosted-history"
+    },
+    {
+      "id": "docs-ingestion-connector-history",
+      "summary": "The Firecrawl connector comparison remains historical workflow evidence.",
+      "tier": "real-host-behavior",
+      "freshness": "historical",
+      "evidencePath": "docs/strategy/firecrawl-connector-docs-ingestion-proof.md",
+      "receiptId": "v0.1.28-firecrawl-history"
+    }
+  ],
+  "receipts": [
+    {
+      "id": "v0.1.28-self-hosted-history",
+      "tier": "installed-runtime",
+      "freshness": "historical",
+      "commitSha": "7cbe896250cc728b6eb7328fb3fa9770022e4ef8",
+      "packageVersion": "0.1.28",
+      "timestamp": "2026-05-12T00:00:00.000Z",
+      "commands": [
+        {
+          "command": "Historical commands are recorded in docs/pluxx-self-hosted-core-four-proof.md",
+          "outcome": "passed"
+        }
+      ],
+      "targets": [
+        {
+          "target": "core-four",
+          "hostVersion": null,
+          "installedPath": null,
+          "sha256": null,
+          "outcome": "passed",
+          "unavailableReason": "The May proof predates machine-readable host-version, installed-path, and hash receipts."
+        }
+      ]
+    },
+    {
+      "id": "v0.1.28-firecrawl-history",
+      "tier": "real-host-behavior",
+      "freshness": "historical",
+      "commitSha": "7cbe896250cc728b6eb7328fb3fa9770022e4ef8",
+      "packageVersion": "0.1.28",
+      "timestamp": "2026-05-21T00:00:00.000Z",
+      "commands": [
+        {
+          "command": "Historical connector run documented in docs/strategy/firecrawl-connector-docs-ingestion-proof.md",
+          "outcome": "passed"
+        }
+      ],
+      "targets": [
+        {
+          "target": "firecrawl-connector",
+          "hostVersion": null,
+          "installedPath": null,
+          "sha256": null,
+          "outcome": "passed",
+          "unavailableReason": "The historical connector capture did not record host version, installed path, or artifact hash."
+        }
+      ]
+    },
+    {
+      "id": "v0.1.31-repository-validation",
+      "tier": "bundle-contract",
+      "freshness": "current",
+      "commitSha": "5066ee4764c2679cdf10f40156f756da51fb89b3",
+      "packageVersion": "0.1.31",
+      "timestamp": "2026-07-12T11:50:11.851Z",
+      "commands": [
+        {
+          "command": "npm run proof:check",
+          "outcome": "passed"
+        },
+        {
+          "command": "npm run typecheck",
+          "outcome": "passed"
+        },
+        {
+          "command": "npm run build",
+          "outcome": "passed"
+        },
+        {
+          "command": "npm test",
+          "outcome": "passed"
+        }
+      ],
+      "targets": [
+        {
+          "target": "repository",
+          "hostVersion": null,
+          "installedPath": null,
+          "sha256": null,
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "v0.1.31-fake-home-install",
+      "tier": "fake-home-install",
+      "freshness": "current",
+      "commands": [
+        {
+          "command": "bun test tests/release-smoke.test.ts",
+          "outcome": "passed"
+        }
+      ],
+      "targets": [
+        {
+          "target": "claude-code,cursor,codex,opencode",
+          "hostVersion": null,
+          "installedPath": null,
+          "sha256": null,
+          "outcome": "passed"
+        }
+      ],
+      "commitSha": "5066ee4764c2679cdf10f40156f756da51fb89b3",
+      "packageVersion": "0.1.31",
+      "timestamp": "2026-07-12T11:50:12.286Z"
+    }
+  ]
+}
