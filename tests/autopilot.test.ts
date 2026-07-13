@@ -1,3 +1,4 @@
+import { createHash } from 'crypto'
 import { describe, expect, it, mock } from 'bun:test'
 import { chmodSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
@@ -211,6 +212,70 @@ describe('autopilot command', () => {
       rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  it('re-introspects and reapplies the scaffold when resuming before baseline completed', async () => {
+    const { dir, statePath, stubServerPath } = createStubServerFixture()
+    const source = `bun ${stubServerPath} ${statePath}`
+    const behavior = {
+      source,
+      runner: 'claude',
+      mode: 'quick',
+      pluginName: 'stub-server',
+      displayName: 'Stub Server',
+      authorName: 'Test Author',
+      targets: ['codex'],
+      installTargets: [],
+      grouping: 'workflow',
+      requestedHookMode: 'none',
+      runtimeAuthMode: 'inline',
+      oauthWrapper: false,
+      approveMcpTools: false,
+      contextPaths: [],
+      reviewRequested: false,
+      verify: false,
+      installRequested: false,
+      trustRequested: false,
+      behavioralRequested: false,
+    }
+
+    try {
+      writeFileSync(resolve(dir, '.gitignore'), 'existing-rule\n')
+      const checkpoint = await createDurableCheckpoint(dir, 'initial', { includeAgentResults: true })
+      mkdirSync(resolve(dir, '.pluxx'), { recursive: true })
+      writeFileSync(resolve(dir, '.pluxx/autopilot-state.json'), JSON.stringify({
+        version: 1,
+        behaviorFingerprint: createHash('sha256').update(JSON.stringify(behavior)).digest('hex'),
+        source,
+        runner: 'claude',
+        mode: 'quick',
+        behavior,
+        initialCheckpoint: checkpoint.directory,
+        latestCheckpoint: checkpoint.directory,
+        completedStages: [],
+        checkpoints: {},
+        updatedAt: new Date().toISOString(),
+      }, null, 2))
+      expect(existsSync(resolve(dir, '.pluxx/mcp.json'))).toBe(false)
+
+      const proc = spawnCli(['autopilot', '--resume', '--json'], dir)
+      const stdout = await new Response(proc.stdout).text()
+      const stderr = await new Response(proc.stderr).text()
+      const exitCode = await proc.exited
+
+      expect(exitCode, `${stderr}\n${stdout}`).toBe(0)
+      expect(stderr).toBe('')
+      const summary = JSON.parse(stdout) as { ok: boolean; resumed?: boolean; baseline?: { doctor: { ok: boolean }; test: { ok: boolean } } }
+      expect(summary.ok).toBe(true)
+      expect(summary.resumed).toBe(true)
+      expect(summary.baseline?.doctor.ok, stdout).toBe(true)
+      expect(summary.baseline?.test.ok, stdout).toBe(true)
+      expect(existsSync(resolve(dir, '.pluxx/mcp.json'))).toBe(true)
+      const state = JSON.parse(readFileSync(resolve(dir, '.pluxx/autopilot-state.json'), 'utf-8')) as { completedStages: string[] }
+      expect(state.completedStages).toContain('baseline')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  }, 60_000)
 
   it('stops dependent passes after a runner failure', async () => {
     const { dir, statePath, stubServerPath } = createStubServerFixture()
