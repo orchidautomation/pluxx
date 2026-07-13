@@ -143,6 +143,7 @@ export async function checkpointMatchesWorkspace(
   const root = await resolveProjectRoot(rootDir)
   const checkpoint = await loadCheckpoint(checkpointDirectory)
   const ignoreRules = checkpoint.manifest.kind === 'durable' ? await loadCheckpointIgnoreRules(checkpoint) : []
+  const checkpointGitignore = checkpoint.manifest.files.find((file) => file.path === '.gitignore')
   const current = await walkProjectFiles(root, { kind: checkpoint.manifest.kind, ignoreRules })
   const currentInventory: CheckpointFile[] = []
   let currentGitignoreDigest: string | undefined
@@ -151,7 +152,10 @@ export async function checkpointMatchesWorkspace(
       ? Buffer.from(await readlink(safeProjectPath(root, file.path)))
       : await readFile(safeProjectPath(root, file.path))
     if (checkpoint.manifest.kind === 'durable' && file.path === '.gitignore') {
-      currentGitignoreDigest = digestContent(withoutManagedRecoveryIgnores(content))
+      const normalized = withoutManagedRecoveryIgnores(content)
+      currentGitignoreDigest = normalized.byteLength === 0 && !checkpointGitignore
+        ? undefined
+        : digestContent(normalized)
     }
     currentInventory.push({
       path: file.path,
@@ -161,7 +165,6 @@ export async function checkpointMatchesWorkspace(
       type: file.type,
     })
   }
-  const checkpointGitignore = checkpoint.manifest.files.find((file) => file.path === '.gitignore')
   let checkpointGitignoreDigest: string | undefined
   if (checkpoint.manifest.kind === 'durable' && checkpointGitignore) {
     const content = await readFile(payloadPath(checkpoint.directory, checkpointGitignore.digest))

@@ -2725,7 +2725,8 @@ async function runAutopilotUnlocked() {
     if (!rawSource) {
       throw new Error('Provide an MCP server URL or local command. Example: pluxx autopilot --from-mcp https://example.com/mcp --runner codex')
     }
-    const persistedMetadata = resumeRequested
+    const resumeHasBaseline = persistedState?.completedStages.includes('baseline') === true
+    const persistedMetadata = resumeRequested && resumeHasBaseline
       ? await loadMcpScaffoldMetadata(process.cwd())
       : undefined
 
@@ -3088,7 +3089,7 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
     const initCreatedFiles = scaffoldPlan.files.filter((file) => file.action === 'create').map((file) => file.relativePath)
     const initUpdatedFiles = scaffoldPlan.files.filter((file) => file.action === 'update').map((file) => file.relativePath)
 
-    if (!resumeRequested) {
+    if (!resumeRequested || !resumeHasBaseline) {
       await applyMcpScaffoldPlan(workspaceRoot, scaffoldPlan)
     }
     scaffoldSpinner?.stop(`${runtime.dryRun ? 'Planned' : 'Generated'} scaffold for ${pluginName}`)

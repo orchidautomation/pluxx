@@ -7,6 +7,7 @@ import { createDurableCheckpoint } from '../src/cli/checkpoints'
 const ROOT = resolve(import.meta.dir, '..')
 const CLI_INDEX_PATH = resolve(ROOT, 'src/cli/index.ts')
 const INTROSPECT_PATH = resolve(ROOT, 'src/mcp/introspect.ts')
+const TEST_COMMAND_PATH = resolve(ROOT, 'src/cli/test.ts')
 const originalArgv = [...process.argv]
 const originalCwd = process.cwd()
 
@@ -462,6 +463,63 @@ exit 0
       expect(existsSync(resolve(dir, '.pluxx/transactions'))).toBe(false)
     } finally {
       rmSync(countPath, { force: true })
+      rmSync(dir, { recursive: true, force: true })
+    }
+  }, 60_000)
+
+  it('re-introspects and reapplies the scaffold after baseline failure is resumed', async () => {
+    const { dir, statePath, stubServerPath } = createStubServerFixture()
+    const originalExit = process.exit
+    const originalConsoleLog = console.log
+    const testCommand = await import(TEST_COMMAND_PATH)
+    let baselineRuns = 0
+    mock.module(TEST_COMMAND_PATH, () => ({
+      ...testCommand,
+      runTestSuite: async (options: Parameters<typeof testCommand.runTestSuite>[0]) => {
+        baselineRuns += 1
+        if (baselineRuns === 1) {
+          return {
+            ok: false,
+            config: { ok: false, error: 'forced transient baseline failure' },
+          }
+        }
+        return testCommand.runTestSuite(options)
+      },
+    }))
+    try {
+      process.chdir(dir)
+      console.log = () => {}
+      process.exit = ((code?: string | number | null) => {
+        throw new Error(`TEST_PROCESS_EXIT:${code ?? 0}`)
+      }) as typeof process.exit
+      process.argv = [
+        'bun', 'pluxx', 'autopilot', '--from-mcp', `bun ${stubServerPath} ${statePath}`,
+        '--runner', 'claude', '--mode', 'quick', '--name', 'stub-server',
+        '--display-name', 'Stub Server', '--json', '--no-verify',
+      ]
+      const firstRun = await import(`${CLI_INDEX_PATH}?autopilot-baseline-failure-first-${Date.now()}`)
+      await expect(firstRun.main()).rejects.toThrow('TEST_PROCESS_EXIT:1')
+
+      const stateFile = resolve(dir, '.pluxx/autopilot-state.json')
+      const state = JSON.parse(readFileSync(stateFile, 'utf-8')) as {
+        completedStages: string[]
+      }
+      expect(state.completedStages).not.toContain('baseline')
+      expect(existsSync(resolve(dir, '.pluxx/mcp.json'))).toBe(false)
+
+      process.argv = ['bun', 'pluxx', 'autopilot', '--resume', '--json']
+      const resumedRun = await import(`${CLI_INDEX_PATH}?autopilot-baseline-failure-resume-${Date.now()}`)
+      await expect(resumedRun.main()).resolves.toBeUndefined()
+      expect(existsSync(resolve(dir, '.pluxx/mcp.json'))).toBe(true)
+      const resumedState = JSON.parse(readFileSync(stateFile, 'utf-8')) as { completedStages: string[] }
+      expect(resumedState.completedStages).toContain('baseline')
+      expect(baselineRuns).toBe(2)
+    } finally {
+      process.exit = originalExit
+      console.log = originalConsoleLog
+      process.argv = [...originalArgv]
+      process.chdir(originalCwd)
+      mock.restore()
       rmSync(dir, { recursive: true, force: true })
     }
   }, 60_000)

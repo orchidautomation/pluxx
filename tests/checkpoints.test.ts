@@ -161,6 +161,21 @@ describe('workspace checkpoints', () => {
     await expect(checkpointMatchesWorkspace(root, checkpoint.directory)).resolves.toBe(false)
   })
 
+  it('treats a managed-only gitignore as absent when the durable checkpoint had none', async () => {
+    const root = makeRoot('pluxx-checkpoint-managed-only-gitignore-')
+    write(root, 'project.txt', 'stable\n')
+    const checkpoint = await createDurableCheckpoint(root, 'without-gitignore')
+    write(root, '.gitignore', [
+      '.pluxx/checkpoints/',
+      '.pluxx/autopilot-state.json',
+      '.pluxx/agent/*-run-result.json',
+      '.pluxx/agent/review-result.json',
+      '',
+    ].join('\n'))
+
+    await expect(checkpointMatchesWorkspace(root, checkpoint.directory)).resolves.toBe(true)
+  })
+
   it('uses disposable enforcement snapshots that include build output', async () => {
     const root = makeRoot('pluxx-checkpoint-enforcement-')
     write(root, 'src/index.ts', 'before\n')
