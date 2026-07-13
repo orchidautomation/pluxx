@@ -208,7 +208,7 @@ curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example
 
 Current release note:
 
-- the canonical repository version is `@orchid-labs/pluxx@0.1.32` in release prep with expected tag `v0.1.32`; the historical published baseline remains 0.1.31 until the coordinator completes the release workflow
+- the canonical repository version is `@orchid-labs/pluxx@0.1.32`, tagged as `v0.1.32` at `188527e`; the first release run did not publish npm or create a GitHub release, so the historical published baseline remains 0.1.31 until recovery completes
 - the published CLI runtime is Node `>=18`; see [runtime contract](./runtime-contract.md)
 - the published package includes the Claude plugin-agent manifest fix and packaged Node runtime verification
 - the public `pluxx test --install --trust --behavioral` path now matches the repo-local Exa proof state

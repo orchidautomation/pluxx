@@ -82,14 +82,15 @@ Any person or agent should be able to enter the repo and answer:
 
 Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) defines the five evidence tiers and freshness rules, while [proof-manifest.json](../proof-manifest.json) keeps machine-readable receipts and current/historical claim state aligned with `package.json`.
 
-### 0. v0.1.32 release preparation
+### 0. v0.1.32 release recovery
 
 - [x] Merge all nine PLUXX-313 through PLUXX-321 audit-remediation PRs into main at `f92e3cc`
 - [x] Prepare 0.1.32 in PLUXX-322 with synchronized package, proof, planning, and release truth
 - [x] Generate fresh repository-validation and fake-home-install receipts from committed 0.1.32 state
 - [x] Pass the official 751/751 serial suite and complete release gate
-- [ ] Reach a ready, autofix-enabled, GitHub-CLEAN release PR with no actionable review threads
-- [ ] Coordinator: merge, tag v0.1.32, verify npm/GitHub/tarball/CLI, then archive the completed batch
+- [x] Merge the release PR and push immutable tag `v0.1.32` at `188527e`
+- [ ] Merge the focused workflow-recovery PR after substantive checks and review are green
+- [ ] Coordinator: dispatch the existing tag through the trusted main workflow, verify npm/GitHub/tarball/CLI, then archive the completed batch
 
 ### 1. Product clarity and front-door coherence
 
@@ -448,11 +449,11 @@ Open work:
 ### 7. Next release readiness
 
 - [x] Merge the nine v0.1.31 audit-remediation PRs
-- [~] Prepare the focused v0.1.32 release PR under PLUXX-322
+- [x] Prepare and merge the focused v0.1.32 release PR under PLUXX-322
 - [x] Refresh current repository/fake-home receipts from committed 0.1.32 state
 - [x] Pass targeted checks, official serial 751/751 `npm test`, and `npm run release:check`
-- [ ] Merge the release-prep PR to `main`
-- [ ] Push `v0.1.32` so the GitHub Actions release workflow publishes to npm
+- [x] Merge the release-prep PR and push `v0.1.32` at `188527e`
+- [ ] Merge the workflow-recovery PR, then dispatch the existing tag through the trusted main workflow
 - [ ] Verify `@orchid-labs/pluxx@0.1.32`, GitHub release assets, tarball contents, and CLI behavior
 
 ## Next

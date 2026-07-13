@@ -55,7 +55,7 @@ For broader context, use:
 
 ## Current Truth
 
-All nine PLUXX-313 through PLUXX-321 audit remediations are merged into main at `f92e3cc`. PLUXX-322 now owns the focused 0.1.32 release-prep PR; the coordinator retains merge, tag, publish, public artifact verification, and archive ownership.
+All nine PLUXX-313 through PLUXX-321 audit remediations are merged, and the 0.1.32 release PR is merged at `188527e`. Tag `v0.1.32` exists there, but the first release run failed before npm publication or GitHub release creation because its checkout could not reach the proof receipt commit. PLUXX-322 now owns the focused workflow-recovery PR; the coordinator retains merge, recovery dispatch, public artifact verification, and archive ownership.
 
 The core-four compiler sprint is done.
 
@@ -188,7 +188,7 @@ The initial author-once hardening tranche is also materially done.
 The public baseline is also real.
 
 - npm package is live as `@orchid-labs/pluxx`
-- the canonical repository version is `@orchid-labs/pluxx@0.1.32` in release prep with expected tag `v0.1.32`; the historical published baseline remains 0.1.31
+- the canonical repository version is `@orchid-labs/pluxx@0.1.32`, tagged as `v0.1.32` at `188527e`; the historical published baseline remains 0.1.31 while recovery is pending
 - proof claims now use [docs/proof-freshness.md](../proof-freshness.md) and [docs/proof-manifest.json](../proof-manifest.json) so historical host runs cannot masquerade as current evidence
 - published CLI runtime is Node `>=18`
 - published CLI lifecycle ergonomics are now stronger for global installs:
@@ -495,21 +495,22 @@ Open work:
   - native bundles across the core four
   - install verification and truthful compatibility
 
-### 6. v0.1.32 release preparation
+### 6. v0.1.32 release recovery
 
 Current work:
 
-- [~] PLUXX-322 prepares the focused release PR from exact post-audit main `f92e3cc`
+- [x] PLUXX-322 prepared and merged the focused release PR at `188527e`
 - [x] bump `package.json` and `package-lock.json` to 0.1.32
 - [x] refresh canonical release, planning, and proof truth without carrying old evidence forward as current
 - [x] generate fresh repository-validation and fake-home-install receipts from committed 0.1.32 state
 - [x] pass the official serial 751/751 suite and `npm run release:check`
-- [ ] reach a ready, autofix-enabled, GitHub-CLEAN PR with no actionable review threads
+- [x] push immutable tag `v0.1.32` at `188527e`
+- [ ] merge the focused workflow-recovery PR after substantive checks and review are green
 
 Coordinator-owned after this task:
 
-- merge the release PR
-- push `v0.1.32`
+- merge the workflow-recovery PR
+- dispatch the existing `v0.1.32` tag through the trusted main workflow without moving or recreating it
 - monitor publishing and verify npm, GitHub, tarball, and CLI surfaces
 - archive completed tasks
 

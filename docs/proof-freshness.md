@@ -10,7 +10,7 @@ Current reviewed receipts for v0.1.32 are `v0.1.32-repository-validation` (`bund
 
 - `package.json` is the canonical repository version.
 - The expected release tag is `v<packageVersion>`.
-- `releaseState` is `released` when that tag exists and `release-prep` when it does not. Release-prep docs must not describe the pending version as already released.
+- `releaseState` is `released` when that tag exists and `release-prep` when it does not. This field records immutable tag state, not successful npm or GitHub publication; public release claims still require publication verification. Release-prep docs must not describe the pending version as already tagged or released.
 - Unit, bundle-contract, and fake-home receipts are current only when their package version matches `package.json` and their tested commit is reachable from the current branch.
 - Installed-runtime and real-host receipts must also be 30 days old or newer. Older environment evidence is historical even when its package version still matches.
 - Historical receipts remain available, but canonical current-proof claims must label them historical and may not use them as current compatibility evidence.
