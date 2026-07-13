@@ -1,6 +1,6 @@
 # Proof And Install
 
-Last updated: 2026-07-07
+Last updated: 2026-07-13
 
 ## Doc Links
 
@@ -32,7 +32,7 @@ For the fuller release/distribution boundary, including publish commands and def
 
 Proof labels and freshness come from [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json). The May self-hosted run and April Firecrawl connector run are preserved as historical environment evidence; they are not current host receipts for `0.1.32`.
 
-Fresh v0.1.32 receipts must be generated from the committed release-prep state before the `bundle-contract` and `fake-home-install` tiers are described as current. No current receipt claims installed-runtime or real-host behavior.
+The current v0.1.32 receipts prove the `bundle-contract` and `fake-home-install` tiers from committed release-prep state after `npm run release:check` passed. No current receipt claims installed-runtime or real-host behavior.
 
 ## The Story In One Screen
 

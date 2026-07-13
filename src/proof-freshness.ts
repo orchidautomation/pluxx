@@ -77,6 +77,7 @@ export type ProofReceiptSpec = z.infer<typeof ProofReceiptSpecSchema>
 export interface ProofValidationContext {
   packageVersion: string
   expectedTagExists: boolean
+  releaseTagUnderValidation?: string
   now: Date
   isCommitReachable: (sha: string) => boolean
 }
@@ -123,7 +124,12 @@ export function validateProofManifest(
   if (manifest.expectedTag !== expectedTag) {
     problems.push(`Manifest expectedTag is ${manifest.expectedTag}; expected ${expectedTag}.`)
   }
-  if (context.expectedTagExists && manifest.releaseState !== 'released') {
+  const isExpectedTagReleaseCheck = context.releaseTagUnderValidation === expectedTag
+  if (
+    context.expectedTagExists
+    && manifest.releaseState !== 'released'
+    && !(manifest.releaseState === 'release-prep' && isExpectedTagReleaseCheck)
+  ) {
     problems.push(`Manifest releaseState is ${manifest.releaseState} but tag ${expectedTag} exists; use released.`)
   }
   if (!context.expectedTagExists && manifest.releaseState !== 'release-prep') {

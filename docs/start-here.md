@@ -541,7 +541,7 @@ Run two lanes in parallel:
 
 The canonical repository version is `0.1.32` in release prep with expected tag `v0.1.32`. The historical published baseline remains 0.1.31 until the coordinator merges this release PR, pushes the tag, and verifies public artifacts. `package.json` is the source of truth for repository docs, while [proof-manifest.json](./proof-manifest.json) records release state and whether evidence is current or historical.
 
-For the next release, start from the current version, rerun `npm run release:check`, bump the package version, push `main`, push the matching `vX.Y.Z` tag, and verify npm plus GitHub release artifacts after the workflow completes.
+For v0.1.32, finish review and reach GitHub `CLEAN`, merge the focused release PR, push `v0.1.32`, then verify npm, GitHub, the published tarball, and CLI behavior. Future releases should repeat the version bump and release-prep proof work on a focused PR before tagging.
 
 ## Working Rules
 

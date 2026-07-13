@@ -24,11 +24,12 @@ Product Contract unchanged. This plan packages the nine already-merged PLUXX-313
 - R5. Current 0.1.32 repository and fake-home claims cite a reachable commit containing the release-prep changes and only commands observed passing.
 - R6. Official serial `npm test` and `npm run release:check` pass after the version/proof changes.
 - R7. A ready, linked, autofix-enabled PR reaches GitHub `CLEAN` with no actionable review threads.
+- R8. The tag-triggered publish workflow can validate the exact expected tag while the tagged release-prep commit remains immutable, without weakening ordinary branch or post-release proof-state checks.
 
 ## Scope boundaries
 
 - No merge, tag, npm publish, GitHub Release mutation, force-push, or task/archive cleanup.
-- No production behavior changes beyond version metadata and accurate release/proof/planning truth.
+- No shipped CLI/plugin behavior changes; release-workflow changes are limited to making the proof-state transition safe for the exact expected tag event.
 - No real-host or live publish proof is claimed; public npm, GitHub, tarball, and CLI verification remains coordinator-owned after release.
 - Historical evidence stays historical even when still useful context.
 
@@ -51,7 +52,7 @@ Demote 0.1.31 current claims and receipts to historical. After U1 is committed a
 
 ### U3. Full release verification and review
 
-Install dependencies reproducibly when needed. Run focused version, proof, package, workflow, and release-smoke checks; the official serial suite; and the full release gate. Record exact results, run CE code/doc/release review, and resolve every actionable finding.
+Install dependencies reproducibly when needed. Run focused version, proof, package, workflow, and release-smoke checks; the official serial suite; and the full release gate. Verify both strict ordinary proof-state validation and the exact-tag publish transition. Record exact results, run CE code/doc/release review, and resolve every actionable finding.
 
 ### U4. PR and merge-ready handoff
 
@@ -63,6 +64,7 @@ Push the focused branch, open a ready PR linked to PLUXX-322, apply the autofix 
 - Focused proof freshness/version, release workflow, package, meta CLI, and release-smoke checks.
 - Official serial `npm test`.
 - `npm run release:check`.
+- Run the release gate with approved npm registry access and temporary-directory writes because packaged-runtime verification performs an isolated tarball install and `npm exec`; diagnose any command failure rather than treating sandbox restrictions as a pass.
 - CE code/doc/release review with no actionable residuals.
 - Ready PR with autofix enabled, GitHub `CLEAN`, and no actionable review threads.
 

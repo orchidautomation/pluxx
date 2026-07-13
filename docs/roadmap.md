@@ -388,7 +388,7 @@ This is for learning and proof, not for prematurely building the full trust laye
 
 ### 6. Next release
 
-The canonical repository version is `0.1.32` in release prep with expected tag `v0.1.32`; the historical published baseline remains 0.1.31. This npm cut must regenerate current repository-owned receipts rather than carrying historical 0.1.31 proof forward.
+The canonical repository version is `0.1.32` in release prep with expected tag `v0.1.32`; the historical published baseline remains 0.1.31. Current repository-validation and fake-home-install receipts were regenerated from committed 0.1.32 state after the complete release gate passed; historical 0.1.31 proof was not carried forward as current.
 
 The next npm cut should stay primarily an operations step rather than a code-confidence rescue step.
 

@@ -24,6 +24,22 @@
       "receiptId": "v0.1.31-fake-home-install"
     },
     {
+      "id": "v0.1.32-repository-validation",
+      "summary": "The committed v0.1.32 release-prep state passes the complete repository release gate.",
+      "tier": "bundle-contract",
+      "freshness": "current",
+      "evidencePath": "tests/proof-freshness.test.ts",
+      "receiptId": "v0.1.32-repository-validation"
+    },
+    {
+      "id": "v0.1.32-fake-home-install",
+      "summary": "Maintained examples pass core-four bundle and isolated fake-home install verification in the v0.1.32 release gate.",
+      "tier": "fake-home-install",
+      "freshness": "current",
+      "evidencePath": "tests/release-smoke.test.ts",
+      "receiptId": "v0.1.32-fake-home-install"
+    },
+    {
       "id": "self-hosted-core-four-history",
       "summary": "The May self-hosted core-four run remains useful historical installed-runtime evidence.",
       "tier": "installed-runtime",
@@ -128,6 +144,9 @@
       "id": "v0.1.31-fake-home-install",
       "tier": "fake-home-install",
       "freshness": "historical",
+      "commitSha": "5066ee4764c2679cdf10f40156f756da51fb89b3",
+      "packageVersion": "0.1.31",
+      "timestamp": "2026-07-12T11:50:12.286Z",
       "commands": [
         {
           "command": "bun test tests/release-smoke.test.ts",
@@ -142,10 +161,53 @@
           "sha256": null,
           "outcome": "passed"
         }
+      ]
+    },
+    {
+      "id": "v0.1.32-repository-validation",
+      "tier": "bundle-contract",
+      "freshness": "current",
+      "commitSha": "f2b7cd4eafccaa42df64041cff9a4c5de96b0fd0",
+      "packageVersion": "0.1.32",
+      "timestamp": "2026-07-13T01:54:26.817Z",
+      "commands": [
+        {
+          "command": "npm run release:check",
+          "outcome": "passed"
+        }
       ],
-      "commitSha": "5066ee4764c2679cdf10f40156f756da51fb89b3",
-      "packageVersion": "0.1.31",
-      "timestamp": "2026-07-12T11:50:12.286Z"
+      "targets": [
+        {
+          "target": "repository",
+          "hostVersion": null,
+          "installedPath": null,
+          "sha256": null,
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "v0.1.32-fake-home-install",
+      "tier": "fake-home-install",
+      "freshness": "current",
+      "commands": [
+        {
+          "command": "npm run release:check",
+          "outcome": "passed"
+        }
+      ],
+      "targets": [
+        {
+          "target": "claude-code,cursor,codex,opencode",
+          "hostVersion": null,
+          "installedPath": null,
+          "sha256": null,
+          "outcome": "passed"
+        }
+      ],
+      "commitSha": "f2b7cd4eafccaa42df64041cff9a4c5de96b0fd0",
+      "packageVersion": "0.1.32",
+      "timestamp": "2026-07-13T01:54:26.958Z"
     }
   ]
 }

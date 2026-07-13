@@ -85,9 +85,9 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
 ### 0. v0.1.32 release preparation
 
 - [x] Merge all nine PLUXX-313 through PLUXX-321 audit-remediation PRs into main at `f92e3cc`
-- [~] Prepare 0.1.32 in PLUXX-322 with synchronized package, proof, planning, and release truth
-- [ ] Generate fresh repository-validation and fake-home-install receipts from committed 0.1.32 state
-- [ ] Pass the official serial suite and complete release gate
+- [x] Prepare 0.1.32 in PLUXX-322 with synchronized package, proof, planning, and release truth
+- [x] Generate fresh repository-validation and fake-home-install receipts from committed 0.1.32 state
+- [x] Pass the official 751/751 serial suite and complete release gate
 - [ ] Reach a ready, autofix-enabled, GitHub-CLEAN release PR with no actionable review threads
 - [ ] Coordinator: merge, tag v0.1.32, verify npm/GitHub/tarball/CLI, then archive the completed batch
 
@@ -449,8 +449,8 @@ Open work:
 
 - [x] Merge the nine v0.1.31 audit-remediation PRs
 - [~] Prepare the focused v0.1.32 release PR under PLUXX-322
-- [ ] Refresh current repository/fake-home receipts from committed 0.1.32 state
-- [ ] Pass targeted checks, official serial `npm test`, and `npm run release:check`
+- [x] Refresh current repository/fake-home receipts from committed 0.1.32 state
+- [x] Pass targeted checks, official serial 751/751 `npm test`, and `npm run release:check`
 - [ ] Merge the release-prep PR to `main`
 - [ ] Push `v0.1.32` so the GitHub Actions release workflow publishes to npm
 - [ ] Verify `@orchid-labs/pluxx@0.1.32`, GitHub release assets, tarball contents, and CLI behavior

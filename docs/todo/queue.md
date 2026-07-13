@@ -501,9 +501,9 @@ Current work:
 
 - [~] PLUXX-322 prepares the focused release PR from exact post-audit main `f92e3cc`
 - [x] bump `package.json` and `package-lock.json` to 0.1.32
-- [~] refresh canonical release, planning, and proof truth without carrying old evidence forward as current
-- [ ] generate fresh repository-validation and fake-home-install receipts from committed 0.1.32 state
-- [ ] pass the official serial suite and `npm run release:check`
+- [x] refresh canonical release, planning, and proof truth without carrying old evidence forward as current
+- [x] generate fresh repository-validation and fake-home-install receipts from committed 0.1.32 state
+- [x] pass the official serial 751/751 suite and `npm run release:check`
 - [ ] reach a ready, autofix-enabled, GitHub-CLEAN PR with no actionable review threads
 
 Coordinator-owned after this task:

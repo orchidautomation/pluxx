@@ -270,6 +270,28 @@ describe('proof freshness manifest', () => {
       isCommitReachable: () => true,
     })).toContain('Manifest releaseState is released but tag v0.1.31 does not exist; use release-prep.')
   })
+
+  it('allows release-prep only while validating the exact tag publish event', () => {
+    const manifest = { ...currentManifest(), releaseState: 'release-prep' as const }
+    const context = {
+      packageVersion: '0.1.31',
+      expectedTagExists: true,
+      now: new Date('2026-07-12T13:00:00.000Z'),
+      isCommitReachable: () => true,
+    }
+
+    expect(validateProofManifest(manifest, context)).toContain(
+      'Manifest releaseState is release-prep but tag v0.1.31 exists; use released.',
+    )
+    expect(validateProofManifest(manifest, {
+      ...context,
+      releaseTagUnderValidation: 'v0.1.30',
+    })).toContain('Manifest releaseState is release-prep but tag v0.1.31 exists; use released.')
+    expect(validateProofManifest(manifest, {
+      ...context,
+      releaseTagUnderValidation: 'v0.1.31',
+    })).not.toContain('Manifest releaseState is release-prep but tag v0.1.31 exists; use released.')
+  })
 })
 
 describe('canonical proof/version docs', () => {
