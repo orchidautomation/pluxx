@@ -26,7 +26,7 @@ The specialized security review found no new primary security finding. `npm audi
 - focused Autopilot, agent-mode, checkpoint, mutation-lock, filesystem-transaction, safe-remote-fetch, and docs-ingestion suites: 7 files, 114 tests passed
 - `npm run typecheck` passed
 - `npm run build` passed
-- official serialized `npm test`: 61 files, 750 tests passed after the Blocks baseline-resume fix
+- official serialized `npm test`: 61 files, 751 tests passed after reconciling both Blocks baseline-resume regressions
 - `npm run proof:check` passed for all 4 manifest claims and receipts from the committed integration ancestry
 - packed-package runtime verification passed through a temporary npm install
 - `npm run pack:check` passed for `@orchid-labs/pluxx@0.1.31`: 192 files, 707.6 kB packed
