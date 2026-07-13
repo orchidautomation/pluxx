@@ -17,6 +17,7 @@ Ready for PR review. CE correctness, testing, maintainability, project-standards
 - Documented the release gate's temporary-install and npm registry requirement.
 - Corrected the active v0.1.32 sequence in `docs/start-here.md` and refreshed the public proof page date.
 - Fixed generated-installer test isolation after Blocks reproduced three user-config failures in a fresh environment. Each fixture removes its prior run root, creates writable home and temp roots, and inherits only the executable path before applying isolated host paths and explicit fixture overrides, so reused workspaces, sandbox temp policy, CI secrets, or workspace config cannot change test semantics.
+- Integrated the same-branch Blocks repair for OpenCode companion moves across filesystem boundaries; `EXDEV` now falls back to copy/remove while retaining the existing transaction rollback path.
 - Re-ran the complete release gate after all receipt, manifest, review, workflow, test, and documentation changes.
 
 ## Verification
