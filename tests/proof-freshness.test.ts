@@ -14,6 +14,7 @@ import {
 
 const CURRENT_SHA = '561385059b8544c52ee7329063bb0574be394280'
 const ROOT = resolve(import.meta.dir, '..')
+const PACKAGE_VERSION = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf8')).version as string
 
 function currentManifest(): ProofManifest {
   return {
@@ -121,7 +122,7 @@ describe('proof freshness manifest', () => {
 
     const updated = ProofManifestSchema.parse(JSON.parse(readFileSync(manifestPath, 'utf8')))
     expect(updated.receipts.find((receipt) => receipt.id === 'cli-generated')).toMatchObject({
-      packageVersion: '0.1.31',
+      packageVersion: PACKAGE_VERSION,
       tier: 'bundle-contract',
       freshness: 'current',
     })

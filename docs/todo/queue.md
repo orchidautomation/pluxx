@@ -55,13 +55,7 @@ For broader context, use:
 
 ## Current Truth
 
-PLUXX-314 Autopilot reliability is implemented on its focused remediation branch and is moving through PR proof:
-
-- deterministic baseline doctor/test runs before agent mutation
-- durable stage checkpoints with compatible `--resume` and local `--rollback`
-- pass-specific Agent Mode write boundaries with unauthorized-change restoration
-- structured, fail-closed review output before later verification
-- current proof must come from this branch's serial `npm test` and CI, not the older April/May audit baseline
+All nine PLUXX-313 through PLUXX-321 audit remediations are merged into main at `f92e3cc`. PLUXX-322 now owns the focused 0.1.32 release-prep PR; the coordinator retains merge, tag, publish, public artifact verification, and archive ownership.
 
 The core-four compiler sprint is done.
 
@@ -194,7 +188,7 @@ The initial author-once hardening tranche is also materially done.
 The public baseline is also real.
 
 - npm package is live as `@orchid-labs/pluxx`
-- the canonical repository release is `@orchid-labs/pluxx@0.1.31` with expected tag `v0.1.31`
+- the canonical repository version is `@orchid-labs/pluxx@0.1.32` in release prep with expected tag `v0.1.32`; the historical published baseline remains 0.1.31
 - proof claims now use [docs/proof-freshness.md](../proof-freshness.md) and [docs/proof-manifest.json](../proof-manifest.json) so historical host runs cannot masquerade as current evidence
 - published CLI runtime is Node `>=18`
 - published CLI lifecycle ergonomics are now stronger for global installs:
@@ -501,7 +495,25 @@ Open work:
   - native bundles across the core four
   - install verification and truthful compatibility
 
-### 6. Historical v0.1.28 release checklist
+### 6. v0.1.32 release preparation
+
+Current work:
+
+- [~] PLUXX-322 prepares the focused release PR from exact post-audit main `f92e3cc`
+- [x] bump `package.json` and `package-lock.json` to 0.1.32
+- [~] refresh canonical release, planning, and proof truth without carrying old evidence forward as current
+- [ ] generate fresh repository-validation and fake-home-install receipts from committed 0.1.32 state
+- [ ] pass the official serial suite and `npm run release:check`
+- [ ] reach a ready, autofix-enabled, GitHub-CLEAN PR with no actionable review threads
+
+Coordinator-owned after this task:
+
+- merge the release PR
+- push `v0.1.32`
+- monitor publishing and verify npm, GitHub, tarball, and CLI surfaces
+- archive completed tasks
+
+### 7. Historical v0.1.28 release checklist
 
 Historical context:
 

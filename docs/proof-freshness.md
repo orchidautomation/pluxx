@@ -4,7 +4,7 @@ Last updated: 2026-07-12
 
 This document defines how Pluxx distinguishes repeatable repository checks from installed and real-host evidence. The machine-readable source is [proof-manifest.json](./proof-manifest.json), validated by `npm run proof:check`.
 
-Current reviewed receipts for v0.1.31 are `v0.1.31-repository-validation` (`bundle-contract`, `current`) and `v0.1.31-fake-home-install` (`fake-home-install`, `current`). Neither is installed-runtime or real-host behavior evidence.
+The v0.1.31 repository-validation and fake-home-install receipts are historical after the 0.1.32 version bump. Fresh 0.1.32 current receipts must be generated only after their named checks pass against committed release-prep state. Neither tier is installed-runtime or real-host behavior evidence.
 
 ## Version And Freshness Policy
 

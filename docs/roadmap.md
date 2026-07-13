@@ -76,13 +76,13 @@ See [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisi
 
 The transactional install-ownership slice is now implemented across the core-four local and generated release-installer paths. It stages and validates candidate bundles, retains rollback backups through post-install work, hashes owned files, preserves modified/unowned content, adds conservative Codex config unapply, and makes verification content-aware even when versions match.
 
-The v0.1.31 audit remediation also closes a core authoring-safety gap: `init`, `sync`, `migrate`, and `build` now stage and validate mutations before publication, restore prior state after thrown apply failures, retain recovery metadata for unresolved interruptions, and expose additive versioned mutation/conflict manifests.
+The full v0.1.31 audit-remediation tranche is merged. Main now includes safer ingestion, reliable Autopilot checkpoints and write boundaries, stronger semantic evaluation and field-level translation truth, atomic authoring/build mutations, transactional ownership-aware installs, hardened release recovery, and proof freshness governance.
 
 ## Current Priority Order
 
 Proof governance now distinguishes unit, bundle-contract, fake-home install, installed-runtime, and real-host behavior evidence. Canonical version/freshness checks run in CI through [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json); historical April/May proof stays available without being treated as current.
 
-The remaining active v0.1.31 audit-remediation slice is PLUXX-314 Autopilot reliability. Its merge gate is current serial test, CI, and review proof for checkpoint recovery, fail-stop Agent Mode boundaries, and structured review output; the implementation is not release truth until that PR lands.
+The active audit closeout slice is PLUXX-322: prepare the focused 0.1.32 release PR from exact merged main, create fresh repository-owned proof, and reach GitHub CLEAN. Merge, tag, publish, public artifact verification, and archive remain coordinator-owned.
 
 ### 1. Product clarity and source-of-truth coherence
 
@@ -228,7 +228,7 @@ The closure plan is now narrower than it was before:
 - historical release-gate evidence from 2026-05-19 remains available but is not current proof:
   - `npm test` passed
   - `npm run release:check` passed
-- the canonical repository release is `@orchid-labs/pluxx@0.1.31` with expected tag `v0.1.31`
+- the canonical repository version is `@orchid-labs/pluxx@0.1.32` in release prep with expected tag `v0.1.32`; the historical published baseline remains 0.1.31
 - the release/distribution/proof boundary is now explicit:
   - [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md)
   - [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md)
@@ -388,16 +388,15 @@ This is for learning and proof, not for prematurely building the full trust laye
 
 ### 6. Next release
 
-The canonical repository release is `0.1.31` / `v0.1.31`. The next npm cut begins from that source of truth and must regenerate or explicitly demote proof receipts before making current host claims.
+The canonical repository version is `0.1.32` in release prep with expected tag `v0.1.32`; the historical published baseline remains 0.1.31. This npm cut must regenerate current repository-owned receipts rather than carrying historical 0.1.31 proof forward.
 
 The next npm cut should stay primarily an operations step rather than a code-confidence rescue step.
 
-- start from the current repo version
-- rerun `npm run release:check`
-- bump `package.json` and `package-lock.json` to the next version
-- commit and push release-prep fixes and source-of-truth updates
-- push the matching `vX.Y.Z` tag to trigger the GitHub Actions publish workflow
-- verify the npm package version, GitHub release, and attached tarball after the workflow completes
+- prepare and review the 0.1.32 package, proof, and source-of-truth changes in PLUXX-322
+- run targeted proof/version/release checks, official serial `npm test`, and `npm run release:check`
+- merge the release-prep PR after GitHub reports CLEAN
+- push `v0.1.32` to trigger the GitHub Actions publish workflow
+- verify the npm package version, GitHub release, attached tarball, and CLI after the workflow completes
 
 ## What This Roadmap Is Optimizing For
 

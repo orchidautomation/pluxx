@@ -1,25 +1,25 @@
 {
   "schemaVersion": 1,
-  "canonicalVersion": "0.1.31",
-  "expectedTag": "v0.1.31",
-  "releaseState": "released",
+  "canonicalVersion": "0.1.32",
+  "expectedTag": "v0.1.32",
+  "releaseState": "release-prep",
   "policy": {
     "environmentReceiptMaxAgeDays": 30
   },
   "claims": [
     {
       "id": "v0.1.31-repository-validation",
-      "summary": "The reviewed v0.1.31 commit passes proof governance, typecheck, build, and the official serial suite.",
+      "summary": "The reviewed v0.1.31 commit retains historical proof governance, typecheck, build, and official serial-suite evidence.",
       "tier": "bundle-contract",
-      "freshness": "current",
+      "freshness": "historical",
       "evidencePath": "tests/proof-freshness.test.ts",
       "receiptId": "v0.1.31-repository-validation"
     },
     {
       "id": "v0.1.31-fake-home-install",
-      "summary": "Maintained examples pass core-four bundle and isolated fake-home install verification.",
+      "summary": "The v0.1.31 maintained examples retain historical core-four bundle and isolated fake-home install evidence.",
       "tier": "fake-home-install",
-      "freshness": "current",
+      "freshness": "historical",
       "evidencePath": "tests/release-smoke.test.ts",
       "receiptId": "v0.1.31-fake-home-install"
     },
@@ -92,7 +92,7 @@
     {
       "id": "v0.1.31-repository-validation",
       "tier": "bundle-contract",
-      "freshness": "current",
+      "freshness": "historical",
       "commitSha": "5066ee4764c2679cdf10f40156f756da51fb89b3",
       "packageVersion": "0.1.31",
       "timestamp": "2026-07-12T11:50:11.851Z",
@@ -127,7 +127,7 @@
     {
       "id": "v0.1.31-fake-home-install",
       "tier": "fake-home-install",
-      "freshness": "current",
+      "freshness": "historical",
       "commands": [
         {
           "command": "bun test tests/release-smoke.test.ts",
