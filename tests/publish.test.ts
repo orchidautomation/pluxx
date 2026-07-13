@@ -273,19 +273,8 @@ interface GeneratedInstallerRunResult {
   }
 }
 
-function configEnvironmentVariables(value: unknown, variables = new Set<string>()): Set<string> {
-  if (typeof value === 'string') {
-    if (/^[A-Z][A-Z0-9_]*_[A-Z0-9_]+$/.test(value)) variables.add(value)
-    return variables
-  }
-  if (Array.isArray(value)) {
-    for (const entry of value) configEnvironmentVariables(entry, variables)
-    return variables
-  }
-  if (value && typeof value === 'object') {
-    for (const entry of Object.values(value)) configEnvironmentVariables(entry, variables)
-  }
-  return variables
+function isolatedInstallerEnvironment(source: Record<string, string | undefined>): Record<string, string> {
+  return { PATH: source.PATH ?? '/usr/bin:/bin' }
 }
 
 function getGeneratedInstallerPaths(platform: TargetPlatform, rootDir: string): {
@@ -400,10 +389,8 @@ function runGeneratedInstaller(
         options.mutateArchive?.(archivePath!, resolve(archivePath!, '..'))
         publishedAssets = new Map(fileArgs.map((filepath) => [filepath.split('/').pop()!, readFileSync(filepath)]))
 
-        const ambientEnv = { ...process.env }
-        for (const envVar of configEnvironmentVariables(config)) delete ambientEnv[envVar]
         const env: Record<string, string> = {
-          ...ambientEnv,
+          ...isolatedInstallerEnvironment(process.env),
           HOME: resolve(rootDir, 'home'),
           ...paths.env,
           ...preparedEnv,
@@ -1497,6 +1484,14 @@ with tarfile.open(archive, 'w:gz') as tf:
         expect(run.installedUserConfig?.env?.SENDLENS_INSTANTLY_API_KEY).toBe('saved-instantly-key')
       }
     }
+  })
+
+  it('does not pass ambient runner config into generated installer fixtures', () => {
+    expect(isolatedInstallerEnvironment({
+      PATH: '/fixture/bin',
+      SENDLENS_INSTANTLY_API_KEY: 'ambient-runner-key',
+      WORKSPACE_MARKER: 'ambient-workspace',
+    })).toEqual({ PATH: '/fixture/bin' })
   })
 
   it('does not bake core-host stdio runtime env into generated global installs', () => {
