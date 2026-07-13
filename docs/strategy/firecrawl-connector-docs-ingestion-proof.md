@@ -2,7 +2,7 @@
 
 Last updated: 2026-04-23
 
-Proof status: **historical**. Tier: `real-host-behavior`. Observed: 2026-04-23 against v0.1.28-era state. This connector run predates complete host-version, installed-path, and artifact-hash receipts and is not current v0.1.31 evidence. See [proof freshness](../proof-freshness.md) and [proof manifest](../proof-manifest.json).
+Proof status: **historical**. Tier: `real-host-behavior`. Observed: 2026-04-23 against v0.1.28-era state. This connector run predates complete host-version, installed-path, and artifact-hash receipts and is not current v0.1.32 evidence. See [proof freshness](../proof-freshness.md) and [proof manifest](../proof-manifest.json).
 
 This note captures the first real Firecrawl-backed docs-ingestion comparison on the current fixture set.
 

@@ -26,7 +26,7 @@ Last updated: 2026-07-12
 
 This is the short release/distribution map for what Pluxx can ship today, what is locally proven, and what still belongs to later marketplace or trust-layer work.
 
-Proof state is governed by [proof-freshness.md](./proof-freshness.md) and the machine-readable [proof manifest](./proof-manifest.json). The canonical repository release is `0.1.31` / `v0.1.31`. Older environment runs linked below are historical unless a current receipt says otherwise.
+Proof state is governed by [proof-freshness.md](./proof-freshness.md) and the machine-readable [proof manifest](./proof-manifest.json). The canonical repository version is `0.1.32` in release prep with expected tag `v0.1.32`; the historical published baseline remains 0.1.31 until the coordinator completes the release workflow. Older environment runs linked below are historical unless a current receipt says otherwise.
 
 ## Current Primary Fronts
 

@@ -1,7 +1,7 @@
 {
   "id": "v0.1.31-repository-validation",
   "tier": "bundle-contract",
-  "freshness": "current",
+  "freshness": "historical",
   "commands": [
     {
       "command": "npm run proof:check",

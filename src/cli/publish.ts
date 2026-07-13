@@ -2350,6 +2350,18 @@ const entriesEqual = (expected, actual) => {
   }
   return true
 }
+const movePath = (source, destination) => {
+  try {
+    fs.renameSync(source, destination)
+    return
+  } catch (error) {
+    if (!error || error.code !== 'EXDEV') throw error
+  }
+  const stats = fs.lstatSync(source)
+  if (stats.isDirectory()) fs.cpSync(source, destination, { recursive: true, verbatimSymlinks: true })
+  else fs.copyFileSync(source, destination)
+  fs.rmSync(source, { recursive: true, force: true })
+}
 for (const candidate of candidates) {
   const ledgerPath = path.join(ledgerRoot, 'opencode--' + candidate.surface + '.json')
   candidate.ledgerPath = ledgerPath
@@ -2378,7 +2390,7 @@ try {
     const backup = path.join(path.dirname(candidate.destination), '.' + pluginName + '.pluxx-companion-backup-' + nonce + '-' + journal.moves.length)
     journal.moves.push({ destination: candidate.destination, backup })
     if (fs.existsSync(candidate.destination)) fs.renameSync(candidate.destination, backup)
-    if (!candidate.remove) fs.renameSync(candidate.source, candidate.destination)
+    if (!candidate.remove) movePath(candidate.source, candidate.destination)
     saveJournal()
   }
   for (const candidate of candidates) {

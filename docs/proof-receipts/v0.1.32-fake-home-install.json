@@ -1,10 +1,10 @@
 {
-  "id": "v0.1.31-fake-home-install",
+  "id": "v0.1.32-fake-home-install",
   "tier": "fake-home-install",
-  "freshness": "historical",
+  "freshness": "current",
   "commands": [
     {
-      "command": "bun test tests/release-smoke.test.ts",
+      "command": "npm run release:check",
       "outcome": "passed"
     }
   ],

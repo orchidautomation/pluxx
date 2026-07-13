@@ -82,14 +82,14 @@ Any person or agent should be able to enter the repo and answer:
 
 Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) defines the five evidence tiers and freshness rules, while [proof-manifest.json](../proof-manifest.json) keeps machine-readable receipts and current/historical claim state aligned with `package.json`.
 
-### 0. Remaining v0.1.31 audit remediation
+### 0. v0.1.32 release preparation
 
-- [~] Land PLUXX-314 Autopilot reliability after focused PR proof:
-  - baseline doctor/test before semantic mutation
-  - checkpoint-backed fail-stop stages, compatible resume, and local rollback
-  - enforced taxonomy/instructions/review write boundaries
-  - structured review artifacts and fail-closed gating
-  - serial official `npm test` plus current CI/review evidence
+- [x] Merge all nine PLUXX-313 through PLUXX-321 audit-remediation PRs into main at `f92e3cc`
+- [x] Prepare 0.1.32 in PLUXX-322 with synchronized package, proof, planning, and release truth
+- [x] Generate fresh repository-validation and fake-home-install receipts from committed 0.1.32 state
+- [x] Pass the official 751/751 serial suite and complete release gate
+- [ ] Reach a ready, autofix-enabled, GitHub-CLEAN release PR with no actionable review threads
+- [ ] Coordinator: merge, tag v0.1.32, verify npm/GitHub/tarball/CLI, then archive the completed batch
 
 ### 1. Product clarity and front-door coherence
 
@@ -447,15 +447,13 @@ Open work:
 
 ### 7. Next release readiness
 
-- [x] Validate the current self-hosting flow end to end
-- [x] Run tests, release smoke, and the packaged-runtime release gate before the next cut
-- [x] Restore example parity for `examples/prospeo-mcp` so release smoke and the real package agree again
-- [x] Bump `package.json` and `package-lock.json` from `0.1.27` to `0.1.28`
-- [x] Rerun the release gate before tagging
-- [ ] Merge release-prep fixes to `main`
-- [ ] Push the matching `v0.1.28` tag so the GitHub Actions release workflow publishes to npm
-- [ ] Publish and verify `@orchid-labs/pluxx@0.1.28`
-- [ ] Verify the published npm version and GitHub release artifacts after the workflow completes
+- [x] Merge the nine v0.1.31 audit-remediation PRs
+- [~] Prepare the focused v0.1.32 release PR under PLUXX-322
+- [x] Refresh current repository/fake-home receipts from committed 0.1.32 state
+- [x] Pass targeted checks, official serial 751/751 `npm test`, and `npm run release:check`
+- [ ] Merge the release-prep PR to `main`
+- [ ] Push `v0.1.32` so the GitHub Actions release workflow publishes to npm
+- [ ] Verify `@orchid-labs/pluxx@0.1.32`, GitHub release assets, tarball contents, and CLI behavior
 
 ## Next
 

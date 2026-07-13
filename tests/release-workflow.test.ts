@@ -32,8 +32,12 @@ describe('release workflow', () => {
   })
 
   it('runs the release integrity gates in production order', () => {
-    const workflow = parse(releaseWorkflow) as { jobs: { publish: { steps: Array<{ name?: string }> } } }
+    const workflow = parse(releaseWorkflow) as {
+      jobs: { publish: { steps: Array<{ name?: string; run?: string; env?: Record<string, string> }> } }
+    }
     const names = workflow.jobs.publish.steps.map((step) => step.name)
+    const releaseCheck = workflow.jobs.publish.steps.find((step) => step.name === 'Run release checks')
+    expect(releaseCheck?.env?.PLUXX_RELEASE_TAG).toBe('${{ github.ref_name }}')
     expect(names.indexOf('Pack release tarball')).toBeLessThan(names.indexOf('Verify packaged Node runtime'))
     expect(names.indexOf('Verify packaged Node runtime')).toBeLessThan(names.indexOf('Publish to npm'))
     expect(names.indexOf('Publish to npm')).toBeLessThan(names.indexOf('Verify npm publication'))

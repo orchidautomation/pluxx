@@ -273,6 +273,10 @@ interface GeneratedInstallerRunResult {
   }
 }
 
+function isolatedInstallerEnvironment(source: Record<string, string | undefined>): Record<string, string> {
+  return { PATH: source.PATH ?? '/usr/bin:/bin' }
+}
+
 function getGeneratedInstallerPaths(platform: TargetPlatform, rootDir: string): {
   installDir: string
   pluginInstallDir: string
@@ -333,8 +337,13 @@ function runGeneratedInstaller(
   options: GeneratedInstallerRunOptions = {},
 ): GeneratedInstallerRunResult {
   const rootDir = resolve(ROOT, `generated-installer-${platform}-${generatedInstallerRunCount++}`)
+  rmSync(rootDir, { recursive: true, force: true })
   const config = options.config ?? makeUserConfigInstallerConfig(platform)
   const paths = getGeneratedInstallerPaths(platform, rootDir)
+  const homeDir = resolve(rootDir, 'home')
+  const tempDir = resolve(rootDir, 'tmp')
+  mkdirSync(homeDir, { recursive: true })
+  mkdirSync(tempDir, { recursive: true })
   const fixtureFiles = {
     ...GENERATED_INSTALLER_FIXTURE_FILES[platform],
     ...(options.extraFiles ?? {}),
@@ -386,8 +395,11 @@ function runGeneratedInstaller(
         publishedAssets = new Map(fileArgs.map((filepath) => [filepath.split('/').pop()!, readFileSync(filepath)]))
 
         const env: Record<string, string> = {
-          ...process.env,
-          HOME: resolve(rootDir, 'home'),
+          ...isolatedInstallerEnvironment(process.env),
+          HOME: homeDir,
+          TMPDIR: tempDir,
+          TMP: tempDir,
+          TEMP: tempDir,
           ...paths.env,
           ...preparedEnv,
           ...options.env,
@@ -1468,7 +1480,7 @@ with tarfile.open(archive, 'w:gz') as tf:
         },
       })
 
-      expect(run.status).toBe(0)
+      expect(run.status, `${platform} installer failed:\n${run.stderr}\n${run.stdout}`).toBe(0)
       expect(run.stderr).toBe('')
       expect(run.stdout).toContain('Found existing publish-plugin config; reusing saved install values.')
       if (platform === 'codex') {
@@ -1480,6 +1492,14 @@ with tarfile.open(archive, 'w:gz') as tf:
         expect(run.installedUserConfig?.env?.SENDLENS_INSTANTLY_API_KEY).toBe('saved-instantly-key')
       }
     }
+  })
+
+  it('does not pass ambient runner config into generated installer fixtures', () => {
+    expect(isolatedInstallerEnvironment({
+      PATH: '/fixture/bin',
+      SENDLENS_INSTANTLY_API_KEY: 'ambient-runner-key',
+      WORKSPACE_MARKER: 'ambient-workspace',
+    })).toEqual({ PATH: '/fixture/bin' })
   })
 
   it('does not bake core-host stdio runtime env into generated global installs', () => {
@@ -1503,7 +1523,7 @@ with tarfile.open(archive, 'w:gz') as tf:
         extraFiles: stdioMcpFileForPlatform(platform),
       })
 
-      expect(run.status).toBe(0)
+      expect(run.status, `${platform} installer failed:\n${run.stderr}\n${run.stdout}`).toBe(0)
       expect(run.stderr).toBe('')
       expect(run.stdout).not.toContain('reusing saved install values')
       expect(run.installerContent).not.toContain('pluxx_prompt_text_config "workspace-')
@@ -1534,7 +1554,7 @@ with tarfile.open(archive, 'w:gz') as tf:
         env: { SENDLENS_INSTANTLY_API_KEY: 'fresh-env-key' },
       })
 
-      expect(run.status).toBe(0)
+      expect(run.status, `${platform} installer failed:\n${run.stderr}\n${run.stdout}`).toBe(0)
       expect(run.stderr).toBe('')
       expect(run.stdout).not.toContain('reusing saved install values')
       if (platform === 'codex') {

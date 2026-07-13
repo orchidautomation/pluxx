@@ -40,6 +40,7 @@ const tagExists = git('tag', '--list', expectedTag) === expectedTag
 const problems = validateProofManifest(manifest, {
   packageVersion: packageJson.version,
   expectedTagExists: tagExists,
+  releaseTagUnderValidation: process.env.PLUXX_RELEASE_TAG,
   now: new Date(),
   isCommitReachable: (sha) => {
     try {
