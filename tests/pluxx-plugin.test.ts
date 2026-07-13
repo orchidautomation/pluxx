@@ -111,6 +111,17 @@ describe('pluxx dogfood plugin', () => {
     }
   })
 
+  it('documents Autopilot recovery and fail-closed stages for agents', () => {
+    const skill = readFileSync(resolve(PLUGIN_ROOT, 'skills/pluxx-autopilot/SKILL.md'), 'utf-8')
+    const instructions = readFileSync(resolve(PLUGIN_ROOT, 'AGENTS.md'), 'utf-8')
+
+    expect(skill).toContain('pluxx autopilot --resume')
+    expect(skill).toContain('pluxx autopilot --rollback')
+    expect(skill).toContain('post-agent-verification')
+    expect(skill).toContain('behavior-affecting inputs')
+    expect(instructions).toContain('checkpoint-backed resume or rollback')
+  })
+
   it('keeps the self-hosted example source aligned with the operator model', () => {
     const configPath = resolve(EXAMPLE_ROOT, 'pluxx.config.ts')
     const instructionsPath = resolve(EXAMPLE_ROOT, 'INSTRUCTIONS.md')

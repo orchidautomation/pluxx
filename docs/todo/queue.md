@@ -55,6 +55,14 @@ For broader context, use:
 
 ## Current Truth
 
+PLUXX-314 Autopilot reliability is implemented on its focused remediation branch and is moving through PR proof:
+
+- deterministic baseline doctor/test runs before agent mutation
+- durable stage checkpoints with compatible `--resume` and local `--rollback`
+- pass-specific Agent Mode write boundaries with unauthorized-change restoration
+- structured, fail-closed review output before later verification
+- current proof must come from this branch's serial `npm test` and CI, not the older April/May audit baseline
+
 The core-four compiler sprint is done.
 
 The initial author-once hardening tranche is also materially done.

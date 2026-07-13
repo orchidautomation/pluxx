@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
-import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs'
+import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
+import { tmpdir } from 'os'
 import {
   applyAgentPreparePlan,
   applyAgentPromptPlan,
@@ -637,7 +638,7 @@ describe('agent mode', () => {
 
   it('executes the Cursor runner in non-interactive mode and checks auth status first', async () => {
     const binDir = resolve(TEST_DIR, '.bin')
-    const runnerArgsPath = resolve(TEST_DIR, 'cursor-runner-args.txt')
+    const runnerArgsPath = resolve(tmpdir(), `pluxx-${process.pid}-cursor-runner-args.txt`)
     const cursorAgentPath = resolve(binDir, 'agent')
 
     mkdirSync(binDir, { recursive: true })
@@ -688,7 +689,7 @@ describe('agent mode', () => {
 
   it('supports Cursor installs that expose only the cursor-agent binary', async () => {
     const binDir = resolve(TEST_DIR, '.bin-cursor-agent')
-    const runnerArgsPath = resolve(TEST_DIR, 'cursor-agent-runner-args.txt')
+    const runnerArgsPath = resolve(tmpdir(), `pluxx-${process.pid}-cursor-agent-runner-args.txt`)
     const cursorAgentPath = resolve(binDir, 'cursor-agent')
 
     mkdirSync(binDir, { recursive: true })
@@ -740,7 +741,7 @@ describe('agent mode', () => {
 
   it('executes the OpenCode runner with attach support', async () => {
     const binDir = resolve(TEST_DIR, '.bin')
-    const runnerArgsPath = resolve(TEST_DIR, 'opencode-runner-args.txt')
+    const runnerArgsPath = resolve(tmpdir(), `pluxx-${process.pid}-opencode-runner-args.txt`)
     const opencodePath = resolve(binDir, 'opencode')
 
     mkdirSync(binDir, { recursive: true })
@@ -838,7 +839,7 @@ describe('agent mode', () => {
 
   it('executes the Claude runner, writes the agent pack, and verifies the scaffold', async () => {
     const binDir = resolve(TEST_DIR, '.bin')
-    const runnerArgsPath = resolve(TEST_DIR, 'runner-args.txt')
+    const runnerArgsPath = resolve(tmpdir(), `pluxx-${process.pid}-runner-args.txt`)
     const claudePath = resolve(binDir, 'claude')
 
     mkdirSync(binDir, { recursive: true })
@@ -897,6 +898,44 @@ describe('agent mode', () => {
     expect(runnerArgs).toContain('-p')
     expect(runnerArgs.some((arg) => arg.includes('.pluxx/agent/context.md'))).toBe(true)
     expect(runnerArgs.some((arg) => arg.includes('.pluxx/agent/taxonomy-prompt.md'))).toBe(true)
+  })
+
+  it('restores allowed edits when post-run verification fails', async () => {
+    const binDir = resolve(TEST_DIR, '.bin')
+    const claudePath = resolve(binDir, 'claude')
+    const instructionsPath = resolve(TEST_DIR, 'INSTRUCTIONS.md')
+    const originalInstructions = readFileSync(instructionsPath, 'utf-8')
+
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(claudePath, `#!/bin/sh
+case "$*" in
+*instructions-prompt.md*) perl -0pi -e 's#<!-- pluxx:generated:start -->.*?<!-- pluxx:generated:end -->#<!-- pluxx:generated:start -->\\ninvalid instructions\\n<!-- pluxx:generated:end -->#s' INSTRUCTIONS.md ;;
+esac
+exit 0
+`)
+    chmodSync(claudePath, 0o755)
+
+    const proc = Bun.spawn(
+      ['bun', resolve(ROOT, 'bin/pluxx.js'), 'agent', 'run', 'instructions', '--runner', 'claude', '--json'],
+      {
+        cwd: TEST_DIR,
+        env: { ...process.env, PATH: `${binDir}:${process.env.PATH ?? ''}` },
+        stdout: 'pipe',
+        stderr: 'pipe',
+      },
+    )
+
+    const stdout = await new Response(proc.stdout).text()
+    expect(await proc.exited).toBe(1)
+    const summary = JSON.parse(stdout) as {
+      ok: boolean
+      verification?: { ok: boolean }
+      boundary: { restored: boolean }
+    }
+    expect(summary.ok).toBe(false)
+    expect(summary.verification?.ok).toBe(false)
+    expect(summary.boundary.restored).toBe(true)
+    expect(readFileSync(instructionsPath, 'utf-8')).toBe(originalInstructions)
   })
 
   it('re-renders skills and commands after a taxonomy run updates .pluxx/taxonomy.json', async () => {
@@ -970,6 +1009,272 @@ exit 1
     expect(reviewPrompt).not.toContain('`skills/ask-clay/SKILL.md`')
   })
 
+  it('rejects and restores taxonomy runner edits outside the pass allowlist', async () => {
+    const binDir = resolve(TEST_DIR, '.bin')
+    const codexPath = resolve(binDir, 'codex')
+    const instructionsPath = resolve(TEST_DIR, 'INSTRUCTIONS.md')
+    const originalInstructions = readFileSync(instructionsPath, 'utf-8')
+
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(
+      codexPath,
+      '#!/bin/sh\nif [ "$1" = "exec" ]; then printf "\\nout-of-bounds edit\\n" >> INSTRUCTIONS.md; exit 0; fi\nexit 1\n',
+    )
+    chmodSync(codexPath, 0o755)
+
+    const proc = Bun.spawn(
+      ['bun', resolve(ROOT, 'bin/pluxx.js'), 'agent', 'run', 'taxonomy', '--runner', 'codex', '--json', '--no-verify'],
+      {
+        cwd: TEST_DIR,
+        env: { ...process.env, PATH: `${binDir}:${process.env.PATH ?? ''}` },
+        stdout: 'pipe',
+        stderr: 'pipe',
+      },
+    )
+
+    const stdout = await new Response(proc.stdout).text()
+    const exitCode = await proc.exited
+    const summary = JSON.parse(stdout) as {
+      ok: boolean
+      boundary?: { ok: boolean; restored: boolean; unauthorizedPaths: string[] }
+    }
+
+    expect(exitCode).toBe(1)
+    expect(summary.ok).toBe(false)
+    expect(summary.boundary).toEqual(expect.objectContaining({
+      ok: false,
+      restored: true,
+      unauthorizedPaths: ['INSTRUCTIONS.md'],
+    }))
+    expect(readFileSync(instructionsPath, 'utf-8')).toBe(originalInstructions)
+  })
+
+  it('rejects an editable-file symlink swap and preserves the external target', async () => {
+    const binDir = resolve(TEST_DIR, '.bin')
+    const codexPath = resolve(binDir, 'codex')
+    const taxonomyPath = resolve(TEST_DIR, '.pluxx/taxonomy.json')
+    const outsidePath = resolve(tmpdir(), `pluxx-taxonomy-outside-${Date.now()}`)
+    const original = readFileSync(taxonomyPath, 'utf8')
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(outsidePath, 'external target\n')
+    writeFileSync(codexPath, '#!/bin/sh\nrm .pluxx/taxonomy.json\nln -s "$OUTSIDE_PATH" .pluxx/taxonomy.json\nexit 0\n')
+    chmodSync(codexPath, 0o755)
+    try {
+      const proc = Bun.spawn(
+        ['bun', resolve(ROOT, 'bin/pluxx.js'), 'agent', 'run', 'taxonomy', '--runner', 'codex', '--json', '--no-verify'],
+        { cwd: TEST_DIR, env: { ...process.env, PATH: `${binDir}:${process.env.PATH ?? ''}`, OUTSIDE_PATH: outsidePath }, stdout: 'pipe', stderr: 'pipe' },
+      )
+      const stdout = await new Response(proc.stdout).text()
+      expect(await proc.exited).toBe(1)
+      expect(JSON.parse(stdout).boundary).toEqual(expect.objectContaining({ ok: false, restored: true }))
+      expect(readFileSync(taxonomyPath, 'utf8')).toBe(original)
+      expect(readFileSync(outsidePath, 'utf8')).toBe('external target\n')
+    } finally {
+      rmSync(outsidePath, { force: true })
+    }
+  })
+
+  it('refuses to generate agent metadata through a preexisting workspace symlink', async () => {
+    const outside = resolve(tmpdir(), `pluxx-agent-metadata-outside-${Date.now()}`)
+    mkdirSync(outside, { recursive: true })
+    symlinkSync(outside, resolve(TEST_DIR, '.pluxx/agent'))
+    try {
+      const proc = Bun.spawn(
+        ['bun', resolve(ROOT, 'bin/pluxx.js'), 'agent', 'run', 'taxonomy', '--runner', 'codex', '--json', '--no-verify'],
+        { cwd: TEST_DIR, stdout: 'pipe', stderr: 'pipe' },
+      )
+      const stderr = await new Response(proc.stderr).text()
+      expect(await proc.exited).toBe(1)
+      expect(stderr).toContain('symbolic link')
+      expect(existsSync(resolve(outside, 'plan.json'))).toBe(false)
+    } finally {
+      rmSync(resolve(TEST_DIR, '.pluxx/agent'), { force: true })
+      rmSync(outside, { recursive: true, force: true })
+    }
+  })
+
+  it('guards standalone prepare and prompt metadata writes with the workspace lock', async () => {
+    const outside = resolve(tmpdir(), `pluxx-agent-standalone-outside-${Date.now()}`)
+    mkdirSync(outside, { recursive: true })
+    symlinkSync(outside, resolve(TEST_DIR, '.pluxx/agent'))
+    try {
+      let proc = Bun.spawn(
+        ['bun', resolve(ROOT, 'bin/pluxx.js'), 'agent', 'prepare', '--json'],
+        { cwd: TEST_DIR, stdout: 'pipe', stderr: 'pipe' },
+      )
+      let stderr = await new Response(proc.stderr).text()
+      expect(await proc.exited).toBe(1)
+      expect(stderr).toContain('symbolic link')
+      expect(existsSync(resolve(outside, 'context.md'))).toBe(false)
+
+      rmSync(resolve(TEST_DIR, '.pluxx/agent'), { force: true })
+      proc = Bun.spawn(
+        ['bun', resolve(ROOT, 'bin/pluxx.js'), 'agent', 'prepare', '--json'],
+        { cwd: TEST_DIR, stdout: 'pipe', stderr: 'pipe' },
+      )
+      await new Response(proc.stdout).text()
+      expect(await proc.exited).toBe(0)
+      const context = readFileSync(resolve(TEST_DIR, AGENT_CONTEXT_PATH), 'utf8')
+      rmSync(resolve(TEST_DIR, '.pluxx/agent'), { recursive: true, force: true })
+      writeFileSync(resolve(outside, 'context.md'), context)
+      symlinkSync(outside, resolve(TEST_DIR, '.pluxx/agent'))
+
+      proc = Bun.spawn(
+        ['bun', resolve(ROOT, 'bin/pluxx.js'), 'agent', 'prompt', 'review', '--json'],
+        { cwd: TEST_DIR, stdout: 'pipe', stderr: 'pipe' },
+      )
+      stderr = await new Response(proc.stderr).text()
+      expect(await proc.exited).toBe(1)
+      expect(stderr).toContain('symbolic link')
+      expect(existsSync(resolve(outside, 'review-prompt.md'))).toBe(false)
+    } finally {
+      rmSync(resolve(TEST_DIR, '.pluxx/agent'), { recursive: true, force: true })
+      rmSync(outside, { recursive: true, force: true })
+    }
+  })
+
+  it('allows only generated-region edits during the instructions pass', async () => {
+    const binDir = resolve(TEST_DIR, '.bin')
+    const codexPath = resolve(binDir, 'codex')
+    const instructionsPath = resolve(TEST_DIR, 'INSTRUCTIONS.md')
+    const original = readFileSync(instructionsPath, 'utf8')
+    const validEdit = original.replace('<!-- pluxx:generated:start -->', '<!-- pluxx:generated:start -->\nvalid managed edit')
+    const invalidEdit = original.replace('<!-- pluxx:custom:start -->', '<!-- pluxx:custom:start -->\ninvalid custom edit')
+    const editPath = resolve(tmpdir(), `pluxx-instructions-edit-${Date.now()}`)
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(codexPath, '#!/bin/sh\ncp "$EDIT_PATH" INSTRUCTIONS.md\nexit 0\n')
+    chmodSync(codexPath, 0o755)
+    try {
+      writeFileSync(editPath, validEdit)
+      let proc = Bun.spawn(
+        ['bun', resolve(ROOT, 'bin/pluxx.js'), 'agent', 'run', 'instructions', '--runner', 'codex', '--json', '--no-verify'],
+        { cwd: TEST_DIR, env: { ...process.env, PATH: `${binDir}:${process.env.PATH ?? ''}`, EDIT_PATH: editPath }, stdout: 'pipe', stderr: 'pipe' },
+      )
+      let stdout = await new Response(proc.stdout).text()
+      expect(await proc.exited).toBe(0)
+      expect(JSON.parse(stdout).boundary.ok).toBe(true)
+      expect(readFileSync(instructionsPath, 'utf8')).toBe(validEdit)
+
+      writeFileSync(editPath, invalidEdit)
+      proc = Bun.spawn(
+        ['bun', resolve(ROOT, 'bin/pluxx.js'), 'agent', 'run', 'instructions', '--runner', 'codex', '--json', '--no-verify'],
+        { cwd: TEST_DIR, env: { ...process.env, PATH: `${binDir}:${process.env.PATH ?? ''}`, EDIT_PATH: editPath }, stdout: 'pipe', stderr: 'pipe' },
+      )
+      stdout = await new Response(proc.stdout).text()
+      expect(await proc.exited).toBe(1)
+      expect(JSON.parse(stdout).boundary).toEqual(expect.objectContaining({ ok: false, restored: true }))
+      expect(readFileSync(instructionsPath, 'utf8')).toBe(validEdit)
+    } finally {
+      rmSync(editPath, { force: true })
+    }
+  })
+
+  it('restores review-mode mutations', async () => {
+    const binDir = resolve(MANUAL_DIR, '.bin')
+    const claudePath = resolve(binDir, 'claude')
+    const instructionsPath = resolve(MANUAL_DIR, 'INSTRUCTIONS.md')
+    const original = readFileSync(instructionsPath, 'utf8')
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(claudePath, '#!/bin/sh\nprintf "\\nreview mutation\\n" >> INSTRUCTIONS.md\nprintf \'%s\\n\' \'{"type":"result","subtype":"success","is_error":false,"result":"missing structured markers"}\'\nexit 0\n')
+    chmodSync(claudePath, 0o755)
+
+    const proc = Bun.spawn(
+      ['bun', resolve(ROOT, 'bin/pluxx.js'), 'agent', 'run', 'review', '--runner', 'claude', '--json'],
+      { cwd: MANUAL_DIR, env: { ...process.env, PATH: `${binDir}:${process.env.PATH ?? ''}` }, stdout: 'pipe', stderr: 'pipe' },
+    )
+    const stdout = await new Response(proc.stdout).text()
+    expect(await proc.exited).toBe(1)
+    const summary = JSON.parse(stdout)
+    expect(summary.boundary).toEqual(expect.objectContaining({ ok: false, restored: true }))
+    expect(readFileSync(instructionsPath, 'utf8')).toBe(original)
+  })
+
+  it('fails closed when review output omits the structured result', async () => {
+    const binDir = resolve(MANUAL_DIR, '.bin')
+    const claudePath = resolve(binDir, 'claude')
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(claudePath, '#!/bin/sh\nprintf \'%s\\n\' \'{"type":"result","subtype":"success","is_error":false,"result":"missing structured markers"}\'\nexit 0\n')
+    chmodSync(claudePath, 0o755)
+
+    const proc = Bun.spawn(
+      ['bun', resolve(ROOT, 'bin/pluxx.js'), 'agent', 'run', 'review', '--runner', 'claude', '--json'],
+      { cwd: MANUAL_DIR, env: { ...process.env, PATH: `${binDir}:${process.env.PATH ?? ''}` }, stdout: 'pipe', stderr: 'pipe' },
+    )
+    const stdout = await new Response(proc.stdout).text()
+    const exitCode = await proc.exited
+    const summary = JSON.parse(stdout)
+    expect(summary.review).toEqual(expect.objectContaining({ status: 'inconclusive' }))
+    expect(summary.ok).toBe(false)
+    expect(exitCode).toBe(1)
+  })
+
+  it('times out a hung runner and restores its workspace changes', async () => {
+    const binDir = resolve(TEST_DIR, '.bin')
+    const codexPath = resolve(binDir, 'codex')
+    const instructionsPath = resolve(TEST_DIR, 'INSTRUCTIONS.md')
+    const original = readFileSync(instructionsPath, 'utf8')
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(codexPath, '#!/bin/sh\nprintf "\\nhung mutation\\n" >> INSTRUCTIONS.md\nwhile :; do sleep 1; done\n')
+    chmodSync(codexPath, 0o755)
+
+    const proc = Bun.spawn(
+      ['bun', resolve(ROOT, 'bin/pluxx.js'), 'agent', 'run', 'taxonomy', '--runner', 'codex', '--json', '--no-verify'],
+      {
+        cwd: TEST_DIR,
+        env: { ...process.env, PATH: `${binDir}:${process.env.PATH ?? ''}`, PLUXX_AGENT_TIMEOUT_MS: '100' },
+        stdout: 'pipe',
+        stderr: 'pipe',
+      },
+    )
+    const stdout = await new Response(proc.stdout).text()
+    expect(await proc.exited).toBe(1)
+    expect(JSON.parse(stdout).runnerExitCode).toBe(124)
+    expect(readFileSync(instructionsPath, 'utf8')).toBe(original)
+  })
+
+  it('captures structured review findings and fails the gate when they are actionable', async () => {
+    const binDir = resolve(MANUAL_DIR, '.bin')
+    const claudePath = resolve(binDir, 'claude')
+
+    mkdirSync(binDir, { recursive: true })
+    writeFileSync(
+      claudePath,
+      `#!/bin/sh
+printf '%s\n' '{"type":"result","subtype":"success","is_error":false,"result":"Review result\\nPLUXX_REVIEW_RESULT_START\\n{\\"findings\\":[{\\"severity\\":\\"warning\\",\\"title\\":\\"Weak routing\\",\\"path\\":\\"INSTRUCTIONS.md\\",\\"message\\":\\"Add a concrete route.\\",\\"actionable\\":true}]}\\nPLUXX_REVIEW_RESULT_END"}'
+exit 0
+`,
+    )
+    chmodSync(claudePath, 0o755)
+
+    const proc = Bun.spawn(
+      ['bun', resolve(ROOT, 'bin/pluxx.js'), 'agent', 'run', 'review', '--runner', 'claude', '--json'],
+      {
+        cwd: MANUAL_DIR,
+        env: { ...process.env, PATH: `${binDir}:${process.env.PATH ?? ''}` },
+        stdout: 'pipe',
+        stderr: 'pipe',
+      },
+    )
+
+    const stdout = await new Response(proc.stdout).text()
+    const exitCode = await proc.exited
+    const summary = JSON.parse(stdout) as {
+      ok: boolean
+      review?: { status: string; actionableCount: number; findings: Array<{ title: string }> }
+    }
+
+    expect(exitCode).toBe(1)
+    expect(summary.ok).toBe(false)
+    expect(summary.review).toEqual(expect.objectContaining({
+      status: 'actionable-findings',
+      actionableCount: 1,
+      findings: [expect.objectContaining({ title: 'Weak routing' })],
+    }))
+    expect(existsSync(resolve(MANUAL_DIR, '.pluxx/agent/review-result.json'))).toBe(true)
+    expect(lstatSync(resolve(MANUAL_DIR, '.pluxx/agent/review-result.json')).mode & 0o777).toBe(0o600)
+    expect(readFileSync(resolve(MANUAL_DIR, '.gitignore'), 'utf-8')).toContain('.pluxx/agent/review-result.json')
+  })
+
   it('force-closes sticky Codex process trees once the final message is available', async () => {
     const binDir = resolve(MANUAL_DIR, '.bin')
     const codexPath = resolve(binDir, 'codex')
@@ -996,7 +1301,7 @@ if [ "$1" = "exec" ]; then
     esac
   done
   mkdir -p "$(dirname "$output")"
-  printf 'OK\\n' > "$output"
+  printf 'PLUXX_REVIEW_RESULT_START\\n{"findings":[]}\\nPLUXX_REVIEW_RESULT_END\\n' > "$output"
   printf '{"type":"thread.started"}\\n'
   printf '{"type":"turn.started"}\\n'
   printf '{"type":"turn.completed"}\\n'

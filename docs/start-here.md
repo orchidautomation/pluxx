@@ -99,6 +99,8 @@ The goal of this layer is simple:
 
 The CLI is the engine, but the self-hosted Pluxx plugin is part of the real product surface for average users.
 
+The PLUXX-314 audit-remediation branch adds fail-closed Autopilot checkpoints, compatible resume/rollback, enforced Agent Mode write boundaries, and structured review gating. It remains a PR candidate until its current CI and review proof lands; do not treat it as released solely from these docs.
+
 That means near-term product quality is not only about compiler depth.
 It is also about making the plugin-guided path feel obvious, safe, and understandable on top of the same CLI truth.
 

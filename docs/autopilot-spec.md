@@ -143,8 +143,25 @@ This keeps the semantic layer honest.
 - `--json`
 - `--quiet`
 - `--yes`
-- `--skip-review`
-- `--skip-install-checks`
+- `--resume`
+- `--rollback`
+- `--review`
+- `--no-verify`
+
+## Reliability And Recovery Contract
+
+Autopilot creates a durable pre-run checkpoint, proves the deterministic scaffold with `doctor` and `test`, then checkpoints each successful agent stage. A failed baseline runs no agent. A failed runner, write-boundary violation, inconclusive review, or actionable review finding stops dependent work and restores the preceding valid checkpoint. If final post-agent verification fails, Autopilot restores the verified baseline and clears the unverified pass completions so resume cannot skip back into a broken tree.
+
+Use `pluxx autopilot --resume` to continue the saved run from its next incomplete stage. After baseline succeeds, resume reconstructs discovery from the saved `.pluxx/mcp.json`, so later pass recovery does not require the original MCP to be reachable. A pre-baseline resume reconnects to the MCP and reapplies the deterministic scaffold because baseline failure restores the pre-scaffold checkpoint. Resume validates the saved behavior fingerprint and requires the workspace to still match the last valid checkpoint instead of silently skipping stale work. A manual repair after a blocked review starts a new Autopilot run; it is not treated as an unchanged interrupted run. Use `pluxx autopilot --rollback` to restore the pre-Autopilot project without requiring the original MCP or runner to be available. Successful rollback removes recovery state, checkpoints, and result artifacts created by that run while restoring any result artifacts that existed before it.
+
+State and structured result artifacts live under `.pluxx/`:
+
+- `.pluxx/autopilot-state.json`
+- `.pluxx/checkpoints/`
+- `.pluxx/agent/<pass>-run-result.json`
+- `.pluxx/agent/review-result.json`
+
+Each pass exposes `runnerOutput` with its artifact path, bounded byte counts, and truncation status in JSON; text output prints the artifact path and truncation flag. Review findings are preserved as validated structured records and printed in JSON/text summaries; raw runner streams are not copied into summaries. Existing consumers continue to receive `failureStage: "verification"`; `failurePhase: "post-agent-verification"` adds the more precise phase without changing that discriminator.
 
 ## Output Contract
 
@@ -254,7 +271,6 @@ Phase 2:
 - support `--output-dir`
 - support `--install`
 - support project-level prompt overrides
-- support resumable autopilot runs
 
 ## Acceptance Criteria
 

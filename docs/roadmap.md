@@ -82,6 +82,8 @@ The v0.1.31 audit remediation also closes a core authoring-safety gap: `init`, `
 
 Proof governance now distinguishes unit, bundle-contract, fake-home install, installed-runtime, and real-host behavior evidence. Canonical version/freshness checks run in CI through [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json); historical April/May proof stays available without being treated as current.
 
+The remaining active v0.1.31 audit-remediation slice is PLUXX-314 Autopilot reliability. Its merge gate is current serial test, CI, and review proof for checkpoint recovery, fail-stop Agent Mode boundaries, and structured review output; the implementation is not release truth until that PR lands.
+
 ### 1. Product clarity and source-of-truth coherence
 
 Make the repo front door and planning surfaces tell the same story.

@@ -82,6 +82,15 @@ Any person or agent should be able to enter the repo and answer:
 
 Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) defines the five evidence tiers and freshness rules, while [proof-manifest.json](../proof-manifest.json) keeps machine-readable receipts and current/historical claim state aligned with `package.json`.
 
+### 0. Remaining v0.1.31 audit remediation
+
+- [~] Land PLUXX-314 Autopilot reliability after focused PR proof:
+  - baseline doctor/test before semantic mutation
+  - checkpoint-backed fail-stop stages, compatible resume, and local rollback
+  - enforced taxonomy/instructions/review write boundaries
+  - structured review artifacts and fail-closed gating
+  - serial official `npm test` plus current CI/review evidence
+
 ### 1. Product clarity and front-door coherence
 
 - [~] Keep [start-here.md](../start-here.md), [queue.md](./queue.md), this file, and Linear aligned

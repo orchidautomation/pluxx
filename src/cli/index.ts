@@ -7,6 +7,7 @@ import {
   AGENT_DOCS_CONTEXT_PATH,
   AGENT_INGEST_PROVIDERS,
   AGENT_PROMPT_KINDS,
+  AGENT_REVIEW_RESULT_PATH,
   AGENT_RUNNERS,
   AGENT_SOURCES_PATH,
   applyAgentPreparePlan,
@@ -16,14 +17,19 @@ import {
   planAgentPrompt,
   planAgentRun,
   runAgentPlan,
+  ensureAgentResultFilesIgnored,
+  loadMcpScaffoldMetadata,
   type AgentContextIngestionArtifact,
   type AgentDocsContextArtifact,
   type AgentIngestProvider,
   type AgentPromptKind,
   type AgentRunner,
   type AgentRunnerModelSummary,
+  type AgentRunnerOutput,
+  type AgentBoundaryResult,
+  type AgentReviewResult,
 } from './agent'
-import { doctorConsumer, doctorProject, printDoctorReport } from './doctor'
+import { doctorConsumer, doctorProject, printDoctorReport, type DoctorReport } from './doctor'
 import {
   ensureHookTrust,
   getInstallFollowupNotes,
@@ -66,8 +72,9 @@ import { promptText, promptYesNo, PromptCancelledError } from './prompt'
 import * as clack from '@clack/prompts'
 import type { McpAuth, McpServer, TargetPlatform } from '../schema'
 import { basename, resolve } from 'path'
-import { mkdir, mkdtemp, rm } from 'fs/promises'
+import { mkdir, mkdtemp, open, readFile, rename, rm, rmdir, writeFile } from 'fs/promises'
 import { tmpdir } from 'os'
+import { createHash, randomUUID } from 'crypto'
 import { spawn, spawnSync } from 'child_process'
 import { formatSyncSummary, planSyncFromMcp, syncFromMcp } from './sync-from-mcp'
 import { formatPublishPlan, planPublish, runPublish } from './publish'
@@ -78,7 +85,7 @@ import { buildPrimitiveTranslationSummary, renderPrimitiveTranslationSummary } f
 import { printVerifyInstallResult, verifyInstall } from './verify-install'
 import { runBehavioralSuite } from './behavioral'
 import type { BehavioralSuiteResult } from './behavioral'
-import { planTextFileAction, writeTextFile } from '../text-files'
+import { appendUniqueLines, assertWorkspacePathNotSymlink, planTextFileAction, writeTextFile } from '../text-files'
 import { applyCodexCompanion, renderCodexCompanionApplyLines, unapplyCodexCompanion } from './codex-apply'
 import {
   discoverInstalledMcpServers,
@@ -90,6 +97,16 @@ import {
   type InstalledMcpHost,
 } from './discover-installed-mcp'
 import { buildHostTargetSelection, detectHostFamilies } from '../host-detection'
+import {
+  createDurableCheckpoint,
+  checkpointMatchesWorkspace,
+  deleteCheckpoint,
+  loadCheckpoint,
+  pruneDurableCheckpoints,
+  restoreCheckpoint,
+  validateDurableCheckpointDirectory,
+} from './checkpoints'
+import { withWorkspaceMutationLock } from './mutation-lock'
 import { executeUpgrade, planUpgrade } from './upgrade'
 import { applyFileMutations, createMutationManifest } from '../fs-transaction'
 
@@ -100,6 +117,8 @@ const command = args[0]
 const runtime = createCliRuntime(args)
 const DEFAULT_INIT_TARGETS = ['claude-code', 'cursor', 'codex', 'opencode'] as const satisfies readonly TargetPlatform[]
 const AUTOPILOT_MODES = ['quick', 'standard', 'thorough'] as const
+const AUTOPILOT_STATE_VERSION = 1 as const
+const AUTOPILOT_STATE_PATH = '.pluxx/autopilot-state.json'
 const ALL_TARGET_PLATFORMS = [
   'claude-code',
   'cursor',
@@ -198,6 +217,8 @@ interface AutopilotSummary {
       updatedFiles: string[]
       runnerExitCode?: number
       durationMs?: number
+      boundary?: AgentBoundaryResult
+      runnerOutput?: AgentRunnerOutput
     }
     instructions: {
       enabled: boolean
@@ -208,6 +229,8 @@ interface AutopilotSummary {
       updatedFiles: string[]
       runnerExitCode?: number
       durationMs?: number
+      boundary?: AgentBoundaryResult
+      runnerOutput?: AgentRunnerOutput
     }
     review?: {
       enabled: boolean
@@ -218,6 +241,9 @@ interface AutopilotSummary {
       updatedFiles: string[]
       runnerExitCode?: number
       durationMs?: number
+      boundary?: AgentBoundaryResult
+      runnerOutput?: AgentRunnerOutput
+      result?: AgentReviewResult
     }
   }
   verification?: TestRunResult
@@ -225,9 +251,63 @@ interface AutopilotSummary {
   install?: InstallActionSummary
   behavioral?: BehavioralSuiteResult
   runnerLogsStreamed?: boolean
-  failureStage?: 'auth' | 'introspection' | 'runner' | 'verification'
+  baseline?: {
+    doctor: DoctorReport
+    test: TestRunResult
+  }
+  resumed?: boolean
+  failureStage?: 'auth' | 'introspection' | 'baseline' | 'runner' | 'boundary' | 'review' | 'verification'
+  failurePhase?: 'post-agent-verification'
   failureMessage?: string
   dryRun?: boolean
+}
+
+type AutopilotStage = 'baseline' | AgentPromptKind | 'verification'
+
+interface AutopilotBehaviorInputs {
+  source: string
+  runner: AgentRunner
+  mode: AutopilotMode
+  model?: string
+  attach?: string
+  pluginName: string
+  displayName: string
+  authorName: string
+  targets: TargetPlatform[]
+  installTargets: TargetPlatform[]
+  grouping: McpSkillGrouping
+  requestedHookMode: McpHookMode
+  runtimeAuthMode: McpRuntimeAuthMode
+  authEnv?: string
+  authType?: string
+  authHeader?: string
+  authTemplate?: string
+  oauthWrapper: boolean
+  approveMcpTools: boolean
+  docsUrl?: string
+  websiteUrl?: string
+  ingestProvider?: AgentIngestProvider
+  contextPaths: string[]
+  reviewRequested: boolean
+  verify: boolean
+  installRequested: boolean
+  trustRequested: boolean
+  behavioralRequested: boolean
+  behavioralPrompt?: string
+}
+
+interface AutopilotState {
+  version: typeof AUTOPILOT_STATE_VERSION
+  behaviorFingerprint: string
+  source: string
+  runner: AgentRunner
+  mode: AutopilotMode
+  behavior: AutopilotBehaviorInputs
+  initialCheckpoint: string
+  latestCheckpoint: string
+  completedStages: AutopilotStage[]
+  checkpoints: Partial<Record<AutopilotStage, string>>
+  updatedAt: string
 }
 
 type AutopilotMode = typeof AUTOPILOT_MODES[number]
@@ -564,9 +644,11 @@ async function maybeInstallBuiltOutputs(
   platforms: TargetPlatform[],
   options: {
     verifyConsumers?: boolean
+    enabled?: boolean
+    trust?: boolean
   } = {},
 ): Promise<InstallActionSummary | undefined> {
-  if (!args.includes('--install')) {
+  if (!(options.enabled ?? args.includes('--install'))) {
     return undefined
   }
 
@@ -577,7 +659,7 @@ async function maybeInstallBuiltOutputs(
     await ensureHookTrust({
       pluginName: config.name,
       hooks: config.hooks,
-      trust: args.includes('--trust'),
+      trust: options.trust ?? args.includes('--trust'),
       isTTY: runtime.isInteractive,
     })
     const resolvedUserConfig = await resolveInstallUserConfig(config, platforms, {
@@ -2350,6 +2432,15 @@ async function runAgent() {
       if (result.verification) {
         console.log(`  Verification: ${result.verification.ok ? 'passed' : 'failed'}`)
       }
+      if (result.review) {
+        console.log(`  Review: ${result.review.status} (${result.review.actionableCount} actionable finding(s))`)
+        for (const finding of result.review.findings) {
+          console.log(`    [${finding.severity}] ${finding.path ? `${finding.path}: ` : ''}${finding.title} — ${finding.message}`)
+        }
+      }
+      if (!result.boundary.ok) {
+        console.log(`  Boundary: restored unauthorized changes to ${result.boundary.unauthorizedPaths.join(', ')}`)
+      }
     }
 
     if (!result.ok) {
@@ -2362,24 +2453,237 @@ async function runAgent() {
   process.exit(1)
 }
 
+function autopilotStateFile(rootDir: string): string {
+  return resolve(rootDir, AUTOPILOT_STATE_PATH)
+}
+
+async function loadAutopilotState(rootDir: string): Promise<AutopilotState> {
+  const parsed = await loadAutopilotRecoveryState(rootDir)
+  if (!(await checkpointMatchesWorkspace(rootDir, parsed.latestCheckpoint))) {
+    throw new Error('Autopilot workspace changed after the saved checkpoint. Roll back or start a new run before resuming.')
+  }
+  return parsed
+}
+
+async function loadAutopilotRecoveryState(rootDir: string): Promise<AutopilotState> {
+  await assertWorkspacePathNotSymlink(rootDir, autopilotStateFile(rootDir))
+  const parsed: unknown = JSON.parse(await readFile(autopilotStateFile(rootDir), 'utf-8'))
+  if (!isAutopilotState(parsed)) {
+    throw new Error(`Invalid or unsupported Autopilot state at ${AUTOPILOT_STATE_PATH}.`)
+  }
+  await validateDurableCheckpointDirectory(rootDir, parsed.initialCheckpoint)
+  await validateDurableCheckpointDirectory(rootDir, parsed.latestCheckpoint)
+  for (const checkpoint of Object.values(parsed.checkpoints)) {
+    if (checkpoint) await validateDurableCheckpointDirectory(rootDir, checkpoint)
+  }
+  return parsed
+}
+
+function isAutopilotState(value: unknown): value is AutopilotState {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const state = value as Record<string, unknown>
+  const validStages = new Set<AutopilotStage>(['baseline', ...AGENT_PROMPT_KINDS, 'verification'])
+  if (state.version !== AUTOPILOT_STATE_VERSION
+    || typeof state.behaviorFingerprint !== 'string'
+    || typeof state.source !== 'string'
+    || !AGENT_RUNNERS.includes(state.runner as AgentRunner)
+    || !AUTOPILOT_MODES.includes(state.mode as AutopilotMode)
+    || !isAutopilotBehaviorInputs(state.behavior)
+    || typeof state.initialCheckpoint !== 'string'
+    || typeof state.latestCheckpoint !== 'string'
+    || typeof state.updatedAt !== 'string'
+    || !Array.isArray(state.completedStages)
+    || !state.completedStages.every((stage) => typeof stage === 'string' && validStages.has(stage as AutopilotStage))
+    || !state.checkpoints
+    || typeof state.checkpoints !== 'object'
+    || Array.isArray(state.checkpoints)) {
+    return false
+  }
+  return Object.entries(state.checkpoints).every(([stage, checkpoint]) => (
+    validStages.has(stage as AutopilotStage) && typeof checkpoint === 'string'
+  ))
+}
+
+function isAutopilotBehaviorInputs(value: unknown): value is AutopilotBehaviorInputs {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const input = value as Record<string, unknown>
+  const optionalStrings = ['model', 'attach', 'authEnv', 'authType', 'authHeader', 'authTemplate', 'docsUrl', 'websiteUrl', 'ingestProvider', 'behavioralPrompt']
+  return typeof input.source === 'string'
+    && AGENT_RUNNERS.includes(input.runner as AgentRunner)
+    && AUTOPILOT_MODES.includes(input.mode as AutopilotMode)
+    && typeof input.pluginName === 'string'
+    && typeof input.displayName === 'string'
+    && typeof input.authorName === 'string'
+    && Array.isArray(input.targets)
+    && input.targets.every((target) => ALL_TARGET_PLATFORMS.includes(target as TargetPlatform))
+    && Array.isArray(input.installTargets)
+    && input.installTargets.every((target) => ALL_TARGET_PLATFORMS.includes(target as TargetPlatform))
+    && MCP_SKILL_GROUPINGS.includes(input.grouping as McpSkillGrouping)
+    && MCP_HOOK_MODES.includes(input.requestedHookMode as McpHookMode)
+    && MCP_RUNTIME_AUTH_MODES.includes(input.runtimeAuthMode as McpRuntimeAuthMode)
+    && optionalStrings.every((key) => input[key] === undefined || typeof input[key] === 'string')
+    && typeof input.oauthWrapper === 'boolean'
+    && typeof input.approveMcpTools === 'boolean'
+    && Array.isArray(input.contextPaths)
+    && input.contextPaths.every((path) => typeof path === 'string')
+    && typeof input.reviewRequested === 'boolean'
+    && typeof input.verify === 'boolean'
+    && typeof input.installRequested === 'boolean'
+    && typeof input.trustRequested === 'boolean'
+    && typeof input.behavioralRequested === 'boolean'
+}
+
+async function persistAutopilotState(rootDir: string, state: AutopilotState): Promise<void> {
+  const path = autopilotStateFile(rootDir)
+  const temporary = `${path}.${process.pid}-${randomUUID()}.tmp`
+  await assertWorkspacePathNotSymlink(rootDir, resolve(rootDir, '.pluxx'))
+  await mkdir(resolve(rootDir, '.pluxx'), { recursive: true })
+  await assertWorkspacePathNotSymlink(rootDir, resolve(rootDir, '.gitignore'))
+  await appendUniqueLines(resolve(rootDir, '.gitignore'), [AUTOPILOT_STATE_PATH])
+  let handle: Awaited<ReturnType<typeof open>> | undefined
+  try {
+    handle = await open(temporary, 'wx', 0o600)
+    await handle.writeFile(`${JSON.stringify({ ...state, updatedAt: new Date().toISOString() }, null, 2)}\n`)
+    await handle.sync()
+    await handle.close()
+    handle = undefined
+    await rename(temporary, path)
+  } finally {
+    await handle?.close()
+    await rm(temporary, { force: true })
+  }
+}
+
+async function pruneUnreferencedAutopilotCheckpoints(rootDir: string, state: AutopilotState): Promise<void> {
+  try {
+    await pruneDurableCheckpoints(rootDir, new Set([
+      state.initialCheckpoint,
+      state.latestCheckpoint,
+      ...Object.values(state.checkpoints).filter((checkpoint): checkpoint is string => typeof checkpoint === 'string'),
+    ]))
+  } catch {
+    // Recovery state is already durable. Retention cleanup is best-effort and can be retried on the next state update.
+  }
+}
+
+async function commitAutopilotCheckpointStage(
+  rootDir: string,
+  state: AutopilotState,
+  stage: AutopilotStage,
+): Promise<void> {
+  const priorCheckpoint = state.latestCheckpoint
+  let checkpoint: Awaited<ReturnType<typeof createDurableCheckpoint>> | undefined
+  try {
+    checkpoint = await createDurableCheckpoint(rootDir, `autopilot-${stage}`)
+    const nextState: AutopilotState = {
+      ...state,
+      latestCheckpoint: checkpoint.directory,
+      completedStages: [...state.completedStages, stage],
+      checkpoints: { ...state.checkpoints, [stage]: checkpoint.directory },
+    }
+    await persistAutopilotState(rootDir, nextState)
+    Object.assign(state, nextState)
+    await pruneUnreferencedAutopilotCheckpoints(rootDir, state)
+  } catch (error) {
+    try {
+      await restoreCheckpoint(rootDir, priorCheckpoint)
+      if (checkpoint) await deleteCheckpoint(checkpoint.directory)
+    } catch (restoreError) {
+      throw new AggregateError([error, restoreError], `Failed to commit ${stage} checkpoint and restore the prior stage.`)
+    }
+    throw error
+  }
+}
+
+function fingerprintAutopilotBehavior(input: unknown): string {
+  return createHash('sha256').update(JSON.stringify(input)).digest('hex')
+}
+
+async function runAutopilotRollback() {
+  const rootDir = process.cwd()
+  const state = await loadAutopilotRecoveryState(rootDir)
+  const initialManifest = (await loadCheckpoint(state.initialCheckpoint)).manifest
+  const initialPaths = new Set(initialManifest.files.map((file) => file.path))
+  await restoreCheckpoint(rootDir, state.initialCheckpoint)
+  const checkpoints = new Set([
+    state.initialCheckpoint,
+    state.latestCheckpoint,
+    ...Object.values(state.checkpoints).filter((checkpoint): checkpoint is string => typeof checkpoint === 'string'),
+  ])
+  for (const checkpoint of checkpoints) await deleteCheckpoint(checkpoint)
+  for (const kind of AGENT_PROMPT_KINDS) {
+    const path = `.pluxx/agent/${kind}-run-result.json`
+    if (!initialPaths.has(path)) await rm(resolve(rootDir, path), { force: true })
+  }
+  if (!initialPaths.has(AGENT_REVIEW_RESULT_PATH)) {
+    await rm(resolve(rootDir, AGENT_REVIEW_RESULT_PATH), { force: true })
+  }
+  await rm(autopilotStateFile(rootDir), { force: true })
+  await removeEmptyAutopilotDirectory(resolve(rootDir, '.pluxx', 'agent'))
+  await removeEmptyAutopilotDirectory(resolve(rootDir, '.pluxx', 'checkpoints'))
+  await removeEmptyAutopilotDirectory(resolve(rootDir, '.pluxx'))
+  const summary = { ok: true, rolledBack: true, checkpoint: state.initialCheckpoint }
+  if (runtime.jsonOutput) printJson(summary)
+  else if (!runtime.quiet) console.log(`Autopilot rolled back to ${state.initialCheckpoint}`)
+}
+
+async function removeEmptyAutopilotDirectory(path: string): Promise<void> {
+  try {
+    await rmdir(path)
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code !== 'ENOENT' && code !== 'ENOTEMPTY') throw error
+  }
+}
+
 async function runAutopilot() {
+  await withWorkspaceMutationLock(process.cwd(), runAutopilotUnlocked)
+}
+
+async function runAutopilotUnlocked() {
+  if (args.includes('--rollback')) {
+    await runAutopilotRollback()
+    return
+  }
   const initOptions = parseInitFromMcpOptions(args)
+  const resumeRequested = args.includes('--resume')
+  const persistedState = resumeRequested ? await loadAutopilotState(process.cwd()) : undefined
+  const savedBehavior = persistedState?.behavior
+  if (savedBehavior) {
+    initOptions.source ??= savedBehavior.source
+    initOptions.name ??= savedBehavior.pluginName
+    initOptions.displayName ??= savedBehavior.displayName
+    initOptions.author ??= savedBehavior.authorName
+    initOptions.targets ??= savedBehavior.targets.join(',')
+    initOptions.grouping ??= savedBehavior.grouping
+    initOptions.hooks ??= savedBehavior.requestedHookMode
+    initOptions.runtimeAuth ??= savedBehavior.runtimeAuthMode
+    initOptions.authEnv ??= savedBehavior.authEnv
+    initOptions.authType ??= savedBehavior.authType
+    initOptions.authHeader ??= savedBehavior.authHeader
+    initOptions.authTemplate ??= savedBehavior.authTemplate
+    if (!args.includes('--oauth-wrapper')) initOptions.oauthWrapper = savedBehavior.oauthWrapper
+    if (!args.includes('--approve-mcp-tools')) initOptions.approveMcpTools = savedBehavior.approveMcpTools
+  }
   let runnerRaw = readOption(args, '--runner')
   let modeRaw = readOption(args, '--mode')
-  let docsUrl = readOption(args, '--docs')
-  let websiteUrl = readOption(args, '--website')
+  runnerRaw ??= persistedState?.runner
+  modeRaw ??= persistedState?.mode
+  let docsUrl = readOption(args, '--docs') ?? savedBehavior?.docsUrl
+  let websiteUrl = readOption(args, '--website') ?? savedBehavior?.websiteUrl
   const ingestProviderRaw = readOption(args, '--ingest-provider')
   const ingestProvider = ingestProviderRaw
     ? parseChoiceOption(ingestProviderRaw, AGENT_INGEST_PROVIDERS, 'Ingestion provider')
-    : undefined
-  const contextPaths = readMultiValueOption(args, '--context')
-  const model = readOption(args, '--model')
-  const attach = readOption(args, '--attach')
-  const reviewRequested = args.includes('--review')
-  const verify = !args.includes('--no-verify')
-  const installRequested = args.includes('--install')
-  const behavioralRequested = args.includes('--behavioral')
-  const behavioralPrompt = readOption(args, '--behavioral-prompt')
+    : savedBehavior?.ingestProvider
+  const contextPaths = (args.includes('--context') ? readMultiValueOption(args, '--context') : savedBehavior?.contextPaths) ?? []
+  const model = readOption(args, '--model') ?? savedBehavior?.model
+  const attach = readOption(args, '--attach') ?? savedBehavior?.attach
+  const reviewRequested = args.includes('--review') || (savedBehavior?.reviewRequested ?? false)
+  const verify = args.includes('--no-verify') ? false : savedBehavior?.verify ?? true
+  const installRequested = args.includes('--install') || (savedBehavior?.installRequested ?? false)
+  const trustRequested = args.includes('--trust') || (savedBehavior?.trustRequested ?? false)
+  const behavioralRequested = args.includes('--behavioral') || (savedBehavior?.behavioralRequested ?? false)
+  const behavioralPrompt = readOption(args, '--behavioral-prompt') ?? savedBehavior?.behavioralPrompt
   const verboseRunner = args.includes('--verbose-runner')
   const interactive = !runtime.jsonOutput && runtime.isInteractive && !initOptions.assumeDefaults
   let authEnv = initOptions.authEnv
@@ -2389,12 +2693,12 @@ async function runAutopilot() {
   let runtimeAuthMode = resolveRuntimeAuthMode(initOptions.runtimeAuth)
 
   if (!initOptions.source && !interactive) {
-    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--approve-mcp-tools] [--auth-env ENV] [--auth-type bearer|header|platform] [--auth-header NAME] [--auth-template TEMPLATE] [--runtime-auth inline|platform] [--oauth-wrapper] [--website URL] [--docs URL] [--ingest-provider <${AGENT_INGEST_PROVIDERS.join('|')}>] [--context <files...>] [--review] [--install] [--install-target <platform>] [--trust] [--behavioral] [--behavioral-prompt TEXT] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
+    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--resume] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--approve-mcp-tools] [--auth-env ENV] [--auth-type bearer|header|platform] [--auth-header NAME] [--auth-template TEMPLATE] [--runtime-auth inline|platform] [--oauth-wrapper] [--website URL] [--docs URL] [--ingest-provider <${AGENT_INGEST_PROVIDERS.join('|')}>] [--context <files...>] [--review] [--install] [--install-target <platform>] [--trust] [--behavioral] [--behavioral-prompt TEXT] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]\n       pluxx autopilot --rollback [--json] [--quiet]`)
     process.exit(1)
   }
 
   if ((!runnerRaw || !AGENT_RUNNERS.includes(runnerRaw as AgentRunner)) && !interactive) {
-    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--approve-mcp-tools] [--auth-env ENV] [--auth-type bearer|header|platform] [--auth-header NAME] [--auth-template TEMPLATE] [--runtime-auth inline|platform] [--oauth-wrapper] [--website URL] [--docs URL] [--ingest-provider <${AGENT_INGEST_PROVIDERS.join('|')}>] [--context <files...>] [--review] [--install] [--install-target <platform>] [--trust] [--behavioral] [--behavioral-prompt TEXT] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]`)
+    console.error(`Usage: pluxx autopilot --from-mcp <source> --runner <${AGENT_RUNNERS.join('|')}> [--mode <${AUTOPILOT_MODES.join('|')}>] [--resume] [--name NAME] [--display-name NAME] [--author NAME] [--targets <platforms>] [--grouping workflow|tool] [--hooks none|safe] [--approve-mcp-tools] [--auth-env ENV] [--auth-type bearer|header|platform] [--auth-header NAME] [--auth-template TEMPLATE] [--runtime-auth inline|platform] [--oauth-wrapper] [--website URL] [--docs URL] [--ingest-provider <${AGENT_INGEST_PROVIDERS.join('|')}>] [--context <files...>] [--review] [--install] [--install-target <platform>] [--trust] [--behavioral] [--behavioral-prompt TEXT] [--no-verify] [--verbose-runner] [--json] [--dry-run] [--quiet]\n       pluxx autopilot --rollback [--json] [--quiet]`)
     process.exit(1)
   }
 
@@ -2421,6 +2725,10 @@ async function runAutopilot() {
     if (!rawSource) {
       throw new Error('Provide an MCP server URL or local command. Example: pluxx autopilot --from-mcp https://example.com/mcp --runner codex')
     }
+    const baselineCompleted = persistedState?.completedStages.includes('baseline') === true
+    const persistedMetadata = resumeRequested && baselineCompleted
+      ? await loadMcpScaffoldMetadata(process.cwd())
+      : undefined
 
     const runner = runnerRaw && AGENT_RUNNERS.includes(runnerRaw as AgentRunner)
       ? runnerRaw as AgentRunner
@@ -2466,10 +2774,19 @@ async function runAutopilot() {
     }
 
     const connectSpinner = createSpinner(runtime)
-    connectSpinner?.start('Autopilot · Connecting to MCP server...')
+    if (!persistedMetadata) connectSpinner?.start('Autopilot · Connecting to MCP server...')
 
-    let introspection
-    try {
+    let introspection: IntrospectedMcpServer | undefined = persistedMetadata
+      ? {
+          protocolVersion: 'persisted-scaffold',
+          serverInfo: persistedMetadata.serverInfo,
+          tools: persistedMetadata.tools,
+          resources: persistedMetadata.resources,
+          resourceTemplates: persistedMetadata.resourceTemplates,
+          prompts: persistedMetadata.prompts,
+        }
+      : undefined
+    if (!introspection) try {
       introspection = await introspectMcpServer(introspectionSource)
     } catch (error) {
       if (source.transport !== 'stdio' && isAuthRequiredError(error)) {
@@ -2600,6 +2917,7 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
 
     if (
       interactive
+      && !resumeRequested
       && source.transport !== 'stdio'
       && source.auth
       && source.auth.type !== 'none'
@@ -2611,7 +2929,11 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
         { value: 'platform', label: 'platform', hint: 'Use native platform-managed auth (for example OAuth/custom connector flows)' },
       ], runtimeAuthMode)
     }
-    connectSpinner?.stop(`Connected: ${introspection.serverInfo.title ?? introspection.serverInfo.name} (${formatMcpDiscoverySummary(introspection)})`)
+    if (persistedMetadata) {
+      connectSpinner?.stop('Reused saved MCP scaffold metadata')
+    } else {
+      connectSpinner?.stop(`Connected: ${introspection.serverInfo.title ?? introspection.serverInfo.name} (${formatMcpDiscoverySummary(introspection)})`)
+    }
     const quality = analyzeMcpQuality(introspection.tools)
 
     if (!runtime.jsonOutput && !runtime.quiet && quality.issues.length > 0) {
@@ -2636,7 +2958,11 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
       ? await clackText('Platforms (comma-separated)', DEFAULT_INIT_TARGETS.join(','))
       : DEFAULT_INIT_TARGETS.join(','))
     const targets = parseTargetPlatforms(targetsRaw)
-    const installTargets = installRequested ? parseInstallTargetFlag(args, targets) : []
+    const installTargets = installRequested
+      ? args.includes('--install-target')
+        ? parseInstallTargetFlag(args, targets)
+        : savedBehavior?.installTargets ?? parseInstallTargetFlag(args, targets)
+      : []
     const grouping = initOptions.grouping
       ? parseChoiceOption(initOptions.grouping, MCP_SKILL_GROUPINGS, 'Skill grouping')
       : interactive
@@ -2687,6 +3013,63 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
       : process.cwd()
 
     tempDir = runtime.dryRun ? workspaceRoot : undefined
+    const behavior: AutopilotBehaviorInputs = {
+      source: rawSource,
+      runner,
+      mode,
+      model,
+      attach,
+      pluginName,
+      displayName,
+      authorName,
+      targets,
+      installTargets,
+      grouping,
+      requestedHookMode,
+      runtimeAuthMode,
+      authEnv,
+      authType,
+      authHeader,
+      authTemplate,
+      oauthWrapper: initOptions.oauthWrapper,
+      approveMcpTools: initOptions.approveMcpTools,
+      docsUrl,
+      websiteUrl,
+      ingestProvider,
+      contextPaths,
+      reviewRequested,
+      verify,
+      installRequested,
+      trustRequested,
+      behavioralRequested,
+      behavioralPrompt,
+    }
+    const behaviorFingerprint = fingerprintAutopilotBehavior(behavior)
+    if (persistedState && persistedState.behaviorFingerprint !== behaviorFingerprint) {
+      throw new Error('Autopilot resume inputs do not match the saved run. Re-run with the original behavior-affecting options or start a new run.')
+    }
+
+    let autopilotState: AutopilotState | undefined = persistedState
+    let baselineDoctor: DoctorReport | undefined
+    let baselineTest: TestRunResult | undefined
+    if (!runtime.dryRun && !autopilotState) {
+      const initial = await createDurableCheckpoint(workspaceRoot, 'autopilot-initial', { includeAgentResults: true })
+      autopilotState = {
+        version: AUTOPILOT_STATE_VERSION,
+        behaviorFingerprint,
+        source: rawSource,
+        runner,
+        mode,
+        behavior,
+        initialCheckpoint: initial.directory,
+        latestCheckpoint: initial.directory,
+        completedStages: [],
+        checkpoints: {},
+        updatedAt: new Date().toISOString(),
+      }
+      await persistAutopilotState(workspaceRoot, autopilotState)
+      await pruneUnreferencedAutopilotCheckpoints(workspaceRoot, autopilotState)
+    }
 
     const scaffoldSpinner = createSpinner(runtime)
     scaffoldSpinner?.start(`Autopilot 2/${totalSteps} · Planning scaffold...`)
@@ -2706,8 +3089,60 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
     const initCreatedFiles = scaffoldPlan.files.filter((file) => file.action === 'create').map((file) => file.relativePath)
     const initUpdatedFiles = scaffoldPlan.files.filter((file) => file.action === 'update').map((file) => file.relativePath)
 
-    await applyMcpScaffoldPlan(workspaceRoot, scaffoldPlan)
+    if (!resumeRequested || !baselineCompleted) {
+      await applyMcpScaffoldPlan(workspaceRoot, scaffoldPlan)
+    }
     scaffoldSpinner?.stop(`${runtime.dryRun ? 'Planned' : 'Generated'} scaffold for ${pluginName}`)
+
+    if (!runtime.dryRun && autopilotState && !autopilotState.completedStages.includes('baseline')) {
+      try {
+        baselineDoctor = await doctorProject(workspaceRoot)
+        baselineTest = await runTestSuite({ rootDir: workspaceRoot, targets })
+        if (baselineDoctor.ok && baselineTest.ok) {
+          await commitAutopilotCheckpointStage(workspaceRoot, autopilotState, 'baseline')
+        } else {
+          await restoreCheckpoint(workspaceRoot, autopilotState.initialCheckpoint)
+          await persistAutopilotState(workspaceRoot, autopilotState)
+        }
+      } catch (error) {
+        await restoreCheckpoint(workspaceRoot, autopilotState.initialCheckpoint)
+        await persistAutopilotState(workspaceRoot, autopilotState)
+        throw new Error(`Autopilot baseline failed and the initial checkpoint was restored: ${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
+    if (baselineDoctor && baselineTest && (!baselineDoctor.ok || !baselineTest.ok)) {
+      const summary: AutopilotSummary = {
+        ok: false,
+        pluginName,
+        displayName,
+        source: rawSource,
+        mode,
+        runner,
+        model: { source: 'unknown', display: 'local default (CLI-managed)' },
+        targets,
+        toolCount: introspection.tools.length,
+        grouping,
+        requestedHookMode,
+        hookMode: scaffoldPlan.generatedHookMode,
+        hookEvents: scaffoldPlan.generatedHookEvents,
+        quality,
+        review: passDecisions.review.enabled,
+        verify,
+        steps: totalSteps,
+        init: { createdFiles: initCreatedFiles, updatedFiles: initUpdatedFiles, files: scaffoldPlan.generatedFiles },
+        agent: {
+          taxonomy: { enabled: passDecisions.taxonomy.enabled, reason: passDecisions.taxonomy.reason, createdFiles: [], updatedFiles: [] },
+          instructions: { enabled: passDecisions.instructions.enabled, reason: passDecisions.instructions.reason, createdFiles: [], updatedFiles: [] },
+          review: { enabled: passDecisions.review.enabled, reason: passDecisions.review.reason, createdFiles: [], updatedFiles: [] },
+        },
+        baseline: { doctor: baselineDoctor, test: baselineTest },
+        failureStage: 'baseline',
+        failureMessage: 'The deterministic scaffold failed doctor or test before any agent mutation and was rolled back.',
+      }
+      if (runtime.jsonOutput) printJson(summary)
+      else if (!runtime.quiet) console.log(`Autopilot failed baseline for ${pluginName}; the initial checkpoint was restored.`)
+      process.exit(1)
+    }
 
     const agentContextOptions = {
       docsUrl,
@@ -2717,47 +3152,27 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
     }
 
     const agentSpinner = createSpinner(runtime)
-    const taxonomyPlan = passDecisions.taxonomy.enabled
-      ? await (async () => {
-          agentSpinner?.start(`Autopilot 3/${totalSteps} · Planning taxonomy pass...`)
-          const plan = await planAgentRun(workspaceRoot, 'taxonomy', {
-            runner,
-            model,
-            attach,
-            verify: false,
-          }, agentContextOptions)
-          agentSpinner?.stop('Planned taxonomy pass')
-          return plan
-        })()
-      : undefined
-    const instructionsPlan = passDecisions.instructions.enabled
-      ? await (async () => {
-          const step = 3 + Number(passDecisions.taxonomy.enabled)
-          agentSpinner?.start(`Autopilot ${step}/${totalSteps} · Planning instructions pass...`)
-          const plan = await planAgentRun(workspaceRoot, 'instructions', {
-            runner,
-            model,
-            attach,
-            verify: false,
-          }, agentContextOptions)
-          agentSpinner?.stop('Planned instructions pass')
-          return plan
-        })()
-      : undefined
-    const reviewPlan = passDecisions.review.enabled
-      ? await (async () => {
-          const step = 3 + Number(passDecisions.taxonomy.enabled) + Number(passDecisions.instructions.enabled)
-          agentSpinner?.start(`Autopilot ${step}/${totalSteps} · Planning review pass...`)
-          const plan = await planAgentRun(workspaceRoot, 'review', {
-            runner,
-            model,
-            attach,
-            verify: false,
-          }, agentContextOptions)
-          agentSpinner?.stop('Planned review pass')
-          return plan
-        })()
-      : undefined
+    type PlannedAgentPass = Awaited<ReturnType<typeof planAgentRun>>
+    let taxonomyPlan: PlannedAgentPass | undefined
+    let instructionsPlan: PlannedAgentPass | undefined
+    let reviewPlan: PlannedAgentPass | undefined
+    const planPass = async (kind: AgentPromptKind, step: number): Promise<PlannedAgentPass> => {
+      agentSpinner?.start(`Autopilot ${step}/${totalSteps} · Planning ${kind} pass...`)
+      const plan = await planAgentRun(workspaceRoot, kind, {
+        runner,
+        model,
+        attach,
+        verify: false,
+      }, agentContextOptions)
+      agentSpinner?.stop(`Planned ${kind} pass`)
+      return plan
+    }
+
+    if (runtime.dryRun) {
+      if (passDecisions.taxonomy.enabled) taxonomyPlan = await planPass('taxonomy', 3)
+      if (passDecisions.instructions.enabled) instructionsPlan = await planPass('instructions', 3 + Number(passDecisions.taxonomy.enabled))
+      if (passDecisions.review.enabled) reviewPlan = await planPass('review', 3 + Number(passDecisions.taxonomy.enabled) + Number(passDecisions.instructions.enabled))
+    }
 
     if (runtime.dryRun) {
       const summary: AutopilotSummary = {
@@ -2873,70 +3288,55 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
     let reviewDurationMs: number | undefined
     let verificationDurationMs: number | undefined
 
-    const taxonomyResult = taxonomyPlan
-      ? await (async () => {
-          logAutopilotRunnerWait(stepNumber, totalSteps, 'Running taxonomy pass', runner)
-          const step = stepNumber
-          const result = await runTimedSpinnerTask({
-            spinner: agentSpinner,
-            startLabel: `Autopilot ${step}/${totalSteps} · Starting taxonomy pass...`,
-            waitLabel: `Autopilot ${step}/${totalSteps} · Waiting for taxonomy result`,
-            successLabel: (passResult) => `Taxonomy pass ${passResult.runnerExitCode === 0 ? 'complete' : 'failed'} (exit ${passResult.runnerExitCode})`,
-            task: async () => {
-              const startedAt = Date.now()
-              const passResult = await runAgentPlan(workspaceRoot, taxonomyPlan, { streamOutput })
-              taxonomyDurationMs = Date.now() - startedAt
-              return passResult
-            },
-          })
-          stepNumber += 1
-          return result
-        })()
+    let predecessorOk = autopilotState?.completedStages.includes('baseline') === true
+    const runPass = async (
+      kind: AgentPromptKind,
+      label: string,
+      setDuration: (duration: number) => void,
+    ) => {
+      if (!predecessorOk || autopilotState?.completedStages.includes(kind)) return undefined
+      const plan = await planPass(kind, stepNumber)
+      if (kind === 'taxonomy') taxonomyPlan = plan
+      if (kind === 'instructions') instructionsPlan = plan
+      if (kind === 'review') reviewPlan = plan
+      logAutopilotRunnerWait(stepNumber, totalSteps, `Running ${kind} pass`, runner)
+      const step = stepNumber
+      const startedAt = Date.now()
+      const result = await runTimedSpinnerTask({
+        spinner: agentSpinner,
+        startLabel: `Autopilot ${step}/${totalSteps} · Starting ${kind} pass...`,
+        waitLabel: `Autopilot ${step}/${totalSteps} · Waiting for ${kind} result`,
+        successLabel: (passResult) => `${label} pass ${passResult.ok ? 'complete' : 'failed'} (exit ${passResult.runnerExitCode})`,
+        task: () => runAgentPlan(workspaceRoot, plan, { streamOutput }),
+      })
+      setDuration(Date.now() - startedAt)
+      stepNumber += 1
+      const passOk = result.ok && (kind !== 'review' || result.review?.status === 'clean')
+      if (passOk && autopilotState) {
+        await commitAutopilotCheckpointStage(workspaceRoot, autopilotState, kind)
+      } else if (autopilotState) {
+        predecessorOk = false
+        await restoreCheckpoint(workspaceRoot, autopilotState.latestCheckpoint)
+        await ensureAgentResultFilesIgnored(workspaceRoot)
+        await persistAutopilotState(workspaceRoot, autopilotState)
+      }
+      return result
+    }
+
+    const taxonomyResult = passDecisions.taxonomy.enabled
+      ? await runPass('taxonomy', 'Taxonomy', (value) => { taxonomyDurationMs = value })
+      : undefined
+    const instructionsResult = passDecisions.instructions.enabled
+      ? await runPass('instructions', 'Instructions', (value) => { instructionsDurationMs = value })
+      : undefined
+    const reviewResult = passDecisions.review.enabled
+      ? await runPass('review', 'Review', (value) => { reviewDurationMs = value })
       : undefined
 
-    const instructionsResult = instructionsPlan
-      ? await (async () => {
-          logAutopilotRunnerWait(stepNumber, totalSteps, 'Running instructions pass', runner)
-          const step = stepNumber
-          const result = await runTimedSpinnerTask({
-            spinner: agentSpinner,
-            startLabel: `Autopilot ${step}/${totalSteps} · Starting instructions pass...`,
-            waitLabel: `Autopilot ${step}/${totalSteps} · Waiting for instructions result`,
-            successLabel: (passResult) => `Instructions pass ${passResult.runnerExitCode === 0 ? 'complete' : 'failed'} (exit ${passResult.runnerExitCode})`,
-            task: async () => {
-              const startedAt = Date.now()
-              const passResult = await runAgentPlan(workspaceRoot, instructionsPlan, { streamOutput })
-              instructionsDurationMs = Date.now() - startedAt
-              return passResult
-            },
-          })
-          stepNumber += 1
-          return result
-        })()
-      : undefined
-
-    const reviewResult = reviewPlan
-      ? await (async () => {
-          logAutopilotRunnerWait(stepNumber, totalSteps, 'Running review pass', runner)
-          const step = stepNumber
-          const result = await runTimedSpinnerTask({
-            spinner: agentSpinner,
-            startLabel: `Autopilot ${step}/${totalSteps} · Starting review pass...`,
-            waitLabel: `Autopilot ${step}/${totalSteps} · Waiting for review result`,
-            successLabel: (passResult) => `Review pass ${passResult.runnerExitCode === 0 ? 'complete' : 'failed'} (exit ${passResult.runnerExitCode})`,
-            task: async () => {
-              const startedAt = Date.now()
-              const passResult = await runAgentPlan(workspaceRoot, reviewPlan, { streamOutput })
-              reviewDurationMs = Date.now() - startedAt
-              return passResult
-            },
-          })
-          stepNumber += 1
-          return result
-        })()
-      : undefined
-
+    const reverifyBeforeInstall = resumeRequested && (installRequested || behavioralRequested)
     const verification = verify
+      && predecessorOk
+      && (!autopilotState?.completedStages.includes('verification') || reverifyBeforeInstall)
       ? await (async () => {
           const step = stepNumber
           const result = await runTimedSpinnerTask({
@@ -2951,17 +3351,49 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
               return verificationResult
             },
           })
+          if (result.ok && autopilotState) {
+            const nextState: AutopilotState = {
+              ...autopilotState,
+              completedStages: autopilotState.completedStages.includes('verification')
+                ? [...autopilotState.completedStages]
+                : [...autopilotState.completedStages, 'verification'],
+              checkpoints: { ...autopilotState.checkpoints, verification: autopilotState.latestCheckpoint },
+            }
+            await persistAutopilotState(workspaceRoot, nextState)
+            Object.assign(autopilotState, nextState)
+          } else if (autopilotState) {
+            predecessorOk = false
+            const baselineCheckpoint = autopilotState.checkpoints.baseline ?? autopilotState.initialCheckpoint
+            await restoreCheckpoint(workspaceRoot, baselineCheckpoint)
+            const nextState: AutopilotState = {
+              ...autopilotState,
+              latestCheckpoint: baselineCheckpoint,
+              completedStages: ['baseline'],
+              checkpoints: { baseline: baselineCheckpoint },
+            }
+            await ensureAgentResultFilesIgnored(workspaceRoot)
+            await persistAutopilotState(workspaceRoot, nextState)
+            Object.assign(autopilotState, nextState)
+            await pruneUnreferencedAutopilotCheckpoints(workspaceRoot, autopilotState)
+          }
           return result
         })()
       : undefined
 
-    const preInstallOk = (taxonomyResult?.ok ?? true)
+    const baselineOk = autopilotState?.completedStages.includes('baseline') === true
+    const preInstallOk = baselineOk
+      && predecessorOk
+      && (taxonomyResult?.ok ?? true)
       && (instructionsResult?.ok ?? true)
       && (reviewResult?.ok ?? true)
       && (verification?.ok ?? true)
     const installedConfig = installRequested && preInstallOk ? await loadConfig() : undefined
     const install = installedConfig
-      ? await maybeInstallBuiltOutputs(installedConfig, installTargets, { verifyConsumers: true })
+      ? await maybeInstallBuiltOutputs(installedConfig, installTargets, {
+          verifyConsumers: true,
+          enabled: installRequested,
+          trust: trustRequested,
+        })
       : undefined
     const behavioralResult = install && install.verification?.ok && behavioralRequested
       ? await runBehavioralSuite(process.cwd(), installedConfig!, installTargets, { promptOverride: behavioralPrompt })
@@ -2971,24 +3403,33 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
       && (install?.verification?.ok ?? true)
       && (behavioralResult?.ok ?? true)
 
-    const failureStage: AutopilotSummary['failureStage'] = taxonomyResult && taxonomyResult.runnerExitCode !== 0
-      ? 'runner'
-      : instructionsResult && instructionsResult.runnerExitCode !== 0
-        ? 'runner'
-        : reviewResult && reviewResult.runnerExitCode !== 0
-        ? 'runner'
-        : verification && !verification.ok
-          ? 'verification'
-          : install?.verification && !install.verification.ok
-            ? 'verification'
-            : behavioralResult && !behavioralResult.ok
-              ? 'verification'
-            : undefined
-    const failureMessage = failureStage === 'runner'
-        ? 'A headless runner command failed. Re-run with --verbose-runner to stream full runner output.'
-        : failureStage === 'verification'
-        ? 'Verification, install, or behavioral smoke failed after scaffold/refinement. Run `pluxx test --install` for details.'
-        : undefined
+    const failedAgentResult = [taxonomyResult, instructionsResult, reviewResult].find((result) => result && !result.ok)
+    let failureStage: AutopilotSummary['failureStage']
+    if (!baselineOk) {
+      failureStage = 'baseline'
+    } else if (failedAgentResult && failedAgentResult.runnerExitCode !== 0) {
+      failureStage = 'runner'
+    } else if (failedAgentResult && !failedAgentResult.boundary.ok) {
+      failureStage = 'boundary'
+    } else if (reviewResult?.review && reviewResult.review.status !== 'clean') {
+      failureStage = 'review'
+    } else if (verification && !verification.ok) {
+      failureStage = 'verification'
+    } else if (install?.verification && !install.verification.ok) {
+      failureStage = 'verification'
+    } else if (behavioralResult && !behavioralResult.ok) {
+      failureStage = 'verification'
+    }
+    const failureMessages: Record<NonNullable<AutopilotSummary['failureStage']>, string> = {
+      auth: 'Runner authentication failed before Autopilot could start.',
+      introspection: 'MCP introspection failed before scaffold generation.',
+      baseline: 'The deterministic scaffold failed doctor or test before any agent mutation and was rolled back.',
+      runner: 'A headless runner command failed. Re-run with --verbose-runner to stream full runner output.',
+      boundary: 'The runner changed files outside its declared boundary. The preceding checkpoint was restored.',
+      review: 'Review returned actionable findings or an inconclusive result. Later work was not run.',
+      verification: 'Verification, install, or behavioral smoke failed after scaffold/refinement. Run `pluxx test --install` for details.',
+    }
+    const failureMessage = failureStage ? failureMessages[failureStage] : undefined
 
     const summary: AutopilotSummary = {
       ok,
@@ -3012,6 +3453,8 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
       verify,
       steps: totalSteps,
       runnerLogsStreamed: verboseRunner,
+      baseline: baselineDoctor && baselineTest ? { doctor: baselineDoctor, test: baselineTest } : undefined,
+      resumed: resumeRequested || undefined,
       init: {
         createdFiles: initCreatedFiles,
         updatedFiles: initUpdatedFiles,
@@ -3027,6 +3470,8 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
           updatedFiles: taxonomyPlan?.updatedFiles ?? [],
           runnerExitCode: taxonomyResult?.runnerExitCode,
           durationMs: taxonomyDurationMs,
+          boundary: taxonomyResult?.boundary,
+          runnerOutput: taxonomyResult?.runnerOutput,
         },
         instructions: {
           enabled: passDecisions.instructions.enabled,
@@ -3037,6 +3482,8 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
           updatedFiles: instructionsPlan?.updatedFiles ?? [],
           runnerExitCode: instructionsResult?.runnerExitCode,
           durationMs: instructionsDurationMs,
+          boundary: instructionsResult?.boundary,
+          runnerOutput: instructionsResult?.runnerOutput,
         },
         review: {
           enabled: passDecisions.review.enabled,
@@ -3047,6 +3494,9 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
           updatedFiles: reviewPlan?.updatedFiles ?? [],
           runnerExitCode: reviewResult?.runnerExitCode,
           durationMs: reviewDurationMs,
+          boundary: reviewResult?.boundary,
+          runnerOutput: reviewResult?.runnerOutput,
+          result: reviewResult?.review,
         },
       },
       verification,
@@ -3054,6 +3504,7 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
       install,
       behavioral: behavioralResult,
       failureStage,
+      failurePhase: failureStage === 'verification' ? 'post-agent-verification' : undefined,
       failureMessage,
     }
 
@@ -3074,6 +3525,11 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
         behavioral: behavioralRequested,
       })}`)
       console.log(`  Quality: ${quality.warnings} warning(s), ${quality.infos} info message(s)`)
+      if (summary.baseline) {
+        console.log(`  Baseline: doctor ${summary.baseline.doctor.ok ? 'passed' : 'failed'}; test ${summary.baseline.test.ok ? 'passed' : 'failed'}`)
+      } else if (summary.resumed) {
+        console.log('  Baseline: reused from saved Autopilot state')
+      }
       if (!verboseRunner) {
         console.log('  Runner logs: suppressed (use --verbose-runner to stream)')
       }
@@ -3081,13 +3537,22 @@ ${formatAuthRequiredMessage('autopilot', retryError, source)}`)
       if (taxonomyResult && formatDuration(taxonomyDurationMs)) {
         console.log(`    Duration: ${formatDuration(taxonomyDurationMs)}`)
       }
+      if (taxonomyResult?.runnerOutput) console.log(`    Result: ${taxonomyResult.runnerOutput.artifactPath}${taxonomyResult.runnerOutput.truncated ? ' (truncated)' : ''}`)
       console.log(`  ${formatAutopilotPassLine('Instructions', passDecisions.instructions)}`)
       if (instructionsResult && formatDuration(instructionsDurationMs)) {
         console.log(`    Duration: ${formatDuration(instructionsDurationMs)}`)
       }
+      if (instructionsResult?.runnerOutput) console.log(`    Result: ${instructionsResult.runnerOutput.artifactPath}${instructionsResult.runnerOutput.truncated ? ' (truncated)' : ''}`)
       console.log(`  ${formatAutopilotPassLine('Review', passDecisions.review)}`)
       if (reviewResult && formatDuration(reviewDurationMs)) {
         console.log(`    Duration: ${formatDuration(reviewDurationMs)}`)
+      }
+      if (reviewResult?.runnerOutput) console.log(`    Result: ${reviewResult.runnerOutput.artifactPath}${reviewResult.runnerOutput.truncated ? ' (truncated)' : ''}`)
+      if (reviewResult?.review) {
+        console.log(`    Findings: ${reviewResult.review.status} (${reviewResult.review.actionableCount} actionable)`)
+        for (const finding of reviewResult.review.findings) {
+          console.log(`      [${finding.severity}] ${finding.path ? `${finding.path}: ` : ''}${finding.title} — ${finding.message}`)
+        }
       }
       if (verification) {
         console.log(`  Verification: ${verification.ok ? 'passed' : 'failed'}${formatDuration(verificationDurationMs) ? ` (${formatDuration(verificationDurationMs)})` : ''}`)
@@ -3577,6 +4042,8 @@ Common flags:
   --dry-run                               Show planned work without writing files or installing anything
   --allow-dirty                           Skip the clean-working-tree check for publish planning or CI release flows
   --mode quick|standard|thorough          Control how much agent refinement autopilot performs
+  --resume                                Resume the saved Autopilot run from its next valid stage
+  --rollback                              Restore the project to its pre-Autopilot checkpoint
   --approve-mcp-tools                     Preapprove all tools from the imported MCP in canonical permissions
   --ingest-provider auto|local|firecrawl  Choose the docs/website ingestion backend for agent prepare/autopilot
   --install                               Install autopilot's verified build into one selected host
