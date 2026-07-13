@@ -39,7 +39,7 @@ If you want the shortest public proof and install path after this file, use [doc
 
 If you want the current release, distribution, and proof boundary, use [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md).
 
-If you need to know whether a proof claim is current, historical, repository-only, installed, or real-host evidence, use [docs/proof-freshness.md](./proof-freshness.md) and [docs/proof-manifest.json](./proof-manifest.json). Canonical repository version truth is `package.json` (`0.1.32`) with expected tag `v0.1.32`; this branch is release prep, not proof that the tag or public release exists.
+If you need to know whether a proof claim is current, historical, repository-only, installed, or real-host evidence, use [docs/proof-freshness.md](./proof-freshness.md) and [docs/proof-manifest.json](./proof-manifest.json). Canonical repository version truth is `package.json` (`0.1.32`), and tag `v0.1.32` exists at `188527e`; the failed first release run did not publish npm or create the GitHub release.
 
 If you want the primitive-by-host proof ledger behind the core-four native shipping claim, use [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md).
 
@@ -99,7 +99,7 @@ The goal of this layer is simple:
 
 The CLI is the engine, but the self-hosted Pluxx plugin is part of the real product surface for average users.
 
-All nine PLUXX-313 through PLUXX-321 audit remediations are merged. The combined 0.1.32 release-prep state now includes safer ingestion and replay records, fail-closed Autopilot recovery and Agent Mode boundaries, stronger semantic evaluation and translation/YAML truth, atomic authoring/build mutations, transactional ownership-aware installs, release integrity/recovery, and proof freshness governance. These repository claims do not prove that v0.1.32 has been tagged or published.
+All nine PLUXX-313 through PLUXX-321 audit remediations are merged. The combined 0.1.32 tagged state now includes safer ingestion and replay records, fail-closed Autopilot recovery and Agent Mode boundaries, stronger semantic evaluation and translation/YAML truth, atomic authoring/build mutations, transactional ownership-aware installs, release integrity/recovery, and proof freshness governance. Tag existence does not prove npm publication or a GitHub release; both remain unverified after the failed first release run.
 
 That means near-term product quality is not only about compiler depth.
 It is also about making the plugin-guided path feel obvious, safe, and understandable on top of the same CLI truth.
@@ -369,7 +369,7 @@ The repo already proves a lot.
 - historical release-gate evidence from 2026-05-19 remains available but is not current proof:
   - `npm test` passed
   - `npm run release:check` passed
-- the canonical repository version is `@orchid-labs/pluxx@0.1.32` in release prep with expected tag `v0.1.32`; the historical published baseline remains 0.1.31
+- the canonical repository version is `@orchid-labs/pluxx@0.1.32`, tagged as `v0.1.32` at `188527e`; the historical published baseline remains 0.1.31 while release recovery is pending
 - marketplace submission APIs, a managed trust/distribution control plane, automatic rollback/unpublish orchestration, and real authenticated publish plus rollback proof remain explicit release gaps, not hidden shipped capabilities:
   - `docs/release-distribution-proof-map.md`
   - “automatic rollback” here means remote release rollback/unpublish; generated local installers now restore the prior bundle when staged setup fails
@@ -539,9 +539,9 @@ Run two lanes in parallel:
 
 ### 6. Release State
 
-The canonical repository version is `0.1.32` in release prep with expected tag `v0.1.32`. The historical published baseline remains 0.1.31 until the coordinator merges this release PR, pushes the tag, and verifies public artifacts. `package.json` is the source of truth for repository docs, while [proof-manifest.json](./proof-manifest.json) records release state and whether evidence is current or historical.
+The canonical repository version is `0.1.32`, and tag `v0.1.32` exists at `188527e`. The first release run failed before npm publication or GitHub release creation because its shallow checkout could not reach the receipt commit. The historical published baseline remains 0.1.31 until the coordinator merges the recovery PR, dispatches the existing tag through the trusted main workflow, and verifies public artifacts. `package.json` is the source of truth for repository docs, while [proof-manifest.json](./proof-manifest.json) records tag state and proof freshness.
 
-For v0.1.32, finish review and reach GitHub `CLEAN`, merge the focused release PR, push `v0.1.32`, then verify npm, GitHub, the published tarball, and CLI behavior. Future releases should repeat the version bump and release-prep proof work on a focused PR before tagging.
+For v0.1.32, finish review and reach substantive green, merge the focused recovery PR, dispatch the existing `v0.1.32` tag through the trusted workflow, then verify npm, GitHub, the published tarball, and CLI behavior. Do not move or recreate the tag. Future releases should repeat the version bump and release-prep proof work on a focused PR before tagging.
 
 ## Working Rules
 

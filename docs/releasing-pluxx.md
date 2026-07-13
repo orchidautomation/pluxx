@@ -18,6 +18,8 @@ When you push a tag like `v0.1.1`, GitHub Actions will:
 
 That means GitHub pushes do **not** update npm by themselves. Only a versioned tag release does.
 
+The workflow also has a maintainer-only recovery dispatch for an existing release tag. Dispatch it from the `main` workflow ref and provide the existing `vX.Y.Z` tag. The workflow checks out that tag with full history, verifies that it exists, resolves to the checked-out commit, belongs to the trusted `main` history, and matches `package.json`, then runs the same release-check, pack, publish, and verification pipeline used by a normal tag push. It does not create or move tags.
+
 Do not publish this package from a local shell. The package lifecycle now refuses local `npm publish` and only allows the trusted GitHub release workflow on a matching `vX.Y.Z` tag. This keeps npm provenance intact and avoids depending on local npm auth.
 
 That package-release rule is separate from `pluxx publish`, which packages a user's built plugin bundles and generated installers for distribution.
@@ -66,6 +68,8 @@ git tag v0.1.1
 git push origin v0.1.1
 ```
 
+If the trusted release workflow fails before publication for a recoverable infrastructure reason, do not move or recreate the tag and do not publish locally. Merge a reviewed workflow fix to `main`, then dispatch `Release` from `main` with the existing tag. The default recovery input is currently `v0.1.32`.
+
 You can use `patch`, `minor`, or `major` depending on the release.
 
 ## Runtime Cost Guard
@@ -94,6 +98,8 @@ Check:
 The workflow intentionally fails if:
 
 - the tag does not match `package.json` version
+- a recovery dispatch does not run from `main`
+- the requested recovery tag is missing, malformed, not checked out, or not contained in trusted `main` history
 - `npm run release:check` fails
 - npm auth is not configured correctly
 
