@@ -16,11 +16,13 @@ Ready for PR review. CE correctness, testing, maintainability, project-standards
 - Added an exact-tag publish transition so the immutable `release-prep` tag commit can pass its release workflow without weakening ordinary branch or post-release proof-state checks. Focused proof and workflow coverage verifies exact-match, mismatch, and normal strict behavior.
 - Documented the release gate's temporary-install and npm registry requirement.
 - Corrected the active v0.1.32 sequence in `docs/start-here.md` and refreshed the public proof page date.
+- Fixed generated-installer test isolation after Blocks reproduced three user-config failures in a fresh environment. The helper now removes config-declared variables from the ambient runner environment before applying explicit fixture overrides, so CI secrets or workspace config cannot change test semantics.
 - Re-ran the complete release gate after all receipt, manifest, review, workflow, test, and documentation changes.
 
 ## Verification
 
 - `npm exec -- vitest run tests/proof-freshness.test.ts tests/release-workflow.test.ts` — passed, 17/17.
+- Ambient-config reproduction of `tests/publish.test.ts` — passed, 43/43 after the isolation fix.
 - `npm run release:check` — passed with exit 0 on the completed working tree:
   - proof freshness: 6 claims, 6 receipts
   - build and typecheck: passed

@@ -273,6 +273,21 @@ interface GeneratedInstallerRunResult {
   }
 }
 
+function configEnvironmentVariables(value: unknown, variables = new Set<string>()): Set<string> {
+  if (typeof value === 'string') {
+    if (/^[A-Z][A-Z0-9_]*_[A-Z0-9_]+$/.test(value)) variables.add(value)
+    return variables
+  }
+  if (Array.isArray(value)) {
+    for (const entry of value) configEnvironmentVariables(entry, variables)
+    return variables
+  }
+  if (value && typeof value === 'object') {
+    for (const entry of Object.values(value)) configEnvironmentVariables(entry, variables)
+  }
+  return variables
+}
+
 function getGeneratedInstallerPaths(platform: TargetPlatform, rootDir: string): {
   installDir: string
   pluginInstallDir: string
@@ -385,8 +400,10 @@ function runGeneratedInstaller(
         options.mutateArchive?.(archivePath!, resolve(archivePath!, '..'))
         publishedAssets = new Map(fileArgs.map((filepath) => [filepath.split('/').pop()!, readFileSync(filepath)]))
 
+        const ambientEnv = { ...process.env }
+        for (const envVar of configEnvironmentVariables(config)) delete ambientEnv[envVar]
         const env: Record<string, string> = {
-          ...process.env,
+          ...ambientEnv,
           HOME: resolve(rootDir, 'home'),
           ...paths.env,
           ...preparedEnv,
