@@ -18,7 +18,7 @@ It does preserve the complete Compound Engineering skill tree across all 11 gene
 
 That packaging success explains why an already-Codex-aware Compound Engineering skill can continue to launch agents reliably after being copied. It does not prove that Pluxx can derive or translate the behavior. The orchestration contract remains encoded in prompt prose and is opaque to the compiler.
 
-The most severe import finding is separate: migrating the Compound Engineering repository reported success with zero warnings but emitted an invalid Pluxx config. That means Pluxx cannot currently claim a safe author-once intake path for this class of multi-host plugin.
+The audit's most severe import finding was separate: migrating the Compound Engineering repository reported success with zero warnings but emitted an invalid Pluxx config. PLUXX-324 now closes that Phase 0 defect by reconciling supported manifests with provenance, validating the complete staged project against the current schema, and publishing only after validation succeeds. Broader semantic adjunct and orchestration recovery remain open.
 
 ## Decision Update
 
@@ -160,6 +160,8 @@ The instruction-size warning appears to inspect the source repository's root `AG
 
 `pluxx migrate` was run against the pinned Compound Engineering source in an empty temporary destination.
 
+The findings below describe the original `1c028b4` baseline reproduction. The PLUXX-324 implementation update follows them.
+
 ### What it recovered
 
 - package identity and version
@@ -192,6 +194,21 @@ brand.displayName: Required
 ```
 
 The migrated brand object contains only `websiteURL`. This is a P0 migration correctness gap because downstream build fails after a successful, warning-free intake.
+
+### PLUXX-324 implementation update
+
+Phase 0 now treats mature supported manifests as one reconciled source set instead of selecting the first match:
+
+- Claude, Cursor, Codex, and qualifying OpenCode manifests are discovered in a fixed order
+- compatible identity values merge, keyword catalogs union deterministically, and richer host branding follows recorded `opencode < claude-code < cursor < codex` precedence
+- contradictory canonical identity fields fail with the field and responsible manifest paths
+- malformed secondary manifests name the responsible source path
+- the full staged project loads through the current Pluxx config schema before dry-run success or destination mutation
+- schema or reconciliation failure leaves the destination unchanged
+- a versioned migration receipt and dry-run summary record the resolution policy, primary platform, recognized manifests, chosen field sources, and all candidates
+- non-dry-run migration holds the existing workspace mutation lock across staging, validation, planning, and publication
+
+The pinned Compound Engineering source at `f871e4b4308f5a175b38ccada51d80dd67bab4fc` now migrates to a config with `brand.displayName: Compound Engineering` and a three-manifest provenance receipt. Repository-development instruction classification, release-script classification, non-MCP scaffold semantics, OpenCode/Pi adapter recovery, workflow configuration, and orchestration relationships remain outside this Phase 0 fix.
 
 ## Host Portfolio Delta
 
