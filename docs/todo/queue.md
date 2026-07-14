@@ -28,6 +28,7 @@ Last updated: 2026-07-14
   - [Orchestration reference-pattern audit](../orchid/requirements/2026-07-14-orchestration-reference-patterns.md)
   - [Accepted orchestration decision](../orchid/decisions/2026-07-14-orchestration-primitive.md)
   - [Compound Engineering parity plan](../orchid/plans/2026-07-13-compound-engineering-parity-plan.md)
+  - [PLUXX-324 transactional migrate plan](../orchid/plans/2026-07-14-pluxx-324-transactional-migrate.md)
   - [author-once-hardening.md](./author-once-hardening.md)
   - [Linear](https://linear.app/orchid-automation)
 - Update together:
@@ -233,7 +234,7 @@ Open work:
 - keep [docs/start-here.md](../start-here.md), this queue, the master backlog, and Linear aligned
 - use [the Compound Engineering primitive audit](../orchid/requirements/2026-07-13-compound-engineering-primitive-audit.md), [three-reference comparison](../orchid/requirements/2026-07-14-orchestration-reference-patterns.md), [accepted decision](../orchid/decisions/2026-07-14-orchestration-primitive.md), and [phased parity plan](../orchid/plans/2026-07-13-compound-engineering-parity-plan.md) as the current mature-plugin pressure test:
   - treat CE 3.19.0's reliable Codex generic-subagent workflow as behavior to preserve
-  - pull the warning-free invalid migration result forward as a correctness defect independent of the larger architecture decision
+  - keep PLUXX-324's completed Phase 0 correctness contract covered: reconcile supported manifests with provenance, validate the full stage before publication, and leave destinations unchanged on failure
   - specify the accepted ninth `orchestration` bucket while keeping standalone executable identities in `agents`
   - cover Hyperframes typed artifacts, bounded dispatch, artifact completion, and targeted repair
   - cover Superpowers lifecycle activation/re-injection, role reachability, durable progress/resume, and review loops

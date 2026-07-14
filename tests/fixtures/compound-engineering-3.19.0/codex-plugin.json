@@ -1,0 +1,10 @@
+{
+  "name": "compound-engineering",
+  "version": "3.19.0",
+  "keywords": ["brainstorming", "workflow-automation"],
+  "interface": {
+    "displayName": "Compound Engineering",
+    "category": "Coding",
+    "websiteURL": "https://github.com/EveryInc/compound-engineering-plugin"
+  }
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
-import { mkdirSync, rmSync, existsSync, readFileSync, symlinkSync, writeFileSync } from 'fs'
+import { copyFileSync, mkdirSync, rmSync, existsSync, readFileSync, symlinkSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
 import { migrate } from '../src/cli/migrate'
 import { planAgentPrepare } from '../src/cli/agent'
@@ -8,6 +8,25 @@ import { loadConfig } from '../src/config/load'
 import { build } from '../src/generators'
 
 const TEST_DIR = resolve(import.meta.dir, '.migrate-fixture')
+const HIDDEN_PREFIX = '.'
+const PLUXX_METADATA_DIR = `${HIDDEN_PREFIX}pluxx`
+
+function setupCompoundEngineeringSource() {
+  const fixtureDir = resolve(import.meta.dir, 'fixtures/compound-engineering-3.19.0')
+  const sourceDir = resolve(TEST_DIR, 'source-compound-engineering')
+  const pluginDir = (host: string) => `${HIDDEN_PREFIX}${host}-plugin`
+  const manifests = [
+    [pluginDir('claude'), 'claude-plugin.json'],
+    [pluginDir('cursor'), 'cursor-plugin.json'],
+    [pluginDir('codex'), 'codex-plugin.json'],
+  ] as const
+  for (const [manifestDir, fixtureName] of manifests) {
+    const destinationDir = resolve(sourceDir, manifestDir)
+    mkdirSync(destinationDir, { recursive: true })
+    copyFileSync(resolve(fixtureDir, fixtureName), resolve(destinationDir, 'plugin.json'))
+  }
+  return sourceDir
+}
 
 function writeJson(path: string, data: unknown) {
   return Bun.write(path, JSON.stringify(data, null, 2) + '\n')
@@ -747,6 +766,198 @@ describe('migrate', () => {
       expect(existsSync(resolve(outputDir, '.pluxx/mcp.json'))).toBe(false)
     } finally {
       process.chdir(previousCwd)
+    }
+  })
+
+  it('refuses a concurrent workspace mutation before staging or publication', async () => {
+    const sourceDir = setupCompoundEngineeringSource()
+    const outputDir = resolve(TEST_DIR, 'out-concurrent-migrate')
+    const metadataDir = resolve(outputDir, PLUXX_METADATA_DIR)
+    mkdirSync(metadataDir, { recursive: true })
+    writeFileSync(
+      resolve(metadataDir, 'mutation.lock'),
+      `${JSON.stringify({ pid: process.pid, owner: 'another-run', createdAt: new Date().toISOString() })}\n`,
+    )
+
+    const previousCwd = process.cwd()
+    process.chdir(outputDir)
+    try {
+      await expect(migrate(sourceDir, { quiet: true })).rejects.toThrow(/another mutating pluxx run/i)
+    } finally {
+      process.chdir(previousCwd)
+    }
+    expect(existsSync(resolve(outputDir, 'pluxx.config.ts'))).toBe(false)
+  })
+
+  it('migrates the pinned Compound Engineering manifests into a schema-valid project with provenance', async () => {
+    const sourceDir = setupCompoundEngineeringSource()
+    const outputDir = resolve(TEST_DIR, 'out-compound-engineering')
+    await runMigrate(sourceDir, outputDir)
+
+    const config = await loadConfig(outputDir)
+    expect(config.brand?.displayName).toBe('Compound Engineering')
+    expect(config.brand?.category).toBe('Coding')
+    expect(config.keywords).toEqual([
+      'brainstorming',
+      'code-review',
+      'compound-engineering',
+      'cursor',
+      'plugin',
+      'workflow-automation',
+    ])
+
+    const receipt = JSON.parse(readFileSync(resolve(outputDir, PLUXX_METADATA_DIR, 'migration.json'), 'utf-8'))
+    expect(receipt).toMatchObject({
+      version: 1,
+      primaryPlatform: 'claude-code',
+      manifests: [
+        { platform: 'claude-code', path: '.claude-plugin/plugin.json' },
+        { platform: 'cursor', path: '.cursor-plugin/plugin.json' },
+        { platform: 'codex', path: '.codex-plugin/plugin.json' },
+      ],
+    })
+    expect(receipt.fieldSources.name).toEqual([
+      '.claude-plugin/plugin.json',
+      '.cursor-plugin/plugin.json',
+      '.codex-plugin/plugin.json',
+    ])
+    expect(receipt.fieldSources['brand.displayName']).toEqual(['.codex-plugin/plugin.json'])
+    expect(receipt.fieldSources['brand.websiteURL']).toEqual(['.codex-plugin/plugin.json'])
+    expect(receipt.fieldCandidates['brand.displayName']).toEqual([
+      '.cursor-plugin/plugin.json',
+      '.codex-plugin/plugin.json',
+    ])
+    expect(receipt.resolutionPolicy).toEqual({
+      identityScalars: 'agreement-or-refusal',
+      arrays: 'stable-union',
+      brandScalars: 'host-precedence',
+      manifestPrecedence: ['opencode', 'claude-code', 'cursor', 'codex'],
+    })
+
+    const dryRunOutput = resolve(TEST_DIR, 'out-compound-engineering-dry-run')
+    mkdirSync(dryRunOutput, { recursive: true })
+    const previousCwd = process.cwd()
+    process.chdir(dryRunOutput)
+    try {
+      const summary = await migrate(sourceDir, { dryRun: true, quiet: true })
+      expect(summary.provenance).toEqual(receipt)
+    } finally {
+      process.chdir(previousCwd)
+    }
+    expect(existsSync(resolve(dryRunOutput, PLUXX_METADATA_DIR))).toBe(false)
+  })
+
+  it('refuses ambiguous manifest scalars before publishing destination files', async () => {
+    const sourceDir = setupCompoundEngineeringSource()
+    const cursorManifest = resolve(sourceDir, '.cursor-plugin/plugin.json')
+    const cursor = JSON.parse(readFileSync(cursorManifest, 'utf-8'))
+    writeFileSync(cursorManifest, `${JSON.stringify({ ...cursor, description: 'Conflicting description' }, null, 2)}\n`)
+
+    const outputDir = resolve(TEST_DIR, 'out-ambiguous-manifests')
+    mkdirSync(outputDir, { recursive: true })
+    writeFileSync(resolve(outputDir, 'user-notes.md'), 'keep me\n')
+    const previousCwd = process.cwd()
+    process.chdir(outputDir)
+    try {
+      await expect(migrate(sourceDir, { quiet: true })).rejects.toThrow(
+        /Ambiguous manifest field "description".*\.claude-plugin\/plugin\.json.*\.cursor-plugin\/plugin\.json/,
+      )
+    } finally {
+      process.chdir(previousCwd)
+    }
+
+    expect(readFileSync(resolve(outputDir, 'user-notes.md'), 'utf-8')).toBe('keep me\n')
+    expect(existsSync(resolve(outputDir, 'pluxx.config.ts'))).toBe(false)
+  })
+
+  it('reconciles conflicting brand scalars with explicit host precedence and chosen-source provenance', async () => {
+    const sourceDir = setupCompoundEngineeringSource()
+    const codexManifest = resolve(sourceDir, '.codex-plugin/plugin.json')
+    const codex = JSON.parse(readFileSync(codexManifest, 'utf-8'))
+    writeFileSync(codexManifest, `${JSON.stringify({
+      ...codex,
+      interface: { ...codex.interface, displayName: 'Conflicting Brand' },
+    }, null, 2)}\n`)
+
+    const outputDir = resolve(TEST_DIR, 'out-brand-precedence')
+    await runMigrate(sourceDir, outputDir)
+
+    const config = await loadConfig(outputDir)
+    expect(config.brand?.displayName).toBe('Conflicting Brand')
+    const receipt = JSON.parse(readFileSync(resolve(outputDir, PLUXX_METADATA_DIR, 'migration.json'), 'utf-8'))
+    expect(receipt.fieldSources['brand.displayName']).toEqual(['.codex-plugin/plugin.json'])
+  })
+
+  it('names the responsible source manifest when a secondary manifest is malformed', async () => {
+    const sourceDir = setupCompoundEngineeringSource()
+    writeFileSync(resolve(sourceDir, '.cursor-plugin/plugin.json'), '{ invalid json\n')
+    const outputDir = resolve(TEST_DIR, 'out-malformed-manifest')
+    mkdirSync(outputDir, { recursive: true })
+    const previousCwd = process.cwd()
+    process.chdir(outputDir)
+    try {
+      await expect(migrate(sourceDir, { quiet: true })).rejects.toThrow(
+        /Failed to parse source manifest "\.cursor-plugin\/plugin\.json"/,
+      )
+    } finally {
+      process.chdir(previousCwd)
+    }
+    expect(existsSync(resolve(outputDir, 'pluxx.config.ts'))).toBe(false)
+  })
+
+  it('refuses invalid iterable manifest fields instead of silently normalizing them', async () => {
+    const sourceDir = setupCompoundEngineeringSource()
+    const cursorManifest = resolve(sourceDir, '.cursor-plugin/plugin.json')
+    const cursor = JSON.parse(readFileSync(cursorManifest, 'utf-8'))
+    writeFileSync(cursorManifest, `${JSON.stringify({ ...cursor, keywords: 'not-an-array' }, null, 2)}\n`)
+
+    for (const dryRun of [false, true]) {
+      const outputDir = resolve(TEST_DIR, `out-invalid-keywords-${dryRun ? 'dry' : 'apply'}`)
+      mkdirSync(outputDir, { recursive: true })
+      const previousCwd = process.cwd()
+      process.chdir(outputDir)
+      try {
+        await expect(migrate(sourceDir, { dryRun, quiet: true })).rejects.toThrow(
+          /Failed to parse source manifest "\.cursor-plugin\/plugin\.json": keywords must be an array of strings/,
+        )
+      } finally {
+        process.chdir(previousCwd)
+      }
+      expect(existsSync(resolve(outputDir, 'pluxx.config.ts'))).toBe(false)
+    }
+  })
+
+  it('rejects a schema-invalid staged config before apply or dry-run can report success', async () => {
+    const sourceDir = resolve(TEST_DIR, 'source-invalid-schema')
+    const manifestDir = resolve(sourceDir, '.claude-plugin')
+    mkdirSync(manifestDir, { recursive: true })
+    await writeJson(resolve(manifestDir, 'plugin.json'), {
+      name: 'Invalid Name',
+      version: '1.0.0',
+      description: 'Invalid canonical name fixture.',
+    })
+
+    for (const dryRun of [false, true]) {
+      const outputDir = resolve(TEST_DIR, `out-invalid-schema-${dryRun ? 'dry' : 'apply'}`)
+      mkdirSync(outputDir, { recursive: true })
+      writeFileSync(resolve(outputDir, 'user-notes.md'), 'keep me\n')
+      const previousCwd = process.cwd()
+      const originalLog = console.log
+      const logs: string[] = []
+      process.chdir(outputDir)
+      console.log = (...args: unknown[]) => logs.push(args.map(String).join(' '))
+      try {
+        await expect(migrate(sourceDir, { dryRun })).rejects.toThrow(
+          /Staged migration validation failed for pluxx\.config\.ts.*name/s,
+        )
+      } finally {
+        console.log = originalLog
+        process.chdir(previousCwd)
+      }
+      expect(readFileSync(resolve(outputDir, 'user-notes.md'), 'utf-8')).toBe('keep me\n')
+      expect(existsSync(resolve(outputDir, 'pluxx.config.ts'))).toBe(false)
+      expect(existsSync(resolve(outputDir, PLUXX_METADATA_DIR))).toBe(false)
+      expect(logs.join('\n')).not.toMatch(/Generated|Migration complete|dry run complete/i)
     }
   })
 

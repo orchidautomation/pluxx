@@ -135,4 +135,15 @@ describe('CLI lifecycle helpers', () => {
     expect(stdout).toContain('--offline')
     expect(stderr).toBe('')
   })
+
+  it('describes mature multi-host plugin migration in command usage', async () => {
+    const proc = spawnCli(['migrate'])
+    const stdout = await new Response(proc.stdout).text()
+    const stderr = await new Response(proc.stderr).text()
+    const exitCode = await proc.exited
+
+    expect(exitCode).toBe(1)
+    expect(stdout).toBe('')
+    expect(stderr).toContain('single- or multi-host plugin')
+  })
 })
