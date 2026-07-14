@@ -9,6 +9,12 @@ import {
   type OrchestrationTranslationMode,
 } from './orchestration-capability-registry'
 import type { CoreFourPlatform } from './validation/platform-rules'
+import {
+  DISTRIBUTION_ADJUNCT_RECEIPT_PATH,
+  validateDistributionAdjunctReceipt,
+  type DistributionAdjunctReceipt,
+} from './distribution-adjuncts'
+import { stableStringify } from './stable-json'
 
 export const OrchestrationProofStatusSchema = z.enum([
   'proven',
@@ -103,6 +109,16 @@ const StageEvidenceSchema = z.object({
   evidenceIds: z.array(z.string().min(1)).min(1),
 })
 
+const AdjunctInstallOwnershipSchema = z.object({
+  recordDigest: z.string().regex(/^[a-f0-9]{64}$/),
+  ownershipKind: z.enum(['copy', 'file', 'symlink']),
+  ownedSurfaceCount: z.number().int().min(1),
+  receiptPath: z.string().min(1),
+  receiptDigest: z.string().regex(/^[a-f0-9]{64}$/),
+}).strict()
+
+type AdjunctInstallOwnership = z.infer<typeof AdjunctInstallOwnershipSchema>
+
 export interface BuildOrchestrationRuntimeReceiptInput {
   fixture: string
   generatedReceipt: GeneratedReceiptInput
@@ -119,6 +135,10 @@ export interface BuildOrchestrationRuntimeReceiptInput {
   facts: OrchestrationProofFact[]
   installedPath: string
   fieldEvidence: Partial<Record<OrchestrationCapabilityField, OrchestrationFieldEvidence>>
+  adjuncts?: {
+    receipt: DistributionAdjunctReceipt
+    installOwnership: AdjunctInstallOwnership
+  }
 }
 
 export interface OrchestrationRuntimeReceipt {
@@ -137,6 +157,7 @@ export interface OrchestrationRuntimeReceipt {
     evidence: OrchestrationFieldEvidence
   }>
   installedBehaviorProven: boolean
+  adjuncts?: NonNullable<BuildOrchestrationRuntimeReceiptInput['adjuncts']>
   receiptDigest: string
 }
 
@@ -150,6 +171,9 @@ export interface OrchestrationRuntimeProofSummary {
   behavioralEnvironmentUnavailable: number
   fieldOutcomeCount: number
   degradedOutcomeCount: number
+  adjunctReceiptCount: number
+  adjunctInventoryCount: number
+  adjunctOwnershipProven: number
 }
 
 export interface ExpectedOrchestrationRuntimeFixture {
@@ -157,6 +181,8 @@ export interface ExpectedOrchestrationRuntimeFixture {
   plugin: string
   version: string
   orchestrationDigest: string
+  adjunctRevision?: string
+  adjunctDigest?: string
 }
 
 const PRIVATE_KEY_PATTERN = /^(?:api[-_]?(?:key|token)s?|access[-_]?tokens?|refresh[-_]?tokens?|tokens?|cookies?|authorization|secrets?|passwords?|credentials?|raw[-_]?transcripts?|session[-_]?(?:data|cookies?))$/i
@@ -230,6 +256,18 @@ export function buildOrchestrationRuntimeReceipt(
   if (generatedReceipt.platform !== input.host.platform) {
     throw new Error(`Generated receipt platform ${generatedReceipt.platform} does not match host ${input.host.platform}.`)
   }
+  const adjuncts = input.adjuncts
+  const adjunctReceipt = adjuncts && validateDistributionAdjunctReceipt(adjuncts.receipt)
+  if (adjuncts && adjunctReceipt) {
+    if (adjunctReceipt.identity.fixture !== input.fixture || adjunctReceipt.host !== input.host.platform) {
+      throw new Error('Runtime proof adjunct receipt does not match its fixture/host identity.')
+    }
+    if (adjunctReceipt.compiledPlugin.name !== generatedReceipt.identity.plugin
+      || adjunctReceipt.compiledPlugin.version !== generatedReceipt.identity.version) {
+      throw new Error('Runtime proof adjunct receipt does not match its compiled plugin identity.')
+    }
+    AdjunctInstallOwnershipSchema.parse(adjuncts.installOwnership)
+  }
   if (generatedReceipt.fieldInventory.length !== ORCHESTRATION_CAPABILITY_FIELDS.length
     || generatedReceipt.fieldInventory.some((field, index) => field !== ORCHESTRATION_CAPABILITY_FIELDS[index])) {
     throw new Error('Runtime proof requires the canonical field inventory.')
@@ -248,6 +286,7 @@ export function buildOrchestrationRuntimeReceipt(
     .sort((a, b) => a.id.localeCompare(b.id))
   const factIds = new Set(facts.map(fact => fact.id))
   if (factIds.size !== facts.length) throw new Error('Runtime proof fact identifiers must be unique.')
+  if (adjuncts) assertAdjunctInstallOwnershipBound(adjuncts.installOwnership, facts)
   for (const [stageName, stageEvidence] of Object.entries(input.evidence)) {
     const parsedStageEvidence = StageEvidenceSchema.parse(stageEvidence)
     for (const evidenceId of parsedStageEvidence.evidenceIds) {
@@ -293,6 +332,12 @@ export function buildOrchestrationRuntimeReceipt(
       && input.evidence.installed.status === 'proven'
       && fieldOutcomes.every(row => row.evidence.status === 'proven'
         && row.evidence.stage === 'behavioral'),
+    ...(adjunctReceipt ? {
+      adjuncts: {
+        receipt: adjunctReceipt,
+        installOwnership: adjuncts!.installOwnership,
+      },
+    } : {}),
   }
   const receiptDigest = createHash('sha256').update(stableStringify(withoutDigest)).digest('hex')
   return { ...withoutDigest, receiptDigest }
@@ -320,6 +365,15 @@ export function summarizeOrchestrationRuntimeReceipts(
         || receipt.identity.orchestrationDigest !== expected.orchestrationDigest) {
         throw new Error(`Runtime proof receipt for ${receipt.identity.fixture}/${receipt.host.platform} is not source-fresh.`)
       }
+      if (!receipt.adjuncts) {
+        throw new Error(`Runtime proof receipt for ${receipt.identity.fixture}/${receipt.host.platform} has no adjunct proof.`)
+      }
+      if (expected.adjunctRevision && receipt.adjuncts.receipt.identity.revision !== expected.adjunctRevision) {
+        throw new Error(`Runtime proof receipt for ${receipt.identity.fixture}/${receipt.host.platform} has a stale adjunct revision.`)
+      }
+      if (expected.adjunctDigest && receipt.adjuncts.receipt.identity.digest !== expected.adjunctDigest) {
+        throw new Error(`Runtime proof receipt for ${receipt.identity.fixture}/${receipt.host.platform} has a stale adjunct digest.`)
+      }
     }
   }
 
@@ -334,6 +388,9 @@ export function summarizeOrchestrationRuntimeReceipts(
     fieldOutcomeCount: receipts.reduce((total, receipt) => total + receipt.fieldOutcomes.length, 0),
     degradedOutcomeCount: receipts.reduce((total, receipt) => total
       + receipt.fieldOutcomes.filter(row => row.effective.mode === 'degrade').length, 0),
+    adjunctReceiptCount: receipts.filter(receipt => Boolean(receipt.adjuncts)).length,
+    adjunctInventoryCount: receipts.reduce((total, receipt) => total + (receipt.adjuncts?.receipt.inventory.length ?? 0), 0),
+    adjunctOwnershipProven: receipts.filter(receipt => (receipt.adjuncts?.installOwnership.ownedSurfaceCount ?? 0) > 0).length,
   }
 }
 
@@ -349,6 +406,20 @@ function validateRuntimeReceipt(value: unknown, index: number): OrchestrationRun
     || !/^[a-f0-9]{64}$/.test(receipt.identity.orchestrationDigest ?? '')) {
     throw new Error(`Runtime proof receipt ${index} has an invalid identity.`)
   }
+  if (receipt.adjuncts) {
+    const adjunctReceipt = validateDistributionAdjunctReceipt(receipt.adjuncts.receipt)
+    if (adjunctReceipt.identity.fixture !== receipt.identity.fixture || adjunctReceipt.host !== receipt.host.platform) {
+      throw new Error(`Runtime proof receipt ${index} has mismatched adjunct identity.`)
+    }
+    if (adjunctReceipt.compiledPlugin.name !== receipt.identity.plugin
+      || adjunctReceipt.compiledPlugin.version !== receipt.identity.version) {
+      throw new Error(`Runtime proof receipt ${index} has mismatched adjunct compiled plugin identity.`)
+    }
+    const ownershipResult = AdjunctInstallOwnershipSchema.safeParse(receipt.adjuncts.installOwnership)
+    if (!ownershipResult.success) {
+      throw new Error(`Runtime proof receipt ${index} has invalid adjunct ownership evidence.`)
+    }
+  }
   if (!['claude-code', 'cursor', 'codex', 'opencode'].includes(receipt.host?.platform ?? '')) {
     throw new Error(`Runtime proof receipt ${index} has an invalid host.`)
   }
@@ -362,6 +433,7 @@ function validateRuntimeReceipt(value: unknown, index: number): OrchestrationRun
   const facts = receipt.facts?.map(fact => OrchestrationProofFactSchema.parse(fact) as OrchestrationProofFact) ?? []
   const factIds = new Set(facts.map(fact => fact.id))
   if (factIds.size !== facts.length) throw new Error(`Runtime proof receipt ${index} has duplicate fact identifiers.`)
+  if (receipt.adjuncts) assertAdjunctInstallOwnershipBound(receipt.adjuncts.installOwnership, facts)
   for (const stage of OrchestrationProofStageSchema.options) {
     const stageEvidence = StageEvidenceSchema.parse(receipt.evidence?.[stage])
     for (const evidenceId of stageEvidence.evidenceIds) {
@@ -416,6 +488,25 @@ function validateRuntimeReceipt(value: unknown, index: number): OrchestrationRun
   return receipt
 }
 
+function assertAdjunctInstallOwnershipBound(
+  value: AdjunctInstallOwnership,
+  facts: readonly OrchestrationProofFact[],
+): void {
+  const ownership = AdjunctInstallOwnershipSchema.parse(value)
+  if (ownership.receiptPath !== DISTRIBUTION_ADJUNCT_RECEIPT_PATH) {
+    throw new Error(`Adjunct install ownership must bind ${DISTRIBUTION_ADJUNCT_RECEIPT_PATH}.`)
+  }
+  const factsById = new Map(facts.map(fact => [fact.id, fact]))
+  const receiptFact = factsById.get('adjunct-receipt-sha256')
+  if (receiptFact?.kind !== 'sha256' || receiptFact.value !== ownership.receiptDigest) {
+    throw new Error('Adjunct install ownership receipt digest is not bound to its SHA-256 fact.')
+  }
+  const ownershipFact = factsById.get('install-ownership-sha256')
+  if (ownershipFact?.kind !== 'sha256' || ownershipFact.value !== ownership.recordDigest) {
+    throw new Error('Adjunct install ownership record digest is not bound to its SHA-256 fact.')
+  }
+}
+
 function countStage(
   receipts: OrchestrationRuntimeReceipt[],
   stage: OrchestrationProofStage,
@@ -449,18 +540,4 @@ function normalizeStageEvidence(
       evidenceIds: [...evidence[stage].evidenceIds].sort(),
     }]),
   ) as Record<OrchestrationProofStage, StageEvidence>
-}
-
-function stableStringify(value: unknown): string {
-  return JSON.stringify(sortObject(value))
-}
-
-function sortObject(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(sortObject)
-  if (!value || typeof value !== 'object') return value
-  return Object.fromEntries(
-    Object.entries(value)
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([key, entry]) => [key, sortObject(entry)]),
-  )
 }

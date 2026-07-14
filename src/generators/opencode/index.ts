@@ -74,6 +74,7 @@ export class OpenCodeGenerator extends Generator {
     this.copyAssets()
     this.copyPassthrough()
     this.rewriteOpenCodeSkillAgentMentions()
+    await this.generateDistributionAdjunctArtifacts()
   }
 
   private async generatePackageJson(): Promise<void> {

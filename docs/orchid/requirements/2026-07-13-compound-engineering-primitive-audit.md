@@ -20,7 +20,7 @@ It does preserve the complete Compound Engineering skill tree across all 11 gene
 
 That packaging success explains why an already-Codex-aware Compound Engineering skill can continue to launch agents reliably after being copied. It does not prove that Pluxx can derive or translate the behavior. The orchestration contract remains encoded in prompt prose and is opaque to the compiler.
 
-The audit's most severe import finding was separate: migrating the Compound Engineering repository reported success with zero warnings but emitted an invalid Pluxx config. PLUXX-324 now closes that Phase 0 defect by reconciling supported manifests with provenance, validating the complete staged project against the current schema, and publishing only after validation succeeds. Broader semantic adjunct and orchestration recovery remain open.
+The audit's most severe import finding was separate: migrating the Compound Engineering repository reported success with zero warnings but emitted an invalid Pluxx config. PLUXX-324 closes that Phase 0 defect. PLUXX-328 now closes the frozen core-four native-adjunct tranche with exact source inventory, transactional publication/refusal, registry-derived outcomes, and 12 deterministic install-owned receipts. Phase 6 release gating remains open.
 
 ## Decision Update
 

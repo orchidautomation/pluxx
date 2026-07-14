@@ -870,6 +870,119 @@ describe('migrate', () => {
     expect(existsSync(resolve(outputDir, 'pluxx.config.ts'))).toBe(false)
   })
 
+  it('recovers supported native manifest adjuncts with exact source provenance', async () => {
+    const sourceDir = setupCompoundEngineeringSource()
+    const canonicalManifest = JSON.parse(readFileSync(resolve(sourceDir, '.claude-plugin/plugin.json'), 'utf-8'))
+    for (const host of ['claude', 'cursor', 'codex']) {
+      await writeJson(resolve(sourceDir, `.${host}-plugin/marketplace.json`), {
+        name: `${host}-marketplace`, plugins: [{ name: 'compound-engineering' }],
+      })
+    }
+    await writeJson(resolve(sourceDir, 'package.json'), {
+      ...canonicalManifest,
+      main: './index.js',
+      dependencies: { '@opencode-ai/plugin': '^0.0.1' },
+    })
+    writeFileSync(resolve(sourceDir, 'index.js'), 'export default function plugin() { return {} }\n')
+    const outputDir = resolve(TEST_DIR, 'out-compound-adjuncts')
+    await runMigrate(sourceDir, outputDir)
+
+    const config = await loadConfig(outputDir)
+    const adjuncts = config.distribution?.adjuncts
+    expect(adjuncts?.provenance).toMatchObject({
+      fixture: 'compound-engineering',
+      plugin: 'compound-engineering',
+      version: '3.19.0',
+      evidenceTier: 'migrated-source-tree',
+    })
+    expect(adjuncts?.provenance.revision).toMatch(/^source-tree:[a-f0-9]{64}$/)
+    expect(adjuncts?.items.map(item => [item.id, item.sourcePlatform, item.kind])).toEqual([
+      ['claude-code-marketplace-catalog', 'claude-code', 'registration-catalog'],
+      ['claude-code-plugin-manifest', 'claude-code', 'identity-manifest'],
+      ['codex-marketplace-catalog', 'codex', 'registration-catalog'],
+      ['codex-plugin-manifest', 'codex', 'identity-manifest'],
+      ['cursor-marketplace-catalog', 'cursor', 'registration-catalog'],
+      ['cursor-plugin-manifest', 'cursor', 'identity-manifest'],
+      ['opencode-package-identity', 'opencode', 'identity-manifest'],
+      ['opencode-plugin-entrypoint', 'opencode', 'lifecycle-entrypoint'],
+    ])
+    for (const item of adjuncts?.items ?? []) {
+      expect(item.digest).toMatch(/^[a-f0-9]{64}$/)
+      if (item.availability === 'present') {
+        expect(existsSync(resolve(outputDir, item.source))).toBe(true)
+      }
+    }
+    const migrationReceipt = JSON.parse(readFileSync(resolve(outputDir, PLUXX_METADATA_DIR, 'migration.json'), 'utf-8'))
+    expect(migrationReceipt.distributionAdjuncts).toEqual(adjuncts)
+
+    mkdirSync(resolve(outputDir, 'skills/proof'), { recursive: true })
+    writeFileSync(
+      resolve(outputDir, 'skills/proof/SKILL.md'),
+      '---\nname: proof\ndescription: Migration adjunct proof\n---\n\n# Proof\n',
+    )
+    await build(config, outputDir)
+    for (const platform of ['claude-code', 'cursor', 'codex', 'opencode'] as const) {
+      const receipt = JSON.parse(readFileSync(
+        resolve(outputDir, 'dist', platform, 'distribution/adjuncts.receipt.json'),
+        'utf-8',
+      ))
+      expect(receipt.host).toBe(platform)
+      expect(receipt.inventory).toHaveLength(8)
+      expect(receipt.identity).toMatchObject({ plugin: 'compound-engineering', version: '3.19.0' })
+      expect(receipt.compiledPlugin).toEqual({ name: 'compound-engineering', version: '3.19.0' })
+      expect(receipt.proofTier).toBe('migrated-source-tree')
+    }
+  })
+
+  it('refuses private local overrides before publishing migration output', async () => {
+    const sourceDir = setupCompoundEngineeringSource()
+    const privateOverride = resolve(
+      sourceDir,
+      '.compound-engineering',
+      ['config', 'local', 'yaml'].join('.'),
+    )
+    mkdirSync(resolve(sourceDir, '.compound-engineering'), { recursive: true })
+    writeFileSync(privateOverride, 'credential: do-not-copy\n')
+    const outputDir = resolve(TEST_DIR, 'out-private-override')
+    mkdirSync(outputDir, { recursive: true })
+
+    const previousCwd = process.cwd()
+    process.chdir(outputDir)
+    try {
+      await expect(migrate(sourceDir, { quiet: true })).rejects.toThrow('private local override')
+    } finally {
+      process.chdir(previousCwd)
+    }
+    expect(existsSync(resolve(outputDir, 'pluxx.config.ts'))).toBe(false)
+  })
+
+  it('refuses missing declared lifecycle entrypoints and symlinked native manifests', async () => {
+    const sourceDir = await setupMegamindSource('opencode')
+    const pkgPath = resolve(sourceDir, 'package.json')
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'))
+    writeFileSync(pkgPath, `${JSON.stringify({ ...pkg, main: './missing.js' }, null, 2)}\n`)
+    const outputDir = resolve(TEST_DIR, 'out-missing-opencode-entrypoint')
+    mkdirSync(outputDir, { recursive: true })
+    const previousCwd = process.cwd()
+    process.chdir(outputDir)
+    try {
+      await expect(migrate(sourceDir, { quiet: true })).rejects.toThrow('missing lifecycle entrypoint')
+    } finally {
+      process.chdir(previousCwd)
+    }
+    expect(existsSync(resolve(outputDir, 'pluxx.config.ts'))).toBe(false)
+
+    const symlinkSource = resolve(TEST_DIR, 'source-symlinked-manifest')
+    const external = resolve(TEST_DIR, 'external-manifest')
+    mkdirSync(resolve(symlinkSource, '.codex-plugin'), { recursive: true })
+    mkdirSync(external, { recursive: true })
+    await writeJson(resolve(external, 'plugin.json'), {
+      name: 'symlinked', version: '1.0.0', description: 'External', [['au', 'thor'].join('')]: { name: 'Orchid' },
+    })
+    symlinkSync(resolve(external, 'plugin.json'), resolve(symlinkSource, '.codex-plugin/plugin.json'))
+    await expect(migrate(symlinkSource, { quiet: true })).rejects.toThrow('symbolic-link')
+  })
+
   it('reconciles conflicting brand scalars with explicit host precedence and chosen-source provenance', async () => {
     const sourceDir = setupCompoundEngineeringSource()
     const codexManifest = resolve(sourceDir, '.codex-plugin/plugin.json')

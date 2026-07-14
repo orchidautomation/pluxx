@@ -34,6 +34,7 @@ export class ClaudeCodeGenerator extends Generator {
     this.copyScripts()
     this.copyAssets()
     this.copyPassthrough()
+    await this.generateDistributionAdjunctArtifacts()
   }
 
   protected copySkills(): void {

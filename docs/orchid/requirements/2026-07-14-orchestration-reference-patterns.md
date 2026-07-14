@@ -127,7 +127,7 @@ Missing compiler semantics are:
 - synthesis and terminal ownership
 - orchestration-specific capability registry and receipts
 
-The CE migration test also reported success before emitting an invalid config with missing `brand.displayName`. Multi-manifest reconciliation and semantic adjunct recovery remain incomplete. This P0 intake defect is independent of the orchestration design.
+The CE migration test originally reported success before emitting an invalid config with missing `brand.displayName`. PLUXX-324 closes multi-manifest reconciliation and transactional validation; PLUXX-328 closes the frozen core-four semantic adjunct recovery tranche. This historical P0 intake defect remains independent of the orchestration design.
 
 ## Acceptance Requirements
 

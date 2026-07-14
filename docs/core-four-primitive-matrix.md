@@ -19,7 +19,7 @@ If you want the primitive-by-host proof ledger behind the current core-four clai
 
 ## Compiler Buckets
 
-These are the nine canonical buckets Pluxx compiles from. All nine have current core-four mappings. `orchestration` now has a canonical IR, semantic validation, complete source-inspected rows, deterministic generated payloads, and Phase 3 isolated receipts; activation and behavioral execution remain unproved:
+These are the nine canonical buckets Pluxx compiles from. All nine have current core-four mappings. `orchestration` now has a canonical IR, semantic validation, complete source-inspected rows, deterministic generated payloads, and Phase 5 receipts bound to pinned adjunct inventory and install ownership; activation and behavioral execution remain unproved:
 
 | Bucket | Includes |
 |---|---|
@@ -201,7 +201,7 @@ Primitive labels above are derived from these audited field outcomes. A primitiv
 
 ### Audited `orchestration` field outcomes
 
-Phase 3 adds 12 validated deterministic `fake-home-install` receipts under `tests/fixtures/orchestration-runtime-receipts`. Generation, install layout, ownership, verifier behavior, and host registration artifacts are proven in isolated filesystems; real-host discovery is environment-unavailable in all 12 cases. The generated companions still have no executable host entrypoint, so activation is unsupported, behavioral evidence is environment-unavailable, and all 324 fixture outcomes remain explicit degradation.
+Phase 5 maintains 12 validated deterministic `fake-home-install` receipts under `tests/fixtures/orchestration-runtime-receipts`, now bound to 176 pinned fixture adjunct inventory rows and install ownership. Exact source identity, revision, digest, host outcome policy, compiler output digest, and receipt digest are validated for Claude Code, Cursor, Codex, and OpenCode. Generated registration artifacts remain isolated evidence only: real-host discovery is environment-unavailable in all 12 cases, activation is unsupported, behavioral evidence is environment-unavailable, and all 324 orchestration outcomes remain explicit degradation.
 
 | Field | Claude Code | Cursor | Codex | OpenCode |
 |---|---|---|---|---|

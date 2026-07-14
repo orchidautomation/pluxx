@@ -38,6 +38,8 @@
     "installed": {
       "status": "proven",
       "evidenceIds": [
+        "adjunct-receipt-sha256",
+        "install-ownership-sha256",
         "installed-manifest",
         "installed-tree-sha256",
         "opencode-entry-sha256"
@@ -64,6 +66,11 @@
   },
   "facts": [
     {
+      "id": "adjunct-receipt-sha256",
+      "kind": "sha256",
+      "value": "b4324119d6b7038918d6d54058dfa7fe64ff54e91a2c40f83bab90a1d6fb8fd3"
+    },
+    {
       "id": "generated-receipt-sha256",
       "kind": "sha256",
       "value": "9a58420b7a47ffedc16b24ed509d4eef4f73f80fe5866ff77ca16b1f95aa5a7e"
@@ -74,6 +81,11 @@
       "value": "The isolated opencode install did not invoke the native host discovery process"
     },
     {
+      "id": "install-ownership-sha256",
+      "kind": "sha256",
+      "value": "1bb2973e8beb0b4bac2cc8b348fb927f5bb4b7163299212d6094a4d9f07fcb07"
+    },
+    {
       "id": "installed-manifest",
       "kind": "assertion",
       "value": "package.json exists and matches the verified isolated bundle"
@@ -81,7 +93,7 @@
     {
       "id": "installed-tree-sha256",
       "kind": "sha256",
-      "value": "b0a7a2b55dea51a0990083aaedc3f7f3d920c11873fddf2413220e1234b0563b"
+      "value": "035d4a6b73d66e095148274c660b6e14aaae52fc022955700f584d27256e05c3"
     },
     {
       "id": "native-host-not-invoked",
@@ -1236,5 +1248,277 @@
     }
   ],
   "installedBehaviorProven": false,
-  "receiptDigest": "7192ba30e7f771bb90ba831854b876a6b86f122db88ef828a5773873ffcbe575"
+  "adjuncts": {
+    "receipt": {
+      "schemaVersion": 1,
+      "kind": "pluxx-distribution-adjunct-receipt",
+      "proofTier": "fixture-source-inspection",
+      "identity": {
+        "fixture": "compound-engineering",
+        "plugin": "compound-engineering",
+        "version": "3.19.0",
+        "revision": "f871e4b4308f5a175b38ccada51d80dd67bab4fc",
+        "digest": "4c82f2038ca4fd09a7b19473d3b890e2d0b10b1e6c9c19f1971c64b5ec33a1d5",
+        "evidenceTier": "fixture-source-inspection"
+      },
+      "compiledPlugin": {
+        "name": "orchestration-compound-engineering",
+        "version": "0.1.0"
+      },
+      "host": "opencode",
+      "inventory": [
+        {
+          "id": "claude-manifest",
+          "kind": "identity-manifest",
+          "source": ".claude-plugin/plugin.json",
+          "target": ".claude-plugin/plugin.json",
+          "sourcePlatform": "claude-code",
+          "canonicalOwner": "distribution",
+          "availability": "source-inspected",
+          "digest": "ab59bca7988c346d556644a38ce24bda6caa9cb912226812d279d4f004e3a022",
+          "executable": false,
+          "requiredForPublication": false,
+          "outcome": {
+            "platform": "opencode",
+            "adjunctId": "claude-manifest",
+            "mode": "translate",
+            "mechanism": "opencode:identity-manifest:translate",
+            "rationale": "Pinned source identity informs OpenCode's generated manifest without copying source manifest bytes.",
+            "evidenceTier": "fixture-source-inspection"
+          }
+        },
+        {
+          "id": "claude-marketplace",
+          "kind": "registration-catalog",
+          "source": ".claude-plugin/marketplace.json",
+          "target": ".claude-plugin/marketplace.json",
+          "sourcePlatform": "claude-code",
+          "canonicalOwner": "distribution",
+          "availability": "source-inspected",
+          "digest": "057e14e8a58ce93c8ec9dae2bc1d5fa1036cc74f463af67a67ca2a85c5f11eb0",
+          "executable": false,
+          "requiredForPublication": false,
+          "outcome": {
+            "platform": "opencode",
+            "adjunctId": "claude-marketplace",
+            "mode": "degrade",
+            "mechanism": "opencode:registration-catalog:degrade",
+            "rationale": "The pinned fixture proves the source bytes, but the bounded fixture does not vendor a publishable payload for this host.",
+            "evidenceTier": "fixture-source-inspection"
+          }
+        },
+        {
+          "id": "codex-icon",
+          "kind": "helper-payload",
+          "source": "assets/icon.svg",
+          "target": "assets/icon.svg",
+          "sourcePlatform": "codex",
+          "canonicalOwner": "distribution",
+          "availability": "source-inspected",
+          "digest": "a15d14dc522dcbb52f6f04ce9738f2d0ff7f8e06cce9b17916013a4e8e602df2",
+          "executable": false,
+          "requiredForPublication": false,
+          "outcome": {
+            "platform": "opencode",
+            "adjunctId": "codex-icon",
+            "mode": "degrade",
+            "mechanism": "opencode:helper-payload:degrade",
+            "rationale": "The pinned fixture proves the source bytes, but the bounded fixture does not vendor a publishable payload for this host.",
+            "evidenceTier": "fixture-source-inspection"
+          }
+        },
+        {
+          "id": "codex-logo",
+          "kind": "helper-payload",
+          "source": "assets/logo.png",
+          "target": "assets/logo.png",
+          "sourcePlatform": "codex",
+          "canonicalOwner": "distribution",
+          "availability": "source-inspected",
+          "digest": "134613352009479aa461399349960147e9c10531f5302ad541e2263bd200bf75",
+          "executable": false,
+          "requiredForPublication": false,
+          "outcome": {
+            "platform": "opencode",
+            "adjunctId": "codex-logo",
+            "mode": "degrade",
+            "mechanism": "opencode:helper-payload:degrade",
+            "rationale": "The pinned fixture proves the source bytes, but the bounded fixture does not vendor a publishable payload for this host.",
+            "evidenceTier": "fixture-source-inspection"
+          }
+        },
+        {
+          "id": "codex-manifest",
+          "kind": "identity-manifest",
+          "source": ".codex-plugin/plugin.json",
+          "target": ".codex-plugin/plugin.json",
+          "sourcePlatform": "codex",
+          "canonicalOwner": "distribution",
+          "availability": "source-inspected",
+          "digest": "a63efb33b7834bca086922516af2a1a71cf4b45b847d47fa5874e2d7461105d6",
+          "executable": false,
+          "requiredForPublication": false,
+          "outcome": {
+            "platform": "opencode",
+            "adjunctId": "codex-manifest",
+            "mode": "translate",
+            "mechanism": "opencode:identity-manifest:translate",
+            "rationale": "Pinned source identity informs OpenCode's generated manifest without copying source manifest bytes.",
+            "evidenceTier": "fixture-source-inspection"
+          }
+        },
+        {
+          "id": "codex-marketplace",
+          "kind": "registration-catalog",
+          "source": ".agents/plugins/marketplace.json",
+          "target": ".agents/plugins/marketplace.json",
+          "sourcePlatform": "codex",
+          "canonicalOwner": "distribution",
+          "availability": "source-inspected",
+          "digest": "78a5b4d7f8e8c410f2c17317744dbb2c7023fc77e6d76b0c6f5448911033c119",
+          "executable": false,
+          "requiredForPublication": false,
+          "outcome": {
+            "platform": "opencode",
+            "adjunctId": "codex-marketplace",
+            "mode": "degrade",
+            "mechanism": "opencode:registration-catalog:degrade",
+            "rationale": "The pinned fixture proves the source bytes, but the bounded fixture does not vendor a publishable payload for this host.",
+            "evidenceTier": "fixture-source-inspection"
+          }
+        },
+        {
+          "id": "cursor-manifest",
+          "kind": "identity-manifest",
+          "source": ".cursor-plugin/plugin.json",
+          "target": ".cursor-plugin/plugin.json",
+          "sourcePlatform": "cursor",
+          "canonicalOwner": "distribution",
+          "availability": "source-inspected",
+          "digest": "a913a025839588946b4b5cc52aead80a47e81aca8d584c2cff6df6c0a7b2f459",
+          "executable": false,
+          "requiredForPublication": false,
+          "outcome": {
+            "platform": "opencode",
+            "adjunctId": "cursor-manifest",
+            "mode": "translate",
+            "mechanism": "opencode:identity-manifest:translate",
+            "rationale": "Pinned source identity informs OpenCode's generated manifest without copying source manifest bytes.",
+            "evidenceTier": "fixture-source-inspection"
+          }
+        },
+        {
+          "id": "cursor-marketplace",
+          "kind": "registration-catalog",
+          "source": ".cursor-plugin/marketplace.json",
+          "target": ".cursor-plugin/marketplace.json",
+          "sourcePlatform": "cursor",
+          "canonicalOwner": "distribution",
+          "availability": "source-inspected",
+          "digest": "f2e7e93d72f586b5472ccd40c6466d31b765a19debd187e39108a3afdf7a2eb0",
+          "executable": false,
+          "requiredForPublication": false,
+          "outcome": {
+            "platform": "opencode",
+            "adjunctId": "cursor-marketplace",
+            "mode": "degrade",
+            "mechanism": "opencode:registration-catalog:degrade",
+            "rationale": "The pinned fixture proves the source bytes, but the bounded fixture does not vendor a publishable payload for this host.",
+            "evidenceTier": "fixture-source-inspection"
+          }
+        },
+        {
+          "id": "legacy-cleanup-policy",
+          "kind": "source-only-evidence",
+          "source": "src/commands/cleanup.ts",
+          "target": "src/commands/cleanup.ts",
+          "sourcePlatform": "source-only",
+          "canonicalOwner": "distribution",
+          "availability": "source-inspected",
+          "digest": "b8e89a7cf6efa4d6444f0358cf0e62a510f7073f407354cd87c824d699504deb",
+          "executable": false,
+          "requiredForPublication": false,
+          "outcome": {
+            "platform": "opencode",
+            "adjunctId": "legacy-cleanup-policy",
+            "mode": "drop",
+            "mechanism": "opencode:source-only-evidence:drop",
+            "rationale": "Source-repository release or maintenance evidence is accounted for but is not a consumer-host payload.",
+            "evidenceTier": "fixture-source-inspection"
+          }
+        },
+        {
+          "id": "legacy-install-policy",
+          "kind": "source-only-evidence",
+          "source": "src/commands/install.ts",
+          "target": "src/commands/install.ts",
+          "sourcePlatform": "source-only",
+          "canonicalOwner": "distribution",
+          "availability": "source-inspected",
+          "digest": "1dea899e9064fa26312a6973f8646969c76720089a3647adcaf1d5b29047210d",
+          "executable": false,
+          "requiredForPublication": false,
+          "outcome": {
+            "platform": "opencode",
+            "adjunctId": "legacy-install-policy",
+            "mode": "drop",
+            "mechanism": "opencode:source-only-evidence:drop",
+            "rationale": "Source-repository release or maintenance evidence is accounted for but is not a consumer-host payload.",
+            "evidenceTier": "fixture-source-inspection"
+          }
+        },
+        {
+          "id": "opencode-loader",
+          "kind": "lifecycle-entrypoint",
+          "source": ".opencode/plugins/compound-engineering.js",
+          "target": ".opencode/plugins/compound-engineering.js",
+          "sourcePlatform": "opencode",
+          "canonicalOwner": "runtime",
+          "availability": "source-inspected",
+          "digest": "4e263f7c7231791577ad3211d6f026693dc15fad24c01c886f0a74d5e5d5fc99",
+          "executable": false,
+          "requiredForPublication": false,
+          "outcome": {
+            "platform": "opencode",
+            "adjunctId": "opencode-loader",
+            "mode": "degrade",
+            "mechanism": "opencode:lifecycle-entrypoint:degrade",
+            "rationale": "The pinned fixture proves the source bytes, but the bounded fixture does not vendor a publishable payload for this host.",
+            "evidenceTier": "fixture-source-inspection"
+          }
+        },
+        {
+          "id": "root-package",
+          "kind": "identity-manifest",
+          "source": "package.json",
+          "target": "package.json",
+          "sourcePlatform": "opencode",
+          "canonicalOwner": "distribution",
+          "availability": "source-inspected",
+          "digest": "e415198d289a3ed3faa8d2f6e8040d3d24a3c7686683811ecca4584d9e104549",
+          "executable": false,
+          "requiredForPublication": false,
+          "outcome": {
+            "platform": "opencode",
+            "adjunctId": "root-package",
+            "mode": "translate",
+            "mechanism": "opencode:identity-manifest:translate",
+            "rationale": "Pinned source identity informs OpenCode's generated manifest without copying source manifest bytes.",
+            "evidenceTier": "fixture-source-inspection"
+          }
+        }
+      ],
+      "ownedOutputs": [],
+      "compilerOutputDigest": "03233e71d2d46ce5cbad323baabeb5ee2c9825e1ff7d8a1187921ce217e29a78",
+      "receiptDigest": "2fd286fd19714d98ed7609d1c6f733c2d1500148bfd132d027e856c117813da8"
+    },
+    "installOwnership": {
+      "recordDigest": "1bb2973e8beb0b4bac2cc8b348fb927f5bb4b7163299212d6094a4d9f07fcb07",
+      "ownershipKind": "symlink",
+      "ownedSurfaceCount": 1,
+      "receiptPath": "distribution/adjuncts.receipt.json",
+      "receiptDigest": "b4324119d6b7038918d6d54058dfa7fe64ff54e91a2c40f83bab90a1d6fb8fd3"
+    }
+  },
+  "receiptDigest": "1722101cea4d94ad3fe61cbc1ca23484b02f20ff37937d7b2bb3b3e6d70224dd"
 }

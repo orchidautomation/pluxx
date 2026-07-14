@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { resolve } from 'path'
 import { ORCHESTRATION_CAPABILITY_FIELDS } from '../src/orchestration-capability-registry'
@@ -60,12 +60,16 @@ describe('isolated orchestration installed/runtime proof', () => {
     expect(first).toEqual(second)
     expect(first).toHaveLength(12)
     for (const [index, receipt] of first.entries()) {
-      const expectedReceipt = JSON.parse(readFileSync(resolve(
+      const expectedPath = resolve(
         ROOT,
         'tests/fixtures/orchestration-runtime-receipts',
         cases[index]!.fixture,
         `${cases[index]!.platform}.json`,
-      ), 'utf-8'))
+      )
+      if (process.env.UPDATE_ORCHESTRATION_RUNTIME_RECEIPTS === '1') {
+        writeFileSync(expectedPath, `${JSON.stringify(receipt, null, 2)}\n`)
+      }
+      const expectedReceipt = JSON.parse(readFileSync(expectedPath, 'utf-8'))
       expect(receipt).toEqual(expectedReceipt)
       expect(receipt.identity.fixture).toBe(cases[index]!.fixture)
       expect(receipt.host.platform).toBe(cases[index]!.platform)

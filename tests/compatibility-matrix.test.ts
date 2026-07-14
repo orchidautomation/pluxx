@@ -13,6 +13,7 @@ import {
   hyperframesOrchestrationFixture,
   superpowersOrchestrationFixture,
 } from '../test-fixtures/orchestration-fixtures'
+import { getDistributionAdjunctFixture } from '../test-fixtures/distribution-adjunct-fixtures'
 
 const ROOT = resolve(import.meta.dir, '..')
 
@@ -46,6 +47,8 @@ function loadProofSummary() {
     plugin: `orchestration-${fixture}`,
     version: '0.1.0',
     orchestrationDigest: createHash('sha256').update(JSON.stringify(OrchestrationSchema.parse(orchestration))).digest('hex'),
+    adjunctRevision: getDistributionAdjunctFixture(fixture).provenance.revision,
+    adjunctDigest: getDistributionAdjunctFixture(fixture).provenance.digest,
   }))
   return summarizeOrchestrationRuntimeReceipts(receipts, expected)
 }

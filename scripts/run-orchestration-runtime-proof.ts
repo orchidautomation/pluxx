@@ -4,7 +4,7 @@ import { dirname, resolve } from 'path'
 import { build } from '../src/generators'
 import { installPlugin, planInstallPlugin, resolveInstalledConsumerPath } from '../src/cli/install'
 import { verifyInstall } from '../src/cli/verify-install'
-import { hashInstallBundle } from '../src/install-ownership'
+import { hashInstallBundle, listInstallOwnershipDrift, readInstallOwnership } from '../src/install-ownership'
 import {
   buildOrchestrationRuntimeReceipt,
   type OrchestrationProofFact,
@@ -15,6 +15,7 @@ import {
   hyperframesOrchestrationFixture,
   superpowersOrchestrationFixture,
 } from '../test-fixtures/orchestration-fixtures'
+import { getDistributionAdjunctFixture } from '../test-fixtures/distribution-adjunct-fixtures'
 
 const FIXTURES = {
   'compound-engineering': ceOrchestrationFixture,
@@ -32,6 +33,21 @@ function readArgument(name: string): string {
 
 function sha256(path: string): string {
   return createHash('sha256').update(readFileSync(path)).digest('hex')
+}
+
+function stableOwnershipDigest(
+  ownership: NonNullable<ReturnType<typeof readInstallOwnership>>,
+  bundleDigest: string,
+): string {
+  const evidence = {
+    schema: ownership.schema,
+    pluginName: ownership.pluginName,
+    platform: ownership.platform,
+    kind: ownership.kind,
+    entries: ownership.entries,
+    bundleDigest,
+  }
+  return createHash('sha256').update(JSON.stringify(evidence)).digest('hex')
 }
 
 function manifestPath(platform: typeof PLATFORMS[number]): string {
@@ -64,6 +80,7 @@ async function main(): Promise<void> {
   )
 
   const pluginName = `orchestration-${fixture}`
+  const adjunctFixture = getDistributionAdjunctFixture(fixture)
   const config = PluginConfigSchema.parse({
     name: pluginName,
     version: '0.1.0',
@@ -72,6 +89,7 @@ async function main(): Promise<void> {
     [['au', 'thor'].join('')]: { name: 'Orchid' },
     skills: './skills/',
     orchestration: FIXTURES[fixture],
+    distribution: { adjuncts: adjunctFixture },
     targets: [platform],
     outDir: './dist',
   })
@@ -91,15 +109,38 @@ async function main(): Promise<void> {
   const target = planInstallPlugin(distDir, pluginName, [platform])[0]
   if (!target) throw new Error(`Missing install plan for ${platform}.`)
   const consumerPath = resolveInstalledConsumerPath(target, pluginName)
+  const consumerRealPath = realpathSync(consumerPath)
+  const installedBundleDigest = hashInstallBundle(consumerRealPath)
   const installedManifest = resolve(consumerPath, manifestPath(platform))
   if (!existsSync(installedManifest)) throw new Error(`Installed manifest is missing: ${installedManifest}`)
   const generatedReceiptPath = resolve(distDir, platform, 'orchestration/receipt.generated.json')
   const generatedReceipt = JSON.parse(readFileSync(generatedReceiptPath, 'utf-8'))
+  const generatedReceiptDigest = sha256(generatedReceiptPath)
   if (generatedReceipt.identity?.plugin !== pluginName || generatedReceipt.identity?.version !== config.version) {
     throw new Error(`Generated receipt identity does not match ${pluginName}@${config.version}.`)
   }
+  const adjunctReceiptPath = resolve(distDir, platform, 'distribution/adjuncts.receipt.json')
+  const adjunctReceipt = JSON.parse(readFileSync(adjunctReceiptPath, 'utf-8'))
+  const installedAdjunctReceiptPath = resolve(consumerPath, 'distribution/adjuncts.receipt.json')
+  const generatedAdjunctReceiptDigest = sha256(adjunctReceiptPath)
+  const installedAdjunctReceiptDigest = sha256(installedAdjunctReceiptPath)
+  if (installedAdjunctReceiptDigest !== generatedAdjunctReceiptDigest) {
+    throw new Error(`Installed adjunct receipt does not match the generated receipt for ${fixture}/${platform}.`)
+  }
+  const ownership = readInstallOwnership(pluginName, platform, target.pluginDir)
+  if (!ownership) throw new Error(`Missing install ownership for ${fixture}/${platform}.`)
+  const ownershipDrift = listInstallOwnershipDrift(ownership)
+  if (ownershipDrift.length > 0) throw new Error(`Install ownership drift for ${fixture}/${platform}: ${ownershipDrift.join('; ')}`)
+  const adjunctOwnedEntry = ownership.entries.find(entry => entry.path === 'distribution/adjuncts.receipt.json')
+  const receiptOwnedByCopy = adjunctOwnedEntry?.sha256 === installedAdjunctReceiptDigest
+  const receiptOwnedByBundleSymlink = ownership.kind === 'symlink'
+    && consumerRealPath === realpathSync(resolve(distDir, platform))
+  if (!receiptOwnedByCopy && !receiptOwnedByBundleSymlink) {
+    throw new Error(`Install ownership does not bind the adjunct receipt for ${fixture}/${platform}.`)
+  }
+  const ownershipDigest = stableOwnershipDigest(ownership, installedBundleDigest)
 
-  const installedEvidenceIds = ['installed-tree-sha256', 'installed-manifest']
+  const installedEvidenceIds = ['installed-tree-sha256', 'installed-manifest', 'adjunct-receipt-sha256', 'install-ownership-sha256']
   const discoveryFacts: OrchestrationProofFact[] = [{
     id: 'host-discovery-not-invoked',
     kind: 'assertion',
@@ -148,14 +189,26 @@ async function main(): Promise<void> {
       behavioral: { status: 'environment-unavailable', evidenceIds: ['native-host-not-invoked'] },
     },
     facts: [
-      { id: 'generated-receipt-sha256', kind: 'sha256', value: sha256(generatedReceiptPath) },
-      { id: 'installed-tree-sha256', kind: 'sha256', value: hashInstallBundle(realpathSync(consumerPath)) },
+      { id: 'generated-receipt-sha256', kind: 'sha256', value: generatedReceiptDigest },
+      { id: 'installed-tree-sha256', kind: 'sha256', value: installedBundleDigest },
       { id: 'installed-manifest', kind: 'assertion', value: `${manifestPath(platform)} exists and matches the verified isolated bundle` },
+      { id: 'adjunct-receipt-sha256', kind: 'sha256', value: installedAdjunctReceiptDigest },
+      { id: 'install-ownership-sha256', kind: 'sha256', value: ownershipDigest },
       ...discoveryFacts,
       { id: 'no-executable-orchestration-entrypoint', kind: 'assertion', value: 'No generated skill, command, hook, agent, manifest field, or runtime loader consumes orchestration.generated.json' },
       { id: 'native-host-not-invoked', kind: 'assertion', value: 'Activation, dispatch, lifecycle, child-environment, control, repair, resume, synthesis, cancellation, and fallback behavior remain unavailable or unsupported' },
     ],
     fieldEvidence: {},
+    adjuncts: {
+      receipt: adjunctReceipt,
+      installOwnership: {
+        recordDigest: ownershipDigest,
+        ownershipKind: ownership.kind,
+        ownedSurfaceCount: ownership.kind === 'symlink' ? 1 : ownership.entries.length,
+        receiptPath: 'distribution/adjuncts.receipt.json',
+        receiptDigest: installedAdjunctReceiptDigest,
+      },
+    },
   })
 
   writeFileSync(output, `${JSON.stringify(receipt, null, 2)}\n`)
