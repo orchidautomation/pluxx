@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import type { PluginConfig } from '../src/schema'
 import { buildPrimitiveTranslationSummary, renderPrimitiveTranslationSummary } from '../src/cli/primitive-summary'
+import { ceOrchestrationFixture } from '../test-fixtures/orchestration-fixtures'
 
 const config: PluginConfig = {
   name: 'summary-plugin',
@@ -44,5 +45,13 @@ describe('primitive summary', () => {
     expect(lines.some((line) => line.includes('commands on codex') && line.includes('.codex/agents'))).toBe(false)
     expect(lines.some((line) => line.includes('commands on codex') && line.includes('skills/, AGENTS.md'))).toBe(true)
     expect(lines.some((line) => line.includes('hooks on open') && line.includes('plugin JS/TS event handlers'))).toBe(true)
+  })
+
+  it('renders active orchestration mappings as unmapped', () => {
+    const summary = buildPrimitiveTranslationSummary({ ...config, orchestration: ceOrchestrationFixture as any })
+    const lines = renderPrimitiveTranslationSummary(summary)
+    expect(lines.some((line) => line.startsWith('  orchestration') && line.includes('none'))).toBe(true)
+    expect(lines.some((line) => line.includes('none=unmapped'))).toBe(true)
+    expect(lines.some((line) => line.includes('orchestration on codex') && line.includes('Phase 2'))).toBe(true)
   })
 })

@@ -387,13 +387,13 @@ to:
 
 - semantic compiler
 
-That is now grounded in eight implemented compiler buckets plus the accepted, unshipped `orchestration` bucket:
+That is now grounded in nine canonical compiler contracts. The original eight are host-mapped; `orchestration` has a Phase 1 source contract but no host generators or runtime-parity proof:
 
 1. `instructions`
 2. `skills`
 3. `commands`
 4. `agents`
-5. `orchestration` — accepted direction; implementation pending
+5. `orchestration` — canonical IR, schema, semantic validation, and capability registry implemented; host mapping pending
 6. `hooks`
 7. `permissions`
 8. `runtime`

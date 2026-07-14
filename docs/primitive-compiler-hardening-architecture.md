@@ -152,11 +152,11 @@ Compiler consumers:
 - command routing validation
 - behavioral proof
 
-The Compound Engineering 3.19.0 audit exposes an adjacent boundary that this bucket does not own: skill-owned generic subagent orchestration. CE ships zero standalone agents but reliably launches specialists from skills through prompt assets, dispatch packets, fan-out, wait/follow-up, and synthesis. Hyperframes adds typed artifact pipelines and artifact-based completion/repair; Superpowers adds lifecycle activation, durable progress, and review loops. `orchestration` was accepted as a ninth canonical bucket on 2026-07-14. Current implementation truth remains eight implemented buckets plus one accepted, unshipped bucket.
+The Compound Engineering 3.19.0 audit exposes an adjacent boundary that this bucket does not own: skill-owned generic subagent orchestration. CE ships zero standalone agents but reliably launches specialists from skills through prompt assets, dispatch packets, fan-out, wait/follow-up, and synthesis. Hyperframes adds typed artifact pipelines and artifact-based completion/repair; Superpowers adds lifecycle activation, durable progress, and review loops. `orchestration` was accepted as a ninth canonical bucket on 2026-07-14. Phase 1 now provides its host-neutral IR, strict schema, semantic validation, bounded reference fixtures, and compiler-owned capability-registry contract. Current implementation truth is nine canonical source contracts, eight host-mapped buckets, and no orchestration generator or runtime-parity proof yet.
 
 ### Orchestration
 
-Canonical IR should own:
+Canonical IR now owns:
 
 - activation and routing strength
 - lifecycle events, ordering, re-injection guarantees, and idempotency
@@ -187,7 +187,7 @@ Compiler consumers:
 - lint/doctor/compatibility summaries
 - behavioral proof and release receipts
 
-The first contract must represent CE delegation, a Hyperframes typed-artifact workflow, and Superpowers subagent-driven development without host tool names in canonical fields. See the [accepted decision](./orchid/decisions/2026-07-14-orchestration-primitive.md) and [comparative audit](./orchid/requirements/2026-07-14-orchestration-reference-patterns.md).
+The first contract represents CE delegation, a Hyperframes typed-artifact workflow, and Superpowers subagent-driven development without host tool names in canonical fields. Phase 2 must add evidence-backed mappings and generators without overstating installed or runtime parity. See the [accepted decision](./orchid/decisions/2026-07-14-orchestration-primitive.md), [comparative audit](./orchid/requirements/2026-07-14-orchestration-reference-patterns.md), and [Phase 1 implementation plan](./orchid/plans/2026-07-14-pluxx-325-orchestration-contract.md).
 
 ### Hooks
 

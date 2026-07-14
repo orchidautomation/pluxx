@@ -1,8 +1,9 @@
 import { getConfiguredCompilerBuckets, type PluginConfig, type PluxxCompilerBucket, type TargetPlatform } from '../schema'
 import {
   CORE_FOUR_PLATFORMS,
-  getCoreFourPrimitiveCapabilities,
+  getCoreFourCompilerBucketCapability,
   type CoreFourPlatform,
+  type PrimitiveCapabilityStatus,
   type PrimitiveTranslationMode,
 } from '../validation/platform-rules'
 
@@ -18,10 +19,11 @@ const MODE_LABELS: Record<PrimitiveTranslationMode, string> = {
   degrade: 'weak',
   drop: 'drop',
 }
+const STATUS_LABELS: Record<PrimitiveCapabilityStatus, string> = { ...MODE_LABELS, unmapped: 'none' }
 
 export interface PrimitiveSummaryRow {
   bucket: PluxxCompilerBucket
-  modes: Partial<Record<CoreFourPlatform, PrimitiveTranslationMode>>
+  modes: Partial<Record<CoreFourPlatform, PrimitiveCapabilityStatus>>
 }
 
 export interface PrimitiveTranslationSummary {
@@ -44,11 +46,12 @@ export function buildPrimitiveTranslationSummary(
 
   const rows: PrimitiveSummaryRow[] = []
   for (const bucket of configuredBuckets) {
-    const modes: Partial<Record<CoreFourPlatform, PrimitiveTranslationMode>> = {}
+    const modes: Partial<Record<CoreFourPlatform, PrimitiveCapabilityStatus>> = {}
     let hasInterestingDelta = false
 
     for (const target of selectedTargets) {
-      const mode = getCoreFourPrimitiveCapabilities(target).buckets[bucket].mode
+      const lookup = getCoreFourCompilerBucketCapability(target, bucket)
+      const mode = lookup.status === 'mapped' ? lookup.capability.mode : 'unmapped'
       modes[target] = mode
       if (mode !== 'preserve') {
         hasInterestingDelta = true
@@ -88,11 +91,11 @@ export function renderPrimitiveTranslationSummary(
   ]
 
   for (const row of summary.rows) {
-    const cells = summary.targets.map((target) => MODE_LABELS[row.modes[target] ?? 'preserve'].padEnd(6, ' '))
+    const cells = summary.targets.map((target) => STATUS_LABELS[row.modes[target] ?? 'unmapped'].padEnd(6, ' '))
     lines.push(`  ${row.bucket.padEnd(bucketWidth, ' ')}  ${cells.join('  ')}`)
   }
 
-  lines.push('  legend: keep=preserve xlat=translate weak=degrade drop=drop')
+  lines.push('  legend: keep=preserve xlat=translate weak=degrade drop=drop none=unmapped')
 
   const detailLines: string[] = []
   for (const row of summary.rows) {
@@ -100,7 +103,12 @@ export function renderPrimitiveTranslationSummary(
       const mode = row.modes[target]
       if (!mode || mode === 'preserve') continue
 
-      const capability = getCoreFourPrimitiveCapabilities(target).buckets[row.bucket]
+      const lookup = getCoreFourCompilerBucketCapability(target, row.bucket)
+      if (lookup.status === 'unmapped') {
+        detailLines.push(`  - ${row.bucket} on ${TARGET_LABELS[target]}: Phase 2 host mapping not declared.`)
+        continue
+      }
+      const capability = lookup.capability
       const verb = mode === 'translate'
         ? 're-expressed via'
         : mode === 'degrade'

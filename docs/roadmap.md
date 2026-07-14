@@ -418,11 +418,11 @@ These matter, but they are not the immediate center:
 - use Compound Engineering 3.19.0, Hyperframes, and Superpowers as pinned reference fixtures
 - preserve its reliable Codex skill-owned generic-subagent behavior
 - keep the restored PLUXX-324 migration gate green: deterministic supported-manifest reconciliation, provenance, staged schema validation, and no destination publication on failure
-- implement the accepted ninth `orchestration` bucket without overloading standalone `agents`
+- keep the implemented ninth-bucket Phase 1 contract green without overloading standalone `agents`
 - represent typed artifact dataflow, bounded dispatch, artifact completion, and targeted repair from Hyperframes
 - represent lifecycle activation/re-injection, reachable versus orphaned roles, mandatory gates, durable progress/resume, and review loops from Superpowers
 - represent safe per-dispatch child-environment inheritance and overrides across existing capability, permission, and runtime payloads
-- compile honest preserve/translate/degrade/drop outcomes across all 11 current targets
+- populate evidence-backed preserve/translate/degrade/drop registry rows, then compile honest outcomes across all 11 current targets
 - keep copied payload, generated fixture, installed state, and real-host behavior as separate evidence tiers
 - review Antigravity versus Gemini CLI and any other CE-only destinations as a later host-portfolio decision, not automatic scope
 - use [the primitive audit](./orchid/requirements/2026-07-13-compound-engineering-primitive-audit.md), [three-reference comparison](./orchid/requirements/2026-07-14-orchestration-reference-patterns.md), [accepted decision](./orchid/decisions/2026-07-14-orchestration-primitive.md), and [phased plan](./orchid/plans/2026-07-13-compound-engineering-parity-plan.md) as the decision and sequencing artifacts

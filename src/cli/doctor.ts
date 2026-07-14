@@ -4,7 +4,7 @@ import { homedir } from 'os'
 import { basename, dirname, relative, resolve } from 'path'
 import { CONFIG_FILES, loadConfig } from '../config/load'
 import { findInstalledBundleIntegrityIssues, listHookCommands } from './install'
-import { PLATFORM_LIMITS, getCoreFourPrimitiveCapabilities, type CoreFourPlatform, type PrimitiveTranslationMode } from '../validation/platform-rules'
+import { PLATFORM_LIMITS, getCoreFourCompilerBucketCapability, type CoreFourCompilerBucketCapability, type CoreFourPlatform, type PrimitiveCapabilityStatus } from '../validation/platform-rules'
 import { getConfiguredCompilerBuckets, type McpServer, type PluginConfig, type TargetPlatform } from '../schema'
 import { PLUXX_COMPILER_INTENT_PATH, readCompilerIntent } from '../compiler-intent'
 import { MCP_SCAFFOLD_METADATA_PATH, type McpScaffoldMetadata } from './init-from-mcp'
@@ -87,11 +87,12 @@ const TEST_SECRET_SENTINELS = [
   { pattern: /\bliteral-secret-value-that-should-not-copy\b/i, label: 'test secret sentinel' },
 ]
 
-const PRIMITIVE_MODE_LEVEL: Record<PrimitiveTranslationMode, DoctorLevel> = {
+const PRIMITIVE_MODE_LEVEL: Record<PrimitiveCapabilityStatus, DoctorLevel> = {
   preserve: 'success',
   translate: 'info',
   degrade: 'warning',
   drop: 'warning',
+  unmapped: 'warning',
 }
 
 type ConsumerPlatform = 'claude-code' | 'cursor' | 'codex' | 'opencode'
@@ -547,12 +548,17 @@ function isCoreFourPlatform(target: TargetPlatform): target is CoreFourPlatform 
 function describePrimitiveTranslation(
   target: CoreFourPlatform,
   bucket: ReturnType<typeof getConfiguredCompilerBuckets>[number],
-  mode: PrimitiveTranslationMode,
-  nativeSurfaces: string[],
+  lookup: CoreFourCompilerBucketCapability,
 ): { title: string; detail: string; fix: string } {
-  const surfaceList = nativeSurfaces.join(', ')
+  if (lookup.status === 'unmapped') return {
+    title: `${bucket} is unmapped on ${target}`,
+    detail: `The active ${bucket} bucket has no declared Phase 2 host mapping for ${target}.`,
+    fix: 'Do not infer generated or runtime support until a capability row and host implementation exist.',
+  }
 
-  switch (mode) {
+  const surfaceList = lookup.capability.nativeSurfaces.join(', ')
+
+  switch (lookup.capability.mode) {
     case 'preserve':
       return {
         title: `${bucket} preserves on ${target}`,
@@ -586,19 +592,18 @@ function checkPrimitiveTranslations(checks: DoctorCheck[], config: PluginConfig)
   for (const target of config.targets) {
     if (!isCoreFourPlatform(target)) continue
 
-    const capabilities = getCoreFourPrimitiveCapabilities(target)
     for (const bucket of configuredBuckets) {
-      const capability = capabilities.buckets[bucket]
+      const lookup = getCoreFourCompilerBucketCapability(target, bucket)
+      const mode: PrimitiveCapabilityStatus = lookup.status === 'mapped' ? lookup.capability.mode : 'unmapped'
       const description = describePrimitiveTranslation(
         target,
         bucket,
-        capability.mode,
-        capability.nativeSurfaces,
+        lookup,
       )
 
       addCheck(checks, {
-        level: PRIMITIVE_MODE_LEVEL[capability.mode],
-        code: `primitive-${capability.mode}`,
+        level: PRIMITIVE_MODE_LEVEL[mode],
+        code: `primitive-${mode}`,
         title: description.title,
         detail: description.detail,
         fix: description.fix,

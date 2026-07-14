@@ -10,6 +10,7 @@ import {
   getConfiguredCompilerBuckets,
   getPluginCompilerBuckets,
 } from '../src/schema'
+import { ceOrchestrationFixture } from '../test-fixtures/orchestration-fixtures'
 
 const BASE_PLUGIN_CONFIG = {
   name: 'semantic-eval-fixture',
@@ -381,6 +382,7 @@ describe('Plugin compiler bucket mapping', () => {
       'skills',
       'commands',
       'agents',
+      'orchestration',
       'hooks',
       'permissions',
       'runtime',
@@ -421,6 +423,7 @@ describe('Plugin compiler bucket mapping', () => {
     expect(buckets.skills.path).toBe('./skills/')
     expect(buckets.commands.path).toBe('./commands/')
     expect(buckets.agents.path).toBe('./agents/')
+    expect(buckets.orchestration.config).toBeUndefined()
     expect(buckets.runtime.scriptsPath).toBe('./scripts/')
     expect(buckets.runtime.assetsPath).toBe('./assets/')
     expect(buckets.runtime.passthroughPaths).toEqual(['./mcp-server/'])
@@ -466,6 +469,34 @@ describe('Plugin compiler bucket mapping', () => {
       'runtime',
       'distribution',
     ])
+  })
+
+  it('keeps orchestration optional and activates the ninth bucket only when configured', () => {
+    const legacy = PluginConfigSchema.parse(BASE_PLUGIN_CONFIG)
+    expect(legacy.orchestration).toBeUndefined()
+    expect(getConfiguredCompilerBuckets(legacy)).not.toContain('orchestration')
+
+    const configured = PluginConfigSchema.parse({
+      ...BASE_PLUGIN_CONFIG,
+      orchestration: ceOrchestrationFixture,
+    })
+    expect(getPluginCompilerBuckets(configured).orchestration.config?.version).toBe(1)
+    expect(getConfiguredCompilerBuckets(configured)).toContain('orchestration')
+  })
+
+  it('validates configured MCP, permission, and credential references at exact paths', () => {
+    const orchestration = structuredClone(ceOrchestrationFixture) as any
+    const dimensions = orchestration.workflows[0].nodes[0].childEnvironment.dimensions
+    dimensions.mcp.required = ['missing-mcp']
+    dimensions.permissions.required = ['Read(src/**)']
+    dimensions.credentials.requirements = [{ ref: 'missing-secret', availability: 'required' }]
+    const result = PluginConfigSchema.safeParse({ ...BASE_PLUGIN_CONFIG, orchestration })
+    expect(result.success).toBe(false)
+    if (!result.success) expect(result.error.issues.map((issue) => issue.path.join('.'))).toEqual(expect.arrayContaining([
+      'orchestration.workflows.0.nodes.0.childEnvironment.dimensions.mcp.required.0',
+      'orchestration.workflows.0.nodes.0.childEnvironment.dimensions.permissions.required.0',
+      'orchestration.workflows.0.nodes.0.childEnvironment.dimensions.credentials.requirements.0.ref',
+    ]))
   })
 
   it('accepts keyed record maps for mcp, env, matcher, and platform override objects', () => {
