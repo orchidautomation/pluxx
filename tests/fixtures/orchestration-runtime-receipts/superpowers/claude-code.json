@@ -1,0 +1,1234 @@
+{
+  "schemaVersion": 1,
+  "kind": "pluxx-orchestration-runtime-receipt",
+  "proofTier": "fake-home-install",
+  "identity": {
+    "plugin": "orchestration-superpowers",
+    "version": "0.1.0",
+    "orchestrationDigest": "8a3caac3394047a68a6b3a53336ee53d1fde86514ab9569ac898debed1ba1e2a",
+    "workflowIds": [
+      "review-loop"
+    ],
+    "activationIds": [
+      "session-activation"
+    ],
+    "fixture": "superpowers"
+  },
+  "host": {
+    "platform": "claude-code",
+    "version": {
+      "status": "environment-unavailable",
+      "value": null,
+      "detail": "Native host CLI deliberately not invoked; the proof excludes live user state."
+    },
+    "probe": {
+      "name": "pluxx-isolated-install-harness",
+      "version": "1",
+      "command": "fixture-owned build, installPlugin, and verifyInstall against an isolated fake home"
+    }
+  },
+  "installedPath": "~/.claude/plugins/orchestration-superpowers",
+  "evidence": {
+    "generated": {
+      "status": "proven",
+      "evidenceIds": [
+        "generated-receipt-sha256"
+      ]
+    },
+    "installed": {
+      "status": "proven",
+      "evidenceIds": [
+        "installed-manifest",
+        "installed-tree-sha256"
+      ]
+    },
+    "discovered": {
+      "status": "environment-unavailable",
+      "evidenceIds": [
+        "host-discovery-not-invoked"
+      ]
+    },
+    "activated": {
+      "status": "unsupported",
+      "evidenceIds": [
+        "no-executable-orchestration-entrypoint"
+      ]
+    },
+    "behavioral": {
+      "status": "environment-unavailable",
+      "evidenceIds": [
+        "native-host-not-invoked"
+      ]
+    }
+  },
+  "facts": [
+    {
+      "id": "generated-receipt-sha256",
+      "kind": "sha256",
+      "value": "12dea1058a2f61ecce0ddd3aafece22fa7dd62490c79c6921bd475e613f118c8"
+    },
+    {
+      "id": "host-discovery-not-invoked",
+      "kind": "assertion",
+      "value": "The isolated claude-code install did not invoke the native host discovery process"
+    },
+    {
+      "id": "installed-manifest",
+      "kind": "assertion",
+      "value": ".claude-plugin/plugin.json exists and matches the verified isolated bundle"
+    },
+    {
+      "id": "installed-tree-sha256",
+      "kind": "sha256",
+      "value": "277b153d413bf438bf649a9568e90caf8edced809726b55301574f982c20a352"
+    },
+    {
+      "id": "native-host-not-invoked",
+      "kind": "assertion",
+      "value": "Activation, dispatch, lifecycle, child-environment, control, repair, resume, synthesis, cancellation, and fallback behavior remain unavailable or unsupported"
+    },
+    {
+      "id": "no-executable-orchestration-entrypoint",
+      "kind": "assertion",
+      "value": "No generated skill, command, hook, agent, manifest field, or runtime loader consumes orchestration.generated.json"
+    }
+  ],
+  "fieldOutcomes": [
+    {
+      "field": "activation-routing",
+      "declared": {
+        "field": "activation-routing",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-activation-guidance",
+        "rationale": "Canonical intent routing does not contain the executable host entrypoint needed for native wiring. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "activation-routing",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-activation-guidance",
+        "rationale": "Canonical intent routing does not contain the executable host entrypoint needed for native wiring. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "unsupported",
+        "stage": "activated",
+        "mechanism": "claude-code-activation-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "no-executable-orchestration-entrypoint"
+        ]
+      }
+    },
+    {
+      "field": "lifecycle-reentry",
+      "declared": {
+        "field": "lifecycle-reentry",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-lifecycle-guidance",
+        "rationale": "Lifecycle events are represented, but the IR does not contain an executable hook or extension adapter. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "lifecycle-reentry",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-lifecycle-guidance",
+        "rationale": "Lifecycle events are represented, but the IR does not contain an executable hook or extension adapter. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "unsupported",
+        "stage": "activated",
+        "mechanism": "claude-code-lifecycle-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "no-executable-orchestration-entrypoint"
+        ]
+      }
+    },
+    {
+      "field": "workflow-graph",
+      "declared": {
+        "field": "workflow-graph",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-workflow-graph-companion",
+        "rationale": "No core-four host consumes the canonical graph as a native declarative workflow. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "workflow-graph",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-workflow-graph-companion",
+        "rationale": "No core-four host consumes the canonical graph as a native declarative workflow. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "claude-code-workflow-graph-companion",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "role-binding",
+      "declared": {
+        "field": "role-binding",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-role-binding-guidance",
+        "rationale": "Role references remain guidance because prompt assets cannot be projected into a runnable identity from this field alone. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "role-binding",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-role-binding-guidance",
+        "rationale": "Role references remain guidance because prompt assets cannot be projected into a runnable identity from this field alone. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "claude-code-role-binding-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "generic-dispatch",
+      "declared": {
+        "field": "generic-dispatch",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-dispatch-guidance",
+        "rationale": "The hosts expose dispatch primitives, but invocation remains prompt-driven rather than generated enforcement. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "generic-dispatch",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-dispatch-guidance",
+        "rationale": "The hosts expose dispatch primitives, but invocation remains prompt-driven rather than generated enforcement. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "claude-code-dispatch-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "bounded-context",
+      "declared": {
+        "field": "bounded-context",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-bounded-context-companion",
+        "rationale": "Packet limits are retained in the companion but are not enforced by a generated host boundary. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "bounded-context",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-bounded-context-companion",
+        "rationale": "Packet limits are retained in the companion but are not enforced by a generated host boundary. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "claude-code-bounded-context-companion",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "artifact-flow",
+      "declared": {
+        "field": "artifact-flow",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-artifact-contract-companion",
+        "rationale": "Artifact contracts are preserved as guidance without a native typed dataflow engine. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "artifact-flow",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-artifact-contract-companion",
+        "rationale": "Artifact contracts are preserved as guidance without a native typed dataflow engine. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "claude-code-artifact-contract-companion",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "state-flow",
+      "declared": {
+        "field": "state-flow",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-state-contract-companion",
+        "rationale": "State contracts are preserved as guidance without a native state engine. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "state-flow",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-state-contract-companion",
+        "rationale": "State contracts are preserved as guidance without a native state engine. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "claude-code-state-contract-companion",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "ownership",
+      "declared": {
+        "field": "ownership",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-ownership-guidance",
+        "rationale": "File ownership remains advisory because no generated host policy enforces exclusive paths. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "ownership",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-ownership-guidance",
+        "rationale": "File ownership remains advisory because no generated host policy enforces exclusive paths. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "claude-code-ownership-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "barrier",
+      "declared": {
+        "field": "barrier",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-barrier-guidance",
+        "rationale": "Barrier semantics remain advisory because no generated host scheduler consumes them. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "barrier",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-barrier-guidance",
+        "rationale": "Barrier semantics remain advisory because no generated host scheduler consumes them. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "claude-code-barrier-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "wait",
+      "declared": {
+        "field": "wait",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-wait-guidance",
+        "rationale": "Wait predicates are rendered as guidance rather than executable host conditions. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "wait",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-wait-guidance",
+        "rationale": "Wait predicates are rendered as guidance rather than executable host conditions. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "claude-code-wait-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "gate",
+      "declared": {
+        "field": "gate",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-gate-guidance",
+        "rationale": "Required gates are visible but not mechanically host-enforced. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "gate",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-gate-guidance",
+        "rationale": "Required gates are visible but not mechanically host-enforced. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "claude-code-gate-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "completion",
+      "declared": {
+        "field": "completion",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-completion-guidance",
+        "rationale": "Completion predicates are visible but not mechanically host-enforced. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "completion",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-completion-guidance",
+        "rationale": "Completion predicates are visible but not mechanically host-enforced. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "claude-code-completion-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "repair",
+      "declared": {
+        "field": "repair",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-repair-guidance",
+        "rationale": "Targeted repair policy is visible but not mechanically host-enforced. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "repair",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-repair-guidance",
+        "rationale": "Targeted repair policy is visible but not mechanically host-enforced. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "claude-code-repair-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "resume",
+      "declared": {
+        "field": "resume",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-resume-ledger-guidance",
+        "rationale": "Resume and dedupe state require a durable runtime adapter that Phase 2 does not install. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "resume",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-resume-ledger-guidance",
+        "rationale": "Resume and dedupe state require a durable runtime adapter that Phase 2 does not install. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "claude-code-resume-ledger-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "synthesis",
+      "declared": {
+        "field": "synthesis",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-synthesis-guidance",
+        "rationale": "Synthesis ownership is prompt-guided rather than bound to a generated host primitive. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "synthesis",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-synthesis-guidance",
+        "rationale": "Synthesis ownership is prompt-guided rather than bound to a generated host primitive. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "claude-code-synthesis-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "cancellation",
+      "declared": {
+        "field": "cancellation",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-cancellation-guidance",
+        "rationale": "Cancellation policy is prompt-guided rather than bound to a generated host primitive. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "cancellation",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-cancellation-guidance",
+        "rationale": "Cancellation policy is prompt-guided rather than bound to a generated host primitive. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "claude-code-cancellation-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "fallback",
+      "declared": {
+        "field": "fallback",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-fallback-guidance",
+        "rationale": "Fallback order is retained as guidance without an executable adapter. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "fallback",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-fallback-guidance",
+        "rationale": "Fallback order is retained as guidance without an executable adapter. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "claude-code-fallback-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "proof-requirements",
+      "declared": {
+        "field": "proof-requirements",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-proof-receipt-companion",
+        "rationale": "Proof requirements are emitted into the receipt but not executed against an installed host. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "proof-requirements",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-proof-receipt-companion",
+        "rationale": "Proof requirements are emitted into the receipt but not executed against an installed host. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "claude-code-proof-receipt-companion",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "capability-requirements",
+      "declared": {
+        "field": "capability-requirements",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-capability-guidance",
+        "rationale": "Capability needs are listed without a generated host admission check. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "weakened",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "capability-requirements",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-capability-guidance",
+        "rationale": "Capability needs are listed without a generated host admission check. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "weakened",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "claude-code-capability-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "tool-requirements",
+      "declared": {
+        "field": "tool-requirements",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-tool-guidance",
+        "rationale": "Tool needs are listed without a generated host admission check. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "weakened",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "tool-requirements",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-tool-guidance",
+        "rationale": "Tool needs are listed without a generated host admission check. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "weakened",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "claude-code-tool-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "mcp-requirements",
+      "declared": {
+        "field": "mcp-requirements",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-mcp-guidance",
+        "rationale": "MCP needs are listed without changing the separately owned MCP configuration. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "weakened",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "mcp-requirements",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-mcp-guidance",
+        "rationale": "MCP needs are listed without changing the separately owned MCP configuration. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "weakened",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "claude-code-mcp-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "permission-requirements",
+      "declared": {
+        "field": "permission-requirements",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-permission-guidance",
+        "rationale": "Permission needs are listed without widening or rewriting separately owned policy. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "weakened",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "permission-requirements",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-permission-guidance",
+        "rationale": "Permission needs are listed without widening or rewriting separately owned policy. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "weakened",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "claude-code-permission-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "sandbox-requirements",
+      "declared": {
+        "field": "sandbox-requirements",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-sandbox-guidance",
+        "rationale": "Sandbox minimums are listed without claiming host enforcement. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "weakened",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "sandbox-requirements",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-sandbox-guidance",
+        "rationale": "Sandbox minimums are listed without claiming host enforcement. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "weakened",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "claude-code-sandbox-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "credential-availability",
+      "declared": {
+        "field": "credential-availability",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-credential-availability-guidance",
+        "rationale": "Credential availability classes are listed without reading or embedding secret material. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "weakened",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "credential-availability",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-credential-availability-guidance",
+        "rationale": "Credential availability classes are listed without reading or embedding secret material. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "weakened",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "claude-code-credential-availability-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "inheritance-override",
+      "declared": {
+        "field": "inheritance-override",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-child-environment-guidance",
+        "rationale": "Child-environment override intent is listed without claiming the host can enforce every dimension. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "weakened",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "inheritance-override",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-child-environment-guidance",
+        "rationale": "Child-environment override intent is listed without claiming the host can enforce every dimension. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "weakened",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "claude-code-child-environment-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "delegation-bounds",
+      "declared": {
+        "field": "delegation-bounds",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-delegation-bounds-guidance",
+        "rationale": "Delegation and concurrency budgets are listed without claiming the host enforces all bounds. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "weakened",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "delegation-bounds",
+        "platform": "claude-code",
+        "mode": "degrade",
+        "mechanism": "claude-code-delegation-bounds-guidance",
+        "rationale": "Delegation and concurrency budgets are listed without claiming the host enforces all bounds. The claude-code generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "weakened",
+        "evidenceReferences": [
+          "https://docs.anthropic.com/en/docs/claude-code",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "claude-code-delegation-bounds-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    }
+  ],
+  "installedBehaviorProven": false,
+  "receiptDigest": "2c84b42b032428d4c8c7824662eea2d7e5bb94cd53b0b3617d238349f4624c6a"
+}

@@ -74,4 +74,3 @@ Populate one compiler-owned orchestration registry for every canonical field acr
 ## Execution and Verification
 
 Work test-first per unit. Run focused registry/generator/CLI/doc tests after each unit, inspect the 12 generated fixture outputs and receipts, then run `npm test`, `npm run typecheck`, `npm run build`, and repository lint/compatibility validation. Finish with independent CE code review and a separate reviewer-subagent pass; incorporate valid findings before local commits and Linear closeout.
-

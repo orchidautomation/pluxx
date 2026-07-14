@@ -5,14 +5,14 @@ date: 2026-07-13
 artifact_contract: pluxx-roadmap-plan/v1
 artifact_readiness: decision-approved
 product_contract_source: linear-pluxx-323
-execution: docs-only
+execution: implementation-authorized
 ---
 
 # Orchestration Cross-Host Parity - Phased Plan
 
 ## Goal Capsule
 
-Turn the Compound Engineering, Hyperframes, and Superpowers reference patterns into a future Pluxx contract without writing implementation in this tranche.
+Turn the Compound Engineering, Hyperframes, and Superpowers reference patterns into Pluxx's core-four orchestration contract and prove it at generated, installed/discovered, activated, and behavioral evidence tiers.
 
 The intended end state is:
 
@@ -23,8 +23,8 @@ The intended end state is:
 - Preserve the installed CE 3.19.0 Codex behavior as the baseline.
 - Do not equate byte preservation with runtime parity.
 - Keep the accepted `orchestration` bucket separate from standalone agent identity and configuration.
-- Do not expand the host portfolio as a side effect of this audit.
-- Keep primary and beta evidence tiers explicit.
+- The portfolio is frozen to Claude Code, Cursor, Codex, and OpenCode.
+- Keep generated, installed/discovered, activated, and behavioral evidence tiers explicit.
 - Treat raw/native passthrough as a supported escape hatch with declared ownership and compatibility, not an invisible workaround.
 
 ## Phase 0: Restore Intake Correctness
@@ -50,6 +50,8 @@ Evidence gate:
 Dependency: none. This is correctness work even if the orchestration design is deferred.
 
 ## Phase 1: Specify the Accepted Orchestration IR
+
+Status: complete.
 
 Objective: establish the smallest canonical contract that describes CE's reliable delegation, Hyperframes' artifact-driven pipelines, and Superpowers' lifecycle/review loops.
 
@@ -92,6 +94,8 @@ Dependency: the accepted [orchestration decision](../decisions/2026-07-14-orches
 
 ## Phase 2: Build the Capability Adapter Contract for the Core Four
 
+Status: complete.
+
 Objective: translate canonical orchestration into each primary host's strongest native mechanisms.
 
 Capability families:
@@ -121,9 +125,11 @@ Evidence gate:
 
 Dependency: Phase 1 contract.
 
-## Phase 3: Preserve the Three Reference Success Cases
+## Phase 3: Prove the Three Reference Cases Across the Core Four
 
-Objective: make the behavior Brandon already observes in CE a maintained regression baseline, then prove the additional Hyperframes and Superpowers semantics.
+Status: complete for the Phase 3 acceptance contract. All 12 `fake-home-install` cases prove install layout, ownership, verifier behavior, and host registration artifacts; real-host discovery is environment-unavailable, activation is unsupported, and behavioral semantics are environment-unavailable. No registry row is promoted.
+
+Objective: prove CE, Hyperframes, and Superpowers across the frozen core four, recording deterministic unsupported or environment-unavailable outcomes where mechanisms cannot execute.
 
 Proof scenarios:
 
@@ -142,6 +148,8 @@ Proof scenarios:
 
 Receipt requirements:
 
+- plugin identity and version
+- fixture identity and canonical orchestration digest
 - invoked skill/workflow identity
 - spawned role identities
 - delegation and wait events
@@ -150,44 +158,24 @@ Receipt requirements:
 - known permission, sandbox, and MCP inheritance caveats
 - declared versus effective child-environment outcome without secret values
 - activation event, ordering, re-injection, and idempotency outcome
+- exact sanitized evidence with generated, installed/discovered, activated, and behavioral stages kept separate
 
 Evidence gate:
 
-- installed Codex behavior passes from a generated Pluxx bundle without relying on an undocumented manual repair
-- failure cases prove missing specialist assets and unsupported dispatch are caught
-- the typed-artifact scenario proves producer/consumer validation, authoritative artifact completion, and targeted repair
-- the lifecycle scenario proves activation reporting, durable resume, task review, repair, and final terminal review
+- all 12 fixture/host cases publish deterministic `fake-home-install` receipts; install layout, ownership, verifier behavior, and host registration artifacts are proven, while real-host discovery and unavailable runtime results remain explicit degradation
+- executable specialist dispatch is unavailable in the generated companions, so dispatch/context and missing-specialist behavior remain explicitly unproved rather than inferred from payload shape
+- typed-artifact production/consumption, completion, and targeted repair remain environment-unavailable at behavioral runtime
+- lifecycle activation, durable resume, review/repair, and terminal review remain unsupported or environment-unavailable at behavioral runtime
 
 Dependency: Phases 1-2. The passthrough regression can begin after Phase 0.
 
-## Phase 4: Extend Honest Best Effort to Every Current Target
+## Phase 4: Deferred — Secondary-Target Orchestration
 
-Objective: every one of the 11 Pluxx targets receives the strongest available orchestration representation and an honest degradation report.
+Status: deferred and removed from this initiative by the completed Phase 7 portfolio decision.
 
-Target lanes:
+GitHub Copilot, OpenHands, Warp, Gemini CLI, Roo Code, Cline, and Amp have no active orchestration mapping, fixture, runtime-proof, or release-gate obligation in this initiative. Reactivation requires a separate product decision and Linear scope.
 
-- primary/live proof: Claude Code, Cursor, Codex, OpenCode
-- beta/generated proof: GitHub Copilot, OpenHands, Warp, Gemini CLI, Roo Code, Cline, Amp
-
-For each beta target:
-
-- verify native skill discovery
-- map manual-only versus automatic skill invocation and omit or warn on unsafe activation where the host has no gate
-- verify whether generic subagents exist
-- map task, user-input, wait, and skill-invocation capabilities
-- emit prompt fallback only where it remains actionable
-- drop impossible semantics explicitly
-- add a minimal behavior receipt before any promotion to primary
-
-Evidence gate:
-
-- all-target compatibility matrix is generated from the same orchestration registry
-- build summaries account for every field
-- no target is called behavior-proven based only on copied files or fixture tests
-
-Dependency: Phase 2 registry.
-
-## Phase 5: Recover Native Adjuncts and Distribution Topology
+## Phase 5: Recover Core-Four Native Adjuncts and Distribution Topology
 
 Objective: import mature multi-host repositories without discarding the host-native packaging that makes them operational.
 
@@ -209,9 +197,9 @@ Evidence gate:
 - every adjunct is canonical, declared passthrough, intentionally external, or explicitly dropped
 - reinstall/uninstall ownership remains conservative
 
-Dependency: Phase 0 import receipts; can proceed alongside Phases 2-4 after the taxonomy is stable.
+Dependency: Phase 0 import receipts and Phase 3 core-four proof. Phase 4 is not a dependency.
 
-## Phase 6: Make Orchestration Proof Release-Gating
+## Phase 6: Make Core-Four Orchestration Proof Release-Gating
 
 Objective: prevent packaging-only regressions from being mistaken for cross-host parity.
 
@@ -227,39 +215,28 @@ Scope:
 
 Evidence gate:
 
-- primary targets have current runtime receipts for the supported orchestration tier
-- beta targets remain clearly fixture-only until live proof exists
+- the frozen core four have current receipts for the supported orchestration tier
+- secondary targets remain outside this initiative
 - release checks fail when compatibility docs, registry outcomes, and receipts diverge
 
-Dependency: Phases 2-5.
+Dependency: completed Phases 2-3 and core-four Phase 5. Deferred Phase 4 is not a dependency.
 
-## Phase 7: Decide the Host Portfolio Separately
+## Phase 7: Complete — Freeze the Host Portfolio
 
-Objective: avoid turning a reference-plugin audit into uncontrolled target expansion.
+Decision: complete. This initiative covers only Claude Code, Cursor, Codex, and OpenCode.
 
-Research questions:
-
-- Has Antigravity replaced enough of the Gemini CLI use case to change Pluxx's target strategy?
-- Do Kimi, Grok, Devin, Droid, Qwen, or Pi have material user demand?
-- Which have stable native skill/subagent APIs, installation contracts, and automatable proof?
-- Can an existing target family adapter cover them honestly?
-
-Evidence gate:
-
-- a scored provider decision covers demand, native depth, maintenance cost, proofability, and distribution path
-- any new target receives its own product decision and Linear project scope
-
-Dependency: none for research; implementation waits until the current 11-target truth is credible.
+The seven secondary targets and any new destinations are excluded. Future expansion requires a separate scored product decision and Linear scope.
 
 ## Suggested Execution Sequence
 
-1. Phase 0 intake correctness.
-2. Phase 1 orchestration contract against the accepted decision.
-3. Phases 2 and 3 together, anchored on the working Codex baseline.
-4. Phase 4 target-by-target best effort.
-5. Phase 5 mature native-adjunct import.
-6. Phase 6 release gates.
-7. Phase 7 host portfolio decision when demand warrants it.
+1. Phase 0 intake correctness — complete.
+2. Phase 1 orchestration contract — complete.
+3. Phase 2 core-four adapters — complete.
+4. Phase 3 core-four installed/runtime proof — complete.
+5. Phase 5 core-four adjunct/distribution recovery.
+6. Phase 6 core-four release gates.
+
+Phase 4 is deferred. Phase 7 is complete.
 
 ## Ticketing Shape
 
@@ -273,7 +250,7 @@ The migration validity defect can be pulled forward independently because it is 
 - Hyperframes and Superpowers reference patterns are pinned and mapped without upgrading source inspection to runtime proof
 - the working Codex delegation pattern is explained accurately
 - standalone agents and generic delegated workflows are separated
-- all Pluxx targets have a preservation/proof audit
+- the frozen core four have a preservation/proof audit
 - migration defects and missing primitives are prioritized
 - a phased future path exists without compiler changes
 - canonical planning docs and Linear point to the artifacts

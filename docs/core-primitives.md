@@ -35,7 +35,7 @@ Everything else is secondary until this layer is strong.
 
 The list above is the detailed authoring model.
 
-For cross-host compilation, Pluxx reasons about that model through nine larger buckets. `orchestration` now has a canonical IR, schema, semantic validator, and capability-registry contract. The original eight buckets remain the only host-mapped buckets; orchestration generation and runtime proof remain pending.
+For cross-host compilation, Pluxx reasons about that model through nine larger buckets. `orchestration` has a canonical IR, schema, semantic validator, complete core-four mappings, deterministic generated payloads, and 12 isolated `fake-home-install` receipts. Install layout, ownership, verifier behavior, and host registration artifacts are proven in isolated filesystems; real-host discovery is environment-unavailable in all 12. Activation and behavioral evidence remain unsupported or environment-unavailable, so no row is promoted beyond explicit degradation.
 
 | Compiler bucket | Includes | Why it exists |
 |---|---|---|
@@ -275,12 +275,14 @@ Pluxx should document these and revisit them later, but they should not drive th
 
 After the current core-authoring work, the next extension-system priorities should be:
 
-1. populate host mappings and generators against the accepted `orchestration` IR and capability registry
+1. keep the completed core-four orchestration mappings, generators, and isolated proof receipts green
 2. restore trustworthy intake for mature multi-host plugins
 3. prove orchestration on the core four, starting with the working Codex baseline
-4. emit honest best-effort orchestration degradation for every current target
+4. retain honest core-four degradation for unsupported or environment-unavailable mechanisms
 5. deeper MCP protocol support beyond `tools/list`
 6. publish / marketplace generation
+
+Secondary-target orchestration is deferred; Phase 7 froze this initiative to Claude Code, Cursor, Codex, and OpenCode.
 
 ## Why This Scope Is Tight
 

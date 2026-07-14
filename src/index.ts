@@ -1,4 +1,22 @@
 export {
+  OrchestrationProofStageSchema,
+  OrchestrationProofStatusSchema,
+  assertOrchestrationProofPrivacySafe,
+  buildOrchestrationRuntimeReceipt,
+  resolveOrchestrationOutcomeWithEvidence,
+  summarizeOrchestrationRuntimeReceipts,
+} from './orchestration-runtime-proof'
+export type {
+  BuildOrchestrationRuntimeReceiptInput,
+  ExpectedOrchestrationRuntimeFixture,
+  OrchestrationFieldEvidence,
+  OrchestrationProofFact,
+  OrchestrationProofStage,
+  OrchestrationProofStatus,
+  OrchestrationRuntimeReceipt,
+  OrchestrationRuntimeProofSummary,
+} from './orchestration-runtime-proof'
+export {
   PluginConfigSchema,
   type PluginConfig,
   type RuntimeReadiness,

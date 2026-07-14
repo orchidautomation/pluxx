@@ -240,7 +240,10 @@ Open work:
   - cover Superpowers lifecycle activation/re-injection, role reachability, durable progress/resume, and review loops
   - make per-dispatch child-environment inheritance/override explicit across tools, MCP, permissions/approvals, sandbox, credential availability, and delegation depth
   - [x] populate all 108 evidence-backed core-four orchestration rows and deterministic payload/receipt generators in Phase 2; every current row explicitly degrades to a named companion mechanism because the IR does not yet supply an executable host adapter
-  - next prove the CE, Hyperframes, and Superpowers success cases in installed runtimes during Phase 3; generated payloads are not runtime parity
+  - [x] produce 12 deterministic isolated `fake-home-install` receipts for CE, Hyperframes, and Superpowers during Phase 3; install layout, ownership, verifier behavior, and host registration artifacts are proven, real-host discovery is environment-unavailable in all 12, activation is unsupported, and behavioral evidence is environment-unavailable
+  - [x] freeze this initiative to Claude Code, Cursor, Codex, and OpenCode; Phase 7's portfolio decision is complete
+  - defer Phase 4 orchestration work for GitHub Copilot, OpenHands, Warp, Gemini CLI, Roo Code, Cline, and Amp
+  - next proceed to Phase 5 core-four adjunct/distribution recovery, then Phase 6 core-four release gates
 - treat Codex companion apply/verify as the next concrete robustness slice:
   - make generated readiness, hook, MCP approval, and companion config guidance operational instead of advisory only
   - keep this aligned with `PLUXX-226`, `PLUXX-264`, `PLUXX-248`, and [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md)

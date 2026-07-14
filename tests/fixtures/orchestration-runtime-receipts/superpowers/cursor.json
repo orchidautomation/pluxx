@@ -1,0 +1,1234 @@
+{
+  "schemaVersion": 1,
+  "kind": "pluxx-orchestration-runtime-receipt",
+  "proofTier": "fake-home-install",
+  "identity": {
+    "plugin": "orchestration-superpowers",
+    "version": "0.1.0",
+    "orchestrationDigest": "8a3caac3394047a68a6b3a53336ee53d1fde86514ab9569ac898debed1ba1e2a",
+    "workflowIds": [
+      "review-loop"
+    ],
+    "activationIds": [
+      "session-activation"
+    ],
+    "fixture": "superpowers"
+  },
+  "host": {
+    "platform": "cursor",
+    "version": {
+      "status": "environment-unavailable",
+      "value": null,
+      "detail": "Native host CLI deliberately not invoked; the proof excludes live user state."
+    },
+    "probe": {
+      "name": "pluxx-isolated-install-harness",
+      "version": "1",
+      "command": "fixture-owned build, installPlugin, and verifyInstall against an isolated fake home"
+    }
+  },
+  "installedPath": "~/.cursor/plugins/local/orchestration-superpowers",
+  "evidence": {
+    "generated": {
+      "status": "proven",
+      "evidenceIds": [
+        "generated-receipt-sha256"
+      ]
+    },
+    "installed": {
+      "status": "proven",
+      "evidenceIds": [
+        "installed-manifest",
+        "installed-tree-sha256"
+      ]
+    },
+    "discovered": {
+      "status": "environment-unavailable",
+      "evidenceIds": [
+        "host-discovery-not-invoked"
+      ]
+    },
+    "activated": {
+      "status": "unsupported",
+      "evidenceIds": [
+        "no-executable-orchestration-entrypoint"
+      ]
+    },
+    "behavioral": {
+      "status": "environment-unavailable",
+      "evidenceIds": [
+        "native-host-not-invoked"
+      ]
+    }
+  },
+  "facts": [
+    {
+      "id": "generated-receipt-sha256",
+      "kind": "sha256",
+      "value": "fbab989bad83fab1a6df350ede262d92843fe8f00a8c92018f22ac1d509ded74"
+    },
+    {
+      "id": "host-discovery-not-invoked",
+      "kind": "assertion",
+      "value": "The isolated cursor install did not invoke the native host discovery process"
+    },
+    {
+      "id": "installed-manifest",
+      "kind": "assertion",
+      "value": ".cursor-plugin/plugin.json exists and matches the verified isolated bundle"
+    },
+    {
+      "id": "installed-tree-sha256",
+      "kind": "sha256",
+      "value": "eae720b67a8ad2afb1f3a7db3b430dd23e62aa33bdef05b68810eb4864646631"
+    },
+    {
+      "id": "native-host-not-invoked",
+      "kind": "assertion",
+      "value": "Activation, dispatch, lifecycle, child-environment, control, repair, resume, synthesis, cancellation, and fallback behavior remain unavailable or unsupported"
+    },
+    {
+      "id": "no-executable-orchestration-entrypoint",
+      "kind": "assertion",
+      "value": "No generated skill, command, hook, agent, manifest field, or runtime loader consumes orchestration.generated.json"
+    }
+  ],
+  "fieldOutcomes": [
+    {
+      "field": "activation-routing",
+      "declared": {
+        "field": "activation-routing",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-activation-guidance",
+        "rationale": "Canonical intent routing does not contain the executable host entrypoint needed for native wiring. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "activation-routing",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-activation-guidance",
+        "rationale": "Canonical intent routing does not contain the executable host entrypoint needed for native wiring. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "unsupported",
+        "stage": "activated",
+        "mechanism": "cursor-activation-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "no-executable-orchestration-entrypoint"
+        ]
+      }
+    },
+    {
+      "field": "lifecycle-reentry",
+      "declared": {
+        "field": "lifecycle-reentry",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-lifecycle-guidance",
+        "rationale": "Lifecycle events are represented, but the IR does not contain an executable hook or extension adapter. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "lifecycle-reentry",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-lifecycle-guidance",
+        "rationale": "Lifecycle events are represented, but the IR does not contain an executable hook or extension adapter. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "unsupported",
+        "stage": "activated",
+        "mechanism": "cursor-lifecycle-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "no-executable-orchestration-entrypoint"
+        ]
+      }
+    },
+    {
+      "field": "workflow-graph",
+      "declared": {
+        "field": "workflow-graph",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-workflow-graph-companion",
+        "rationale": "No core-four host consumes the canonical graph as a native declarative workflow. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "workflow-graph",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-workflow-graph-companion",
+        "rationale": "No core-four host consumes the canonical graph as a native declarative workflow. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "cursor-workflow-graph-companion",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "role-binding",
+      "declared": {
+        "field": "role-binding",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-role-binding-guidance",
+        "rationale": "Role references remain guidance because prompt assets cannot be projected into a runnable identity from this field alone. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "role-binding",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-role-binding-guidance",
+        "rationale": "Role references remain guidance because prompt assets cannot be projected into a runnable identity from this field alone. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "cursor-role-binding-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "generic-dispatch",
+      "declared": {
+        "field": "generic-dispatch",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-dispatch-guidance",
+        "rationale": "The hosts expose dispatch primitives, but invocation remains prompt-driven rather than generated enforcement. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "generic-dispatch",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-dispatch-guidance",
+        "rationale": "The hosts expose dispatch primitives, but invocation remains prompt-driven rather than generated enforcement. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "cursor-dispatch-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "bounded-context",
+      "declared": {
+        "field": "bounded-context",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-bounded-context-companion",
+        "rationale": "Packet limits are retained in the companion but are not enforced by a generated host boundary. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "bounded-context",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-bounded-context-companion",
+        "rationale": "Packet limits are retained in the companion but are not enforced by a generated host boundary. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "cursor-bounded-context-companion",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "artifact-flow",
+      "declared": {
+        "field": "artifact-flow",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-artifact-contract-companion",
+        "rationale": "Artifact contracts are preserved as guidance without a native typed dataflow engine. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "artifact-flow",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-artifact-contract-companion",
+        "rationale": "Artifact contracts are preserved as guidance without a native typed dataflow engine. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "cursor-artifact-contract-companion",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "state-flow",
+      "declared": {
+        "field": "state-flow",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-state-contract-companion",
+        "rationale": "State contracts are preserved as guidance without a native state engine. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "state-flow",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-state-contract-companion",
+        "rationale": "State contracts are preserved as guidance without a native state engine. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "cursor-state-contract-companion",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "ownership",
+      "declared": {
+        "field": "ownership",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-ownership-guidance",
+        "rationale": "File ownership remains advisory because no generated host policy enforces exclusive paths. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "ownership",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-ownership-guidance",
+        "rationale": "File ownership remains advisory because no generated host policy enforces exclusive paths. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "cursor-ownership-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "barrier",
+      "declared": {
+        "field": "barrier",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-barrier-guidance",
+        "rationale": "Barrier semantics remain advisory because no generated host scheduler consumes them. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "barrier",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-barrier-guidance",
+        "rationale": "Barrier semantics remain advisory because no generated host scheduler consumes them. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "cursor-barrier-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "wait",
+      "declared": {
+        "field": "wait",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-wait-guidance",
+        "rationale": "Wait predicates are rendered as guidance rather than executable host conditions. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "wait",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-wait-guidance",
+        "rationale": "Wait predicates are rendered as guidance rather than executable host conditions. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "cursor-wait-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "gate",
+      "declared": {
+        "field": "gate",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-gate-guidance",
+        "rationale": "Required gates are visible but not mechanically host-enforced. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "gate",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-gate-guidance",
+        "rationale": "Required gates are visible but not mechanically host-enforced. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "cursor-gate-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "completion",
+      "declared": {
+        "field": "completion",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-completion-guidance",
+        "rationale": "Completion predicates are visible but not mechanically host-enforced. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "completion",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-completion-guidance",
+        "rationale": "Completion predicates are visible but not mechanically host-enforced. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "cursor-completion-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "repair",
+      "declared": {
+        "field": "repair",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-repair-guidance",
+        "rationale": "Targeted repair policy is visible but not mechanically host-enforced. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "repair",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-repair-guidance",
+        "rationale": "Targeted repair policy is visible but not mechanically host-enforced. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "cursor-repair-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "resume",
+      "declared": {
+        "field": "resume",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-resume-ledger-guidance",
+        "rationale": "Resume and dedupe state require a durable runtime adapter that Phase 2 does not install. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "resume",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-resume-ledger-guidance",
+        "rationale": "Resume and dedupe state require a durable runtime adapter that Phase 2 does not install. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "cursor-resume-ledger-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "synthesis",
+      "declared": {
+        "field": "synthesis",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-synthesis-guidance",
+        "rationale": "Synthesis ownership is prompt-guided rather than bound to a generated host primitive. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "synthesis",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-synthesis-guidance",
+        "rationale": "Synthesis ownership is prompt-guided rather than bound to a generated host primitive. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "cursor-synthesis-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "cancellation",
+      "declared": {
+        "field": "cancellation",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-cancellation-guidance",
+        "rationale": "Cancellation policy is prompt-guided rather than bound to a generated host primitive. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "cancellation",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-cancellation-guidance",
+        "rationale": "Cancellation policy is prompt-guided rather than bound to a generated host primitive. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "cursor-cancellation-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "fallback",
+      "declared": {
+        "field": "fallback",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-fallback-guidance",
+        "rationale": "Fallback order is retained as guidance without an executable adapter. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "fallback",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-fallback-guidance",
+        "rationale": "Fallback order is retained as guidance without an executable adapter. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "cursor-fallback-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "proof-requirements",
+      "declared": {
+        "field": "proof-requirements",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-proof-receipt-companion",
+        "rationale": "Proof requirements are emitted into the receipt but not executed against an installed host. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "proof-requirements",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-proof-receipt-companion",
+        "rationale": "Proof requirements are emitted into the receipt but not executed against an installed host. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "not-applicable",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "cursor-proof-receipt-companion",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "capability-requirements",
+      "declared": {
+        "field": "capability-requirements",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-capability-guidance",
+        "rationale": "Capability needs are listed without a generated host admission check. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "weakened",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "capability-requirements",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-capability-guidance",
+        "rationale": "Capability needs are listed without a generated host admission check. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "weakened",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "cursor-capability-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "tool-requirements",
+      "declared": {
+        "field": "tool-requirements",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-tool-guidance",
+        "rationale": "Tool needs are listed without a generated host admission check. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "weakened",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "tool-requirements",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-tool-guidance",
+        "rationale": "Tool needs are listed without a generated host admission check. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "weakened",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "cursor-tool-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "mcp-requirements",
+      "declared": {
+        "field": "mcp-requirements",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-mcp-guidance",
+        "rationale": "MCP needs are listed without changing the separately owned MCP configuration. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "weakened",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "mcp-requirements",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-mcp-guidance",
+        "rationale": "MCP needs are listed without changing the separately owned MCP configuration. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "weakened",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "cursor-mcp-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "permission-requirements",
+      "declared": {
+        "field": "permission-requirements",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-permission-guidance",
+        "rationale": "Permission needs are listed without widening or rewriting separately owned policy. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "weakened",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "permission-requirements",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-permission-guidance",
+        "rationale": "Permission needs are listed without widening or rewriting separately owned policy. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "weakened",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "cursor-permission-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "sandbox-requirements",
+      "declared": {
+        "field": "sandbox-requirements",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-sandbox-guidance",
+        "rationale": "Sandbox minimums are listed without claiming host enforcement. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "weakened",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "sandbox-requirements",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-sandbox-guidance",
+        "rationale": "Sandbox minimums are listed without claiming host enforcement. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "weakened",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "cursor-sandbox-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "credential-availability",
+      "declared": {
+        "field": "credential-availability",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-credential-availability-guidance",
+        "rationale": "Credential availability classes are listed without reading or embedding secret material. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "weakened",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "credential-availability",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-credential-availability-guidance",
+        "rationale": "Credential availability classes are listed without reading or embedding secret material. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "weakened",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "cursor-credential-availability-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "inheritance-override",
+      "declared": {
+        "field": "inheritance-override",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-child-environment-guidance",
+        "rationale": "Child-environment override intent is listed without claiming the host can enforce every dimension. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "weakened",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "inheritance-override",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-child-environment-guidance",
+        "rationale": "Child-environment override intent is listed without claiming the host can enforce every dimension. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "weakened",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "cursor-child-environment-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    },
+    {
+      "field": "delegation-bounds",
+      "declared": {
+        "field": "delegation-bounds",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-delegation-bounds-guidance",
+        "rationale": "Delegation and concurrency budgets are listed without claiming the host enforces all bounds. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "weakened",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "effective": {
+        "field": "delegation-bounds",
+        "platform": "cursor",
+        "mode": "degrade",
+        "mechanism": "cursor-delegation-bounds-guidance",
+        "rationale": "Delegation and concurrency budgets are listed without claiming the host enforces all bounds. The cursor generator therefore emits deterministic companion guidance and no native-enforcement claim.",
+        "activationRequirement": "external-adapter",
+        "enforcement": "prompt-guided",
+        "childEnvironmentOutcome": "weakened",
+        "evidenceReferences": [
+          "https://docs.cursor.com/",
+          "docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md"
+        ],
+        "evidenceTier": "unit"
+      },
+      "evidence": {
+        "status": "environment-unavailable",
+        "stage": "behavioral",
+        "mechanism": "cursor-delegation-bounds-guidance",
+        "resultingMode": "degrade",
+        "evidenceIds": [
+          "native-host-not-invoked"
+        ]
+      }
+    }
+  ],
+  "installedBehaviorProven": false,
+  "receiptDigest": "738846979631edcc9b310fbe325be7c502f8fa17642f75246d5bd9d835aae2e1"
+}

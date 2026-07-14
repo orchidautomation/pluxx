@@ -422,11 +422,12 @@ These matter, but they are not the immediate center:
 - represent typed artifact dataflow, bounded dispatch, artifact completion, and targeted repair from Hyperframes
 - represent lifecycle activation/re-injection, reachable versus orphaned roles, mandatory gates, durable progress/resume, and review loops from Superpowers
 - represent safe per-dispatch child-environment inheritance and overrides across existing capability, permission, and runtime payloads
-- populate evidence-backed preserve/translate/degrade/drop registry rows, then compile honest outcomes across all 11 current targets
+- keep compiler-owned preserve/translate/degrade/drop registry rows and compile honest outcomes for the frozen core four: Claude Code, Cursor, Codex, and OpenCode
 - keep copied payload, generated fixture, installed state, and real-host behavior as separate evidence tiers
-- review Antigravity versus Gemini CLI and any other CE-only destinations as a later host-portfolio decision, not automatic scope
+- Phase 4 secondary-target orchestration work is deferred; Phase 7 is complete and freezes this initiative to the core four. Future expansion requires a separate product decision
 - use [the primitive audit](./orchid/requirements/2026-07-13-compound-engineering-primitive-audit.md), [three-reference comparison](./orchid/requirements/2026-07-14-orchestration-reference-patterns.md), [accepted decision](./orchid/decisions/2026-07-14-orchestration-primitive.md), and [phased plan](./orchid/plans/2026-07-13-compound-engineering-parity-plan.md) as the decision and sequencing artifacts
-- Phase 2 now provides complete source-inspected core-four registry rows plus deterministic payloads, guidance, and receipts for all three reference fixtures; Phase 3 still owns installed execution and runtime proof
+- Phase 2 provides complete source-inspected core-four rows plus deterministic payloads. Phase 3 adds 12 isolated `fake-home-install` receipts: install layout, ownership, verifier behavior, and host registration artifacts are proven in isolated filesystems; real-host discovery is environment-unavailable in all 12, and activation/behavior remain unsupported or environment-unavailable. All 108 registry outcomes remain degraded
+- after Phase 3, sequence Phase 5 core-four adjunct/distribution recovery, then Phase 6 core-four release gates
 
 ### Import and discovery depth
 

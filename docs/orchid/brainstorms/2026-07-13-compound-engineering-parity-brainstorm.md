@@ -10,6 +10,8 @@ execution: docs-only
 
 # Compound Engineering Primitive Parity - Brainstorm
 
+> Superseded scope note (2026-07-14): Phase 4 secondary-target orchestration is deferred. Phase 7 completed with a freeze to Claude Code, Cursor, Codex, and OpenCode; the broader ideas below remain historical context only.
+
 ## Goal Capsule
 
 Use Every's Compound Engineering plugin as a real-world pressure test for the Pluxx author-once promise:

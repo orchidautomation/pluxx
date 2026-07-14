@@ -619,7 +619,7 @@ function checkPrimitiveTranslations(checks: DoctorCheck[], config: PluginConfig)
         code: 'orchestration-field-outcomes',
         title: `Orchestration has explicit weaker fields on ${target}`,
         detail: weaker.map(row => `${row.field}=${row.mode} via ${row.mechanism}`).join(', '),
-        fix: 'Inspect orchestration/README.md and receipt.generated.json. Treat installed/runtime behavior as unproved until Phase 3.',
+        fix: 'Inspect orchestration/README.md and receipt.generated.json, then consult the maintained public core-four compatibility matrix for validated source-checkout proof. Activation and behavioral evidence remain unproved, so retain explicit degradation.',
         path: 'pluxx.config.ts',
       })
     }

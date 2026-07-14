@@ -229,7 +229,7 @@ export function deriveOrchestrationPrimitiveCapability(platform: CoreFourOrchest
   return {
     mode,
     nativeSurfaces: [...new Set(rows.map(row => row.mechanism))],
-    notes: `Derived from ${rows.length} canonical fields in the orchestration registry; source-inspected/generated evidence only, with installed/runtime proof deferred to Phase 3.`,
+    notes: `Derived from ${rows.length} canonical fields in the orchestration registry. Effective outcomes retain explicit degradation until mechanism-specific behavioral evidence validates an executable host path.`,
   }
 }
 

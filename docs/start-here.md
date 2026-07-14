@@ -48,7 +48,7 @@ If you need to know whether a proof claim is current, historical, repository-onl
 
 If you want the primitive-by-host proof ledger behind the core-four native shipping claim, use [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md).
 
-If you want the current pressure test for skill-owned subagent orchestration, mature multi-host import, and best-effort output across all 11 generators, use the [Compound Engineering primitive audit](./orchid/requirements/2026-07-13-compound-engineering-primitive-audit.md), [three-reference comparison](./orchid/requirements/2026-07-14-orchestration-reference-patterns.md), [accepted decision](./orchid/decisions/2026-07-14-orchestration-primitive.md), [phased parity plan](./orchid/plans/2026-07-13-compound-engineering-parity-plan.md), [PLUXX-324 implementation plan](./orchid/plans/2026-07-14-pluxx-324-transactional-migrate.md), [PLUXX-325 implementation plan](./orchid/plans/2026-07-14-pluxx-325-orchestration-contract.md), and [PLUXX-326 implementation plan](./orchid/plans/2026-07-14-pluxx-326-core-four-orchestration.md). Mature multi-manifest migration now reconciles supported manifests with provenance and validates the complete stage before transactional publication. The canonical compiler accepts and semantically validates all nine buckets; orchestration now has complete source-inspected core-four rows plus deterministic payloads and receipts. Installed execution and runtime parity remain Phase 3 work.
+If you want the current pressure test for skill-owned subagent orchestration, mature multi-host import, and installed/runtime proof across the frozen core four—Claude Code, Cursor, Codex, and OpenCode—use the [Compound Engineering primitive audit](./orchid/requirements/2026-07-13-compound-engineering-primitive-audit.md), [three-reference comparison](./orchid/requirements/2026-07-14-orchestration-reference-patterns.md), [accepted decision](./orchid/decisions/2026-07-14-orchestration-primitive.md), [phased parity plan](./orchid/plans/2026-07-13-compound-engineering-parity-plan.md), [PLUXX-324 implementation plan](./orchid/plans/2026-07-14-pluxx-324-transactional-migrate.md), [PLUXX-325 implementation plan](./orchid/plans/2026-07-14-pluxx-325-orchestration-contract.md), [PLUXX-326 implementation plan](./orchid/plans/2026-07-14-pluxx-326-core-four-orchestration.md), and [PLUXX-327 implementation plan](./orchid/plans/2026-07-14-pluxx-327-installed-runtime-proof.md). Mature multi-manifest migration now reconciles supported manifests with provenance and validates the complete stage before transactional publication. The canonical compiler accepts and semantically validates all nine buckets; orchestration has complete core-four rows, deterministic generated payloads, and 12 isolated `fake-home-install` receipts. Install layout, ownership, verifier behavior, and host registration artifacts are proven in isolated filesystems; real-host discovery is environment-unavailable in all 12. The generated companions still have no executable host entrypoint, so activation and behavioral parity remain explicitly unproved. Phase 4 secondary-target expansion is deferred. Phase 7 is complete: this initiative is frozen to the core four, and future expansion requires a separate product decision.
 
 ## What Pluxx Is
 
@@ -451,10 +451,11 @@ That includes:
 - use the Compound Engineering audit as the next mature-plugin pressure test:
   - preserve its reliable Codex generic-subagent behavior
   - keep the completed Phase 0 migration gate intact: supported manifests reconcile deterministically, staged schema validation precedes publication, and failures publish nothing
-  - implement the accepted `orchestration` bucket without overloading standalone `agents`
+  - keep the accepted ninth-bucket orchestration contract and core-four mappings green without overloading standalone `agents`
   - use Hyperframes to cover typed artifact pipelines, bounded dispatch, completion, and targeted repair
   - use Superpowers to cover lifecycle activation, mandatory gates, progress/resume, and review loops
-  - keep all-target output claims at packaging or fixture evidence until real-host behavior receipts exist
+  - keep core-four generated, installed/discovered, activated, and behavioral evidence distinct; do not claim runtime parity without host receipts
+  - keep Phase 4 secondary-target work deferred; Phase 7 froze this initiative to Claude Code, Cursor, Codex, and OpenCode
 
 ### 2. Flagship Depth Example
 

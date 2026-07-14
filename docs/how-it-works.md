@@ -616,15 +616,17 @@ pluxx catches platform-specific gotchas before you ship:
 
 ## The Next Product Delta
 
-The canonical compiler model now has nine buckets. All nine have canonical source contracts and core-four mappings. The accepted [`orchestration` bucket](./orchid/decisions/2026-07-14-orchestration-primitive.md) emits deterministic payloads and explicit weaker-semantic receipts, while installed/runtime proof remains Phase 3.
+The canonical compiler model now has nine buckets. All nine have canonical source contracts and core-four mappings. The accepted [`orchestration` bucket](./orchid/decisions/2026-07-14-orchestration-primitive.md) emits deterministic payloads plus 12 isolated `fake-home-install` receipts. Install layout, ownership, verifier behavior, and host registration artifacts are proven in isolated filesystems; real-host discovery is environment-unavailable in all 12. No executable adapter consumes those companions, so activation remains unsupported and behavioral evidence remains environment-unavailable.
 
 The most important remaining gaps are:
 
-1. populate evidence-backed orchestration host mappings and generators against the implemented IR and capability-registry contract
+1. keep the completed core-four orchestration mappings and deterministic generators green
 2. restore trustworthy intake for mature multi-host plugins
 3. prove the CE, Hyperframes, and Superpowers reference patterns on the core four
-4. emit honest best-effort orchestration degradation for every current target
+4. keep unsupported or environment-unavailable core-four outcomes explicit without converting absence into parity
 5. deepen MCP protocol and publish/marketplace support after the control-plane contract is credible
+
+Secondary-target orchestration is deferred; the portfolio is frozen to Claude Code, Cursor, Codex, and OpenCode.
 
 That is the real delta from the current strong engine to the mature cross-host plugin product.
 
