@@ -5,7 +5,7 @@ date: 2026-07-14
 status: accepted
 decision_owner: Brandon Guerrero
 product_contract_source: linear-pluxx-323
-implementation_status: phase-1-contract-implemented-local
+implementation_status: phase-2-core-four-generated-local
 ---
 
 # Accept Orchestration as a Canonical Compiler Primitive
@@ -14,7 +14,7 @@ implementation_status: phase-1-contract-implemented-local
 
 Pluxx will treat `orchestration` as its ninth canonical compiler bucket, distinct from `agents`.
 
-The decision is accepted product direction. Phase 1 now implements the canonical IR, schema, semantic validator, and compiler-owned capability-registry contract. Migration, host mappings, generators, installed behavior, and runtime proof remain separate work.
+The decision is accepted product direction. Phase 1 implements the canonical IR, schema, semantic validator, and compiler-owned capability-registry contract. Phase 2 adds complete core-four rows plus deterministic payloads and receipts. Because the current IR does not carry executable host entrypoints or runtime adapters, all 108 Phase 2 rows honestly degrade to named, prompt-guided companion mechanisms; none claims native enforcement, silent omission, or installed behavior. Installed behavior and runtime proof remain Phase 3 work.
 
 Pluxx's author-once contract becomes:
 
@@ -84,12 +84,12 @@ For every orchestration field and every supported host, the compiler must emit o
 - `degrade`: an actionable prompt, serial, or external adapter fallback remains
 - `drop`: the behavior cannot be represented safely
 
-The receipt must name the native mechanism, activation requirement, effective child-environment outcome, enforcement level, and proof tier. It must report credential availability only as a class or reference, never a secret value. Copied prompt assets or generated files are packaging evidence, not runtime parity.
+The receipt must name the native or fallback/companion mechanism, activation requirement, effective child-environment outcome, enforcement level, and proof tier. It must report credential availability only as a class or reference, never a secret value. Copied prompt assets or generated files are packaging evidence, not runtime parity.
 
 ## Consequences
 
 - The public canonical taxonomy is now nine compiler buckets.
-- Current implementation truth is nine canonical buckets, eight host-mapped buckets, and an orchestration contract whose host outcomes remain explicitly unmapped.
+- Current implementation truth is nine canonical buckets with complete core-four mappings. Orchestration payloads and receipts are generated deterministically, while installed/runtime proof remains Phase 3.
 - `agents` must not become a catch-all for workflow coordination.
 - The first contract must represent all three fixtures: CE delegation, Hyperframes artifact pipelines, and Superpowers lifecycle/review loops.
 - Existing CE Codex behavior remains a regression baseline and passthrough escape hatch.

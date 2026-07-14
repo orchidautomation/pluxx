@@ -616,7 +616,7 @@ pluxx catches platform-specific gotchas before you ship:
 
 ## The Next Product Delta
 
-The canonical compiler model now has nine buckets. All nine have canonical source contracts; the original eight have host mappings, while the accepted [`orchestration` bucket](./orchid/decisions/2026-07-14-orchestration-primitive.md) remains unmapped to hosts.
+The canonical compiler model now has nine buckets. All nine have canonical source contracts and core-four mappings. The accepted [`orchestration` bucket](./orchid/decisions/2026-07-14-orchestration-primitive.md) emits deterministic payloads and explicit weaker-semantic receipts, while installed/runtime proof remains Phase 3.
 
 The most important remaining gaps are:
 

@@ -47,11 +47,10 @@ describe('primitive summary', () => {
     expect(lines.some((line) => line.includes('hooks on open') && line.includes('plugin JS/TS event handlers'))).toBe(true)
   })
 
-  it('renders active orchestration mappings as unmapped', () => {
+  it('renders active orchestration mappings from the Phase 2 registry', () => {
     const summary = buildPrimitiveTranslationSummary({ ...config, orchestration: ceOrchestrationFixture as any })
     const lines = renderPrimitiveTranslationSummary(summary)
-    expect(lines.some((line) => line.startsWith('  orchestration') && line.includes('none'))).toBe(true)
-    expect(lines.some((line) => line.includes('none=unmapped'))).toBe(true)
-    expect(lines.some((line) => line.includes('orchestration on codex') && line.includes('Phase 2'))).toBe(true)
+    expect(lines.some((line) => line.startsWith('  orchestration') && line.includes('weak'))).toBe(true)
+    expect(lines.some((line) => line.includes('orchestration on codex') && line.includes('orchestration'))).toBe(true)
   })
 })

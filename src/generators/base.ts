@@ -4,6 +4,8 @@ import type { PluginConfig, TargetPlatform, McpServer } from '../schema'
 import { readCompilerIntent, type CompilerIntentFile } from '../compiler-intent'
 import { writeTextFile } from '../text-files'
 import { normalizePluginOwnedStdioPathForPlatform } from '../mcp-stdio-paths'
+import { isCoreFourTranslationPlatform } from '../field-translation-registry'
+import { buildGeneratedOrchestrationArtifacts } from './orchestration'
 import { getNativeJsonHeadersOverride } from '../mcp-native-overrides'
 import { collectRuntimeInheritedStdioEnvVars } from '../user-config'
 import {
@@ -50,6 +52,19 @@ export abstract class Generator {
   /** Write JSON to the output directory */
   protected async writeJson(relativePath: string, data: unknown): Promise<void> {
     await this.writeFile(relativePath, JSON.stringify(data, null, 2) + '\n')
+  }
+
+  protected async generateOrchestrationArtifacts(): Promise<void> {
+    if (!this.config.orchestration || !isCoreFourTranslationPlatform(this.platform)) return
+    const artifacts = buildGeneratedOrchestrationArtifacts(this.platform, this.config.orchestration, {
+      name: this.config.name,
+      version: this.config.version,
+    })
+    await Promise.all([
+      this.writeJson('orchestration/orchestration.generated.json', artifacts.payload),
+      this.writeJson('orchestration/receipt.generated.json', artifacts.receipt),
+      this.writeFile('orchestration/README.md', artifacts.guidance),
+    ])
   }
 
   /** Copy a directory from source to output */

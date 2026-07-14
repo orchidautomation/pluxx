@@ -11,6 +11,7 @@ import { MCP_SCAFFOLD_METADATA_PATH, type McpScaffoldMetadata } from './init-fro
 import { buildPrimitiveTranslationSummary, renderPrimitiveTranslationSummary, type PrimitiveTranslationSummary } from './primitive-summary'
 import { extractEnvReference, isPlaceholderSecretValue } from '../user-config'
 import { getBrandingCompletenessWarnings } from '../branding-completeness'
+import { ORCHESTRATION_CAPABILITY_REGISTRY } from '../orchestration-capability-registry'
 import { findLeakedPluginRootVars } from '../mcp-stdio-paths'
 import { getRuntimeReadinessPlan } from '../readiness'
 import {
@@ -607,6 +608,18 @@ function checkPrimitiveTranslations(checks: DoctorCheck[], config: PluginConfig)
         title: description.title,
         detail: description.detail,
         fix: description.fix,
+        path: 'pluxx.config.ts',
+      })
+    }
+
+    if (config.orchestration) {
+      const weaker = ORCHESTRATION_CAPABILITY_REGISTRY.filter(row => row.platform === target && (row.mode === 'degrade' || row.mode === 'drop'))
+      addCheck(checks, {
+        level: 'warning',
+        code: 'orchestration-field-outcomes',
+        title: `Orchestration has explicit weaker fields on ${target}`,
+        detail: weaker.map(row => `${row.field}=${row.mode} via ${row.mechanism}`).join(', '),
+        fix: 'Inspect orchestration/README.md and receipt.generated.json. Treat installed/runtime behavior as unproved until Phase 3.',
         path: 'pluxx.config.ts',
       })
     }

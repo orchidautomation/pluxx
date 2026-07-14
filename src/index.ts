@@ -69,6 +69,8 @@ export {
   OrchestrationEnforcementSchema,
   OrchestrationTranslationModeSchema,
   defineOrchestrationCapabilityRegistry,
+  assertCompleteCoreFourOrchestrationRegistry,
+  deriveOrchestrationPrimitiveCapability,
   getOrchestrationCapabilityOutcome,
   type OrchestrationActivationRequirement,
   type OrchestrationCapabilityField,
