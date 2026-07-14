@@ -387,16 +387,17 @@ to:
 
 - semantic compiler
 
-That is now grounded in the eight compiler buckets:
+That is now grounded in eight implemented compiler buckets plus the accepted, unshipped `orchestration` bucket:
 
 1. `instructions`
 2. `skills`
 3. `commands`
 4. `agents`
-5. `hooks`
-6. `permissions`
-7. `runtime`
-8. `distribution`
+5. `orchestration` — accepted direction; implementation pending
+6. `hooks`
+7. `permissions`
+8. `runtime`
+9. `distribution`
 
 And in the explicit translation modes:
 

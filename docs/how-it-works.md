@@ -616,13 +616,15 @@ pluxx catches platform-specific gotchas before you ship:
 
 ## The Next Product Delta
 
-The most important remaining gaps from the tightened extension-systems review are:
+The canonical compiler model now has nine buckets. Eight are implemented; the accepted [`orchestration` bucket](./orchid/decisions/2026-07-14-orchestration-primitive.md) remains unshipped.
 
-1. `userConfig`
-2. build-time target cap validation
-3. publish / marketplace generation
-4. deeper MCP protocol support beyond `tools/list`
-5. portable agent / subagent delegation
+The most important remaining gaps are:
+
+1. specify the orchestration IR and capability registry for lifecycle activation/re-injection, graph-reachable roles, dispatch, child-environment inheritance, typed artifact/state flow, recovery, resume, and proof
+2. restore trustworthy intake for mature multi-host plugins
+3. prove the CE, Hyperframes, and Superpowers reference patterns on the core four
+4. emit honest best-effort orchestration degradation for every current target
+5. deepen MCP protocol and publish/marketplace support after the control-plane contract is credible
 
 That is the real delta from the current strong engine to the mature cross-host plugin product.
 

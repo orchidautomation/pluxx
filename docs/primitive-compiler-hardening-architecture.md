@@ -1,6 +1,6 @@
 # Primitive Compiler Hardening Architecture
 
-Last updated: 2026-05-04
+Last updated: 2026-07-14
 
 ## Doc Links
 
@@ -13,6 +13,10 @@ Last updated: 2026-05-04
   - [docs/todo/queue.md](./todo/queue.md)
   - [docs/todo/master-backlog.md](./todo/master-backlog.md)
   - [docs/roadmap.md](./roadmap.md)
+  - [Compound Engineering primitive audit](./orchid/requirements/2026-07-13-compound-engineering-primitive-audit.md)
+  - [Orchestration reference-pattern audit](./orchid/requirements/2026-07-14-orchestration-reference-patterns.md)
+  - [Accepted orchestration decision](./orchid/decisions/2026-07-14-orchestration-primitive.md)
+  - [Compound Engineering parity plan](./orchid/plans/2026-07-13-compound-engineering-parity-plan.md)
   - [Linear project: Pluxx Primitive Compiler Hardening](https://linear.app/orchid-automation/project/pluxx-primitive-compiler-hardening-5bf168feeb2d)
 - Update together:
   - [docs/todo/queue.md](./todo/queue.md)
@@ -133,7 +137,7 @@ Current state:
 Canonical IR should own:
 
 - identity and specialist purpose
-- delegation posture
+- identity-level invocation posture such as top-level versus delegated specialist
 - isolation and tuning hints
 - canonical permission intent that belongs to agents
 
@@ -147,6 +151,43 @@ Compiler consumers:
 - migrate
 - command routing validation
 - behavioral proof
+
+The Compound Engineering 3.19.0 audit exposes an adjacent boundary that this bucket does not own: skill-owned generic subagent orchestration. CE ships zero standalone agents but reliably launches specialists from skills through prompt assets, dispatch packets, fan-out, wait/follow-up, and synthesis. Hyperframes adds typed artifact pipelines and artifact-based completion/repair; Superpowers adds lifecycle activation, durable progress, and review loops. `orchestration` was accepted as a ninth canonical bucket on 2026-07-14. Current implementation truth remains eight implemented buckets plus one accepted, unshipped bucket.
+
+### Orchestration
+
+Canonical IR should own:
+
+- activation and routing strength
+- lifecycle events, ordering, re-injection guarantees, and idempotency
+- workflow stages, dependencies, modes, and gates
+- skill-owned role contracts, graph reachability, orphan reporting, and bounded dispatch packets
+- sequential, parallel, and bounded fan-out
+- per-dispatch child-environment inheritance/override intent for tools, MCP, permissions/approvals, sandbox, credential availability, and delegation depth
+- typed artifact producer/consumer relationships and completion predicates
+- file ownership, shared-resource barriers, and shared-filesystem policy
+- wait, follow-up, retry, repair, cancellation, and fallback ladders
+- durable progress, resume, and compaction recovery
+- synthesis and final-tail ownership
+- orchestration-specific validation and proof requirements
+
+Should stay in existing buckets:
+
+- skill bodies and prompt prose in `skills`
+- standalone executable identities in `agents`
+- permission, runtime, and credential-reference payloads in their existing owning buckets
+- activation mechanisms in `instructions` and `hooks`
+- scripts, MCP, and assets in `runtime`
+- manifests and install adapters in `distribution`
+
+Compiler consumers:
+
+- schema and migrate/import
+- host capability registry and generators
+- lint/doctor/compatibility summaries
+- behavioral proof and release receipts
+
+The first contract must represent CE delegation, a Hyperframes typed-artifact workflow, and Superpowers subagent-driven development without host tool names in canonical fields. See the [accepted decision](./orchid/decisions/2026-07-14-orchestration-primitive.md) and [comparative audit](./orchid/requirements/2026-07-14-orchestration-reference-patterns.md).
 
 ### Hooks
 

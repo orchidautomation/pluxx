@@ -1,6 +1,6 @@
 # Master Backlog
 
-Last updated: 2026-07-12
+Last updated: 2026-07-14
 
 This is the most complete repo-native backlog for Pluxx.
 
@@ -37,6 +37,10 @@ This is not the same thing as the short queue.
   - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
   - [docs/core-four-reliability-register.md](../core-four-reliability-register.md)
   - [docs/core-four-translation-hit-list.md](../core-four-translation-hit-list.md)
+  - [Compound Engineering primitive audit](../orchid/requirements/2026-07-13-compound-engineering-primitive-audit.md)
+  - [Orchestration reference-pattern audit](../orchid/requirements/2026-07-14-orchestration-reference-patterns.md)
+  - [Accepted orchestration decision](../orchid/decisions/2026-07-14-orchestration-primitive.md)
+  - [Compound Engineering parity plan](../orchid/plans/2026-07-13-compound-engineering-parity-plan.md)
   - [author-once-hardening.md](./author-once-hardening.md)
   - [Linear](https://linear.app/orchid-automation)
 - Update together:
@@ -177,6 +181,17 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
     - Codex now writes `.codex/skills.generated.json`
     - OpenCode now writes `skills.generated.json`
   - `pluxx build` now checks generated manifests and package outputs for source version drift and missing referenced bundle files before publish
+- [~] Implement the mature-plugin orchestration boundary accepted in [the decision record](../orchid/decisions/2026-07-14-orchestration-primitive.md):
+  - preserve the working CE 3.19.0 Codex generic-subagent baseline
+  - fix migrate's warning-free invalid-config result and multi-manifest first-match behavior before claiming CE-class intake
+  - [x] accept `orchestration` as the ninth canonical bucket rather than overloading standalone `agents`
+  - model skill-owned specialist roles, dispatch, fan-out, wait/follow-up, synthesis, task/input coordination, workflow modes, and capability fallback
+  - model Hyperframes-style typed artifact dataflow, bounded packets, file ownership, completion predicates, and targeted repair
+  - model Superpowers-style lifecycle activation/re-injection, reachable versus orphaned roles, mandatory gates, durable progress/resume, and review loops
+  - model per-dispatch child-environment inheritance/override without moving payload ownership out of agents, permissions, and runtime
+  - compile explicit preserve/translate/degrade/drop truth for all 11 current targets
+  - require real-host behavior receipts before promoting packaging preservation to runtime parity
+  - use [the phased plan](../orchid/plans/2026-07-13-compound-engineering-parity-plan.md) for execution order; do not add CE-only hosts without a separate portfolio decision
 - [~] Keep [docs/core-four-reliability-register.md](../core-four-reliability-register.md) current as the concrete Claude Code and Codex failure register:
   - use it to separate generator defects from host-runtime issues and proof-harness issues
   - use it to drive the next proof-depth tranche for agents, hooks, settings/discovery, and distribution edges

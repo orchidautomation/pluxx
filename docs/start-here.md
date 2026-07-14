@@ -1,6 +1,6 @@
 # Start Here
 
-Last updated: 2026-07-12
+Last updated: 2026-07-14
 
 ## Doc Links
 
@@ -21,6 +21,10 @@ Last updated: 2026-07-12
   - [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md)
   - [docs/core-four-provider-docs-audit.md](./core-four-provider-docs-audit.md)
   - [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md)
+  - [docs/orchid/requirements/2026-07-13-compound-engineering-primitive-audit.md](./orchid/requirements/2026-07-13-compound-engineering-primitive-audit.md)
+  - [docs/orchid/requirements/2026-07-14-orchestration-reference-patterns.md](./orchid/requirements/2026-07-14-orchestration-reference-patterns.md)
+  - [docs/orchid/decisions/2026-07-14-orchestration-primitive.md](./orchid/decisions/2026-07-14-orchestration-primitive.md)
+  - [docs/orchid/plans/2026-07-13-compound-engineering-parity-plan.md](./orchid/plans/2026-07-13-compound-engineering-parity-plan.md)
   - [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](./pluxx-self-hosted-core-four-proof.md)
   - [README.md](../README.md)
@@ -42,6 +46,8 @@ If you want the current release, distribution, and proof boundary, use [docs/rel
 If you need to know whether a proof claim is current, historical, repository-only, installed, or real-host evidence, use [docs/proof-freshness.md](./proof-freshness.md) and [docs/proof-manifest.json](./proof-manifest.json). Canonical repository version truth is `package.json` (`0.1.32`), and tag `v0.1.32` exists at `188527e`; the failed first release run did not publish npm or create the GitHub release.
 
 If you want the primitive-by-host proof ledger behind the core-four native shipping claim, use [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md).
+
+If you want the current pressure test for skill-owned subagent orchestration, mature multi-host import, and best-effort output across all 11 generators, use the [Compound Engineering primitive audit](./orchid/requirements/2026-07-13-compound-engineering-primitive-audit.md), [three-reference comparison](./orchid/requirements/2026-07-14-orchestration-reference-patterns.md), [accepted decision](./orchid/decisions/2026-07-14-orchestration-primitive.md), and [phased parity plan](./orchid/plans/2026-07-13-compound-engineering-parity-plan.md). The canonical product direction now has nine buckets, including `orchestration`; the current compiler still implements eight and preserves orchestration mostly as opaque skill content.
 
 ## What Pluxx Is
 
@@ -441,6 +447,13 @@ That includes:
     - migration normalization proof for agents and permission intent
     - lint/build/doctor explainability for translated rows
   - [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md) now functions mainly as a maintenance and packaging tracker rather than a list of unresolved core row mappings
+- use the Compound Engineering audit as the next mature-plugin pressure test:
+  - preserve its reliable Codex generic-subagent behavior
+  - fix warning-free migration that emits invalid canonical config before treating CE-class intake as credible
+  - implement the accepted `orchestration` bucket without overloading standalone `agents`
+  - use Hyperframes to cover typed artifact pipelines, bounded dispatch, completion, and targeted repair
+  - use Superpowers to cover lifecycle activation, mandatory gates, progress/resume, and review loops
+  - keep all-target output claims at packaging or fixture evidence until real-host behavior receipts exist
 
 ### 2. Flagship Depth Example
 
