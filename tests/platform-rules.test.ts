@@ -69,9 +69,11 @@ describe('CORE_FOUR_PRIMITIVE_CAPABILITIES', () => {
     }
   })
 
-  it('reports orchestration as unmapped instead of fabricating a translation mode', () => {
+  it('derives orchestration from the complete Phase 2 registry', () => {
     for (const platform of CORE_FOUR_PLATFORMS) {
-      expect(getCoreFourCompilerBucketCapability(platform, 'orchestration')).toEqual({ status: 'unmapped' })
+      const lookup = getCoreFourCompilerBucketCapability(platform, 'orchestration')
+      expect(lookup.status).toBe('mapped')
+      if (lookup.status === 'mapped') expect(lookup.capability.mode).toBe('degrade')
     }
   })
 

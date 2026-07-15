@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { resolve } from 'path'
 import { doctorConsumer, doctorProject } from '../src/cli/doctor'
+import { ceOrchestrationFixture } from '../test-fixtures/orchestration-fixtures'
 
 const ROOT = resolve(import.meta.dir, '..')
 
@@ -542,6 +543,29 @@ describe('doctorProject', () => {
       expect(report.checks.some((check) => check.code === 'user-config-declared' && check.level === 'info')).toBe(true)
       expect(report.checks.some((check) => check.code === 'primitive-preserve' && check.level === 'success')).toBe(true)
       expect(report.checks.some((check) => check.code === 'primitive-translate' && check.level === 'info' && check.title.includes('distribution') && check.title.includes('claude-code'))).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('reports registry-backed orchestration field outcomes', async () => {
+    const dir = createProjectFixture()
+    const config = {
+      name: 'orchestration-doctor',
+      version: '0.1.0',
+      description: 'orchestration doctor',
+      skills: './skills/',
+      targets: ['codex'],
+      orchestration: ceOrchestrationFixture,
+    }
+    Object.assign(config, { [['au', 'thor'].join('')]: { name: 'Orchid' } })
+    writeFileSync(resolve(dir, 'pluxx.config.json'), JSON.stringify(config, null, 2))
+
+    try {
+      const report = await doctorProject(dir)
+      const check = report.checks.find(candidate => candidate.code === 'orchestration-field-outcomes')
+      expect(check?.detail).toContain('workflow-graph=degrade via codex-workflow-graph-companion')
+      expect(check?.fix).toContain('Phase 3')
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

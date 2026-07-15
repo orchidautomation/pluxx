@@ -102,6 +102,7 @@ export class CodexGenerator extends Generator {
       this.generateCommandsCompanion(),
       this.generateSkillsCompanion(),
       this.generatePermissionsCompanion(),
+      this.generateOrchestrationArtifacts(),
     ])
 
     this.copySkills()

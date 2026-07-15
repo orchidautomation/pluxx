@@ -239,7 +239,8 @@ Open work:
   - cover Hyperframes typed artifacts, bounded dispatch, artifact completion, and targeted repair
   - cover Superpowers lifecycle activation/re-injection, role reachability, durable progress/resume, and review loops
   - make per-dispatch child-environment inheritance/override explicit across tools, MCP, permissions/approvals, sandbox, credential availability, and delegation depth
-  - populate evidence-backed orchestration registry rows and host generators in Phase 2; keep the current 11-target result explicit: no orchestration host mapping, generator behavior, or all-host runtime parity yet
+  - [x] populate all 108 evidence-backed core-four orchestration rows and deterministic payload/receipt generators in Phase 2; every current row explicitly degrades to a named companion mechanism because the IR does not yet supply an executable host adapter
+  - next prove the CE, Hyperframes, and Superpowers success cases in installed runtimes during Phase 3; generated payloads are not runtime parity
 - treat Codex companion apply/verify as the next concrete robustness slice:
   - make generated readiness, hook, MCP approval, and companion config guidance operational instead of advisory only
   - keep this aligned with `PLUXX-226`, `PLUXX-264`, `PLUXX-248`, and [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md)

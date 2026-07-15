@@ -26,6 +26,7 @@ export class ClaudeCodeGenerator extends Generator {
       writeJson: (relativePath, data) => this.writeJson(relativePath, data),
       writeFile: (relativePath, content) => this.writeFile(relativePath, content),
     })
+    await this.generateOrchestrationArtifacts()
 
     this.copySkills()
     this.copyCommands()

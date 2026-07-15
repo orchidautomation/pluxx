@@ -27,6 +27,7 @@ export class CursorGenerator extends Generator {
       this.generateRules(),
       this.generateAgents(),
       this.generateAgentsMd(),
+      this.generateOrchestrationArtifacts(),
     ])
 
     this.copySkills()

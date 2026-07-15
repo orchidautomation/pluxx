@@ -2,6 +2,7 @@ import { HOST_MAPPED_COMPILER_BUCKETS, type HostMappedCompilerBucket, type Pluxx
 import { getAgentPrimitiveCapability } from '../agent-translation-registry'
 import { getCommandPrimitiveCapability } from '../command-translation-registry'
 import { derivePrimitiveCapability } from '../field-translation-registry'
+import { deriveOrchestrationPrimitiveCapability } from '../orchestration-capability-registry'
 import { CODEX_SUPPORTED_HOOK_EVENTS } from '../hook-events'
 import { getRuntimeReadinessExternalConfigNote } from '../runtime-readiness-registry'
 
@@ -949,6 +950,9 @@ export function getCoreFourCompilerBucketCapability(
   platform: CoreFourPlatform,
   bucket: PluxxCompilerBucket,
 ): CoreFourCompilerBucketCapability {
+  if (bucket === 'orchestration') {
+    return { status: 'mapped', capability: deriveOrchestrationPrimitiveCapability(platform) }
+  }
   if (!isHostMappedCompilerBucket(bucket)) return { status: 'unmapped' }
   return {
     status: 'mapped',

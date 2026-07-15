@@ -6,6 +6,7 @@ import {
   type PrimitiveTranslationMode,
 } from '../validation/platform-rules'
 import { getFieldTranslationEntries, type FieldTranslationPrimitive } from '../field-translation-registry'
+import { ORCHESTRATION_CAPABILITY_FIELDS, ORCHESTRATION_CAPABILITY_REGISTRY } from '../orchestration-capability-registry'
 
 const PLATFORM_LABELS: Record<CoreFourPlatform, string> = {
   'claude-code': 'Claude Code',
@@ -70,6 +71,28 @@ function formatFieldTruthSection(primitive: FieldTranslationPrimitive): string[]
   return [...lines, '']
 }
 
+function formatOrchestrationFieldTruthSection(): string[] {
+  const lines = [
+    '### Audited `orchestration` field outcomes',
+    '',
+    'These rows are source-inspected/generated-payload evidence. Installed/runtime proof remains Phase 3.',
+    '',
+    '| Field | Claude Code | Cursor | Codex | OpenCode |',
+    '|---|---|---|---|---|',
+  ]
+
+  for (const field of ORCHESTRATION_CAPABILITY_FIELDS) {
+    const cells = CORE_FOUR_PLATFORMS.map(platform => {
+      const row = ORCHESTRATION_CAPABILITY_REGISTRY.find(candidate => candidate.field === field && candidate.platform === platform)
+      if (!row) throw new Error(`Missing orchestration registry row for ${field} on ${platform}.`)
+      return `\`${row.mode}\` -> ${row.mechanism}<br/>activation: ${row.activationRequirement}; enforcement: ${row.enforcement}; child environment: ${row.childEnvironmentOutcome}; evidence: ${row.evidenceTier}<br/>${row.rationale}`
+    })
+    lines.push(`| \`${field}\` | ${cells.join(' | ')} |`)
+  }
+
+  return [...lines, '']
+}
+
 export function renderCoreFourPrimitiveMatrixSection(): string {
   const lines = [
     CORE_FOUR_PRIMITIVE_SECTION_START,
@@ -101,6 +124,7 @@ export function renderCoreFourPrimitiveMatrixSection(): string {
   lines.push('Primitive labels above are derived from these audited field outcomes. A primitive is only `preserve` when every audited field preserves.', '')
   lines.push(...formatFieldTruthSection('skills'))
   lines.push(...formatFieldTruthSection('hooks'))
+  lines.push(...formatOrchestrationFieldTruthSection())
 
   lines.push(CORE_FOUR_PRIMITIVE_SECTION_END)
 

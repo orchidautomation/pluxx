@@ -29,6 +29,7 @@ import { getCanonicalAgentMetadata, readCanonicalAgentFiles } from '../agents'
 import { getAgentTranslationMessage, getTranslatedAgentFields } from '../agent-translation-registry'
 import { buildPrimitiveTranslationSummary, renderPrimitiveTranslationSummary, type PrimitiveTranslationSummary } from './primitive-summary'
 import { getBrandingCompletenessWarnings } from '../branding-completeness'
+import { ORCHESTRATION_CAPABILITY_REGISTRY } from '../orchestration-capability-registry'
 import {
   mapHookEventToPascalCase,
 } from '../hook-events'
@@ -1771,6 +1772,17 @@ function lintPrimitiveTranslations(config: PluginConfig, issues: LintIssue[]): v
         level: 'warning',
         code: `primitive-${mode}-summary`,
         message: `On ${target}, these active compiler buckets ${modeMessage}: ${sortedBuckets.join(', ')}.`,
+        file: 'pluxx.config.ts',
+        platform: target,
+      })
+    }
+
+    if (config.orchestration) {
+      const weaker = ORCHESTRATION_CAPABILITY_REGISTRY.filter(row => row.platform === target && (row.mode === 'degrade' || row.mode === 'drop'))
+      pushIssue(issues, {
+        level: 'warning',
+        code: 'orchestration-field-outcomes',
+        message: `On ${target}, orchestration weaker fields are explicit: ${weaker.map(row => `${row.field}=${row.mode}(${row.mechanism})`).join(', ')}. Generated payload evidence does not prove installed/runtime behavior.`,
         file: 'pluxx.config.ts',
         platform: target,
       })

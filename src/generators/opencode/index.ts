@@ -64,6 +64,7 @@ export class OpenCodeGenerator extends Generator {
       this.generateReadinessRuntime(),
       this.generateMcpRuntimeEnv(),
       this.generateSkillsCompanion(),
+      this.generateOrchestrationArtifacts(),
     ])
 
     this.copySkills()

@@ -3,6 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { resolve } from 'path'
 import { lintProject } from '../src/cli/lint'
+import { ceOrchestrationFixture } from '../test-fixtures/orchestration-fixtures'
 
 const tempDirs: string[] = []
 
@@ -1040,6 +1041,27 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'primitive-degrade-summary' && issue.platform === 'codex' && issue.message.includes('commands'))).toBe(true)
     expect(result.issues.some(issue => issue.code === 'primitive-degrade-summary' && issue.platform === 'opencode' && issue.message.includes('hooks'))).toBe(true)
     expect(result.issues.some(issue => issue.code === 'codex-commands-routing-guidance')).toBe(true)
+  })
+
+  it('reports registry-backed weaker orchestration fields', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/proof'), { recursive: true })
+    const config = {
+      name: 'orchestration-lint',
+      version: '0.1.0',
+      description: 'orchestration lint',
+      skills: './skills/',
+      targets: ['codex'],
+      orchestration: ceOrchestrationFixture,
+    }
+    Object.assign(config, { [['au', 'thor'].join('')]: { name: 'Orchid' } })
+    writeFileSync(resolve(projectDir, 'pluxx.config.json'), JSON.stringify(config, null, 2))
+    writeFileSync(resolve(projectDir, 'skills/proof/SKILL.md'), '---\nname: proof\ndescription: proof\n---\n')
+
+    const result = await lintProject(projectDir)
+    const issue = result.issues.find(candidate => candidate.code === 'orchestration-field-outcomes')
+    expect(issue?.message).toContain('workflow-graph=degrade(codex-workflow-graph-companion)')
+    expect(issue?.message).toContain('installed/runtime')
   })
 
   it('warns on duplicate permission rules before mapping them', async () => {

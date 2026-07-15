@@ -426,6 +426,7 @@ These matter, but they are not the immediate center:
 - keep copied payload, generated fixture, installed state, and real-host behavior as separate evidence tiers
 - review Antigravity versus Gemini CLI and any other CE-only destinations as a later host-portfolio decision, not automatic scope
 - use [the primitive audit](./orchid/requirements/2026-07-13-compound-engineering-primitive-audit.md), [three-reference comparison](./orchid/requirements/2026-07-14-orchestration-reference-patterns.md), [accepted decision](./orchid/decisions/2026-07-14-orchestration-primitive.md), and [phased plan](./orchid/plans/2026-07-13-compound-engineering-parity-plan.md) as the decision and sequencing artifacts
+- Phase 2 now provides complete source-inspected core-four registry rows plus deterministic payloads, guidance, and receipts for all three reference fixtures; Phase 3 still owns installed execution and runtime proof
 
 ### Import and discovery depth
 
