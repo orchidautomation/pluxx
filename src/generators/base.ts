@@ -8,6 +8,7 @@ import { isCoreFourTranslationPlatform } from '../field-translation-registry'
 import { buildGeneratedOrchestrationArtifacts } from './orchestration'
 import { getNativeJsonHeadersOverride } from '../mcp-native-overrides'
 import { collectRuntimeInheritedStdioEnvVars } from '../user-config'
+import { publishDistributionAdjuncts } from '../distribution-adjuncts'
 import {
   buildMcpRuntimeEnvScript,
   buildRuntimeWrappedStdioMcpCommand,
@@ -65,6 +66,15 @@ export abstract class Generator {
       this.writeJson('orchestration/receipt.generated.json', artifacts.receipt),
       this.writeFile('orchestration/README.md', artifacts.guidance),
     ])
+  }
+
+  protected async generateDistributionAdjunctArtifacts(): Promise<void> {
+    const adjuncts = this.config.distribution?.adjuncts
+    if (!adjuncts || !isCoreFourTranslationPlatform(this.platform)) return
+    publishDistributionAdjuncts(adjuncts, this.platform, this.rootDir, this.outDir, {
+      name: this.config.name,
+      version: this.config.version,
+    })
   }
 
   /** Copy a directory from source to output */

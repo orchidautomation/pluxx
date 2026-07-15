@@ -98,10 +98,12 @@ function formatOrchestrationProofStatement(proof: OrchestrationRuntimeProofSumma
   if (proof.receiptCount !== 12 || proof.generatedProven !== 12 || proof.installedProven !== 12
     || proof.discoveryProven !== 0 || proof.discoveryEnvironmentUnavailable !== 12
     || proof.activationUnsupported !== 12 || proof.behavioralEnvironmentUnavailable !== 12
-    || proof.fieldOutcomeCount !== 324 || proof.degradedOutcomeCount !== 324) {
+    || proof.fieldOutcomeCount !== 324 || proof.degradedOutcomeCount !== 324
+    || proof.adjunctReceiptCount !== 12 || proof.adjunctInventoryCount !== 176
+    || proof.adjunctOwnershipProven !== 12) {
     throw new Error(`Core-four orchestration proof summary is incomplete: ${JSON.stringify(proof)}`)
   }
-  return 'Phase 3 adds 12 validated deterministic `fake-home-install` receipts under `tests/fixtures/orchestration-runtime-receipts`. Generation, install layout, ownership, verifier behavior, and host registration artifacts are proven in isolated filesystems; real-host discovery is environment-unavailable in all 12 cases. The generated companions still have no executable host entrypoint, so activation is unsupported, behavioral evidence is environment-unavailable, and all 324 fixture outcomes remain explicit degradation.'
+  return 'Phase 5 maintains 12 validated deterministic `fake-home-install` receipts under `tests/fixtures/orchestration-runtime-receipts`, now bound to 176 pinned fixture adjunct inventory rows and install ownership. Exact source identity, revision, digest, host outcome policy, compiler output digest, and receipt digest are validated for Claude Code, Cursor, Codex, and OpenCode. Generated registration artifacts remain isolated evidence only: real-host discovery is environment-unavailable in all 12 cases, activation is unsupported, behavioral evidence is environment-unavailable, and all 324 orchestration outcomes remain explicit degradation.'
 }
 
 export function renderCoreFourPrimitiveMatrixSection(proof?: OrchestrationRuntimeProofSummary): string {

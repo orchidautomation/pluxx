@@ -42,6 +42,8 @@ This is not the same thing as the short queue.
   - [Accepted orchestration decision](../orchid/decisions/2026-07-14-orchestration-primitive.md)
   - [Compound Engineering parity plan](../orchid/plans/2026-07-13-compound-engineering-parity-plan.md)
   - [PLUXX-324 transactional migrate plan](../orchid/plans/2026-07-14-pluxx-324-transactional-migrate.md)
+  - [PLUXX-328 native adjunct plan](../orchid/plans/2026-07-14-pluxx-328-native-adjuncts.md)
+  - [Accepted native adjunct decision](../orchid/decisions/2026-07-14-pluxx-328-native-adjuncts.md)
   - [author-once-hardening.md](./author-once-hardening.md)
   - [Linear](https://linear.app/orchid-automation)
 - Update together:
@@ -195,7 +197,8 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
   - [x] collect 12 deterministic isolated `fake-home-install` receipts for CE, Hyperframes, and Superpowers in Phase 3: install layout, ownership, verifier behavior, and host registration artifacts are proven, real-host discovery is environment-unavailable in all 12, and explicit degradation remains for unsupported activation and environment-unavailable behavior
   - model per-dispatch child-environment inheritance/override without moving payload ownership out of agents, permissions, and runtime
   - [x] freeze orchestration mapping and proof scope to Claude Code, Cursor, Codex, and OpenCode; Phase 4 secondary-target work is deferred
-  - [ ] after Phase 3, recover core-four adjunct/distribution topology in Phase 5 and add core-four release gates in Phase 6
+  - [x] recover core-four adjunct/distribution topology in Phase 5: 44 pinned rows, 176 host outcomes, 12 deterministic install-owned receipts, transactional present-source publication, and fail-closed ambiguity/collision handling
+  - [ ] add Phase 6 core-four release gates over fixture/receipt freshness, migration, generation, install ownership, compatibility derivation, and the unchanged real-host evidence boundary
   - require real-host behavior receipts before promoting packaging preservation to runtime parity
   - use [the phased plan](../orchid/plans/2026-07-13-compound-engineering-parity-plan.md) for execution order; Phase 7's core-four portfolio decision is complete, and future expansion requires a separate product decision
 - [~] Keep [docs/core-four-reliability-register.md](../core-four-reliability-register.md) current as the concrete Claude Code and Codex failure register:

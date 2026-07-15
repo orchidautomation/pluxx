@@ -29,6 +29,8 @@ Last updated: 2026-07-14
   - [Accepted orchestration decision](../orchid/decisions/2026-07-14-orchestration-primitive.md)
   - [Compound Engineering parity plan](../orchid/plans/2026-07-13-compound-engineering-parity-plan.md)
   - [PLUXX-324 transactional migrate plan](../orchid/plans/2026-07-14-pluxx-324-transactional-migrate.md)
+  - [PLUXX-328 native adjunct plan](../orchid/plans/2026-07-14-pluxx-328-native-adjuncts.md)
+  - [Accepted native adjunct decision](../orchid/decisions/2026-07-14-pluxx-328-native-adjuncts.md)
   - [author-once-hardening.md](./author-once-hardening.md)
   - [Linear](https://linear.app/orchid-automation)
 - Update together:
@@ -241,9 +243,10 @@ Open work:
   - make per-dispatch child-environment inheritance/override explicit across tools, MCP, permissions/approvals, sandbox, credential availability, and delegation depth
   - [x] populate all 108 evidence-backed core-four orchestration rows and deterministic payload/receipt generators in Phase 2; every current row explicitly degrades to a named companion mechanism because the IR does not yet supply an executable host adapter
   - [x] produce 12 deterministic isolated `fake-home-install` receipts for CE, Hyperframes, and Superpowers during Phase 3; install layout, ownership, verifier behavior, and host registration artifacts are proven, real-host discovery is environment-unavailable in all 12, activation is unsupported, and behavioral evidence is environment-unavailable
+  - [x] recover Phase 5 core-four adjunct/distribution topology: 44 pinned source rows compile into 176 deterministic host outcomes and 12 install-owned receipts; present migration inputs publish transactionally, while source-inspected external bytes degrade instead of being copied
   - [x] freeze this initiative to Claude Code, Cursor, Codex, and OpenCode; Phase 7's portfolio decision is complete
   - defer Phase 4 orchestration work for GitHub Copilot, OpenHands, Warp, Gemini CLI, Roo Code, Cline, and Amp
-  - next proceed to Phase 5 core-four adjunct/distribution recovery, then Phase 6 core-four release gates
+  - next proceed to Phase 6 core-four release gates; do not reopen the deferred secondary hosts
 - treat Codex companion apply/verify as the next concrete robustness slice:
   - make generated readiness, hook, MCP approval, and companion config guidance operational instead of advisory only
   - keep this aligned with `PLUXX-226`, `PLUXX-264`, `PLUXX-248`, and [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md)

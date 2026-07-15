@@ -1,6 +1,19 @@
 import { z } from 'zod'
 import { PERMISSION_SELECTOR_KINDS, parsePermissionRule } from './permissions'
 import { OrchestrationSchema, type Orchestration } from './orchestration'
+import { DistributionAdjunctSourceSchema, type DistributionAdjunctSource } from './distribution-adjuncts'
+import {
+  HOST_MAPPED_COMPILER_BUCKETS,
+  PLUXX_COMPILER_BUCKETS,
+  PluginNameSchema,
+  type PluxxCompilerBucket,
+} from './compiler-contract'
+export {
+  HOST_MAPPED_COMPILER_BUCKETS,
+  PLUXX_COMPILER_BUCKETS,
+  PluginNameSchema,
+} from './compiler-contract'
+export type { HostMappedCompilerBucket, PluxxCompilerBucket } from './compiler-contract'
 
 // ── MCP Server Auth ──────────────────────────────────────────────
 
@@ -396,7 +409,7 @@ export const PlatformOverridesSchema = z.object({
 
 export const PluginConfigSchema = z.object({
   // Identity
-  name: z.string().regex(/^[a-z0-9-]+$/, 'Must be lowercase with hyphens only'),
+  name: PluginNameSchema,
   version: z.string().default('0.1.0'),
   description: z.string(),
   author: z.object({
@@ -412,6 +425,9 @@ export const PluginConfigSchema = z.object({
   brand: BrandSchema.optional(),
   userConfig: UserConfigSchema.optional(),
   permissions: PermissionsSchema.optional(),
+  distribution: z.object({
+    adjuncts: DistributionAdjunctSourceSchema.optional(),
+  }).strict().optional(),
 
   // Plugin components (paths relative to config file)
   skills: z.string().default('./skills/'),
@@ -509,33 +525,6 @@ export type Permissions = z.infer<typeof PermissionsSchema>
 export type Hooks = z.infer<typeof HooksSchema>
 export type { Orchestration }
 
-export const HOST_MAPPED_COMPILER_BUCKETS = [
-  'instructions',
-  'skills',
-  'commands',
-  'agents',
-  'hooks',
-  'permissions',
-  'runtime',
-  'distribution',
-] as const
-
-export type HostMappedCompilerBucket = typeof HOST_MAPPED_COMPILER_BUCKETS[number]
-
-export const PLUXX_COMPILER_BUCKETS = [
-  'instructions',
-  'skills',
-  'commands',
-  'agents',
-  'orchestration',
-  'hooks',
-  'permissions',
-  'runtime',
-  'distribution',
-] as const
-
-export type PluxxCompilerBucket = typeof PLUXX_COMPILER_BUCKETS[number]
-
 export interface PluginInstructionsBucket {
   path?: string
 }
@@ -596,6 +585,7 @@ export interface PluginDistributionBucket {
   userConfig: UserConfigEntry[]
   targets: TargetPlatform[]
   outDir: string
+  adjuncts?: DistributionAdjunctSource
   brandingSurface: PluginDistributionBrandingSubprimitive
   installSurface: PluginDistributionInstallSubprimitive
   outputSurface: PluginDistributionOutputSubprimitive
@@ -698,6 +688,7 @@ export function getPluginCompilerBuckets(config: PluginConfig): PluginCompilerBu
       userConfig: distributionInstallSurface.userConfig,
       targets: distributionOutputSurface.targets,
       outDir: distributionOutputSurface.outDir,
+      adjuncts: config.distribution?.adjuncts,
       brandingSurface: distributionBrandingSurface,
       installSurface: distributionInstallSurface,
       outputSurface: distributionOutputSurface,

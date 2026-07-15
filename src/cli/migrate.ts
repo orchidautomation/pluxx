@@ -1,3 +1,4 @@
+import { createHash } from 'crypto'
 import { basename, dirname, posix, relative, resolve } from 'path'
 import { existsSync, readdirSync, mkdirSync, mkdtempSync, cpSync, readFileSync, readlinkSync, rmSync, statSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
@@ -17,10 +18,13 @@ import { getCanonicalSkillMetadata, parseSkillMarkdown, readCanonicalSkillFiles,
 import { buildNativeMcpPlatformOverrides } from '../mcp-native-overrides'
 import { parseTomlValue, stripTomlComment } from '../toml-lite'
 import { writeTextFile } from '../text-files'
+import type { DistributionAdjunctSource } from '../distribution-adjuncts'
+import { detectDistributionAdjuncts } from './migrate-adjuncts'
 import { loadConfig } from '../config/load'
 import { withWorkspaceMutationLock } from './mutation-lock'
 import {
   applyFileMutations,
+  assertNoSymlinkComponents,
   copyProjectForStaging,
   createMutationManifest,
   readFileMutation,
@@ -114,6 +118,7 @@ interface MigrateResult {
   manifestSources: ManifestSource[]
   manifestFieldSources: Record<string, string[]>
   manifestFieldCandidates: Record<string, string[]>
+  distributionAdjuncts?: DistributionAdjunctSource
 }
 
 // ── Platform Detection ──────────────────────────────────────────
@@ -130,6 +135,7 @@ function detectPlatforms(pluginDir: string): DetectionResult[] {
   for (const check of checks) {
     const manifestPath = resolve(pluginDir, check.dir, 'plugin.json')
     if (existsSync(manifestPath)) {
+      assertNoSymlinkComponents(pluginDir, `${check.dir}/plugin.json`)
       detections.push({ platform: check.platform, manifestPath })
     }
   }
@@ -137,6 +143,7 @@ function detectPlatforms(pluginDir: string): DetectionResult[] {
   // Check for OpenCode (package.json with @opencode-ai/plugin)
   const pkgPath = resolve(pluginDir, 'package.json')
   if (existsSync(pkgPath)) {
+    assertNoSymlinkComponents(pluginDir, 'package.json')
     try {
       const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'))
       const deps = {
@@ -1974,6 +1981,11 @@ function generateConfigTs(result: MigrateResult): string {
   if (result.manifest.brand && Object.keys(result.manifest.brand).length > 0) {
     lines.push('  brand: ' + renderIndentedTsValue(result.manifest.brand, 2) + ',')
   }
+  if (result.distributionAdjuncts) {
+    lines.push('  distribution: {')
+    lines.push('    adjuncts: ' + renderIndentedTsValue(result.distributionAdjuncts, 4) + ',')
+    lines.push('  },')
+  }
 
   if (result.warnings.length > 0) {
     lines.push('')
@@ -2236,6 +2248,7 @@ export interface MigrationProvenance {
   }
   fieldSources: Record<string, string[]>
   fieldCandidates: Record<string, string[]>
+  distributionAdjuncts?: DistributionAdjunctSource
 }
 
 function buildMigrationProvenance(result: MigrateResult): MigrationProvenance {
@@ -2254,6 +2267,7 @@ function buildMigrationProvenance(result: MigrateResult): MigrationProvenance {
     },
     fieldSources: sortFields(result.manifestFieldSources),
     fieldCandidates: sortFields(result.manifestFieldCandidates),
+    ...(result.distributionAdjuncts ? { distributionAdjuncts: result.distributionAdjuncts } : {}),
   }
 }
 
@@ -2522,6 +2536,10 @@ async function migrateInPlace(
         stripRelativePrefix(sourcePaths.agents),
       )
     : []
+  const distributionAdjuncts = detectDistributionAdjuncts(pluginDir, detections, manifest)
+  if (distributionAdjuncts) {
+    log(`  recovered adjuncts: ${distributionAdjuncts.items.length} (${distributionAdjuncts.provenance.evidenceTier})`)
+  }
 
   // 7. Build result
   const result: MigrateResult = {
@@ -2537,9 +2555,11 @@ async function migrateInPlace(
     sourcePaths,
     persistedSkills,
     warnings: [...parsedMcp.warnings, ...codexAgentWarnings],
+    distributionAdjuncts,
     extraCopyPaths: [...new Set([
       ...instructionSources.extraPaths,
       ...openCodeDistributionSources.extraPaths,
+      ...(distributionAdjuncts?.items.filter(item => item.availability === 'present').map(item => item.source) ?? []),
     ])].sort(),
     manifestSources: reconciledManifest.sources,
     manifestFieldSources: reconciledManifest.fieldSources,
@@ -2592,8 +2612,8 @@ async function migrateInPlace(
       log(`  skip ./${copiedPath} (already exists)`)
       continue
     }
-    const content = readFileSync(srcPath, 'utf-8')
-    await writeTextFile(destPath, content)
+    mkdirSync(dirname(destPath), { recursive: true })
+    cpSync(srcPath, destPath, { recursive: true })
     log(`Copied: ${copiedPath}`)
   }
 

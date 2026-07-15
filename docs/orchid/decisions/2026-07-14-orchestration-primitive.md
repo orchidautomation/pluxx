@@ -5,7 +5,7 @@ date: 2026-07-14
 status: accepted
 decision_owner: Brandon Guerrero
 product_contract_source: linear-pluxx-323
-implementation_status: phase-3-core-four-isolated-install-proof-local
+implementation_status: phase-5-core-four-adjunct-proof-local
 ---
 
 # Accept Orchestration as a Canonical Compiler Primitive
@@ -14,7 +14,7 @@ implementation_status: phase-3-core-four-isolated-install-proof-local
 
 Pluxx will treat `orchestration` as its ninth canonical compiler bucket, distinct from `agents`.
 
-The decision is accepted product direction. Phase 1 implements the canonical IR, schema, semantic validator, and compiler-owned capability-registry contract. Phase 2 adds complete core-four rows plus deterministic payloads and receipts. Phase 3 adds 12 deterministic isolated `fake-home-install` receipts bound to fixture, plugin version, orchestration digest, host, probe contract, and exact evidence. Install layout, ownership, verifier behavior, and host registration artifacts are proven in isolated filesystems; real-host discovery is environment-unavailable in all 12. Because the current IR still does not carry executable host entrypoints or runtime adapters, all 108 rows remain named, prompt-guided degradation: activation is unsupported and behavioral evidence is environment-unavailable rather than promoted to parity.
+The decision is accepted product direction. Phase 1 implements the canonical IR, schema, semantic validator, and compiler-owned capability-registry contract. Phase 2 adds complete core-four rows plus deterministic payloads and receipts. Phase 3 adds 12 deterministic isolated `fake-home-install` receipts. Phase 5 binds those receipts to 44 exact pinned native-adjunct rows, 176 compiled core-four outcomes, compiler digests, and install ownership while keeping adjuncts inside the existing distribution bucket. Generated registration artifacts remain isolated evidence only; real-host discovery is environment-unavailable in all 12. Because the current IR still does not carry executable host entrypoints or runtime adapters, all 108 rows remain named, prompt-guided degradation: activation is unsupported and behavioral evidence is environment-unavailable rather than promoted to parity.
 
 Pluxx's author-once contract becomes:
 
@@ -89,7 +89,7 @@ The receipt must name the native or fallback/companion mechanism, activation req
 ## Consequences
 
 - The public canonical taxonomy is now nine compiler buckets.
-- Current implementation truth is nine canonical buckets with complete core-four mappings and 12 isolated `fake-home-install` receipts. Install layout, ownership, verifier behavior, and host registration artifacts are proven; real-host discovery is environment-unavailable in all 12. Activation and behavior remain unproved.
+- Current implementation truth is nine canonical buckets with complete core-four mappings and 12 isolated `fake-home-install` receipts. Phase 5 additionally binds 44 pinned adjunct rows, 176 compiled outcomes, compiler digests, and install ownership. Generated registration artifacts do not prove real-host discovery; activation and behavior remain unproved.
 - `agents` must not become a catch-all for workflow coordination.
 - The first contract must represent all three fixtures: CE delegation, Hyperframes artifact pipelines, and Superpowers lifecycle/review loops.
 - Existing CE Codex behavior remains a regression baseline and passthrough escape hatch.
@@ -114,6 +114,7 @@ The receipt must name the native or fallback/companion mechanism, activation req
 - Superpowers-style activation, review-loop, and durable-resume proof
 - lifecycle re-injection/idempotency and child-environment inheritance proof
 - explicit unsupported or environment-unavailable receipts for core-four mechanisms that cannot be activated or behaviorally proven
+- Phase 5 adjunct receipts whose fixture revision/digest, current registry outcomes, compiler digest, and install ownership validate deterministically
 
 ## Related Artifacts
 
@@ -123,3 +124,4 @@ The receipt must name the native or fallback/companion mechanism, activation req
 - [Core Primitives](../../core-primitives.md)
 - [Primitive Compiler Hardening Architecture](../../primitive-compiler-hardening-architecture.md)
 - [PLUXX-323](https://linear.app/orchid-automation/issue/PLUXX-323/audit-compound-engineering-plugin-primitives-and-cross-host-pluxx)
+- [PLUXX-328 native adjunct decision](./2026-07-14-pluxx-328-native-adjuncts.md)

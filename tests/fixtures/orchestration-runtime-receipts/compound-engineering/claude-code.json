@@ -38,6 +38,8 @@
     "installed": {
       "status": "proven",
       "evidenceIds": [
+        "adjunct-receipt-sha256",
+        "install-ownership-sha256",
         "installed-manifest",
         "installed-tree-sha256"
       ]
@@ -63,6 +65,11 @@
   },
   "facts": [
     {
+      "id": "adjunct-receipt-sha256",
+      "kind": "sha256",
+      "value": "49a196a26d2c11ddb697a85572df1161972174ca9db41df4dabc6139caac8705"
+    },
+    {
       "id": "generated-receipt-sha256",
       "kind": "sha256",
       "value": "05a5f03d72c31eb2a04a7602a0613b99195cf60f7922d32441da7f9941896d26"
@@ -73,6 +80,11 @@
       "value": "The isolated claude-code install did not invoke the native host discovery process"
     },
     {
+      "id": "install-ownership-sha256",
+      "kind": "sha256",
+      "value": "ade002659ffd0cdbccdbeefa8255c5dc90c28a881f3567eb1ab1c117bd3415ea"
+    },
+    {
       "id": "installed-manifest",
       "kind": "assertion",
       "value": ".claude-plugin/plugin.json exists and matches the verified isolated bundle"
@@ -80,7 +92,7 @@
     {
       "id": "installed-tree-sha256",
       "kind": "sha256",
-      "value": "156652a790a7ec6f81ecd1e93bc90eb27fdfff34f735d3a371f9511d9223e978"
+      "value": "29c3f6342175ac2d4d9e0bd8ae8d32f7de53e9e4f8f1baf5d4f1c0697e9c935d"
     },
     {
       "id": "native-host-not-invoked",
@@ -1230,5 +1242,277 @@
     }
   ],
   "installedBehaviorProven": false,
-  "receiptDigest": "605d307ef3d896721b538d6dc6af82bc75b0ddb250b8ddfdd15a8bbc435307b4"
+  "adjuncts": {
+    "receipt": {
+      "schemaVersion": 1,
+      "kind": "pluxx-distribution-adjunct-receipt",
+      "proofTier": "fixture-source-inspection",
+      "identity": {
+        "fixture": "compound-engineering",
+        "plugin": "compound-engineering",
+        "version": "3.19.0",
+        "revision": "f871e4b4308f5a175b38ccada51d80dd67bab4fc",
+        "digest": "4c82f2038ca4fd09a7b19473d3b890e2d0b10b1e6c9c19f1971c64b5ec33a1d5",
+        "evidenceTier": "fixture-source-inspection"
+      },
+      "compiledPlugin": {
+        "name": "orchestration-compound-engineering",
+        "version": "0.1.0"
+      },
+      "host": "claude-code",
+      "inventory": [
+        {
+          "id": "claude-manifest",
+          "kind": "identity-manifest",
+          "source": ".claude-plugin/plugin.json",
+          "target": ".claude-plugin/plugin.json",
+          "sourcePlatform": "claude-code",
+          "canonicalOwner": "distribution",
+          "availability": "source-inspected",
+          "digest": "ab59bca7988c346d556644a38ce24bda6caa9cb912226812d279d4f004e3a022",
+          "executable": false,
+          "requiredForPublication": false,
+          "outcome": {
+            "platform": "claude-code",
+            "adjunctId": "claude-manifest",
+            "mode": "translate",
+            "mechanism": "claude-code:identity-manifest:translate",
+            "rationale": "Pinned source identity informs Claude Code's generated manifest without copying source manifest bytes.",
+            "evidenceTier": "fixture-source-inspection"
+          }
+        },
+        {
+          "id": "claude-marketplace",
+          "kind": "registration-catalog",
+          "source": ".claude-plugin/marketplace.json",
+          "target": ".claude-plugin/marketplace.json",
+          "sourcePlatform": "claude-code",
+          "canonicalOwner": "distribution",
+          "availability": "source-inspected",
+          "digest": "057e14e8a58ce93c8ec9dae2bc1d5fa1036cc74f463af67a67ca2a85c5f11eb0",
+          "executable": false,
+          "requiredForPublication": false,
+          "outcome": {
+            "platform": "claude-code",
+            "adjunctId": "claude-marketplace",
+            "mode": "degrade",
+            "mechanism": "claude-code:registration-catalog:degrade",
+            "rationale": "The pinned fixture proves the source bytes, but the bounded fixture does not vendor a publishable payload for this host.",
+            "evidenceTier": "fixture-source-inspection"
+          }
+        },
+        {
+          "id": "codex-icon",
+          "kind": "helper-payload",
+          "source": "assets/icon.svg",
+          "target": "assets/icon.svg",
+          "sourcePlatform": "codex",
+          "canonicalOwner": "distribution",
+          "availability": "source-inspected",
+          "digest": "a15d14dc522dcbb52f6f04ce9738f2d0ff7f8e06cce9b17916013a4e8e602df2",
+          "executable": false,
+          "requiredForPublication": false,
+          "outcome": {
+            "platform": "claude-code",
+            "adjunctId": "codex-icon",
+            "mode": "degrade",
+            "mechanism": "claude-code:helper-payload:degrade",
+            "rationale": "The pinned fixture proves the source bytes, but the bounded fixture does not vendor a publishable payload for this host.",
+            "evidenceTier": "fixture-source-inspection"
+          }
+        },
+        {
+          "id": "codex-logo",
+          "kind": "helper-payload",
+          "source": "assets/logo.png",
+          "target": "assets/logo.png",
+          "sourcePlatform": "codex",
+          "canonicalOwner": "distribution",
+          "availability": "source-inspected",
+          "digest": "134613352009479aa461399349960147e9c10531f5302ad541e2263bd200bf75",
+          "executable": false,
+          "requiredForPublication": false,
+          "outcome": {
+            "platform": "claude-code",
+            "adjunctId": "codex-logo",
+            "mode": "degrade",
+            "mechanism": "claude-code:helper-payload:degrade",
+            "rationale": "The pinned fixture proves the source bytes, but the bounded fixture does not vendor a publishable payload for this host.",
+            "evidenceTier": "fixture-source-inspection"
+          }
+        },
+        {
+          "id": "codex-manifest",
+          "kind": "identity-manifest",
+          "source": ".codex-plugin/plugin.json",
+          "target": ".codex-plugin/plugin.json",
+          "sourcePlatform": "codex",
+          "canonicalOwner": "distribution",
+          "availability": "source-inspected",
+          "digest": "a63efb33b7834bca086922516af2a1a71cf4b45b847d47fa5874e2d7461105d6",
+          "executable": false,
+          "requiredForPublication": false,
+          "outcome": {
+            "platform": "claude-code",
+            "adjunctId": "codex-manifest",
+            "mode": "translate",
+            "mechanism": "claude-code:identity-manifest:translate",
+            "rationale": "Pinned source identity informs Claude Code's generated manifest without copying source manifest bytes.",
+            "evidenceTier": "fixture-source-inspection"
+          }
+        },
+        {
+          "id": "codex-marketplace",
+          "kind": "registration-catalog",
+          "source": ".agents/plugins/marketplace.json",
+          "target": ".agents/plugins/marketplace.json",
+          "sourcePlatform": "codex",
+          "canonicalOwner": "distribution",
+          "availability": "source-inspected",
+          "digest": "78a5b4d7f8e8c410f2c17317744dbb2c7023fc77e6d76b0c6f5448911033c119",
+          "executable": false,
+          "requiredForPublication": false,
+          "outcome": {
+            "platform": "claude-code",
+            "adjunctId": "codex-marketplace",
+            "mode": "degrade",
+            "mechanism": "claude-code:registration-catalog:degrade",
+            "rationale": "The pinned fixture proves the source bytes, but the bounded fixture does not vendor a publishable payload for this host.",
+            "evidenceTier": "fixture-source-inspection"
+          }
+        },
+        {
+          "id": "cursor-manifest",
+          "kind": "identity-manifest",
+          "source": ".cursor-plugin/plugin.json",
+          "target": ".cursor-plugin/plugin.json",
+          "sourcePlatform": "cursor",
+          "canonicalOwner": "distribution",
+          "availability": "source-inspected",
+          "digest": "a913a025839588946b4b5cc52aead80a47e81aca8d584c2cff6df6c0a7b2f459",
+          "executable": false,
+          "requiredForPublication": false,
+          "outcome": {
+            "platform": "claude-code",
+            "adjunctId": "cursor-manifest",
+            "mode": "translate",
+            "mechanism": "claude-code:identity-manifest:translate",
+            "rationale": "Pinned source identity informs Claude Code's generated manifest without copying source manifest bytes.",
+            "evidenceTier": "fixture-source-inspection"
+          }
+        },
+        {
+          "id": "cursor-marketplace",
+          "kind": "registration-catalog",
+          "source": ".cursor-plugin/marketplace.json",
+          "target": ".cursor-plugin/marketplace.json",
+          "sourcePlatform": "cursor",
+          "canonicalOwner": "distribution",
+          "availability": "source-inspected",
+          "digest": "f2e7e93d72f586b5472ccd40c6466d31b765a19debd187e39108a3afdf7a2eb0",
+          "executable": false,
+          "requiredForPublication": false,
+          "outcome": {
+            "platform": "claude-code",
+            "adjunctId": "cursor-marketplace",
+            "mode": "degrade",
+            "mechanism": "claude-code:registration-catalog:degrade",
+            "rationale": "The pinned fixture proves the source bytes, but the bounded fixture does not vendor a publishable payload for this host.",
+            "evidenceTier": "fixture-source-inspection"
+          }
+        },
+        {
+          "id": "legacy-cleanup-policy",
+          "kind": "source-only-evidence",
+          "source": "src/commands/cleanup.ts",
+          "target": "src/commands/cleanup.ts",
+          "sourcePlatform": "source-only",
+          "canonicalOwner": "distribution",
+          "availability": "source-inspected",
+          "digest": "b8e89a7cf6efa4d6444f0358cf0e62a510f7073f407354cd87c824d699504deb",
+          "executable": false,
+          "requiredForPublication": false,
+          "outcome": {
+            "platform": "claude-code",
+            "adjunctId": "legacy-cleanup-policy",
+            "mode": "drop",
+            "mechanism": "claude-code:source-only-evidence:drop",
+            "rationale": "Source-repository release or maintenance evidence is accounted for but is not a consumer-host payload.",
+            "evidenceTier": "fixture-source-inspection"
+          }
+        },
+        {
+          "id": "legacy-install-policy",
+          "kind": "source-only-evidence",
+          "source": "src/commands/install.ts",
+          "target": "src/commands/install.ts",
+          "sourcePlatform": "source-only",
+          "canonicalOwner": "distribution",
+          "availability": "source-inspected",
+          "digest": "1dea899e9064fa26312a6973f8646969c76720089a3647adcaf1d5b29047210d",
+          "executable": false,
+          "requiredForPublication": false,
+          "outcome": {
+            "platform": "claude-code",
+            "adjunctId": "legacy-install-policy",
+            "mode": "drop",
+            "mechanism": "claude-code:source-only-evidence:drop",
+            "rationale": "Source-repository release or maintenance evidence is accounted for but is not a consumer-host payload.",
+            "evidenceTier": "fixture-source-inspection"
+          }
+        },
+        {
+          "id": "opencode-loader",
+          "kind": "lifecycle-entrypoint",
+          "source": ".opencode/plugins/compound-engineering.js",
+          "target": ".opencode/plugins/compound-engineering.js",
+          "sourcePlatform": "opencode",
+          "canonicalOwner": "runtime",
+          "availability": "source-inspected",
+          "digest": "4e263f7c7231791577ad3211d6f026693dc15fad24c01c886f0a74d5e5d5fc99",
+          "executable": false,
+          "requiredForPublication": false,
+          "outcome": {
+            "platform": "claude-code",
+            "adjunctId": "opencode-loader",
+            "mode": "degrade",
+            "mechanism": "claude-code:lifecycle-entrypoint:degrade",
+            "rationale": "The pinned fixture proves the source bytes, but the bounded fixture does not vendor a publishable payload for this host.",
+            "evidenceTier": "fixture-source-inspection"
+          }
+        },
+        {
+          "id": "root-package",
+          "kind": "identity-manifest",
+          "source": "package.json",
+          "target": "package.json",
+          "sourcePlatform": "opencode",
+          "canonicalOwner": "distribution",
+          "availability": "source-inspected",
+          "digest": "e415198d289a3ed3faa8d2f6e8040d3d24a3c7686683811ecca4584d9e104549",
+          "executable": false,
+          "requiredForPublication": false,
+          "outcome": {
+            "platform": "claude-code",
+            "adjunctId": "root-package",
+            "mode": "translate",
+            "mechanism": "claude-code:identity-manifest:translate",
+            "rationale": "Pinned source identity informs Claude Code's generated manifest without copying source manifest bytes.",
+            "evidenceTier": "fixture-source-inspection"
+          }
+        }
+      ],
+      "ownedOutputs": [],
+      "compilerOutputDigest": "26f790c79e18aa3bbe62c9c6b60317398cf6a3c7e4052d4e355f4c6aa7cc4743",
+      "receiptDigest": "a0ba1ec151c8bfd87e9afde792a6c5dc83849fcb270f5743b7e969318a05515b"
+    },
+    "installOwnership": {
+      "recordDigest": "ade002659ffd0cdbccdbeefa8255c5dc90c28a881f3567eb1ab1c117bd3415ea",
+      "ownershipKind": "symlink",
+      "ownedSurfaceCount": 1,
+      "receiptPath": "distribution/adjuncts.receipt.json",
+      "receiptDigest": "49a196a26d2c11ddb697a85572df1161972174ca9db41df4dabc6139caac8705"
+    }
+  },
+  "receiptDigest": "75acc5f7df3147bd219fd5be8c1ae5250eda4ea2660336098de33e35c882a6b1"
 }

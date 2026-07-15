@@ -177,6 +177,8 @@ GitHub Copilot, OpenHands, Warp, Gemini CLI, Roo Code, Cline, and Amp have no ac
 
 ## Phase 5: Recover Core-Four Native Adjuncts and Distribution Topology
 
+Status: complete locally under PLUXX-328. The compiler owns 44 pinned rows across CE, Hyperframes, and Superpowers, compiles 176 core-four outcomes, and validates 12 deterministic install-owned receipts without promoting generated registration artifacts to real-host discovery.
+
 Objective: import mature multi-host repositories without discarding the host-native packaging that makes them operational.
 
 Scope:
@@ -193,9 +195,10 @@ Scope:
 
 Evidence gate:
 
-- the pinned CE repository produces an intake receipt with no unaccounted native surface
-- every adjunct is canonical, declared passthrough, intentionally external, or explicitly dropped
-- reinstall/uninstall ownership remains conservative
+- the pinned CE, Hyperframes, and Superpowers inventories account for 44 exact source rows with no secondary-host expansion
+- every adjunct is distribution-owned, owned by one of the other eight canonical buckets, source-only evidence, intentionally external, or explicitly dropped
+- present migration sources publish through the existing transaction layer; identity ambiguity, unavailable required inputs, and co-publishable collisions refuse without partial output
+- all 12 receipts bind fixture identity/version/revision/digest, host, exact inventory, compiler digest, and install ownership; real-host discovery and activation remain unproved
 
 Dependency: Phase 0 import receipts and Phase 3 core-four proof. Phase 4 is not a dependency.
 
@@ -233,7 +236,7 @@ The seven secondary targets and any new destinations are excluded. Future expans
 2. Phase 1 orchestration contract — complete.
 3. Phase 2 core-four adapters — complete.
 4. Phase 3 core-four installed/runtime proof — complete.
-5. Phase 5 core-four adjunct/distribution recovery.
+5. Phase 5 core-four adjunct/distribution recovery (complete locally under PLUXX-328).
 6. Phase 6 core-four release gates.
 
 Phase 4 is deferred. Phase 7 is complete.

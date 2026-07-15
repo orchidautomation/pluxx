@@ -31,6 +31,8 @@ Last updated: 2026-07-14
   - [Accepted orchestration decision](./orchid/decisions/2026-07-14-orchestration-primitive.md)
   - [Compound Engineering parity plan](./orchid/plans/2026-07-13-compound-engineering-parity-plan.md)
   - [PLUXX-324 transactional migrate plan](./orchid/plans/2026-07-14-pluxx-324-transactional-migrate.md)
+  - [PLUXX-328 native adjunct plan](./orchid/plans/2026-07-14-pluxx-328-native-adjuncts.md)
+  - [Accepted native adjunct decision](./orchid/decisions/2026-07-14-pluxx-328-native-adjuncts.md)
   - [Linear](https://linear.app/orchid-automation)
 - Update together:
   - [docs/start-here.md](./start-here.md)
@@ -426,8 +428,8 @@ These matter, but they are not the immediate center:
 - keep copied payload, generated fixture, installed state, and real-host behavior as separate evidence tiers
 - Phase 4 secondary-target orchestration work is deferred; Phase 7 is complete and freezes this initiative to the core four. Future expansion requires a separate product decision
 - use [the primitive audit](./orchid/requirements/2026-07-13-compound-engineering-primitive-audit.md), [three-reference comparison](./orchid/requirements/2026-07-14-orchestration-reference-patterns.md), [accepted decision](./orchid/decisions/2026-07-14-orchestration-primitive.md), and [phased plan](./orchid/plans/2026-07-13-compound-engineering-parity-plan.md) as the decision and sequencing artifacts
-- Phase 2 provides complete source-inspected core-four rows plus deterministic payloads. Phase 3 adds 12 isolated `fake-home-install` receipts: install layout, ownership, verifier behavior, and host registration artifacts are proven in isolated filesystems; real-host discovery is environment-unavailable in all 12, and activation/behavior remain unsupported or environment-unavailable. All 108 registry outcomes remain degraded
-- after Phase 3, sequence Phase 5 core-four adjunct/distribution recovery, then Phase 6 core-four release gates
+- Phase 2 provides complete source-inspected core-four rows plus deterministic payloads. Phase 3 adds 12 isolated `fake-home-install` receipts. Phase 5 binds those receipts to 44 exact pinned adjunct rows, 176 compiled host outcomes, compiler digests, and install ownership; present migration inputs publish transactionally while source-inspected external bytes are never copied. Real-host discovery remains environment-unavailable in all 12, activation/behavior remain unsupported or environment-unavailable, and all 108 registry outcomes remain degraded
+- next sequence Phase 6 core-four release gates; deferred Phase 4 is not a dependency
 
 ### Import and discovery depth
 

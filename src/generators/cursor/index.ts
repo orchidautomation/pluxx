@@ -35,6 +35,7 @@ export class CursorGenerator extends Generator {
     this.copyScripts()
     this.copyAssets()
     this.copyPassthrough()
+    await this.generateDistributionAdjunctArtifacts()
   }
 
   private async generateManifest(): Promise<void> {

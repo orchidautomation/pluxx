@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'bun:test'
+import { createHash } from 'crypto'
+import { mkdtempSync, readFileSync, rmSync } from 'fs'
+import { tmpdir } from 'os'
+import { resolve } from 'path'
 import {
   assertOrchestrationProofPrivacySafe,
   buildOrchestrationRuntimeReceipt,
   resolveOrchestrationOutcomeWithEvidence,
 } from '../src/orchestration-runtime-proof'
+import { publishDistributionAdjuncts } from '../src/distribution-adjuncts'
+import { getDistributionAdjunctFixture } from '../test-fixtures/distribution-adjunct-fixtures'
 import {
   ORCHESTRATION_CAPABILITY_FIELDS,
   ORCHESTRATION_CAPABILITY_REGISTRY,
@@ -201,5 +207,66 @@ describe('orchestration installed/runtime proof receipts', () => {
     const emptyStageEvidence = buildInput()
     emptyStageEvidence.evidence.generated.evidenceIds = []
     expect(() => buildOrchestrationRuntimeReceipt(emptyStageEvidence)).toThrow()
+  })
+
+  it('cross-binds adjunct ownership to the compiled identity and exact proof facts', () => {
+    const root = mkdtempSync(resolve(tmpdir(), 'pluxx-adjunct-proof-binding-'))
+    try {
+      const outDir = resolve(root, 'dist/codex')
+      const receipt = publishDistributionAdjuncts(
+        getDistributionAdjunctFixture('compound-engineering'),
+        'codex',
+        root,
+        outDir,
+        { name: 'orchestration-compound-engineering', version: '0.1.0' },
+      )
+      const receiptDigest = createHash('sha256')
+        .update(readFileSync(resolve(outDir, 'distribution/adjuncts.receipt.json')))
+        .digest('hex')
+      const input = buildInput()
+      input.facts.push(
+        { id: 'adjunct-receipt-sha256', kind: 'sha256', value: receiptDigest },
+        { id: 'install-ownership-sha256', kind: 'sha256', value: 'd'.repeat(64) },
+      )
+      input.evidence.installed.evidenceIds.push('adjunct-receipt-sha256', 'install-ownership-sha256')
+      const boundInput = {
+        ...input,
+        adjuncts: {
+          receipt,
+          installOwnership: {
+            recordDigest: 'd'.repeat(64),
+            ownershipKind: 'symlink' as const,
+            ownedSurfaceCount: 1,
+            receiptPath: 'distribution/adjuncts.receipt.json',
+            receiptDigest,
+          },
+        },
+      }
+      expect(buildOrchestrationRuntimeReceipt(boundInput).adjuncts?.installOwnership.ownedSurfaceCount).toBe(1)
+
+      expect(() => buildOrchestrationRuntimeReceipt({
+        ...boundInput,
+        adjuncts: {
+          ...boundInput.adjuncts,
+          installOwnership: { ...boundInput.adjuncts.installOwnership, receiptPath: 'other.json' },
+        },
+      })).toThrow('must bind distribution/adjuncts.receipt.json')
+      expect(() => buildOrchestrationRuntimeReceipt({
+        ...boundInput,
+        adjuncts: {
+          ...boundInput.adjuncts,
+          installOwnership: { ...boundInput.adjuncts.installOwnership, recordDigest: 'e'.repeat(64) },
+        },
+      })).toThrow('record digest is not bound')
+      expect(() => buildOrchestrationRuntimeReceipt({
+        ...boundInput,
+        adjuncts: {
+          ...boundInput.adjuncts,
+          installOwnership: { ...boundInput.adjuncts.installOwnership, receiptDigest: 'e'.repeat(64) },
+        },
+      })).toThrow('receipt digest is not bound')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
   })
 })

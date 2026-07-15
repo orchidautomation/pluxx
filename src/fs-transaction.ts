@@ -68,7 +68,7 @@ export function createMutationManifest(input: {
   }
 }
 
-function resolveWithinRoot(rootDir: string, relativePath: string): string {
+export function resolveWithinRoot(rootDir: string, relativePath: string): string {
   if (isAbsolute(relativePath)) {
     throw new Error(`Mutation path must be relative to the project root: ${relativePath}`)
   }
@@ -81,7 +81,7 @@ function resolveWithinRoot(rootDir: string, relativePath: string): string {
   return target
 }
 
-function assertNoSymlinkComponents(rootDir: string, relativePath: string): void {
+export function assertNoSymlinkComponents(rootDir: string, relativePath: string): void {
   const root = resolve(rootDir)
   const target = resolveWithinRoot(root, relativePath)
   const rel = relative(root, target)
