@@ -35,7 +35,7 @@ Everything else is secondary until this layer is strong.
 
 The list above is the detailed authoring model.
 
-For cross-host compilation, Pluxx should reason about that model through nine larger buckets. Eight are implemented in the current compiler. `orchestration` is the accepted ninth bucket and remains implementation-pending.
+For cross-host compilation, Pluxx reasons about that model through nine larger buckets. `orchestration` now has a canonical IR, schema, semantic validator, and capability-registry contract. The original eight buckets remain the only host-mapped buckets; orchestration generation and runtime proof remain pending.
 
 | Compiler bucket | Includes | Why it exists |
 |---|---|---|
@@ -59,7 +59,7 @@ interface PluxxPrimitiveModel {
   skills?: SkillSpec[]
   commands?: CommandSpec[]
   agents?: AgentSpec[]
-  orchestration?: OrchestrationSpec[]
+  orchestration?: OrchestrationSpec
   hooks?: HookSpec[]
   permissions?: PermissionSpec[]
   runtime?: {
@@ -182,7 +182,7 @@ This is the workflow control plane.
 
 `agents` still owns standalone/custom executable identities. `skills` still owns workflow bodies and domain guidance. Hooks, instructions, runtime files, and distribution surfaces remain separate mechanisms. `orchestration` owns the relationships and control policy across those primitives.
 
-This bucket was accepted on 2026-07-14 after comparison of Compound Engineering, Hyperframes, and Superpowers. It is canonical product direction, not a claim that the current schema, generators, migration path, or runtime proof already implement it. See [Orchestration Primitive Decision](./orchid/decisions/2026-07-14-orchestration-primitive.md).
+This bucket was accepted on 2026-07-14 after comparison of Compound Engineering, Hyperframes, and Superpowers. Its Phase 1 source contract is implemented and proven by [bounded canonical fixtures](../test-fixtures/orchestration-fixtures.ts). That is not a claim that generators, installed hosts, or runtime parity implement it. See [Orchestration Primitive Decision](./orchid/decisions/2026-07-14-orchestration-primitive.md).
 
 ### 8. Hooks
 
@@ -275,7 +275,7 @@ Pluxx should document these and revisit them later, but they should not drive th
 
 After the current core-authoring work, the next extension-system priorities should be:
 
-1. specify the accepted `orchestration` IR and capability registry
+1. populate host mappings and generators against the accepted `orchestration` IR and capability registry
 2. restore trustworthy intake for mature multi-host plugins
 3. prove orchestration on the core four, starting with the working Codex baseline
 4. emit honest best-effort orchestration degradation for every current target

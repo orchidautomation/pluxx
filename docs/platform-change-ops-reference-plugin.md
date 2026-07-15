@@ -28,7 +28,7 @@ It lives in:
 
 Unlike `docs-ops` or `exa-plugin`, this example is not primarily about one product workflow.
 
-It currently pressures all eight implemented compiler buckets in one source project:
+It currently pressures all eight host-mapped compiler buckets in one source project. The ninth canonical bucket, `orchestration`, has a source contract but no host generator yet:
 
 - instructions
 - skills

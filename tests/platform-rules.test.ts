@@ -6,9 +6,10 @@ import {
   PLATFORM_LIMITS,
   PLATFORM_LIMIT_POLICIES,
   getCoreFourPrimitiveCapabilities,
+  getCoreFourCompilerBucketCapability,
   getPlatformRules,
 } from '../src/validation/platform-rules'
-import { PLUXX_COMPILER_BUCKETS } from '../src/schema'
+import { HOST_MAPPED_COMPILER_BUCKETS } from '../src/schema'
 import { getAgentPrimitiveCapability } from '../src/agent-translation-registry'
 import { getCommandPrimitiveCapability } from '../src/command-translation-registry'
 import { derivePrimitiveCapability, getFieldTranslationEntries } from '../src/field-translation-registry'
@@ -62,9 +63,15 @@ describe('CORE_FOUR_PRIMITIVE_CAPABILITIES', () => {
     expect(Object.keys(CORE_FOUR_PRIMITIVE_CAPABILITIES)).toEqual([...CORE_FOUR_PLATFORMS])
   })
 
-  it('covers every compiler bucket for each primary platform', () => {
+  it('covers every implemented host-mapped compiler bucket for each primary platform', () => {
     for (const platform of CORE_FOUR_PLATFORMS) {
-      expect(Object.keys(CORE_FOUR_PRIMITIVE_CAPABILITIES[platform].buckets)).toEqual([...PLUXX_COMPILER_BUCKETS])
+      expect(Object.keys(CORE_FOUR_PRIMITIVE_CAPABILITIES[platform].buckets)).toEqual([...HOST_MAPPED_COMPILER_BUCKETS])
+    }
+  })
+
+  it('reports orchestration as unmapped instead of fabricating a translation mode', () => {
+    for (const platform of CORE_FOUR_PLATFORMS) {
+      expect(getCoreFourCompilerBucketCapability(platform, 'orchestration')).toEqual({ status: 'unmapped' })
     }
   })
 

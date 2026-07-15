@@ -15,7 +15,7 @@ The goal is to normalize author intent once, then compile it into the best nativ
 
 ## Compiler Buckets
 
-These are the eight buckets Pluxx should compile from:
+These are the nine canonical buckets Pluxx compiles from. The original eight have current host mappings; orchestration host mapping remains Phase 2 work:
 
 | Bucket | Includes |
 |---|---|
@@ -23,12 +23,13 @@ These are the eight buckets Pluxx should compile from:
 | `skills` | reusable workflows plus taxonomy-derived workflow metadata |
 | `commands` | explicit slash-command style entrypoints |
 | `agents` | specialist or delegated execution surfaces |
+| `orchestration` | workflow activation, graph dispatch, artifact/state flow, bounded control, resume, and proof |
 | `hooks` | deterministic lifecycle automation |
 | `permissions` | portable `allow` / `ask` / `deny` intent |
 | `runtime` | MCP, runtime auth, runtime readiness, local runtimes, passthrough dirs, helper scripts |
 | `distribution` | user config, brand, packaging, install, publish, and install-surface metadata |
 
-`taxonomy` remains an internal compiler input. It drives how skills, commands, instructions, and agents are rendered, but it is not itself a host-facing extension primitive.
+`taxonomy` remains an internal compiler input. It drives how skills, commands, instructions, agents, and orchestration are rendered, but it is not itself a host-facing extension primitive.
 
 ## Canonical Shape
 
@@ -38,6 +39,7 @@ interface PluxxPrimitiveModel {
   skills?: SkillSpec[]
   commands?: CommandSpec[]
   agents?: AgentSpec[]
+  orchestration?: OrchestrationSpec
   hooks?: HookSpec[]
   permissions?: PermissionSpec[]
   runtime?: {
@@ -87,6 +89,7 @@ Two public buckets already need finer internal seams:
 | `skills` | `preserve` -> skills/<skill>/SKILL.md, skill frontmatter hooks | `degrade` -> skills/<skill>/SKILL.md, skills/<skill>/SKILL.md compatibility metadata, hooks/hooks.json | `degrade` -> skills/<skill>/SKILL.md, skills/<skill>/SKILL.md compatibility metadata, AGENTS.md, .codex/commands.generated.json, .codex/skills.generated.json, hooks/hooks.json | `degrade` -> skills/<skill>/SKILL.md, skills/<skill>/SKILL.md compatibility metadata, commands, plugin runtime guidance, skills.generated.json |
 | `commands` | `preserve` -> commands/*.md, skills/<skill>/SKILL.md | `preserve` -> commands/*, slash commands | `degrade` -> skills/, AGENTS.md, .codex/commands.generated.json | `preserve` -> commands/*.md, config command definitions |
 | `agents` | `preserve` -> agents/*.md | `translate` -> agents/, .cursor/agents/, ~/.cursor/agents/ | `translate` -> .codex/agents/*.toml, ~/.codex/agents/*.toml, subagent workflows | `preserve` -> agents/*.md, config agent definitions |
+| `orchestration` | `unmapped` -> Phase 2 host mapping not declared | `unmapped` -> Phase 2 host mapping not declared | `unmapped` -> Phase 2 host mapping not declared | `unmapped` -> Phase 2 host mapping not declared |
 | `hooks` | `degrade` -> hooks/hooks.json, settings hooks, frontmatter hooks | `degrade` -> hooks/hooks.json, .cursor/hooks.json | `degrade` -> hooks/hooks.json, .codex/hooks.json, generated command wrappers | `degrade` -> plugin JS/TS event handlers, plugin runtime event filters, plugin runtime event handlers |
 | `permissions` | `translate` -> agent frontmatter, hook decisions, runtime approvals | `translate` -> hooks allow/deny, .cursor/cli.json, ~/.cursor/cli-config.json, subagent tool access | `translate` -> approvals, sandbox policy, hook matchers, custom agent config | `preserve` -> config permission, per-agent overrides |
 | `runtime` | `preserve` -> .mcp.json, .claude-plugin/plugin.json, scripts/, assets/ | `preserve` -> mcp.json, .cursor/mcp.json, ~/.cursor/mcp.json, .cursor-plugin/plugin.json, scripts/, assets/ | `preserve` -> .mcp.json, .app.json, .codex/config.toml, scripts/, assets/ | `preserve` -> opencode.json, config mcp, plugin JS/TS runtime, scripts/, assets/ |

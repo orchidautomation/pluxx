@@ -2,7 +2,7 @@ import { existsSync, lstatSync, readdirSync, readFileSync } from 'fs'
 import { resolve, relative, basename, dirname } from 'path'
 import { loadConfig } from '../config/load'
 import { getConfiguredCompilerBuckets, getPluginCompilerBuckets, type McpServer, type PluginConfig, type PluxxCompilerBucket, type TargetPlatform } from '../schema'
-import { PLATFORM_LIMITS, PLATFORM_LIMIT_POLICIES, getCoreFourPrimitiveCapabilities, getPlatformRules, type CoreFourPlatform, type PrimitiveTranslationMode } from '../validation/platform-rules'
+import { PLATFORM_LIMITS, PLATFORM_LIMIT_POLICIES, getCoreFourCompilerBucketCapability, getPlatformRules, type CoreFourPlatform, type PrimitiveCapabilityStatus } from '../validation/platform-rules'
 import {
   getCodexCommandGuidanceNote,
   getCommandTranslationMessage,
@@ -1738,9 +1738,16 @@ function lintPrimitiveTranslations(config: PluginConfig, issues: LintIssue[]): v
   for (const target of config.targets) {
     if (!isCoreFourPlatform(target)) continue
 
-    const byMode = new Map<PrimitiveTranslationMode, string[]>()
+    const byMode = new Map<PrimitiveCapabilityStatus, string[]>()
     for (const bucket of configuredBuckets) {
-      const capability = getCoreFourPrimitiveCapabilities(target).buckets[bucket]
+      const lookup = getCoreFourCompilerBucketCapability(target, bucket)
+      if (lookup.status === 'unmapped') {
+        const buckets = byMode.get('unmapped') ?? []
+        buckets.push(bucket)
+        byMode.set('unmapped', buckets)
+        continue
+      }
+      const capability = lookup.capability
       if (capability.mode === 'translate' && !LINT_TRANSLATION_WARNING_BUCKETS.has(bucket)) {
         continue
       }
@@ -1752,7 +1759,9 @@ function lintPrimitiveTranslations(config: PluginConfig, issues: LintIssue[]): v
 
     for (const [mode, buckets] of byMode) {
       const sortedBuckets = [...buckets].sort()
-      const modeMessage = mode === 'translate'
+      const modeMessage = mode === 'unmapped'
+        ? 'do not have a declared Phase 2 host mapping'
+        : mode === 'translate'
         ? 'will be re-expressed through different native surfaces'
         : mode === 'degrade'
           ? 'will compile to weaker native equivalents'

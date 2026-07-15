@@ -5,7 +5,7 @@ date: 2026-07-14
 status: accepted
 decision_owner: Brandon Guerrero
 product_contract_source: linear-pluxx-323
-implementation_status: not-shipped
+implementation_status: phase-1-contract-implemented-local
 ---
 
 # Accept Orchestration as a Canonical Compiler Primitive
@@ -14,7 +14,7 @@ implementation_status: not-shipped
 
 Pluxx will treat `orchestration` as its ninth canonical compiler bucket, distinct from `agents`.
 
-The decision is accepted product direction. It does not mean the current schema, migration path, generators, compatibility registry, or runtime proof already implement the bucket.
+The decision is accepted product direction. Phase 1 now implements the canonical IR, schema, semantic validator, and compiler-owned capability-registry contract. Migration, host mappings, generators, installed behavior, and runtime proof remain separate work.
 
 Pluxx's author-once contract becomes:
 
@@ -89,7 +89,7 @@ The receipt must name the native mechanism, activation requirement, effective ch
 ## Consequences
 
 - The public canonical taxonomy is now nine compiler buckets.
-- Current implementation truth remains eight implemented buckets plus one accepted, unshipped bucket.
+- Current implementation truth is nine canonical buckets, eight host-mapped buckets, and an orchestration contract whose host outcomes remain explicitly unmapped.
 - `agents` must not become a catch-all for workflow coordination.
 - The first contract must represent all three fixtures: CE delegation, Hyperframes artifact pipelines, and Superpowers lifecycle/review loops.
 - Existing CE Codex behavior remains a regression baseline and passthrough escape hatch.
@@ -104,10 +104,10 @@ The receipt must name the native mechanism, activation requirement, effective ch
 - requiring every host to support native parallel subagents
 - replacing skill prose with a fully declarative workflow language
 
-## Evidence Required Before Calling It Shipped
+## Evidence Required Before Calling Full Host Support Shipped
 
-- schema and migration round-trip tests for all eight facets
-- one shared host capability registry used by generators, lint, doctor, docs, and receipts
+- Phase 1 schema and semantic tests for all eight facets (complete locally)
+- one shared host capability contract used by lint, doctor, and docs (shape complete locally; host rows and generator consumption remain Phase 2)
 - live core-four receipts for the supported tier
 - CE Codex dispatch/wait/synthesis regression proof
 - Hyperframes-style typed artifact completion and targeted retry proof

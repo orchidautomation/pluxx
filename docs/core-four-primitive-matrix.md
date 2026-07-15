@@ -19,7 +19,7 @@ If you want the primitive-by-host proof ledger behind the current core-four clai
 
 ## Compiler Buckets
 
-These are the nine canonical buckets Pluxx should compile from. The first eight are implemented in the current compiler; `orchestration` is accepted direction and remains unshipped:
+These are the nine canonical buckets Pluxx compiles from. The first eight have current host mappings. `orchestration` now has a canonical IR, semantic validation, and a capability-registry contract, while host mappings and generation remain unshipped:
 
 | Bucket | Includes |
 |---|---|
@@ -43,7 +43,7 @@ interface PluxxPrimitiveModel {
   skills?: SkillSpec[]
   commands?: CommandSpec[]
   agents?: AgentSpec[]
-  orchestration?: OrchestrationSpec[]
+  orchestration?: OrchestrationSpec
   hooks?: HookSpec[]
   permissions?: PermissionSpec[]
   runtime?: {
@@ -82,7 +82,7 @@ The important compiler nuance is that two of these public buckets already need f
 - `runtime` should be reasoned about as MCP/auth, readiness, and generic bundled payload support
 - `distribution` should be reasoned about as identity/branding, install-time config surface, and build/output surface
 
-The generated mapping block below still contains the eight implemented buckets. `orchestration` must not be added to generated compatibility output until the shared schema and host capability registry exist. See the [accepted decision](./orchid/decisions/2026-07-14-orchestration-primitive.md).
+The generated mapping block includes all nine canonical buckets. `orchestration` is deliberately `unmapped` for every current host until Phase 2 declares evidence-backed outcomes and implements the corresponding generators. See the [accepted decision](./orchid/decisions/2026-07-14-orchestration-primitive.md).
 
 ## Mapping Rules
 
@@ -95,6 +95,7 @@ The generated mapping block below still contains the eight implemented buckets. 
 | `skills` | `preserve` -> skills/<skill>/SKILL.md, skill frontmatter hooks | `degrade` -> skills/<skill>/SKILL.md, skills/<skill>/SKILL.md compatibility metadata, hooks/hooks.json | `degrade` -> skills/<skill>/SKILL.md, skills/<skill>/SKILL.md compatibility metadata, AGENTS.md, .codex/commands.generated.json, .codex/skills.generated.json, hooks/hooks.json | `degrade` -> skills/<skill>/SKILL.md, skills/<skill>/SKILL.md compatibility metadata, commands, plugin runtime guidance, skills.generated.json |
 | `commands` | `preserve` -> commands/*.md, skills/<skill>/SKILL.md | `preserve` -> commands/*, slash commands | `degrade` -> skills/, AGENTS.md, .codex/commands.generated.json | `preserve` -> commands/*.md, config command definitions |
 | `agents` | `preserve` -> agents/*.md | `translate` -> agents/, .cursor/agents/, ~/.cursor/agents/ | `translate` -> .codex/agents/*.toml, ~/.codex/agents/*.toml, subagent workflows | `preserve` -> agents/*.md, config agent definitions |
+| `orchestration` | `unmapped` -> Phase 2 host mapping not declared | `unmapped` -> Phase 2 host mapping not declared | `unmapped` -> Phase 2 host mapping not declared | `unmapped` -> Phase 2 host mapping not declared |
 | `hooks` | `degrade` -> hooks/hooks.json, settings hooks, frontmatter hooks | `degrade` -> hooks/hooks.json, .cursor/hooks.json | `degrade` -> hooks/hooks.json, .codex/hooks.json, generated command wrappers | `degrade` -> plugin JS/TS event handlers, plugin runtime event filters, plugin runtime event handlers |
 | `permissions` | `translate` -> agent frontmatter, hook decisions, runtime approvals | `translate` -> hooks allow/deny, .cursor/cli.json, ~/.cursor/cli-config.json, subagent tool access | `translate` -> approvals, sandbox policy, hook matchers, custom agent config | `preserve` -> config permission, per-agent overrides |
 | `runtime` | `preserve` -> .mcp.json, .claude-plugin/plugin.json, scripts/, assets/ | `preserve` -> mcp.json, .cursor/mcp.json, ~/.cursor/mcp.json, .cursor-plugin/plugin.json, scripts/, assets/ | `preserve` -> .mcp.json, .app.json, .codex/config.toml, scripts/, assets/ | `preserve` -> opencode.json, config mcp, plugin JS/TS runtime, scripts/, assets/ |

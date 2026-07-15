@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { PERMISSION_SELECTOR_KINDS, parsePermissionRule } from './permissions'
+import { OrchestrationSchema, type Orchestration } from './orchestration'
 
 // ── MCP Server Auth ──────────────────────────────────────────────
 
@@ -418,6 +419,9 @@ export const PluginConfigSchema = z.object({
   agents: z.string().optional(),
   instructions: z.string().optional(),
 
+  // Host-neutral workflow and agent orchestration contract
+  orchestration: OrchestrationSchema.optional(),
+
   // Deterministic semantic evaluation policy
   eval: z.object({
     warningThreshold: z.number().min(0).max(100).default(80),
@@ -453,6 +457,41 @@ export const PluginConfigSchema = z.object({
 
   // Output directory
   outDir: z.string().default('./dist'),
+}).superRefine((config, ctx) => {
+  if (!config.orchestration) return
+  const mcpIds = new Set(Object.keys(config.mcp ?? {}))
+  const permissionRules = new Set([
+    ...(config.permissions?.allow ?? []),
+    ...(config.permissions?.ask ?? []),
+    ...(config.permissions?.deny ?? []),
+  ])
+  const credentialIds = new Set((config.userConfig ?? []).filter((entry) => entry.type === 'secret').map((entry) => entry.key))
+
+  config.orchestration.workflows.forEach((workflow, workflowIndex) => workflow.nodes.forEach((node, nodeIndex) => {
+    if (node.type !== 'dispatch' || !node.childEnvironment) return
+    const basePath = ['orchestration', 'workflows', workflowIndex, 'nodes', nodeIndex, 'childEnvironment', 'dimensions'] as const
+    node.childEnvironment.dimensions.mcp.required.forEach((ref, index) => {
+      if (!mcpIds.has(ref)) ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [...basePath, 'mcp', 'required', index],
+        message: `Unknown configured MCP server reference "${ref}".`,
+      })
+    })
+    node.childEnvironment.dimensions.permissions.required.forEach((ref, index) => {
+      if (!permissionRules.has(ref)) ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [...basePath, 'permissions', 'required', index],
+        message: `Unknown configured permission rule reference "${ref}".`,
+      })
+    })
+    node.childEnvironment.dimensions.credentials.requirements.forEach((requirement, index) => {
+      if (!credentialIds.has(requirement.ref)) ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [...basePath, 'credentials', 'requirements', index, 'ref'],
+        message: `Unknown secret userConfig reference "${requirement.ref}".`,
+      })
+    })
+  }))
 })
 
 export type PluginConfig = z.infer<typeof PluginConfigSchema>
@@ -468,12 +507,27 @@ export type UserConfigEntry = z.infer<typeof UserConfigEntrySchema>
 export type PermissionRule = z.infer<typeof PermissionRuleSchema>
 export type Permissions = z.infer<typeof PermissionsSchema>
 export type Hooks = z.infer<typeof HooksSchema>
+export type { Orchestration }
+
+export const HOST_MAPPED_COMPILER_BUCKETS = [
+  'instructions',
+  'skills',
+  'commands',
+  'agents',
+  'hooks',
+  'permissions',
+  'runtime',
+  'distribution',
+] as const
+
+export type HostMappedCompilerBucket = typeof HOST_MAPPED_COMPILER_BUCKETS[number]
 
 export const PLUXX_COMPILER_BUCKETS = [
   'instructions',
   'skills',
   'commands',
   'agents',
+  'orchestration',
   'hooks',
   'permissions',
   'runtime',
@@ -496,6 +550,10 @@ export interface PluginCommandsBucket {
 
 export interface PluginAgentsBucket {
   path?: string
+}
+
+export interface PluginOrchestrationBucket {
+  config?: Orchestration
 }
 
 export interface PluginHooksBucket {
@@ -562,6 +620,7 @@ export interface PluginCompilerBuckets {
   skills: PluginSkillsBucket
   commands: PluginCommandsBucket
   agents: PluginAgentsBucket
+  orchestration: PluginOrchestrationBucket
   hooks: PluginHooksBucket
   permissions: PluginPermissionsBucket
   runtime: PluginRuntimeBucket
@@ -614,6 +673,9 @@ export function getPluginCompilerBuckets(config: PluginConfig): PluginCompilerBu
     agents: {
       path: config.agents,
     },
+    orchestration: {
+      config: config.orchestration,
+    },
     hooks: {
       config: config.hooks,
     },
@@ -651,6 +713,7 @@ export function getConfiguredCompilerBuckets(config: PluginConfig): PluxxCompile
   if (buckets.skills.path) configured.push('skills')
   if (buckets.commands.path) configured.push('commands')
   if (buckets.agents.path) configured.push('agents')
+  if (buckets.orchestration.config) configured.push('orchestration')
   if (buckets.hooks.config && Object.keys(buckets.hooks.config).length > 0) configured.push('hooks')
 
   const hasPermissions = Boolean(

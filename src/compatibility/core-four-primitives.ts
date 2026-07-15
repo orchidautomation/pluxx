@@ -1,7 +1,7 @@
 import { PLUXX_COMPILER_BUCKETS, type PluxxCompilerBucket } from '../schema'
 import {
   CORE_FOUR_PLATFORMS,
-  getCoreFourPrimitiveCapabilities,
+  getCoreFourCompilerBucketCapability,
   type CoreFourPlatform,
   type PrimitiveTranslationMode,
 } from '../validation/platform-rules'
@@ -29,7 +29,9 @@ function formatNativeSurfaces(surfaces: string[]): string {
 }
 
 function formatCapabilityCell(platform: CoreFourPlatform, bucket: PluxxCompilerBucket): string {
-  const capability = getCoreFourPrimitiveCapabilities(platform).buckets[bucket]
+  const lookup = getCoreFourCompilerBucketCapability(platform, bucket)
+  if (lookup.status === 'unmapped') return '`unmapped` -> Phase 2 host mapping not declared'
+  const capability = lookup.capability
   return `\`${MODE_LABELS[capability.mode]}\` -> ${formatNativeSurfaces(capability.nativeSurfaces)}`
 }
 
@@ -37,7 +39,9 @@ function formatBucketNotes(bucket: PluxxCompilerBucket): string[] {
   const lines: string[] = []
 
   for (const platform of CORE_FOUR_PLATFORMS) {
-    const capability = getCoreFourPrimitiveCapabilities(platform).buckets[bucket]
+    const lookup = getCoreFourCompilerBucketCapability(platform, bucket)
+    if (lookup.status === 'unmapped') continue
+    const capability = lookup.capability
     if (!capability.notes) continue
     lines.push(`- ${PLATFORM_LABELS[platform]}: ${capability.notes}`)
   }

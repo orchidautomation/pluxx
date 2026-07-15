@@ -616,11 +616,11 @@ pluxx catches platform-specific gotchas before you ship:
 
 ## The Next Product Delta
 
-The canonical compiler model now has nine buckets. Eight are implemented; the accepted [`orchestration` bucket](./orchid/decisions/2026-07-14-orchestration-primitive.md) remains unshipped.
+The canonical compiler model now has nine buckets. All nine have canonical source contracts; the original eight have host mappings, while the accepted [`orchestration` bucket](./orchid/decisions/2026-07-14-orchestration-primitive.md) remains unmapped to hosts.
 
 The most important remaining gaps are:
 
-1. specify the orchestration IR and capability registry for lifecycle activation/re-injection, graph-reachable roles, dispatch, child-environment inheritance, typed artifact/state flow, recovery, resume, and proof
+1. populate evidence-backed orchestration host mappings and generators against the implemented IR and capability-registry contract
 2. restore trustworthy intake for mature multi-host plugins
 3. prove the CE, Hyperframes, and Superpowers reference patterns on the core four
 4. emit honest best-effort orchestration degradation for every current target

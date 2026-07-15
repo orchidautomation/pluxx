@@ -1,4 +1,4 @@
-import type { PluxxCompilerBucket, TargetPlatform } from '../schema'
+import { HOST_MAPPED_COMPILER_BUCKETS, type HostMappedCompilerBucket, type PluxxCompilerBucket, type TargetPlatform } from '../schema'
 import { getAgentPrimitiveCapability } from '../agent-translation-registry'
 import { getCommandPrimitiveCapability } from '../command-translation-registry'
 import { derivePrimitiveCapability } from '../field-translation-registry'
@@ -89,6 +89,7 @@ export interface PlatformRules {
 }
 
 export type PrimitiveTranslationMode = 'preserve' | 'translate' | 'degrade' | 'drop'
+export type PrimitiveCapabilityStatus = PrimitiveTranslationMode | 'unmapped'
 
 export type CoreFourPlatform = Extract<TargetPlatform, 'claude-code' | 'cursor' | 'codex' | 'opencode'>
 export const CORE_FOUR_PLATFORMS = ['claude-code', 'cursor', 'codex', 'opencode'] as const satisfies readonly CoreFourPlatform[]
@@ -101,9 +102,13 @@ export interface PlatformPrimitiveCapability {
 
 export interface CoreFourPrimitiveCapabilities {
   platform: CoreFourPlatform
-  buckets: Record<PluxxCompilerBucket, PlatformPrimitiveCapability>
+  buckets: Record<HostMappedCompilerBucket, PlatformPrimitiveCapability>
   sources: PlatformRuleSource[]
 }
+
+export type CoreFourCompilerBucketCapability =
+  | { status: 'mapped'; capability: PlatformPrimitiveCapability }
+  | { status: 'unmapped' }
 
 const STANDARD_SKILL_FRONTMATTER = [
   'name',
@@ -938,4 +943,19 @@ export function getPlatformRules(platform: ResearchTarget): PlatformRules {
 
 export function getCoreFourPrimitiveCapabilities(platform: CoreFourPlatform): CoreFourPrimitiveCapabilities {
   return CORE_FOUR_PRIMITIVE_CAPABILITIES[platform]
+}
+
+export function getCoreFourCompilerBucketCapability(
+  platform: CoreFourPlatform,
+  bucket: PluxxCompilerBucket,
+): CoreFourCompilerBucketCapability {
+  if (!isHostMappedCompilerBucket(bucket)) return { status: 'unmapped' }
+  return {
+    status: 'mapped',
+    capability: CORE_FOUR_PRIMITIVE_CAPABILITIES[platform].buckets[bucket],
+  }
+}
+
+export function isHostMappedCompilerBucket(bucket: PluxxCompilerBucket): bucket is HostMappedCompilerBucket {
+  return HOST_MAPPED_COMPILER_BUCKETS.some((candidate) => candidate === bucket)
 }

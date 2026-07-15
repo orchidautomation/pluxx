@@ -235,11 +235,11 @@ Open work:
 - use [the Compound Engineering primitive audit](../orchid/requirements/2026-07-13-compound-engineering-primitive-audit.md), [three-reference comparison](../orchid/requirements/2026-07-14-orchestration-reference-patterns.md), [accepted decision](../orchid/decisions/2026-07-14-orchestration-primitive.md), and [phased parity plan](../orchid/plans/2026-07-13-compound-engineering-parity-plan.md) as the current mature-plugin pressure test:
   - treat CE 3.19.0's reliable Codex generic-subagent workflow as behavior to preserve
   - keep PLUXX-324's completed Phase 0 correctness contract covered: reconcile supported manifests with provenance, validate the full stage before publication, and leave destinations unchanged on failure
-  - specify the accepted ninth `orchestration` bucket while keeping standalone executable identities in `agents`
+  - keep PLUXX-325's completed Phase 1 contract green: ninth-bucket IR/schema, semantic graph and dataflow validation, capability registry, and bounded CE/Hyperframes/Superpowers fixtures
   - cover Hyperframes typed artifacts, bounded dispatch, artifact completion, and targeted repair
   - cover Superpowers lifecycle activation/re-injection, role reachability, durable progress/resume, and review loops
   - make per-dispatch child-environment inheritance/override explicit across tools, MCP, permissions/approvals, sandbox, credential availability, and delegation depth
-  - keep the current 11-target result explicit: complete CE skill/persona/script payload preservation, but no compiler-owned orchestration translation or all-host runtime parity yet
+  - populate evidence-backed orchestration registry rows and host generators in Phase 2; keep the current 11-target result explicit: no orchestration host mapping, generator behavior, or all-host runtime parity yet
 - treat Codex companion apply/verify as the next concrete robustness slice:
   - make generated readiness, hook, MCP approval, and companion config guidance operational instead of advisory only
   - keep this aligned with `PLUXX-226`, `PLUXX-264`, `PLUXX-248`, and [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md)

@@ -186,9 +186,12 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
   - preserve the working CE 3.19.0 Codex generic-subagent baseline
   - [x] fix migrate's warning-free invalid-config result and multi-manifest first-match behavior with staged schema validation, deterministic reconciliation, provenance, and no-publication failure tests
   - [x] accept `orchestration` as the ninth canonical bucket rather than overloading standalone `agents`
-  - model skill-owned specialist roles, dispatch, fan-out, wait/follow-up, synthesis, task/input coordination, workflow modes, and capability fallback
-  - model Hyperframes-style typed artifact dataflow, bounded packets, file ownership, completion predicates, and targeted repair
-  - model Superpowers-style lifecycle activation/re-injection, reachable versus orphaned roles, mandatory gates, durable progress/resume, and review loops
+  - [x] implement the host-neutral IR/schema and semantic graph, reference, dataflow, bounds, gate, repair, resume, and idempotency validation
+  - [x] model skill-owned specialist roles, dispatch, fan-out, wait/follow-up, synthesis, task/input coordination, workflow modes, and capability fallback
+  - [x] model Hyperframes-style typed artifact dataflow, bounded packets, file ownership, completion predicates, and targeted repair
+  - [x] model Superpowers-style lifecycle activation/re-injection, reachable versus orphaned roles, mandatory gates, durable progress/resume, and review loops
+  - [x] define the compiler-owned preserve/translate/degrade/drop registry contract while leaving host outcomes explicitly unmapped
+  - [ ] populate evidence-backed host mappings, generators, installed behavior proof, and runtime-parity receipts in Phase 2
   - model per-dispatch child-environment inheritance/override without moving payload ownership out of agents, permissions, and runtime
   - compile explicit preserve/translate/degrade/drop truth for all 11 current targets
   - require real-host behavior receipts before promoting packaging preservation to runtime parity
