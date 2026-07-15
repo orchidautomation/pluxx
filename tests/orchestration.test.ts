@@ -227,6 +227,16 @@ describe('orchestration semantic validation', () => {
     ]))
   })
 
+  it('rejects self and indirect cycles in unbounded timeout fallback routing', () => {
+    const self = clone(hyperframesOrchestrationFixture) as any
+    self.workflows[0].nodes[2].onTimeout = { action: 'fallback', targetNode: 'wait-frames' }
+    expect(issuePaths(self)).toContain('workflows.0.nodes.2.onTimeout.targetNode')
+
+    const indirect = clone(hyperframesOrchestrationFixture) as any
+    indirect.workflows[0].nodes[2].onTimeout = { action: 'fallback', targetNode: 'build-frames' }
+    expect(issuePaths(indirect)).toContain('workflows.0.nodes.2.onTimeout.targetNode')
+  })
+
   it('requires successful completion to consume authoritative artifacts', () => {
     const value = clone(ceOrchestrationFixture) as any
     value.artifacts[1].authoritativeForCompletion = false

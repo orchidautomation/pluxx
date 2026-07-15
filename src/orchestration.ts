@@ -611,6 +611,7 @@ function validateOrchestration(value: z.infer<typeof OrchestrationShapeSchema>, 
         node.condition.gates.forEach((ref, i) => gateRefs.push({ ref, path: ['condition', 'gates', i] }))
         if (node.onTimeout.action !== 'fail' && !nodes.has(node.onTimeout.targetNode)) addReferenceIssue(ctx, ['workflows', workflowIndex, 'nodes', nodeIndex, 'onTimeout', 'targetNode'], 'node', node.onTimeout.targetNode)
         if (node.onTimeout.action === 'repair' && nodeDefinitions.get(node.onTimeout.targetNode)?.type !== 'repair') ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['workflows', workflowIndex, 'nodes', nodeIndex, 'onTimeout', 'targetNode'], message: 'Repair timeout action must target a repair node.' })
+        if (node.onTimeout.action === 'fallback' && graph.reachable([node.onTimeout.targetNode]).has(node.id)) ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['workflows', workflowIndex, 'nodes', nodeIndex, 'onTimeout', 'targetNode'], message: 'Timeout fallback must not create an unbounded workflow cycle.' })
       } else if (node.type === 'repair') {
         if (!nodes.has(node.targetNode)) addReferenceIssue(ctx, ['workflows', workflowIndex, 'nodes', nodeIndex, 'targetNode'], 'node', node.targetNode)
         if (!nodes.has(node.resumeNode)) addReferenceIssue(ctx, ['workflows', workflowIndex, 'nodes', nodeIndex, 'resumeNode'], 'node', node.resumeNode)

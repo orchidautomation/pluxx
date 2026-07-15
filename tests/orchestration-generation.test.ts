@@ -116,4 +116,20 @@ describe('core-four orchestration generation', () => {
       expect(treeDigest(resolve(ROOT, 'dist-legacy', platform))).toBe(PHASE_1_LEGACY_TREE_DIGESTS[platform])
     }
   })
+
+  it('rejects passthrough collisions with compiler-owned orchestration output', async () => {
+    const passthroughDir = resolve(ROOT, 'passthrough-collision/orchestration')
+    mkdirSync(passthroughDir, { recursive: true })
+    writeFileSync(resolve(passthroughDir, 'receipt.generated.json'), '{"forged":true}\n')
+
+    for (const platform of PLATFORMS) {
+      const config = configFor(`passthrough-collision-${platform}`, ceOrchestrationFixture)
+      config.targets = [platform]
+      config.passthrough = ['./passthrough-collision/orchestration']
+
+      await expect(build(config, ROOT)).rejects.toThrow(
+        `collides with compiler-owned orchestration output for ${platform}`
+      )
+    }
+  })
 })
