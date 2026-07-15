@@ -9,7 +9,9 @@ import {
   buildOrchestrationRuntimeReceipt,
   type OrchestrationProofFact,
 } from '../src/orchestration-runtime-proof'
+import { validateReleaseOwnershipPreimage } from '../src/core-four-release-proof'
 import { PluginConfigSchema } from '../src/schema'
+import { stableStringify } from '../src/stable-json'
 import {
   ceOrchestrationFixture,
   hyperframesOrchestrationFixture,
@@ -31,23 +33,41 @@ function readArgument(name: string): string {
   return value
 }
 
+function readOptionalArgument(name: string): string | undefined {
+  const index = process.argv.indexOf(name)
+  return index >= 0 ? process.argv[index + 1] : undefined
+}
+
 function sha256(path: string): string {
   return createHash('sha256').update(readFileSync(path)).digest('hex')
 }
 
 function stableOwnershipDigest(
   ownership: NonNullable<ReturnType<typeof readInstallOwnership>>,
-  bundleDigest: string,
+  preimage: {
+    logicalInstallPath: string
+    generatedRootBinding: string
+    bundleDigest: string
+    receiptPath: string
+    receiptDigest: string
+    ownedSurfaceCount: number
+  },
 ): string {
   const evidence = {
     schema: ownership.schema,
     pluginName: ownership.pluginName,
     platform: ownership.platform,
     kind: ownership.kind,
+    surface: ownership.surface ?? null,
+    installPath: preimage.logicalInstallPath,
+    symlinkTarget: ownership.kind === 'symlink' ? preimage.generatedRootBinding : null,
     entries: ownership.entries,
-    bundleDigest,
+    bundleDigest: preimage.bundleDigest,
+    receiptPath: preimage.receiptPath,
+    receiptDigest: preimage.receiptDigest,
+    ownedSurfaceCount: preimage.ownedSurfaceCount,
   }
-  return createHash('sha256').update(JSON.stringify(evidence)).digest('hex')
+  return createHash('sha256').update(stableStringify(evidence)).digest('hex')
 }
 
 function manifestPath(platform: typeof PLATFORMS[number]): string {
@@ -69,8 +89,10 @@ async function main(): Promise<void> {
   const platform = readArgument('--platform') as typeof PLATFORMS[number]
   const workspace = resolve(readArgument('--workspace'))
   const output = resolve(readArgument('--output'))
+  const installKind = readOptionalArgument('--install-kind') ?? 'symlink'
   if (!(fixture in FIXTURES)) throw new Error(`Unknown orchestration fixture: ${fixture}`)
   if (!(PLATFORMS as readonly string[]).includes(platform)) throw new Error(`Unsupported proof platform: ${platform}`)
+  if (installKind !== 'symlink' && installKind !== 'copy') throw new Error(`Unsupported proof install kind: ${installKind}`)
 
   mkdirSync(resolve(workspace, 'skills/proof'), { recursive: true })
   mkdirSync(dirname(output), { recursive: true })
@@ -100,6 +122,7 @@ async function main(): Promise<void> {
     config,
     quiet: true,
     useNativeClaudeInstall: false,
+    installKind,
   })
   const verification = await verifyInstall(config, { rootDir: workspace, targets: [platform] })
   if (!verification.ok || verification.checks.length !== 1 || !verification.checks[0]?.installed) {
@@ -138,7 +161,22 @@ async function main(): Promise<void> {
   if (!receiptOwnedByCopy && !receiptOwnedByBundleSymlink) {
     throw new Error(`Install ownership does not bind the adjunct receipt for ${fixture}/${platform}.`)
   }
-  const ownershipDigest = stableOwnershipDigest(ownership, installedBundleDigest)
+  const ownershipPreimage = validateReleaseOwnershipPreimage({
+    ownership,
+    expectedInstallPath: consumerPath,
+    expectedSourceRoot: resolve(distDir, platform),
+    expectedBundleDigest: hashInstallBundle(resolve(distDir, platform)),
+    receiptPath: 'distribution/adjuncts.receipt.json',
+    receiptDigest: installedAdjunctReceiptDigest,
+  })
+  const ownershipDigest = stableOwnershipDigest(ownership, {
+    logicalInstallPath: normalizedInstallPath(platform, pluginName),
+    generatedRootBinding: `dist/${platform}`,
+    bundleDigest: installedBundleDigest,
+    receiptPath: 'distribution/adjuncts.receipt.json',
+    receiptDigest: installedAdjunctReceiptDigest,
+    ownedSurfaceCount: ownershipPreimage.ownedSurfaceCount,
+  })
 
   const installedEvidenceIds = ['installed-tree-sha256', 'installed-manifest', 'adjunct-receipt-sha256', 'install-ownership-sha256']
   const discoveryFacts: OrchestrationProofFact[] = [{
@@ -203,8 +241,8 @@ async function main(): Promise<void> {
       receipt: adjunctReceipt,
       installOwnership: {
         recordDigest: ownershipDigest,
-        ownershipKind: ownership.kind,
-        ownedSurfaceCount: ownership.kind === 'symlink' ? 1 : ownership.entries.length,
+        ownershipKind: ownershipPreimage.kind,
+        ownedSurfaceCount: ownershipPreimage.ownedSurfaceCount,
         receiptPath: 'distribution/adjuncts.receipt.json',
         receiptDigest: installedAdjunctReceiptDigest,
       },

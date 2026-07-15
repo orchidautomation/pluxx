@@ -16,6 +16,7 @@
   },
   "scripts": {
     "build": "node scripts/build.mjs && tsc --emitDeclarationOnly",
+    "core-four:proof": "node --import tsx scripts/check-core-four-release-proof.ts",
     "demo:docs-ingestion": "tsx scripts/generate-docs-ingestion-demo.ts",
     "dev": "tsx watch src/cli/index.ts",
     "eval:docs-ingestion": "tsx scripts/evaluate-docs-ingestion.ts",
@@ -23,7 +24,7 @@
     "pack:check": "node scripts/run-npm-pack.mjs --dry-run",
     "proof:check": "node --import tsx scripts/check-proof-freshness.ts",
     "proof:receipt": "node --import tsx scripts/generate-proof-receipt.ts",
-    "release:check": "npm run proof:check && npm run build && npm run typecheck && npm test && node scripts/verify-node-package-runtime.mjs && node scripts/run-npm-pack.mjs --dry-run",
+    "release:check": "npm run proof:check && npm run core-four:proof && npm run build && npm run typecheck && npm test && node scripts/verify-node-package-runtime.mjs && node scripts/run-npm-pack.mjs --dry-run",
     "test": "node scripts/run-vitest-exclusive.mjs",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "node scripts/ensure-github-release-publish.mjs && npm run build"

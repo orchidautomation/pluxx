@@ -1519,6 +1519,7 @@ export async function installPlugin(
     config?: PluginConfig
     quiet?: boolean
     useNativeClaudeInstall?: boolean
+    installKind?: 'auto' | 'copy' | 'symlink'
     runCommand?: CommandRunner
     resolvedUserConfig?: ResolvedUserConfigEntry[]
   } = {},
@@ -1526,6 +1527,7 @@ export async function installPlugin(
   const filtered = planInstallPlugin(distDir, pluginName, platforms)
   const runCommand = options.runCommand ?? runCommandDefault
   const useNativeClaudeInstall = options.useNativeClaudeInstall ?? true
+  const installKind = options.installKind ?? 'auto'
 
   let installed = 0
 
@@ -1564,6 +1566,7 @@ export async function installPlugin(
           : undefined,
       )
     } else if (target.platform === 'opencode' && shouldMaterialize) {
+      if (installKind === 'symlink') throw new Error('A materialized OpenCode install cannot use symlink mode.')
       createOpenCodeInstall(
         target,
         pluginName,
@@ -1571,14 +1574,17 @@ export async function installPlugin(
         stagePath => materializeInstalledPlugin(stagePath, target.platform, options.config!, targetConfigEntries, target.pluginDir),
       )
     } else if (target.platform === 'opencode') {
-      createOpenCodeInstall(target, pluginName, 'symlink')
+      createOpenCodeInstall(target, pluginName, installKind === 'copy' ? 'copy' : 'symlink')
       verifyOpenCodeInstall(target.pluginDir, pluginName)
     } else if (shouldMaterialize || shouldMaterializeCodexInstall) {
+      if (installKind === 'symlink') throw new Error(`A materialized ${target.platform} install cannot use symlink mode.`)
       createCopiedInstall(
         target,
         pluginName,
         stagePath => materializeInstalledPlugin(stagePath, target.platform, options.config!, targetConfigEntries, target.pluginDir),
       )
+    } else if (installKind === 'copy') {
+      createCopiedInstall(target, pluginName)
     } else {
       createSymlinkInstall(target, pluginName)
     }

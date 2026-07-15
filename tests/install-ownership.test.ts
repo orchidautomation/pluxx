@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs'
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
 import {
   getInstallOwnershipPath,
@@ -42,6 +42,28 @@ describe('install ownership transactions', () => {
     writeFileSync(resolve(INSTALL, 'owned.txt'), 'user edit\n')
     expect(listInstallOwnershipDrift(ownership)).toContain('owned file was modified: owned.txt')
     expect(hashInstallBundle(INSTALL)).not.toBe(hashInstallBundle(SOURCE))
+  })
+
+  it('records executable ownership and detects mode-only drift', () => {
+    const executable = resolve(SOURCE, 'run-hook')
+    writeFileSync(executable, '#!/bin/sh\nexit 0\n', { mode: 0o755 })
+    transactionalInstall({
+      pluginName: 'fixture',
+      platform: 'cursor',
+      sourcePath: SOURCE,
+      installPath: INSTALL,
+      kind: 'copy',
+    })
+
+    const ownership = readInstallOwnership('fixture', 'cursor', INSTALL)!
+    expect(ownership.entries.find(entry => entry.path === 'run-hook')?.executable).toBe(true)
+    expect(listInstallOwnershipDrift(ownership)).toEqual([])
+    const before = hashInstallBundle(INSTALL)
+
+    chmodSync(resolve(INSTALL, 'run-hook'), 0o644)
+    expect(listInstallOwnershipDrift(ownership)).toContain('owned file mode was modified: run-hook')
+    expect(hashInstallBundle(INSTALL)).not.toBe(before)
+    expect(removeOwnedInstall('fixture', 'cursor', INSTALL).preserved).toContain('run-hook')
   })
 
   it('keeps the previous working bundle when staged validation fails', () => {

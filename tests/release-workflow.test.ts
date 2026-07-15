@@ -96,5 +96,7 @@ describe('release workflow', () => {
     expect(ciWorkflow).toContain('name: Check proof freshness')
     expect(ciWorkflow).toContain('run: npm run proof:check')
     expect(ciWorkflow).toMatch(/uses:\s+actions\/checkout@v5\n\s+with:\n\s+fetch-depth:\s+0/)
+    expect(ciWorkflow).toContain('name: Check frozen core-four proof')
+    expect(ciWorkflow).toContain('run: npm run core-four:proof')
   })
 })

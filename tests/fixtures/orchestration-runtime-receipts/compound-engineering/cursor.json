@@ -82,7 +82,7 @@
     {
       "id": "install-ownership-sha256",
       "kind": "sha256",
-      "value": "f61b8a4ed72d13ffc0d57aee29b379dd9726165cec97c2342f2639a706a7f177"
+      "value": "37a49712bf06da0e36e9885f91e7d7125d2f6aae2ccfff7f6799b8b25bb6daa6"
     },
     {
       "id": "installed-manifest",
@@ -92,7 +92,7 @@
     {
       "id": "installed-tree-sha256",
       "kind": "sha256",
-      "value": "de909ee22511e178064dc6c94eb0207819d9140beaba742fae15c25414524acb"
+      "value": "500cd97baf4fa282e831c7be2931328641ebd658b809678a766b9b08c799d0e7"
     },
     {
       "id": "native-host-not-invoked",
@@ -1507,12 +1507,12 @@
       "receiptDigest": "fbb7c633c2ce70a0abadf825828fcf0ab01311977d46bfa7c21a0011783ac541"
     },
     "installOwnership": {
-      "recordDigest": "f61b8a4ed72d13ffc0d57aee29b379dd9726165cec97c2342f2639a706a7f177",
+      "recordDigest": "37a49712bf06da0e36e9885f91e7d7125d2f6aae2ccfff7f6799b8b25bb6daa6",
       "ownershipKind": "symlink",
       "ownedSurfaceCount": 1,
       "receiptPath": "distribution/adjuncts.receipt.json",
       "receiptDigest": "a2dbd0263266013948006112149d383df7360bff335858bd3e22ca9c8fa39258"
     }
   },
-  "receiptDigest": "b5d806b371fa9d137235fc9c07f468a76fa63f8b2326016146ecf179877d9d4c"
+  "receiptDigest": "b35fa2e778e46632dc9ba076ea0a53d2037fa41716616aefa595cb7111ab0527"
 }

@@ -198,7 +198,7 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
   - model per-dispatch child-environment inheritance/override without moving payload ownership out of agents, permissions, and runtime
   - [x] freeze orchestration mapping and proof scope to Claude Code, Cursor, Codex, and OpenCode; Phase 4 secondary-target work is deferred
   - [x] recover core-four adjunct/distribution topology in Phase 5: 44 pinned rows, 176 host outcomes, 12 deterministic install-owned receipts, transactional present-source publication, and fail-closed ambiguity/collision handling
-  - [ ] add Phase 6 core-four release gates over fixture/receipt freshness, migration, generation, install ownership, compatibility derivation, and the unchanged real-host evidence boundary
+  - [x] add Phase 6 core-four release gates over the pinned 44-row inventory, 12-receipt freshness and replay, current-registry migration/generation/compatibility derivation, symlink-root and copied-install ownership preimages, and the unchanged real-host evidence boundary
   - require real-host behavior receipts before promoting packaging preservation to runtime parity
   - use [the phased plan](../orchid/plans/2026-07-13-compound-engineering-parity-plan.md) for execution order; Phase 7's core-four portfolio decision is complete, and future expansion requires a separate product decision
 - [~] Keep [docs/core-four-reliability-register.md](../core-four-reliability-register.md) current as the concrete Claude Code and Codex failure register:

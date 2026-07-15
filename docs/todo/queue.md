@@ -246,7 +246,8 @@ Open work:
   - [x] recover Phase 5 core-four adjunct/distribution topology: 44 pinned source rows compile into 176 deterministic host outcomes and 12 install-owned receipts; present migration inputs publish transactionally, while source-inspected external bytes degrade instead of being copied
   - [x] freeze this initiative to Claude Code, Cursor, Codex, and OpenCode; Phase 7's portfolio decision is complete
   - defer Phase 4 orchestration work for GitHub Copilot, OpenHands, Warp, Gemini CLI, Roo Code, Cline, and Amp
-  - next proceed to Phase 6 core-four release gates; do not reopen the deferred secondary hosts
+  - [x] release-gate Phase 6 with one hermetic `core-four:proof` command covering the pinned 44-row inventory, all 12 receipts, current-registry compatibility, two deterministic 12-case replays, and symlink-root plus copied-install ownership preimages
+  - keep the Phase 0–6 stack ready for PR packaging without reopening deferred secondary hosts or promoting the unchanged real-host evidence ceiling
 - treat Codex companion apply/verify as the next concrete robustness slice:
   - make generated readiness, hook, MCP approval, and companion config guidance operational instead of advisory only
   - keep this aligned with `PLUXX-226`, `PLUXX-264`, `PLUXX-248`, and [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md)

@@ -28,7 +28,7 @@ It lives in:
 
 Unlike `docs-ops` or `exa-plugin`, this example is not primarily about one product workflow.
 
-It currently pressures all eight host-mapped compiler buckets in one source project. The ninth canonical bucket, `orchestration`, has a source contract but no host generator yet:
+It currently pressures the eight original host-mapped compiler buckets in one source project. The ninth canonical bucket, `orchestration`, now has a source contract, core-four generators, isolated install receipts, and a frozen release gate, but this example has not yet adopted an orchestration graph:
 
 - instructions
 - skills
@@ -39,7 +39,7 @@ It currently pressures all eight host-mapped compiler buckets in one source proj
 - runtime
 - distribution
 
-The accepted ninth `orchestration` bucket is not yet implemented or proven by this example. When the canonical IR ships, this example should add an explicit change-intake → research/review → release-gate → rollout/rollback workflow graph and become one of its maintained core-four fixtures.
+The accepted ninth `orchestration` bucket is implemented and release-gated through the CE, Hyperframes, and Superpowers fixtures. Platform Change Ops should still add an explicit change-intake → research/review → release-gate → rollout/rollback workflow graph before it can claim example-level orchestration proof.
 
 ## Example Shape
 

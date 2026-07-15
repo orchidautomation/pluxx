@@ -27,6 +27,9 @@ jobs:
       - name: Check proof freshness
         run: npm run proof:check
 
+      - name: Check frozen core-four proof
+        run: npm run core-four:proof
+
       - name: Typecheck
         run: npm run typecheck
 
