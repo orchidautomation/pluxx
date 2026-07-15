@@ -32,6 +32,8 @@ describe('package metadata', () => {
     expect(pkg.scripts.build).toContain('scripts/build.mjs')
     expect(pkg.scripts.test).toBe('node scripts/run-vitest-exclusive.mjs')
     expect(pkg.scripts['release:check']).toContain('node scripts/verify-node-package-runtime.mjs')
+    expect(pkg.scripts['core-four:proof']).toBe('node --import tsx scripts/check-core-four-release-proof.ts')
+    expect(pkg.scripts['release:check']).toMatch(/proof:check && npm run core-four:proof && npm run build/)
     expect(pkg.scripts.prepublishOnly).toMatch(/npm run build/)
   })
 

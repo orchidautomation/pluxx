@@ -429,7 +429,8 @@ These matter, but they are not the immediate center:
 - Phase 4 secondary-target orchestration work is deferred; Phase 7 is complete and freezes this initiative to the core four. Future expansion requires a separate product decision
 - use [the primitive audit](./orchid/requirements/2026-07-13-compound-engineering-primitive-audit.md), [three-reference comparison](./orchid/requirements/2026-07-14-orchestration-reference-patterns.md), [accepted decision](./orchid/decisions/2026-07-14-orchestration-primitive.md), and [phased plan](./orchid/plans/2026-07-13-compound-engineering-parity-plan.md) as the decision and sequencing artifacts
 - Phase 2 provides complete source-inspected core-four rows plus deterministic payloads. Phase 3 adds 12 isolated `fake-home-install` receipts. Phase 5 binds those receipts to 44 exact pinned adjunct rows, 176 compiled host outcomes, compiler digests, and install ownership; present migration inputs publish transactionally while source-inspected external bytes are never copied. Real-host discovery remains environment-unavailable in all 12, activation/behavior remain unsupported or environment-unavailable, and all 108 registry outcomes remain degraded
-- next sequence Phase 6 core-four release gates; deferred Phase 4 is not a dependency
+- Phase 6 is complete locally: `core-four:proof` fails closed on pinned inventory, receipt or registry drift, compatibility contradictions, nondeterministic replay, ownership preimage drift, and any promotion beyond the 12/12 unavailable or unsupported host ceiling
+- next sequence is PR packaging of the Phase 0–6 stack; deferred Phase 4 remains outside the initiative
 
 ### Import and discovery depth
 

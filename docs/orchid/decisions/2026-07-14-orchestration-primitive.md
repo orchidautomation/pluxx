@@ -5,7 +5,7 @@ date: 2026-07-14
 status: accepted
 decision_owner: Brandon Guerrero
 product_contract_source: linear-pluxx-323
-implementation_status: phase-5-core-four-adjunct-proof-local
+implementation_status: phase-6-core-four-release-gated-local
 ---
 
 # Accept Orchestration as a Canonical Compiler Primitive
@@ -14,7 +14,7 @@ implementation_status: phase-5-core-four-adjunct-proof-local
 
 Pluxx will treat `orchestration` as its ninth canonical compiler bucket, distinct from `agents`.
 
-The decision is accepted product direction. Phase 1 implements the canonical IR, schema, semantic validator, and compiler-owned capability-registry contract. Phase 2 adds complete core-four rows plus deterministic payloads and receipts. Phase 3 adds 12 deterministic isolated `fake-home-install` receipts. Phase 5 binds those receipts to 44 exact pinned native-adjunct rows, 176 compiled core-four outcomes, compiler digests, and install ownership while keeping adjuncts inside the existing distribution bucket. Generated registration artifacts remain isolated evidence only; real-host discovery is environment-unavailable in all 12. Because the current IR still does not carry executable host entrypoints or runtime adapters, all 108 rows remain named, prompt-guided degradation: activation is unsupported and behavioral evidence is environment-unavailable rather than promoted to parity.
+The decision is accepted product direction. Phase 1 implements the canonical IR, schema, semantic validator, and compiler-owned capability-registry contract. Phase 2 adds complete core-four rows plus deterministic payloads and receipts. Phase 3 adds 12 deterministic isolated `fake-home-install` receipts. Phase 5 binds those receipts to 44 exact pinned native-adjunct rows, 176 compiled core-four outcomes, compiler digests, and install ownership while keeping adjuncts inside the existing distribution bucket. Phase 6 makes that frozen proof release-gating through one hermetic command with exact receipt, registry, compatibility, deterministic replay, executable-mode, symlink-root, and copied-install preimage validation. Generated registration artifacts remain isolated evidence only; real-host discovery is environment-unavailable in all 12. Because the current IR still does not carry executable host entrypoints or runtime adapters, all 108 rows remain named, prompt-guided degradation: activation is unsupported and behavioral evidence is environment-unavailable rather than promoted to parity.
 
 Pluxx's author-once contract becomes:
 
@@ -89,7 +89,7 @@ The receipt must name the native or fallback/companion mechanism, activation req
 ## Consequences
 
 - The public canonical taxonomy is now nine compiler buckets.
-- Current implementation truth is nine canonical buckets with complete core-four mappings and 12 isolated `fake-home-install` receipts. Phase 5 additionally binds 44 pinned adjunct rows, 176 compiled outcomes, compiler digests, and install ownership. Generated registration artifacts do not prove real-host discovery; activation and behavior remain unproved.
+- Current implementation truth is nine canonical buckets with complete core-four mappings and 12 isolated `fake-home-install` receipts. Phase 5 binds 44 pinned adjunct rows, 176 compiled outcomes, compiler digests, and install ownership. Phase 6 independently pins their exact inventory digests and makes the receipt, registry, compatibility, deterministic replay, executable-mode, and copy/symlink ownership contract release-gating. Generated registration artifacts do not prove real-host discovery; activation and behavior remain unproved.
 - `agents` must not become a catch-all for workflow coordination.
 - The first contract must represent all three fixtures: CE delegation, Hyperframes artifact pipelines, and Superpowers lifecycle/review loops.
 - Existing CE Codex behavior remains a regression baseline and passthrough escape hatch.

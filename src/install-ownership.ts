@@ -23,6 +23,7 @@ export interface InstallOwnedEntry {
   path: string
   kind: 'file' | 'symlink'
   sha256: string
+  executable?: boolean
 }
 
 export interface InstallOwnership {
@@ -96,7 +97,12 @@ export function collectInstallEntries(root: string): InstallOwnedEntry[] {
       } else if (stats.isDirectory()) {
         visit(absolutePath)
       } else if (stats.isFile()) {
-        entries.push({ path: relativePath, kind: 'file', sha256: hash(readFileSync(absolutePath)) })
+        entries.push({
+          path: relativePath,
+          kind: 'file',
+          sha256: hash(readFileSync(absolutePath)),
+          executable: (stats.mode & 0o111) !== 0,
+        })
       }
     }
   }
@@ -113,6 +119,8 @@ export function hashInstallBundle(root: string): string {
     digest.update(entry.kind)
     digest.update('\0')
     digest.update(entry.sha256)
+    digest.update('\0')
+    digest.update(entry.executable === true ? 'executable' : entry.executable === false ? 'non-executable' : 'legacy-mode')
     digest.update('\0')
   }
   return digest.digest('hex')
@@ -138,7 +146,9 @@ export function readInstallOwnership(
       || !Array.isArray(parsed.entries)
     ) throw new Error('unexpected ownership schema or identity')
     for (const entry of parsed.entries) {
-      if (!entry || !safeRelativePath(entry.path) || !['file', 'symlink'].includes(entry.kind) || !/^[a-f0-9]{64}$/.test(entry.sha256)) {
+      if (!entry || !safeRelativePath(entry.path) || !['file', 'symlink'].includes(entry.kind) || !/^[a-f0-9]{64}$/.test(entry.sha256)
+        || (entry.executable !== undefined && typeof entry.executable !== 'boolean')
+        || (entry.kind === 'symlink' && entry.executable !== undefined)) {
         throw new Error('invalid owned entry')
       }
       resolveOwnedPath(resolve(installPath), entry.path)
@@ -201,6 +211,7 @@ export function listInstallOwnershipDrift(record: InstallOwnership): string[] {
     const current = actual.get(path)
     if (!current) drift.push(`owned file is missing: ${path}`)
     else if (current.kind !== entry.kind || current.sha256 !== entry.sha256) drift.push(`owned file was modified: ${path}`)
+    else if (entry.executable !== undefined && current.executable !== entry.executable) drift.push(`owned file mode was modified: ${path}`)
   }
   for (const path of actual.keys()) if (!expected.has(path)) drift.push(`unowned file is present: ${path}`)
   return drift
@@ -372,7 +383,9 @@ export function removeOwnedInstall(pluginName: string, platform: TargetPlatform,
       const details = lstatSync(path)
       const currentKind = details.isSymbolicLink() ? 'symlink' : details.isFile() ? 'file' : undefined
       const currentHash = currentKind === 'symlink' ? hash(readlinkSync(path)) : currentKind === 'file' ? hash(readFileSync(path)) : undefined
-      if (currentKind === entry.kind && currentHash === entry.sha256) {
+      const currentExecutable = currentKind === 'file' ? (details.mode & 0o111) !== 0 : undefined
+      if (currentKind === entry.kind && currentHash === entry.sha256
+        && (entry.executable === undefined || currentExecutable === entry.executable)) {
         rmSync(path, { force: true })
         removed.push(entry.path)
         pruneEmptyParents(path, root)

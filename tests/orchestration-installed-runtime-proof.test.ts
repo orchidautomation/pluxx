@@ -13,7 +13,12 @@ afterEach(() => {
   while (tempRoots.length > 0) rmSync(tempRoots.pop()!, { recursive: true, force: true })
 })
 
-async function runCase(fixture: typeof FIXTURES[number], platform: typeof PLATFORMS[number], run: number) {
+async function runCase(
+  fixture: typeof FIXTURES[number],
+  platform: typeof PLATFORMS[number],
+  run: number,
+  installKind: 'symlink' | 'copy' = 'symlink',
+) {
   const caseRoot = mkdtempSync(resolve(tmpdir(), `pluxx-orchestration-proof-${fixture}-${platform}-${run}-`))
   tempRoots.push(caseRoot)
   const outputPath = resolve(caseRoot, 'receipt.json')
@@ -29,6 +34,7 @@ async function runCase(fixture: typeof FIXTURES[number], platform: typeof PLATFO
     '--platform', platform,
     '--workspace', resolve(caseRoot, 'workspace'),
     '--output', outputPath,
+    '--install-kind', installKind,
   ], {
     cwd: ROOT,
     env: {
@@ -92,4 +98,16 @@ describe('isolated orchestration installed/runtime proof', () => {
       expect(receipt.installedBehaviorProven).toBe(false)
     }
   }, 120_000)
+
+  it('produces a deterministic copied-install ownership preimage without promoting host evidence', async () => {
+    const first = await runCase('compound-engineering', 'codex', 1, 'copy')
+    const second = await runCase('compound-engineering', 'codex', 2, 'copy')
+    expect(first).toEqual(second)
+    expect(first.adjuncts.installOwnership.ownershipKind).toBe('copy')
+    expect(first.adjuncts.installOwnership.ownedSurfaceCount).toBeGreaterThan(1)
+    expect(first.evidence.discovered.status).toBe('environment-unavailable')
+    expect(first.evidence.activated.status).toBe('unsupported')
+    expect(first.evidence.behavioral.status).toBe('environment-unavailable')
+    expect(first.fieldOutcomes.every((row: { effective: { mode: string } }) => row.effective.mode === 'degrade')).toBe(true)
+  }, 30_000)
 })

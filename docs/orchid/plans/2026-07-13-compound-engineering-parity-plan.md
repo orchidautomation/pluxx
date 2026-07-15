@@ -204,6 +204,8 @@ Dependency: Phase 0 import receipts and Phase 3 core-four proof. Phase 4 is not 
 
 ## Phase 6: Make Core-Four Orchestration Proof Release-Gating
 
+Status: complete locally under PLUXX-329. One hermetic `core-four:proof` command gates the pinned 44-row audit, all 12 current receipts, registry-derived compatibility output, two deterministic 12-case symlink and copy replays, and the unchanged Phase 3 evidence ceiling before packaging.
+
 Objective: prevent packaging-only regressions from being mistaken for cross-host parity.
 
 Scope:
@@ -221,6 +223,7 @@ Evidence gate:
 - the frozen core four have current receipts for the supported orchestration tier
 - secondary targets remain outside this initiative
 - release checks fail when compatibility docs, registry outcomes, and receipts diverge
+- executable-mode, path, symlink, copied-install, ownership, or replay drift fails closed before packaging
 
 Dependency: completed Phases 2-3 and core-four Phase 5. Deferred Phase 4 is not a dependency.
 
@@ -237,7 +240,7 @@ The seven secondary targets and any new destinations are excluded. Future expans
 3. Phase 2 core-four adapters — complete.
 4. Phase 3 core-four installed/runtime proof — complete.
 5. Phase 5 core-four adjunct/distribution recovery (complete locally under PLUXX-328).
-6. Phase 6 core-four release gates.
+6. Phase 6 core-four release gates — complete locally under PLUXX-329.
 
 Phase 4 is deferred. Phase 7 is complete.
 

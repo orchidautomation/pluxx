@@ -1,4 +1,4 @@
-import { resolve, join, relative } from 'path'
+import { resolve, join, relative, basename } from 'path'
 import { mkdirSync, existsSync, cpSync } from 'fs'
 import type { PluginConfig, TargetPlatform, McpServer } from '../schema'
 import { readCompilerIntent, type CompilerIntentFile } from '../compiler-intent'
@@ -141,9 +141,18 @@ export abstract class Generator {
     for (const configPath of this.config.passthrough ?? []) {
       const src = this.resolveConfigPath(configPath, 'passthrough')
       if (!existsSync(src)) continue
-      const basename = src.split('/').filter(Boolean).pop()
-      if (!basename) continue
-      this.copyDir(configPath, `${basename}/`, 'passthrough')
+      const outputBasename = basename(src)
+      if (!outputBasename) continue
+      if (
+        outputBasename === 'orchestration'
+        && this.config.orchestration
+        && isCoreFourTranslationPlatform(this.platform)
+      ) {
+        throw new Error(
+          `passthrough path "${configPath}" collides with compiler-owned orchestration output for ${this.platform}.`
+        )
+      }
+      this.copyDir(configPath, `${outputBasename}/`, 'passthrough')
     }
   }
 

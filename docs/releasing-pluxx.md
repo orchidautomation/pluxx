@@ -74,7 +74,7 @@ You can use `patch`, `minor`, or `major` depending on the release.
 
 ## Runtime Cost Guard
 
-The expensive release gate is `npm run release:check`. It already runs build, typecheck, the full test suite, packaged runtime verification, and a dry-run pack.
+The expensive release gate is `npm run release:check`. Before build and packaging it runs the hermetic `npm run core-four:proof` contract: the exact 44-row pinned orchestration/adjunct inventory, 12 checked receipts, current-registry compatibility output, two deterministic 12-case replays, symlink-root and copied-install ownership preimages, and the unchanged real-host evidence ceiling. It then runs build, typecheck, the full test suite, packaged runtime verification, and a dry-run pack.
 
 `prepublishOnly` is intentionally lightweight. It only checks that publish is happening from the trusted GitHub tag workflow and rebuilds the package before npm upload. It does **not** rerun the full test suite, because the tag workflow has already completed the release gate immediately before publish.
 
