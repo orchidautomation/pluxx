@@ -3963,7 +3963,7 @@ async function runMigrate() {
   if (!inputPath) {
     console.error('Usage: pluxx migrate <path> [--dry-run] [--json]')
     console.error('')
-    console.error('  Import an existing single-platform plugin into a pluxx.config.ts.')
+    console.error('  Import an existing single- or multi-host plugin into a pluxx.config.ts.')
     console.error('  Pass the path to a plugin directory containing .claude-plugin/,')
     console.error('  .cursor-plugin/, .codex-plugin/, or a package.json with @opencode-ai/plugin.')
     process.exit(1)

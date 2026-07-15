@@ -41,6 +41,7 @@ This is not the same thing as the short queue.
   - [Orchestration reference-pattern audit](../orchid/requirements/2026-07-14-orchestration-reference-patterns.md)
   - [Accepted orchestration decision](../orchid/decisions/2026-07-14-orchestration-primitive.md)
   - [Compound Engineering parity plan](../orchid/plans/2026-07-13-compound-engineering-parity-plan.md)
+  - [PLUXX-324 transactional migrate plan](../orchid/plans/2026-07-14-pluxx-324-transactional-migrate.md)
   - [author-once-hardening.md](./author-once-hardening.md)
   - [Linear](https://linear.app/orchid-automation)
 - Update together:
@@ -183,7 +184,7 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
   - `pluxx build` now checks generated manifests and package outputs for source version drift and missing referenced bundle files before publish
 - [~] Implement the mature-plugin orchestration boundary accepted in [the decision record](../orchid/decisions/2026-07-14-orchestration-primitive.md):
   - preserve the working CE 3.19.0 Codex generic-subagent baseline
-  - fix migrate's warning-free invalid-config result and multi-manifest first-match behavior before claiming CE-class intake
+  - [x] fix migrate's warning-free invalid-config result and multi-manifest first-match behavior with staged schema validation, deterministic reconciliation, provenance, and no-publication failure tests
   - [x] accept `orchestration` as the ninth canonical bucket rather than overloading standalone `agents`
   - model skill-owned specialist roles, dispatch, fan-out, wait/follow-up, synthesis, task/input coordination, workflow modes, and capability fallback
   - model Hyperframes-style typed artifact dataflow, bounded packets, file ownership, completion predicates, and targeted repair

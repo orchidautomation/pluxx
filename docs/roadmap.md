@@ -30,6 +30,7 @@ Last updated: 2026-07-14
   - [Orchestration reference-pattern audit](./orchid/requirements/2026-07-14-orchestration-reference-patterns.md)
   - [Accepted orchestration decision](./orchid/decisions/2026-07-14-orchestration-primitive.md)
   - [Compound Engineering parity plan](./orchid/plans/2026-07-13-compound-engineering-parity-plan.md)
+  - [PLUXX-324 transactional migrate plan](./orchid/plans/2026-07-14-pluxx-324-transactional-migrate.md)
   - [Linear](https://linear.app/orchid-automation)
 - Update together:
   - [docs/start-here.md](./start-here.md)
@@ -416,7 +417,7 @@ These matter, but they are not the immediate center:
 
 - use Compound Engineering 3.19.0, Hyperframes, and Superpowers as pinned reference fixtures
 - preserve its reliable Codex skill-owned generic-subagent behavior
-- restore trustworthy migration before expanding the canonical model
+- keep the restored PLUXX-324 migration gate green: deterministic supported-manifest reconciliation, provenance, staged schema validation, and no destination publication on failure
 - implement the accepted ninth `orchestration` bucket without overloading standalone `agents`
 - represent typed artifact dataflow, bounded dispatch, artifact completion, and targeted repair from Hyperframes
 - represent lifecycle activation/re-injection, reachable versus orphaned roles, mandatory gates, durable progress/resume, and review loops from Superpowers
