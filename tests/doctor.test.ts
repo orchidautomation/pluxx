@@ -565,7 +565,8 @@ describe('doctorProject', () => {
       const report = await doctorProject(dir)
       const check = report.checks.find(candidate => candidate.code === 'orchestration-field-outcomes')
       expect(check?.detail).toContain('workflow-graph=degrade via codex-workflow-graph-companion')
-      expect(check?.fix).toContain('Phase 3')
+      expect(check?.fix).toContain('maintained public core-four compatibility matrix')
+      expect(check?.fix).toContain('Activation and behavioral evidence remain unproved')
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

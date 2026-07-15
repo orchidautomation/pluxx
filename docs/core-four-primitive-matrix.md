@@ -19,7 +19,7 @@ If you want the primitive-by-host proof ledger behind the current core-four clai
 
 ## Compiler Buckets
 
-These are the nine canonical buckets Pluxx compiles from. All nine have current core-four mappings. `orchestration` now has a canonical IR, semantic validation, complete source-inspected rows, and deterministic generated payloads/receipts; installed execution remains Phase 3:
+These are the nine canonical buckets Pluxx compiles from. All nine have current core-four mappings. `orchestration` now has a canonical IR, semantic validation, complete source-inspected rows, deterministic generated payloads, and Phase 3 isolated receipts; activation and behavioral execution remain unproved:
 
 | Bucket | Includes |
 |---|---|
@@ -129,10 +129,10 @@ Registry notes:
 
 #### `orchestration`
 
-- Claude Code: Derived from 27 canonical fields in the orchestration registry; source-inspected/generated evidence only, with installed/runtime proof deferred to Phase 3.
-- Cursor: Derived from 27 canonical fields in the orchestration registry; source-inspected/generated evidence only, with installed/runtime proof deferred to Phase 3.
-- Codex: Derived from 27 canonical fields in the orchestration registry; source-inspected/generated evidence only, with installed/runtime proof deferred to Phase 3.
-- OpenCode: Derived from 27 canonical fields in the orchestration registry; source-inspected/generated evidence only, with installed/runtime proof deferred to Phase 3.
+- Claude Code: Derived from 27 canonical fields in the orchestration registry. Effective outcomes retain explicit degradation until mechanism-specific behavioral evidence validates an executable host path.
+- Cursor: Derived from 27 canonical fields in the orchestration registry. Effective outcomes retain explicit degradation until mechanism-specific behavioral evidence validates an executable host path.
+- Codex: Derived from 27 canonical fields in the orchestration registry. Effective outcomes retain explicit degradation until mechanism-specific behavioral evidence validates an executable host path.
+- OpenCode: Derived from 27 canonical fields in the orchestration registry. Effective outcomes retain explicit degradation until mechanism-specific behavioral evidence validates an executable host path.
 
 #### `hooks`
 
@@ -201,7 +201,7 @@ Primitive labels above are derived from these audited field outcomes. A primitiv
 
 ### Audited `orchestration` field outcomes
 
-These rows are source-inspected/generated-payload evidence. Installed/runtime proof remains Phase 3.
+Phase 3 adds 12 validated deterministic `fake-home-install` receipts under `tests/fixtures/orchestration-runtime-receipts`. Generation, install layout, ownership, verifier behavior, and host registration artifacts are proven in isolated filesystems; real-host discovery is environment-unavailable in all 12 cases. The generated companions still have no executable host entrypoint, so activation is unsupported, behavioral evidence is environment-unavailable, and all 324 fixture outcomes remain explicit degradation.
 
 | Field | Claude Code | Cursor | Codex | OpenCode |
 |---|---|---|---|---|

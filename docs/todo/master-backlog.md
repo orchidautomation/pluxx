@@ -192,11 +192,12 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
   - [x] model Superpowers-style lifecycle activation/re-injection, reachable versus orphaned roles, mandatory gates, durable progress/resume, and review loops
   - [x] define the compiler-owned preserve/translate/degrade/drop registry contract while leaving host outcomes explicitly unmapped
   - [x] populate evidence-backed core-four host mappings and deterministic generated payload/receipt adapters in Phase 2
-  - [ ] collect installed behavior proof and runtime receipts for CE, Hyperframes, and Superpowers in Phase 3
+  - [x] collect 12 deterministic isolated `fake-home-install` receipts for CE, Hyperframes, and Superpowers in Phase 3: install layout, ownership, verifier behavior, and host registration artifacts are proven, real-host discovery is environment-unavailable in all 12, and explicit degradation remains for unsupported activation and environment-unavailable behavior
   - model per-dispatch child-environment inheritance/override without moving payload ownership out of agents, permissions, and runtime
-  - compile explicit preserve/translate/degrade/drop truth for all 11 current targets
+  - [x] freeze orchestration mapping and proof scope to Claude Code, Cursor, Codex, and OpenCode; Phase 4 secondary-target work is deferred
+  - [ ] after Phase 3, recover core-four adjunct/distribution topology in Phase 5 and add core-four release gates in Phase 6
   - require real-host behavior receipts before promoting packaging preservation to runtime parity
-  - use [the phased plan](../orchid/plans/2026-07-13-compound-engineering-parity-plan.md) for execution order; do not add CE-only hosts without a separate portfolio decision
+  - use [the phased plan](../orchid/plans/2026-07-13-compound-engineering-parity-plan.md) for execution order; Phase 7's core-four portfolio decision is complete, and future expansion requires a separate product decision
 - [~] Keep [docs/core-four-reliability-register.md](../core-four-reliability-register.md) current as the concrete Claude Code and Codex failure register:
   - use it to separate generator defects from host-runtime issues and proof-harness issues
   - use it to drive the next proof-depth tranche for agents, hooks, settings/discovery, and distribution edges

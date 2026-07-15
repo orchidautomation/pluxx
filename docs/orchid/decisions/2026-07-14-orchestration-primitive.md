@@ -5,7 +5,7 @@ date: 2026-07-14
 status: accepted
 decision_owner: Brandon Guerrero
 product_contract_source: linear-pluxx-323
-implementation_status: phase-2-core-four-generated-local
+implementation_status: phase-3-core-four-isolated-install-proof-local
 ---
 
 # Accept Orchestration as a Canonical Compiler Primitive
@@ -14,7 +14,7 @@ implementation_status: phase-2-core-four-generated-local
 
 Pluxx will treat `orchestration` as its ninth canonical compiler bucket, distinct from `agents`.
 
-The decision is accepted product direction. Phase 1 implements the canonical IR, schema, semantic validator, and compiler-owned capability-registry contract. Phase 2 adds complete core-four rows plus deterministic payloads and receipts. Because the current IR does not carry executable host entrypoints or runtime adapters, all 108 Phase 2 rows honestly degrade to named, prompt-guided companion mechanisms; none claims native enforcement, silent omission, or installed behavior. Installed behavior and runtime proof remain Phase 3 work.
+The decision is accepted product direction. Phase 1 implements the canonical IR, schema, semantic validator, and compiler-owned capability-registry contract. Phase 2 adds complete core-four rows plus deterministic payloads and receipts. Phase 3 adds 12 deterministic isolated `fake-home-install` receipts bound to fixture, plugin version, orchestration digest, host, probe contract, and exact evidence. Install layout, ownership, verifier behavior, and host registration artifacts are proven in isolated filesystems; real-host discovery is environment-unavailable in all 12. Because the current IR still does not carry executable host entrypoints or runtime adapters, all 108 rows remain named, prompt-guided degradation: activation is unsupported and behavioral evidence is environment-unavailable rather than promoted to parity.
 
 Pluxx's author-once contract becomes:
 
@@ -89,17 +89,17 @@ The receipt must name the native or fallback/companion mechanism, activation req
 ## Consequences
 
 - The public canonical taxonomy is now nine compiler buckets.
-- Current implementation truth is nine canonical buckets with complete core-four mappings. Orchestration payloads and receipts are generated deterministically, while installed/runtime proof remains Phase 3.
+- Current implementation truth is nine canonical buckets with complete core-four mappings and 12 isolated `fake-home-install` receipts. Install layout, ownership, verifier behavior, and host registration artifacts are proven; real-host discovery is environment-unavailable in all 12. Activation and behavior remain unproved.
 - `agents` must not become a catch-all for workflow coordination.
 - The first contract must represent all three fixtures: CE delegation, Hyperframes artifact pipelines, and Superpowers lifecycle/review loops.
 - Existing CE Codex behavior remains a regression baseline and passthrough escape hatch.
-- Host expansion remains a separate portfolio decision.
+- The portfolio decision is complete: this initiative is frozen to Claude Code, Cursor, Codex, and OpenCode. Secondary-target orchestration is deferred; future expansion requires a new product decision.
 - The migration correctness defect found during the CE audit remains P0 and independent of the schema work.
 
 ## Non-Goals
 
 - compiler or schema implementation in this docs tranche
-- claiming live parity for Hyperframes or Superpowers on every advertised host
+- claiming live parity for Hyperframes or Superpowers on every core-four host
 - adding a primitive for every framework-specific artifact or hook
 - requiring every host to support native parallel subagents
 - replacing skill prose with a fully declarative workflow language
@@ -107,13 +107,13 @@ The receipt must name the native or fallback/companion mechanism, activation req
 ## Evidence Required Before Calling Full Host Support Shipped
 
 - Phase 1 schema and semantic tests for all eight facets (complete locally)
-- one shared host capability contract used by lint, doctor, and docs (shape complete locally; host rows and generator consumption remain Phase 2)
-- live core-four receipts for the supported tier
+- one shared host capability contract used by lint, doctor, and docs (complete locally for the core four in Phase 2)
+- deterministic core-four receipts for the supported evidence tier
 - CE Codex dispatch/wait/synthesis regression proof
 - Hyperframes-style typed artifact completion and targeted retry proof
 - Superpowers-style activation, review-loop, and durable-resume proof
 - lifecycle re-injection/idempotency and child-environment inheritance proof
-- explicit degradation receipts for all current beta targets
+- explicit unsupported or environment-unavailable receipts for core-four mechanisms that cannot be activated or behaviorally proven
 
 ## Related Artifacts
 

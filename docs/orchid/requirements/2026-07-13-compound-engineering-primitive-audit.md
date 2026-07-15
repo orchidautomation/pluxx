@@ -10,6 +10,8 @@ execution: docs-only
 
 # Compound Engineering Primitive and Cross-Host Delta Audit
 
+> Scope update (2026-07-14): the all-11 counts below remain historical packaging evidence. Brandon subsequently froze orchestration implementation and proof to Claude Code, Cursor, Codex, and OpenCode; Phase 4 secondary-target work is deferred and Phase 7 is complete.
+
 ## Executive Result
 
 Pluxx does **not** fully represent Compound Engineering's subagent system today.
