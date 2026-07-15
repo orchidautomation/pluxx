@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-07-12
+Last updated: 2026-07-14
 
 ## Doc Links
 
@@ -26,6 +26,10 @@ Last updated: 2026-07-12
   - [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md)
   - [docs/core-four-maintenance-routine.md](./core-four-maintenance-routine.md)
   - [docs/todo/author-once-hardening.md](./todo/author-once-hardening.md)
+  - [Compound Engineering primitive audit](./orchid/requirements/2026-07-13-compound-engineering-primitive-audit.md)
+  - [Orchestration reference-pattern audit](./orchid/requirements/2026-07-14-orchestration-reference-patterns.md)
+  - [Accepted orchestration decision](./orchid/decisions/2026-07-14-orchestration-primitive.md)
+  - [Compound Engineering parity plan](./orchid/plans/2026-07-13-compound-engineering-parity-plan.md)
   - [Linear](https://linear.app/orchid-automation)
 - Update together:
   - [docs/start-here.md](./start-here.md)
@@ -407,6 +411,20 @@ The near-term question is whether Pluxx can become the default way to maintain o
 ## Next OSS Leverage After The Current Block
 
 These matter, but they are not the immediate center:
+
+### Mature-plugin orchestration parity
+
+- use Compound Engineering 3.19.0, Hyperframes, and Superpowers as pinned reference fixtures
+- preserve its reliable Codex skill-owned generic-subagent behavior
+- restore trustworthy migration before expanding the canonical model
+- implement the accepted ninth `orchestration` bucket without overloading standalone `agents`
+- represent typed artifact dataflow, bounded dispatch, artifact completion, and targeted repair from Hyperframes
+- represent lifecycle activation/re-injection, reachable versus orphaned roles, mandatory gates, durable progress/resume, and review loops from Superpowers
+- represent safe per-dispatch child-environment inheritance and overrides across existing capability, permission, and runtime payloads
+- compile honest preserve/translate/degrade/drop outcomes across all 11 current targets
+- keep copied payload, generated fixture, installed state, and real-host behavior as separate evidence tiers
+- review Antigravity versus Gemini CLI and any other CE-only destinations as a later host-portfolio decision, not automatic scope
+- use [the primitive audit](./orchid/requirements/2026-07-13-compound-engineering-primitive-audit.md), [three-reference comparison](./orchid/requirements/2026-07-14-orchestration-reference-patterns.md), [accepted decision](./orchid/decisions/2026-07-14-orchestration-primitive.md), and [phased plan](./orchid/plans/2026-07-13-compound-engineering-parity-plan.md) as the decision and sequencing artifacts
 
 ### Import and discovery depth
 

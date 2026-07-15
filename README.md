@@ -227,10 +227,13 @@ Pluxx is intentionally opinionated around a compact cross-host model:
 - permissions
 - userConfig
 - agents
+- orchestration
 - brand and assets
 - taxonomy
 
 Pluxx owns the deterministic scaffold, validation, and host compilation layer. Your host coding agent can refine taxonomy, instructions, and examples without breaking the structure.
+
+The canonical compiler model now has nine larger buckets. Eight are implemented; the accepted [`orchestration` bucket](./docs/orchid/decisions/2026-07-14-orchestration-primitive.md) remains unshipped and will own workflow activation, dispatch relationships, child-environment inheritance, artifact/state flow, control, resume, and proof.
 
 ## Install And Runtime Notes
 

@@ -1,6 +1,6 @@
 # Pluxx Queue
 
-Last updated: 2026-07-12
+Last updated: 2026-07-14
 
 ## Doc Links
 
@@ -24,6 +24,10 @@ Last updated: 2026-07-12
   - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
   - [docs/core-four-reliability-register.md](../core-four-reliability-register.md)
   - [docs/core-four-translation-hit-list.md](../core-four-translation-hit-list.md)
+  - [Compound Engineering primitive audit](../orchid/requirements/2026-07-13-compound-engineering-primitive-audit.md)
+  - [Orchestration reference-pattern audit](../orchid/requirements/2026-07-14-orchestration-reference-patterns.md)
+  - [Accepted orchestration decision](../orchid/decisions/2026-07-14-orchestration-primitive.md)
+  - [Compound Engineering parity plan](../orchid/plans/2026-07-13-compound-engineering-parity-plan.md)
   - [author-once-hardening.md](./author-once-hardening.md)
   - [Linear](https://linear.app/orchid-automation)
 - Update together:
@@ -227,6 +231,14 @@ Goal:
 Open work:
 
 - keep [docs/start-here.md](../start-here.md), this queue, the master backlog, and Linear aligned
+- use [the Compound Engineering primitive audit](../orchid/requirements/2026-07-13-compound-engineering-primitive-audit.md), [three-reference comparison](../orchid/requirements/2026-07-14-orchestration-reference-patterns.md), [accepted decision](../orchid/decisions/2026-07-14-orchestration-primitive.md), and [phased parity plan](../orchid/plans/2026-07-13-compound-engineering-parity-plan.md) as the current mature-plugin pressure test:
+  - treat CE 3.19.0's reliable Codex generic-subagent workflow as behavior to preserve
+  - pull the warning-free invalid migration result forward as a correctness defect independent of the larger architecture decision
+  - specify the accepted ninth `orchestration` bucket while keeping standalone executable identities in `agents`
+  - cover Hyperframes typed artifacts, bounded dispatch, artifact completion, and targeted repair
+  - cover Superpowers lifecycle activation/re-injection, role reachability, durable progress/resume, and review loops
+  - make per-dispatch child-environment inheritance/override explicit across tools, MCP, permissions/approvals, sandbox, credential availability, and delegation depth
+  - keep the current 11-target result explicit: complete CE skill/persona/script payload preservation, but no compiler-owned orchestration translation or all-host runtime parity yet
 - treat Codex companion apply/verify as the next concrete robustness slice:
   - make generated readiness, hook, MCP approval, and companion config guidance operational instead of advisory only
   - keep this aligned with `PLUXX-226`, `PLUXX-264`, `PLUXX-248`, and [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
