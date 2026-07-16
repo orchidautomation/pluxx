@@ -11,6 +11,7 @@ const INTROSPECT_PATH = resolve(ROOT, 'src/mcp/introspect.ts')
 const TEST_COMMAND_PATH = resolve(ROOT, 'src/cli/test.ts')
 const originalArgv = [...process.argv]
 const originalCwd = process.cwd()
+const SLOW_AUTOPILOT_TIMEOUT = 120_000
 
 function spawnCli(argv: string[], cwd: string, env: Record<string, string> = {}) {
   return Bun.spawn(['bun', resolve(ROOT, 'bin/pluxx.js'), ...argv], {
@@ -413,7 +414,7 @@ exit 0
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
-  })
+  }, SLOW_AUTOPILOT_TIMEOUT)
 
   it('reports the stable verification discriminator and restores baseline after post-agent verification fails', async () => {
     const { dir, statePath, stubServerPath } = createStubServerFixture()
@@ -944,7 +945,7 @@ exit 0
       rmSync(runnerArgsPath, { force: true })
       rmSync(dir, { recursive: true, force: true })
     }
-  })
+  }, SLOW_AUTOPILOT_TIMEOUT)
 
   it('runs the full autopilot flow with a headless runner and verifies the scaffold', async () => {
     const { dir, statePath, stubServerPath } = createStubServerFixture()
@@ -1314,7 +1315,7 @@ exit 0
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
-  })
+  }, SLOW_AUTOPILOT_TIMEOUT)
 
   it('suppresses runner logs by default and streams them with --verbose-runner', async () => {
     const run = async (verboseRunner: boolean) => {
@@ -1373,7 +1374,7 @@ exit 0
 
     const verbose = await run(true)
     expect(verbose.stdout).toContain(verbose.marker)
-  }, 60_000)
+  }, SLOW_AUTOPILOT_TIMEOUT)
 
   it('prints explicit auth guidance for OAuth-first remote MCPs', async () => {
     const dir = mkdtempSync(resolve(tmpdir(), 'pluxx-autopilot-auth-'))

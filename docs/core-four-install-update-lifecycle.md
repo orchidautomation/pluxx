@@ -1,6 +1,6 @@
 # Core-Four Install And Update Lifecycle
 
-Last updated: 2026-07-11
+Last updated: 2026-07-16
 
 This doc explains the practical install, update, and reload behavior for the four primary Pluxx targets:
 
@@ -80,6 +80,14 @@ pluxx install --target codex --dry-run --json
 ```
 
 then `targetSelection.selectedTargets` stays `["codex"]` even if Pluxx also detects Cursor or OpenCode locally. Detection can suggest install targets for planning and generated installer UX, but it does not override `--target` or rewrite host configs just because a host exists.
+
+## Legacy Pre-Ownership Upgrade Rule
+
+Generated release installers are conservative when upgrading installs that predate `pluxx.install-ownership.v1`. They may adopt and replace a legacy install once only when the installed host manifest parses and its plugin/package identity matches the trusted candidate bundle for that same host. The installer still preserves `.pluxx-user.json`, keeps install-scoped locking/staging/rollback behavior, and writes the normal ownership ledger only after a successful commit.
+
+For OpenCode, the same adoption path recognizes Pluxx-generated wrapper files and namespaced skill companions, then migrates them into owned companion ledgers. Unrecognized wrapper or skill collisions still fail closed instead of being overwritten.
+
+Missing, malformed, or mismatched legacy manifests, arbitrary directories, and modified/missing/extra content in already ownership-managed installs remain refusal cases.
 
 ## Important Distinction
 

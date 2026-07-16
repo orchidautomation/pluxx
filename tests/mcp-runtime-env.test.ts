@@ -11,6 +11,31 @@ function makeTempDir(prefix: string): string {
   return dir
 }
 
+const WORKSPACE_ENV_KEYS = [
+  'PLUXX_MCP_WORKSPACE_ROOT',
+  'PLUXX_WORKSPACE_ROOT',
+  'PLUXX_HOOK_WORKSPACE_ROOT',
+  'CODEX_WORKSPACE_ROOT',
+  'CODEX_WORKDIR',
+  'CODEX_CWD',
+  'CLAUDE_PROJECT_DIR',
+  'CLAUDE_CWD',
+  'CURSOR_WORKSPACE_ROOT',
+  'OPENCODE_WORKSPACE_ROOT',
+  'WORKSPACE_ROOT',
+  'PROJECT_ROOT',
+  'INIT_CWD',
+  'PWD',
+] as const
+
+function isolatedRuntimeEnv(extra: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...process.env, ...extra }
+  for (const key of WORKSPACE_ENV_KEYS) {
+    delete env[key]
+  }
+  return env
+}
+
 function preparePluginRoot(rootDir: string): { pluginRoot: string; wrapperPath: string; capturePath: string } {
   const pluginRoot = resolve(rootDir, 'plugin')
   const runtimeDir = resolve(pluginRoot, 'runtime')
@@ -69,12 +94,11 @@ describe('MCP runtime env launcher', () => {
       ], {
         cwd: workspaceRoot,
         encoding: 'utf-8',
-        env: {
-          ...process.env,
+        env: isolatedRuntimeEnv({
           PLUXX_CAPTURE_PATH: outputPath,
           SENDLENS_INSTANTLY_API_KEY: 'global-key',
           SENDLENS_CLIENT: 'global-client',
-        },
+        }),
       })
 
       expect(result.status).toBe(0)
@@ -95,6 +119,7 @@ describe('MCP runtime env launcher', () => {
     try {
       const workspaceRoot = resolve(rootDir, 'workspace')
       mkdirSync(workspaceRoot, { recursive: true })
+      mkdirSync(resolve(workspaceRoot, '.git'), { recursive: true })
 
       const { wrapperPath, capturePath } = preparePluginRoot(rootDir)
       const outputPath = resolve(rootDir, 'captured.json')
@@ -107,12 +132,11 @@ describe('MCP runtime env launcher', () => {
       ], {
         cwd: workspaceRoot,
         encoding: 'utf-8',
-        env: {
-          ...process.env,
+        env: isolatedRuntimeEnv({
           PLUXX_CAPTURE_PATH: outputPath,
           SENDLENS_INSTANTLY_API_KEY: 'global-key',
           SENDLENS_CLIENT: 'global-client',
-        },
+        }),
       })
 
       expect(result.status).toBe(0)

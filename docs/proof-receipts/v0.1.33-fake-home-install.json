@@ -1,10 +1,10 @@
 {
-  "id": "v0.1.32-fake-home-install",
+  "id": "v0.1.33-fake-home-install",
   "tier": "fake-home-install",
-  "freshness": "historical",
+  "freshness": "current",
   "commands": [
     {
-      "command": "npm run release:check",
+      "command": "bun test tests/publish.test.ts --timeout 120000",
       "outcome": "passed"
     }
   ],

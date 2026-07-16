@@ -1,6 +1,6 @@
 # Start Here
 
-Last updated: 2026-07-12
+Last updated: 2026-07-16
 
 ## Doc Links
 
@@ -39,7 +39,7 @@ If you want the shortest public proof and install path after this file, use [doc
 
 If you want the current release, distribution, and proof boundary, use [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md).
 
-If you need to know whether a proof claim is current, historical, repository-only, installed, or real-host evidence, use [docs/proof-freshness.md](./proof-freshness.md) and [docs/proof-manifest.json](./proof-manifest.json). Canonical repository version truth is `package.json` (`0.1.32`), and tag `v0.1.32` exists at `188527e`; the failed first release run did not publish npm or create the GitHub release.
+If you need to know whether a proof claim is current, historical, repository-only, installed, or real-host evidence, use [docs/proof-freshness.md](./proof-freshness.md) and [docs/proof-manifest.json](./proof-manifest.json). Canonical repository version truth is `package.json` (`0.1.33`) and the proof manifest marks this branch as release-prep until tag `v0.1.33` is published. The previous `v0.1.32` tag and package are historical release evidence for the prior baseline.
 
 If you want the primitive-by-host proof ledger behind the core-four native shipping claim, use [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md).
 
@@ -99,7 +99,7 @@ The goal of this layer is simple:
 
 The CLI is the engine, but the self-hosted Pluxx plugin is part of the real product surface for average users.
 
-All nine PLUXX-313 through PLUXX-321 audit remediations are merged. The combined 0.1.32 tagged state now includes safer ingestion and replay records, fail-closed Autopilot recovery and Agent Mode boundaries, stronger semantic evaluation and translation/YAML truth, atomic authoring/build mutations, transactional ownership-aware installs, release integrity/recovery, and proof freshness governance. Tag existence does not prove npm publication or a GitHub release; both remain unverified after the failed first release run.
+All nine PLUXX-313 through PLUXX-321 audit remediations are merged. The historical combined 0.1.32 tagged state added safer ingestion and replay records, fail-closed Autopilot recovery and Agent Mode boundaries, stronger semantic evaluation and translation/YAML truth, atomic authoring/build mutations, transactional ownership-aware installs, release integrity/recovery, and proof freshness governance. PLUXX-333 prepares 0.1.33 to fix release installers that rejected trusted pre-ownership plugin installs instead of adopting them into ownership ledgers.
 
 That means near-term product quality is not only about compiler depth.
 It is also about making the plugin-guided path feel obvious, safe, and understandable on top of the same CLI truth.
@@ -135,7 +135,7 @@ Generated Codex companion artifacts should become operational rather than only a
 
 The decision note is [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisions/2026-06-26-pluxx-next-ship-review.md).
 
-Core-four local installs now use a shared transactional ownership layer. Copied bundles are staged and validated before an atomic sibling swap, the previous bundle stays recoverable until post-install work succeeds, ownership records hash installed files, reinstall refuses modified or unowned content, uninstall removes only unchanged owned files, and `verify-install` reports same-version content drift. Generated GitHub Release installers pin their tagged release and add install-scoped locking, bounded downloads, signal-safe recovery, and the same stage/backup/rollback and ownership contract.
+Core-four local installs now use a shared transactional ownership layer. Copied bundles are staged and validated before an atomic sibling swap, the previous bundle stays recoverable until post-install work succeeds, ownership records hash installed files, reinstall refuses modified or unowned content, uninstall removes only unchanged owned files, and `verify-install` reports same-version content drift. Generated GitHub Release installers pin their tagged release and add install-scoped locking, bounded downloads, signal-safe recovery, and the same stage/backup/rollback and ownership contract. The 0.1.33 release-prep lane also allows a one-time trusted legacy adoption when a pre-ownership installed host manifest matches the candidate bundle identity; arbitrary or mismatched directories still fail closed.
 
 Codex companion config now has a conservative inverse too: `pluxx codex apply` records the exact before/after config state it owns, and `pluxx codex unapply` restores the prior state only while the applied config remains unchanged. If the user edits active config after apply, unapply preserves it and asks for manual reconciliation instead of overwriting unrelated changes.
 
@@ -369,7 +369,7 @@ The repo already proves a lot.
 - historical release-gate evidence from 2026-05-19 remains available but is not current proof:
   - `npm test` passed
   - `npm run release:check` passed
-- the canonical repository version is `@orchid-labs/pluxx@0.1.32`, tagged as `v0.1.32` at `188527e`; the historical published baseline remains 0.1.31 while release recovery is pending
+- the canonical repository version is `@orchid-labs/pluxx@0.1.33` in release-prep for PLUXX-333; previous `v0.1.32` release evidence is historical once this fix ships
 - marketplace submission APIs, a managed trust/distribution control plane, automatic rollback/unpublish orchestration, and real authenticated publish plus rollback proof remain explicit release gaps, not hidden shipped capabilities:
   - `docs/release-distribution-proof-map.md`
   - “automatic rollback” here means remote release rollback/unpublish; generated local installers now restore the prior bundle when staged setup fails
@@ -539,9 +539,9 @@ Run two lanes in parallel:
 
 ### 6. Release State
 
-The canonical repository version is `0.1.32`, and tag `v0.1.32` exists at `188527e`. The first release run failed before npm publication or GitHub release creation because its shallow checkout could not reach the receipt commit. The historical published baseline remains 0.1.31 until the coordinator merges the recovery PR, dispatches the existing tag through the trusted main workflow, and verifies public artifacts. `package.json` is the source of truth for repository docs, while [proof-manifest.json](./proof-manifest.json) records tag state and proof freshness.
+The canonical repository version is `0.1.33` in release-prep. The previous `v0.1.32` tag and package are historical release evidence for the prior baseline. `package.json` is the source of truth for repository docs, while [proof-manifest.json](./proof-manifest.json) records tag state and proof freshness.
 
-For v0.1.32, finish review and reach substantive green, merge the focused recovery PR, dispatch the existing `v0.1.32` tag through the trusted workflow, then verify npm, GitHub, the published tarball, and CLI behavior. Do not move or recreate the tag. Future releases should repeat the version bump and release-prep proof work on a focused PR before tagging.
+For v0.1.33, finish PLUXX-333 review, merge the focused fix, create the immutable `v0.1.33` tag from main, then verify npm, GitHub, the published tarball, and CLI behavior. Future releases should repeat the version bump and release-prep proof work on a focused PR before tagging.
 
 ## Working Rules
 

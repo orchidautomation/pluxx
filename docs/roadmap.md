@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-07-12
+Last updated: 2026-07-16
 
 ## Doc Links
 
@@ -82,7 +82,7 @@ The full v0.1.31 audit-remediation tranche is merged. Main now includes safer in
 
 Proof governance now distinguishes unit, bundle-contract, fake-home install, installed-runtime, and real-host behavior evidence. Canonical version/freshness checks run in CI through [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json); historical April/May proof stays available without being treated as current.
 
-The active audit closeout slice is PLUXX-322 release recovery. The 0.1.32 release PR is merged and immutable tag `v0.1.32` exists at `188527e`, but the first release run failed before publication because its shallow checkout could not reach the proof receipt commit. The focused recovery PR restores full history and a controlled existing-tag dispatch; merge, dispatch, public artifact verification, and archive remain coordinator-owned.
+The active release-blocking slice is PLUXX-333 legacy installer adoption. The 0.1.33 release-prep branch fixes generated installers that rejected trusted pre-ownership installs, while keeping arbitrary or mismatched directories fail-closed.
 
 ### 1. Product clarity and source-of-truth coherence
 
@@ -119,7 +119,7 @@ The closure plan is now narrower than it was before:
 - the next concrete OSS-authoring robustness slice is Codex companion apply/verify:
   - make generated readiness, hook, MCP approval, and companion config artifacts operational and verifiable instead of advisory only
   - keep the work aligned with `PLUXX-226`, `PLUXX-264`, `PLUXX-248`, and [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
-  - transactional install ownership now covers conservative reinstall/uninstall, rollback, and content drift across the core four
+  - transactional install ownership now covers conservative reinstall/uninstall, rollback, content drift, and trusted pre-ownership adoption across the core four
 - local stdio import quality is now stronger for the common "I already have an MCP" path:
   - `init --from-mcp` auto-recovers `passthrough` for project-relative runtimes such as `./build/index.js`
   - `lint` catches unbundled stdio runtime payloads earlier
@@ -228,7 +228,7 @@ The closure plan is now narrower than it was before:
 - historical release-gate evidence from 2026-05-19 remains available but is not current proof:
   - `npm test` passed
   - `npm run release:check` passed
-- the canonical repository version is `@orchid-labs/pluxx@0.1.32`, tagged as `v0.1.32` at `188527e`; the historical published baseline remains 0.1.31 while release recovery is pending
+- the canonical repository version is `@orchid-labs/pluxx@0.1.33` in release-prep; previous `v0.1.32` release evidence is historical once this fix ships
 - the release/distribution/proof boundary is now explicit:
   - [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md)
   - [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md)
@@ -388,14 +388,14 @@ This is for learning and proof, not for prematurely building the full trust laye
 
 ### 6. Next release
 
-The canonical repository version is `0.1.32`, and immutable tag `v0.1.32` exists at `188527e`; the historical published baseline remains 0.1.31. The first release run failed before npm publication or GitHub release creation because its shallow checkout could not reach the current receipt commit. Current repository-validation and fake-home-install receipts remain tied to committed 0.1.32 state; historical 0.1.31 proof was not carried forward as current.
+The canonical repository version is `0.1.33` in release-prep. Current repository-validation and fake-home-install receipts are tied to the PLUXX-333 legacy installer adoption fix; previous 0.1.32 proof is historical for the prior release baseline.
 
 The next npm cut should stay primarily an operations step rather than a code-confidence rescue step.
 
-- prepare and review the 0.1.32 package, proof, and source-of-truth changes in PLUXX-322
+- prepare and review the 0.1.33 package, proof, and source-of-truth changes in PLUXX-333
 - run targeted proof/version/release checks, official serial `npm test`, and `npm run release:check`
-- merge the focused recovery PR after substantive checks and review are green
-- dispatch the existing `v0.1.32` tag through the trusted main workflow without moving or recreating it
+- merge the focused legacy-installer-adoption PR after substantive checks and review are green
+- tag `v0.1.33` from main through the trusted release workflow
 - verify the npm package version, GitHub release, attached tarball, and CLI after the workflow completes
 
 ## What This Roadmap Is Optimizing For

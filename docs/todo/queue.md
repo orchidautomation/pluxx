@@ -1,6 +1,6 @@
 # Pluxx Queue
 
-Last updated: 2026-07-12
+Last updated: 2026-07-16
 
 ## Doc Links
 
@@ -55,7 +55,7 @@ For broader context, use:
 
 ## Current Truth
 
-All nine PLUXX-313 through PLUXX-321 audit remediations are merged, and the 0.1.32 release PR is merged at `188527e`. Tag `v0.1.32` exists there, but the first release run failed before npm publication or GitHub release creation because its checkout could not reach the proof receipt commit. PLUXX-322 now owns the focused workflow-recovery PR; the coordinator retains merge, recovery dispatch, public artifact verification, and archive ownership.
+All nine PLUXX-313 through PLUXX-321 audit remediations are merged, and the previous 0.1.32 release is now historical baseline evidence. PLUXX-333 owns the active release-blocking fix for generated installers rejecting trusted pre-ownership installs.
 
 The core-four compiler sprint is done.
 
@@ -188,7 +188,7 @@ The initial author-once hardening tranche is also materially done.
 The public baseline is also real.
 
 - npm package is live as `@orchid-labs/pluxx`
-- the canonical repository version is `@orchid-labs/pluxx@0.1.32`, tagged as `v0.1.32` at `188527e`; the historical published baseline remains 0.1.31 while recovery is pending
+- the canonical repository version is `@orchid-labs/pluxx@0.1.33` in release-prep for PLUXX-333; previous `v0.1.32` evidence is historical after this fix ships
 - proof claims now use [docs/proof-freshness.md](../proof-freshness.md) and [docs/proof-manifest.json](../proof-manifest.json) so historical host runs cannot masquerade as current evidence
 - published CLI runtime is Node `>=18`
 - published CLI lifecycle ergonomics are now stronger for global installs:
@@ -244,6 +244,7 @@ Open work:
   - keep this aligned with `PLUXX-226`, `PLUXX-264`, and `PLUXX-248`
   - use [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md) as the decision note
 - [x] Ship transactional core-four install ownership for conservative reinstall, uninstall, and content diagnostics:
+- [x] Ship PLUXX-333 trusted pre-ownership installer adoption so existing generated plugin installs can upgrade without manual removal:
   - local copied installs and generated release installers stage and validate before a sibling swap
   - the prior bundle remains available for rollback until post-install work succeeds
   - modified or unowned installed files are preserved instead of silently replaced or deleted
@@ -495,22 +496,22 @@ Open work:
   - native bundles across the core four
   - install verification and truthful compatibility
 
-### 6. v0.1.32 release recovery
+### 6. v0.1.33 legacy installer adoption release
 
 Current work:
 
 - [x] PLUXX-322 prepared and merged the focused release PR at `188527e`
-- [x] bump `package.json` and `package-lock.json` to 0.1.32
+- [x] bump `package.json` and `package-lock.json` to 0.1.33
 - [x] refresh canonical release, planning, and proof truth without carrying old evidence forward as current
-- [x] generate fresh repository-validation and fake-home-install receipts from committed 0.1.32 state
-- [x] pass the official serial 751/751 suite and `npm run release:check`
-- [x] push immutable tag `v0.1.32` at `188527e`
-- [ ] merge the focused workflow-recovery PR after substantive checks and review are green
+- [x] generate fresh repository-validation and fake-home-install receipts for 0.1.33 release-prep state
+- [x] pass the official serial suite and `npm run release:check`
+- [ ] push immutable tag `v0.1.33` from main after merge
+- [ ] merge the focused legacy-installer-adoption PR after substantive checks and review are green
 
 Coordinator-owned after this task:
 
-- merge the workflow-recovery PR
-- dispatch the existing `v0.1.32` tag through the trusted main workflow without moving or recreating it
+- merge the legacy-installer-adoption PR
+- dispatch the trusted tag workflow for `v0.1.33` after merge
 - monitor publishing and verify npm, GitHub, tarball, and CLI surfaces
 - archive completed tasks
 
