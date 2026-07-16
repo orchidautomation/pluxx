@@ -1831,11 +1831,43 @@ const walk = (root) => {
   visit(root)
   return result
 }
+const refuseUnownedInstall = (reason) => {
+  throw new Error('Refusing to replace unowned install at ' + installDir + ': ' + reason + '. Move it aside or uninstall it manually, then retry.')
+}
+const manifestRelativePathByPlatform = {
+  'claude-code': '.claude-plugin/plugin.json',
+  cursor: '.cursor-plugin/plugin.json',
+  codex: '.codex-plugin/plugin.json',
+  opencode: 'package.json',
+}
+const readJson = (filepath, label) => {
+  if (!fs.existsSync(filepath)) refuseUnownedInstall('missing ' + label)
+  try {
+    return JSON.parse(fs.readFileSync(filepath, 'utf8'))
+  } catch {
+    refuseUnownedInstall('malformed ' + label)
+  }
+}
+const identityName = (manifest) => {
+  if (!manifest || typeof manifest !== 'object') return undefined
+  return typeof manifest.name === 'string' && manifest.name.trim() !== '' ? manifest.name.trim() : undefined
+}
+const assertTrustedLegacyInstall = () => {
+  const manifestRelativePath = manifestRelativePathByPlatform[platform]
+  if (!manifestRelativePath) refuseUnownedInstall('unsupported platform ' + platform)
+  const installedManifest = readJson(path.join(installDir, manifestRelativePath), 'installed host manifest')
+  const candidateManifest = readJson(path.join(process.env.PLUXX_BUNDLE_DIR, manifestRelativePath), 'candidate host manifest')
+  const installedName = identityName(installedManifest)
+  const candidateName = identityName(candidateManifest)
+  if (!installedName || !candidateName || installedName !== candidateName) {
+    refuseUnownedInstall('installed host manifest identity does not match candidate bundle')
+  }
+}
 if (fs.existsSync(installDir)) {
   if (!fs.existsSync(ownershipPath)) {
     const legacy = walk(installDir)
     if (!legacy.every((entry) => entry.path === '.pluxx-user.json')) {
-      throw new Error('Refusing to replace unowned install at ' + installDir + '. Move it aside or uninstall it manually, then retry.')
+      assertTrustedLegacyInstall()
     }
   } else {
     const record = JSON.parse(fs.readFileSync(ownershipPath, 'utf8'))
@@ -2362,6 +2394,33 @@ const movePath = (source, destination) => {
   else fs.copyFileSync(source, destination)
   fs.rmSync(source, { recursive: true, force: true })
 }
+const frontmatterName = (content) => {
+  const match = content.match(/^---\\n([\\s\\S]*?)\\n---\\n?/)
+  if (!match) return undefined
+  const nameMatch = match[1].match(/^name:\\s*(.+)$/m)
+  return nameMatch ? nameMatch[1].trim().replace(/^['"]|['"]$/g, '') : undefined
+}
+const isTrustedLegacyOpenCodeCompanion = (candidate) => {
+  if (candidate.remove || !fs.existsSync(candidate.destination)) return false
+  if (candidate.kind === 'file') {
+    if (!fs.lstatSync(candidate.destination).isFile() || fs.lstatSync(candidate.destination).isSymbolicLink()) return false
+    const content = fs.readFileSync(candidate.destination, 'utf8')
+    return content.includes('import * as PluginModule from "./' + pluginName + '/index.ts"')
+      && content.includes('directory: join(context.directory, "' + pluginName + '")')
+      && content.includes('Object.values(PluginModule).find')
+  }
+  if (candidate.kind === 'copy' && candidate.surface.startsWith('skill-')) {
+    if (!fs.lstatSync(candidate.destination).isDirectory() || fs.lstatSync(candidate.destination).isSymbolicLink()) return false
+    const skillPath = path.join(candidate.destination, 'SKILL.md')
+    const candidateSkillPath = path.join(candidate.source, 'SKILL.md')
+    if (!fs.existsSync(skillPath) || !fs.lstatSync(skillPath).isFile()) return false
+    if (!fs.existsSync(candidateSkillPath) || !fs.lstatSync(candidateSkillPath).isFile()) return false
+    const name = frontmatterName(fs.readFileSync(skillPath, 'utf8'))
+    const candidateName = frontmatterName(fs.readFileSync(candidateSkillPath, 'utf8'))
+    return typeof name === 'string' && name === candidateName && name.startsWith(pluginName + '/')
+  }
+  return false
+}
 for (const candidate of candidates) {
   const ledgerPath = path.join(ledgerRoot, 'opencode--' + candidate.surface + '.json')
   candidate.ledgerPath = ledgerPath
@@ -2369,7 +2428,10 @@ for (const candidate of candidates) {
     if (fs.existsSync(ledgerPath)) throw new Error('Refusing to replace missing owned OpenCode companion: ' + candidate.destination)
     continue
   }
-  if (!fs.existsSync(ledgerPath)) throw new Error('Refusing to replace unowned OpenCode companion: ' + candidate.destination)
+  if (!fs.existsSync(ledgerPath)) {
+    if (isTrustedLegacyOpenCodeCompanion(candidate)) continue
+    throw new Error('Refusing to replace unowned OpenCode companion: ' + candidate.destination)
+  }
   const record = JSON.parse(fs.readFileSync(ledgerPath, 'utf8'))
   if (record.schema !== 'pluxx.install-ownership.v1' || record.pluginName !== pluginName || record.platform !== 'opencode' || record.surface !== candidate.surface || path.resolve(record.installPath || '') !== candidate.destination || record.kind !== candidate.kind) {
     throw new Error('Invalid OpenCode companion ownership record: ' + ledgerPath)

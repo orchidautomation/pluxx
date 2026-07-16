@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "canonicalVersion": "0.1.32",
-  "expectedTag": "v0.1.32",
-  "releaseState": "released",
+  "canonicalVersion": "0.1.33",
+  "expectedTag": "v0.1.33",
+  "releaseState": "release-prep",
   "policy": {
     "environmentReceiptMaxAgeDays": 30
   },
@@ -27,7 +27,7 @@
       "id": "v0.1.32-repository-validation",
       "summary": "The committed v0.1.32 release-prep state passes the complete repository release gate.",
       "tier": "bundle-contract",
-      "freshness": "current",
+      "freshness": "historical",
       "evidencePath": "tests/proof-freshness.test.ts",
       "receiptId": "v0.1.32-repository-validation"
     },
@@ -35,7 +35,7 @@
       "id": "v0.1.32-fake-home-install",
       "summary": "Maintained examples pass core-four bundle and isolated fake-home install verification in the v0.1.32 release gate.",
       "tier": "fake-home-install",
-      "freshness": "current",
+      "freshness": "historical",
       "evidencePath": "tests/release-smoke.test.ts",
       "receiptId": "v0.1.32-fake-home-install"
     },
@@ -54,6 +54,22 @@
       "freshness": "historical",
       "evidencePath": "docs/strategy/firecrawl-connector-docs-ingestion-proof.md",
       "receiptId": "v0.1.28-firecrawl-history"
+    },
+    {
+      "id": "v0.1.33-repository-validation",
+      "summary": "The v0.1.33 release-prep state passes the repository release gate for legacy installer adoption.",
+      "tier": "bundle-contract",
+      "freshness": "current",
+      "evidencePath": "tests/proof-freshness.test.ts",
+      "receiptId": "v0.1.33-repository-validation"
+    },
+    {
+      "id": "v0.1.33-fake-home-install",
+      "summary": "Generated installer fake-home coverage proves trusted pre-ownership adoption across Claude Code, Cursor, Codex, and OpenCode for v0.1.33.",
+      "tier": "fake-home-install",
+      "freshness": "current",
+      "evidencePath": "tests/publish.test.ts",
+      "receiptId": "v0.1.33-fake-home-install"
     }
   ],
   "receipts": [
@@ -166,7 +182,7 @@
     {
       "id": "v0.1.32-repository-validation",
       "tier": "bundle-contract",
-      "freshness": "current",
+      "freshness": "historical",
       "commitSha": "f2b7cd4eafccaa42df64041cff9a4c5de96b0fd0",
       "packageVersion": "0.1.32",
       "timestamp": "2026-07-13T01:54:26.817Z",
@@ -189,7 +205,7 @@
     {
       "id": "v0.1.32-fake-home-install",
       "tier": "fake-home-install",
-      "freshness": "current",
+      "freshness": "historical",
       "commands": [
         {
           "command": "npm run release:check",
@@ -208,6 +224,52 @@
       "commitSha": "f2b7cd4eafccaa42df64041cff9a4c5de96b0fd0",
       "packageVersion": "0.1.32",
       "timestamp": "2026-07-13T01:54:26.958Z"
+    },
+    {
+      "id": "v0.1.33-repository-validation",
+      "tier": "bundle-contract",
+      "freshness": "current",
+      "commitSha": "faa7a3abb74d8e6696a7fccd40ba3fe850364ca0",
+      "packageVersion": "0.1.33",
+      "timestamp": "2026-07-16T21:00:02.883342Z",
+      "commands": [
+        {
+          "command": "npm run release:check",
+          "outcome": "passed"
+        }
+      ],
+      "targets": [
+        {
+          "target": "repository",
+          "hostVersion": null,
+          "installedPath": null,
+          "sha256": null,
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "v0.1.33-fake-home-install",
+      "tier": "fake-home-install",
+      "freshness": "current",
+      "commitSha": "faa7a3abb74d8e6696a7fccd40ba3fe850364ca0",
+      "packageVersion": "0.1.33",
+      "timestamp": "2026-07-16T21:00:02.883342Z",
+      "commands": [
+        {
+          "command": "bun test tests/publish.test.ts --timeout 120000",
+          "outcome": "passed"
+        }
+      ],
+      "targets": [
+        {
+          "target": "claude-code,cursor,codex,opencode",
+          "hostVersion": null,
+          "installedPath": null,
+          "sha256": null,
+          "outcome": "passed"
+        }
+      ]
     }
   ]
 }

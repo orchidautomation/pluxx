@@ -1,7 +1,7 @@
 {
-  "id": "v0.1.32-fake-home-install",
-  "tier": "fake-home-install",
-  "freshness": "historical",
+  "id": "v0.1.33-repository-validation",
+  "tier": "bundle-contract",
+  "freshness": "current",
   "commands": [
     {
       "command": "npm run release:check",
@@ -10,7 +10,7 @@
   ],
   "targets": [
     {
-      "target": "claude-code,cursor,codex,opencode",
+      "target": "repository",
       "hostVersion": null,
       "installedPath": null,
       "sha256": null,

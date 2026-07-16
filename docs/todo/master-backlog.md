@@ -1,6 +1,6 @@
 # Master Backlog
 
-Last updated: 2026-07-12
+Last updated: 2026-07-16
 
 This is the most complete repo-native backlog for Pluxx.
 
@@ -82,15 +82,15 @@ Any person or agent should be able to enter the repo and answer:
 
 Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) defines the five evidence tiers and freshness rules, while [proof-manifest.json](../proof-manifest.json) keeps machine-readable receipts and current/historical claim state aligned with `package.json`.
 
-### 0. v0.1.32 release recovery
+### 0. v0.1.33 legacy installer adoption release
 
 - [x] Merge all nine PLUXX-313 through PLUXX-321 audit-remediation PRs into main at `f92e3cc`
-- [x] Prepare 0.1.32 in PLUXX-322 with synchronized package, proof, planning, and release truth
-- [x] Generate fresh repository-validation and fake-home-install receipts from committed 0.1.32 state
-- [x] Pass the official 751/751 serial suite and complete release gate
-- [x] Merge the release PR and push immutable tag `v0.1.32` at `188527e`
-- [ ] Merge the focused workflow-recovery PR after substantive checks and review are green
-- [ ] Coordinator: dispatch the existing tag through the trusted main workflow, verify npm/GitHub/tarball/CLI, then archive the completed batch
+- [x] Prepare 0.1.33 in PLUXX-333 with synchronized package, proof, planning, and release truth
+- [x] Generate fresh repository-validation and fake-home-install receipts for 0.1.33 release-prep state
+- [x] Pass the official serial suite and complete release gate
+- [ ] Merge the release PR and push immutable tag `v0.1.33` from main
+- [ ] Merge the focused legacy-installer-adoption PR after substantive checks and review are green
+- [ ] Coordinator: dispatch the trusted tag workflow, verify npm/GitHub/tarball/CLI, then archive the completed batch
 
 ### 1. Product clarity and front-door coherence
 
@@ -127,6 +127,7 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
   - keep execution aligned with `PLUXX-226`, `PLUXX-264`, and `PLUXX-248`
   - see [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
 - [x] Add transactional install ownership so reinstall, uninstall, and "what did Pluxx touch?" diagnostics stay conservative:
+- [x] Add trusted pre-ownership adoption so generated release installers can upgrade legacy installs only when host manifest identity matches the candidate bundle:
   - shared core-four ownership records hash installed files and validate paths before mutation
   - copied installs and generated release installers use stage, backup, atomic swap, and rollback
   - modified and unowned files block replacement and survive uninstall
@@ -449,12 +450,16 @@ Open work:
 ### 7. Next release readiness
 
 - [x] Merge the nine v0.1.31 audit-remediation PRs
-- [x] Prepare and merge the focused v0.1.32 release PR under PLUXX-322
-- [x] Refresh current repository/fake-home receipts from committed 0.1.32 state
-- [x] Pass targeted checks, official serial 751/751 `npm test`, and `npm run release:check`
+- [x] Prepare and merge the historical focused v0.1.32 release PR under PLUXX-322
+- [ ] Prepare and merge the focused v0.1.33 legacy installer adoption PR under PLUXX-333
+- [x] Preserve historical repository/fake-home receipts from committed 0.1.32 state
+- [x] Refresh current repository/fake-home receipts from 0.1.33 release-prep state
+- [x] Pass targeted checks, official serial 758/758 `npm test`, and `npm run release:check`
 - [x] Merge the release-prep PR and push `v0.1.32` at `188527e`
-- [ ] Merge the workflow-recovery PR, then dispatch the existing tag through the trusted main workflow
-- [ ] Verify `@orchid-labs/pluxx@0.1.32`, GitHub release assets, tarball contents, and CLI behavior
+- [ ] Merge the PLUXX-333 release-prep PR and push `v0.1.33` from main
+- [ ] Merge the legacy-installer-adoption PR, then dispatch the trusted tag workflow
+- [x] Verify `@orchid-labs/pluxx@0.1.32`, GitHub release assets, tarball contents, and CLI behavior
+- [ ] Verify `@orchid-labs/pluxx@0.1.33`, GitHub release assets, tarball contents, and CLI behavior
 
 ## Next
 

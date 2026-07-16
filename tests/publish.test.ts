@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'bun:test'
 import { createHash } from 'crypto'
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'fs'
 import { spawnSync } from 'child_process'
-import { resolve } from 'path'
+import { dirname, resolve } from 'path'
 import type { PluginConfig, TargetPlatform } from '../src/schema'
 import { planPublish, runPublish } from '../src/cli/publish'
 import {
@@ -275,6 +275,74 @@ interface GeneratedInstallerRunResult {
 
 function isolatedInstallerEnvironment(source: Record<string, string | undefined>): Record<string, string> {
   return { PATH: source.PATH ?? '/usr/bin:/bin' }
+}
+
+function legacyManifestPathForPlatform(platform: TargetPlatform, installDir: string): string {
+  if (platform === 'claude-code') return resolve(installDir, '.claude-plugin/plugin.json')
+  if (platform === 'cursor') return resolve(installDir, '.cursor-plugin/plugin.json')
+  if (platform === 'codex') return resolve(installDir, '.codex-plugin/plugin.json')
+  if (platform === 'opencode') return resolve(installDir, 'package.json')
+  throw new Error(`Unsupported legacy manifest test platform: ${platform}`)
+}
+
+function matchingLegacyManifestForPlatform(platform: TargetPlatform): Record<string, unknown> {
+  if (platform === 'opencode') {
+    return { name: '@orchid/publish-plugin-opencode', version: '1.2.2', type: 'module' }
+  }
+
+  return {
+    name: 'publish-plugin',
+    version: '1.2.2',
+    description: `Legacy ${platform} install`,
+  }
+}
+
+function writeLegacyInstalledManifest(platform: TargetPlatform, installDir: string, manifest: Record<string, unknown> | string): void {
+  const manifestPath = legacyManifestPathForPlatform(platform, installDir)
+  mkdirSync(resolve(manifestPath, '..'), { recursive: true })
+  writeFileSync(
+    manifestPath,
+    typeof manifest === 'string' ? manifest : JSON.stringify(manifest, null, 2) + '\n',
+  )
+}
+
+function generatedInstallerOwnershipPath(platform: TargetPlatform, rootDir: string, installDir: string): string {
+  const home = resolve(rootDir, 'home')
+  const resolvedInstallDir = resolve(installDir)
+  const conventionalRoots = [
+    resolve(home, '.claude/plugins'),
+    resolve(home, '.cursor/plugins'),
+    resolve(home, '.codex/plugins'),
+    resolve(home, '.config/opencode'),
+  ]
+  const ownershipRoot = conventionalRoots.some((root) => resolvedInstallDir === root || resolvedInstallDir.startsWith(root + '/'))
+    ? resolve(home, '.pluxx/install-ownership')
+    : resolve(dirname(resolvedInstallDir), '.pluxx-install-ownership')
+  return resolve(ownershipRoot, 'publish-plugin', `${platform}.json`)
+}
+
+function legacyOpenCodeWrapper(): string {
+  return [
+    'import type { Plugin } from "@opencode-ai/plugin"',
+    'import { join } from "path"',
+    '',
+    'import * as PluginModule from "./publish-plugin/index.ts"',
+    '',
+    '// OpenCode auto-loads plugin files placed directly in ~/.config/opencode/plugins.',
+    '// Proxy into the installed plugin bundle while preserving its expected root.',
+    'const pluginFactory = Object.values(PluginModule).find((value): value is Plugin => typeof value === "function")',
+    '',
+    'if (!pluginFactory) {',
+    '  throw new Error("OpenCode plugin bundle for publish-plugin did not export a plugin function.")',
+    '}',
+    '',
+    'export const PublishPlugin: Plugin = async (context) =>',
+    '  pluginFactory({',
+    '    ...context,',
+    '    directory: join(context.directory, "publish-plugin"),',
+    '  })',
+    '',
+  ].join('\n')
 }
 
 function getGeneratedInstallerPaths(platform: TargetPlatform, rootDir: string): {
@@ -1467,6 +1535,132 @@ with tarfile.open(archive, 'w:gz') as tf:
     expect(readFileSync(resolve(run.rootDir, 'publish-plugin.ts'), 'utf-8')).toBe('// private wrapper\n')
     expect(readFileSync(resolve(run.pluginInstallDir, '.pluxx-user.json'), 'utf-8')).toBe('{}\n')
     expect(existsSync(resolve(run.pluginInstallDir, 'package.json'))).toBe(false)
+  })
+
+
+  it('adopts trusted pre-ownership generated installs across core hosts', () => {
+    const platforms: TargetPlatform[] = ['claude-code', 'cursor', 'codex', 'opencode']
+
+    for (const platform of platforms) {
+      const run = runGeneratedInstaller(platform, {
+        config: { ...makeUserConfigInstallerConfig(platform), targets: [platform] },
+        existingUserConfig: {
+          values: { 'instantly-api-key': 'saved-instantly-key' },
+          env: { SENDLENS_INSTANTLY_API_KEY: 'saved-instantly-key' },
+        },
+        extraFiles: platform === 'opencode'
+          ? { 'skills/client-intel/SKILL.md': '# Client Intel\n' }
+          : {},
+        setupPaths: (paths) => {
+          writeLegacyInstalledManifest(platform, paths.pluginInstallDir, matchingLegacyManifestForPlatform(platform))
+          writeFileSync(resolve(paths.pluginInstallDir, 'legacy-pre-ownership.txt'), 'legacy bundle marker\n')
+
+          if (platform === 'opencode') {
+            const entryPath = paths.env.PLUXX_OPENCODE_ENTRY_PATH
+            mkdirSync(resolve(entryPath, '..'), { recursive: true })
+            writeFileSync(entryPath, legacyOpenCodeWrapper())
+
+            const skillDir = resolve(paths.env.PLUXX_OPENCODE_SKILLS_ROOT, 'publish-plugin-client-intel')
+            mkdirSync(skillDir, { recursive: true })
+            writeFileSync(resolve(skillDir, 'SKILL.md'), '---\nname: publish-plugin/client-intel\n---\n\n# Client Intel\n')
+          }
+        },
+      })
+
+      expect(run.status, `${platform} installer failed:\n${run.stderr}\n${run.stdout}`).toBe(0)
+      expect(run.stderr).toBe('')
+      expect(existsSync(resolve(run.pluginInstallDir, 'legacy-pre-ownership.txt'))).toBe(false)
+      expect(existsSync(generatedInstallerOwnershipPath(platform, run.rootDir, run.pluginInstallDir))).toBe(true)
+      expect(run.stdout).toContain('Found existing publish-plugin config; reusing saved install values.')
+
+      if (platform === 'codex') {
+        expect(run.installedUserConfig?.envRefs?.SENDLENS_INSTANTLY_API_KEY).toBe('SENDLENS_INSTANTLY_API_KEY')
+      } else {
+        expect(run.installedUserConfig?.values?.['instantly-api-key']).toBe('saved-instantly-key')
+        expect(run.installedUserConfig?.env?.SENDLENS_INSTANTLY_API_KEY).toBe('saved-instantly-key')
+      }
+
+      if (platform === 'opencode') {
+        expect(readFileSync(resolve(run.rootDir, 'publish-plugin.ts'), 'utf-8')).toContain('OpenCode auto-loads plugin files')
+        expect(readFileSync(resolve(run.rootDir, 'opencode-skills/publish-plugin-client-intel/SKILL.md'), 'utf-8')).toContain('name: publish-plugin/client-intel')
+      }
+    }
+  })
+
+  it('rejects unowned legacy installs with missing, malformed, or mismatched manifests', () => {
+    const cases: Array<{ name: string; writeManifest?: (installDir: string) => void }> = [
+      { name: 'missing manifest' },
+      {
+        name: 'malformed manifest',
+        writeManifest: (installDir) => writeLegacyInstalledManifest('cursor', installDir, '{not-json\n'),
+      },
+      {
+        name: 'mismatched manifest',
+        writeManifest: (installDir) => writeLegacyInstalledManifest('cursor', installDir, { name: 'other-plugin', version: '9.9.9' }),
+      },
+    ]
+
+    for (const testCase of cases) {
+      const run = runGeneratedInstaller('cursor', {
+        existingUserConfig: { values: { marker: testCase.name } },
+        setupPaths: (paths) => {
+          writeFileSync(resolve(paths.pluginInstallDir, 'untrusted.txt'), 'do not replace\n')
+          testCase.writeManifest?.(paths.pluginInstallDir)
+        },
+      })
+
+      expect(run.status, testCase.name).toBe(1)
+      expect(run.stderr, testCase.name).toContain('Refusing to replace unowned install')
+      expect(readFileSync(resolve(run.pluginInstallDir, 'untrusted.txt'), 'utf-8')).toBe('do not replace\n')
+      expect(run.installedUserConfig?.values?.marker).toBe(testCase.name)
+    }
+  })
+
+  it('rejects mismatched pre-ownership generated install identity across core hosts', () => {
+    const platforms: TargetPlatform[] = ['claude-code', 'cursor', 'codex', 'opencode']
+
+    for (const platform of platforms) {
+      const run = runGeneratedInstaller(platform, {
+        existingUserConfig: { values: { marker: 'legacy' } },
+        setupPaths: (paths) => {
+          const manifest = platform === 'opencode'
+            ? { name: '@orchid/other-plugin-opencode', version: '1.2.2' }
+            : { name: 'other-plugin', version: '1.2.2' }
+          writeLegacyInstalledManifest(platform, paths.pluginInstallDir, manifest)
+          writeFileSync(resolve(paths.pluginInstallDir, 'legacy-pre-ownership.txt'), 'do not replace\n')
+        },
+      })
+
+      expect(run.status, `${platform} should fail closed`).toBe(1)
+      expect(run.stderr).toContain('Refusing to replace unowned install')
+      expect(readFileSync(resolve(run.pluginInstallDir, 'legacy-pre-ownership.txt'), 'utf-8')).toBe('do not replace\n')
+    }
+  })
+
+  it('rejects unrecognized legacy OpenCode skill companion collisions', () => {
+    const cases = [
+      { name: 'no legacy frontmatter', content: '# Private unrelated skill\n' },
+      { name: 'wrong legacy namespace identity', content: '---\nname: publish-plugin/other-skill\n---\n\n# Private unrelated skill\n' },
+    ]
+
+    for (const testCase of cases) {
+      const run = runGeneratedInstaller('opencode', {
+        config: { ...makeConfig(), targets: ['opencode'] },
+        existingUserConfig: { values: { marker: testCase.name } },
+        extraFiles: { 'skills/client-intel/SKILL.md': '# Client Intel\n' },
+        setupPaths: (paths) => {
+          writeLegacyInstalledManifest('opencode', paths.pluginInstallDir, matchingLegacyManifestForPlatform('opencode'))
+          const skillDir = resolve(paths.env.PLUXX_OPENCODE_SKILLS_ROOT, 'publish-plugin-client-intel')
+          mkdirSync(skillDir, { recursive: true })
+          writeFileSync(resolve(skillDir, 'SKILL.md'), testCase.content)
+        },
+      })
+
+      expect(run.status, testCase.name).toBe(1)
+      expect(run.stderr, testCase.name).toContain('Refusing to replace unowned OpenCode companion')
+      expect(readFileSync(resolve(run.rootDir, 'opencode-skills/publish-plugin-client-intel/SKILL.md'), 'utf-8')).toBe(testCase.content)
+      expect(run.installedUserConfig?.values?.marker).toBe(testCase.name)
+    }
   })
 
   it('reuses saved generated-installer user config across core host updates', () => {
