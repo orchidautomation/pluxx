@@ -82,7 +82,7 @@ The full v0.1.31 audit-remediation tranche is merged. Main now includes safer in
 
 Proof governance now distinguishes unit, bundle-contract, fake-home install, installed-runtime, and real-host behavior evidence. Canonical version/freshness checks run in CI through [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json); historical April/May proof stays available without being treated as current.
 
-The active release-blocking slice is PLUXX-333 legacy installer adoption. The 0.1.33 release-prep branch fixes generated installers that rejected trusted pre-ownership installs, while keeping arbitrary or mismatched directories fail-closed.
+The active release-blocking slice is PLUXX-333 legacy installer adoption release recovery. The 0.1.33 tagged release fixes generated installers that rejected trusted pre-ownership installs, while keeping arbitrary or mismatched directories fail-closed.
 
 ### 1. Product clarity and source-of-truth coherence
 
@@ -228,7 +228,7 @@ The closure plan is now narrower than it was before:
 - historical release-gate evidence from 2026-05-19 remains available but is not current proof:
   - `npm test` passed
   - `npm run release:check` passed
-- the canonical repository version is `@orchid-labs/pluxx@0.1.33` in release-prep; previous `v0.1.32` release evidence is historical once this fix ships
+- the canonical repository version is `@orchid-labs/pluxx@0.1.33`; previous `v0.1.32` release evidence is historical
 - the release/distribution/proof boundary is now explicit:
   - [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md)
   - [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md)
@@ -388,7 +388,7 @@ This is for learning and proof, not for prematurely building the full trust laye
 
 ### 6. Next release
 
-The canonical repository version is `0.1.33` in release-prep. Current repository-validation and fake-home-install receipts are tied to the PLUXX-333 legacy installer adoption fix; previous 0.1.32 proof is historical for the prior release baseline.
+The canonical repository version is `0.1.33`, tagged as `v0.1.33`. Current repository-validation and fake-home-install receipts are tied to the PLUXX-333 legacy installer adoption fix; previous 0.1.32 proof is historical for the prior release baseline.
 
 The next npm cut should stay primarily an operations step rather than a code-confidence rescue step.
 

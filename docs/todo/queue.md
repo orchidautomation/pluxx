@@ -188,7 +188,7 @@ The initial author-once hardening tranche is also materially done.
 The public baseline is also real.
 
 - npm package is live as `@orchid-labs/pluxx`
-- the canonical repository version is `@orchid-labs/pluxx@0.1.33` in release-prep for PLUXX-333; previous `v0.1.32` evidence is historical after this fix ships
+- the canonical repository version is `@orchid-labs/pluxx@0.1.33`; previous `v0.1.32` evidence is historical after this fix ships
 - proof claims now use [docs/proof-freshness.md](../proof-freshness.md) and [docs/proof-manifest.json](../proof-manifest.json) so historical host runs cannot masquerade as current evidence
 - published CLI runtime is Node `>=18`
 - published CLI lifecycle ergonomics are now stronger for global installs:
@@ -503,10 +503,10 @@ Current work:
 - [x] PLUXX-322 prepared and merged the focused release PR at `188527e`
 - [x] bump `package.json` and `package-lock.json` to 0.1.33
 - [x] refresh canonical release, planning, and proof truth without carrying old evidence forward as current
-- [x] generate fresh repository-validation and fake-home-install receipts for 0.1.33 release-prep state
+- [x] generate fresh repository-validation and fake-home-install receipts for 0.1.33 tagged state
 - [x] pass the official serial suite and `npm run release:check`
-- [ ] push immutable tag `v0.1.33` from main after merge
-- [ ] merge the focused legacy-installer-adoption PR after substantive checks and review are green
+- [x] push immutable tag `v0.1.33` from main after merge
+- [x] merge the focused legacy-installer-adoption PR after substantive checks and review are green
 
 Coordinator-owned after this task:
 
