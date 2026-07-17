@@ -1254,21 +1254,6 @@ if (!packageJson) {
   process.exit(0)
 }
 
-const packageDependencyShape = (content) => {
-  const parsed = JSON.parse(content.toString('utf8'))
-  const pick = (key) => parsed[key] && typeof parsed[key] === 'object' ? parsed[key] : undefined
-  return {
-    packageManager: typeof parsed.packageManager === 'string' ? parsed.packageManager : undefined,
-    engines: pick('engines'),
-    dependencies: pick('dependencies'),
-    optionalDependencies: pick('optionalDependencies'),
-    peerDependencies: pick('peerDependencies'),
-    peerDependenciesMeta: pick('peerDependenciesMeta'),
-    overrides: pick('overrides'),
-    resolutions: pick('resolutions'),
-  }
-}
-
 const hash = crypto.createHash('sha256')
 hash.update(contractVersion)
 hash.update('\\0')
@@ -1278,7 +1263,9 @@ hash.update(process.arch)
 hash.update('\\0')
 hash.update(process.versions.modules || 'unknown-node-abi')
 hash.update('\\0')
-hash.update(JSON.stringify(packageDependencyShape(packageJson)))
+hash.update('package.json')
+hash.update('\\0')
+hash.update(packageJson)
 hash.update('\\0')
 
 for (const name of dependencyManifestNames.filter((name) => name !== 'package.json')) {

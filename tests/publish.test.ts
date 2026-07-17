@@ -1356,6 +1356,52 @@ cp "$TEST_RELEASE_DIR/$(basename "$url")" "$out"
     expect(readFileSync(countFile, 'utf-8').trim()).toBe('1')
   })
 
+  it('prepares a distinct shared runtime when only a package lifecycle script changes', () => {
+    const countFile = resolve(ROOT, 'shared-runtime-lifecycle-script-count.txt')
+    const storeRoot = resolve(ROOT, 'shared-runtime-lifecycle-script-store')
+    const bootstrap = [
+      '#!/usr/bin/env bash',
+      'set -euo pipefail',
+      'count=0',
+      'if [[ -f "$PLUXX_BOOTSTRAP_COUNT_FILE" ]]; then count="$(cat "$PLUXX_BOOTSTRAP_COUNT_FILE")"; fi',
+      'echo "$((count + 1))" > "$PLUXX_BOOTSTRAP_COUNT_FILE"',
+      'mkdir -p node_modules/@native/fixture',
+      'printf "native-runtime\\n" > node_modules/@native/fixture/index.node',
+      '',
+    ].join('\n')
+    const packageLock = JSON.stringify({
+      lockfileVersion: 3,
+      packages: {
+        '': { dependencies: { '@native/fixture': '1.0.0' } },
+      },
+    })
+    const install = (postinstall: string) => runGeneratedInstaller('cursor', {
+      extraFiles: {
+        'package.json': JSON.stringify({
+          name: 'publish-plugin-runtime',
+          version: '1.2.3',
+          scripts: { postinstall },
+          dependencies: { '@native/fixture': '1.0.0' },
+        }),
+        'package-lock.json': packageLock,
+        'scripts/bootstrap-runtime.sh': bootstrap,
+      },
+      env: {
+        SENDLENS_INSTANTLY_API_KEY: 'fresh-key',
+        PLUXX_BOOTSTRAP_COUNT_FILE: countFile,
+        PLUXX_RUNTIME_STORE_ROOT: storeRoot,
+      },
+    })
+
+    const first = install('node scripts/install-a.mjs')
+    const second = install('node scripts/install-b.mjs')
+
+    expect(first.status, first.stdout + '\n' + first.stderr).toBe(0)
+    expect(second.status, second.stdout + '\n' + second.stderr).toBe(0)
+    expect(second.stdout).toContain('Preparing shared Pluxx native runtime')
+    expect(readFileSync(countFile, 'utf-8').trim()).toBe('2')
+  })
+
   it('repairs a corrupted matching shared runtime before relinking it', () => {
     const countFile = resolve(ROOT, 'shared-runtime-repair-count.txt')
     const runtimeFiles = {
