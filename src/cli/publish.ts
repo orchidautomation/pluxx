@@ -1245,6 +1245,19 @@ if (!packageJson) {
   process.exit(0)
 }
 
+const supportedLockfilePaths = [
+  'package-lock.json',
+  'npm-shrinkwrap.json',
+  'pnpm-lock.yaml',
+  'yarn.lock',
+  'bun.lock',
+  'bun.lockb',
+]
+if (!supportedLockfilePaths.some((relativePath) => readIfFile(relativePath))) {
+  writeUnsupportedRuntimeEnv()
+  process.exit(0)
+}
+
 const hash = crypto.createHash('sha256')
 hash.update(contractVersion)
 hash.update('\\0')

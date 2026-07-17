@@ -1356,6 +1356,39 @@ cp "$TEST_RELEASE_DIR/$(basename "$url")" "$out"
     expect(readFileSync(countFile, 'utf-8').trim()).toBe('1')
   })
 
+  it('falls back to local runtime bootstrap when dependencies have no lockfile', () => {
+    const countFile = resolve(ROOT, 'runtime-no-lockfile-bootstrap-count.txt')
+    const run = runGeneratedInstaller('cursor', {
+      extraFiles: {
+        'package.json': JSON.stringify({
+          name: 'publish-plugin-runtime',
+          version: '1.2.3',
+          dependencies: { '@native/fixture': '^1.0.0' },
+        }),
+        'scripts/bootstrap-runtime.sh': [
+          '#!/usr/bin/env bash',
+          'set -euo pipefail',
+          'count=0',
+          'if [[ -f "$PLUXX_BOOTSTRAP_COUNT_FILE" ]]; then count="$(cat "$PLUXX_BOOTSTRAP_COUNT_FILE")"; fi',
+          'echo "$((count + 1))" > "$PLUXX_BOOTSTRAP_COUNT_FILE"',
+          'mkdir -p node_modules/@native/fixture',
+          'printf "native-runtime\\n" > node_modules/@native/fixture/index.node',
+          '',
+        ].join('\n'),
+      },
+      env: {
+        SENDLENS_INSTANTLY_API_KEY: 'fresh-key',
+        PLUXX_BOOTSTRAP_COUNT_FILE: countFile,
+      },
+    })
+
+    expect(run.status, `${run.stdout}\n${run.stderr}`).toBe(0)
+    expect(run.stdout).toContain('Preparing local plugin runtime dependencies...')
+    expect(run.stdout).not.toContain('Preparing shared Pluxx native runtime')
+    expect(readFileSync(countFile, 'utf-8').trim()).toBe('1')
+    expect(existsSync(resolve(run.rootDir, 'home/.pluxx/runtimes/refs/publish-plugin/cursor.json'))).toBe(false)
+  })
+
   it('prepares a distinct shared runtime when only a package lifecycle script changes', () => {
     const countFile = resolve(ROOT, 'shared-runtime-lifecycle-script-count.txt')
     const storeRoot = resolve(ROOT, 'shared-runtime-lifecycle-script-store')

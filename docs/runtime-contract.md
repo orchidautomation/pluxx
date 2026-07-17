@@ -68,7 +68,7 @@ Remote/native MCP auth materialization remains separate: bearer/header auth that
 
 ## Generated Native Dependency Runtime Store
 
-Generated GitHub Release installers prepare platform-native Node dependencies in a shared Pluxx runtime store when the installed bundle includes package dependency metadata.
+Generated GitHub Release installers prepare platform-native Node dependencies in a shared Pluxx runtime store when the installed bundle includes package dependency metadata and a supported deterministic lockfile (`package-lock.json`, `npm-shrinkwrap.json`, `pnpm-lock.yaml`, `yarn.lock`, `bun.lock`, or `bun.lockb`).
 
 The store lives under `~/.pluxx/runtimes/` by default and is keyed by:
 
@@ -79,7 +79,7 @@ The store lives under `~/.pluxx/runtimes/` by default and is keyed by:
 
 Published runtime entries are treated as immutable. A host installer builds the runtime in an atomic staging directory, validates the resulting `node_modules`, publishes the entry under its content fingerprint, and links the staged host bundle to that entry. Compatible Claude Code, Cursor, Codex, and OpenCode installs therefore reuse one prepared native runtime instead of each extracting and installing the same dependencies.
 
-If a matching entry is missing or corrupted, the installer repairs it before relinking. If the bundle does not provide enough dependency metadata for safe shared reuse, the installer logs the fallback and runs `bootstrap-runtime.sh` inside the staged host bundle as before.
+If a matching entry is missing or corrupted, the installer repairs it before relinking. If the bundle does not provide enough dependency metadata for safe shared reuse, including a supported lockfile for dependency resolution, the installer logs the fallback and runs `bootstrap-runtime.sh` inside the staged host bundle as before.
 
 ## Contributor Tooling
 
