@@ -2383,6 +2383,46 @@ const commitRuntimeReference = () => {
     }
   }
 
+  const fingerprintHasLiveLease = (fingerprint) => {
+    const leaseRoot = path.join(leasesRoot, fingerprint)
+    if (!fs.existsSync(leaseRoot)) return false
+    for (const leaseEntry of fs.readdirSync(leaseRoot, { withFileTypes: true })) {
+      if (!leaseEntry.isFile() || !leaseEntry.name.endsWith('.json')) continue
+      try {
+        const lease = JSON.parse(fs.readFileSync(path.join(leaseRoot, leaseEntry.name), 'utf8'))
+        if (lease.schema !== 'pluxx.shared-native-runtime-lease.v1'
+          || lease.fingerprint !== fingerprint
+          || !Number.isInteger(lease.ownerPid)
+          || lease.ownerPid <= 0) continue
+        try { process.kill(lease.ownerPid, 0); return true } catch (error) {
+          if (error && error.code === 'EPERM') return true
+        }
+      } catch {}
+    }
+    return false
+  }
+  const fingerprintHasLiveRef = (directory, fingerprint) => {
+    if (!fs.existsSync(directory)) return false
+    for (const refEntry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const refFile = path.join(directory, refEntry.name)
+      if (refEntry.isDirectory()) {
+        if (fingerprintHasLiveRef(refFile, fingerprint)) return true
+        continue
+      }
+      if (!refEntry.isFile() || !refEntry.name.endsWith('.json')) continue
+      try {
+        const candidate = JSON.parse(fs.readFileSync(refFile, 'utf8'))
+        if (candidate.schema !== 'pluxx.shared-native-runtime-ref.v1'
+          || candidate.fingerprint !== fingerprint
+          || typeof candidate.installPath !== 'string') continue
+        if (fs.existsSync(candidate.installPath)) return true
+        const updatedAt = Date.parse(candidate.updatedAt || '')
+        if (Number.isFinite(updatedAt) && Date.now() - updatedAt < graceMs) return true
+      } catch {}
+    }
+    return false
+  }
+
   const entriesRoot = path.join(storeRoot, 'entries')
   if (fs.existsSync(entriesRoot)) {
     for (const entry of fs.readdirSync(entriesRoot, { withFileTypes: true })) {
@@ -2390,6 +2430,8 @@ const commitRuntimeReference = () => {
       if (!entry.isDirectory()) continue
       if (!liveFingerprints.has(entry.name)) {
         if (fs.existsSync(path.join(storeRoot, 'locks', entry.name + '.lock'))) continue
+        // Check the handoff in lease-then-ref order: ref publication precedes lease removal.
+        if (fingerprintHasLiveLease(entry.name) || fingerprintHasLiveRef(refRoot, entry.name)) continue
         if (Date.now() - fs.statSync(filepath).mtimeMs >= graceMs) removeTree(filepath)
         continue
       }

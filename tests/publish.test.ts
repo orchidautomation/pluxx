@@ -2324,6 +2324,7 @@ with tarfile.open(archive, 'w:gz') as tf:
     expect(installerContent).toContain('Preparing local plugin runtime dependencies...')
     expect(installerContent).toContain("childProcess.spawnSync('bash'")
     expect(installerContent).toContain('path.join(candidateRoot, bootstrapRelativePath)')
+    expect(installerContent).toContain('fingerprintHasLiveLease(entry.name) || fingerprintHasLiveRef(refRoot, entry.name)')
     expect(installerContent).toContain('PLUXX_CODEX_ENABLE_PLUGIN_HOOKS')
     expect(installerContent).toContain('Codex requires [features].hooks = true')
     expect(installerContent).toContain('hooks = true')
