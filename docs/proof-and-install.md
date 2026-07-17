@@ -32,7 +32,7 @@ For the fuller release/distribution boundary, including publish commands and def
 
 Proof labels and freshness come from [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json). The May self-hosted run, April Firecrawl connector run, and previous 0.1.32 release evidence are preserved as historical environment evidence; they are not current host receipts for `0.1.33`.
 
-The current v0.1.33 receipts prove the `bundle-contract` and generated-installer `fake-home-install` tiers from release-prep state, including trusted legacy installer adoption across the core four. No current receipt claims installed-runtime or real-host behavior.
+The current v0.1.33 receipts prove the `bundle-contract` and generated-installer `fake-home-install` tiers from tagged release state, including trusted legacy installer adoption across the core four. No current receipt claims installed-runtime or real-host behavior.
 
 ## The Story In One Screen
 
@@ -208,7 +208,7 @@ curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example
 
 Current release note:
 
-- the canonical repository version is `@orchid-labs/pluxx@0.1.33` in release-prep for trusted legacy installer adoption; previous `v0.1.32` public release evidence is historical once this fix ships
+- the canonical repository version is `@orchid-labs/pluxx@0.1.33` for trusted legacy installer adoption; previous `v0.1.32` public release evidence is historical
 - the published CLI runtime is Node `>=18`; see [runtime contract](./runtime-contract.md)
 - the published package includes the Claude plugin-agent manifest fix and packaged Node runtime verification
 - the public `pluxx test --install --trust --behavioral` path now matches the repo-local Exa proof state

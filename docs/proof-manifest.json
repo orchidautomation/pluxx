@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "canonicalVersion": "0.1.33",
   "expectedTag": "v0.1.33",
-  "releaseState": "release-prep",
+  "releaseState": "released",
   "policy": {
     "environmentReceiptMaxAgeDays": 30
   },
@@ -57,7 +57,7 @@
     },
     {
       "id": "v0.1.33-repository-validation",
-      "summary": "The v0.1.33 release-prep state passes the repository release gate for legacy installer adoption.",
+      "summary": "The v0.1.33 tagged release state passes the repository release gate for legacy installer adoption.",
       "tier": "bundle-contract",
       "freshness": "current",
       "evidencePath": "tests/proof-freshness.test.ts",
