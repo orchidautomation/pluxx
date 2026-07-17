@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { mkdirSync, rmSync, existsSync, readFileSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
+import { pathToFileURL } from 'url'
 import { spawnSync } from 'child_process'
 import { build } from '../src/generators'
 import { checkGeneratedBundles } from '../src/bundle-check'
@@ -725,7 +726,7 @@ describe('build', () => {
     expect(codexHooks.hooks.SessionStart[0].hooks[0].type).toBe('command')
     expect(codexHooks.hooks.SessionStart[0].hooks[0].command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
     expect(opencodeIndex).toContain('const buildHookShellCommand = (rawCommand: string): string => {')
-    expect(opencodeIndex).toContain('const userConfig = loadUserConfig(directory)')
+    expect(opencodeIndex).toContain('const userConfig = loadUserConfig(pluginRoot)')
     expect(opencodeIndex).toContain('const userEnvRefs = userConfig.envRefs ?? {}')
     expect(opencodeIndex).toContain('Object.entries(userEnvRefs)')
 
@@ -817,6 +818,160 @@ describe('build', () => {
       expect(runWrappedHook.status).toBe(0)
       expect(runWrappedHook.stdout).toBe(JSON.stringify(multilineSecret))
     }
+  })
+
+  it('runs generated OpenCode hooks from the installed plugin root while preserving workspace root', async () => {
+    const rootDir = resolve(TEST_DIR, 'opencode root regression source')
+    const outDir = resolve(rootDir, 'dist')
+    const pluginRoot = resolve(outDir, 'opencode')
+    const workspaceRoot = resolve(TEST_DIR, 'opencode active workspace with spaces')
+    const staleProjectRoot = resolve(TEST_DIR, 'deleted opencode project')
+
+    rmSync(rootDir, { recursive: true, force: true })
+    rmSync(workspaceRoot, { recursive: true, force: true })
+    rmSync(staleProjectRoot, { recursive: true, force: true })
+    mkdirSync(resolve(rootDir, 'skills/basic'), { recursive: true })
+    mkdirSync(resolve(rootDir, 'scripts'), { recursive: true })
+    mkdirSync(workspaceRoot, { recursive: true })
+
+    writeFileSync(resolve(rootDir, 'skills/basic/SKILL.md'), '---\nname: basic\ndescription: Basic skill\n---\n\nBasic skill body.\n')
+    writeFileSync(
+      resolve(rootDir, 'scripts/proof.mjs'),
+      [
+        'import { writeFileSync } from "node:fs"',
+        'import { resolve } from "node:path"',
+        'const pluginRoot = process.env.PLUXX_PLUGIN_ROOT',
+        'if (!pluginRoot) throw new Error("missing PLUXX_PLUGIN_ROOT")',
+        'writeFileSync(resolve(pluginRoot, "opencode-root-proof.json"), JSON.stringify({',
+        '  pluginRoot: process.env.PLUXX_PLUGIN_ROOT,',
+        '  legacyPluginRoot: process.env.PLUGIN_ROOT,',
+        '  opencodePluginRoot: process.env.OPENCODE_PLUGIN_ROOT,',
+        '  workspaceRoot: process.env.PLUXX_HOOK_WORKSPACE_ROOT,',
+        '  opencodeWorkspaceRoot: process.env.OPENCODE_WORKSPACE_ROOT,',
+        '  token: process.env.OPENCODE_ROOT_TOKEN,',
+        '  cwd: process.cwd(),',
+        '}))',
+      ].join('\n'),
+    )
+
+    const config: PluginConfig = {
+      ...testConfig,
+      name: 'opencode-root-plugin',
+      skills: './skills/',
+      hooks: {
+        sessionStart: [{ command: 'node "${PLUGIN_ROOT}/scripts/proof.mjs"' }],
+      },
+      mcp: {
+        local: {
+          transport: 'stdio',
+          command: 'node',
+          args: ['${PLUGIN_ROOT}/scripts/proof.mjs'],
+          env: {
+            OPENCODE_ROOT_TOKEN: '${OPENCODE_ROOT_TOKEN}',
+          },
+        },
+      },
+      userConfig: [{
+        key: 'opencode-root-token',
+        title: 'OpenCode Root Token',
+        type: 'secret',
+        envVar: 'OPENCODE_ROOT_TOKEN',
+      }],
+      commands: undefined,
+      agents: undefined,
+      brand: undefined,
+      scripts: './scripts/',
+      assets: undefined,
+      passthrough: undefined,
+      instructions: undefined,
+      targets: ['opencode'],
+      outDir: './dist',
+    }
+
+    await build(config, rootDir)
+
+    writeFileSync(
+      resolve(pluginRoot, '.pluxx-user.json'),
+      JSON.stringify({
+        env: {
+          OPENCODE_ROOT_TOKEN: 'from-installed-plugin',
+          PLUXX_PLUGIN_ROOT: staleProjectRoot,
+        },
+        envRefs: {
+          PLUGIN_ROOT: 'STALE_OPENCODE_PLUGIN_ROOT',
+          OPENCODE_PLUGIN_ROOT: 'STALE_OPENCODE_PLUGIN_ROOT',
+        },
+      }, null, 2),
+    )
+    writeFileSync(
+      resolve(workspaceRoot, '.pluxx-user.json'),
+      JSON.stringify({
+        env: {
+          OPENCODE_ROOT_TOKEN: 'from-active-workspace',
+        },
+      }, null, 2),
+    )
+
+    const generatedSource = readFileSync(resolve(pluginRoot, 'index.ts'), 'utf-8')
+    expect(generatedSource).toContain('const pluginRoot = dirname(fileURLToPath(import.meta.url))')
+    expect(generatedSource).toContain('const workspaceRoot = directory')
+    expect(generatedSource).toContain('loadUserConfig(pluginRoot)')
+    expect(generatedSource).toContain('resolve(pluginRoot, MCP_RUNTIME_ENV_SCRIPT)')
+    expect(generatedSource).toContain('resolve(pluginRoot, READINESS_SCRIPT)')
+    expect(generatedSource).not.toContain('loadUserConfig(directory)')
+    expect(generatedSource).not.toContain(staleProjectRoot)
+
+    const generatedModule = await import(`${pathToFileURL(resolve(pluginRoot, 'index.ts')).href}?case=${Date.now()}`)
+    const pluginFactory = Object.values(generatedModule).find((value) => typeof value === 'function') as (
+      input: {
+        project: Record<string, unknown>
+        client: { app: { log: (entry: unknown) => Promise<void> } }
+        $: (strings: TemplateStringsArray, ...values: unknown[]) => Promise<void>
+        directory: string
+      }
+    ) => Promise<Record<string, (...args: any[]) => Promise<void>>>
+
+    const logs: unknown[] = []
+    const shell = async (_strings: TemplateStringsArray, command: unknown): Promise<void> => {
+      const result = spawnSync('bash', ['-lc', String(command)], {
+        cwd: workspaceRoot,
+        encoding: 'utf-8',
+        env: { ...process.env, STALE_OPENCODE_PLUGIN_ROOT: staleProjectRoot },
+      })
+      if (result.status !== 0) {
+        throw new Error(result.stderr || `command failed with ${result.status}`)
+      }
+    }
+
+    const plugin = await pluginFactory({
+      project: {},
+      client: { app: { log: async (entry) => { logs.push(entry) } } },
+      $: shell,
+      directory: workspaceRoot,
+    })
+
+    const configOutput: Record<string, any> = {}
+    await plugin.config(configOutput)
+
+    expect(configOutput.mcp.local.command[1]).toBe(resolve(pluginRoot, 'runtime/pluxx-mcp-env.mjs'))
+    expect(configOutput.mcp.local.environment.PLUXX_PLUGIN_ROOT).toBe(pluginRoot)
+    expect(configOutput.mcp.local.environment.OPENCODE_PLUGIN_ROOT).toBe(pluginRoot)
+    expect(configOutput.mcp.local.environment.PLUXX_MCP_WORKSPACE_ROOT).toBe(workspaceRoot)
+    expect(configOutput.mcp.local.environment.OPENCODE_WORKSPACE_ROOT).toBe(workspaceRoot)
+    expect(configOutput.mcp.local.environment.OPENCODE_ROOT_TOKEN).toBeUndefined()
+
+    await plugin.event({ event: { type: 'session.created' } })
+
+    expect(logs).toEqual([])
+    const proof = JSON.parse(readFileSync(resolve(pluginRoot, 'opencode-root-proof.json'), 'utf-8'))
+    expect(proof.pluginRoot).toBe(pluginRoot)
+    expect(proof.legacyPluginRoot).toBe(pluginRoot)
+    expect(proof.opencodePluginRoot).toBe(pluginRoot)
+    expect(proof.workspaceRoot).toBe(workspaceRoot)
+    expect(proof.opencodeWorkspaceRoot).toBe(workspaceRoot)
+    expect(proof.token).toBe('from-installed-plugin')
+    expect(proof.cwd).toBe(workspaceRoot)
+    expect(existsSync(resolve(workspaceRoot, 'opencode-root-proof.json'))).toBe(false)
   })
 
   it('quotes generated hook commands so plugin roots with spaces still execute', async () => {
