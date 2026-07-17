@@ -394,7 +394,7 @@ The next npm cut should stay primarily an operations step rather than a code-con
 
 - prepare and review the 0.1.34 package, proof, and source-of-truth changes for the shared-runtime release
 - run targeted proof/version/release checks, official serial `npm test`, and `npm run release:check`
-- merge the focused legacy-installer-adoption PR after substantive checks and review are green
+- merge the focused 0.1.34 shared-runtime release PR after substantive checks and review are green
 - tag `v0.1.34` from main through the trusted release workflow
 - verify the npm package version, GitHub release, attached tarball, and CLI after the workflow completes
 

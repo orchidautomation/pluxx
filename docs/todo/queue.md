@@ -55,7 +55,7 @@ For broader context, use:
 
 ## Current Truth
 
-All nine PLUXX-313 through PLUXX-321 audit remediations are merged, and the previous 0.1.32 release is now historical baseline evidence. PLUXX-333 owns the active release-blocking fix for generated installers rejecting trusted pre-ownership installs.
+All nine PLUXX-313 through PLUXX-321 audit remediations are merged, and previous releases are historical baseline evidence. PLUXX-334 is implemented through PR #446; PR #447 owns the active 0.1.34 shared-runtime release cut.
 
 The core-four compiler sprint is done.
 
@@ -500,17 +500,17 @@ Open work:
 
 Current work:
 
-- [x] PLUXX-322 prepared and merged the focused release PR at `188527e`
+- [x] PLUXX-334 shared-runtime implementation merged through PR #446
 - [x] bump `package.json` and `package-lock.json` to 0.1.34
 - [x] refresh canonical release, planning, and proof truth without carrying old evidence forward as current
 - [x] generate fresh repository-validation and fake-home-install receipts for 0.1.34 release-prep state
 - [x] pass the official serial suite and `npm run release:check`
 - [ ] push immutable tag `v0.1.34` from main after merge
-- [x] merge the focused legacy-installer-adoption PR after substantive checks and review are green
+- [ ] merge the focused 0.1.34 shared-runtime release PR after substantive checks and review are green
 
 Coordinator-owned after this task:
 
-- merge the legacy-installer-adoption PR
+- merge the 0.1.34 shared-runtime release PR
 - dispatch the trusted tag workflow for `v0.1.34` after merge
 - monitor publishing and verify npm, GitHub, tarball, and CLI surfaces
 - archive completed tasks

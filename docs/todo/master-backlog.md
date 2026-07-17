@@ -89,7 +89,7 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
 - [x] Generate fresh repository-validation and fake-home-install receipts for 0.1.34 release-prep state
 - [x] Pass the official serial suite and complete release gate
 - [ ] Merge the release PR and push immutable tag `v0.1.34` from main
-- [x] Merge the focused legacy-installer-adoption PR after substantive checks and review are green
+- [ ] Merge the focused 0.1.34 shared-runtime release PR after substantive checks and review are green
 - [ ] Coordinator: dispatch the trusted tag workflow for `v0.1.34`, verify npm/GitHub/tarball/CLI, then archive the completed batch
 
 ### 1. Product clarity and front-door coherence
@@ -457,7 +457,7 @@ Open work:
 - [x] Pass targeted checks, official serial 758/758 `npm test`, and `npm run release:check`
 - [x] Merge the release-prep PR and push `v0.1.32` at `188527e`
 - [x] Merge the PLUXX-333 release PR and push `v0.1.33` from main
-- [ ] Merge the legacy-installer-adoption PR, then dispatch the trusted tag workflow
+- [ ] Merge the 0.1.34 shared-runtime release PR, then dispatch the trusted tag workflow
 - [x] Verify `@orchid-labs/pluxx@0.1.32`, GitHub release assets, tarball contents, and CLI behavior
 - [x] Historical: verify `@orchid-labs/pluxx@0.1.33`, GitHub release assets, tarball contents, and CLI behavior
 - [ ] Verify `@orchid-labs/pluxx@0.1.34`, GitHub release assets, tarball contents, and CLI behavior
