@@ -1255,12 +1255,23 @@ hash.update('\\0')
 hash.update(process.versions.modules || 'unknown-node-abi')
 hash.update('\\0')
 
+const shouldHashRuntimeInput = (relativePath) => {
+  if (relativePath === 'node_modules' || relativePath.startsWith('node_modules/')) return false
+  if (relativePath === '.pluxx-runtime-cache.env' || relativePath === '.pluxx-user.json') return false
+  if (relativePath === '.mcp.json' || relativePath === 'mcp.json') return false
+  if (
+    relativePath === '.claude-plugin' || relativePath.startsWith('.claude-plugin/') ||
+    relativePath === '.cursor-plugin' || relativePath.startsWith('.cursor-plugin/') ||
+    relativePath === '.codex-plugin' || relativePath.startsWith('.codex-plugin/')
+  ) return false
+  return true
+}
+
 const addRuntimeInputTree = (dir) => {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
     const filepath = path.join(dir, entry.name)
     const relativePath = path.relative(candidateRoot, filepath).replace(/\\\\/g, '/')
-    if (relativePath === 'node_modules' || relativePath.startsWith('node_modules/')) continue
-    if (relativePath === '.pluxx-runtime-cache.env') continue
+    if (!shouldHashRuntimeInput(relativePath)) continue
     const stats = fs.lstatSync(filepath)
     hash.update(relativePath)
     hash.update('\\0')
@@ -1303,6 +1314,7 @@ NODE
   if [[ -f "${installDirVariable}/.pluxx-runtime-cache.env" ]]; then
     # shellcheck disable=SC1091
     source "${installDirVariable}/.pluxx-runtime-cache.env"
+    export PLUXX_SHARED_RUNTIME_SUPPORTED PLUXX_SHARED_RUNTIME_FINGERPRINT PLUXX_SHARED_RUNTIME_ENTRY PLUXX_SHARED_RUNTIME_STAGE PLUXX_SHARED_RUNTIME_LOCK
   fi
 
   pluxx_runtime_hash_entry() {

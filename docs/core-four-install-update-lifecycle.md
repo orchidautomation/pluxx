@@ -227,7 +227,7 @@ This is now also a compiler-owned contract, not only doc guidance:
 - `lint` and `doctor` read from one shared runtime-script contract for the installer-owned `check-env.sh` rule
 - the recommended portable runtime role split is centralized alongside that rule so follow-on runtime validation work can reuse it instead of restating it
 - generated release installers use that split to prepare one content-addressed native Node runtime under `~/.pluxx/runtimes/` when package dependency metadata is available, then link each compatible staged host bundle to the same immutable `node_modules`
-- the shared runtime key includes the complete installed bundle payload that can affect runtime installation, OS, architecture, Node ABI, and the Pluxx runtime-store contract version; corrupted matching entries are repaired before reuse
+- the shared runtime key includes deterministic installed bundle files that can affect runtime installation, OS, architecture, Node ABI, and the Pluxx runtime-store contract version; host manifests, materialized MCP config, saved user config, and install-local state are excluded so compatible host bundles can share one entry
 - if safe shared-runtime reuse is unavailable, generated installers log the fallback and run `bootstrap-runtime.sh` in the staged host bundle as before
 - Codex local installs now rewrite plugin-owned stdio MCP command/arg paths to absolute installed plugin paths so installed MCP launch does not depend on the active workspace cwd
 - source-project runtime payload checks now treat bundled `scripts/`, `assets/`, and `passthrough` payload as one runtime surface when validating local stdio MCP startup paths

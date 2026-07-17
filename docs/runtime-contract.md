@@ -72,7 +72,7 @@ Generated GitHub Release installers prepare platform-native Node dependencies in
 
 The store lives under `~/.pluxx/runtimes/` by default and is keyed by:
 
-- the complete installed bundle payload that can affect runtime installation, including package metadata, lockfiles, lifecycle helper scripts, `.npmrc`, patch files, and `scripts/bootstrap-runtime.sh`
+- the deterministic installed bundle payload that can affect runtime installation, including package metadata, lockfiles, lifecycle helper scripts, `.npmrc`, patch files, and `scripts/bootstrap-runtime.sh`, while excluding host manifests, materialized MCP config, saved user config, and other install-local state
 - OS and architecture
 - Node ABI
 - Pluxx runtime-store contract version
