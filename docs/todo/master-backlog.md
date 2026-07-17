@@ -96,9 +96,9 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
 
 - [x] Merge PLUXX-335 OpenCode plugin-root/workspace-root fix
 - [x] Prepare 0.1.35 with synchronized package, proof, planning, and release truth
-- [ ] Pass `npm run release:check`
-- [ ] Push immutable tag `v0.1.35` from main
-- [ ] Verify `@orchid-labs/pluxx@0.1.35`, GitHub release assets, tarball contents, and CLI behavior
+- [x] Pass `npm run release:check`
+- [x] Push immutable tag `v0.1.35` from main
+- [x] Verify `@orchid-labs/pluxx@0.1.35`, GitHub release assets, tarball contents, and CLI behavior
 
 ### 1. Product clarity and front-door coherence
 

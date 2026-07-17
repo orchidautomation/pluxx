@@ -32,7 +32,7 @@ For the fuller release/distribution boundary, including publish commands and def
 
 Proof labels and freshness come from [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json). The May self-hosted run, April Firecrawl connector run, and previous 0.1.34 release evidence are preserved as historical environment evidence; they are not current host receipts for `0.1.35`.
 
-The current v0.1.35 receipts prove the `bundle-contract` and generated-installer `fake-home-install` tiers from release-prep repository state, including the OpenCode plugin-root fix and maintained core-four fake-home coverage. No current receipt claims installed-runtime or real-host behavior.
+The current v0.1.35 receipts prove the `bundle-contract` and generated-installer `fake-home-install` tiers from the tagged repository state, including the OpenCode plugin-root fix and maintained core-four fake-home coverage. No current receipt claims installed-runtime or real-host behavior.
 
 ## The Story In One Screen
 

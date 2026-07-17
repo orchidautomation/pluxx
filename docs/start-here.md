@@ -39,7 +39,7 @@ If you want the shortest public proof and install path after this file, use [doc
 
 If you want the current release, distribution, and proof boundary, use [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md).
 
-If you need to know whether a proof claim is current, historical, repository-only, installed, or real-host evidence, use [docs/proof-freshness.md](./proof-freshness.md) and [docs/proof-manifest.json](./proof-manifest.json). Canonical repository version truth is `package.json` (`0.1.35`) and the proof manifest marks `v0.1.35` as release prep. The previous `v0.1.34` tag and package are historical release evidence for the prior baseline.
+If you need to know whether a proof claim is current, historical, repository-only, installed, or real-host evidence, use [docs/proof-freshness.md](./proof-freshness.md) and [docs/proof-manifest.json](./proof-manifest.json). Canonical repository version truth is `package.json` (`0.1.35`) and the proof manifest marks `v0.1.35` as released. The previous `v0.1.34` tag and package are historical release evidence for the prior baseline.
 
 If you want the primitive-by-host proof ledger behind the core-four native shipping claim, use [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md).
 
@@ -539,9 +539,9 @@ Run two lanes in parallel:
 
 ### 6. Release State
 
-The canonical repository version is `0.1.35`, preparing tag `v0.1.35`. The previous `v0.1.34` tag and package are historical release evidence for the prior baseline. `package.json` is the source of truth for repository docs, while [proof-manifest.json](./proof-manifest.json) records tag state and proof freshness.
+The canonical repository version is `0.1.35`, released as tag `v0.1.35`. The previous `v0.1.34` tag and package are historical release evidence for the prior baseline. `package.json` is the source of truth for repository docs, while [proof-manifest.json](./proof-manifest.json) records tag state and proof freshness.
 
-For v0.1.35, the OpenCode plugin-root fix is merged and the focused patch release is being prepared; after review, push the immutable tag and verify npm, GitHub, the published tarball, and CLI behavior. Future releases should repeat the version bump and proof-prep work on a focused PR before tagging.
+For v0.1.35, the OpenCode plugin-root fix is merged and the focused patch release has shipped through the trusted tag workflow. Future releases should repeat the version bump and proof-prep work on a focused PR before tagging.
 
 ## Working Rules
 

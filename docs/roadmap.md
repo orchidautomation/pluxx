@@ -388,15 +388,13 @@ This is for learning and proof, not for prematurely building the full trust laye
 
 ### 6. Next release
 
-The canonical repository version is `0.1.35`, preparing tag `v0.1.35`. Current repository-validation and fake-home-install receipts are tied to the PLUXX-335 OpenCode plugin-root fix; previous 0.1.34 proof is historical for the prior release baseline.
+The canonical repository version is `0.1.35`, released as tag `v0.1.35`. Current repository-validation and fake-home-install receipts are tied to the PLUXX-335 OpenCode plugin-root fix; previous 0.1.34 proof is historical for the prior release baseline.
 
 The next npm cut should stay primarily an operations step rather than a code-confidence rescue step.
 
-- prepare and review the 0.1.35 package, proof, and source-of-truth changes for the OpenCode plugin-root patch release
-- run targeted proof/version/release checks, official serial `npm test`, and `npm run release:check`
-- merge the focused 0.1.35 patch release PR after substantive checks and review are green
-- tag `v0.1.35` from main through the trusted release workflow
-- verify the npm package version, GitHub release, attached tarball, and CLI after the workflow completes
+- complete the 0.1.35 package, proof, and source-of-truth release for the OpenCode plugin-root patch
+- preserve the release proof as current repository-validation and fake-home-install evidence
+- use future focused release PRs and trusted tag workflows for the next package cut
 
 ## What This Roadmap Is Optimizing For
 
