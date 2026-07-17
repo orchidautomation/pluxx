@@ -1,6 +1,6 @@
 # Runtime Contract
 
-Last updated: 2026-07-07
+Last updated: 2026-07-17
 
 ## Doc Links
 
@@ -65,6 +65,22 @@ When those stdio env placeholders are runtime-inherited, generated core-four bun
 Workspace `.env` values intentionally win over global env values for runtime-inherited stdio vars. This keeps one global plugin install usable across multiple repos while still allowing a global `SENDLENS_INSTANTLY_API_KEY`-style fallback when the current repo has no local value.
 
 Remote/native MCP auth materialization remains separate: bearer/header auth that is expressed through host-native HTTP config is still materialized or preserved as env references according to the target host contract.
+
+## Generated Native Dependency Runtime Store
+
+Generated GitHub Release installers prepare platform-native Node dependencies in a shared Pluxx runtime store when the installed bundle includes package dependency metadata.
+
+The store lives under `~/.pluxx/runtimes/` by default and is keyed by:
+
+- package dependency shape and lockfile content
+- `scripts/bootstrap-runtime.sh` content
+- OS and architecture
+- Node ABI
+- Pluxx runtime-store contract version
+
+Published runtime entries are treated as immutable. A host installer builds the runtime in an atomic staging directory, validates the resulting `node_modules`, publishes the entry under its content fingerprint, and links the staged host bundle to that entry. Compatible Claude Code, Cursor, Codex, and OpenCode installs therefore reuse one prepared native runtime instead of each extracting and installing the same dependencies.
+
+If a matching entry is missing or corrupted, the installer repairs it before relinking. If the bundle does not provide enough dependency metadata for safe shared reuse, the installer logs the fallback and runs `bootstrap-runtime.sh` inside the staged host bundle as before.
 
 ## Contributor Tooling
 

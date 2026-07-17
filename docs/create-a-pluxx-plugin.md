@@ -252,6 +252,8 @@ Recommended contract:
 - `start-mcp.sh` is the MCP entrypoint that launches the real server
 - `scripts/check-env.sh` remains install-time validation only and must not be part of the runtime startup chain
 
+Generated release installers now reuse one Pluxx-managed native runtime across compatible host installs when the bundle has package dependency metadata. Keep dependency manifests and lockfiles deterministic so Claude Code, Cursor, Codex, and OpenCode bundles with the same native dependency set can share the same content-addressed `node_modules` entry.
+
 This is the portable pattern that resolved SendLens after the original release shipped Linux-built `node_modules` that were not portable to macOS DuckDB bindings.
 
 ### 9. Install and test one host first

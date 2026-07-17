@@ -264,6 +264,7 @@ interface GeneratedInstallerRunResult {
   status: number | null
   stdout: string
   stderr: string
+  archivePath: string
   installerContent: string
   pluginInstallDir: string
   installedUserConfig?: {
@@ -483,11 +484,18 @@ function runGeneratedInstaller(
           env,
         })
         const userConfigPath = resolve(paths.pluginInstallDir, '.pluxx-user.json')
+        const preservedArchivePath = resolve(rootDir, archivePath!.split('/').pop()!)
+        writeFileSync(preservedArchivePath, readFileSync(archivePath!))
+        for (const name of ['release-manifest.json', 'SHA256SUMS.txt']) {
+          const content = publishedAssets.get(name)
+          if (content) writeFileSync(resolve(rootDir, name), content)
+        }
         installerRun = {
           rootDir,
           status: proc.status,
           stdout: proc.stdout ?? '',
           stderr: proc.stderr ?? '',
+          archivePath: preservedArchivePath,
           installerContent: readFileSync(installerPath!, 'utf-8'),
           pluginInstallDir: paths.pluginInstallDir,
           installedUserConfig: existsSync(userConfigPath)
@@ -1280,6 +1288,134 @@ cp "$TEST_RELEASE_DIR/$(basename "$url")" "$out"
     expect(run.status).toBe(42)
     expect(run.installedUserConfig?.values?.marker).toBe('previous-install')
     expect(run.stdout).toContain('Preparing local plugin runtime dependencies...')
+  })
+
+  it('reuses a content-addressed native runtime on warm generated installer runs', () => {
+    const countFile = resolve(ROOT, 'shared-runtime-bootstrap-count.txt')
+    const run = runGeneratedInstaller('cursor', {
+      extraFiles: {
+        'package.json': JSON.stringify({
+          name: 'publish-plugin-runtime',
+          version: '1.2.3',
+          dependencies: { '@native/fixture': '1.0.0' },
+        }),
+        'package-lock.json': JSON.stringify({
+          lockfileVersion: 3,
+          packages: {
+            '': { dependencies: { '@native/fixture': '1.0.0' } },
+          },
+        }),
+        'scripts/bootstrap-runtime.sh': [
+          '#!/usr/bin/env bash',
+          'set -euo pipefail',
+          'count=0',
+          'if [[ -f "$PLUXX_BOOTSTRAP_COUNT_FILE" ]]; then count="$(cat "$PLUXX_BOOTSTRAP_COUNT_FILE")"; fi',
+          'echo "$((count + 1))" > "$PLUXX_BOOTSTRAP_COUNT_FILE"',
+          'mkdir -p node_modules/@native/fixture',
+          'printf "native-runtime\\n" > node_modules/@native/fixture/index.node',
+          '',
+        ].join('\n'),
+      },
+      env: {
+        SENDLENS_INSTANTLY_API_KEY: 'fresh-key',
+        PLUXX_BOOTSTRAP_COUNT_FILE: countFile,
+      },
+    })
+
+    expect(run.status, `${run.stdout}\n${run.stderr}`).toBe(0)
+    expect(readFileSync(countFile, 'utf-8').trim()).toBe('1')
+    expect(run.stdout).toContain('Preparing shared Pluxx native runtime')
+    expect(existsSync(resolve(run.pluginInstallDir, 'node_modules'))).toBe(true)
+    const refPath = resolve(run.rootDir, 'home/.pluxx/runtimes/refs/publish-plugin/cursor.json')
+    const runtimeRef = JSON.parse(readFileSync(refPath, 'utf-8')) as { runtimeEntry: string }
+    expect(existsSync(resolve(runtimeRef.runtimeEntry, 'node_modules/@native/fixture/index.node'))).toBe(true)
+    expect(existsSync(resolve(runtimeRef.runtimeEntry, '.cursor-plugin/plugin.json'))).toBe(false)
+    expect(existsSync(resolve(run.pluginInstallDir, '.pluxx-runtime-cache.env'))).toBe(false)
+
+    const installerPath = resolve(run.rootDir, 'install-cursor-rerun.sh')
+    writeFileSync(installerPath, run.installerContent)
+    chmodSync(installerPath, 0o755)
+
+    const rerun = spawnSync('bash', [installerPath], {
+      encoding: 'utf-8',
+      env: {
+        ...isolatedInstallerEnvironment(process.env),
+        HOME: resolve(run.rootDir, 'home'),
+        TMPDIR: resolve(run.rootDir, 'tmp'),
+        TMP: resolve(run.rootDir, 'tmp'),
+        TEMP: resolve(run.rootDir, 'tmp'),
+        PLUXX_CURSOR_INSTALL_DIR: run.pluginInstallDir,
+        PLUXX_CURSOR_BUNDLE_PATH: run.archivePath,
+        SENDLENS_INSTANTLY_API_KEY: 'fresh-key',
+        PLUXX_BOOTSTRAP_COUNT_FILE: countFile,
+      },
+    })
+
+    expect(rerun.status, `${rerun.stdout}\n${rerun.stderr}`).toBe(0)
+    expect(rerun.stdout).toContain('Reusing prepared Pluxx native runtime')
+    expect(readFileSync(countFile, 'utf-8').trim()).toBe('1')
+  })
+
+  it('repairs a corrupted matching shared runtime before relinking it', () => {
+    const countFile = resolve(ROOT, 'shared-runtime-repair-count.txt')
+    const runtimeFiles = {
+      'package.json': JSON.stringify({
+        name: 'publish-plugin-runtime',
+        version: '1.2.3',
+        dependencies: { '@native/fixture': '1.0.0' },
+      }),
+      'package-lock.json': JSON.stringify({
+        lockfileVersion: 3,
+        packages: {
+          '': { dependencies: { '@native/fixture': '1.0.0' } },
+        },
+      }),
+      'scripts/bootstrap-runtime.sh': [
+        '#!/usr/bin/env bash',
+        'set -euo pipefail',
+        'count=0',
+        'if [[ -f "$PLUXX_BOOTSTRAP_COUNT_FILE" ]]; then count="$(cat "$PLUXX_BOOTSTRAP_COUNT_FILE")"; fi',
+        'echo "$((count + 1))" > "$PLUXX_BOOTSTRAP_COUNT_FILE"',
+        'mkdir -p node_modules/@native/fixture',
+        'printf "native-runtime\\n" > node_modules/@native/fixture/index.node',
+        '',
+      ].join('\n'),
+    }
+    const run = runGeneratedInstaller('cursor', {
+      extraFiles: runtimeFiles,
+      env: {
+        SENDLENS_INSTANTLY_API_KEY: 'fresh-key',
+        PLUXX_BOOTSTRAP_COUNT_FILE: countFile,
+      },
+    })
+
+    expect(run.status, `${run.stdout}\n${run.stderr}`).toBe(0)
+    const refPath = resolve(run.rootDir, 'home/.pluxx/runtimes/refs/publish-plugin/cursor.json')
+    const runtimeRef = JSON.parse(readFileSync(refPath, 'utf-8')) as { runtimeEntry: string }
+    writeFileSync(resolve(runtimeRef.runtimeEntry, 'node_modules/@native/fixture/index.node'), 'corrupted\n')
+
+    const installerPath = resolve(run.rootDir, 'install-cursor-repair.sh')
+    writeFileSync(installerPath, run.installerContent)
+    chmodSync(installerPath, 0o755)
+
+    const rerun = spawnSync('bash', [installerPath], {
+      encoding: 'utf-8',
+      env: {
+        ...isolatedInstallerEnvironment(process.env),
+        HOME: resolve(run.rootDir, 'home'),
+        TMPDIR: resolve(run.rootDir, 'tmp'),
+        TMP: resolve(run.rootDir, 'tmp'),
+        TEMP: resolve(run.rootDir, 'tmp'),
+        PLUXX_CURSOR_INSTALL_DIR: run.pluginInstallDir,
+        PLUXX_CURSOR_BUNDLE_PATH: run.archivePath,
+        SENDLENS_INSTANTLY_API_KEY: 'fresh-key',
+        PLUXX_BOOTSTRAP_COUNT_FILE: countFile,
+      },
+    })
+
+    expect(rerun.status, `${rerun.stdout}\n${rerun.stderr}`).toBe(0)
+    expect(rerun.stdout).toContain('Repairing incomplete Pluxx native runtime')
+    expect(readFileSync(countFile, 'utf-8').trim()).toBe('2')
   })
 
   it('restores the previous install when TERM arrives after the backup move', () => {

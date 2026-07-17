@@ -1208,8 +1208,283 @@ NODE
 function renderInstallerRuntimeBootstrapSnippet(installDirVariable: string): string {
   return `
 if [[ -f "${installDirVariable}/scripts/bootstrap-runtime.sh" ]]; then
-  echo "Preparing local plugin runtime dependencies..."
-  bash "${installDirVariable}/scripts/bootstrap-runtime.sh"
+  export PLUXX_RUNTIME_CANDIDATE_ROOT="${installDirVariable}"
+  export PLUXX_RUNTIME_STORE_ROOT="\${PLUXX_RUNTIME_STORE_ROOT:-$HOME/.pluxx/runtimes}"
+  export PLUGIN_NAME
+
+  node <<'NODE'
+const crypto = require('crypto')
+const fs = require('fs')
+const path = require('path')
+
+const candidateRoot = process.env.PLUXX_RUNTIME_CANDIDATE_ROOT
+const storeRoot = process.env.PLUXX_RUNTIME_STORE_ROOT
+const pluginName = process.env.PLUGIN_NAME || 'unknown-plugin'
+const contractVersion = 'pluxx.shared-native-runtime.v1'
+const envPath = path.join(candidateRoot, '.pluxx-runtime-cache.env')
+const dependencyManifestNames = [
+  'package.json',
+  'package-lock.json',
+  'npm-shrinkwrap.json',
+  'pnpm-lock.yaml',
+  'yarn.lock',
+  'bun.lock',
+  'bun.lockb',
+]
+
+if (!candidateRoot || !storeRoot) process.exit(2)
+
+const readIfFile = (relativePath) => {
+  const filepath = path.join(candidateRoot, relativePath)
+  if (!fs.existsSync(filepath) || !fs.statSync(filepath).isFile()) return undefined
+  return fs.readFileSync(filepath)
+}
+
+const writeUnsupportedRuntimeEnv = () => {
+  fs.mkdirSync(path.dirname(envPath), { recursive: true })
+  fs.writeFileSync(envPath, [
+    'PLUXX_SHARED_RUNTIME_SUPPORTED=0',
+    '',
+  ].join('\\n'))
+}
+
+const packageJson = readIfFile('package.json')
+if (!packageJson) {
+  writeUnsupportedRuntimeEnv()
+  process.exit(0)
+}
+
+const packageDependencyShape = (content) => {
+  const parsed = JSON.parse(content.toString('utf8'))
+  const pick = (key) => parsed[key] && typeof parsed[key] === 'object' ? parsed[key] : undefined
+  return {
+    packageManager: typeof parsed.packageManager === 'string' ? parsed.packageManager : undefined,
+    engines: pick('engines'),
+    dependencies: pick('dependencies'),
+    optionalDependencies: pick('optionalDependencies'),
+    peerDependencies: pick('peerDependencies'),
+    peerDependenciesMeta: pick('peerDependenciesMeta'),
+    overrides: pick('overrides'),
+    resolutions: pick('resolutions'),
+  }
+}
+
+const hash = crypto.createHash('sha256')
+hash.update(contractVersion)
+hash.update('\\0')
+hash.update(process.platform)
+hash.update('\\0')
+hash.update(process.arch)
+hash.update('\\0')
+hash.update(process.versions.modules || 'unknown-node-abi')
+hash.update('\\0')
+hash.update(JSON.stringify(packageDependencyShape(packageJson)))
+hash.update('\\0')
+
+for (const name of dependencyManifestNames.filter((name) => name !== 'package.json')) {
+  const content = readIfFile(name)
+  if (!content) continue
+  hash.update(name)
+  hash.update('\\0')
+  hash.update(content)
+  hash.update('\\0')
+}
+
+const bootstrap = readIfFile('scripts/bootstrap-runtime.sh')
+if (bootstrap) {
+  hash.update('scripts/bootstrap-runtime.sh')
+  hash.update('\\0')
+  hash.update(bootstrap)
+  hash.update('\\0')
+}
+
+const fingerprint = hash.digest('hex')
+const entryRoot = path.join(storeRoot, 'entries', fingerprint)
+const lockRoot = path.join(storeRoot, 'locks')
+const lockPath = path.join(lockRoot, fingerprint + '.lock')
+const runtimeStage = path.join(storeRoot, 'staging', fingerprint + '-' + process.pid + '-' + crypto.randomBytes(5).toString('hex'))
+const shellQuote = (value) => "'" + String(value).replace(/'/g, "'\\''") + "'"
+fs.mkdirSync(path.dirname(envPath), { recursive: true })
+fs.writeFileSync(envPath, [
+  'PLUXX_SHARED_RUNTIME_SUPPORTED=1',
+  'PLUXX_SHARED_RUNTIME_FINGERPRINT=' + shellQuote(fingerprint),
+  'PLUXX_SHARED_RUNTIME_ENTRY=' + shellQuote(entryRoot),
+  'PLUXX_SHARED_RUNTIME_STAGE=' + shellQuote(runtimeStage),
+  'PLUXX_SHARED_RUNTIME_LOCK=' + shellQuote(lockPath),
+  '',
+].join('\\n'))
+NODE
+
+  if [[ -f "${installDirVariable}/.pluxx-runtime-cache.env" ]]; then
+    # shellcheck disable=SC1091
+    source "${installDirVariable}/.pluxx-runtime-cache.env"
+  fi
+
+  pluxx_runtime_hash_entry() {
+    PLUXX_RUNTIME_HASH_ROOT="$1" node <<'NODE'
+const crypto = require('crypto')
+const fs = require('fs')
+const path = require('path')
+
+const root = process.env.PLUXX_RUNTIME_HASH_ROOT
+const hash = (value) => crypto.createHash('sha256').update(value).digest('hex')
+const entries = []
+
+const visit = (dir) => {
+  if (!fs.existsSync(dir)) return
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+    const filepath = path.join(dir, entry.name)
+    const relativePath = path.relative(root, filepath).replace(/\\\\/g, '/')
+    if (relativePath === 'manifest.json') continue
+    const stats = fs.lstatSync(filepath)
+    if (stats.isSymbolicLink()) entries.push({ path: relativePath, kind: 'symlink', sha256: hash(fs.readlinkSync(filepath)) })
+    else if (stats.isDirectory()) visit(filepath)
+    else if (stats.isFile()) entries.push({ path: relativePath, kind: 'file', sha256: hash(fs.readFileSync(filepath)) })
+  }
+}
+
+visit(root)
+process.stdout.write(JSON.stringify(entries))
+NODE
+  }
+
+  pluxx_runtime_entry_valid() {
+    local entry_root="$1"
+    [[ -f "$entry_root/manifest.json" && -e "$entry_root/node_modules" ]] || return 1
+    PLUXX_RUNTIME_ENTRY_ROOT="$entry_root" node <<'NODE'
+const crypto = require('crypto')
+const fs = require('fs')
+const path = require('path')
+
+const root = process.env.PLUXX_RUNTIME_ENTRY_ROOT
+const manifestPath = path.join(root, 'manifest.json')
+const hash = (value) => crypto.createHash('sha256').update(value).digest('hex')
+const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+if (manifest.schema !== 'pluxx.shared-native-runtime.v1' || !Array.isArray(manifest.entries)) process.exit(1)
+const actual = []
+const visit = (dir) => {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+    const filepath = path.join(dir, entry.name)
+    const relativePath = path.relative(root, filepath).replace(/\\\\/g, '/')
+    if (relativePath === 'manifest.json') continue
+    const stats = fs.lstatSync(filepath)
+    if (stats.isSymbolicLink()) actual.push({ path: relativePath, kind: 'symlink', sha256: hash(fs.readlinkSync(filepath)) })
+    else if (stats.isDirectory()) visit(filepath)
+    else if (stats.isFile()) actual.push({ path: relativePath, kind: 'file', sha256: hash(fs.readFileSync(filepath)) })
+  }
+}
+visit(root)
+if (JSON.stringify(actual) !== JSON.stringify(manifest.entries)) process.exit(1)
+NODE
+  }
+
+  pluxx_link_shared_runtime() {
+    local runtime_entry="$1"
+    rm -rf "${installDirVariable}/node_modules"
+    ln -s "$runtime_entry/node_modules" "${installDirVariable}/node_modules"
+    mkdir -p "$PLUXX_RUNTIME_STORE_ROOT/refs/$PLUGIN_NAME"
+    PLUXX_RUNTIME_REF_PATH="$PLUXX_RUNTIME_STORE_ROOT/refs/$PLUGIN_NAME/$PLUXX_TX_PLATFORM.json" \\
+    PLUXX_RUNTIME_REF_INSTALL="${installDirVariable}" \\
+    PLUXX_RUNTIME_REF_ENTRY="$runtime_entry" \\
+    node <<'NODE'
+const fs = require('fs')
+const path = require('path')
+const refPath = process.env.PLUXX_RUNTIME_REF_PATH
+fs.mkdirSync(path.dirname(refPath), { recursive: true })
+fs.writeFileSync(refPath, JSON.stringify({
+  schema: 'pluxx.shared-native-runtime-ref.v1',
+  pluginName: process.env.PLUGIN_NAME,
+  platform: process.env.PLUXX_TX_PLATFORM,
+  installPath: path.resolve(process.env.PLUXX_RUNTIME_REF_INSTALL),
+  runtimeEntry: path.resolve(process.env.PLUXX_RUNTIME_REF_ENTRY),
+  fingerprint: process.env.PLUXX_SHARED_RUNTIME_FINGERPRINT,
+  updatedAt: new Date().toISOString(),
+}, null, 2) + '\\n')
+NODE
+  }
+
+  if [[ "\${PLUXX_SHARED_RUNTIME_SUPPORTED:-0}" != "1" ]]; then
+    echo "Preparing local plugin runtime dependencies..."
+    bash "${installDirVariable}/scripts/bootstrap-runtime.sh"
+  else
+    mkdir -p "$(dirname "$PLUXX_SHARED_RUNTIME_ENTRY")" "$(dirname "$PLUXX_SHARED_RUNTIME_STAGE")" "$(dirname "$PLUXX_SHARED_RUNTIME_LOCK")"
+    PLUXX_RUNTIME_LOCK_ACQUIRED=0
+    for _attempt in $(seq 1 120); do
+      if mkdir "$PLUXX_SHARED_RUNTIME_LOCK" 2>/dev/null; then
+        PLUXX_RUNTIME_LOCK_ACQUIRED=1
+        break
+      fi
+      sleep 1
+    done
+
+    if [[ "$PLUXX_RUNTIME_LOCK_ACQUIRED" != "1" ]]; then
+      echo "Could not acquire shared runtime lock for $PLUXX_SHARED_RUNTIME_FINGERPRINT; preparing runtime in the host bundle instead." >&2
+      echo "Preparing local plugin runtime dependencies..."
+      bash "${installDirVariable}/scripts/bootstrap-runtime.sh"
+    else
+      trap 'rm -rf "$PLUXX_SHARED_RUNTIME_LOCK" "$PLUXX_SHARED_RUNTIME_STAGE" "$PLUXX_SHARED_RUNTIME_STAGE.contents"; exit 129' HUP
+      trap 'rm -rf "$PLUXX_SHARED_RUNTIME_LOCK" "$PLUXX_SHARED_RUNTIME_STAGE" "$PLUXX_SHARED_RUNTIME_STAGE.contents"; exit 130' INT
+      trap 'rm -rf "$PLUXX_SHARED_RUNTIME_LOCK" "$PLUXX_SHARED_RUNTIME_STAGE" "$PLUXX_SHARED_RUNTIME_STAGE.contents"; exit 143' TERM
+      trap 'rm -rf "$PLUXX_SHARED_RUNTIME_LOCK" "$PLUXX_SHARED_RUNTIME_STAGE" "$PLUXX_SHARED_RUNTIME_STAGE.contents"; exit 1' ERR
+
+      if pluxx_runtime_entry_valid "$PLUXX_SHARED_RUNTIME_ENTRY"; then
+        echo "Reusing prepared Pluxx native runtime $PLUXX_SHARED_RUNTIME_FINGERPRINT."
+        pluxx_link_shared_runtime "$PLUXX_SHARED_RUNTIME_ENTRY"
+      else
+        if [[ -e "$PLUXX_SHARED_RUNTIME_ENTRY" || -L "$PLUXX_SHARED_RUNTIME_ENTRY" ]]; then
+          echo "Repairing incomplete Pluxx native runtime $PLUXX_SHARED_RUNTIME_FINGERPRINT."
+          rm -rf "$PLUXX_SHARED_RUNTIME_ENTRY"
+        else
+          echo "Preparing shared Pluxx native runtime $PLUXX_SHARED_RUNTIME_FINGERPRINT."
+        fi
+        rm -rf "$PLUXX_SHARED_RUNTIME_STAGE"
+        cp -R "${installDirVariable}" "$PLUXX_SHARED_RUNTIME_STAGE"
+        rm -rf "$PLUXX_SHARED_RUNTIME_STAGE/node_modules"
+        (cd "$PLUXX_SHARED_RUNTIME_STAGE" && bash "$PLUXX_SHARED_RUNTIME_STAGE/scripts/bootstrap-runtime.sh")
+        if [[ ! -e "$PLUXX_SHARED_RUNTIME_STAGE/node_modules" ]]; then
+          echo "Shared runtime bootstrap did not create node_modules; preparing runtime in the host bundle instead." >&2
+          rm -rf "$PLUXX_SHARED_RUNTIME_STAGE"
+          bash "${installDirVariable}/scripts/bootstrap-runtime.sh"
+        else
+          rm -rf "$PLUXX_SHARED_RUNTIME_STAGE.contents"
+          mkdir -p "$PLUXX_SHARED_RUNTIME_STAGE.contents"
+          mv "$PLUXX_SHARED_RUNTIME_STAGE/node_modules" "$PLUXX_SHARED_RUNTIME_STAGE.contents/node_modules"
+          rm -rf "$PLUXX_SHARED_RUNTIME_STAGE"
+          mv "$PLUXX_SHARED_RUNTIME_STAGE.contents" "$PLUXX_SHARED_RUNTIME_STAGE"
+          PLUXX_RUNTIME_ENTRY_LIST="$(pluxx_runtime_hash_entry "$PLUXX_SHARED_RUNTIME_STAGE")"
+          export PLUXX_RUNTIME_ENTRY_LIST PLUXX_SHARED_RUNTIME_STAGE PLUXX_SHARED_RUNTIME_FINGERPRINT PLUXX_SHARED_RUNTIME_ENTRY PLUGIN_NAME PLUXX_TX_PLATFORM
+          node <<'NODE'
+const fs = require('fs')
+const path = require('path')
+
+const stage = process.env.PLUXX_SHARED_RUNTIME_STAGE
+const manifestPath = path.join(stage, 'manifest.json')
+fs.writeFileSync(manifestPath, JSON.stringify({
+  schema: 'pluxx.shared-native-runtime.v1',
+  fingerprint: process.env.PLUXX_SHARED_RUNTIME_FINGERPRINT,
+  pluginName: process.env.PLUGIN_NAME,
+  platform: process.platform,
+  arch: process.arch,
+  nodeAbi: process.versions.modules || 'unknown-node-abi',
+  contractVersion: 'pluxx.shared-native-runtime.v1',
+  preparedBy: process.env.PLUXX_TX_PLATFORM,
+  entries: JSON.parse(process.env.PLUXX_RUNTIME_ENTRY_LIST || '[]'),
+  createdAt: new Date().toISOString(),
+}, null, 2) + '\\n', { mode: 0o600 })
+NODE
+          mv "$PLUXX_SHARED_RUNTIME_STAGE" "$PLUXX_SHARED_RUNTIME_ENTRY"
+          pluxx_link_shared_runtime "$PLUXX_SHARED_RUNTIME_ENTRY"
+        fi
+      fi
+
+      rm -rf "$PLUXX_SHARED_RUNTIME_LOCK"
+      trap - ERR
+      trap 'exit 129' HUP
+      trap 'exit 130' INT
+      trap 'exit 143' TERM
+    fi
+  fi
+  rm -f "${installDirVariable}/.pluxx-runtime-cache.env"
 fi
 `
 }
