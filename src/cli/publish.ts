@@ -1207,9 +1207,334 @@ NODE
 
 function renderInstallerRuntimeBootstrapSnippet(installDirVariable: string): string {
   return `
-if [[ -f "${installDirVariable}/scripts/bootstrap-runtime.sh" ]]; then
-  echo "Preparing local plugin runtime dependencies..."
-  bash "${installDirVariable}/scripts/bootstrap-runtime.sh"
+if [[ -f "${installDirVariable}/.pluxx-runtime.json" || -f "${installDirVariable}/scripts/bootstrap-runtime.sh" ]]; then
+  export PLUXX_RUNTIME_CANDIDATE_ROOT="${installDirVariable}"
+  export PLUXX_RUNTIME_STORE_ROOT="\${PLUXX_RUNTIME_STORE_ROOT:-$HOME/.pluxx/runtimes}"
+  export PLUGIN_NAME PLUXX_TX_PLATFORM
+
+  node <<'NODE'
+const crypto = require('crypto')
+const childProcess = require('child_process')
+const fs = require('fs')
+const path = require('path')
+
+const candidateRoot = process.env.PLUXX_RUNTIME_CANDIDATE_ROOT
+const pluginName = process.env.PLUGIN_NAME || 'unknown-plugin'
+const installerPlatform = process.env.PLUXX_TX_PLATFORM || 'unknown-platform'
+const contractVersion = 'pluxx.shared-native-runtime.v1'
+if (!candidateRoot || !process.env.PLUXX_RUNTIME_STORE_ROOT) process.exit(2)
+
+const configPath = path.join(candidateRoot, '.pluxx-runtime.json')
+let bootstrapRelativePath = 'scripts/bootstrap-runtime.sh'
+const bootstrapFailure = (status) => {
+  const error = new Error('Runtime bootstrap failed with exit status ' + status + '.')
+  error.exitStatus = status || 1
+  return error
+}
+process.on('uncaughtException', (error) => {
+  console.error(error && error.stack ? error.stack : String(error))
+  process.exitCode = Number.isInteger(error && error.exitStatus) ? error.exitStatus : 1
+})
+const bootstrapLocal = () => {
+  console.log('Preparing local plugin runtime dependencies...')
+  const result = childProcess.spawnSync('bash', [path.join(candidateRoot, bootstrapRelativePath)], {
+    cwd: candidateRoot,
+    env: process.env,
+    stdio: 'inherit',
+  })
+  if (result.error) throw result.error
+  if (result.status !== 0) throw bootstrapFailure(result.status)
+}
+
+if (!fs.existsSync(configPath)) {
+  bootstrapLocal()
+  process.exit(0)
+}
+
+const config = JSON.parse(fs.readFileSync(configPath, 'utf8'))
+const isSafeRelativePath = (value) => typeof value === 'string'
+  && value.length > 0
+  && !path.isAbsolute(value)
+  && !value.replace(/\\\\/g, '/').split('/').includes('..')
+if (config.schema !== 'pluxx.shared-runtime-config.v1'
+  || config.namespace !== pluginName
+  || !isSafeRelativePath(config.bootstrap)
+  || !isSafeRelativePath(config.output)
+  || path.normalize(config.output) === '.'
+  || !Array.isArray(config.inputs)
+  || config.inputs.length === 0
+  || !config.inputs.every(isSafeRelativePath)) {
+  throw new Error('Invalid .pluxx-runtime.json shared runtime contract.')
+}
+const hasDeclaredLockfile = config.inputs.some((relativePath) => {
+  const basename = path.basename(relativePath).toLowerCase()
+  return basename === 'bun.lockb' || /(?:^|[-_.])(lock|lockfile|shrinkwrap)(?:[-_.]|$)/.test(basename)
+})
+if (!hasDeclaredLockfile) {
+  console.error('Shared runtime inputs do not declare a deterministic lockfile; preparing runtime in the host bundle instead.')
+  bootstrapRelativePath = config.bootstrap
+  bootstrapLocal()
+  process.exit(0)
+}
+const resolvedOutput = path.resolve(candidateRoot, config.output)
+for (const runtimeInput of [config.bootstrap, ...config.inputs]) {
+  const resolvedInput = path.resolve(candidateRoot, runtimeInput)
+  const relativeToOutput = path.relative(resolvedOutput, resolvedInput)
+  if (relativeToOutput === '' || (!relativeToOutput.startsWith('..') && !path.isAbsolute(relativeToOutput))) {
+    throw new Error('Shared runtime output must not contain its bootstrap or declared inputs.')
+  }
+}
+bootstrapRelativePath = config.bootstrap
+
+const inputPaths = [...new Set([config.bootstrap, ...config.inputs])].sort()
+const digest = crypto.createHash('sha256')
+digest.update(contractVersion + '\\0' + process.platform + '\\0' + process.arch + '\\0' + (process.versions.modules || 'unknown-node-abi') + '\\0')
+digest.update(JSON.stringify(config) + '\\0')
+for (const relativePath of inputPaths) {
+  const filepath = path.resolve(candidateRoot, relativePath)
+  const relative = path.relative(candidateRoot, filepath)
+  const stats = fs.lstatSync(filepath)
+  if (relative.startsWith('..') || !stats.isFile() || stats.isSymbolicLink()) {
+    throw new Error('Shared runtime input must be a regular file inside the bundle: ' + relativePath)
+  }
+  digest.update(relativePath + '\\0')
+  digest.update(fs.readFileSync(filepath))
+  digest.update('\\0')
+}
+
+const fingerprint = digest.digest('hex')
+fs.mkdirSync(process.env.PLUXX_RUNTIME_STORE_ROOT, { recursive: true, mode: 0o700 })
+fs.chmodSync(process.env.PLUXX_RUNTIME_STORE_ROOT, 0o700)
+const storeRoot = fs.realpathSync(process.env.PLUXX_RUNTIME_STORE_ROOT)
+const entryRoot = path.join(storeRoot, 'entries', fingerprint)
+const generationsRoot = path.join(entryRoot, 'generations')
+const currentPath = path.join(entryRoot, 'current')
+const lockPath = path.join(storeRoot, 'locks', fingerprint + '.lock')
+const stageRoot = path.join(storeRoot, 'staging', fingerprint + '-' + process.pid + '-' + crypto.randomBytes(6).toString('hex'))
+const makeTreeWritable = (filepath) => {
+  if (!fs.existsSync(filepath)) return
+  const stats = fs.lstatSync(filepath)
+  if (stats.isSymbolicLink()) return
+  fs.chmodSync(filepath, stats.isDirectory() ? 0o700 : (stats.mode | 0o600))
+  if (stats.isDirectory()) for (const entry of fs.readdirSync(filepath)) makeTreeWritable(path.join(filepath, entry))
+}
+const removeTree = (filepath) => {
+  makeTreeWritable(filepath)
+  fs.rmSync(filepath, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 })
+}
+for (const directory of [path.dirname(entryRoot), generationsRoot, path.dirname(lockPath), path.dirname(stageRoot)]) {
+  fs.mkdirSync(directory, { recursive: true, mode: 0o700 })
+}
+
+const sleep = (milliseconds) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds)
+const processAlive = (pid) => {
+  try { process.kill(pid, 0); return true } catch (error) { return error && error.code === 'EPERM' }
+}
+let ownedLockNonce
+const releaseLock = () => {
+  if (!ownedLockNonce) return
+  try {
+    const owner = JSON.parse(fs.readFileSync(path.join(lockPath, 'owner.json'), 'utf8'))
+    if (owner.nonce === ownedLockNonce) removeTree(lockPath)
+  } catch {}
+  ownedLockNonce = undefined
+}
+const acquireLock = () => {
+  const timeoutMs = Math.max(0, Number(process.env.PLUXX_RUNTIME_LOCK_TIMEOUT_SECONDS || 120) * 1000)
+  const started = Date.now()
+  while (true) {
+    const candidateLock = lockPath + '.candidate-' + process.pid + '-' + crypto.randomBytes(4).toString('hex')
+    try {
+      const nonce = crypto.randomBytes(16).toString('hex')
+      fs.mkdirSync(candidateLock, { mode: 0o700 })
+      fs.writeFileSync(path.join(candidateLock, 'owner.json'), JSON.stringify({ pid: process.pid, nonce, startedAt: new Date().toISOString() }) + '\\n', { mode: 0o600 })
+      fs.renameSync(candidateLock, lockPath)
+      ownedLockNonce = nonce
+      return true
+    } catch (error) {
+      removeTree(candidateLock)
+      if (!error || !['EEXIST', 'ENOTEMPTY'].includes(error.code)) throw error
+      let stale = false
+      try {
+        const owner = JSON.parse(fs.readFileSync(path.join(lockPath, 'owner.json'), 'utf8'))
+        stale = !Number.isInteger(owner.pid) || owner.pid <= 0 || !processAlive(owner.pid)
+      } catch {
+        try { stale = Date.now() - fs.statSync(lockPath).mtimeMs > 2000 } catch { stale = true }
+      }
+      if (stale) {
+        const recoveryLock = lockPath + '.recovery'
+        let recoveryAcquired = false
+        let staleLockRemoved = false
+        try {
+          fs.mkdirSync(recoveryLock, { mode: 0o700 })
+          recoveryAcquired = true
+          let stillStale = false
+          try {
+            const owner = JSON.parse(fs.readFileSync(path.join(lockPath, 'owner.json'), 'utf8'))
+            stillStale = !Number.isInteger(owner.pid) || owner.pid <= 0 || !processAlive(owner.pid)
+          } catch {
+            try { stillStale = Date.now() - fs.statSync(lockPath).mtimeMs > 2000 } catch { stillStale = false }
+          }
+          if (stillStale) {
+            removeTree(lockPath)
+            staleLockRemoved = true
+          }
+        } catch (recoveryError) {
+          if (!recoveryError || recoveryError.code !== 'EEXIST') throw recoveryError
+        } finally {
+          if (recoveryAcquired) try { fs.rmdirSync(recoveryLock) } catch {}
+        }
+        if (staleLockRemoved) continue
+      }
+      if (Date.now() - started >= timeoutMs) return false
+      sleep(250)
+    }
+  }
+}
+
+const outputWithin = (root, filepath) => {
+  const relative = path.relative(root, filepath)
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative))
+}
+const collectMetadata = (root) => {
+  const entries = []
+  const visit = (directory) => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const filepath = path.join(directory, entry.name)
+      const relativePath = path.relative(root, filepath).replace(/\\\\/g, '/')
+      const stats = fs.lstatSync(filepath)
+      if (stats.isSymbolicLink()) {
+        const resolved = fs.realpathSync(filepath)
+        if (!outputWithin(root, resolved)) throw new Error('Shared runtime symlink escapes its output: ' + relativePath)
+        entries.push({ path: relativePath, kind: 'symlink', target: fs.readlinkSync(filepath) })
+      } else if (stats.isDirectory()) {
+        visit(filepath)
+      } else if (stats.isFile()) {
+        entries.push({ path: relativePath, kind: 'file', size: stats.size, mtimeMs: stats.mtimeMs, mode: stats.mode & 0o777 })
+      } else {
+        throw new Error('Unsupported shared runtime entry: ' + relativePath)
+      }
+    }
+  }
+  visit(root)
+  return entries
+}
+const harden = (root) => {
+  const visit = (directory) => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const filepath = path.join(directory, entry.name)
+      const stats = fs.lstatSync(filepath)
+      if (stats.isSymbolicLink()) continue
+      if (stats.isDirectory()) { visit(filepath); fs.chmodSync(filepath, stats.mode & ~0o222) }
+      else if (stats.isFile()) fs.chmodSync(filepath, stats.mode & ~0o222)
+    }
+  }
+  visit(root)
+  fs.chmodSync(root, fs.statSync(root).mode & ~0o222)
+}
+const readCurrentGeneration = () => {
+  try {
+    if (!fs.lstatSync(currentPath).isSymbolicLink()) return undefined
+    const target = fs.readlinkSync(currentPath)
+    const generation = path.resolve(entryRoot, target)
+    if (!outputWithin(generationsRoot, generation) || generation === generationsRoot) return undefined
+    const manifest = JSON.parse(fs.readFileSync(path.join(generation, 'manifest.json'), 'utf8'))
+    const outputRoot = path.join(generation, config.output)
+    const outputStats = fs.lstatSync(outputRoot)
+    if (!outputStats.isDirectory() || outputStats.isSymbolicLink()) return undefined
+    if (manifest.schema !== contractVersion
+      || manifest.fingerprint !== fingerprint
+      || manifest.namespace !== pluginName
+      || manifest.platform !== process.platform
+      || manifest.arch !== process.arch
+      || manifest.nodeAbi !== (process.versions.modules || 'unknown-node-abi')
+      || JSON.stringify(collectMetadata(outputRoot)) !== JSON.stringify(manifest.entries)) return undefined
+    return generation
+  } catch { return undefined }
+}
+const buildGeneration = (repairing) => {
+  console.log((repairing ? 'Repairing incomplete Pluxx native runtime ' : 'Preparing shared Pluxx native runtime ') + fingerprint + '.')
+  removeTree(stageRoot)
+  fs.cpSync(candidateRoot, stageRoot, { recursive: true })
+  const stageOutput = path.join(stageRoot, config.output)
+  fs.rmSync(stageOutput, { recursive: true, force: true })
+  const bootstrapPath = path.join(stageRoot, config.bootstrap)
+  const result = childProcess.spawnSync('bash', [bootstrapPath], { cwd: stageRoot, env: process.env, stdio: 'inherit' })
+  if (result.error) throw result.error
+  if (result.status !== 0) throw bootstrapFailure(result.status)
+  const outputStats = fs.lstatSync(stageOutput)
+  if (!outputStats.isDirectory() || outputStats.isSymbolicLink()) throw new Error('Shared runtime bootstrap did not create the configured output directory.')
+  collectMetadata(stageOutput)
+  const generation = path.join(generationsRoot, Date.now() + '-' + process.pid + '-' + crypto.randomBytes(5).toString('hex'))
+  fs.mkdirSync(generation, { recursive: true, mode: 0o700 })
+  const generationOutput = path.join(generation, config.output)
+  fs.mkdirSync(path.dirname(generationOutput), { recursive: true })
+  fs.renameSync(stageOutput, generationOutput)
+  harden(generationOutput)
+  const manifest = {
+    schema: contractVersion,
+    fingerprint,
+    namespace: pluginName,
+    platform: process.platform,
+    arch: process.arch,
+    nodeAbi: process.versions.modules || 'unknown-node-abi',
+    preparedBy: installerPlatform,
+    entries: collectMetadata(generationOutput),
+    createdAt: new Date().toISOString(),
+  }
+  fs.writeFileSync(path.join(generation, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\\n', { mode: 0o444 })
+  const nextCurrent = path.join(entryRoot, '.current-' + process.pid + '-' + crypto.randomBytes(5).toString('hex'))
+  fs.symlinkSync(path.relative(entryRoot, generation), nextCurrent, 'dir')
+  fs.renameSync(nextCurrent, currentPath)
+  removeTree(stageRoot)
+  return generation
+}
+
+if (!acquireLock()) {
+  console.error('Could not acquire shared runtime lock for ' + fingerprint + '; preparing runtime in the host bundle instead.')
+  bootstrapLocal()
+  process.exit(0)
+}
+
+try {
+  let generation = readCurrentGeneration()
+  if (generation) console.log('Reusing prepared Pluxx native runtime ' + fingerprint + '.')
+  else generation = buildGeneration(fs.existsSync(currentPath))
+
+  const candidateOutput = path.join(candidateRoot, config.output)
+  fs.rmSync(candidateOutput, { recursive: true, force: true })
+  let leasePath
+  try {
+    if (process.env.PLUXX_RUNTIME_DISABLE_LINK === '1') throw new Error('shared runtime linking is disabled')
+    fs.mkdirSync(path.dirname(candidateOutput), { recursive: true })
+    fs.symlinkSync(path.join(entryRoot, 'current', config.output), candidateOutput, 'dir')
+    const leaseRoot = path.join(storeRoot, 'leases', fingerprint)
+    fs.mkdirSync(leaseRoot, { recursive: true, mode: 0o700 })
+    leasePath = path.join(leaseRoot, process.ppid + '-' + crypto.randomBytes(6).toString('hex') + '.json')
+    fs.writeFileSync(leasePath, JSON.stringify({
+      schema: 'pluxx.shared-native-runtime-lease.v1',
+      fingerprint,
+      ownerPid: process.ppid,
+      createdAt: new Date().toISOString(),
+    }) + '\\n', { mode: 0o600, flag: 'wx' })
+    fs.writeFileSync(path.join(candidateRoot, '.pluxx-runtime-ref.json'), JSON.stringify({
+      schema: 'pluxx.shared-native-runtime-ref-candidate.v1',
+      storeRoot,
+      fingerprint,
+      runtimeEntry: path.join(entryRoot, 'current'),
+      leasePath,
+    }, null, 2) + '\\n', { mode: 0o600 })
+  } catch (error) {
+    console.error('Could not link the shared runtime; preparing runtime in the host bundle instead: ' + error.message)
+    if (leasePath) fs.rmSync(leasePath, { force: true })
+    fs.rmSync(candidateOutput, { recursive: true, force: true })
+    bootstrapLocal()
+  }
+} finally {
+  removeTree(stageRoot)
+  releaseLock()
+}
+NODE
 fi
 `
 }
@@ -1905,6 +2230,12 @@ const crypto = require('crypto')
 const fs = require('fs')
 const path = require('path')
 const root = path.resolve(process.env.INSTALL_DIR)
+const runtimeCandidatePath = path.join(root, '.pluxx-runtime-ref.json')
+let runtimeCandidate
+if (fs.existsSync(runtimeCandidatePath)) {
+  runtimeCandidate = JSON.parse(fs.readFileSync(runtimeCandidatePath, 'utf8'))
+  fs.rmSync(runtimeCandidatePath, { force: true })
+}
 const hash = (value) => crypto.createHash('sha256').update(value).digest('hex')
 const entries = []
 const visit = (dir) => {
@@ -1935,6 +2266,192 @@ fs.writeFileSync(temporary, JSON.stringify({
   entries,
 }, null, 2) + '\\n', { mode: 0o600 })
 fs.renameSync(temporary, ownershipPath)
+
+const commitRuntimeReference = () => {
+  const runtimeRefPath = (storeRoot) => path.join(
+    storeRoot,
+    'refs',
+    process.env.PLUGIN_NAME,
+    process.env.PLUXX_TX_PLATFORM + '-' + hash(root).slice(0, 16) + '.json',
+  )
+  if (!runtimeCandidate) {
+    const configuredStoreRoot = process.env.PLUXX_RUNTIME_STORE_ROOT || path.join(path.resolve(process.env.HOME), '.pluxx/runtimes')
+    if (!fs.existsSync(configuredStoreRoot)) return
+    const storeRoot = fs.realpathSync(configuredStoreRoot)
+    const staleRef = runtimeRefPath(storeRoot)
+    fs.rmSync(staleRef, { force: true })
+    return
+  }
+  if (runtimeCandidate.schema !== 'pluxx.shared-native-runtime-ref-candidate.v1'
+    || typeof runtimeCandidate.storeRoot !== 'string'
+    || !/^[a-f0-9]{64}$/.test(runtimeCandidate.fingerprint)
+    || typeof runtimeCandidate.runtimeEntry !== 'string'
+    || typeof runtimeCandidate.leasePath !== 'string') {
+    throw new Error('Invalid committed shared runtime reference candidate.')
+  }
+  const storeRoot = fs.realpathSync(runtimeCandidate.storeRoot)
+  const expectedEntry = path.join(storeRoot, 'entries', runtimeCandidate.fingerprint, 'current')
+  if (path.resolve(runtimeCandidate.runtimeEntry) !== expectedEntry) {
+    throw new Error('Shared runtime reference points outside its fingerprint entry.')
+  }
+  const expectedLeaseRoot = path.join(storeRoot, 'leases', runtimeCandidate.fingerprint)
+  const resolvedLeasePath = path.resolve(runtimeCandidate.leasePath)
+  if (!resolvedLeasePath.startsWith(expectedLeaseRoot + path.sep)) {
+    throw new Error('Shared runtime lease points outside its fingerprint lease root.')
+  }
+  const refRoot = path.join(storeRoot, 'refs')
+  const refPath = runtimeRefPath(storeRoot)
+  fs.mkdirSync(path.dirname(refPath), { recursive: true, mode: 0o700 })
+  const ref = {
+    schema: 'pluxx.shared-native-runtime-ref.v1',
+    pluginName: process.env.PLUGIN_NAME,
+    platform: process.env.PLUXX_TX_PLATFORM,
+    installPath: root,
+    runtimeEntry: expectedEntry,
+    fingerprint: runtimeCandidate.fingerprint,
+    updatedAt: new Date().toISOString(),
+  }
+  const temporaryRef = refPath + '.tmp-' + process.pid + '-' + crypto.randomBytes(5).toString('hex')
+  fs.writeFileSync(temporaryRef, JSON.stringify(ref, null, 2) + '\\n', { mode: 0o600 })
+  fs.renameSync(temporaryRef, refPath)
+  try { fs.rmSync(resolvedLeasePath, { force: true }) } catch (error) {
+    console.error('Warning: could not remove committed shared runtime lease: ' + error.message)
+  }
+
+  try {
+  const liveFingerprints = new Set()
+  const graceMs = Math.max(0, Number(process.env.PLUXX_RUNTIME_GC_GRACE_SECONDS || 604800) * 1000)
+  const makeWritable = (filepath) => {
+    if (!fs.existsSync(filepath)) return
+    const stats = fs.lstatSync(filepath)
+    if (stats.isSymbolicLink()) return
+    fs.chmodSync(filepath, stats.isDirectory() ? 0o700 : (stats.mode | 0o600))
+    if (stats.isDirectory()) for (const entry of fs.readdirSync(filepath)) makeWritable(path.join(filepath, entry))
+  }
+  const removeTree = (filepath) => {
+    makeWritable(filepath)
+    fs.rmSync(filepath, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 })
+  }
+  const visitRefs = (directory) => {
+    if (!fs.existsSync(directory)) return
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const filepath = path.join(directory, entry.name)
+      if (entry.isDirectory()) visitRefs(filepath)
+      else if (entry.isFile() && entry.name.endsWith('.json')) {
+        try {
+          const candidate = JSON.parse(fs.readFileSync(filepath, 'utf8'))
+          if (candidate.schema !== 'pluxx.shared-native-runtime-ref.v1'
+            || typeof candidate.installPath !== 'string') {
+            fs.rmSync(filepath, { force: true })
+          } else if (!fs.existsSync(candidate.installPath)) {
+            const updatedAt = Date.parse(candidate.updatedAt || '')
+            if (Number.isFinite(updatedAt) && Date.now() - updatedAt < graceMs && /^[a-f0-9]{64}$/.test(candidate.fingerprint)) {
+              liveFingerprints.add(candidate.fingerprint)
+            } else {
+              fs.rmSync(filepath, { force: true })
+            }
+          } else if (/^[a-f0-9]{64}$/.test(candidate.fingerprint)) {
+            liveFingerprints.add(candidate.fingerprint)
+          }
+        } catch { fs.rmSync(filepath, { force: true }) }
+      }
+    }
+  }
+  visitRefs(refRoot)
+
+  const leasesRoot = path.join(storeRoot, 'leases')
+  if (fs.existsSync(leasesRoot)) {
+    for (const fingerprintEntry of fs.readdirSync(leasesRoot, { withFileTypes: true })) {
+      if (!fingerprintEntry.isDirectory() || !/^[a-f0-9]{64}$/.test(fingerprintEntry.name)) continue
+      const fingerprintLeaseRoot = path.join(leasesRoot, fingerprintEntry.name)
+      for (const leaseEntry of fs.readdirSync(fingerprintLeaseRoot, { withFileTypes: true })) {
+        if (!leaseEntry.isFile() || !leaseEntry.name.endsWith('.json')) continue
+        const leaseFile = path.join(fingerprintLeaseRoot, leaseEntry.name)
+        try {
+          const lease = JSON.parse(fs.readFileSync(leaseFile, 'utf8'))
+          if (lease.schema === 'pluxx.shared-native-runtime-lease.v1'
+            && lease.fingerprint === fingerprintEntry.name
+            && Number.isInteger(lease.ownerPid)
+            && lease.ownerPid > 0) {
+            try { process.kill(lease.ownerPid, 0); liveFingerprints.add(fingerprintEntry.name); continue } catch (error) {
+              if (error && error.code === 'EPERM') { liveFingerprints.add(fingerprintEntry.name); continue }
+            }
+          }
+        } catch {}
+        fs.rmSync(leaseFile, { force: true })
+      }
+    }
+  }
+
+  const fingerprintHasLiveLease = (fingerprint) => {
+    const leaseRoot = path.join(leasesRoot, fingerprint)
+    if (!fs.existsSync(leaseRoot)) return false
+    for (const leaseEntry of fs.readdirSync(leaseRoot, { withFileTypes: true })) {
+      if (!leaseEntry.isFile() || !leaseEntry.name.endsWith('.json')) continue
+      try {
+        const lease = JSON.parse(fs.readFileSync(path.join(leaseRoot, leaseEntry.name), 'utf8'))
+        if (lease.schema !== 'pluxx.shared-native-runtime-lease.v1'
+          || lease.fingerprint !== fingerprint
+          || !Number.isInteger(lease.ownerPid)
+          || lease.ownerPid <= 0) continue
+        try { process.kill(lease.ownerPid, 0); return true } catch (error) {
+          if (error && error.code === 'EPERM') return true
+        }
+      } catch {}
+    }
+    return false
+  }
+  const fingerprintHasLiveRef = (directory, fingerprint) => {
+    if (!fs.existsSync(directory)) return false
+    for (const refEntry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const refFile = path.join(directory, refEntry.name)
+      if (refEntry.isDirectory()) {
+        if (fingerprintHasLiveRef(refFile, fingerprint)) return true
+        continue
+      }
+      if (!refEntry.isFile() || !refEntry.name.endsWith('.json')) continue
+      try {
+        const candidate = JSON.parse(fs.readFileSync(refFile, 'utf8'))
+        if (candidate.schema !== 'pluxx.shared-native-runtime-ref.v1'
+          || candidate.fingerprint !== fingerprint
+          || typeof candidate.installPath !== 'string') continue
+        if (fs.existsSync(candidate.installPath)) return true
+        const updatedAt = Date.parse(candidate.updatedAt || '')
+        if (Number.isFinite(updatedAt) && Date.now() - updatedAt < graceMs) return true
+      } catch {}
+    }
+    return false
+  }
+
+  const entriesRoot = path.join(storeRoot, 'entries')
+  if (fs.existsSync(entriesRoot)) {
+    for (const entry of fs.readdirSync(entriesRoot, { withFileTypes: true })) {
+      const filepath = path.join(entriesRoot, entry.name)
+      if (!entry.isDirectory()) continue
+      if (!liveFingerprints.has(entry.name)) {
+        if (fs.existsSync(path.join(storeRoot, 'locks', entry.name + '.lock'))) continue
+        // Check the handoff in lease-then-ref order: ref publication precedes lease removal.
+        if (fingerprintHasLiveLease(entry.name) || fingerprintHasLiveRef(refRoot, entry.name)) continue
+        if (Date.now() - fs.statSync(filepath).mtimeMs >= graceMs) removeTree(filepath)
+        continue
+      }
+      const generationsRoot = path.join(filepath, 'generations')
+      let currentGeneration
+      try { currentGeneration = path.resolve(filepath, fs.readlinkSync(path.join(filepath, 'current'))) } catch {}
+      if (!fs.existsSync(generationsRoot)) continue
+      for (const generation of fs.readdirSync(generationsRoot, { withFileTypes: true })) {
+        const generationPath = path.join(generationsRoot, generation.name)
+        if (!generation.isDirectory() || generationPath === currentGeneration) continue
+        if (Date.now() - fs.statSync(generationPath).mtimeMs >= graceMs) removeTree(generationPath)
+      }
+    }
+  }
+  } catch (error) {
+    console.error('Warning: could not prune shared runtime store: ' + error.message)
+  }
+}
+
+commitRuntimeReference()
 NODE
 }
 

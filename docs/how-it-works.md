@@ -112,6 +112,8 @@ Pluxx is published on npm as `@orchid-labs/pluxx`, and both the published CLI an
 
 The package-level source of truth is [docs/runtime-contract.md](./runtime-contract.md).
 
+Generated GitHub Release installers may also share expensive platform-native dependency outputs across the core four. A plugin opts in with `sharedRuntime.bootstrap`, `sharedRuntime.inputs`, and `sharedRuntime.output`; Pluxx fingerprints the complete declared input set with the platform and Node ABI, publishes an immutable generation under `~/.pluxx/runtimes`, and links each compatible host install to the same stable runtime. The bootstrap must be deterministic from those declared inputs and platform facts. If the shared lock or link path is unavailable, installation continues through the prior host-local bootstrap behavior.
+
 The important practical distinction is:
 
 - the CLI is the real execution engine
@@ -149,6 +151,7 @@ This is the mechanical layer. It handles:
 - migration from existing host-native plugin surfaces
 - taxonomy persistence
 - install/runtime config modeling
+- optional content-addressed native runtime reuse for generated core-four release installers
 - core-four stdio MCP runtime variable launching for workspace-local values with global environment fallback
 - validation
 - build

@@ -1,6 +1,6 @@
 # Runtime Contract
 
-Last updated: 2026-07-07
+Last updated: 2026-07-17
 
 ## Doc Links
 
@@ -65,6 +65,27 @@ When those stdio env placeholders are runtime-inherited, generated core-four bun
 Workspace `.env` values intentionally win over global env values for runtime-inherited stdio vars. This keeps one global plugin install usable across multiple repos while still allowing a global `SENDLENS_INSTANTLY_API_KEY`-style fallback when the current repo has no local value.
 
 Remote/native MCP auth materialization remains separate: bearer/header auth that is expressed through host-native HTTP config is still materialized or preserved as env references according to the target host contract.
+
+## Generated Native Dependency Runtime Store
+
+Generated GitHub Release installers prepare platform-native Node dependencies in a shared Pluxx runtime store when the plugin opts in with `sharedRuntime` and declares a deterministic lockfile among its inputs. The compiler emits the same `.pluxx-runtime.json` contract into every configured target bundle.
+
+The store lives under `~/.pluxx/runtimes/` by default and is keyed by:
+
+- plugin namespace and the complete runtime contract
+- every bundle-relative file declared in `sharedRuntime.inputs`
+- the declared bootstrap script content
+- OS and architecture
+- Node ABI
+- Pluxx runtime-store contract version
+
+Published runtime generations are read-only. A host installer builds the configured output in staging, rejects escaping symlinks, records file metadata, and atomically switches the fingerprint entry's stable `current` symlink. Compatible Claude Code, Cursor, Codex, and OpenCode installs therefore reuse one prepared native runtime instead of each extracting and installing the same dependencies.
+
+Warm validation compares platform, architecture, Node ABI, contract identity, and file metadata without rereading every dependency byte. If a matching generation is corrupted, the installer prepares a replacement before atomically switching `current`. Dead-owner locks recover immediately. Active-lock timeouts and unavailable symlinks fall back to host-local staged bootstrap.
+
+The installer writes runtime references only after the plugin reaches its final install path. Later installs prune references whose install path no longer exists and remove unreferenced entries or superseded repair generations after a seven-day grace period by default. Bundles without `.pluxx-runtime.json` keep the prior per-host bootstrap behavior.
+
+`sharedRuntime` is an explicit determinism contract. The bootstrap must derive its output only from its declared input files plus the fingerprinted OS, architecture, Node ABI, and contract fields. Plugins whose bootstrap result depends on undeclared ambient environment values must keep host-local bootstrap behavior or first model those values as stable input files. Runtime references are keyed by plugin, host, and final install path so multiple custom installs remain independently live.
 
 ## Contributor Tooling
 

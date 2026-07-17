@@ -1,4 +1,4 @@
-import { rmSync, mkdirSync, mkdtempSync } from 'fs'
+import { existsSync, rmSync, mkdirSync, mkdtempSync, writeFileSync } from 'fs'
 import { basename, dirname, resolve, relative } from 'path'
 import type { PluginConfig, TargetPlatform } from '../schema'
 import { assertGeneratedBundlesCurrent } from '../bundle-check'
@@ -74,6 +74,32 @@ function validateConfiguredPaths(config: PluginConfig, rootDir: string): void {
     assertPathWithinRoot(rootDir, passthroughPath, 'passthrough')
   }
 
+  for (const [key, configuredPath] of Object.entries({
+    bootstrap: config.sharedRuntime?.bootstrap,
+    output: config.sharedRuntime?.output,
+    ...Object.fromEntries((config.sharedRuntime?.inputs ?? []).map((value, index) => [`inputs[${index}]`, value])),
+  })) {
+    if (!configuredPath) continue
+    const normalized = configuredPath.replace(/\\/g, '/')
+    if (normalized.startsWith('/') || normalized.split('/').includes('..')) {
+      throw new Error(`sharedRuntime.${key} path "${configuredPath}" must be bundle-relative.`)
+    }
+  }
+
+  if (config.sharedRuntime) {
+    const outputPath = config.sharedRuntime.output.replace(/\\/g, '/')
+    const normalizedOutput = outputPath.split('/').filter((segment) => segment !== '.').join('/')
+    if (!normalizedOutput) {
+      throw new Error('sharedRuntime.output must not resolve to the bundle root.')
+    }
+    for (const runtimeInput of [config.sharedRuntime.bootstrap, ...config.sharedRuntime.inputs]) {
+      const normalizedInput = runtimeInput.replace(/\\/g, '/').split('/').filter((segment) => segment !== '.').join('/')
+      if (normalizedInput === normalizedOutput || normalizedInput.startsWith(normalizedOutput + '/')) {
+        throw new Error(`sharedRuntime.output "${config.sharedRuntime.output}" must not contain runtime input "${runtimeInput}".`)
+      }
+    }
+  }
+
   if (config.brand?.icon) {
     assertPathWithinRoot(rootDir, config.brand.icon, 'brand.icon')
   }
@@ -123,6 +149,26 @@ export async function build(
     })
     // Build all targets in parallel, validate the complete staged tree, then publish.
     await Promise.all(generators.map(g => g.generate()))
+
+    if (config.sharedRuntime) {
+      const manifest = {
+        schema: 'pluxx.shared-runtime-config.v1',
+        namespace: config.name,
+        bootstrap: config.sharedRuntime.bootstrap,
+        inputs: [...config.sharedRuntime.inputs].sort(),
+        output: config.sharedRuntime.output,
+      }
+      for (const platform of targets) {
+        const targetRoot = resolve(stageDir, platform)
+        for (const relativePath of [manifest.bootstrap, ...manifest.inputs]) {
+          if (!existsSync(resolve(targetRoot, relativePath))) {
+            throw new Error(`sharedRuntime input "${relativePath}" is missing from the ${platform} bundle.`)
+          }
+        }
+        writeFileSync(resolve(targetRoot, '.pluxx-runtime.json'), JSON.stringify(manifest, null, 2) + '\n')
+      }
+    }
+
     assertGeneratedBundlesCurrent(stagedConfig, rootDir, targets)
     publishStagedDirectory(outDir, stageDir, options.mutationHooks)
   } catch (error) {

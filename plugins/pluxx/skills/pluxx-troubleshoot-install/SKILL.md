@@ -20,6 +20,7 @@ Use this skill when the plugin already built or installed, but the host still do
    - stale marketplace/discovery state
    - wrong runtime/auth materialization
    - missing runtime payload
+   - shared native runtime reuse, repair, or host-local fallback
    - reload/restart still required
 5. Return the smallest recovery action:
    - reload or restart the host
@@ -34,6 +35,7 @@ Use this skill when the plugin already built or installed, but the host still do
 - Do not say an install is healthy just because files exist on disk.
 - Prefer `pluxx verify-install` before guessing at host state.
 - Use `pluxx doctor --consumer` when it materially improves diagnosis, not as ritual.
+- For a bundle with `.pluxx-runtime.json`, use installer output to distinguish `Preparing`, `Reusing`, and fallback behavior. The default shared store is `~/.pluxx/runtimes`; inspect it read-only and do not delete entries as a diagnostic shortcut.
 - If you do not know the installed bundle path yet, derive it from the host target or from the verification output before guessing.
 
 ## Output
