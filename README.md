@@ -146,6 +146,18 @@ Discovery reads Claude Code, Cursor, Codex, and OpenCode config locations and av
 
 For core-four stdio MCPs, Pluxx owns the runtime variable launcher. Pure placeholder values in MCP stdio config stay runtime-inherited, so a globally installed plugin can be reused from different workspaces without baking one workspace's local config into Claude Code, Cursor, Codex, or OpenCode bundles.
 
+Plugins with expensive platform-native dependencies can opt into one content-addressed runtime shared by their generated core-four installers:
+
+```ts
+sharedRuntime: {
+  bootstrap: 'scripts/bootstrap-runtime.sh',
+  inputs: ['scripts/runtime-dependencies.lock.json'],
+  output: 'node_modules',
+}
+```
+
+The bootstrap must be deterministic from the declared files plus the current OS, architecture, and Node ABI. Pluxx reuses a compatible prepared runtime from `~/.pluxx/runtimes`; lock contention or unavailable linking falls back to the existing host-local bootstrap path.
+
 ## Command Cheat Sheet
 
 ```text

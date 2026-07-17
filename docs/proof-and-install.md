@@ -100,6 +100,7 @@ Today, Pluxx ships the OSS authoring and local/self-hosted distribution lane:
 - install those bundles locally with `pluxx install`
 - verify host-visible state with `pluxx verify-install`
 - package GitHub Release assets and installer scripts with `pluxx publish --github-release`, including a generated `install.sh --agents` front door for the core-four hosts
+- let opted-in generated core-four installers reuse one content-addressed platform-native runtime, with safe host-local fallback when reuse is unavailable
 - publish the npm-backed OpenCode wrapper path with `pluxx publish --npm`
 - keep core-four stdio MCP runtime variables launch-context aware without baking one workspace's values into global installs
 

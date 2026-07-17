@@ -68,19 +68,24 @@ Remote/native MCP auth materialization remains separate: bearer/header auth that
 
 ## Generated Native Dependency Runtime Store
 
-Generated GitHub Release installers prepare platform-native Node dependencies in a shared Pluxx runtime store when the installed bundle includes package dependency metadata.
+Generated GitHub Release installers prepare platform-native Node dependencies in a shared Pluxx runtime store when the plugin opts in with `sharedRuntime`. The compiler emits the same `.pluxx-runtime.json` contract into every configured target bundle.
 
 The store lives under `~/.pluxx/runtimes/` by default and is keyed by:
 
-- complete package manifest content, including lifecycle scripts and other install-affecting metadata, plus lockfile content
-- `scripts/bootstrap-runtime.sh` content
+- plugin namespace and the complete runtime contract
+- every bundle-relative file declared in `sharedRuntime.inputs`
+- the declared bootstrap script content
 - OS and architecture
 - Node ABI
 - Pluxx runtime-store contract version
 
-Published runtime entries are treated as immutable. A host installer builds the runtime in an atomic staging directory, validates the resulting `node_modules`, publishes the entry under its content fingerprint, and links the staged host bundle to that entry. Compatible Claude Code, Cursor, Codex, and OpenCode installs therefore reuse one prepared native runtime instead of each extracting and installing the same dependencies.
+Published runtime generations are read-only. A host installer builds the configured output in staging, rejects escaping symlinks, records file metadata, and atomically switches the fingerprint entry's stable `current` symlink. Compatible Claude Code, Cursor, Codex, and OpenCode installs therefore reuse one prepared native runtime instead of each extracting and installing the same dependencies.
 
-If a matching entry is missing or corrupted, the installer repairs it before relinking. If the bundle does not provide enough dependency metadata for safe shared reuse, the installer logs the fallback and runs `bootstrap-runtime.sh` inside the staged host bundle as before.
+Warm validation compares platform, architecture, Node ABI, contract identity, and file metadata without rereading every dependency byte. If a matching generation is corrupted, the installer prepares a replacement before atomically switching `current`. Dead-owner locks recover immediately. Active-lock timeouts and unavailable symlinks fall back to host-local staged bootstrap.
+
+The installer writes runtime references only after the plugin reaches its final install path. Later installs prune references whose install path no longer exists and remove unreferenced entries or superseded repair generations after a seven-day grace period by default. Bundles without `.pluxx-runtime.json` keep the prior per-host bootstrap behavior.
+
+`sharedRuntime` is an explicit determinism contract. The bootstrap must derive its output only from its declared input files plus the fingerprinted OS, architecture, Node ABI, and contract fields. Plugins whose bootstrap result depends on undeclared ambient environment values must keep host-local bootstrap behavior or first model those values as stable input files. Runtime references are keyed by plugin, host, and final install path so multiple custom installs remain independently live.
 
 ## Contributor Tooling
 

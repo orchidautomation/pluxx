@@ -283,6 +283,8 @@ beforeAll(async () => {
   mkdirSync(resolve(TEST_DIR, 'scripts/'), { recursive: true })
   await Bun.write(resolve(TEST_DIR, 'scripts/validate.sh'), '#!/usr/bin/env bash\n')
   await Bun.write(resolve(TEST_DIR, 'scripts/confirm-mutation.sh'), '#!/usr/bin/env bash\n')
+  await Bun.write(resolve(TEST_DIR, 'scripts/bootstrap-runtime.sh'), '#!/usr/bin/env bash\nmkdir -p node_modules\n')
+  await Bun.write(resolve(TEST_DIR, 'scripts/runtime-dependencies.lock.json'), '{"fixture":"1.0.0"}\n')
   mkdirSync(resolve(TEST_DIR, 'assets/'), { recursive: true })
   await Bun.write(resolve(TEST_DIR, 'assets/icon.svg'), '<svg />\n')
   mkdirSync(resolve(TEST_DIR, 'assets/screenshots'), { recursive: true })
@@ -363,6 +365,52 @@ describe('build', () => {
     // AMP
     expect(existsSync(resolve(OUT_DIR, 'amp/AGENT.md'))).toBe(true)
     expect(existsSync(resolve(OUT_DIR, 'amp/.amp/settings.json'))).toBe(true)
+  })
+
+  it('emits one identical declared runtime contract across the core four', async () => {
+    await build({
+      ...testConfig,
+      targets: ['claude-code', 'cursor', 'codex', 'opencode'],
+      sharedRuntime: {
+        bootstrap: 'scripts/bootstrap-runtime.sh',
+        inputs: ['scripts/runtime-dependencies.lock.json'],
+        output: 'node_modules',
+      },
+    }, TEST_DIR)
+
+    const runtimeContracts = ['claude-code', 'cursor', 'codex', 'opencode'].map((platform) => (
+      readFileSync(resolve(OUT_DIR, platform, '.pluxx-runtime.json'), 'utf-8')
+    ))
+    expect(new Set(runtimeContracts).size).toBe(1)
+    expect(JSON.parse(runtimeContracts[0]!)).toEqual({
+      schema: 'pluxx.shared-runtime-config.v1',
+      namespace: 'test-plugin',
+      bootstrap: 'scripts/bootstrap-runtime.sh',
+      inputs: ['scripts/runtime-dependencies.lock.json'],
+      output: 'node_modules',
+    })
+  })
+
+  it('rejects shared runtime outputs that contain their bootstrap or inputs', async () => {
+    await expect(build({
+      ...testConfig,
+      targets: ['cursor'],
+      sharedRuntime: {
+        bootstrap: 'scripts/bootstrap-runtime.sh',
+        inputs: ['scripts/runtime-dependencies.lock.json'],
+        output: './scripts',
+      },
+    }, TEST_DIR)).rejects.toThrow('must not contain runtime input')
+
+    await expect(build({
+      ...testConfig,
+      targets: ['cursor'],
+      sharedRuntime: {
+        bootstrap: 'scripts/bootstrap-runtime.sh',
+        inputs: ['scripts/runtime-dependencies.lock.json'],
+        output: './',
+      },
+    }, TEST_DIR)).rejects.toThrow('must not resolve to the bundle root')
   })
 
   it('checks generated manifest identity and bundle references', async () => {

@@ -146,9 +146,12 @@ When both channels are enabled, failure handling should report per-channel outco
 - generated per-host installers pin their tagged release, use bounded retries/timeouts, verify manifest identity and archive checksum, reject absolute/traversal paths and link archive members, and only then extract
 - generated installers take an install-scoped lock, recover the prior bundle and ownership/companion state across signal interruption or post-swap failure, and refuse concurrent swaps
 - config and runtime bootstrap run against a staged candidate; the previous install remains live until staging succeeds and is restored when commit-time work fails
-- generated installers prepare native Node dependencies in a Pluxx-managed shared runtime store when the bundle has a deterministic dependency manifest; the store is keyed by complete package manifest content, lockfile content, bootstrap script, OS, architecture, Node ABI, and runtime contract version
-- compatible host installs link their staged bundle `node_modules` to the immutable shared runtime, reuse a valid warm cache without rerunning bootstrap, and repair an incomplete or corrupted cache entry before relinking
-- when a bundle does not expose enough dependency metadata for safe shared-runtime reuse, generated installers log the fallback and keep the previous per-host staged bootstrap behavior
+- plugins opt into native runtime reuse with `sharedRuntime`, whose bundle-relative bootstrap, declared inputs, and output are compiled into the same `.pluxx-runtime.json` contract for every target
+- generated installers key the Pluxx-managed store by the complete runtime contract, every declared input, bootstrap content, plugin namespace, OS, architecture, Node ABI, and runtime contract version
+- compatible host installs link their staged runtime output to a read-only generation, validate warm generations with file metadata instead of rehashing dependency bytes, and atomically switch the stable `current` link when corruption requires a rebuilt generation
+- stale locks owned by dead processes are recovered; an active lock timeout or unavailable symlink falls back to the previous host-local staged bootstrap behavior
+- runtime references are written only after the install transaction swaps to its final path; stale references and unreferenced entries are removed after a grace period
+- bundles without an explicit `.pluxx-runtime.json` contract keep the previous per-host staged bootstrap behavior
 - npm publication compares the exact packed tarball SRI with the registry's `dist.integrity`; it skips an immutable version only when those bytes match
 - GitHub publication creates a missing release or reconciles an existing release to the exact asset set, removing stale extras
 - enabled channels are always queried after mutation; incomplete or byte-mismatched verification makes the command fail, and transport/auth lookup errors never count as a missing remote version or release

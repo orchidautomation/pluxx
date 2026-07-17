@@ -1207,271 +1207,324 @@ NODE
 
 function renderInstallerRuntimeBootstrapSnippet(installDirVariable: string): string {
   return `
-if [[ -f "${installDirVariable}/scripts/bootstrap-runtime.sh" ]]; then
+if [[ -f "${installDirVariable}/.pluxx-runtime.json" || -f "${installDirVariable}/scripts/bootstrap-runtime.sh" ]]; then
   export PLUXX_RUNTIME_CANDIDATE_ROOT="${installDirVariable}"
   export PLUXX_RUNTIME_STORE_ROOT="\${PLUXX_RUNTIME_STORE_ROOT:-$HOME/.pluxx/runtimes}"
-  export PLUGIN_NAME
+  export PLUGIN_NAME PLUXX_TX_PLATFORM
 
   node <<'NODE'
 const crypto = require('crypto')
+const childProcess = require('child_process')
 const fs = require('fs')
 const path = require('path')
 
 const candidateRoot = process.env.PLUXX_RUNTIME_CANDIDATE_ROOT
-const storeRoot = process.env.PLUXX_RUNTIME_STORE_ROOT
 const pluginName = process.env.PLUGIN_NAME || 'unknown-plugin'
+const installerPlatform = process.env.PLUXX_TX_PLATFORM || 'unknown-platform'
 const contractVersion = 'pluxx.shared-native-runtime.v1'
-const envPath = path.join(candidateRoot, '.pluxx-runtime-cache.env')
-const dependencyManifestNames = [
-  'package.json',
-  'package-lock.json',
-  'npm-shrinkwrap.json',
-  'pnpm-lock.yaml',
-  'yarn.lock',
-  'bun.lock',
-  'bun.lockb',
-]
+if (!candidateRoot || !process.env.PLUXX_RUNTIME_STORE_ROOT) process.exit(2)
 
-if (!candidateRoot || !storeRoot) process.exit(2)
-
-const readIfFile = (relativePath) => {
-  const filepath = path.join(candidateRoot, relativePath)
-  if (!fs.existsSync(filepath) || !fs.statSync(filepath).isFile()) return undefined
-  return fs.readFileSync(filepath)
+const configPath = path.join(candidateRoot, '.pluxx-runtime.json')
+let bootstrapRelativePath = 'scripts/bootstrap-runtime.sh'
+const bootstrapFailure = (status) => {
+  const error = new Error('Runtime bootstrap failed with exit status ' + status + '.')
+  error.exitStatus = status || 1
+  return error
+}
+process.on('uncaughtException', (error) => {
+  console.error(error && error.stack ? error.stack : String(error))
+  process.exitCode = Number.isInteger(error && error.exitStatus) ? error.exitStatus : 1
+})
+const bootstrapLocal = () => {
+  console.log('Preparing local plugin runtime dependencies...')
+  const result = childProcess.spawnSync('bash', [path.join(candidateRoot, bootstrapRelativePath)], {
+    cwd: candidateRoot,
+    env: process.env,
+    stdio: 'inherit',
+  })
+  if (result.error) throw result.error
+  if (result.status !== 0) throw bootstrapFailure(result.status)
 }
 
-const writeUnsupportedRuntimeEnv = () => {
-  fs.mkdirSync(path.dirname(envPath), { recursive: true })
-  fs.writeFileSync(envPath, [
-    'PLUXX_SHARED_RUNTIME_SUPPORTED=0',
-    '',
-  ].join('\\n'))
-}
-
-const packageJson = readIfFile('package.json')
-if (!packageJson) {
-  writeUnsupportedRuntimeEnv()
+if (!fs.existsSync(configPath)) {
+  bootstrapLocal()
   process.exit(0)
 }
 
-const hash = crypto.createHash('sha256')
-hash.update(contractVersion)
-hash.update('\\0')
-hash.update(process.platform)
-hash.update('\\0')
-hash.update(process.arch)
-hash.update('\\0')
-hash.update(process.versions.modules || 'unknown-node-abi')
-hash.update('\\0')
-hash.update('package.json')
-hash.update('\\0')
-hash.update(packageJson)
-hash.update('\\0')
+const config = JSON.parse(fs.readFileSync(configPath, 'utf8'))
+const isSafeRelativePath = (value) => typeof value === 'string'
+  && value.length > 0
+  && !path.isAbsolute(value)
+  && !value.replace(/\\\\/g, '/').split('/').includes('..')
+if (config.schema !== 'pluxx.shared-runtime-config.v1'
+  || config.namespace !== pluginName
+  || !isSafeRelativePath(config.bootstrap)
+  || !isSafeRelativePath(config.output)
+  || path.normalize(config.output) === '.'
+  || !Array.isArray(config.inputs)
+  || config.inputs.length === 0
+  || !config.inputs.every(isSafeRelativePath)) {
+  throw new Error('Invalid .pluxx-runtime.json shared runtime contract.')
+}
+const resolvedOutput = path.resolve(candidateRoot, config.output)
+for (const runtimeInput of [config.bootstrap, ...config.inputs]) {
+  const resolvedInput = path.resolve(candidateRoot, runtimeInput)
+  const relativeToOutput = path.relative(resolvedOutput, resolvedInput)
+  if (relativeToOutput === '' || (!relativeToOutput.startsWith('..') && !path.isAbsolute(relativeToOutput))) {
+    throw new Error('Shared runtime output must not contain its bootstrap or declared inputs.')
+  }
+}
+bootstrapRelativePath = config.bootstrap
 
-for (const name of dependencyManifestNames.filter((name) => name !== 'package.json')) {
-  const content = readIfFile(name)
-  if (!content) continue
-  hash.update(name)
-  hash.update('\\0')
-  hash.update(content)
-  hash.update('\\0')
+const inputPaths = [...new Set([config.bootstrap, ...config.inputs])].sort()
+const digest = crypto.createHash('sha256')
+digest.update(contractVersion + '\\0' + process.platform + '\\0' + process.arch + '\\0' + (process.versions.modules || 'unknown-node-abi') + '\\0')
+digest.update(JSON.stringify(config) + '\\0')
+for (const relativePath of inputPaths) {
+  const filepath = path.resolve(candidateRoot, relativePath)
+  const relative = path.relative(candidateRoot, filepath)
+  const stats = fs.lstatSync(filepath)
+  if (relative.startsWith('..') || !stats.isFile() || stats.isSymbolicLink()) {
+    throw new Error('Shared runtime input must be a regular file inside the bundle: ' + relativePath)
+  }
+  digest.update(relativePath + '\\0')
+  digest.update(fs.readFileSync(filepath))
+  digest.update('\\0')
 }
 
-const bootstrap = readIfFile('scripts/bootstrap-runtime.sh')
-if (bootstrap) {
-  hash.update('scripts/bootstrap-runtime.sh')
-  hash.update('\\0')
-  hash.update(bootstrap)
-  hash.update('\\0')
-}
-
-const fingerprint = hash.digest('hex')
+const fingerprint = digest.digest('hex')
+fs.mkdirSync(process.env.PLUXX_RUNTIME_STORE_ROOT, { recursive: true, mode: 0o700 })
+fs.chmodSync(process.env.PLUXX_RUNTIME_STORE_ROOT, 0o700)
+const storeRoot = fs.realpathSync(process.env.PLUXX_RUNTIME_STORE_ROOT)
 const entryRoot = path.join(storeRoot, 'entries', fingerprint)
-const lockRoot = path.join(storeRoot, 'locks')
-const lockPath = path.join(lockRoot, fingerprint + '.lock')
-const runtimeStage = path.join(storeRoot, 'staging', fingerprint + '-' + process.pid + '-' + crypto.randomBytes(5).toString('hex'))
-const shellQuote = (value) => "'" + String(value).replace(/'/g, "'\\''") + "'"
-fs.mkdirSync(path.dirname(envPath), { recursive: true })
-fs.writeFileSync(envPath, [
-  'PLUXX_SHARED_RUNTIME_SUPPORTED=1',
-  'PLUXX_SHARED_RUNTIME_FINGERPRINT=' + shellQuote(fingerprint),
-  'PLUXX_SHARED_RUNTIME_ENTRY=' + shellQuote(entryRoot),
-  'PLUXX_SHARED_RUNTIME_STAGE=' + shellQuote(runtimeStage),
-  'PLUXX_SHARED_RUNTIME_LOCK=' + shellQuote(lockPath),
-  '',
-].join('\\n'))
-NODE
+const generationsRoot = path.join(entryRoot, 'generations')
+const currentPath = path.join(entryRoot, 'current')
+const lockPath = path.join(storeRoot, 'locks', fingerprint + '.lock')
+const stageRoot = path.join(storeRoot, 'staging', fingerprint + '-' + process.pid + '-' + crypto.randomBytes(6).toString('hex'))
+const makeTreeWritable = (filepath) => {
+  if (!fs.existsSync(filepath)) return
+  const stats = fs.lstatSync(filepath)
+  if (stats.isSymbolicLink()) return
+  fs.chmodSync(filepath, stats.isDirectory() ? 0o700 : (stats.mode | 0o600))
+  if (stats.isDirectory()) for (const entry of fs.readdirSync(filepath)) makeTreeWritable(path.join(filepath, entry))
+}
+const removeTree = (filepath) => {
+  makeTreeWritable(filepath)
+  fs.rmSync(filepath, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 })
+}
+for (const directory of [path.dirname(entryRoot), generationsRoot, path.dirname(lockPath), path.dirname(stageRoot)]) {
+  fs.mkdirSync(directory, { recursive: true, mode: 0o700 })
+}
 
-  if [[ -f "${installDirVariable}/.pluxx-runtime-cache.env" ]]; then
-    # shellcheck disable=SC1091
-    source "${installDirVariable}/.pluxx-runtime-cache.env"
-  fi
-
-  pluxx_runtime_hash_entry() {
-    PLUXX_RUNTIME_HASH_ROOT="$1" node <<'NODE'
-const crypto = require('crypto')
-const fs = require('fs')
-const path = require('path')
-
-const root = process.env.PLUXX_RUNTIME_HASH_ROOT
-const hash = (value) => crypto.createHash('sha256').update(value).digest('hex')
-const entries = []
-
-const visit = (dir) => {
-  if (!fs.existsSync(dir)) return
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
-    const filepath = path.join(dir, entry.name)
-    const relativePath = path.relative(root, filepath).replace(/\\\\/g, '/')
-    if (relativePath === 'manifest.json') continue
-    const stats = fs.lstatSync(filepath)
-    if (stats.isSymbolicLink()) entries.push({ path: relativePath, kind: 'symlink', sha256: hash(fs.readlinkSync(filepath)) })
-    else if (stats.isDirectory()) visit(filepath)
-    else if (stats.isFile()) entries.push({ path: relativePath, kind: 'file', sha256: hash(fs.readFileSync(filepath)) })
+const sleep = (milliseconds) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds)
+const processAlive = (pid) => {
+  try { process.kill(pid, 0); return true } catch (error) { return error && error.code === 'EPERM' }
+}
+let ownedLockNonce
+const releaseLock = () => {
+  if (!ownedLockNonce) return
+  try {
+    const owner = JSON.parse(fs.readFileSync(path.join(lockPath, 'owner.json'), 'utf8'))
+    if (owner.nonce === ownedLockNonce) removeTree(lockPath)
+  } catch {}
+  ownedLockNonce = undefined
+}
+const acquireLock = () => {
+  const timeoutMs = Math.max(0, Number(process.env.PLUXX_RUNTIME_LOCK_TIMEOUT_SECONDS || 120) * 1000)
+  const started = Date.now()
+  while (true) {
+    const candidateLock = lockPath + '.candidate-' + process.pid + '-' + crypto.randomBytes(4).toString('hex')
+    try {
+      const nonce = crypto.randomBytes(16).toString('hex')
+      fs.mkdirSync(candidateLock, { mode: 0o700 })
+      fs.writeFileSync(path.join(candidateLock, 'owner.json'), JSON.stringify({ pid: process.pid, nonce, startedAt: new Date().toISOString() }) + '\\n', { mode: 0o600 })
+      fs.renameSync(candidateLock, lockPath)
+      ownedLockNonce = nonce
+      return true
+    } catch (error) {
+      removeTree(candidateLock)
+      if (!error || !['EEXIST', 'ENOTEMPTY'].includes(error.code)) throw error
+      let stale = false
+      try {
+        const owner = JSON.parse(fs.readFileSync(path.join(lockPath, 'owner.json'), 'utf8'))
+        stale = !Number.isInteger(owner.pid) || owner.pid <= 0 || !processAlive(owner.pid)
+      } catch {
+        try { stale = Date.now() - fs.statSync(lockPath).mtimeMs > 2000 } catch { stale = true }
+      }
+      if (stale) {
+        const recoveryLock = lockPath + '.recovery'
+        let recoveryAcquired = false
+        let staleLockRemoved = false
+        try {
+          fs.mkdirSync(recoveryLock, { mode: 0o700 })
+          recoveryAcquired = true
+          let stillStale = false
+          try {
+            const owner = JSON.parse(fs.readFileSync(path.join(lockPath, 'owner.json'), 'utf8'))
+            stillStale = !Number.isInteger(owner.pid) || owner.pid <= 0 || !processAlive(owner.pid)
+          } catch {
+            try { stillStale = Date.now() - fs.statSync(lockPath).mtimeMs > 2000 } catch { stillStale = false }
+          }
+          if (stillStale) {
+            removeTree(lockPath)
+            staleLockRemoved = true
+          }
+        } catch (recoveryError) {
+          if (!recoveryError || recoveryError.code !== 'EEXIST') throw recoveryError
+        } finally {
+          if (recoveryAcquired) try { fs.rmdirSync(recoveryLock) } catch {}
+        }
+        if (staleLockRemoved) continue
+      }
+      if (Date.now() - started >= timeoutMs) return false
+      sleep(250)
+    }
   }
 }
 
-visit(root)
-process.stdout.write(JSON.stringify(entries))
-NODE
-  }
-
-  pluxx_runtime_entry_valid() {
-    local entry_root="$1"
-    [[ -f "$entry_root/manifest.json" && -e "$entry_root/node_modules" ]] || return 1
-    PLUXX_RUNTIME_ENTRY_ROOT="$entry_root" node <<'NODE'
-const crypto = require('crypto')
-const fs = require('fs')
-const path = require('path')
-
-const root = process.env.PLUXX_RUNTIME_ENTRY_ROOT
-const manifestPath = path.join(root, 'manifest.json')
-const hash = (value) => crypto.createHash('sha256').update(value).digest('hex')
-const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
-if (manifest.schema !== 'pluxx.shared-native-runtime.v1' || !Array.isArray(manifest.entries)) process.exit(1)
-const actual = []
-const visit = (dir) => {
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
-    const filepath = path.join(dir, entry.name)
-    const relativePath = path.relative(root, filepath).replace(/\\\\/g, '/')
-    if (relativePath === 'manifest.json') continue
-    const stats = fs.lstatSync(filepath)
-    if (stats.isSymbolicLink()) actual.push({ path: relativePath, kind: 'symlink', sha256: hash(fs.readlinkSync(filepath)) })
-    else if (stats.isDirectory()) visit(filepath)
-    else if (stats.isFile()) actual.push({ path: relativePath, kind: 'file', sha256: hash(fs.readFileSync(filepath)) })
-  }
+const outputWithin = (root, filepath) => {
+  const relative = path.relative(root, filepath)
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative))
 }
-visit(root)
-if (JSON.stringify(actual) !== JSON.stringify(manifest.entries)) process.exit(1)
-NODE
+const collectMetadata = (root) => {
+  const entries = []
+  const visit = (directory) => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const filepath = path.join(directory, entry.name)
+      const relativePath = path.relative(root, filepath).replace(/\\\\/g, '/')
+      const stats = fs.lstatSync(filepath)
+      if (stats.isSymbolicLink()) {
+        const resolved = fs.realpathSync(filepath)
+        if (!outputWithin(root, resolved)) throw new Error('Shared runtime symlink escapes its output: ' + relativePath)
+        entries.push({ path: relativePath, kind: 'symlink', target: fs.readlinkSync(filepath) })
+      } else if (stats.isDirectory()) {
+        visit(filepath)
+      } else if (stats.isFile()) {
+        entries.push({ path: relativePath, kind: 'file', size: stats.size, mtimeMs: stats.mtimeMs, mode: stats.mode & 0o777 })
+      } else {
+        throw new Error('Unsupported shared runtime entry: ' + relativePath)
+      }
+    }
   }
-
-  pluxx_link_shared_runtime() {
-    local runtime_entry="$1"
-    rm -rf "${installDirVariable}/node_modules"
-    ln -s "$runtime_entry/node_modules" "${installDirVariable}/node_modules"
-    mkdir -p "$PLUXX_RUNTIME_STORE_ROOT/refs/$PLUGIN_NAME"
-    PLUXX_RUNTIME_REF_PATH="$PLUXX_RUNTIME_STORE_ROOT/refs/$PLUGIN_NAME/$PLUXX_TX_PLATFORM.json" \\
-    PLUXX_RUNTIME_REF_INSTALL="${installDirVariable}" \\
-    PLUXX_RUNTIME_REF_ENTRY="$runtime_entry" \\
-    node <<'NODE'
-const fs = require('fs')
-const path = require('path')
-const refPath = process.env.PLUXX_RUNTIME_REF_PATH
-fs.mkdirSync(path.dirname(refPath), { recursive: true })
-fs.writeFileSync(refPath, JSON.stringify({
-  schema: 'pluxx.shared-native-runtime-ref.v1',
-  pluginName: process.env.PLUGIN_NAME,
-  platform: process.env.PLUXX_TX_PLATFORM,
-  installPath: path.resolve(process.env.PLUXX_RUNTIME_REF_INSTALL),
-  runtimeEntry: path.resolve(process.env.PLUXX_RUNTIME_REF_ENTRY),
-  fingerprint: process.env.PLUXX_SHARED_RUNTIME_FINGERPRINT,
-  updatedAt: new Date().toISOString(),
-}, null, 2) + '\\n')
-NODE
+  visit(root)
+  return entries
+}
+const harden = (root) => {
+  const visit = (directory) => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const filepath = path.join(directory, entry.name)
+      const stats = fs.lstatSync(filepath)
+      if (stats.isSymbolicLink()) continue
+      if (stats.isDirectory()) { visit(filepath); fs.chmodSync(filepath, stats.mode & ~0o222) }
+      else if (stats.isFile()) fs.chmodSync(filepath, stats.mode & ~0o222)
+    }
   }
+  visit(root)
+  fs.chmodSync(root, fs.statSync(root).mode & ~0o222)
+}
+const readCurrentGeneration = () => {
+  try {
+    if (!fs.lstatSync(currentPath).isSymbolicLink()) return undefined
+    const target = fs.readlinkSync(currentPath)
+    const generation = path.resolve(entryRoot, target)
+    if (!outputWithin(generationsRoot, generation) || generation === generationsRoot) return undefined
+    const manifest = JSON.parse(fs.readFileSync(path.join(generation, 'manifest.json'), 'utf8'))
+    const outputRoot = path.join(generation, config.output)
+    const outputStats = fs.lstatSync(outputRoot)
+    if (!outputStats.isDirectory() || outputStats.isSymbolicLink()) return undefined
+    if (manifest.schema !== contractVersion
+      || manifest.fingerprint !== fingerprint
+      || manifest.namespace !== pluginName
+      || manifest.platform !== process.platform
+      || manifest.arch !== process.arch
+      || manifest.nodeAbi !== (process.versions.modules || 'unknown-node-abi')
+      || JSON.stringify(collectMetadata(outputRoot)) !== JSON.stringify(manifest.entries)) return undefined
+    return generation
+  } catch { return undefined }
+}
+const buildGeneration = (repairing) => {
+  console.log((repairing ? 'Repairing incomplete Pluxx native runtime ' : 'Preparing shared Pluxx native runtime ') + fingerprint + '.')
+  removeTree(stageRoot)
+  fs.cpSync(candidateRoot, stageRoot, { recursive: true })
+  const stageOutput = path.join(stageRoot, config.output)
+  fs.rmSync(stageOutput, { recursive: true, force: true })
+  const bootstrapPath = path.join(stageRoot, config.bootstrap)
+  const result = childProcess.spawnSync('bash', [bootstrapPath], { cwd: stageRoot, env: process.env, stdio: 'inherit' })
+  if (result.error) throw result.error
+  if (result.status !== 0) throw bootstrapFailure(result.status)
+  const outputStats = fs.lstatSync(stageOutput)
+  if (!outputStats.isDirectory() || outputStats.isSymbolicLink()) throw new Error('Shared runtime bootstrap did not create the configured output directory.')
+  collectMetadata(stageOutput)
+  const generation = path.join(generationsRoot, Date.now() + '-' + process.pid + '-' + crypto.randomBytes(5).toString('hex'))
+  fs.mkdirSync(generation, { recursive: true, mode: 0o700 })
+  const generationOutput = path.join(generation, config.output)
+  fs.mkdirSync(path.dirname(generationOutput), { recursive: true })
+  fs.renameSync(stageOutput, generationOutput)
+  harden(generationOutput)
+  const manifest = {
+    schema: contractVersion,
+    fingerprint,
+    namespace: pluginName,
+    platform: process.platform,
+    arch: process.arch,
+    nodeAbi: process.versions.modules || 'unknown-node-abi',
+    preparedBy: installerPlatform,
+    entries: collectMetadata(generationOutput),
+    createdAt: new Date().toISOString(),
+  }
+  fs.writeFileSync(path.join(generation, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\\n', { mode: 0o444 })
+  const nextCurrent = path.join(entryRoot, '.current-' + process.pid + '-' + crypto.randomBytes(5).toString('hex'))
+  fs.symlinkSync(path.relative(entryRoot, generation), nextCurrent, 'dir')
+  fs.renameSync(nextCurrent, currentPath)
+  removeTree(stageRoot)
+  return generation
+}
 
-  if [[ "\${PLUXX_SHARED_RUNTIME_SUPPORTED:-0}" != "1" ]]; then
-    echo "Preparing local plugin runtime dependencies..."
-    bash "${installDirVariable}/scripts/bootstrap-runtime.sh"
-  else
-    mkdir -p "$(dirname "$PLUXX_SHARED_RUNTIME_ENTRY")" "$(dirname "$PLUXX_SHARED_RUNTIME_STAGE")" "$(dirname "$PLUXX_SHARED_RUNTIME_LOCK")"
-    PLUXX_RUNTIME_LOCK_ACQUIRED=0
-    for _attempt in $(seq 1 120); do
-      if mkdir "$PLUXX_SHARED_RUNTIME_LOCK" 2>/dev/null; then
-        PLUXX_RUNTIME_LOCK_ACQUIRED=1
-        break
-      fi
-      sleep 1
-    done
+if (!acquireLock()) {
+  console.error('Could not acquire shared runtime lock for ' + fingerprint + '; preparing runtime in the host bundle instead.')
+  bootstrapLocal()
+  process.exit(0)
+}
 
-    if [[ "$PLUXX_RUNTIME_LOCK_ACQUIRED" != "1" ]]; then
-      echo "Could not acquire shared runtime lock for $PLUXX_SHARED_RUNTIME_FINGERPRINT; preparing runtime in the host bundle instead." >&2
-      echo "Preparing local plugin runtime dependencies..."
-      bash "${installDirVariable}/scripts/bootstrap-runtime.sh"
-    else
-      trap 'rm -rf "$PLUXX_SHARED_RUNTIME_LOCK" "$PLUXX_SHARED_RUNTIME_STAGE" "$PLUXX_SHARED_RUNTIME_STAGE.contents"; exit 129' HUP
-      trap 'rm -rf "$PLUXX_SHARED_RUNTIME_LOCK" "$PLUXX_SHARED_RUNTIME_STAGE" "$PLUXX_SHARED_RUNTIME_STAGE.contents"; exit 130' INT
-      trap 'rm -rf "$PLUXX_SHARED_RUNTIME_LOCK" "$PLUXX_SHARED_RUNTIME_STAGE" "$PLUXX_SHARED_RUNTIME_STAGE.contents"; exit 143' TERM
-      trap 'rm -rf "$PLUXX_SHARED_RUNTIME_LOCK" "$PLUXX_SHARED_RUNTIME_STAGE" "$PLUXX_SHARED_RUNTIME_STAGE.contents"; exit 1' ERR
+try {
+  let generation = readCurrentGeneration()
+  if (generation) console.log('Reusing prepared Pluxx native runtime ' + fingerprint + '.')
+  else generation = buildGeneration(fs.existsSync(currentPath))
 
-      if pluxx_runtime_entry_valid "$PLUXX_SHARED_RUNTIME_ENTRY"; then
-        echo "Reusing prepared Pluxx native runtime $PLUXX_SHARED_RUNTIME_FINGERPRINT."
-        pluxx_link_shared_runtime "$PLUXX_SHARED_RUNTIME_ENTRY"
-      else
-        if [[ -e "$PLUXX_SHARED_RUNTIME_ENTRY" || -L "$PLUXX_SHARED_RUNTIME_ENTRY" ]]; then
-          echo "Repairing incomplete Pluxx native runtime $PLUXX_SHARED_RUNTIME_FINGERPRINT."
-          rm -rf "$PLUXX_SHARED_RUNTIME_ENTRY"
-        else
-          echo "Preparing shared Pluxx native runtime $PLUXX_SHARED_RUNTIME_FINGERPRINT."
-        fi
-        rm -rf "$PLUXX_SHARED_RUNTIME_STAGE"
-        cp -R "${installDirVariable}" "$PLUXX_SHARED_RUNTIME_STAGE"
-        rm -rf "$PLUXX_SHARED_RUNTIME_STAGE/node_modules"
-        (cd "$PLUXX_SHARED_RUNTIME_STAGE" && bash "$PLUXX_SHARED_RUNTIME_STAGE/scripts/bootstrap-runtime.sh")
-        if [[ ! -e "$PLUXX_SHARED_RUNTIME_STAGE/node_modules" ]]; then
-          echo "Shared runtime bootstrap did not create node_modules; preparing runtime in the host bundle instead." >&2
-          rm -rf "$PLUXX_SHARED_RUNTIME_STAGE"
-          bash "${installDirVariable}/scripts/bootstrap-runtime.sh"
-        else
-          rm -rf "$PLUXX_SHARED_RUNTIME_STAGE.contents"
-          mkdir -p "$PLUXX_SHARED_RUNTIME_STAGE.contents"
-          mv "$PLUXX_SHARED_RUNTIME_STAGE/node_modules" "$PLUXX_SHARED_RUNTIME_STAGE.contents/node_modules"
-          rm -rf "$PLUXX_SHARED_RUNTIME_STAGE"
-          mv "$PLUXX_SHARED_RUNTIME_STAGE.contents" "$PLUXX_SHARED_RUNTIME_STAGE"
-          PLUXX_RUNTIME_ENTRY_LIST="$(pluxx_runtime_hash_entry "$PLUXX_SHARED_RUNTIME_STAGE")"
-          export PLUXX_RUNTIME_ENTRY_LIST PLUXX_SHARED_RUNTIME_STAGE PLUXX_SHARED_RUNTIME_FINGERPRINT PLUXX_SHARED_RUNTIME_ENTRY PLUGIN_NAME PLUXX_TX_PLATFORM
-          node <<'NODE'
-const fs = require('fs')
-const path = require('path')
-
-const stage = process.env.PLUXX_SHARED_RUNTIME_STAGE
-const manifestPath = path.join(stage, 'manifest.json')
-fs.writeFileSync(manifestPath, JSON.stringify({
-  schema: 'pluxx.shared-native-runtime.v1',
-  fingerprint: process.env.PLUXX_SHARED_RUNTIME_FINGERPRINT,
-  pluginName: process.env.PLUGIN_NAME,
-  platform: process.platform,
-  arch: process.arch,
-  nodeAbi: process.versions.modules || 'unknown-node-abi',
-  contractVersion: 'pluxx.shared-native-runtime.v1',
-  preparedBy: process.env.PLUXX_TX_PLATFORM,
-  entries: JSON.parse(process.env.PLUXX_RUNTIME_ENTRY_LIST || '[]'),
-  createdAt: new Date().toISOString(),
-}, null, 2) + '\\n', { mode: 0o600 })
+  const candidateOutput = path.join(candidateRoot, config.output)
+  fs.rmSync(candidateOutput, { recursive: true, force: true })
+  let leasePath
+  try {
+    if (process.env.PLUXX_RUNTIME_DISABLE_LINK === '1') throw new Error('shared runtime linking is disabled')
+    fs.mkdirSync(path.dirname(candidateOutput), { recursive: true })
+    fs.symlinkSync(path.join(entryRoot, 'current', config.output), candidateOutput, 'dir')
+    const leaseRoot = path.join(storeRoot, 'leases', fingerprint)
+    fs.mkdirSync(leaseRoot, { recursive: true, mode: 0o700 })
+    leasePath = path.join(leaseRoot, process.ppid + '-' + crypto.randomBytes(6).toString('hex') + '.json')
+    fs.writeFileSync(leasePath, JSON.stringify({
+      schema: 'pluxx.shared-native-runtime-lease.v1',
+      fingerprint,
+      ownerPid: process.ppid,
+      createdAt: new Date().toISOString(),
+    }) + '\\n', { mode: 0o600, flag: 'wx' })
+    fs.writeFileSync(path.join(candidateRoot, '.pluxx-runtime-ref.json'), JSON.stringify({
+      schema: 'pluxx.shared-native-runtime-ref-candidate.v1',
+      storeRoot,
+      fingerprint,
+      runtimeEntry: path.join(entryRoot, 'current'),
+      leasePath,
+    }, null, 2) + '\\n', { mode: 0o600 })
+  } catch (error) {
+    console.error('Could not link the shared runtime; preparing runtime in the host bundle instead: ' + error.message)
+    if (leasePath) fs.rmSync(leasePath, { force: true })
+    fs.rmSync(candidateOutput, { recursive: true, force: true })
+    bootstrapLocal()
+  }
+} finally {
+  removeTree(stageRoot)
+  releaseLock()
+}
 NODE
-          mv "$PLUXX_SHARED_RUNTIME_STAGE" "$PLUXX_SHARED_RUNTIME_ENTRY"
-          pluxx_link_shared_runtime "$PLUXX_SHARED_RUNTIME_ENTRY"
-        fi
-      fi
-
-      rm -rf "$PLUXX_SHARED_RUNTIME_LOCK"
-      trap - ERR
-      trap 'exit 129' HUP
-      trap 'exit 130' INT
-      trap 'exit 143' TERM
-    fi
-  fi
-  rm -f "${installDirVariable}/.pluxx-runtime-cache.env"
 fi
 `
 }
@@ -2167,6 +2220,12 @@ const crypto = require('crypto')
 const fs = require('fs')
 const path = require('path')
 const root = path.resolve(process.env.INSTALL_DIR)
+const runtimeCandidatePath = path.join(root, '.pluxx-runtime-ref.json')
+let runtimeCandidate
+if (fs.existsSync(runtimeCandidatePath)) {
+  runtimeCandidate = JSON.parse(fs.readFileSync(runtimeCandidatePath, 'utf8'))
+  fs.rmSync(runtimeCandidatePath, { force: true })
+}
 const hash = (value) => crypto.createHash('sha256').update(value).digest('hex')
 const entries = []
 const visit = (dir) => {
@@ -2197,6 +2256,150 @@ fs.writeFileSync(temporary, JSON.stringify({
   entries,
 }, null, 2) + '\\n', { mode: 0o600 })
 fs.renameSync(temporary, ownershipPath)
+
+const commitRuntimeReference = () => {
+  const runtimeRefPath = (storeRoot) => path.join(
+    storeRoot,
+    'refs',
+    process.env.PLUGIN_NAME,
+    process.env.PLUXX_TX_PLATFORM + '-' + hash(root).slice(0, 16) + '.json',
+  )
+  if (!runtimeCandidate) {
+    const configuredStoreRoot = process.env.PLUXX_RUNTIME_STORE_ROOT || path.join(path.resolve(process.env.HOME), '.pluxx/runtimes')
+    if (!fs.existsSync(configuredStoreRoot)) return
+    const storeRoot = fs.realpathSync(configuredStoreRoot)
+    const staleRef = runtimeRefPath(storeRoot)
+    fs.rmSync(staleRef, { force: true })
+    return
+  }
+  if (runtimeCandidate.schema !== 'pluxx.shared-native-runtime-ref-candidate.v1'
+    || typeof runtimeCandidate.storeRoot !== 'string'
+    || !/^[a-f0-9]{64}$/.test(runtimeCandidate.fingerprint)
+    || typeof runtimeCandidate.runtimeEntry !== 'string'
+    || typeof runtimeCandidate.leasePath !== 'string') {
+    throw new Error('Invalid committed shared runtime reference candidate.')
+  }
+  const storeRoot = fs.realpathSync(runtimeCandidate.storeRoot)
+  const expectedEntry = path.join(storeRoot, 'entries', runtimeCandidate.fingerprint, 'current')
+  if (path.resolve(runtimeCandidate.runtimeEntry) !== expectedEntry) {
+    throw new Error('Shared runtime reference points outside its fingerprint entry.')
+  }
+  const expectedLeaseRoot = path.join(storeRoot, 'leases', runtimeCandidate.fingerprint)
+  const resolvedLeasePath = path.resolve(runtimeCandidate.leasePath)
+  if (!resolvedLeasePath.startsWith(expectedLeaseRoot + path.sep)) {
+    throw new Error('Shared runtime lease points outside its fingerprint lease root.')
+  }
+  const refRoot = path.join(storeRoot, 'refs')
+  const refPath = runtimeRefPath(storeRoot)
+  fs.mkdirSync(path.dirname(refPath), { recursive: true, mode: 0o700 })
+  const ref = {
+    schema: 'pluxx.shared-native-runtime-ref.v1',
+    pluginName: process.env.PLUGIN_NAME,
+    platform: process.env.PLUXX_TX_PLATFORM,
+    installPath: root,
+    runtimeEntry: expectedEntry,
+    fingerprint: runtimeCandidate.fingerprint,
+    updatedAt: new Date().toISOString(),
+  }
+  const temporaryRef = refPath + '.tmp-' + process.pid + '-' + crypto.randomBytes(5).toString('hex')
+  fs.writeFileSync(temporaryRef, JSON.stringify(ref, null, 2) + '\\n', { mode: 0o600 })
+  fs.renameSync(temporaryRef, refPath)
+  try { fs.rmSync(resolvedLeasePath, { force: true }) } catch (error) {
+    console.error('Warning: could not remove committed shared runtime lease: ' + error.message)
+  }
+
+  try {
+  const liveFingerprints = new Set()
+  const graceMs = Math.max(0, Number(process.env.PLUXX_RUNTIME_GC_GRACE_SECONDS || 604800) * 1000)
+  const makeWritable = (filepath) => {
+    if (!fs.existsSync(filepath)) return
+    const stats = fs.lstatSync(filepath)
+    if (stats.isSymbolicLink()) return
+    fs.chmodSync(filepath, stats.isDirectory() ? 0o700 : (stats.mode | 0o600))
+    if (stats.isDirectory()) for (const entry of fs.readdirSync(filepath)) makeWritable(path.join(filepath, entry))
+  }
+  const removeTree = (filepath) => {
+    makeWritable(filepath)
+    fs.rmSync(filepath, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 })
+  }
+  const visitRefs = (directory) => {
+    if (!fs.existsSync(directory)) return
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const filepath = path.join(directory, entry.name)
+      if (entry.isDirectory()) visitRefs(filepath)
+      else if (entry.isFile() && entry.name.endsWith('.json')) {
+        try {
+          const candidate = JSON.parse(fs.readFileSync(filepath, 'utf8'))
+          if (candidate.schema !== 'pluxx.shared-native-runtime-ref.v1'
+            || typeof candidate.installPath !== 'string') {
+            fs.rmSync(filepath, { force: true })
+          } else if (!fs.existsSync(candidate.installPath)) {
+            const updatedAt = Date.parse(candidate.updatedAt || '')
+            if (Number.isFinite(updatedAt) && Date.now() - updatedAt < graceMs && /^[a-f0-9]{64}$/.test(candidate.fingerprint)) {
+              liveFingerprints.add(candidate.fingerprint)
+            } else {
+              fs.rmSync(filepath, { force: true })
+            }
+          } else if (/^[a-f0-9]{64}$/.test(candidate.fingerprint)) {
+            liveFingerprints.add(candidate.fingerprint)
+          }
+        } catch { fs.rmSync(filepath, { force: true }) }
+      }
+    }
+  }
+  visitRefs(refRoot)
+
+  const leasesRoot = path.join(storeRoot, 'leases')
+  if (fs.existsSync(leasesRoot)) {
+    for (const fingerprintEntry of fs.readdirSync(leasesRoot, { withFileTypes: true })) {
+      if (!fingerprintEntry.isDirectory() || !/^[a-f0-9]{64}$/.test(fingerprintEntry.name)) continue
+      const fingerprintLeaseRoot = path.join(leasesRoot, fingerprintEntry.name)
+      for (const leaseEntry of fs.readdirSync(fingerprintLeaseRoot, { withFileTypes: true })) {
+        if (!leaseEntry.isFile() || !leaseEntry.name.endsWith('.json')) continue
+        const leaseFile = path.join(fingerprintLeaseRoot, leaseEntry.name)
+        try {
+          const lease = JSON.parse(fs.readFileSync(leaseFile, 'utf8'))
+          if (lease.schema === 'pluxx.shared-native-runtime-lease.v1'
+            && lease.fingerprint === fingerprintEntry.name
+            && Number.isInteger(lease.ownerPid)
+            && lease.ownerPid > 0) {
+            try { process.kill(lease.ownerPid, 0); liveFingerprints.add(fingerprintEntry.name); continue } catch (error) {
+              if (error && error.code === 'EPERM') { liveFingerprints.add(fingerprintEntry.name); continue }
+            }
+          }
+        } catch {}
+        fs.rmSync(leaseFile, { force: true })
+      }
+    }
+  }
+
+  const entriesRoot = path.join(storeRoot, 'entries')
+  if (fs.existsSync(entriesRoot)) {
+    for (const entry of fs.readdirSync(entriesRoot, { withFileTypes: true })) {
+      const filepath = path.join(entriesRoot, entry.name)
+      if (!entry.isDirectory()) continue
+      if (!liveFingerprints.has(entry.name)) {
+        if (fs.existsSync(path.join(storeRoot, 'locks', entry.name + '.lock'))) continue
+        if (Date.now() - fs.statSync(filepath).mtimeMs >= graceMs) removeTree(filepath)
+        continue
+      }
+      const generationsRoot = path.join(filepath, 'generations')
+      let currentGeneration
+      try { currentGeneration = path.resolve(filepath, fs.readlinkSync(path.join(filepath, 'current'))) } catch {}
+      if (!fs.existsSync(generationsRoot)) continue
+      for (const generation of fs.readdirSync(generationsRoot, { withFileTypes: true })) {
+        const generationPath = path.join(generationsRoot, generation.name)
+        if (!generation.isDirectory() || generationPath === currentGeneration) continue
+        if (Date.now() - fs.statSync(generationPath).mtimeMs >= graceMs) removeTree(generationPath)
+      }
+    }
+  }
+  } catch (error) {
+    console.error('Warning: could not prune shared runtime store: ' + error.message)
+  }
+}
+
+commitRuntimeReference()
 NODE
 }
 
