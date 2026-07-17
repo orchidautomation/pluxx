@@ -2,7 +2,7 @@
 
 Last updated: 2026-05-12
 
-Proof status: **historical**. Tier: `installed-runtime`. Observed: 2026-05-12 against v0.1.28-era state. The run predates host-version, installed-path, and artifact-hash receipts and therefore must not be presented as current v0.1.32 evidence. See [proof freshness](./proof-freshness.md) and [proof manifest](./proof-manifest.json).
+Proof status: **historical**. Tier: `installed-runtime`. Observed: 2026-05-12 against v0.1.28-era state. The run predates host-version, installed-path, and artifact-hash receipts and therefore must not be presented as current v0.1.34 evidence. See [proof freshness](./proof-freshness.md) and [proof manifest](./proof-manifest.json).
 
 ## Doc Links
 
