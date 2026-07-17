@@ -4,7 +4,7 @@ Last updated: 2026-07-17
 
 This document defines how Pluxx distinguishes repeatable repository checks from installed and real-host evidence. The machine-readable source is [proof-manifest.json](./proof-manifest.json), validated by `npm run proof:check`.
 
-Current reviewed receipts for v0.1.34 are `v0.1.34-repository-validation` (`bundle-contract`, `current`) and `v0.1.34-fake-home-install` (`fake-home-install`, `current`). They cite committed shared-runtime release-prep state only after the release gate passed. The v0.1.33, v0.1.32, and older receipts remain historical. Neither current tier is installed-runtime or real-host behavior evidence.
+Current reviewed receipts for v0.1.34 are `v0.1.34-repository-validation` (`bundle-contract`, `current`) and `v0.1.34-fake-home-install` (`fake-home-install`, `current`). They cite committed shared-runtime tag state after the release gate passed. The v0.1.33, v0.1.32, and older receipts remain historical. Neither current tier is installed-runtime or real-host behavior evidence.
 
 ## Version And Freshness Policy
 

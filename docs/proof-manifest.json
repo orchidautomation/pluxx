@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "canonicalVersion": "0.1.34",
   "expectedTag": "v0.1.34",
-  "releaseState": "release-prep",
+  "releaseState": "released",
   "policy": {
     "environmentReceiptMaxAgeDays": 30
   },
@@ -73,7 +73,7 @@
     },
     {
       "id": "v0.1.34-repository-validation",
-      "summary": "The v0.1.34 release-prep state passes the repository release gate for content-addressed shared runtimes.",
+      "summary": "The v0.1.34 tagged state passes the repository release gate for content-addressed shared runtimes.",
       "tier": "bundle-contract",
       "freshness": "current",
       "evidencePath": "tests/proof-freshness.test.ts",
