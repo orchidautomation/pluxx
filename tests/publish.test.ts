@@ -1402,6 +1402,54 @@ cp "$TEST_RELEASE_DIR/$(basename "$url")" "$out"
     expect(readFileSync(countFile, 'utf-8').trim()).toBe('2')
   })
 
+  it('prepares a distinct shared runtime when an unchanged lifecycle command reads a changed bundled file', () => {
+    const countFile = resolve(ROOT, 'shared-runtime-lifecycle-input-count.txt')
+    const storeRoot = resolve(ROOT, 'shared-runtime-lifecycle-input-store')
+    const bootstrap = [
+      '#!/usr/bin/env bash',
+      'set -euo pipefail',
+      'count=0',
+      'if [[ -f "$PLUXX_BOOTSTRAP_COUNT_FILE" ]]; then count="$(cat "$PLUXX_BOOTSTRAP_COUNT_FILE")"; fi',
+      'echo "$((count + 1))" > "$PLUXX_BOOTSTRAP_COUNT_FILE"',
+      'mkdir -p node_modules/@native/fixture',
+      'cat scripts/install-a.mjs > node_modules/@native/fixture/index.node',
+      '',
+    ].join('\n')
+    const packageJson = JSON.stringify({
+      name: 'publish-plugin-runtime',
+      version: '1.2.3',
+      scripts: { postinstall: 'node scripts/install-a.mjs' },
+      dependencies: { '@native/fixture': '1.0.0' },
+    })
+    const packageLock = JSON.stringify({
+      lockfileVersion: 3,
+      packages: {
+        '': { dependencies: { '@native/fixture': '1.0.0' } },
+      },
+    })
+    const install = (scriptContent: string) => runGeneratedInstaller('cursor', {
+      extraFiles: {
+        'package.json': packageJson,
+        'package-lock.json': packageLock,
+        'scripts/bootstrap-runtime.sh': bootstrap,
+        'scripts/install-a.mjs': scriptContent,
+      },
+      env: {
+        SENDLENS_INSTANTLY_API_KEY: 'fresh-key',
+        PLUXX_BOOTSTRAP_COUNT_FILE: countFile,
+        PLUXX_RUNTIME_STORE_ROOT: storeRoot,
+      },
+    })
+
+    const first = install('first runtime input\n')
+    const second = install('second runtime input\n')
+
+    expect(first.status, first.stdout + '\n' + first.stderr).toBe(0)
+    expect(second.status, second.stdout + '\n' + second.stderr).toBe(0)
+    expect(second.stdout).toContain('Preparing shared Pluxx native runtime')
+    expect(readFileSync(countFile, 'utf-8').trim()).toBe('2')
+  })
+
   it('repairs a corrupted matching shared runtime before relinking it', () => {
     const countFile = resolve(ROOT, 'shared-runtime-repair-count.txt')
     const runtimeFiles = {

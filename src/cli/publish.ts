@@ -1222,15 +1222,6 @@ const storeRoot = process.env.PLUXX_RUNTIME_STORE_ROOT
 const pluginName = process.env.PLUGIN_NAME || 'unknown-plugin'
 const contractVersion = 'pluxx.shared-native-runtime.v1'
 const envPath = path.join(candidateRoot, '.pluxx-runtime-cache.env')
-const dependencyManifestNames = [
-  'package.json',
-  'package-lock.json',
-  'npm-shrinkwrap.json',
-  'pnpm-lock.yaml',
-  'yarn.lock',
-  'bun.lock',
-  'bun.lockb',
-]
 
 if (!candidateRoot || !storeRoot) process.exit(2)
 
@@ -1263,27 +1254,34 @@ hash.update(process.arch)
 hash.update('\\0')
 hash.update(process.versions.modules || 'unknown-node-abi')
 hash.update('\\0')
-hash.update('package.json')
-hash.update('\\0')
-hash.update(packageJson)
-hash.update('\\0')
 
-for (const name of dependencyManifestNames.filter((name) => name !== 'package.json')) {
-  const content = readIfFile(name)
-  if (!content) continue
-  hash.update(name)
-  hash.update('\\0')
-  hash.update(content)
-  hash.update('\\0')
+const addRuntimeInputTree = (dir) => {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+    const filepath = path.join(dir, entry.name)
+    const relativePath = path.relative(candidateRoot, filepath).replace(/\\\\/g, '/')
+    if (relativePath === 'node_modules' || relativePath.startsWith('node_modules/')) continue
+    if (relativePath === '.pluxx-runtime-cache.env') continue
+    const stats = fs.lstatSync(filepath)
+    hash.update(relativePath)
+    hash.update('\\0')
+    if (stats.isSymbolicLink()) {
+      hash.update('symlink')
+      hash.update('\\0')
+      hash.update(fs.readlinkSync(filepath))
+      hash.update('\\0')
+    } else if (stats.isDirectory()) {
+      hash.update('dir')
+      hash.update('\\0')
+      addRuntimeInputTree(filepath)
+    } else if (stats.isFile()) {
+      hash.update('file')
+      hash.update('\\0')
+      hash.update(fs.readFileSync(filepath))
+      hash.update('\\0')
+    }
+  }
 }
-
-const bootstrap = readIfFile('scripts/bootstrap-runtime.sh')
-if (bootstrap) {
-  hash.update('scripts/bootstrap-runtime.sh')
-  hash.update('\\0')
-  hash.update(bootstrap)
-  hash.update('\\0')
-}
+addRuntimeInputTree(candidateRoot)
 
 const fingerprint = hash.digest('hex')
 const entryRoot = path.join(storeRoot, 'entries', fingerprint)
