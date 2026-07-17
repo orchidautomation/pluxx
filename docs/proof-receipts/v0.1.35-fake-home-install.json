@@ -1,0 +1,23 @@
+{
+  "id": "v0.1.35-fake-home-install",
+  "tier": "fake-home-install",
+  "freshness": "current",
+  "commitSha": "274673b7f73ad9621f885f58bed12572388794b2",
+  "packageVersion": "0.1.35",
+  "timestamp": "2026-07-17T15:00:25.481Z",
+  "commands": [
+    {
+      "command": "npm test -- tests/publish.test.ts",
+      "outcome": "passed"
+    }
+  ],
+  "targets": [
+    {
+      "target": "claude-code,cursor,codex,opencode",
+      "hostVersion": null,
+      "installedPath": null,
+      "sha256": null,
+      "outcome": "passed"
+    }
+  ]
+}

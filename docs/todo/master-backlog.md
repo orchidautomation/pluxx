@@ -82,15 +82,23 @@ Any person or agent should be able to enter the repo and answer:
 
 Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) defines the five evidence tiers and freshness rules, while [proof-manifest.json](../proof-manifest.json) keeps machine-readable receipts and current/historical claim state aligned with `package.json`.
 
-### 0. v0.1.34 shared-runtime release
+### 0. Historical v0.1.34 shared-runtime release
 
 - [x] Merge all nine PLUXX-313 through PLUXX-321 audit-remediation PRs into main at `f92e3cc`
-- [x] Prepare 0.1.34 with synchronized package, proof, planning, and release truth
-- [x] Generate fresh repository-validation and fake-home-install receipts for 0.1.34 release-prep state
+- [x] Historical: prepare 0.1.34 with synchronized package, proof, planning, and release truth
+- [x] Historical: generate fresh repository-validation and fake-home-install receipts for 0.1.34 release-prep state
 - [x] Pass the official serial suite and complete release gate
 - [ ] Merge the release PR and push immutable tag `v0.1.34` from main
 - [ ] Merge the focused 0.1.34 shared-runtime release PR after substantive checks and review are green
 - [ ] Coordinator: dispatch the trusted tag workflow for `v0.1.34`, verify npm/GitHub/tarball/CLI, then archive the completed batch
+
+### 0. v0.1.35 OpenCode plugin-root patch release
+
+- [x] Merge PLUXX-335 OpenCode plugin-root/workspace-root fix
+- [x] Prepare 0.1.35 with synchronized package, proof, planning, and release truth
+- [ ] Pass `npm run release:check`
+- [ ] Push immutable tag `v0.1.35` from main
+- [ ] Verify `@orchid-labs/pluxx@0.1.35`, GitHub release assets, tarball contents, and CLI behavior
 
 ### 1. Product clarity and front-door coherence
 

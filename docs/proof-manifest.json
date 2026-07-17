@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "canonicalVersion": "0.1.34",
-  "expectedTag": "v0.1.34",
-  "releaseState": "released",
+  "canonicalVersion": "0.1.35",
+  "expectedTag": "v0.1.35",
+  "releaseState": "release-prep",
   "policy": {
     "environmentReceiptMaxAgeDays": 30
   },
@@ -75,7 +75,7 @@
       "id": "v0.1.34-repository-validation",
       "summary": "The v0.1.34 tagged state passes the repository release gate for content-addressed shared runtimes.",
       "tier": "bundle-contract",
-      "freshness": "current",
+      "freshness": "historical",
       "evidencePath": "tests/proof-freshness.test.ts",
       "receiptId": "v0.1.34-repository-validation"
     },
@@ -83,9 +83,25 @@
       "id": "v0.1.34-fake-home-install",
       "summary": "Generated installer fake-home coverage proves one content-addressed runtime can be safely reused across Claude Code, Cursor, Codex, and OpenCode.",
       "tier": "fake-home-install",
-      "freshness": "current",
+      "freshness": "historical",
       "evidencePath": "tests/publish.test.ts",
       "receiptId": "v0.1.34-fake-home-install"
+    },
+    {
+      "id": "v0.1.35-repository-validation",
+      "summary": "The v0.1.35 release-prep state passes the repository release gate for the OpenCode plugin-root fix.",
+      "tier": "bundle-contract",
+      "freshness": "current",
+      "evidencePath": "tests/proof-freshness.test.ts",
+      "receiptId": "v0.1.35-repository-validation"
+    },
+    {
+      "id": "v0.1.35-fake-home-install",
+      "summary": "Generated installer fake-home coverage remains current across Claude Code, Cursor, Codex, and OpenCode for v0.1.35.",
+      "tier": "fake-home-install",
+      "freshness": "current",
+      "evidencePath": "tests/publish.test.ts",
+      "receiptId": "v0.1.35-fake-home-install"
     }
   ],
   "receipts": [
@@ -290,7 +306,7 @@
     {
       "id": "v0.1.34-repository-validation",
       "tier": "bundle-contract",
-      "freshness": "current",
+      "freshness": "historical",
       "commitSha": "54d1af9dd0e529f1942b0027e9edfd356e0a829c",
       "packageVersion": "0.1.34",
       "timestamp": "2026-07-17T04:17:09.622Z",
@@ -313,7 +329,7 @@
     {
       "id": "v0.1.34-fake-home-install",
       "tier": "fake-home-install",
-      "freshness": "current",
+      "freshness": "historical",
       "commands": [
         {
           "command": "npm test -- tests/publish.test.ts",
@@ -332,6 +348,52 @@
       "commitSha": "54d1af9dd0e529f1942b0027e9edfd356e0a829c",
       "packageVersion": "0.1.34",
       "timestamp": "2026-07-17T04:17:09.764Z"
+    },
+    {
+      "id": "v0.1.35-repository-validation",
+      "tier": "bundle-contract",
+      "freshness": "current",
+      "commitSha": "274673b7f73ad9621f885f58bed12572388794b2",
+      "packageVersion": "0.1.35",
+      "timestamp": "2026-07-17T15:00:25.481Z",
+      "commands": [
+        {
+          "command": "npm run release:check",
+          "outcome": "passed"
+        }
+      ],
+      "targets": [
+        {
+          "target": "repository",
+          "hostVersion": null,
+          "installedPath": null,
+          "sha256": null,
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "v0.1.35-fake-home-install",
+      "tier": "fake-home-install",
+      "freshness": "current",
+      "commitSha": "274673b7f73ad9621f885f58bed12572388794b2",
+      "packageVersion": "0.1.35",
+      "timestamp": "2026-07-17T15:00:25.481Z",
+      "commands": [
+        {
+          "command": "npm test -- tests/publish.test.ts",
+          "outcome": "passed"
+        }
+      ],
+      "targets": [
+        {
+          "target": "claude-code,cursor,codex,opencode",
+          "hostVersion": null,
+          "installedPath": null,
+          "sha256": null,
+          "outcome": "passed"
+        }
+      ]
     }
   ]
 }

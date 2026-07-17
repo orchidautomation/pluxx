@@ -188,7 +188,7 @@ The initial author-once hardening tranche is also materially done.
 The public baseline is also real.
 
 - npm package is live as `@orchid-labs/pluxx`
-- the canonical repository version is `@orchid-labs/pluxx@0.1.34`; previous `v0.1.33` evidence is historical after this release ships
+- the canonical repository version is `@orchid-labs/pluxx@0.1.35`; previous `v0.1.34` evidence is historical after this release ships
 - proof claims now use [docs/proof-freshness.md](../proof-freshness.md) and [docs/proof-manifest.json](../proof-manifest.json) so historical host runs cannot masquerade as current evidence
 - published CLI runtime is Node `>=18`
 - published CLI lifecycle ergonomics are now stronger for global installs:
@@ -514,6 +514,17 @@ Coordinator-owned after this task:
 - dispatch the trusted tag workflow for `v0.1.34` after merge
 - monitor publishing and verify npm, GitHub, tarball, and CLI surfaces
 - archive completed tasks
+
+### 7. v0.1.35 OpenCode plugin-root patch release
+
+Current work:
+
+- [x] PLUXX-335 OpenCode plugin-root/workspace-root fix merged through PR #449
+- [x] bump `package.json` and `package-lock.json` to 0.1.35
+- [x] generate fresh repository-validation and fake-home-install receipts for 0.1.35 release-prep state
+- [ ] pass `npm run release:check`
+- [ ] push immutable tag `v0.1.35` from main
+- [ ] verify npm, GitHub release assets, tarball contents, and CLI behavior
 
 ### 7. Historical v0.1.28 release checklist
 
