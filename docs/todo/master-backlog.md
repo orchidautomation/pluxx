@@ -82,15 +82,15 @@ Any person or agent should be able to enter the repo and answer:
 
 Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) defines the five evidence tiers and freshness rules, while [proof-manifest.json](../proof-manifest.json) keeps machine-readable receipts and current/historical claim state aligned with `package.json`.
 
-### 0. v0.1.33 legacy installer adoption release
+### 0. v0.1.34 shared-runtime release
 
 - [x] Merge all nine PLUXX-313 through PLUXX-321 audit-remediation PRs into main at `f92e3cc`
-- [x] Prepare 0.1.33 in PLUXX-333 with synchronized package, proof, planning, and release truth
-- [x] Generate fresh repository-validation and fake-home-install receipts for 0.1.33 tagged state
+- [x] Prepare 0.1.34 with synchronized package, proof, planning, and release truth
+- [x] Generate fresh repository-validation and fake-home-install receipts for 0.1.34 release-prep state
 - [x] Pass the official serial suite and complete release gate
-- [x] Merge the release PR and push immutable tag `v0.1.33` from main
+- [ ] Merge the release PR and push immutable tag `v0.1.34` from main
 - [x] Merge the focused legacy-installer-adoption PR after substantive checks and review are green
-- [ ] Coordinator: dispatch the trusted tag workflow, verify npm/GitHub/tarball/CLI, then archive the completed batch
+- [ ] Coordinator: dispatch the trusted tag workflow for `v0.1.34`, verify npm/GitHub/tarball/CLI, then archive the completed batch
 
 ### 1. Product clarity and front-door coherence
 
@@ -451,15 +451,16 @@ Open work:
 
 - [x] Merge the nine v0.1.31 audit-remediation PRs
 - [x] Prepare and merge the historical focused v0.1.32 release PR under PLUXX-322
-- [ ] Prepare and merge the focused v0.1.33 legacy installer adoption PR under PLUXX-333
+- [x] Historical: prepare and merge the focused v0.1.33 legacy installer adoption PR under PLUXX-333
 - [x] Preserve historical repository/fake-home receipts from committed 0.1.32 state
-- [x] Refresh current repository/fake-home receipts from 0.1.33 tagged state
+- [x] Historical: refresh repository/fake-home receipts from 0.1.33 tagged state
 - [x] Pass targeted checks, official serial 758/758 `npm test`, and `npm run release:check`
 - [x] Merge the release-prep PR and push `v0.1.32` at `188527e`
 - [x] Merge the PLUXX-333 release PR and push `v0.1.33` from main
 - [ ] Merge the legacy-installer-adoption PR, then dispatch the trusted tag workflow
 - [x] Verify `@orchid-labs/pluxx@0.1.32`, GitHub release assets, tarball contents, and CLI behavior
-- [ ] Verify `@orchid-labs/pluxx@0.1.33`, GitHub release assets, tarball contents, and CLI behavior
+- [x] Historical: verify `@orchid-labs/pluxx@0.1.33`, GitHub release assets, tarball contents, and CLI behavior
+- [ ] Verify `@orchid-labs/pluxx@0.1.34`, GitHub release assets, tarball contents, and CLI behavior
 
 ## Next
 

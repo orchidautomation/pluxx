@@ -1,0 +1,20 @@
+{
+  "id": "v0.1.34-fake-home-install",
+  "tier": "fake-home-install",
+  "freshness": "current",
+  "commands": [
+    {
+      "command": "npm test -- tests/publish.test.ts",
+      "outcome": "passed"
+    }
+  ],
+  "targets": [
+    {
+      "target": "claude-code,cursor,codex,opencode",
+      "hostVersion": null,
+      "installedPath": null,
+      "sha256": null,
+      "outcome": "passed"
+    }
+  ]
+}
