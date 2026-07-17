@@ -146,7 +146,7 @@ When both channels are enabled, failure handling should report per-channel outco
 - generated per-host installers pin their tagged release, use bounded retries/timeouts, verify manifest identity and archive checksum, reject absolute/traversal paths and link archive members, and only then extract
 - generated installers take an install-scoped lock, recover the prior bundle and ownership/companion state across signal interruption or post-swap failure, and refuse concurrent swaps
 - config and runtime bootstrap run against a staged candidate; the previous install remains live until staging succeeds and is restored when commit-time work fails
-- plugins opt into native runtime reuse with `sharedRuntime`, whose bundle-relative bootstrap, declared inputs, and output are compiled into the same `.pluxx-runtime.json` contract for every target
+- plugins opt into native runtime reuse with `sharedRuntime`, whose bundle-relative bootstrap, declared inputs (including a deterministic lockfile), and output are compiled into the same `.pluxx-runtime.json` contract for every target
 - generated installers key the Pluxx-managed store by the complete runtime contract, every declared input, bootstrap content, plugin namespace, OS, architecture, Node ABI, and runtime contract version
 - compatible host installs link their staged runtime output to a read-only generation, validate warm generations with file metadata instead of rehashing dependency bytes, and atomically switch the stable `current` link when corruption requires a rebuilt generation
 - stale locks owned by dead processes are recovered; an active lock timeout or unavailable symlink falls back to the previous host-local staged bootstrap behavior

@@ -68,7 +68,7 @@ Remote/native MCP auth materialization remains separate: bearer/header auth that
 
 ## Generated Native Dependency Runtime Store
 
-Generated GitHub Release installers prepare platform-native Node dependencies in a shared Pluxx runtime store when the plugin opts in with `sharedRuntime`. The compiler emits the same `.pluxx-runtime.json` contract into every configured target bundle.
+Generated GitHub Release installers prepare platform-native Node dependencies in a shared Pluxx runtime store when the plugin opts in with `sharedRuntime` and declares a deterministic lockfile among its inputs. The compiler emits the same `.pluxx-runtime.json` contract into every configured target bundle.
 
 The store lives under `~/.pluxx/runtimes/` by default and is keyed by:
 

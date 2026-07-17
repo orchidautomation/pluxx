@@ -1266,6 +1266,16 @@ if (config.schema !== 'pluxx.shared-runtime-config.v1'
   || !config.inputs.every(isSafeRelativePath)) {
   throw new Error('Invalid .pluxx-runtime.json shared runtime contract.')
 }
+const hasDeclaredLockfile = config.inputs.some((relativePath) => {
+  const basename = path.basename(relativePath).toLowerCase()
+  return basename === 'bun.lockb' || /(?:^|[-_.])(lock|lockfile|shrinkwrap)(?:[-_.]|$)/.test(basename)
+})
+if (!hasDeclaredLockfile) {
+  console.error('Shared runtime inputs do not declare a deterministic lockfile; preparing runtime in the host bundle instead.')
+  bootstrapRelativePath = config.bootstrap
+  bootstrapLocal()
+  process.exit(0)
+}
 const resolvedOutput = path.resolve(candidateRoot, config.output)
 for (const runtimeInput of [config.bootstrap, ...config.inputs]) {
   const resolvedInput = path.resolve(candidateRoot, runtimeInput)
