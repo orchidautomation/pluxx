@@ -39,7 +39,7 @@ If you want the shortest public proof and install path after this file, use [doc
 
 If you want the current release, distribution, and proof boundary, use [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md).
 
-If you need to know whether a proof claim is current, historical, repository-only, installed, or real-host evidence, use [docs/proof-freshness.md](./proof-freshness.md) and [docs/proof-manifest.json](./proof-manifest.json). Canonical repository version truth is `package.json` (`0.1.33`) and the proof manifest marks `v0.1.33` as tagged. The previous `v0.1.32` tag and package are historical release evidence for the prior baseline.
+If you need to know whether a proof claim is current, historical, repository-only, installed, or real-host evidence, use [docs/proof-freshness.md](./proof-freshness.md) and [docs/proof-manifest.json](./proof-manifest.json). Canonical repository version truth is `package.json` (`0.1.34`) and the proof manifest marks `v0.1.34` as release prep. The previous `v0.1.33` tag and package are historical release evidence for the prior baseline.
 
 If you want the primitive-by-host proof ledger behind the core-four native shipping claim, use [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md).
 
@@ -369,7 +369,7 @@ The repo already proves a lot.
 - historical release-gate evidence from 2026-05-19 remains available but is not current proof:
   - `npm test` passed
   - `npm run release:check` passed
-- the canonical repository version is `@orchid-labs/pluxx@0.1.33`; previous `v0.1.32` release evidence is historical
+- the canonical repository version is `@orchid-labs/pluxx@0.1.34`; previous `v0.1.33` release evidence is historical
 - marketplace submission APIs, a managed trust/distribution control plane, automatic rollback/unpublish orchestration, and real authenticated publish plus rollback proof remain explicit release gaps, not hidden shipped capabilities:
   - `docs/release-distribution-proof-map.md`
   - “automatic rollback” here means remote release rollback/unpublish; generated local installers now restore the prior bundle when staged setup fails
@@ -539,9 +539,9 @@ Run two lanes in parallel:
 
 ### 6. Release State
 
-The canonical repository version is `0.1.33`, tagged as `v0.1.33`. The previous `v0.1.32` tag and package are historical release evidence for the prior baseline. `package.json` is the source of truth for repository docs, while [proof-manifest.json](./proof-manifest.json) records tag state and proof freshness.
+The canonical repository version is `0.1.34`, preparing tag `v0.1.34`. The previous `v0.1.33` tag and package are historical release evidence for the prior baseline. `package.json` is the source of truth for repository docs, while [proof-manifest.json](./proof-manifest.json) records tag state and proof freshness.
 
-For v0.1.33, the focused fix is merged and the immutable tag has been pushed; finish GitHub release recovery, then verify npm, GitHub, the published tarball, and CLI behavior. Future releases should repeat the version bump and proof-prep work on a focused PR before tagging.
+For v0.1.34, the shared-runtime implementation is merged and the focused release is being prepared; after review, push the immutable tag and verify npm, GitHub, the published tarball, and CLI behavior. Future releases should repeat the version bump and proof-prep work on a focused PR before tagging.
 
 ## Working Rules
 
