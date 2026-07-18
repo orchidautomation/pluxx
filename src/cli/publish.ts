@@ -7,6 +7,7 @@ import type { PluginConfig, TargetPlatform } from '../schema'
 import { collectRuntimeInheritedStdioEnvVars, collectUserConfigEntries, defaultUserConfigEnvVar } from '../user-config'
 import { getPublishReloadInstruction } from '../distribution-lifecycle'
 import { collectNativeMcpAuthUserConfigEntries } from '../mcp-native-overrides'
+import { buildOpenCodeEntryFile, toOpenCodeExportName } from '../opencode-entry'
 
 type PublishChannel = 'npm' | 'github-release'
 type PublishAssetKind = 'archive' | 'installer' | 'manifest' | 'checksum'
@@ -2793,6 +2794,10 @@ echo "${getPublishReloadInstruction('codex')}"
 }
 
 function renderInstallOpenCodeScript(config: PluginConfig): string {
+  const pluginNameToken = '__PLUXX_RUNTIME_PLUGIN_NAME__'
+  const exportNameToken = toOpenCodeExportName(pluginNameToken)
+  const entryFileTemplate = buildOpenCodeEntryFile(pluginNameToken)
+
   return `#!/usr/bin/env bash
 set -Eeuo pipefail
 
@@ -2917,14 +2922,52 @@ const frontmatterName = (content) => {
   const nameMatch = match[1].match(/^name:\\s*(.+)$/m)
   return nameMatch ? nameMatch[1].trim().replace(/^['"]|['"]$/g, '') : undefined
 }
+const toOpenCodeExportName = (name) => name
+  .split(/[^A-Za-z0-9]+/)
+  .filter(Boolean)
+  .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+  .join('')
+const normalizeOpenCodeEntryContent = (content) => content.replace(/\\r\\n/g, '\\n').trim()
+const currentOpenCodeWrapperContent = () => ${JSON.stringify(entryFileTemplate)}
+  .replaceAll(${JSON.stringify(pluginNameToken)}, pluginName)
+  .replaceAll(${JSON.stringify(exportNameToken)}, toOpenCodeExportName(pluginName))
+fs.mkdirSync(stageRoot, { recursive: true })
+fs.writeFileSync(path.join(stageRoot, 'entry.ts'), currentOpenCodeWrapperContent())
+const legacyOpenCodeWrapperContent = () => {
+  const exportName = toOpenCodeExportName(pluginName)
+  return [
+    'import type { Plugin } from "@opencode-ai/plugin"',
+    'import { join } from "path"',
+    '',
+    'import * as PluginModule from "./' + pluginName + '/index.ts"',
+    '',
+    '// OpenCode auto-loads plugin files placed directly in ~/.config/opencode/plugins.',
+    '// Proxy into the installed plugin bundle while preserving its expected root.',
+    'const pluginFactory = Object.values(PluginModule).find((value): value is Plugin => typeof value === "function")',
+    '',
+    'if (!pluginFactory) {',
+    '  throw new Error("OpenCode plugin bundle for ' + pluginName + ' did not export a plugin function.")',
+    '}',
+    '',
+    'export const ' + exportName + ': Plugin = async (context) =>',
+    '  pluginFactory({',
+    '    ...context,',
+    '    directory: join(context.directory, "' + pluginName + '"),',
+    '  })',
+    '',
+  ].join('\\n')
+}
+const isRecognizedOpenCodeWrapper = (content) => {
+  const normalized = normalizeOpenCodeEntryContent(content)
+  return normalized === normalizeOpenCodeEntryContent(currentOpenCodeWrapperContent())
+    || normalized === normalizeOpenCodeEntryContent(legacyOpenCodeWrapperContent())
+}
 const isTrustedLegacyOpenCodeCompanion = (candidate) => {
   if (candidate.remove || !fs.existsSync(candidate.destination)) return false
   if (candidate.kind === 'file') {
     if (!fs.lstatSync(candidate.destination).isFile() || fs.lstatSync(candidate.destination).isSymbolicLink()) return false
     const content = fs.readFileSync(candidate.destination, 'utf8')
-    return content.includes('import * as PluginModule from "./' + pluginName + '/index.ts"')
-      && content.includes('directory: join(context.directory, "' + pluginName + '")')
-      && content.includes('Object.values(PluginModule).find')
+    return isRecognizedOpenCodeWrapper(content)
   }
   if (candidate.kind === 'copy' && candidate.surface.startsWith('skill-')) {
     if (!fs.lstatSync(candidate.destination).isDirectory() || fs.lstatSync(candidate.destination).isSymbolicLink()) return false
@@ -3076,42 +3119,6 @@ PLUXX_OPENCODE_COMPANION_STAGE="$TMP_DIR/opencode-companions"
 PLUXX_OPENCODE_COMPANION_JOURNAL="$TMP_DIR/opencode-companions-journal.json"
 mkdir -p "$PLUXX_OPENCODE_COMPANION_STAGE/skills"
 export ENTRY_PATH PLUGIN_NAME PLUXX_OPENCODE_COMPANION_STAGE
-
-node <<'NODE'
-const fs = require('fs')
-
-const entryPath = process.env.PLUXX_OPENCODE_COMPANION_STAGE + '/entry.ts'
-const pluginName = process.env.PLUGIN_NAME
-const exportName = pluginName
-  .split(/[^A-Za-z0-9]+/)
-  .filter(Boolean)
-  .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-  .join('')
-
-const content = [
-  'import type { Plugin } from "@opencode-ai/plugin"',
-  'import { join } from "path"',
-  '',
-  'import * as PluginModule from "./' + pluginName + '/index.ts"',
-  '',
-  '// OpenCode auto-loads plugin files placed directly in ~/.config/opencode/plugins.',
-  '// Proxy into the installed plugin bundle while preserving its expected root.',
-  'const pluginFactory = Object.values(PluginModule).find((value): value is Plugin => typeof value === "function")',
-  '',
-  'if (!pluginFactory) {',
-  '  throw new Error("OpenCode plugin bundle for ' + pluginName + ' did not export a plugin function.")',
-  '}',
-  '',
-  'export const ' + exportName + ': Plugin = async (context) =>',
-  '  pluginFactory({',
-  '    ...context,',
-  '    directory: join(context.directory, "' + pluginName + '"),',
-  '  })',
-  '',
-].join('\\n')
-
-fs.writeFileSync(entryPath, content)
-NODE
 
 if [[ -d "$PLUXX_TX_STAGE/skills" ]]; then
   for skill_dir in "$PLUXX_TX_STAGE"/skills/*; do

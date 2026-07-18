@@ -82,7 +82,7 @@ The full v0.1.31 audit-remediation tranche is merged. Main now includes safer in
 
 Proof governance now distinguishes unit, bundle-contract, fake-home install, installed-runtime, and real-host behavior evidence. Canonical version/freshness checks run in CI through [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json); historical April/May proof stays available without being treated as current.
 
-The active release-blocking slice is the 0.1.35 OpenCode plugin-root patch release. It ships the generated OpenCode adapter fix that separates installed plugin-root assets from the active workspace directory.
+The active release-blocking slice is the PLUXX-337 follow-up to the 0.1.35 OpenCode plugin-root patch release. The published 0.1.35 release fixed the inner bundle split between installed plugin root and active workspace directory, but installed top-level OpenCode wrappers still need to preserve the host-provided `context.directory` unchanged.
 
 ### 1. Product clarity and source-of-truth coherence
 
@@ -228,7 +228,7 @@ The closure plan is now narrower than it was before:
 - historical release-gate evidence from 2026-05-19 remains available but is not current proof:
   - `npm test` passed
   - `npm run release:check` passed
-- the canonical repository version is `@orchid-labs/pluxx@0.1.35`; previous `v0.1.34` release evidence is historical
+- the canonical repository version is `@orchid-labs/pluxx@0.1.36`; previous `v0.1.35` release evidence is historical
 - the release/distribution/proof boundary is now explicit:
   - [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md)
   - [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md)
@@ -388,11 +388,11 @@ This is for learning and proof, not for prematurely building the full trust laye
 
 ### 6. Next release
 
-The canonical repository version is `0.1.35`, released as tag `v0.1.35`. Current repository-validation and fake-home-install receipts are tied to the PLUXX-335 OpenCode plugin-root fix; previous 0.1.34 proof is historical for the prior release baseline.
+The canonical repository version is `0.1.36`, prepared for tag `v0.1.36`. Current repository-validation and fake-home-install receipts are tied to PLUXX-337 installed top-level OpenCode wrapper workspace passthrough; previous 0.1.35 proof is historical for the prior OpenCode inner-bundle fix.
 
 The next npm cut should stay primarily an operations step rather than a code-confidence rescue step.
 
-- complete the 0.1.35 package, proof, and source-of-truth release for the OpenCode plugin-root patch
+- complete PLUXX-337, then prepare the next patch package, proof, and source-of-truth release for installed OpenCode wrapper workspace passthrough
 - preserve the release proof as current repository-validation and fake-home-install evidence
 - use future focused release PRs and trusted tag workflows for the next package cut
 
