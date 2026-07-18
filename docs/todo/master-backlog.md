@@ -92,13 +92,22 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
 - [ ] Merge the focused 0.1.34 shared-runtime release PR after substantive checks and review are green
 - [ ] Coordinator: dispatch the trusted tag workflow for `v0.1.34`, verify npm/GitHub/tarball/CLI, then archive the completed batch
 
-### 0. v0.1.35 OpenCode plugin-root patch release
+### 0. Historical v0.1.35 OpenCode plugin-root patch release
 
 - [x] Merge PLUXX-335 OpenCode plugin-root/workspace-root fix
-- [x] Prepare 0.1.35 with synchronized package, proof, planning, and release truth
+- [x] Historical: prepare 0.1.35 with synchronized package, proof, planning, and release truth
 - [x] Pass `npm run release:check`
 - [x] Push immutable tag `v0.1.35` from main
 - [x] Verify `@orchid-labs/pluxx@0.1.35`, GitHub release assets, tarball contents, and CLI behavior
+- [~] Complete PLUXX-337 before the next patch release: generated local and release OpenCode top-level wrappers must preserve `context.directory` exactly while the inner bundle continues to derive plugin root from its installed module URL.
+- [ ] Cut and verify the next patch release after PLUXX-337 merges.
+
+### 0. v0.1.36 OpenCode installed-wrapper workspace patch release
+
+- [~] Prepare 0.1.36 through PLUXX-337 with synchronized package, proof, planning, generated release, local install, doctor, verify-install, legacy-adoption, and example fixture truth.
+- [ ] Pass `npm run release:check`
+- [ ] Push immutable tag `v0.1.36` from main
+- [ ] Verify `@orchid-labs/pluxx@0.1.36`, GitHub release assets, tarball contents, and CLI behavior
 
 ### 1. Product clarity and front-door coherence
 

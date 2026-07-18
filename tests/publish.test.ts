@@ -3,6 +3,7 @@ import { createHash } from 'crypto'
 import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'fs'
 import { spawn, spawnSync } from 'child_process'
 import { dirname, resolve } from 'path'
+import { pathToFileURL } from 'url'
 import type { PluginConfig, TargetPlatform } from '../src/schema'
 import { planPublish, runPublish } from '../src/cli/publish'
 import {
@@ -347,6 +348,26 @@ function legacyOpenCodeWrapper(): string {
     '    ...context,',
     '    directory: join(context.directory, "publish-plugin"),',
     '  })',
+    '',
+  ].join('\n')
+}
+
+function currentOpenCodeWrapper(): string {
+  return [
+    'import type { Plugin } from "@opencode-ai/plugin"',
+    '',
+    'import * as PluginModule from "./publish-plugin/index.ts"',
+    '',
+    '// OpenCode auto-loads plugin files placed directly in ~/.config/opencode/plugins.',
+    '// Proxy into the installed plugin bundle while preserving the host workspace context.',
+    'const pluginFactory = Object.values(PluginModule).find((value): value is Plugin => typeof value === "function")',
+    '',
+    'if (!pluginFactory) {',
+    '  throw new Error("OpenCode plugin bundle for publish-plugin did not export a plugin function.")',
+    '}',
+    '',
+    'export const PublishPlugin: Plugin = async (context) =>',
+    '  pluginFactory(context)',
     '',
   ].join('\n')
 }
@@ -2411,9 +2432,111 @@ with tarfile.open(archive, 'w:gz') as tf:
 
       if (platform === 'opencode') {
         expect(readFileSync(resolve(run.rootDir, 'publish-plugin.ts'), 'utf-8')).toContain('OpenCode auto-loads plugin files')
+        expect(readFileSync(resolve(run.rootDir, 'publish-plugin.ts'), 'utf-8')).toContain('pluginFactory(context)')
+        expect(readFileSync(resolve(run.rootDir, 'publish-plugin.ts'), 'utf-8')).not.toContain('directory: join(context.directory, "publish-plugin")')
         expect(readFileSync(resolve(run.rootDir, 'opencode-skills/publish-plugin-client-intel/SKILL.md'), 'utf-8')).toContain('name: publish-plugin/client-intel')
       }
     }
+  })
+
+  it('adopts trusted pre-ownership OpenCode wrappers generated with the current workspace passthrough shape', () => {
+    const run = runGeneratedInstaller('opencode', {
+      config: { ...makeUserConfigInstallerConfig('opencode'), targets: ['opencode'] },
+      existingUserConfig: {
+        values: { 'instantly-api-key': 'saved-instantly-key' },
+        env: { SENDLENS_INSTANTLY_API_KEY: 'saved-instantly-key' },
+      },
+      extraFiles: { 'skills/client-intel/SKILL.md': '# Client Intel\n' },
+      setupPaths: (paths) => {
+        writeLegacyInstalledManifest('opencode', paths.pluginInstallDir, matchingLegacyManifestForPlatform('opencode'))
+        const entryPath = paths.env.PLUXX_OPENCODE_ENTRY_PATH
+        mkdirSync(resolve(entryPath, '..'), { recursive: true })
+        writeFileSync(entryPath, currentOpenCodeWrapper())
+
+        const skillDir = resolve(paths.env.PLUXX_OPENCODE_SKILLS_ROOT, 'publish-plugin-client-intel')
+        mkdirSync(skillDir, { recursive: true })
+        writeFileSync(resolve(skillDir, 'SKILL.md'), '---\nname: publish-plugin/client-intel\n---\n\n# Client Intel\n')
+      },
+    })
+
+    expect(run.status, `installer failed:\n${run.stderr}\n${run.stdout}`).toBe(0)
+    expect(readFileSync(resolve(run.rootDir, 'publish-plugin.ts'), 'utf-8')).toContain('pluginFactory(context)')
+    expect(existsSync(generatedInstallerOwnershipPath('opencode', run.rootDir, run.pluginInstallDir))).toBe(true)
+  })
+
+  it('passes the selected workspace unchanged through a generated release OpenCode wrapper', async () => {
+    const config = { ...makeConfig(), targets: ['opencode'] as TargetPlatform[] }
+    const run = runGeneratedInstaller('opencode', {
+      config,
+      prepareRuntime: (rootDir) => ({
+        PLUXX_OPENCODE_INSTALL_DIR: resolve(rootDir, 'publish-plugin'),
+        PLUXX_OPENCODE_ENTRY_PATH: resolve(rootDir, 'publish-plugin.ts'),
+        PLUXX_OPENCODE_SKILLS_ROOT: resolve(rootDir, 'opencode-skills'),
+      }),
+      extraFiles: {
+        'index.ts': [
+          'import { existsSync } from "fs"',
+          'import { join } from "path"',
+          '',
+          'export const PublishPlugin = async (context: { directory: string, config?: { command?: string } }) => ({',
+          '  workspaceRoot: context.directory,',
+          '  nestedWorkspaceExists: existsSync(join(context.directory, "publish-plugin")),',
+          '  command: context.config?.command,',
+          '})',
+          '',
+        ].join('\n'),
+      },
+    })
+    const workspaceRoot = resolve(run.rootDir, 'selected workspace')
+    mkdirSync(workspaceRoot, { recursive: true })
+
+    const entryModule = await import(pathToFileURL(resolve(run.rootDir, 'publish-plugin.ts')).href)
+    const result = await entryModule.PublishPlugin({
+      directory: workspaceRoot,
+      config: { command: 'pluxx-release-wrapper-proof' },
+    })
+
+    expect(result).toEqual({
+      workspaceRoot,
+      nestedWorkspaceExists: false,
+      command: 'pluxx-release-wrapper-proof',
+    })
+  })
+
+  it('rejects unowned OpenCode wrappers that only contain generated-wrapper marker strings', () => {
+    const run = runGeneratedInstaller('opencode', {
+      config: { ...makeUserConfigInstallerConfig('opencode'), targets: ['opencode'] },
+      existingUserConfig: {
+        values: { 'instantly-api-key': 'saved-instantly-key' },
+        env: { SENDLENS_INSTANTLY_API_KEY: 'saved-instantly-key' },
+      },
+      setupPaths: (paths) => {
+        writeLegacyInstalledManifest('opencode', paths.pluginInstallDir, matchingLegacyManifestForPlatform('opencode'))
+        const entryPath = paths.env.PLUXX_OPENCODE_ENTRY_PATH
+        mkdirSync(resolve(entryPath, '..'), { recursive: true })
+        writeFileSync(
+          entryPath,
+          [
+            'import type { Plugin } from "@opencode-ai/plugin"',
+            'import { join } from "path"',
+            '',
+            'import * as PluginModule from "./publish-plugin/index.ts"',
+            '',
+            '// Object.values(PluginModule).find',
+            '// pluginFactory(context)',
+            '// directory: join(context.directory, "publish-plugin")',
+            'export const PublishPlugin: Plugin = async (context) => ({',
+            '  ...context,',
+            '  directory: join(context.directory, "custom-location"),',
+            '})',
+            '',
+          ].join('\n'),
+        )
+      },
+    })
+
+    expect(run.status).toBe(1)
+    expect(run.stderr).toContain('Refusing to replace unowned OpenCode companion')
   })
 
   it('rejects unowned legacy installs with missing, malformed, or mismatched manifests', () => {

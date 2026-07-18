@@ -494,10 +494,11 @@ function createOpenCodeConsumerFixture(options: { includeEntry?: boolean; includ
       resolve(root, '.config/opencode/plugins/megamind.ts'),
       [
         'import type { Plugin } from "@opencode-ai/plugin"',
-        'import { join } from "path"',
         '',
         'import * as PluginModule from "./megamind/index.ts"',
         '',
+        '// OpenCode auto-loads plugin files placed directly in ~/.config/opencode/plugins.',
+        '// Proxy into the installed Pluxx bundle while preserving the host workspace context.',
         'const pluginFactory = Object.values(PluginModule).find((value): value is Plugin => typeof value === "function")',
         '',
         'if (!pluginFactory) {',
@@ -505,10 +506,7 @@ function createOpenCodeConsumerFixture(options: { includeEntry?: boolean; includ
         '}',
         '',
         'export const Megamind: Plugin = async (context) =>',
-        '  pluginFactory({',
-        '    ...context,',
-        '    directory: join(context.directory, "megamind"),',
-        '  })',
+        '  pluginFactory(context)',
         '',
       ].join('\n'),
     )
@@ -1628,6 +1626,77 @@ describe('doctorConsumer', () => {
       expect(report.checks.some((check) => check.code === 'consumer-opencode-entry-missing' && check.level === 'error')).toBe(true)
     } finally {
       rmSync(resolve(dir, '..', '..', '..', '..'), { recursive: true, force: true })
+    }
+  })
+
+  it('fails OpenCode consumer checks when the host entry rewrites the workspace directory', async () => {
+    const dir = createOpenCodeConsumerFixture()
+    const root = resolve(dir, '..', '..', '..', '..')
+    writeFileSync(
+      resolve(root, '.config/opencode/plugins/megamind.ts'),
+      [
+        'import type { Plugin } from "@opencode-ai/plugin"',
+        'import { join } from "path"',
+        '',
+        'import * as PluginModule from "./megamind/index.ts"',
+        '',
+        'const pluginFactory = Object.values(PluginModule).find((value): value is Plugin => typeof value === "function")',
+        '',
+        'if (!pluginFactory) {',
+        '  throw new Error("OpenCode plugin bundle for megamind did not export a plugin function.")',
+        '}',
+        '',
+        'export const Megamind: Plugin = async (context) =>',
+        '  pluginFactory({',
+        '    ...context,',
+        '    directory: join(context.directory, "megamind"),',
+        '  })',
+        '',
+      ].join('\n'),
+    )
+
+    try {
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(false)
+      expect(report.checks.some((check) => check.code === 'consumer-opencode-entry-invalid' && check.level === 'error')).toBe(true)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  it('fails OpenCode consumer checks when a rewritten host entry only mentions passthrough in a comment', async () => {
+    const dir = createOpenCodeConsumerFixture()
+    const root = resolve(dir, '..', '..', '..', '..')
+    writeFileSync(
+      resolve(root, '.config/opencode/plugins/megamind.ts'),
+      [
+        'import type { Plugin } from "@opencode-ai/plugin"',
+        'import { resolve } from "path"',
+        '',
+        'import * as PluginModule from "./megamind/index.ts"',
+        '',
+        '// pluginFactory(context)',
+        'const pluginFactory = Object.values(PluginModule).find((value): value is Plugin => typeof value === "function")',
+        '',
+        'if (!pluginFactory) {',
+        '  throw new Error("OpenCode plugin bundle for megamind did not export a plugin function.")',
+        '}',
+        '',
+        'export const Megamind: Plugin = async (context) =>',
+        '  pluginFactory({',
+        '    ...context,',
+        '    directory: resolve(context.directory, "megamind"),',
+        '  })',
+        '',
+      ].join('\n'),
+    )
+
+    try {
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(false)
+      expect(report.checks.some((check) => check.code === 'consumer-opencode-entry-invalid' && check.level === 'error')).toBe(true)
+    } finally {
+      rmSync(root, { recursive: true, force: true })
     }
   })
 

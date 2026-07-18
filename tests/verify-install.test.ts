@@ -415,6 +415,59 @@ describe('verifyInstall', () => {
     expect(result.checks[0].errors).toBeGreaterThan(0)
   })
 
+  it('fails OpenCode verification when the host-visible entry rewrites the workspace directory', async () => {
+    mkdirSync(resolve(DIST_DIR, 'opencode/skills/client-intel'), { recursive: true })
+    writeFileSync(
+      resolve(DIST_DIR, 'opencode/package.json'),
+      JSON.stringify({
+        name: 'opencode-verify-plugin',
+        version: '0.1.0',
+        keywords: ['opencode-plugin'],
+        peerDependencies: {
+          '@opencode-ai/plugin': '*',
+        },
+      }),
+    )
+    writeFileSync(resolve(DIST_DIR, 'opencode/index.ts'), 'export const VerifyPlugin = async () => ({});\n')
+    writeFileSync(
+      resolve(DIST_DIR, 'opencode/skills/client-intel/SKILL.md'),
+      '---\nname: client-intel\ndescription: Client intel\n---\n\n# Client Intel\n',
+    )
+
+    await installPlugin(DIST_DIR, 'verify-plugin', ['opencode'], { quiet: true, useNativeClaudeInstall: false })
+    writeFileSync(
+      resolve(HOME_DIR, OPENCODE_ENTRY_PATH),
+      [
+        'import type { Plugin } from "@opencode-ai/plugin"',
+        'import { resolve } from "path"',
+        '',
+        'import * as PluginModule from "./verify-plugin/index.ts"',
+        '',
+        '// pluginFactory(context)',
+        'const pluginFactory = Object.values(PluginModule).find((value): value is Plugin => typeof value === "function")',
+        '',
+        'if (!pluginFactory) {',
+        '  throw new Error("OpenCode plugin bundle for verify-plugin did not export a plugin function.")',
+        '}',
+        '',
+        'export const VerifyPlugin: Plugin = async (context) =>',
+        '  pluginFactory({',
+        '    ...context,',
+        '    directory: resolve(context.directory, "verify-plugin"),',
+        '  })',
+        '',
+      ].join('\n'),
+    )
+
+    const result = await verifyInstall(makeConfig(), {
+      rootDir: ROOT,
+      targets: ['opencode'],
+    })
+
+    expect(result.ok).toBe(false)
+    expect(result.checks[0].issues.some((issue) => issue.code === 'consumer-opencode-entry-invalid')).toBe(true)
+  })
+
   it('fails OpenCode verification when exported skills are not synced globally', async () => {
     mkdirSync(resolve(DIST_DIR, 'opencode/skills/client-intel'), { recursive: true })
     writeFileSync(
@@ -492,7 +545,6 @@ describe('verifyInstall', () => {
       resolve(HOME_DIR, OPENCODE_ENTRY_PATH),
       [
         'import type { Plugin } from "@opencode-ai/plugin"',
-        'import { join } from "path"',
         '',
         'import * as PluginModule from "./verify-plugin/index.ts"',
         '',
@@ -503,10 +555,7 @@ describe('verifyInstall', () => {
         '}',
         '',
         'export const VerifyPlugin: Plugin = async (context) =>',
-        '  pluginFactory({',
-        '    ...context,',
-        '    directory: join(context.directory, "verify-plugin"),',
-        '  })',
+        '  pluginFactory(context)',
         '',
       ].join('\n'),
     )

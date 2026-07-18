@@ -78,12 +78,11 @@ const exportName = pluginName
 
 const content = [
   'import type { Plugin } from "@opencode-ai/plugin"',
-  'import { join } from "path"',
   '',
   'import * as PluginModule from "./' + pluginName + '/index.ts"',
   '',
   '// OpenCode auto-loads plugin files placed directly in ~/.config/opencode/plugins.',
-  '// Proxy into the installed plugin bundle while preserving its expected root.',
+  '// Proxy into the installed plugin bundle while preserving the host workspace context.',
   'const pluginFactory = Object.values(PluginModule).find((value): value is Plugin => typeof value === "function")',
   '',
   'if (!pluginFactory) {',
@@ -91,10 +90,7 @@ const content = [
   '}',
   '',
   'export const ' + exportName + ': Plugin = async (context) =>',
-  '  pluginFactory({',
-  '    ...context,',
-  '    directory: join(context.directory, "' + pluginName + '"),',
-  '  })',
+  '  pluginFactory(context)',
   '',
 ].join('\n')
 

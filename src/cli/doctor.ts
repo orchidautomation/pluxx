@@ -38,6 +38,7 @@ import {
 } from '../codex-permissions-companion'
 import type { ParsedPermissionRule } from '../permissions'
 import { parseTomlValue, stripTomlComment } from '../toml-lite'
+import { isCurrentOpenCodeEntryFile } from '../opencode-entry'
 
 export type DoctorLevel = 'error' | 'warning' | 'info' | 'success'
 
@@ -2455,14 +2456,13 @@ function checkInstalledOpenCodeHostBridge(checks: DoctorCheck[], rootDir: string
 
   const entryContent = readFileSync(entryPath, 'utf-8')
   const expectedImport = `import * as PluginModule from "./${pluginName}/index.ts"`
-  const expectedBridge = `directory: join(context.directory, "${pluginName}")`
 
-  if (!entryContent.includes(expectedImport) || !entryContent.includes(expectedBridge)) {
+  if (!entryContent.includes(expectedImport) || !isCurrentOpenCodeEntryFile(entryContent, pluginName)) {
     addCheck(checks, {
       level: 'error',
       code: 'consumer-opencode-entry-invalid',
       title: 'OpenCode host entry file does not match the installed bundle',
-      detail: `${entryPath} exists, but it does not proxy into ./${pluginName}/index.ts with the expected plugin-root bridge.`,
+      detail: `${entryPath} exists, but it does not proxy into ./${pluginName}/index.ts while passing the OpenCode workspace context through unchanged.`,
       fix: 'Reinstall the plugin so Pluxx can rewrite the OpenCode entry wrapper.',
       path: entryRelativePath,
     })

@@ -188,7 +188,7 @@ The initial author-once hardening tranche is also materially done.
 The public baseline is also real.
 
 - npm package is live as `@orchid-labs/pluxx`
-- the canonical repository version is `@orchid-labs/pluxx@0.1.35`; previous `v0.1.34` evidence is historical
+- the canonical repository version is `@orchid-labs/pluxx@0.1.36`; previous `v0.1.35` evidence is historical
 - proof claims now use [docs/proof-freshness.md](../proof-freshness.md) and [docs/proof-manifest.json](../proof-manifest.json) so historical host runs cannot masquerade as current evidence
 - published CLI runtime is Node `>=18`
 - published CLI lifecycle ergonomics are now stronger for global installs:
@@ -525,6 +525,17 @@ Current work:
 - [x] pass `npm run release:check`
 - [x] push immutable tag `v0.1.35` from main
 - [x] verify npm, GitHub release assets, tarball contents, and CLI behavior
+- [~] PLUXX-337 is the active follow-up: installed local and generated-release OpenCode top-level wrappers must call `pluginFactory(context)` so the selected workspace root is not rewritten to `<workspace>/<plugin>`.
+- [ ] after PLUXX-337 merges, cut the next patch release with refreshed repository-validation and fake-home-install receipts, then verify npm, GitHub release assets, tarball contents, and CLI behavior.
+
+### 8. v0.1.36 OpenCode installed-wrapper workspace patch release
+
+Current work:
+
+- [~] PLUXX-337 prepares 0.1.36 with package, proof, planning, local-install, generated-release, doctor, verify-install, legacy-adoption, and example-release fixture alignment.
+- [ ] pass `npm run release:check`
+- [ ] push immutable tag `v0.1.36` from main after merge
+- [ ] verify npm, GitHub release assets, tarball contents, and CLI behavior
 
 ### 7. Historical v0.1.28 release checklist
 

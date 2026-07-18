@@ -30,9 +30,9 @@ This is the shortest current repo-native path to:
 
 For the fuller release/distribution boundary, including publish commands and deferred marketplace/trust-layer work, use [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md).
 
-Proof labels and freshness come from [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json). The May self-hosted run, April Firecrawl connector run, and previous 0.1.34 release evidence are preserved as historical environment evidence; they are not current host receipts for `0.1.35`.
+Proof labels and freshness come from [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json). The May self-hosted run, April Firecrawl connector run, and previous 0.1.35 release evidence are preserved as historical environment evidence; they are not current host receipts for `0.1.36`.
 
-The current v0.1.35 receipts prove the `bundle-contract` and generated-installer `fake-home-install` tiers from the tagged repository state, including the OpenCode plugin-root fix and maintained core-four fake-home coverage. No current receipt claims installed-runtime or real-host behavior.
+The current v0.1.36 release-prep receipts prove the `bundle-contract` and generated-installer `fake-home-install` tiers from the repository state, including installed top-level OpenCode wrapper workspace passthrough and maintained core-four fake-home coverage. No current receipt claims installed-runtime or real-host behavior until the patch release is cut and publicly verified.
 
 ## The Story In One Screen
 
@@ -209,7 +209,7 @@ curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example
 
 Current release note:
 
-- the canonical repository version is `@orchid-labs/pluxx@0.1.35` for the OpenCode plugin-root patch release; previous `v0.1.34` public release evidence is historical
+- the canonical repository version is `@orchid-labs/pluxx@0.1.36` for the OpenCode installed-wrapper workspace patch release; previous `v0.1.35` public release evidence is historical
 - the published CLI runtime is Node `>=18`; see [runtime contract](./runtime-contract.md)
 - the published package includes the Claude plugin-agent manifest fix and packaged Node runtime verification
 - the public `pluxx test --install --trust --behavioral` path now matches the repo-local Exa proof state

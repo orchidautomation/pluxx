@@ -2917,14 +2917,67 @@ const frontmatterName = (content) => {
   const nameMatch = match[1].match(/^name:\\s*(.+)$/m)
   return nameMatch ? nameMatch[1].trim().replace(/^['"]|['"]$/g, '') : undefined
 }
+const toOpenCodeExportName = (name) => name
+  .split(/[^A-Za-z0-9]+/)
+  .filter(Boolean)
+  .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+  .join('')
+const normalizeOpenCodeEntryContent = (content) => content.replace(/\\r\\n/g, '\\n').trim()
+const currentOpenCodeWrapperContent = () => {
+  const exportName = toOpenCodeExportName(pluginName)
+  return [
+    'import type { Plugin } from "@opencode-ai/plugin"',
+    '',
+    'import * as PluginModule from "./' + pluginName + '/index.ts"',
+    '',
+    '// OpenCode auto-loads plugin files placed directly in ~/.config/opencode/plugins.',
+    '// Proxy into the installed plugin bundle while preserving the host workspace context.',
+    'const pluginFactory = Object.values(PluginModule).find((value): value is Plugin => typeof value === "function")',
+    '',
+    'if (!pluginFactory) {',
+    '  throw new Error("OpenCode plugin bundle for ' + pluginName + ' did not export a plugin function.")',
+    '}',
+    '',
+    'export const ' + exportName + ': Plugin = async (context) =>',
+    '  pluginFactory(context)',
+    '',
+  ].join('\\n')
+}
+const legacyOpenCodeWrapperContent = () => {
+  const exportName = toOpenCodeExportName(pluginName)
+  return [
+    'import type { Plugin } from "@opencode-ai/plugin"',
+    'import { join } from "path"',
+    '',
+    'import * as PluginModule from "./' + pluginName + '/index.ts"',
+    '',
+    '// OpenCode auto-loads plugin files placed directly in ~/.config/opencode/plugins.',
+    '// Proxy into the installed plugin bundle while preserving its expected root.',
+    'const pluginFactory = Object.values(PluginModule).find((value): value is Plugin => typeof value === "function")',
+    '',
+    'if (!pluginFactory) {',
+    '  throw new Error("OpenCode plugin bundle for ' + pluginName + ' did not export a plugin function.")',
+    '}',
+    '',
+    'export const ' + exportName + ': Plugin = async (context) =>',
+    '  pluginFactory({',
+    '    ...context,',
+    '    directory: join(context.directory, "' + pluginName + '"),',
+    '  })',
+    '',
+  ].join('\\n')
+}
+const isRecognizedOpenCodeWrapper = (content) => {
+  const normalized = normalizeOpenCodeEntryContent(content)
+  return normalized === normalizeOpenCodeEntryContent(currentOpenCodeWrapperContent())
+    || normalized === normalizeOpenCodeEntryContent(legacyOpenCodeWrapperContent())
+}
 const isTrustedLegacyOpenCodeCompanion = (candidate) => {
   if (candidate.remove || !fs.existsSync(candidate.destination)) return false
   if (candidate.kind === 'file') {
     if (!fs.lstatSync(candidate.destination).isFile() || fs.lstatSync(candidate.destination).isSymbolicLink()) return false
     const content = fs.readFileSync(candidate.destination, 'utf8')
-    return content.includes('import * as PluginModule from "./' + pluginName + '/index.ts"')
-      && content.includes('directory: join(context.directory, "' + pluginName + '")')
-      && content.includes('Object.values(PluginModule).find')
+    return isRecognizedOpenCodeWrapper(content)
   }
   if (candidate.kind === 'copy' && candidate.surface.startsWith('skill-')) {
     if (!fs.lstatSync(candidate.destination).isDirectory() || fs.lstatSync(candidate.destination).isSymbolicLink()) return false
@@ -3082,33 +3135,33 @@ const fs = require('fs')
 
 const entryPath = process.env.PLUXX_OPENCODE_COMPANION_STAGE + '/entry.ts'
 const pluginName = process.env.PLUGIN_NAME
-const exportName = pluginName
+const toOpenCodeExportName = (name) => name
   .split(/[^A-Za-z0-9]+/)
   .filter(Boolean)
   .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
   .join('')
+const currentOpenCodeWrapperContent = () => {
+  const exportName = toOpenCodeExportName(pluginName)
+  return [
+    'import type { Plugin } from "@opencode-ai/plugin"',
+    '',
+    'import * as PluginModule from "./' + pluginName + '/index.ts"',
+    '',
+    '// OpenCode auto-loads plugin files placed directly in ~/.config/opencode/plugins.',
+    '// Proxy into the installed plugin bundle while preserving the host workspace context.',
+    'const pluginFactory = Object.values(PluginModule).find((value): value is Plugin => typeof value === "function")',
+    '',
+    'if (!pluginFactory) {',
+    '  throw new Error("OpenCode plugin bundle for ' + pluginName + ' did not export a plugin function.")',
+    '}',
+    '',
+    'export const ' + exportName + ': Plugin = async (context) =>',
+    '  pluginFactory(context)',
+    '',
+  ].join('\\n')
+}
 
-const content = [
-  'import type { Plugin } from "@opencode-ai/plugin"',
-  'import { join } from "path"',
-  '',
-  'import * as PluginModule from "./' + pluginName + '/index.ts"',
-  '',
-  '// OpenCode auto-loads plugin files placed directly in ~/.config/opencode/plugins.',
-  '// Proxy into the installed plugin bundle while preserving its expected root.',
-  'const pluginFactory = Object.values(PluginModule).find((value): value is Plugin => typeof value === "function")',
-  '',
-  'if (!pluginFactory) {',
-  '  throw new Error("OpenCode plugin bundle for ' + pluginName + ' did not export a plugin function.")',
-  '}',
-  '',
-  'export const ' + exportName + ': Plugin = async (context) =>',
-  '  pluginFactory({',
-  '    ...context,',
-  '    directory: join(context.directory, "' + pluginName + '"),',
-  '  })',
-  '',
-].join('\\n')
+const content = currentOpenCodeWrapperContent()
 
 fs.writeFileSync(entryPath, content)
 NODE

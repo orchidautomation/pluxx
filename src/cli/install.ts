@@ -41,6 +41,7 @@ import {
   transactionalInstall,
   transactionalInstallGroup,
 } from '../install-ownership'
+import { buildOpenCodeEntryFile, isCurrentOpenCodeEntryFile } from '../opencode-entry'
 
 interface InstallTarget {
   platform: TargetPlatform
@@ -370,39 +371,6 @@ function getOpenCodeEntryPath(pluginDir: string): string {
   return `${pluginDir}.ts`
 }
 
-function toPascalCase(value: string): string {
-  return value
-    .split(/[^A-Za-z0-9]+/)
-    .filter(Boolean)
-    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-    .join('')
-}
-
-function buildOpenCodeEntryFile(pluginName: string): string {
-  const exportName = toPascalCase(pluginName)
-  return [
-      'import type { Plugin } from "@opencode-ai/plugin"',
-      'import { join } from "path"',
-      '',
-      `import * as PluginModule from "./${pluginName}/index.ts"`,
-      '',
-      '// OpenCode auto-loads plugin files placed directly in ~/.config/opencode/plugins.',
-      '// Proxy into the installed Pluxx bundle while preserving its expected root.',
-      `const pluginFactory = Object.values(PluginModule).find((value): value is Plugin => typeof value === "function")`,
-      '',
-      'if (!pluginFactory) {',
-      `  throw new Error("OpenCode plugin bundle for ${pluginName} did not export a plugin function.")`,
-      '}',
-      '',
-      `export const ${exportName}: Plugin = async (context) =>`,
-      `  pluginFactory({`,
-      '    ...context,',
-      `    directory: join(context.directory, "${pluginName}"),`,
-      '  })',
-      '',
-    ].join('\n')
-}
-
 function getOpenCodeSkillRoot(): string {
   const home = process.env.HOME ?? '~'
   return resolve(home, '.config/opencode/skills')
@@ -461,9 +429,8 @@ function verifyOpenCodeInstall(pluginDir: string, pluginName: string): void {
     throw new Error(`OpenCode install is incomplete: ${entryPath} does not import ./${pluginName}/index.ts`)
   }
 
-  const expectedDirectoryBridge = `directory: join(context.directory, "${pluginName}")`
-  if (!entryContent.includes(expectedDirectoryBridge)) {
-    throw new Error(`OpenCode install is incomplete: ${entryPath} does not preserve the plugin root bridge`)
+  if (!isCurrentOpenCodeEntryFile(entryContent, pluginName)) {
+    throw new Error(`OpenCode install is incomplete: ${entryPath} does not pass the host workspace context through unchanged`)
   }
 
   const sourceSkillsDir = resolve(pluginDir, 'skills')
