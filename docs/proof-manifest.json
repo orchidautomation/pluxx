@@ -346,6 +346,9 @@
       "id": "v0.1.34-fake-home-install",
       "tier": "fake-home-install",
       "freshness": "historical",
+      "commitSha": "54d1af9dd0e529f1942b0027e9edfd356e0a829c",
+      "packageVersion": "0.1.34",
+      "timestamp": "2026-07-17T04:17:09.764Z",
       "commands": [
         {
           "command": "npm test -- tests/publish.test.ts",
@@ -360,10 +363,7 @@
           "sha256": null,
           "outcome": "passed"
         }
-      ],
-      "commitSha": "54d1af9dd0e529f1942b0027e9edfd356e0a829c",
-      "packageVersion": "0.1.34",
-      "timestamp": "2026-07-17T04:17:09.764Z"
+      ]
     },
     {
       "id": "v0.1.35-repository-validation",
@@ -415,9 +415,9 @@
       "id": "v0.1.36-repository-validation",
       "tier": "bundle-contract",
       "freshness": "current",
-      "commitSha": "6c1d090e7cefd3f0db85518b4896d6aa143cbe54",
+      "commitSha": "8d76ff3acbde7643184c0fb6d2af1223462d8dfb",
       "packageVersion": "0.1.36",
-      "timestamp": "2026-07-18T18:56:35.000Z",
+      "timestamp": "2026-07-18T20:22:40.549Z",
       "commands": [
         {
           "command": "npm run release:check",
@@ -438,24 +438,24 @@
       "id": "v0.1.36-fake-home-install",
       "tier": "fake-home-install",
       "freshness": "current",
-      "commitSha": "6c1d090e7cefd3f0db85518b4896d6aa143cbe54",
-      "packageVersion": "0.1.36",
-      "timestamp": "2026-07-18T18:56:35.000Z",
       "commands": [
         {
-          "command": "npm test -- tests/publish.test.ts",
+          "command": "bun test tests/publish.test.ts tests/doctor.test.ts tests/install.test.ts tests/verify-install.test.ts",
           "outcome": "passed"
         }
       ],
       "targets": [
         {
-          "target": "claude-code,cursor,codex,opencode",
+          "target": "opencode",
           "hostVersion": null,
           "installedPath": null,
           "sha256": null,
           "outcome": "passed"
         }
-      ]
+      ],
+      "commitSha": "8d76ff3acbde7643184c0fb6d2af1223462d8dfb",
+      "packageVersion": "0.1.36",
+      "timestamp": "2026-07-18T20:22:45.326Z"
     }
   ]
 }
