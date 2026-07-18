@@ -6,6 +6,8 @@ import { dirname, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import type { PluginConfig, TargetPlatform } from '../src/schema'
 import { planPublish, runPublish } from '../src/cli/publish'
+import { doctorConsumer } from '../src/cli/doctor'
+import { buildOpenCodeEntryFile } from '../src/opencode-entry'
 import {
   makeSecretReferenceFixtureConfig,
   SECRET_REFERENCE_ENV_VAR,
@@ -353,23 +355,7 @@ function legacyOpenCodeWrapper(): string {
 }
 
 function currentOpenCodeWrapper(): string {
-  return [
-    'import type { Plugin } from "@opencode-ai/plugin"',
-    '',
-    'import * as PluginModule from "./publish-plugin/index.ts"',
-    '',
-    '// OpenCode auto-loads plugin files placed directly in ~/.config/opencode/plugins.',
-    '// Proxy into the installed plugin bundle while preserving the host workspace context.',
-    'const pluginFactory = Object.values(PluginModule).find((value): value is Plugin => typeof value === "function")',
-    '',
-    'if (!pluginFactory) {',
-    '  throw new Error("OpenCode plugin bundle for publish-plugin did not export a plugin function.")',
-    '}',
-    '',
-    'export const PublishPlugin: Plugin = async (context) =>',
-    '  pluginFactory(context)',
-    '',
-  ].join('\n')
+  return buildOpenCodeEntryFile('publish-plugin')
 }
 
 function getGeneratedInstallerPaths(platform: TargetPlatform, rootDir: string): {
@@ -2466,14 +2452,27 @@ with tarfile.open(archive, 'w:gz') as tf:
 
   it('passes the selected workspace unchanged through a generated release OpenCode wrapper', async () => {
     const config = { ...makeConfig(), targets: ['opencode'] as TargetPlatform[] }
+    let installedBundle = ''
+    let installedEntry = ''
     const run = runGeneratedInstaller('opencode', {
       config,
-      prepareRuntime: (rootDir) => ({
-        PLUXX_OPENCODE_INSTALL_DIR: resolve(rootDir, 'publish-plugin'),
-        PLUXX_OPENCODE_ENTRY_PATH: resolve(rootDir, 'publish-plugin.ts'),
-        PLUXX_OPENCODE_SKILLS_ROOT: resolve(rootDir, 'opencode-skills'),
-      }),
+      prepareRuntime: (rootDir) => {
+        installedBundle = resolve(rootDir, 'home/.config/opencode/plugins/publish-plugin')
+        installedEntry = `${installedBundle}.ts`
+        return {
+          PLUXX_OPENCODE_INSTALL_DIR: installedBundle,
+          PLUXX_OPENCODE_ENTRY_PATH: installedEntry,
+          PLUXX_OPENCODE_SKILLS_ROOT: resolve(rootDir, 'home/.config/opencode/skills'),
+        }
+      },
       extraFiles: {
+        'package.json': JSON.stringify({
+          name: '@orchid/publish-plugin-opencode',
+          version: '1.2.3',
+          type: 'module',
+          peerDependencies: { '@opencode-ai/plugin': '^1.0.0' },
+          keywords: ['opencode-plugin'],
+        }),
         'index.ts': [
           'import { existsSync } from "fs"',
           'import { join } from "path"',
@@ -2490,7 +2489,15 @@ with tarfile.open(archive, 'w:gz') as tf:
     const workspaceRoot = resolve(run.rootDir, 'selected workspace')
     mkdirSync(workspaceRoot, { recursive: true })
 
-    const entryModule = await import(pathToFileURL(resolve(run.rootDir, 'publish-plugin.ts')).href)
+    expect(readFileSync(installedEntry, 'utf-8')).toBe(buildOpenCodeEntryFile('publish-plugin'))
+
+    const doctorReport = await doctorConsumer(installedBundle, { projectRoot: run.rootDir })
+    expect(doctorReport.checks).toContainEqual(expect.objectContaining({
+      level: 'success',
+      code: 'consumer-opencode-entry-valid',
+    }))
+
+    const entryModule = await import(pathToFileURL(installedEntry).href)
     const result = await entryModule.PublishPlugin({
       directory: workspaceRoot,
       config: { command: 'pluxx-release-wrapper-proof' },

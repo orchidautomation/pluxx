@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'bun:test'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs'
+import { spawnSync } from 'child_process'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { resolve } from 'path'
 import { doctorConsumer, doctorProject } from '../src/cli/doctor'
+import { buildOpenCodeEntryFile } from '../src/opencode-entry'
 
 const ROOT = resolve(import.meta.dir, '..')
 
@@ -492,23 +494,7 @@ function createOpenCodeConsumerFixture(options: { includeEntry?: boolean; includ
   if (includeEntry) {
     writeFileSync(
       resolve(root, '.config/opencode/plugins/megamind.ts'),
-      [
-        'import type { Plugin } from "@opencode-ai/plugin"',
-        '',
-        'import * as PluginModule from "./megamind/index.ts"',
-        '',
-        '// OpenCode auto-loads plugin files placed directly in ~/.config/opencode/plugins.',
-        '// Proxy into the installed Pluxx bundle while preserving the host workspace context.',
-        'const pluginFactory = Object.values(PluginModule).find((value): value is Plugin => typeof value === "function")',
-        '',
-        'if (!pluginFactory) {',
-        '  throw new Error("OpenCode plugin bundle for megamind did not export a plugin function.")',
-        '}',
-        '',
-        'export const Megamind: Plugin = async (context) =>',
-        '  pluginFactory(context)',
-        '',
-      ].join('\n'),
+      buildOpenCodeEntryFile('megamind'),
     )
   }
 
@@ -789,6 +775,40 @@ describe('doctorProject', () => {
 })
 
 describe('doctorConsumer', () => {
+  it('validates the OpenCode wrapper materialized by the Exa example installer', async () => {
+    const root = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-exa-installer-'))
+    const pluginName = 'exa-research-example'
+    const pluginDir = resolve(root, '.config/opencode/plugins', pluginName)
+    const entryPath = `${pluginDir}.ts`
+    mkdirSync(pluginDir, { recursive: true })
+    writeFileSync(resolve(pluginDir, 'index.ts'), 'export const ExaResearchExample = async () => ({});\n')
+    writeFileSync(resolve(pluginDir, 'package.json'), JSON.stringify({
+      name: `opencode-${pluginName}`,
+      version: '0.1.0',
+      keywords: ['opencode-plugin'],
+      peerDependencies: { '@opencode-ai/plugin': '*' },
+    }))
+
+    const installer = readFileSync(resolve(ROOT, 'example/exa-plugin/release/install-opencode.sh'), 'utf8')
+    const marker = 'export ENTRY_PATH\nexport PLUGIN_NAME\n\nnode <<\'NODE\'\n'
+    const start = installer.indexOf(marker)
+    expect(start).toBeGreaterThanOrEqual(0)
+    const bodyStart = start + marker.length
+    const bodyEnd = installer.indexOf('\nNODE', bodyStart)
+    expect(bodyEnd).toBeGreaterThan(bodyStart)
+
+    const run = spawnSync('node', ['-e', installer.slice(bodyStart, bodyEnd)], {
+      env: { ...process.env, ENTRY_PATH: entryPath, PLUGIN_NAME: pluginName },
+    })
+    expect(run.status).toBe(0)
+    expect(run.stderr.toString()).toBe('')
+    expect(readFileSync(entryPath, 'utf8')).toBe(buildOpenCodeEntryFile(pluginName))
+
+    const report = await doctorConsumer(pluginDir)
+    expect(report.ok).toBe(true)
+    expect(report.checks).toContainEqual(expect.objectContaining({ code: 'consumer-opencode-entry-valid' }))
+  })
+
   it('reports installed bundle health for a secret-reference consumer install', async () => {
     const dir = createSafeConsumerFixture()
 

@@ -7,6 +7,7 @@ import type { PluginConfig, TargetPlatform } from '../schema'
 import { collectRuntimeInheritedStdioEnvVars, collectUserConfigEntries, defaultUserConfigEnvVar } from '../user-config'
 import { getPublishReloadInstruction } from '../distribution-lifecycle'
 import { collectNativeMcpAuthUserConfigEntries } from '../mcp-native-overrides'
+import { buildOpenCodeEntryFile, toOpenCodeExportName } from '../opencode-entry'
 
 type PublishChannel = 'npm' | 'github-release'
 type PublishAssetKind = 'archive' | 'installer' | 'manifest' | 'checksum'
@@ -2793,6 +2794,10 @@ echo "${getPublishReloadInstruction('codex')}"
 }
 
 function renderInstallOpenCodeScript(config: PluginConfig): string {
+  const pluginNameToken = '__PLUXX_RUNTIME_PLUGIN_NAME__'
+  const exportNameToken = toOpenCodeExportName(pluginNameToken)
+  const entryFileTemplate = buildOpenCodeEntryFile(pluginNameToken)
+
   return `#!/usr/bin/env bash
 set -Eeuo pipefail
 
@@ -2923,26 +2928,11 @@ const toOpenCodeExportName = (name) => name
   .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
   .join('')
 const normalizeOpenCodeEntryContent = (content) => content.replace(/\\r\\n/g, '\\n').trim()
-const currentOpenCodeWrapperContent = () => {
-  const exportName = toOpenCodeExportName(pluginName)
-  return [
-    'import type { Plugin } from "@opencode-ai/plugin"',
-    '',
-    'import * as PluginModule from "./' + pluginName + '/index.ts"',
-    '',
-    '// OpenCode auto-loads plugin files placed directly in ~/.config/opencode/plugins.',
-    '// Proxy into the installed plugin bundle while preserving the host workspace context.',
-    'const pluginFactory = Object.values(PluginModule).find((value): value is Plugin => typeof value === "function")',
-    '',
-    'if (!pluginFactory) {',
-    '  throw new Error("OpenCode plugin bundle for ' + pluginName + ' did not export a plugin function.")',
-    '}',
-    '',
-    'export const ' + exportName + ': Plugin = async (context) =>',
-    '  pluginFactory(context)',
-    '',
-  ].join('\\n')
-}
+const currentOpenCodeWrapperContent = () => ${JSON.stringify(entryFileTemplate)}
+  .replaceAll(${JSON.stringify(pluginNameToken)}, pluginName)
+  .replaceAll(${JSON.stringify(exportNameToken)}, toOpenCodeExportName(pluginName))
+fs.mkdirSync(stageRoot, { recursive: true })
+fs.writeFileSync(path.join(stageRoot, 'entry.ts'), currentOpenCodeWrapperContent())
 const legacyOpenCodeWrapperContent = () => {
   const exportName = toOpenCodeExportName(pluginName)
   return [
@@ -3129,42 +3119,6 @@ PLUXX_OPENCODE_COMPANION_STAGE="$TMP_DIR/opencode-companions"
 PLUXX_OPENCODE_COMPANION_JOURNAL="$TMP_DIR/opencode-companions-journal.json"
 mkdir -p "$PLUXX_OPENCODE_COMPANION_STAGE/skills"
 export ENTRY_PATH PLUGIN_NAME PLUXX_OPENCODE_COMPANION_STAGE
-
-node <<'NODE'
-const fs = require('fs')
-
-const entryPath = process.env.PLUXX_OPENCODE_COMPANION_STAGE + '/entry.ts'
-const pluginName = process.env.PLUGIN_NAME
-const toOpenCodeExportName = (name) => name
-  .split(/[^A-Za-z0-9]+/)
-  .filter(Boolean)
-  .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-  .join('')
-const currentOpenCodeWrapperContent = () => {
-  const exportName = toOpenCodeExportName(pluginName)
-  return [
-    'import type { Plugin } from "@opencode-ai/plugin"',
-    '',
-    'import * as PluginModule from "./' + pluginName + '/index.ts"',
-    '',
-    '// OpenCode auto-loads plugin files placed directly in ~/.config/opencode/plugins.',
-    '// Proxy into the installed plugin bundle while preserving the host workspace context.',
-    'const pluginFactory = Object.values(PluginModule).find((value): value is Plugin => typeof value === "function")',
-    '',
-    'if (!pluginFactory) {',
-    '  throw new Error("OpenCode plugin bundle for ' + pluginName + ' did not export a plugin function.")',
-    '}',
-    '',
-    'export const ' + exportName + ': Plugin = async (context) =>',
-    '  pluginFactory(context)',
-    '',
-  ].join('\\n')
-}
-
-const content = currentOpenCodeWrapperContent()
-
-fs.writeFileSync(entryPath, content)
-NODE
 
 if [[ -d "$PLUXX_TX_STAGE/skills" ]]; then
   for skill_dir in "$PLUXX_TX_STAGE"/skills/*; do

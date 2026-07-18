@@ -80,6 +80,7 @@ export interface ProofValidationContext {
   releaseTagUnderValidation?: string
   now: Date
   isCommitReachable: (sha: string) => boolean
+  readPackageVersionAtCommit?: (sha: string) => string | null
 }
 
 export function materializeProofReceipt(
@@ -161,8 +162,14 @@ export function validateProofManifest(
     if (receipt.packageVersion !== context.packageVersion) {
       problems.push(`Current receipt ${receipt.id} uses package ${receipt.packageVersion}; expected ${context.packageVersion}.`)
     }
-    if (!context.isCommitReachable(receipt.commitSha)) {
+    const isReachable = context.isCommitReachable(receipt.commitSha)
+    if (!isReachable) {
       problems.push(`Current receipt ${receipt.id} commit ${receipt.commitSha} is not reachable from the current branch.`)
+    } else if (context.readPackageVersionAtCommit) {
+      const committedPackageVersion = context.readPackageVersionAtCommit(receipt.commitSha)
+      if (committedPackageVersion !== receipt.packageVersion) {
+        problems.push(`Current receipt ${receipt.id} commit ${receipt.commitSha} contains package ${committedPackageVersion ?? 'unknown'}; expected ${receipt.packageVersion}.`)
+      }
     }
     if (receipt.commands.some((command) => command.outcome !== 'passed')) {
       problems.push(`Current receipt ${receipt.id} has a non-passing command outcome.`)

@@ -2455,9 +2455,8 @@ function checkInstalledOpenCodeHostBridge(checks: DoctorCheck[], rootDir: string
   }
 
   const entryContent = readFileSync(entryPath, 'utf-8')
-  const expectedImport = `import * as PluginModule from "./${pluginName}/index.ts"`
 
-  if (!entryContent.includes(expectedImport) || !isCurrentOpenCodeEntryFile(entryContent, pluginName)) {
+  if (!isCurrentOpenCodeEntryFile(entryContent, pluginName)) {
     addCheck(checks, {
       level: 'error',
       code: 'consumer-opencode-entry-invalid',

@@ -82,7 +82,7 @@ const content = [
   'import * as PluginModule from "./' + pluginName + '/index.ts"',
   '',
   '// OpenCode auto-loads plugin files placed directly in ~/.config/opencode/plugins.',
-  '// Proxy into the installed plugin bundle while preserving the host workspace context.',
+  '// Proxy into the installed Pluxx bundle while preserving the host workspace context.',
   'const pluginFactory = Object.values(PluginModule).find((value): value is Plugin => typeof value === "function")',
   '',
   'if (!pluginFactory) {',
