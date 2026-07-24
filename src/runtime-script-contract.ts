@@ -68,6 +68,10 @@ function hasWorkspaceEnvFileReference(content: string): boolean {
   return /(^|[=/"'\s])\.env(?:\.[A-Za-z0-9_-]+)?\b/.test(content)
 }
 
+function hasNormalizedWorkspaceEnvFileReference(content: string): boolean {
+  return hasWorkspaceEnvFileReference(content.replace(/\(/g, ' '))
+}
+
 interface ShellToken {
   kind: 'word' | 'operator'
   value: string
@@ -166,6 +170,15 @@ function tokenizeShellCommand(command: string): ShellToken[] {
     if (/\s/.test(char)) {
       flushWord()
       continue
+    }
+
+    if (char === '{' && !word) {
+      const namedFileDescriptor = command.slice(index).match(/^\{[A-Za-z_][A-Za-z0-9_]*\}(?=[<>])/)
+      if (namedFileDescriptor) {
+        word = namedFileDescriptor[0]
+        index += namedFileDescriptor[0].length - 1
+        continue
+      }
     }
 
     const operator = SHELL_OPERATORS.find(candidate => command.startsWith(candidate, index))
@@ -284,6 +297,10 @@ function isAssignmentWord(word: string): boolean {
   return /^[A-Za-z_][A-Za-z0-9_]*(?:\[[^\]]+\])?\+?=/.test(word)
 }
 
+function isFileDescriptorWord(word: string): boolean {
+  return /^\d+$|^\{[A-Za-z_][A-Za-z0-9_]*\}$/.test(word)
+}
+
 function skipShellRedirections(tokens: ShellToken[], start: number): number {
   let index = start
 
@@ -294,7 +311,7 @@ function skipShellRedirections(tokens: ShellToken[], start: number): number {
     }
     if (
       tokens[index].kind === 'word'
-      && /^\d+$/.test(tokens[index].value)
+      && isFileDescriptorWord(tokens[index].value)
       && tokens[index + 1]?.kind === 'operator'
       && REDIRECTION_OPERATORS.has(tokens[index + 1].value)
     ) {
@@ -332,7 +349,24 @@ function sourceTargetAt(tokens: ShellToken[], start: number): string | null {
     }
     if (value === 'command' || value === 'builtin') {
       index += 1
-      while (tokens[index]?.kind === 'word' && tokens[index].value.startsWith('-')) index += 1
+      let commandIntrospection = false
+      while (index < tokens.length) {
+        const afterRedirections = skipShellRedirections(tokens, index)
+        if (afterRedirections !== index) {
+          index = afterRedirections
+          continue
+        }
+        if (tokens[index]?.kind !== 'word') break
+        const option = staticShellWordValue(tokens[index].value)
+        if (option === '--') {
+          index += 1
+          break
+        }
+        if (!option?.startsWith('-') || option === '-') break
+        if (value === 'command' && /[vV]/.test(option.slice(1))) commandIntrospection = true
+        index += 1
+      }
+      if (commandIntrospection) return null
       continue
     }
     if (isAssignmentWord(token.value)) {
@@ -491,14 +525,18 @@ function toLogicalShellCommands(content: string): Array<{ line: number; command:
 }
 
 export function findUnsafeShellEnvSources(content: string): UnsafeShellEnvSourceFinding[] {
-  const executableContent = content
-    .split(/\r?\n/)
-    .map(stripShellComment)
-    .join('\n')
-  const scriptMentionsEnvFiles = hasWorkspaceEnvFileReference(executableContent)
+  const logicalCommands = toLogicalShellCommands(content)
+  const scriptMentionsEnvFiles = logicalCommands.some(({ command }) => (
+    hasWorkspaceEnvFileReference(command)
+    || tokenizeShellCommand(command).some((token) => {
+      if (token.kind !== 'word') return false
+      const normalized = normalizeShellWordForMatching(token.value)
+      return normalized !== null && hasNormalizedWorkspaceEnvFileReference(normalized)
+    })
+  ))
   const findings: UnsafeShellEnvSourceFinding[] = []
 
-  for (const { line, command } of toLogicalShellCommands(content)) {
+  for (const { line, command } of logicalCommands) {
     for (const target of sourceCommandTargets(command)) {
       const normalizedTarget = normalizeShellWordForMatching(target)
       if (hasWorkspaceEnvFileReference(target) || (normalizedTarget !== null && hasWorkspaceEnvFileReference(normalizedTarget))) {

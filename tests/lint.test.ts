@@ -3,6 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { resolve } from 'path'
 import { lintProject } from '../src/cli/lint'
+import { findUnsafeShellEnvSources } from '../src/runtime-script-contract'
 
 const tempDirs: string[] = []
 
@@ -518,6 +519,36 @@ describe('lintProject', () => {
       file: 'scripts/load-env.sh',
       message: expect.stringContaining('line 3'),
     }))
+  })
+
+  it('handles encoded workspace assignments, named descriptors, and command introspection', () => {
+    const dot = '.'
+    const suffix = 'env'
+    const envName = dot + suffix
+    const findings = findUnsafeShellEnvSources([
+      `hex_file=$PWD/$'\\x2e${suffix}'`,
+      'source "$hex_file"',
+      `escaped_file=$PWD/${dot}\\${suffix}`,
+      'source "$escaped_file"',
+      `concat_file=$PWD/$'${dot}e'nv`,
+      'source "$concat_file"',
+      `source {logfd}>runtime.log "$PWD/${envName}"`,
+      `{logfd}>runtime.log source "$PWD/${envName}"`,
+      `command -v source "$PWD/${envName}"`,
+      `command -V source "$PWD/${envName}"`,
+      `command -pv -- source "$PWD/${envName}"`,
+      `command 2>/dev/null -p source "$PWD/${envName}"`,
+      `command 2>/dev/null -- source "$PWD/${envName}"`,
+      `builtin 2>/dev/null -- source "$PWD/${envName}"`,
+      `command {logfd}>runtime.log -p source "$PWD/${envName}"`,
+      `command 2>/dev/null -v source "$PWD/${envName}"`,
+      `command {logfd}>runtime.log -V source "$PWD/${envName}"`,
+      `env_files=(${envName})`,
+      'env_file=${env_files[0]}',
+      'source "$env_file"',
+    ].join('\n'))
+
+    expect(findings.map(finding => finding.line)).toEqual([2, 4, 6, 7, 8, 12, 13, 14, 15, 20])
   })
 
   it('allows runtime-env scripts that parse dotenv files as text', async () => {
