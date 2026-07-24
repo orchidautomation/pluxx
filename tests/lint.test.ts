@@ -250,7 +250,8 @@ describe('lintProject', () => {
       '#!/usr/bin/env bash',
       'for file_path in "$WORKSPACE_ROOT/.env" "$WORKSPACE_ROOT/.env.local"; do',
       '  [ -f "$file_path" ] || continue',
-      '  source "$file_path"',
+      '  source "${file_path:?missing env file}"',
+      '  . "${file_path:-$WORKSPACE_ROOT/.env}"',
       'done',
       '',
     ].join('\n'))
@@ -261,12 +262,20 @@ describe('lintProject', () => {
     )
 
     const result = await lintProject(projectDir)
+    const unsafeIssues = result.issues.filter(issue => issue.code === 'unsafe-shell-env-source')
     expect(result.errors).toBeGreaterThan(0)
-    expect(result.issues).toContainEqual(expect.objectContaining({
-      level: 'error',
-      code: 'unsafe-shell-env-source',
-      file: 'scripts/load-env.sh',
-    }))
+    expect(unsafeIssues).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        level: 'error',
+        file: 'scripts/load-env.sh',
+        message: expect.stringContaining('line 4'),
+      }),
+      expect.objectContaining({
+        level: 'error',
+        file: 'scripts/load-env.sh',
+        message: expect.stringContaining('line 5'),
+      }),
+    ]))
   })
 
   it('errors when runtime-env shell-sources workspace env files with line continuations', async () => {

@@ -75,7 +75,7 @@ function sourceCommandTarget(command: string): string | null {
 }
 
 function isVariableSourceTarget(target: string): boolean {
-  return /\$(?:\{[A-Za-z_][A-Za-z0-9_]*\}|[A-Za-z_][A-Za-z0-9_]*)/.test(target)
+  return /\$(?:\{[A-Za-z_][A-Za-z0-9_]*[^}]*\}|[A-Za-z_][A-Za-z0-9_]*)/.test(target)
 }
 
 function toLogicalShellCommands(content: string): Array<{ line: number; command: string }> {
