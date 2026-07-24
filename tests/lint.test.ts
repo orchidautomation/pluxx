@@ -221,6 +221,126 @@ describe('lintProject', () => {
     expect(result.issues.some(issue => issue.code === 'installer-owned-check-env-runtime')).toBe(true)
   })
 
+  it('errors when runtime-env shell-sources workspace env files', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+    mkdirSync(resolve(projectDir, 'scripts'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        scripts: './scripts/',
+        targets: ['codex'],
+        mcp: {
+          sendlens: {
+            transport: 'stdio',
+            command: 'bash',
+            args: ['./scripts/start-mcp.sh'],
+          },
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(resolve(projectDir, 'scripts/load-env.sh'), [
+      '#!/usr/bin/env bash',
+      'for file_path in "$WORKSPACE_ROOT/.env" "$WORKSPACE_ROOT/.env.local"; do',
+      '  [ -f "$file_path" ] || continue',
+      '  source "$file_path"',
+      'done',
+      '',
+    ].join('\n'))
+    writeFileSync(resolve(projectDir, 'scripts/start-mcp.sh'), '#!/usr/bin/env bash\nsource "$(dirname "$0")/load-env.sh"\n')
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A valid skill description"', '---', '', '# My Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.errors).toBeGreaterThan(0)
+    expect(result.issues).toContainEqual(expect.objectContaining({
+      level: 'error',
+      code: 'unsafe-shell-env-source',
+      file: 'scripts/load-env.sh',
+    }))
+  })
+
+  it('allows runtime-env scripts that parse dotenv files as text', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+    mkdirSync(resolve(projectDir, 'scripts'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        scripts: './scripts/',
+        targets: ['codex'],
+      }, null, 2),
+    )
+
+    writeFileSync(resolve(projectDir, 'scripts/load-env.sh'), [
+      '#!/usr/bin/env bash',
+      'node -e \'const fs = require("fs"); const text = fs.existsSync(".env") ? fs.readFileSync(".env", "utf8") : ""; process.stdout.write(text)\'',
+      '',
+    ].join('\n'))
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A valid skill description"', '---', '', '# My Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'unsafe-shell-env-source')).toBe(false)
+  })
+
+  it('errors when hook runtime scripts shell-source workspace env files', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+    mkdirSync(resolve(projectDir, 'scripts'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        scripts: './scripts/',
+        targets: ['claude-code', 'codex'],
+        hooks: {
+          sessionStart: [{ command: 'bash "${PLUGIN_ROOT}/scripts/session-start.sh"' }],
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(resolve(projectDir, 'scripts/session-start.sh'), [
+      '#!/usr/bin/env bash',
+      'env_file="${PLUXX_HOOK_WORKSPACE_ROOT:-$PWD}/.env.local"',
+      '[ -f "$env_file" ] && . "$env_file"',
+      '',
+    ].join('\n'))
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A valid skill description"', '---', '', '# My Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues).toContainEqual(expect.objectContaining({
+      level: 'error',
+      code: 'unsafe-shell-env-source',
+      file: 'scripts/session-start.sh',
+    }))
+  })
+
   it('warns when global stdio MCP config uses host-specific plugin root vars', async () => {
     const projectDir = createTempProject()
     mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })

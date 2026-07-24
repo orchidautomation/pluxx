@@ -396,6 +396,7 @@ function createCodexConsumerFixture(options: {
   includeRuntime?: boolean
   useScriptEntrypoint?: boolean
   scriptChainsCheckEnv?: boolean
+  scriptSourcesWorkspaceEnv?: boolean
   immediateExit?: boolean
   permissionApprovals?: Array<{ serverName: string; toolName: string }>
 } = {}): string {
@@ -415,9 +416,11 @@ function createCodexConsumerFixture(options: {
       resolve(dir, 'scripts/start-mcp.sh'),
       options.scriptChainsCheckEnv
         ? '#!/usr/bin/env bash\nbash "./scripts/check-env.sh"\nexit 0\n'
-        : options.immediateExit
-          ? '#!/usr/bin/env bash\nexit 0\n'
-          : '#!/usr/bin/env bash\nsleep 10\n',
+        : options.scriptSourcesWorkspaceEnv
+          ? '#!/usr/bin/env bash\nfor file_path in "$PWD/.env" "$PWD/.env.local"; do\n  [ -f "$file_path" ] && source "$file_path"\ndone\nsleep 10\n'
+          : options.immediateExit
+            ? '#!/usr/bin/env bash\nexit 0\n'
+            : '#!/usr/bin/env bash\nsleep 10\n',
     )
     writeFileSync(resolve(dir, 'scripts/check-env.sh'), '#!/usr/bin/env bash\nexit 0\n')
   }
@@ -570,6 +573,45 @@ describe('doctorProject', () => {
       expect(report.checks.some((check) => check.code === 'runtime-readiness-configured' && check.level === 'success')).toBe(true)
       expect(report.checks.some((check) => check.code === 'runtime-readiness-prompt-scope' && check.level === 'warning')).toBe(true)
       expect(report.checks.some((check) => check.code === 'runtime-readiness-codex-external' && check.level === 'warning')).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('fails when bundled runtime scripts shell-source workspace env files', async () => {
+    const dir = createProjectFixture()
+    mkdirSync(resolve(dir, 'scripts'), { recursive: true })
+    writeFileSync(
+      resolve(dir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'doctor-fixture',
+        version: '0.1.0',
+        description: 'Doctor fixture',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        scripts: './scripts/',
+        targets: ['codex'],
+        hooks: {
+          sessionStart: [{ command: 'bash "${PLUGIN_ROOT}/scripts/session-start.sh"' }],
+        },
+      }, null, 2),
+    )
+    writeFileSync(resolve(dir, 'scripts/session-start.sh'), [
+      '#!/usr/bin/env bash',
+      'for file_path in "$PLUXX_HOOK_WORKSPACE_ROOT/.env" "$PLUXX_HOOK_WORKSPACE_ROOT/.env.local"; do',
+      '  [ -f "$file_path" ] && . "$file_path"',
+      'done',
+      '',
+    ].join('\n'))
+
+    try {
+      const report = await doctorProject(dir)
+      expect(report.ok).toBe(false)
+      expect(report.checks).toContainEqual(expect.objectContaining({
+        level: 'error',
+        code: 'unsafe-shell-env-source',
+        path: 'scripts/session-start.sh',
+      }))
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
@@ -1619,6 +1661,23 @@ describe('doctorConsumer', () => {
       const report = await doctorConsumer(dir)
       expect(report.ok).toBe(false)
       expect(report.checks.some((check) => check.code === 'consumer-bundle-integrity-invalid' && check.level === 'error')).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('fails when an installed stdio runtime script shell-sources workspace env files', async () => {
+    const dir = createCodexConsumerFixture({
+      includeRuntime: true,
+      useScriptEntrypoint: true,
+      scriptSourcesWorkspaceEnv: true,
+    })
+
+    try {
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(false)
+      expect(report.checks.some((check) => check.code === 'consumer-bundle-integrity-invalid' && check.level === 'error')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'unsafe-shell-env-source' && check.level === 'error')).toBe(true)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

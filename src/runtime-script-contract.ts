@@ -8,6 +8,12 @@ export const RUNTIME_SCRIPT_ROLE_PATHS = {
 
 export type RuntimeScriptRole = keyof typeof RUNTIME_SCRIPT_ROLE_PATHS
 
+export interface UnsafeShellEnvSourceFinding {
+  line: number
+  command: string
+  reason: string
+}
+
 export const PORTABLE_RUNTIME_SCRIPT_ROLES = [
   RUNTIME_SCRIPT_ROLE_PATHS['runtime-env'],
   RUNTIME_SCRIPT_ROLE_PATHS['runtime-bootstrap'],
@@ -38,6 +44,78 @@ export function formatRuntimeScriptRoles(roles: RuntimeScriptRole[]): string {
 
 export function referencesInstallerOwnedCheckEnv(command: string): boolean {
   return command.includes('check-env.sh')
+}
+
+function stripShellComment(line: string): string {
+  let quote: '"' | "'" | null = null
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index]
+    const previous = line[index - 1]
+    if ((char === '"' || char === "'") && previous !== '\\') {
+      quote = quote === char ? null : quote || char
+      continue
+    }
+    if (!quote && char === '#') {
+      return line.slice(0, index)
+    }
+  }
+
+  return line
+}
+
+function hasWorkspaceEnvFileReference(content: string): boolean {
+  return /(^|[/"'\s])\.env(?:\.[A-Za-z0-9_-]+)?\b/.test(content)
+}
+
+function sourceCommandTarget(command: string): string | null {
+  const match = command.trim().match(/(?:^|[;&|]\s*)(?:source|\.)\s+(.+?)(?:\s*(?:[;&|]|$))/)
+  if (!match) return null
+  return match[1].trim()
+}
+
+function isVariableSourceTarget(target: string): boolean {
+  return /\$(?:\{[A-Za-z_][A-Za-z0-9_]*\}|[A-Za-z_][A-Za-z0-9_]*)/.test(target)
+}
+
+export function findUnsafeShellEnvSources(content: string): UnsafeShellEnvSourceFinding[] {
+  const executableContent = content
+    .split(/\r?\n/)
+    .map(stripShellComment)
+    .join('\n')
+  const scriptMentionsEnvFiles = hasWorkspaceEnvFileReference(executableContent)
+  const findings: UnsafeShellEnvSourceFinding[] = []
+
+  for (const [index, rawLine] of content.split(/\r?\n/).entries()) {
+    const command = stripShellComment(rawLine).trim()
+    if (!command) continue
+
+    const target = sourceCommandTarget(command)
+    if (!target) continue
+
+    if (hasWorkspaceEnvFileReference(target)) {
+      findings.push({
+        line: index + 1,
+        command,
+        reason: 'sources a workspace .env file directly',
+      })
+      continue
+    }
+
+    if (scriptMentionsEnvFiles && isVariableSourceTarget(target)) {
+      findings.push({
+        line: index + 1,
+        command,
+        reason: 'sources a variable in a script that enumerates workspace .env files',
+      })
+    }
+  }
+
+  return findings
+}
+
+export function getUnsafeShellEnvSourceMessage(path: string, finding: UnsafeShellEnvSourceFinding): string {
+  return `${path} ${finding.reason} at line ${finding.line}: ${finding.command}. Runtime env scripts must parse workspace env files as dotenv text or rely on the Pluxx-generated runtime launcher; shell sourcing can execute command substitutions from user-controlled .env values.`
 }
 
 export function getInstallerOwnedCheckEnvRuntimeMessage(serverName: string): string {

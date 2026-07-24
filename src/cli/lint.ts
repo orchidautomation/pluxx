@@ -46,8 +46,10 @@ import {
 import { readInstructionsContentSync, resolveInstructionsPath } from '../instructions'
 import { getSkillFrontmatterTranslationIssue } from '../skill-translation-registry'
 import {
+  findUnsafeShellEnvSources,
   getInstallerOwnedCheckEnvHookMessage,
   getInstallerOwnedCheckEnvRuntimeMessage,
+  getUnsafeShellEnvSourceMessage,
   referencesInstallerOwnedCheckEnv,
 } from '../runtime-script-contract'
 const AGENT_SKILLS_RULES = { name: { pattern: /^[a-z0-9-]+$/, maxLength: 64 }, description: { maxLength: 1024 } }
@@ -686,6 +688,44 @@ function lintInstallerOwnedRuntimeScripts(config: PluginConfig, issues: LintIssu
         code: 'installer-owned-check-env-hook',
         message: getInstallerOwnedCheckEnvHookMessage(eventName),
         file: 'pluxx.config.ts',
+        platform: 'Runtime',
+      })
+    }
+  }
+}
+
+function collectShellScriptFiles(rootDir: string, relativeDir: string | undefined): string[] {
+  if (!relativeDir) return []
+  const scriptsRoot = resolve(rootDir, relativeDir)
+  if (!existsSync(scriptsRoot)) return []
+
+  const files: string[] = []
+  const visit = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const absolutePath = resolve(dir, entry.name)
+      if (entry.isDirectory()) {
+        visit(absolutePath)
+        continue
+      }
+      if (!entry.isFile() || !entry.name.endsWith('.sh')) continue
+      files.push(absolutePath)
+    }
+  }
+
+  visit(scriptsRoot)
+  return files.sort()
+}
+
+function lintUnsafeShellEnvSources(rootDir: string, config: PluginConfig, issues: LintIssue[]): void {
+  for (const scriptPath of collectShellScriptFiles(rootDir, config.scripts)) {
+    const relativePath = relative(rootDir, scriptPath).replace(/\\/g, '/')
+    const content = readFileSync(scriptPath, 'utf-8')
+    for (const finding of findUnsafeShellEnvSources(content)) {
+      pushIssue(issues, {
+        level: 'error',
+        code: 'unsafe-shell-env-source',
+        message: getUnsafeShellEnvSourceMessage(relativePath, finding),
+        file: relativePath,
         platform: 'Runtime',
       })
     }
@@ -1828,6 +1868,7 @@ export async function lintProject(
   lintMcpUrls(lintConfig, issues)
   lintMcpRuntimeState(dir, lintConfig, issues)
   lintInstallerOwnedRuntimeScripts(lintConfig, issues)
+  lintUnsafeShellEnvSources(dir, lintConfig, issues)
   lintGlobalMcpHostRootVariables(lintConfig, issues)
   lintBrandMetadata(lintConfig, issues)
   lintCodexOverrides(lintConfig, issues)

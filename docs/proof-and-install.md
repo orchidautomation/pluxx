@@ -1,6 +1,6 @@
 # Proof And Install
 
-Last updated: 2026-07-16
+Last updated: 2026-07-24
 
 ## Doc Links
 
@@ -103,6 +103,7 @@ Today, Pluxx ships the OSS authoring and local/self-hosted distribution lane:
 - let opted-in generated core-four installers reuse one content-addressed platform-native runtime, with safe host-local fallback when reuse is unavailable
 - publish the npm-backed OpenCode wrapper path with `pluxx publish --npm`
 - keep core-four stdio MCP runtime variables launch-context aware without baking one workspace's values into global installs
+- reject bundled shell scripts that `source` workspace `.env` files, while allowing generated dotenv-text parsing for runtime-inherited MCP env vars
 
 It does not yet ship marketplace submission APIs, a managed trust/distribution control plane, automatic rollback/unpublish orchestration, or a real authenticated publish plus rollback proof against a private authoring target.
 

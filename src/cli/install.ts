@@ -42,6 +42,7 @@ import {
   transactionalInstallGroup,
 } from '../install-ownership'
 import { buildOpenCodeEntryFile, isCurrentOpenCodeEntryFile } from '../opencode-entry'
+import { findUnsafeShellEnvSources, getUnsafeShellEnvSourceMessage } from '../runtime-script-contract'
 
 interface InstallTarget {
   platform: TargetPlatform
@@ -1246,44 +1247,71 @@ export function findInstalledBundleIntegrityIssues(rootDir: string, platform: Ta
 }
 
 function findInstalledRuntimeScriptIssues(rootDir: string, manifest: Record<string, unknown>): string[] {
+  const issues = new Set<string>()
   const mcpReference = typeof manifest.mcpServers === 'string' ? manifest.mcpServers : undefined
-  if (!mcpReference) return []
+  const mcpPath = mcpReference ? resolveBundleReference(rootDir, mcpReference) : null
 
-  const mcpPath = resolveBundleReference(rootDir, mcpReference)
-  if (!mcpPath || !existsSync(mcpPath)) return []
+  if (mcpPath && existsSync(mcpPath)) {
+    try {
+      const parsed = JSON.parse(readFileSync(mcpPath, 'utf-8')) as { mcpServers?: Record<string, unknown> }
 
-  try {
-    const parsed = JSON.parse(readFileSync(mcpPath, 'utf-8')) as { mcpServers?: Record<string, unknown> }
-    const issues = new Set<string>()
+      for (const [serverName, server] of Object.entries(parsed.mcpServers ?? {})) {
+        if (!server || typeof server !== 'object') continue
+        const serverRecord = server as Record<string, unknown>
+        const args = Array.isArray(serverRecord.args)
+          ? serverRecord.args.filter((value): value is string => typeof value === 'string')
+          : []
 
-    for (const [serverName, server] of Object.entries(parsed.mcpServers ?? {})) {
-      if (!server || typeof server !== 'object') continue
-      const serverRecord = server as Record<string, unknown>
-      const args = Array.isArray(serverRecord.args)
-        ? serverRecord.args.filter((value): value is string => typeof value === 'string')
-        : []
+        const commandTargets = [
+          typeof serverRecord.command === 'string' ? serverRecord.command : '',
+          ...args,
+        ].flatMap(extractBundleCommandTargets)
 
-      const commandTargets = [
-        typeof serverRecord.command === 'string' ? serverRecord.command : '',
-        ...args,
-      ].flatMap(extractBundleCommandTargets)
+        for (const target of commandTargets) {
+          const resolved = resolveBundleReference(rootDir, target)
+          if (!resolved || !existsSync(resolved) || !resolved.endsWith('.sh')) continue
 
-      for (const target of commandTargets) {
-        const resolved = resolveBundleReference(rootDir, target)
-        if (!resolved || !existsSync(resolved) || !resolved.endsWith('.sh')) continue
+          const content = readFileSync(resolved, 'utf-8')
+          if (!content.includes('check-env.sh')) continue
 
-        const content = readFileSync(resolved, 'utf-8')
-        if (!content.includes('check-env.sh')) continue
-
-        const relativePath = resolved.startsWith(`${rootDir}/`) ? resolved.slice(rootDir.length + 1) : resolved
-        issues.add(`runtime script ${relativePath} for MCP server "${serverName}" still references installer-owned scripts/check-env.sh`)
+          const relativePath = resolved.startsWith(`${rootDir}/`) ? resolved.slice(rootDir.length + 1) : resolved
+          issues.add(`runtime script ${relativePath} for MCP server "${serverName}" still references installer-owned scripts/check-env.sh`)
+        }
       }
+    } catch {
+      // Malformed MCP configs are reported by the caller's broader bundle checks.
     }
-
-    return [...issues].sort()
-  } catch {
-    return []
   }
+
+  for (const relativePath of findInstalledShellScriptFiles(rootDir, 'scripts')) {
+    const content = readFileSync(resolve(rootDir, relativePath), 'utf-8')
+    for (const finding of findUnsafeShellEnvSources(content)) {
+      issues.add(getUnsafeShellEnvSourceMessage(relativePath, finding))
+    }
+  }
+
+  return [...issues].sort()
+}
+
+function findInstalledShellScriptFiles(rootDir: string, relativeDir: string): string[] {
+  const scriptsRoot = resolve(rootDir, relativeDir)
+  if (!existsSync(scriptsRoot)) return []
+
+  const files: string[] = []
+  const visit = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const absolutePath = resolve(dir, entry.name)
+      if (entry.isDirectory()) {
+        visit(absolutePath)
+        continue
+      }
+      if (!entry.isFile() || !entry.name.endsWith('.sh')) continue
+      files.push(relative(rootDir, absolutePath).replace(/\\/g, '/'))
+    }
+  }
+
+  visit(scriptsRoot)
+  return files.sort()
 }
 
 function assertInstalledBundleIntegrity(rootDir: string, platform: TargetPlatform, label: string): void {
