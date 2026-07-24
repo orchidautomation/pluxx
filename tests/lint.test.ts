@@ -269,6 +269,67 @@ describe('lintProject', () => {
     }))
   })
 
+  it('errors when runtime-env shell-sources workspace env files with line continuations', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+    mkdirSync(resolve(projectDir, 'scripts'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        scripts: './scripts/',
+        targets: ['codex'],
+        mcp: {
+          sendlens: {
+            transport: 'stdio',
+            command: 'bash',
+            args: ['./scripts/start-mcp.sh'],
+          },
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(resolve(projectDir, 'scripts/load-env.sh'), [
+      '#!/usr/bin/env bash',
+      'for file_path in \\',
+      '  "$WORKSPACE_ROOT/.env" \\',
+      '  "$WORKSPACE_ROOT/.env.local"; do',
+      '  [ -f "$file_path" ] || continue',
+      '  source \\',
+      '    "$file_path"',
+      'done',
+      '. \\',
+      '  "$PWD/.env"',
+      '',
+    ].join('\n'))
+    writeFileSync(resolve(projectDir, 'scripts/start-mcp.sh'), '#!/usr/bin/env bash\nsource "$(dirname "$0")/load-env.sh"\n')
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A valid skill description"', '---', '', '# My Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    const unsafeIssues = result.issues.filter(issue => issue.code === 'unsafe-shell-env-source')
+    expect(result.errors).toBeGreaterThan(0)
+    expect(unsafeIssues).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        level: 'error',
+        file: 'scripts/load-env.sh',
+        message: expect.stringContaining('line 6'),
+      }),
+      expect.objectContaining({
+        level: 'error',
+        file: 'scripts/load-env.sh',
+        message: expect.stringContaining('line 9'),
+      }),
+    ]))
+  })
+
   it('allows runtime-env scripts that parse dotenv files as text', async () => {
     const projectDir = createTempProject()
     mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })

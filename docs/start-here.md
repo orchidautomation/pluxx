@@ -39,7 +39,7 @@ If you want the shortest public proof and install path after this file, use [doc
 
 If you want the current release, distribution, and proof boundary, use [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md).
 
-If you need to know whether a proof claim is current, historical, repository-only, installed, or real-host evidence, use [docs/proof-freshness.md](./proof-freshness.md) and [docs/proof-manifest.json](./proof-manifest.json). Canonical repository version truth is `package.json` (`0.1.36`) and the proof manifest marks `v0.1.36` as release-prep. The previous `v0.1.35` tag and package are historical release evidence for the prior OpenCode inner-bundle fix.
+If you need to know whether a proof claim is current, historical, repository-only, installed, or real-host evidence, use [docs/proof-freshness.md](./proof-freshness.md) and [docs/proof-manifest.json](./proof-manifest.json). Canonical repository version truth is `package.json` (`0.1.36`) and the proof manifest marks `v0.1.36` as released. The previous `v0.1.35` tag and package are historical release evidence for the prior OpenCode inner-bundle fix.
 
 If you want the primitive-by-host proof ledger behind the core-four native shipping claim, use [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md).
 
@@ -539,9 +539,9 @@ Run two lanes in parallel:
 
 ### 6. Release State
 
-The canonical repository version is `0.1.36`, prepared for tag `v0.1.36`. The previous `v0.1.35` tag and package are historical release evidence for the prior OpenCode inner-bundle fix. `package.json` is the source of truth for repository docs, while [proof-manifest.json](./proof-manifest.json) records tag state and proof freshness.
+The canonical repository version is `0.1.36`, tagged as `v0.1.36`. The previous `v0.1.35` tag and package are historical release evidence for the prior OpenCode inner-bundle fix. `package.json` is the source of truth for repository docs, while [proof-manifest.json](./proof-manifest.json) records tag state and proof freshness.
 
-For v0.1.36, PLUXX-337 is the release-prep focus: installed top-level OpenCode wrappers pass the host-provided workspace context through unchanged. Future releases should repeat the version bump and proof-prep work on a focused PR before tagging.
+For v0.1.36, PLUXX-337 is the released focus: installed top-level OpenCode wrappers pass the host-provided workspace context through unchanged. Future releases should repeat the version bump and proof-prep work on a focused PR before tagging.
 
 ## Working Rules
 

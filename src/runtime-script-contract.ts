@@ -78,6 +78,34 @@ function isVariableSourceTarget(target: string): boolean {
   return /\$(?:\{[A-Za-z_][A-Za-z0-9_]*\}|[A-Za-z_][A-Za-z0-9_]*)/.test(target)
 }
 
+function toLogicalShellCommands(content: string): Array<{ line: number; command: string }> {
+  const commands: Array<{ line: number; command: string }> = []
+  let current = ''
+  let currentLine: number | null = null
+
+  content.split(/\r?\n/).forEach((rawLine, index) => {
+    let line = stripShellComment(rawLine)
+    const startsContinuation = currentLine !== null
+    if (currentLine === null) currentLine = index + 1
+
+    const continues = line.endsWith('\\')
+    if (continues) line = line.slice(0, -1)
+    current += startsContinuation ? line : line.trimStart()
+
+    if (continues) return
+
+    const command = current.trim()
+    if (command) commands.push({ line: currentLine, command })
+    current = ''
+    currentLine = null
+  })
+
+  const command = current.trim()
+  if (command && currentLine !== null) commands.push({ line: currentLine, command })
+
+  return commands
+}
+
 export function findUnsafeShellEnvSources(content: string): UnsafeShellEnvSourceFinding[] {
   const executableContent = content
     .split(/\r?\n/)
@@ -86,16 +114,13 @@ export function findUnsafeShellEnvSources(content: string): UnsafeShellEnvSource
   const scriptMentionsEnvFiles = hasWorkspaceEnvFileReference(executableContent)
   const findings: UnsafeShellEnvSourceFinding[] = []
 
-  for (const [index, rawLine] of content.split(/\r?\n/).entries()) {
-    const command = stripShellComment(rawLine).trim()
-    if (!command) continue
-
+  for (const { line, command } of toLogicalShellCommands(content)) {
     const target = sourceCommandTarget(command)
     if (!target) continue
 
     if (hasWorkspaceEnvFileReference(target)) {
       findings.push({
-        line: index + 1,
+        line,
         command,
         reason: 'sources a workspace .env file directly',
       })
@@ -104,7 +129,7 @@ export function findUnsafeShellEnvSources(content: string): UnsafeShellEnvSource
 
     if (scriptMentionsEnvFiles && isVariableSourceTarget(target)) {
       findings.push({
-        line: index + 1,
+        line,
         command,
         reason: 'sources a variable in a script that enumerates workspace .env files',
       })
