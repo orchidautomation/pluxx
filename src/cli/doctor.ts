@@ -650,7 +650,7 @@ function checkRuntimeReadiness(checks: DoctorCheck[], config: PluginConfig): voi
   }
 }
 
-function collectShellScriptFiles(rootDir: string, relativeDir: string | undefined): string[] {
+function collectRuntimeScriptFiles(rootDir: string, relativeDir: string | undefined): string[] {
   if (!relativeDir) return []
   const scriptsRoot = resolve(rootDir, relativeDir)
   if (!existsSync(scriptsRoot)) return []
@@ -663,7 +663,7 @@ function collectShellScriptFiles(rootDir: string, relativeDir: string | undefine
         visit(absolutePath)
         continue
       }
-      if (!entry.isFile() || !entry.name.endsWith('.sh')) continue
+      if (!entry.isFile()) continue
       files.push(absolutePath)
     }
   }
@@ -673,7 +673,7 @@ function collectShellScriptFiles(rootDir: string, relativeDir: string | undefine
 }
 
 function checkUnsafeShellEnvSources(checks: DoctorCheck[], rootDir: string, relativeDir: string | undefined): void {
-  for (const scriptPath of collectShellScriptFiles(rootDir, relativeDir)) {
+  for (const scriptPath of collectRuntimeScriptFiles(rootDir, relativeDir)) {
     const relativePath = relative(rootDir, scriptPath).replace(/\\/g, '/')
     const content = readFileSync(scriptPath, 'utf-8')
     for (const finding of findUnsafeShellEnvSources(content)) {

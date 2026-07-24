@@ -330,6 +330,59 @@ describe('lintProject', () => {
     ]))
   })
 
+  it('errors when extensionless runtime scripts shell-source workspace env files in control flow', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+    mkdirSync(resolve(projectDir, 'scripts'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        scripts: './scripts/',
+        targets: ['codex'],
+        mcp: {
+          sendlens: {
+            transport: 'stdio',
+            command: 'bash',
+            args: ['./scripts/load-env'],
+          },
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(resolve(projectDir, 'scripts/load-env'), [
+      '#!/usr/bin/env bash',
+      'for file_path in "$PWD/.env" "$PWD/.env.local"; do . "$file_path"; done',
+      'if [ -f "$PWD/.env" ]; then source "$PWD/.env"; fi',
+      '',
+    ].join('\n'))
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A valid skill description"', '---', '', '# My Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    const unsafeIssues = result.issues.filter(issue => issue.code === 'unsafe-shell-env-source')
+    expect(result.errors).toBeGreaterThan(0)
+    expect(unsafeIssues).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        level: 'error',
+        file: 'scripts/load-env',
+        message: expect.stringContaining('line 2'),
+      }),
+      expect.objectContaining({
+        level: 'error',
+        file: 'scripts/load-env',
+        message: expect.stringContaining('line 3'),
+      }),
+    ]))
+  })
+
   it('allows runtime-env scripts that parse dotenv files as text', async () => {
     const projectDir = createTempProject()
     mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })

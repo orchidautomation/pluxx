@@ -1683,6 +1683,27 @@ describe('doctorConsumer', () => {
     }
   })
 
+  it('fails when an installed extensionless runtime script shell-sources workspace env files', async () => {
+    const dir = createCodexConsumerFixture({
+      includeRuntime: true,
+      useScriptEntrypoint: true,
+    })
+    writeFileSync(resolve(dir, 'scripts/load-env'), [
+      '#!/usr/bin/env bash',
+      'for file_path in "$PWD/.env" "$PWD/.env.local"; do . "$file_path"; done',
+      '',
+    ].join('\n'))
+
+    try {
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(false)
+      expect(report.checks.some((check) => check.code === 'consumer-bundle-integrity-invalid' && check.level === 'error')).toBe(true)
+      expect(report.checks.some((check) => check.code === 'unsafe-shell-env-source' && check.path === 'scripts/load-env')).toBe(true)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('validates OpenCode host-visible wrapper and exported skills for installed bundles', async () => {
     const dir = createOpenCodeConsumerFixture()
 

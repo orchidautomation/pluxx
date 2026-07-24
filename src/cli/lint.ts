@@ -694,7 +694,7 @@ function lintInstallerOwnedRuntimeScripts(config: PluginConfig, issues: LintIssu
   }
 }
 
-function collectShellScriptFiles(rootDir: string, relativeDir: string | undefined): string[] {
+function collectRuntimeScriptFiles(rootDir: string, relativeDir: string | undefined): string[] {
   if (!relativeDir) return []
   const scriptsRoot = resolve(rootDir, relativeDir)
   if (!existsSync(scriptsRoot)) return []
@@ -707,7 +707,7 @@ function collectShellScriptFiles(rootDir: string, relativeDir: string | undefine
         visit(absolutePath)
         continue
       }
-      if (!entry.isFile() || !entry.name.endsWith('.sh')) continue
+      if (!entry.isFile()) continue
       files.push(absolutePath)
     }
   }
@@ -717,7 +717,7 @@ function collectShellScriptFiles(rootDir: string, relativeDir: string | undefine
 }
 
 function lintUnsafeShellEnvSources(rootDir: string, config: PluginConfig, issues: LintIssue[]): void {
-  for (const scriptPath of collectShellScriptFiles(rootDir, config.scripts)) {
+  for (const scriptPath of collectRuntimeScriptFiles(rootDir, config.scripts)) {
     const relativePath = relative(rootDir, scriptPath).replace(/\\/g, '/')
     const content = readFileSync(scriptPath, 'utf-8')
     for (const finding of findUnsafeShellEnvSources(content)) {

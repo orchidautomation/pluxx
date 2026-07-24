@@ -1269,7 +1269,7 @@ function findInstalledRuntimeScriptIssues(rootDir: string, manifest: Record<stri
 
         for (const target of commandTargets) {
           const resolved = resolveBundleReference(rootDir, target)
-          if (!resolved || !existsSync(resolved) || !resolved.endsWith('.sh')) continue
+          if (!resolved || !existsSync(resolved) || !statSync(resolved).isFile()) continue
 
           const content = readFileSync(resolved, 'utf-8')
           if (!content.includes('check-env.sh')) continue
@@ -1283,7 +1283,7 @@ function findInstalledRuntimeScriptIssues(rootDir: string, manifest: Record<stri
     }
   }
 
-  for (const relativePath of findInstalledShellScriptFiles(rootDir, 'scripts')) {
+  for (const relativePath of findInstalledRuntimeScriptFiles(rootDir, 'scripts')) {
     const content = readFileSync(resolve(rootDir, relativePath), 'utf-8')
     for (const finding of findUnsafeShellEnvSources(content)) {
       issues.add(getUnsafeShellEnvSourceMessage(relativePath, finding))
@@ -1293,7 +1293,7 @@ function findInstalledRuntimeScriptIssues(rootDir: string, manifest: Record<stri
   return [...issues].sort()
 }
 
-function findInstalledShellScriptFiles(rootDir: string, relativeDir: string): string[] {
+function findInstalledRuntimeScriptFiles(rootDir: string, relativeDir: string): string[] {
   const scriptsRoot = resolve(rootDir, relativeDir)
   if (!existsSync(scriptsRoot)) return []
 
@@ -1305,7 +1305,7 @@ function findInstalledShellScriptFiles(rootDir: string, relativeDir: string): st
         visit(absolutePath)
         continue
       }
-      if (!entry.isFile() || !entry.name.endsWith('.sh')) continue
+      if (!entry.isFile()) continue
       files.push(relative(rootDir, absolutePath).replace(/\\/g, '/'))
     }
   }

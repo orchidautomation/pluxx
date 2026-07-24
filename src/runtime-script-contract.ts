@@ -69,7 +69,7 @@ function hasWorkspaceEnvFileReference(content: string): boolean {
 }
 
 function sourceCommandTarget(command: string): string | null {
-  const match = command.trim().match(/(?:^|[;&|]\s*)(?:source|\.)\s+(.+?)(?:\s*(?:[;&|]|$))/)
+  const match = command.trim().match(/(?:^|[;&|]\s*|\b(?:then|do)\s+|[({]\s*)(?:source|\.)\s+(.+?)(?:\s*(?:[;&|]|$))/)
   if (!match) return null
   return match[1].trim()
 }
