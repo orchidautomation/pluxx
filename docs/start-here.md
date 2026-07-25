@@ -39,7 +39,7 @@ If you want the shortest public proof and install path after this file, use [doc
 
 If you want the current release, distribution, and proof boundary, use [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md).
 
-If you need to know whether a proof claim is current, historical, repository-only, installed, or real-host evidence, use [docs/proof-freshness.md](./proof-freshness.md) and [docs/proof-manifest.json](./proof-manifest.json). Canonical repository version truth is `package.json` (`0.1.38`), currently in release-prep for the PLUXX-340 manifest-identity correction. The shipped and independently verified public release remains `@orchid-labs/pluxx@0.1.37` at immutable tag commit `d5184752cd4898306390f20455619c34a42099dd`.
+If you need to know whether a proof claim is current, historical, repository-only, installed, or real-host evidence, use [docs/proof-freshness.md](./proof-freshness.md) and [docs/proof-manifest.json](./proof-manifest.json). Canonical repository version truth is `package.json` (`0.1.38`), tagged only for the PLUXX-340 manifest-identity correction at trusted merge `e24d4db3f57fa0942376237fb212cb49368d7704`. Its first Release run failed closed during the full test gate before pack or publication. The shipped and independently verified public release therefore remains `@orchid-labs/pluxx@0.1.37` until reviewed trusted-main recovery succeeds.
 
 If you want the primitive-by-host proof ledger behind the core-four native shipping claim, use [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md).
 
@@ -370,7 +370,7 @@ The repo already proves a lot.
   - `npm test` passed
   - `npm run release:check` passed
 - the canonical and verified public release is `@orchid-labs/pluxx@0.1.37` / `v0.1.37`; npm and GitHub serve the same tarball at SHA-256 `7c996da682887ceedecc006307c207c5a834e5dedabaab17611cd586ef85b237`
-- the repository is preparing `0.1.38` only as the follow-up PLUXX-340 correction for duplicate release-manifest archive identities discovered after the historical shipped 0.1.37 release
+- immutable tag `v0.1.38` records only the follow-up PLUXX-340 correction for duplicate release-manifest archive identities discovered after the historical shipped 0.1.37 release; its first Release run failed closed before pack or publication
 - marketplace submission APIs, a managed trust/distribution control plane, automatic rollback/unpublish orchestration, and real authenticated publish plus rollback proof remain explicit release gaps, not hidden shipped capabilities:
   - `docs/release-distribution-proof-map.md`
   - “automatic rollback” here means remote release rollback/unpublish; generated local installers now restore the prior bundle when staged setup fails
@@ -540,11 +540,11 @@ Run two lanes in parallel:
 
 ### 6. Release State
 
-The canonical repository version is pending `0.1.38` release-prep for the PLUXX-340 manifest-identity correction. The canonical and verified public release remains `@orchid-labs/pluxx@0.1.37`; immutable tag `v0.1.37` remains at `d5184752cd4898306390f20455619c34a42099dd` with tree `e63eea0f89995a44b7536b5403af57792e994cb9`. Reviewed recovery run [30144489420](https://github.com/orchidautomation/pluxx/actions/runs/30144489420) published and verified that exact 0.1.37 artifact without moving its tag.
+The canonical repository version is tagged as `0.1.38` only for the PLUXX-340 manifest-identity correction. Immutable tag `v0.1.38` points to trusted merge `e24d4db3f57fa0942376237fb212cb49368d7704`, which contains exact reviewed PR head `cbc14e007626328a8d25340419a455f40701426c` and receipt commit `361958f6b16b1acc2bb901c97fc2c6d5a77ba880`. Release run [30152484521](https://github.com/orchidautomation/pluxx/actions/runs/30152484521) failed closed during the full test gate before pack or publication, so the canonical and verified public release remains `@orchid-labs/pluxx@0.1.37` until reviewed trusted-main recovery succeeds.
 
 For v0.1.37, PLUXX-339 is the tagged security focus: lint, doctor, install, and packaged-runtime verification fail closed when bundled runtime scripts source workspace `.env` files through direct or statically evaluable shell forms. The patch preserves valid safe shell forms and uses a bounded explicit scanner rather than an expanding regex.
 
-For pending v0.1.38, PLUXX-340 is the only release focus: one unambiguous release-manifest archive identity per host while versioned and `latest` physical assets remain generated and checksummed.
+For tagged v0.1.38, PLUXX-340 is the only release focus: one unambiguous release-manifest archive identity per host while versioned and `latest` physical assets remain generated and checksummed.
 
 ## Working Rules
 

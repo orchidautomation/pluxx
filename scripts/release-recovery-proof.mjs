@@ -2,8 +2,9 @@
 
 import { execFileSync } from 'child_process'
 import { createHash } from 'crypto'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
-import { basename, dirname, resolve } from 'path'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'fs'
+import { tmpdir } from 'os'
+import { basename, dirname, join, resolve } from 'path'
 
 const MANIFEST_PATH = 'docs/proof-manifest.json'
 const PACKAGE_NAME = '@orchid-labs/pluxx'
@@ -12,7 +13,7 @@ const VALIDATION_TIMEOUT_MS = 20 * 60_000
 const PRE_PROOF_VALIDATIONS = [
   { command: 'npm run build', executable: 'npm', args: () => ['run', 'build'] },
   { command: 'npm run typecheck', executable: 'npm', args: () => ['run', 'typecheck'] },
-  { command: 'npm test', executable: 'npm', args: () => ['test'] },
+  { command: 'npm test', execute: (recovery) => runTaglessTests(recovery) },
   {
     command: 'node scripts/run-npm-pack.mjs --dry-run',
     executable: 'node',
@@ -213,6 +214,39 @@ function runPreProofValidations(args) {
     } catch {
       fail(`Recovery validation failed: ${validation.command}`)
     }
+  }
+}
+
+function runTaglessTests(args) {
+  const temporaryRoot = mkdtempSync(join(tmpdir(), 'pluxx-release-recovery-tests-'))
+  const checkout = join(temporaryRoot, 'release')
+  try {
+    execFileSync('git', ['clone', '--no-local', '--no-tags', args.releaseRoot, checkout], {
+      stdio: 'inherit',
+      timeout: GIT_TIMEOUT_MS,
+    })
+    const expectedHead = git(args.releaseRoot, 'rev-parse', 'HEAD^{commit}')
+    const actualHead = git(checkout, 'rev-parse', 'HEAD^{commit}')
+    if (actualHead !== expectedHead) {
+      fail(`Recovery test checkout ${actualHead} does not match release commit ${expectedHead}`)
+    }
+
+    const sourceNodeModules = resolve(args.releaseRoot, 'node_modules')
+    if (existsSync(sourceNodeModules)) {
+      symlinkSync(sourceNodeModules, resolve(checkout, 'node_modules'), 'dir')
+    }
+    execFileSync('npm', ['run', 'build'], {
+      cwd: checkout,
+      stdio: 'inherit',
+      timeout: VALIDATION_TIMEOUT_MS,
+    })
+    execFileSync('npm', ['test'], {
+      cwd: checkout,
+      stdio: 'inherit',
+      timeout: VALIDATION_TIMEOUT_MS,
+    })
+  } finally {
+    rmSync(temporaryRoot, { recursive: true, force: true })
   }
 }
 

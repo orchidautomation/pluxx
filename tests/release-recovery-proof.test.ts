@@ -61,9 +61,11 @@ function fixture(packageVersion = VERSION, manifestSuffix = '\n', proofPasses = 
     name: '@orchid-labs/pluxx',
     version: packageVersion,
     scripts: {
-      build: preProofPasses ? 'node -e "process.exit(0)"' : 'node -e "process.exit(1)"',
+      build: preProofPasses
+        ? 'node -e "require(\'fs\').mkdirSync(\'dist\', { recursive: true }); require(\'fs\').writeFileSync(\'dist/recovery-test-build\', \'ok\')"'
+        : 'node -e "process.exit(1)"',
       typecheck: 'node -e "process.exit(0)"',
-      test: 'node -e "process.exit(0)"',
+      test: `node -e "const { spawnSync } = require('child_process'); const { existsSync } = require('fs'); process.exit(spawnSync('git', ['show-ref', '--verify', '--quiet', 'refs/tags/${TAG}']).status === 0 || !existsSync('dist/recovery-test-build') ? 1 : 0)"`,
       'proof:check': 'node proof-check.mjs',
     },
   }
@@ -190,7 +192,7 @@ describe('immutable-tag release recovery proof', () => {
     const fixtureRoot = mkdtempSync(join(tmpdir(), 'pluxx-production-proof-'))
     const checkout = join(fixtureRoot, 'release')
     try {
-      expect(run('git', ['clone', '--no-local', ROOT, checkout], fixtureRoot).status).toBe(0)
+      expect(run('git', ['clone', '--no-local', '--no-tags', ROOT, checkout], fixtureRoot).status).toBe(0)
       expect(run('git', ['checkout', '--detach', 'HEAD'], checkout).status).toBe(0)
       expect(run('git', ['tag', TAG], checkout).status).toBe(0)
       symlinkSync(join(ROOT, 'node_modules'), join(checkout, 'node_modules'), 'dir')
