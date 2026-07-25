@@ -84,6 +84,8 @@ Proof governance now distinguishes unit, bundle-contract, fake-home install, ins
 
 PLUXX-339 is shipped in the verified public `0.1.37` release after the historical `0.1.36` OpenCode workspace patch. The security patch blocks bundled runtime scripts from sourcing workspace `.env` files through direct and statically evaluable shell forms while preserving valid safe shell syntax.
 
+PLUXX-340 is the separate `0.1.38` release-prep follow-up for duplicate release-manifest archive identities discovered after the historical shipped 0.1.37 release. It preserves both versioned and `latest` physical assets while exposing one deterministic manifest identity per host.
+
 ### 1. Product clarity and source-of-truth coherence
 
 Make the repo front door and planning surfaces tell the same story.
@@ -229,6 +231,7 @@ The closure plan is now narrower than it was before:
   - `npm test` passed
   - `npm run release:check` passed
 - the canonical and verified public release is `@orchid-labs/pluxx@0.1.37` / `v0.1.37`; npm and GitHub serve the same tarball at SHA-256 `7c996da682887ceedecc006307c207c5a834e5dedabaab17611cd586ef85b237`
+- the canonical repository version is pending `0.1.38` release-prep for PLUXX-340; this does not change the shipped status of 0.1.37
 - the release/distribution/proof boundary is now explicit:
   - [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md)
   - [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md)
@@ -388,11 +391,12 @@ This is for learning and proof, not for prematurely building the full trust laye
 
 ### 6. Next release
 
-The canonical and verified public release is `0.1.37`. Immutable tag `v0.1.37` remains at `d5184752cd4898306390f20455619c34a42099dd`; current repository-validation and fake-home-install receipts record the split commands observed in an isolated exact-tag rehearsal for the PLUXX-339 runtime env-sourcing security patch, while the earlier pre-squash full-gate receipts remain historical at `f7ee0bd5d6cf5f8b75dec7df6dcda85dcf5a7af8`. Recovery PR [#458](https://github.com/orchidautomation/pluxx/pull/458) landed as trusted-main commit `044673f947115bcf6117dd7c0139918bdd248a99`, and run [30144489420](https://github.com/orchidautomation/pluxx/actions/runs/30144489420) published and verified the exact tag artifact without moving it.
+The canonical repository version is pending `0.1.38` release-prep for PLUXX-340. The canonical and verified public release remains `0.1.37`; immutable tag `v0.1.37` remains at `d5184752cd4898306390f20455619c34a42099dd`, and recovery run [30144489420](https://github.com/orchidautomation/pluxx/actions/runs/30144489420) published and independently verified the exact artifact without moving its tag.
 
 The next npm cut should stay primarily an operations step rather than a code-confidence rescue step.
 
-- preserve the completed immutable-tag recovery evidence: tag commit `d5184752cd4898306390f20455619c34a42099dd`, tree `e63eea0f89995a44b7536b5403af57792e994cb9`, trusted main `044673f947115bcf6117dd7c0139918bdd248a99`, and tarball SHA-256 `7c996da682887ceedecc006307c207c5a834e5dedabaab17611cd586ef85b237`
+- release and independently verify 0.1.38 as the focused PLUXX-340 manifest-identity correction
+- preserve the completed 0.1.37 immutable-tag recovery evidence: tag commit `d5184752cd4898306390f20455619c34a42099dd`, tree `e63eea0f89995a44b7536b5403af57792e994cb9`, trusted main `044673f947115bcf6117dd7c0139918bdd248a99`, and tarball SHA-256 `7c996da682887ceedecc006307c207c5a834e5dedabaab17611cd586ef85b237`
 - refresh installed-runtime or real-host receipts separately before making broader current host claims
 - use future focused release PRs and trusted tag workflows for the next package cut
 

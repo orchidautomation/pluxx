@@ -30,9 +30,9 @@ This is the shortest current repo-native path to:
 
 For the fuller release/distribution boundary, including publish commands and deferred marketplace/trust-layer work, use [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md).
 
-Proof labels and freshness come from [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json). The May self-hosted run, April Firecrawl connector run, and released 0.1.36 evidence are preserved as historical environment evidence; they are not current host receipts for `0.1.37`.
+Proof labels and freshness come from [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json). The May self-hosted run, April Firecrawl connector run, and shipped 0.1.37 evidence remain historical relative to pending repository version `0.1.38`.
 
-The v0.1.37 receipts prove the `bundle-contract` and maintained core-four `fake-home-install` tiers from an isolated exact-tag rehearsal at immutable commit `d5184752cd4898306390f20455619c34a42099dd`. They list the split commands actually run against the tag; the earlier full `release:check` receipts remain historical at pre-squash commit `f7ee0bd5d6cf5f8b75dec7df6dcda85dcf5a7af8`. Trusted-main recovery run [30144489420](https://github.com/orchidautomation/pluxx/actions/runs/30144489420) then published and verified that exact artifact on npm and GitHub at SHA-256 `7c996da682887ceedecc006307c207c5a834e5dedabaab17611cd586ef85b237`. The security focus is fail-closed detection of bundled runtime scripts that source workspace `.env` files through direct and statically evaluable shell forms. No current receipt claims installed-runtime or real-host behavior until public host verification is refreshed.
+The 0.1.38 release-prep proof covers only the PLUXX-340 manifest-identity correction: one manifest archive record per host while versioned and `latest` assets remain produced and checksummed. Fresh receipts `v0.1.38-repository-validation` and `v0.1.38-fake-home-install` bind to exact release-prep commit `361958f6b16b1acc2bb901c97fc2c6d5a77ba880`, where `npm run release:check` passed on 2026-07-25. The historical shipped 0.1.37 npm and GitHub artifact remains independently verified at SHA-256 `7c996da682887ceedecc006307c207c5a834e5dedabaab17611cd586ef85b237`.
 
 ## The Story In One Screen
 
@@ -211,6 +211,7 @@ curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example
 Current release note:
 
 - the canonical and verified public release is `@orchid-labs/pluxx@0.1.37` / `v0.1.37` for the PLUXX-339 runtime env-sourcing security patch; npm and GitHub serve the same verified tarball and the GitHub release includes its recovery receipt
+- repository version `0.1.38` is release-prep only for the separately discovered PLUXX-340 duplicate archive-identity correction
 - the published CLI runtime is Node `>=18`; see [runtime contract](./runtime-contract.md)
 - the published package includes the Claude plugin-agent manifest fix and packaged Node runtime verification
 - the public `pluxx test --install --trust --behavioral` path now matches the repo-local Exa proof state

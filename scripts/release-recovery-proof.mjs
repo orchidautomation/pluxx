@@ -34,9 +34,9 @@ const PRE_PROOF_VALIDATIONS = [
 ]
 const PRE_PROOF_COMMANDS = PRE_PROOF_VALIDATIONS.map((validation) => validation.command)
 const PROOF_VALIDATION = 'npm run proof:check'
-const RECEIPT_COMMANDS = new Map([
-  ['v0.1.37-repository-validation', PRE_PROOF_COMMANDS],
-  ['v0.1.37-fake-home-install', ['npm test']],
+const RECEIPT_COMMANDS_BY_TIER = new Map([
+  ['bundle-contract', PRE_PROOF_COMMANDS],
+  ['fake-home-install', ['npm test']],
 ])
 
 function fail(message) {
@@ -233,14 +233,8 @@ function packCandidate(args) {
 }
 
 function commandsForReceipt(receipt) {
-  const commands = RECEIPT_COMMANDS.get(receipt.id)
+  const commands = RECEIPT_COMMANDS_BY_TIER.get(receipt.tier)
   if (!commands) fail(`Recovery does not support current receipt ${String(receipt.id)}`)
-  if (receipt.id === 'v0.1.37-repository-validation' && receipt.tier !== 'bundle-contract') {
-    fail(`Recovery receipt ${receipt.id} has unexpected tier ${String(receipt.tier)}`)
-  }
-  if (receipt.id === 'v0.1.37-fake-home-install' && receipt.tier !== 'fake-home-install') {
-    fail(`Recovery receipt ${receipt.id} has unexpected tier ${String(receipt.tier)}`)
-  }
   return commands.map((command) => ({ command, outcome: 'passed' }))
 }
 
