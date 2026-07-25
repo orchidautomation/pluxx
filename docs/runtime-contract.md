@@ -1,6 +1,6 @@
 # Runtime Contract
 
-Last updated: 2026-07-17
+Last updated: 2026-07-24
 
 ## Doc Links
 
@@ -35,6 +35,20 @@ Supported consumer invocation paths:
 
 The published package ships the Node launcher in `bin/` and the compiled runtime in `dist/`.
 The launcher intentionally does not load TypeScript source files or fall back to Bun at runtime.
+
+## Runtime Env Script Safety
+
+Workspace env files are treated as data, not shell programs.
+
+Generated MCP launchers parse workspace `.env` as dotenv text and do not evaluate command substitutions. Product-owned runtime scripts must preserve that boundary. In particular, bundled shell scripts such as `scripts/load-env.sh`, `scripts/bootstrap-runtime.sh`, `scripts/start-mcp.sh`, and hook scripts under `scripts/` must not use `source` or `.` to load workspace `.env`, `.env.local`, or client env files.
+
+Allowed runtime-env patterns include:
+
+- a JavaScript or Node dotenv parser that reads env files as text
+- shell code that validates already-materialized environment variables without loading env files
+- relying on `runtime/pluxx-mcp-env.mjs` for runtime-inherited stdio MCP env vars
+
+Blocking validation is intentional. `pluxx lint`, `pluxx doctor`, `pluxx build`, installed-bundle doctor checks, and verify/install integrity checks reject bundled shell scripts that shell-source workspace env files, because values like `TOKEN=$(...)` would execute under shell `source`.
 
 ## Config Loading
 

@@ -217,7 +217,7 @@ If a plugin needs native Node dependencies such as `@duckdb/node-api`, do not as
 
 The safer pattern is:
 
-- `load-env.sh` for runtime env loading
+- `load-env.sh` for runtime env loading, implemented with a dotenv text parser rather than shell `source`
 - `bootstrap-runtime.sh` for first-run local native dependency install
 - `start-mcp.sh` as the MCP entrypoint
 - no runtime dependence on installer-mutated `check-env.sh`
@@ -225,6 +225,7 @@ The safer pattern is:
 This is now also a compiler-owned contract, not only doc guidance:
 
 - `lint` and `doctor` read from one shared runtime-script contract for the installer-owned `check-env.sh` rule
+- `lint`, `doctor`, `build`, installed-bundle doctor checks, and verify/install integrity checks reject bundled shell scripts that use `source` or `.` to load workspace `.env` files, because that would execute command substitutions after the Pluxx-generated dotenv parser already preserved them as literal text
 - the recommended portable runtime role split is centralized alongside that rule so follow-on runtime validation work can reuse it instead of restating it
 - generated release installers use that split to prepare one content-addressed native Node runtime under `~/.pluxx/runtimes/` when the explicit contract declares deterministic inputs including a lockfile, then link each compatible staged host bundle to the same immutable runtime output
 - the shared runtime key comes from the compiler-emitted `.pluxx-runtime.json`, every declared input, bootstrap content, plugin namespace, OS, architecture, Node ABI, and the Pluxx runtime-store contract version

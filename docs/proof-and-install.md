@@ -1,6 +1,6 @@
 # Proof And Install
 
-Last updated: 2026-07-16
+Last updated: 2026-07-24
 
 ## Doc Links
 
@@ -32,7 +32,7 @@ For the fuller release/distribution boundary, including publish commands and def
 
 Proof labels and freshness come from [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json). The May self-hosted run, April Firecrawl connector run, and previous 0.1.35 release evidence are preserved as historical environment evidence; they are not current host receipts for `0.1.36`.
 
-The current v0.1.36 release-prep receipts prove the `bundle-contract` and generated-installer `fake-home-install` tiers from the repository state, including installed top-level OpenCode wrapper workspace passthrough and maintained core-four fake-home coverage. No current receipt claims installed-runtime or real-host behavior until the patch release is cut and publicly verified.
+The current v0.1.36 release receipts prove the `bundle-contract` and generated-installer `fake-home-install` tiers from the repository state, including installed top-level OpenCode wrapper workspace passthrough and maintained core-four fake-home coverage. No current receipt claims installed-runtime or real-host behavior until public host verification is refreshed.
 
 ## The Story In One Screen
 
@@ -103,6 +103,7 @@ Today, Pluxx ships the OSS authoring and local/self-hosted distribution lane:
 - let opted-in generated core-four installers reuse one content-addressed platform-native runtime, with safe host-local fallback when reuse is unavailable
 - publish the npm-backed OpenCode wrapper path with `pluxx publish --npm`
 - keep core-four stdio MCP runtime variables launch-context aware without baking one workspace's values into global installs
+- reject bundled shell scripts that `source` workspace `.env` files, while allowing generated dotenv-text parsing for runtime-inherited MCP env vars
 
 It does not yet ship marketplace submission APIs, a managed trust/distribution control plane, automatic rollback/unpublish orchestration, or a real authenticated publish plus rollback proof against a private authoring target.
 

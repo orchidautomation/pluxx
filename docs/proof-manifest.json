@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "canonicalVersion": "0.1.36",
   "expectedTag": "v0.1.36",
-  "releaseState": "release-prep",
+  "releaseState": "released",
   "policy": {
     "environmentReceiptMaxAgeDays": 30
   },
@@ -105,7 +105,7 @@
     },
     {
       "id": "v0.1.36-repository-validation",
-      "summary": "The v0.1.36 release-prep state passes the repository release gate for installed OpenCode wrapper workspace passthrough.",
+      "summary": "The v0.1.36 released state passes the repository release gate for installed OpenCode wrapper workspace passthrough.",
       "tier": "bundle-contract",
       "freshness": "current",
       "evidencePath": "tests/proof-freshness.test.ts",

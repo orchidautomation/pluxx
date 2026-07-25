@@ -72,6 +72,73 @@ describe('build command lint gate', () => {
     }
   })
 
+  it('fails build when bundled runtime scripts shell-source workspace env files', async () => {
+    const projectDir = mkdtempSync(resolve(tmpdir(), 'pluxx-build-unsafe-runtime-env-'))
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+    mkdirSync(resolve(projectDir, 'scripts'), { recursive: true })
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        scripts: './scripts/',
+        targets: ['codex'],
+        outDir: './dist',
+        mcp: {
+          localRuntime: {
+            transport: 'stdio',
+            command: 'bash',
+            args: ['./scripts/start-mcp.sh'],
+            env: {
+              SENDLENS_INSTANTLY_API_KEY: '${SENDLENS_INSTANTLY_API_KEY}',
+            },
+          },
+        },
+        hooks: {
+          sessionStart: [{ command: 'bash "${PLUGIN_ROOT}/scripts/session-start.sh"' }],
+        },
+      }, null, 2),
+    )
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A valid skill"', '---', '', '# My Skill'].join('\n'),
+    )
+    writeFileSync(resolve(projectDir, 'scripts/load-env.sh'), [
+      '#!/usr/bin/env bash',
+      'for file_path in "$PWD/.env" "$PWD/.env.local"; do',
+      '  [ -f "$file_path" ] && source "$file_path"',
+      'done',
+      '',
+    ].join('\n'))
+    writeFileSync(resolve(projectDir, 'scripts/start-mcp.sh'), '#!/usr/bin/env bash\nsource "$(dirname "$0")/load-env.sh"\n')
+    writeFileSync(resolve(projectDir, 'scripts/session-start.sh'), '#!/usr/bin/env bash\nsource "$PWD/.env"\n')
+
+    try {
+      const proc = spawnCli(['build', '--json'], projectDir)
+      const stdout = await new Response(proc.stdout).text()
+      const stderr = await new Response(proc.stderr).text()
+      const exitCode = await proc.exited
+
+      expect(exitCode).toBe(1)
+      expect(stderr).toBe('')
+
+      const result = JSON.parse(stdout) as {
+        ok: boolean
+        reason: string
+        lint: { errors: number; warnings: number; issues: Array<{ code: string }> }
+      }
+      expect(result.ok).toBe(false)
+      expect(result.reason).toBe('lint-errors')
+      expect(result.lint.issues.some((issue) => issue.code === 'unsafe-shell-env-source')).toBe(true)
+      expect(existsSync(resolve(projectDir, 'dist/codex/.codex-plugin/plugin.json'))).toBe(false)
+    } finally {
+      rmSync(projectDir, { recursive: true, force: true })
+    }
+  })
+
   it('allows build when lint only has warnings for the selected target', async () => {
     const projectDir = mkdtempSync(resolve(tmpdir(), 'pluxx-build-lint-warning-'))
     mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
