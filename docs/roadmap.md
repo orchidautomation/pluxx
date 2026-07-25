@@ -230,8 +230,8 @@ The closure plan is now narrower than it was before:
 - historical release-gate evidence from 2026-05-19 remains available but is not current proof:
   - `npm test` passed
   - `npm run release:check` passed
-- the canonical and verified public release is `@orchid-labs/pluxx@0.1.37` / `v0.1.37`; npm and GitHub serve the same tarball at SHA-256 `7c996da682887ceedecc006307c207c5a834e5dedabaab17611cd586ef85b237`
-- the canonical repository version is tagged as `0.1.38` for PLUXX-340; the failed-closed first Release run did not publish artifacts and does not change the shipped status of 0.1.37
+- the canonical and verified public release is `@orchid-labs/pluxx@0.1.38` / `v0.1.38`; npm and GitHub serve the same tarball at SHA-256 `34af5bd24a441f13094b651658d6728509771a8cb9295f82b1bc66a985cb2c24`
+- 0.1.38 is only the PLUXX-340 manifest-identity follow-up discovered after shipped and independently verified 0.1.37
 - the release/distribution/proof boundary is now explicit:
   - [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md)
   - [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md)
