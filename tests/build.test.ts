@@ -2007,56 +2007,61 @@ describe('build', () => {
     }
 
     mkdirSync(resolve(TEST_DIR, 'agents'), { recursive: true })
-    await Bun.write(
-      resolve(TEST_DIR, 'agents/alias-agent.md'),
-      [
-        '---',
-        'name: alias-agent',
-        'description: "Alias normalization specialist."',
-        'model: "gpt-5.4"',
-        'effort: "high"',
-        'maxSteps: 7',
-        'top_p: 0.35',
-        '---',
-        '',
-        '# Alias Agent',
-        '',
-        'Validate that shared agent metadata aliases normalize cleanly.',
-        '',
-      ].join('\n'),
-    )
+    const aliasAgentPath = resolve(TEST_DIR, 'agents/alias-agent.md')
+    try {
+      await Bun.write(
+        aliasAgentPath,
+        [
+          '---',
+          'name: alias-agent',
+          'description: "Alias normalization specialist."',
+          'model: "gpt-5.4"',
+          'effort: "high"',
+          'maxSteps: 7',
+          'top_p: 0.35',
+          '---',
+          '',
+          '# Alias Agent',
+          '',
+          'Validate that shared agent metadata aliases normalize cleanly.',
+          '',
+        ].join('\n'),
+      )
 
-    await build(agentConfig, TEST_DIR)
+      await build(agentConfig, TEST_DIR)
 
-    const claudeAgent = readFileSync(
-      resolve(TEST_DIR, 'agent-metadata-aliases-dist/claude-code/agents/alias-agent.md'),
-      'utf-8',
-    )
-    const cursorAgent = readFileSync(
-      resolve(TEST_DIR, 'agent-metadata-aliases-dist/cursor/agents/alias-agent.md'),
-      'utf-8',
-    )
-    const codexAgent = readFileSync(
-      resolve(TEST_DIR, 'agent-metadata-aliases-dist/codex/.codex/agents/alias-agent.toml'),
-      'utf-8',
-    )
-    const opencodeIndex = readFileSync(
-      resolve(TEST_DIR, 'agent-metadata-aliases-dist/opencode/index.ts'),
-      'utf-8',
-    )
+      const claudeAgent = readFileSync(
+        resolve(TEST_DIR, 'agent-metadata-aliases-dist/claude-code/agents/alias-agent.md'),
+        'utf-8',
+      )
+      const cursorAgent = readFileSync(
+        resolve(TEST_DIR, 'agent-metadata-aliases-dist/cursor/agents/alias-agent.md'),
+        'utf-8',
+      )
+      const codexAgent = readFileSync(
+        resolve(TEST_DIR, 'agent-metadata-aliases-dist/codex/.codex/agents/alias-agent.toml'),
+        'utf-8',
+      )
+      const opencodeIndex = readFileSync(
+        resolve(TEST_DIR, 'agent-metadata-aliases-dist/opencode/index.ts'),
+        'utf-8',
+      )
 
-    expect(claudeAgent).toContain('effort: "high"')
-    expect(claudeAgent).toContain('maxTurns: 7')
-    expect(cursorAgent).toContain('Cursor translation note:')
-    expect(cursorAgent).toContain('"steps"')
-    expect(cursorAgent).toContain('"topP"')
-    expect(codexAgent).toContain('model_reasoning_effort = "high"')
-    expect(codexAgent).toContain('Host translation note:')
-    expect(codexAgent).toContain('"steps"')
-    expect(opencodeIndex).toContain('"alias-agent"')
-    expect(opencodeIndex).toContain('"steps": 7')
-    expect(opencodeIndex).toContain('"top_p": 0.35')
-    expect(opencodeIndex).not.toContain('"topP": 0.35')
+      expect(claudeAgent).toContain('effort: "high"')
+      expect(claudeAgent).toContain('maxTurns: 7')
+      expect(cursorAgent).toContain('Cursor translation note:')
+      expect(cursorAgent).toContain('"steps"')
+      expect(cursorAgent).toContain('"topP"')
+      expect(codexAgent).toContain('model_reasoning_effort = "high"')
+      expect(codexAgent).toContain('Host translation note:')
+      expect(codexAgent).toContain('"steps"')
+      expect(opencodeIndex).toContain('"alias-agent"')
+      expect(opencodeIndex).toContain('"steps": 7')
+      expect(opencodeIndex).toContain('"top_p": 0.35')
+      expect(opencodeIndex).not.toContain('"topP": 0.35')
+    } finally {
+      rmSync(aliasAgentPath, { force: true })
+    }
   })
 
   it('carries compiler-intent skill policies into the Codex permissions companion when present', async () => {

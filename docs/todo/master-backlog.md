@@ -126,7 +126,9 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
 - [x] Prepare synchronized 0.1.38 package, proof, planning, recovery-default, and release truth
 - [x] Bind fresh repository-validation and fake-home-install receipts to exact immutable release-prep commit `361958f6b16b1acc2bb901c97fc2c6d5a77ba880`
 - [x] Pass focused and full release gates plus independent review; review record: [2026-07-25-pluxx-340-release-0.1.38-review.md](../orchid/reviews/2026-07-25-pluxx-340-release-0.1.38-review.md)
-- [ ] Merge the exact green release PR with a true merge commit, prove PR-head and receipt ancestry, and push immutable tag `v0.1.38` from trusted main
+- [x] Merge PR #462 exact reviewed head `cbc14e007626328a8d25340419a455f40701426c` with true merge commit `e24d4db3f57fa0942376237fb212cb49368d7704`, prove PR-head and receipt ancestry, and push immutable tag `v0.1.38`
+- [x] Confirm tag-triggered Release run `30152484521` failed closed during the full test gate before pack or publication
+- [ ] Merge the reviewed trusted-main recovery fix and dispatch immutable-tag recovery without moving or recreating `v0.1.38`
 - [ ] Verify npm, GitHub release assets, byte-identical tarballs, immutable tag provenance, and installed CLI behavior
 
 ### 1. Product clarity and front-door coherence
