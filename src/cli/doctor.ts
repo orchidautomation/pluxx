@@ -14,10 +14,12 @@ import { getBrandingCompletenessWarnings } from '../branding-completeness'
 import { findLeakedPluginRootVars } from '../mcp-stdio-paths'
 import { getRuntimeReadinessPlan } from '../readiness'
 import {
+  findUnsafeShellEnvSources,
   getConsumerEnvScriptActiveDetail,
   getConsumerEnvScriptMissingDetail,
   getConsumerRuntimeScriptRolesDetail,
   getRuntimeScriptRoleForPath,
+  getUnsafeShellEnvSourceMessage,
   INSTALLER_OWNED_CHECK_ENV_PATH,
   type RuntimeScriptRole,
 } from '../runtime-script-contract'
@@ -645,6 +647,45 @@ function checkRuntimeReadiness(checks: DoctorCheck[], config: PluginConfig): voi
       fix: `Keep ${codexReadinessCapability.companionArtifacts.join(' and ')} available when verifying the installed Codex bundle, and enable \`${RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG} = true\` under \`[features]\` if bundled readiness does not activate.`,
       path: 'pluxx.config.ts',
     })
+  }
+}
+
+function collectRuntimeScriptFiles(rootDir: string, relativeDir: string | undefined): string[] {
+  if (!relativeDir) return []
+  const scriptsRoot = resolve(rootDir, relativeDir)
+  if (!existsSync(scriptsRoot)) return []
+
+  const files: string[] = []
+  const visit = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const absolutePath = resolve(dir, entry.name)
+      if (entry.isDirectory()) {
+        visit(absolutePath)
+        continue
+      }
+      if (!entry.isFile()) continue
+      files.push(absolutePath)
+    }
+  }
+
+  visit(scriptsRoot)
+  return files.sort()
+}
+
+function checkUnsafeShellEnvSources(checks: DoctorCheck[], rootDir: string, relativeDir: string | undefined): void {
+  for (const scriptPath of collectRuntimeScriptFiles(rootDir, relativeDir)) {
+    const relativePath = relative(rootDir, scriptPath).replace(/\\/g, '/')
+    const content = readFileSync(scriptPath, 'utf-8')
+    for (const finding of findUnsafeShellEnvSources(content)) {
+      addCheck(checks, {
+        level: 'error',
+        code: 'unsafe-shell-env-source',
+        title: 'Runtime script shell-sources workspace env files',
+        detail: getUnsafeShellEnvSourceMessage(relativePath, finding),
+        fix: 'Replace shell source/dot execution with a dotenv text parser, or let runtime/pluxx-mcp-env.mjs load runtime-inherited MCP env vars.',
+        path: relativePath,
+      })
+    }
   }
 }
 
@@ -2624,6 +2665,7 @@ export async function doctorConsumer(
   checkInstalledCodexCachePlaintextSecrets(checks, rootDir, layout)
   checkInstalledEnvValidation(checks, rootDir)
   checkInstalledRuntimeScriptRoles(checks, rootDir)
+  checkUnsafeShellEnvSources(checks, rootDir, 'scripts')
   await checkInstalledMcpConfig(checks, rootDir, layout)
   if (layout.platform === 'opencode') {
     checkInstalledOpenCodeHostBridge(checks, rootDir)
@@ -2690,6 +2732,7 @@ export async function doctorProject(rootDir: string = process.cwd()): Promise<Do
   checkTargetPlatforms(checks, config)
   checkPrimitiveTranslations(checks, config)
   checkRuntimeReadiness(checks, config)
+  checkUnsafeShellEnvSources(checks, rootDir, config.scripts)
   checkMcpConfig(checks, config)
   checkUserConfig(checks, config)
   checkScaffoldMetadata(checks, rootDir, config)

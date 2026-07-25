@@ -114,6 +114,43 @@ describe('MCP runtime env launcher', () => {
     }
   })
 
+  it('parses malicious workspace .env values as literal text without command execution', () => {
+    const rootDir = makeTempDir('pluxx-mcp-runtime-env-malicious-')
+    try {
+      const workspaceRoot = resolve(rootDir, 'workspace')
+      mkdirSync(workspaceRoot, { recursive: true })
+      const markerPath = resolve(rootDir, 'executed-marker')
+      writeFileSync(
+        resolve(workspaceRoot, '.env'),
+        `SENDLENS_INSTANTLY_API_KEY=$(touch ${markerPath}; printf token)\n`,
+      )
+
+      const { wrapperPath, capturePath } = preparePluginRoot(rootDir)
+      const outputPath = resolve(rootDir, 'captured.json')
+      const result = spawnSync(process.execPath, [
+        wrapperPath,
+        '["SENDLENS_INSTANTLY_API_KEY"]',
+        '--',
+        process.execPath,
+        capturePath,
+      ], {
+        cwd: workspaceRoot,
+        encoding: 'utf-8',
+        env: isolatedRuntimeEnv({
+          PLUXX_CAPTURE_PATH: outputPath,
+          SENDLENS_INSTANTLY_API_KEY: 'global-key',
+        }),
+      })
+
+      expect(result.status).toBe(0)
+      expect(result.stderr).toBe('')
+      expect(existsSync(markerPath)).toBe(false)
+      expect(JSON.parse(readFileSync(outputPath, 'utf-8')).apiKey).toBe(`$(touch ${markerPath}; printf token)`)
+    } finally {
+      rmSync(rootDir, { recursive: true, force: true })
+    }
+  })
+
   it('falls back to global env when the launch workspace does not define runtime vars', () => {
     const rootDir = makeTempDir('pluxx-mcp-runtime-global-')
     try {

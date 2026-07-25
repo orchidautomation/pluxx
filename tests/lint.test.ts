@@ -3,6 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { resolve } from 'path'
 import { lintProject } from '../src/cli/lint'
+import { findUnsafeShellEnvSources } from '../src/runtime-script-contract'
 
 const tempDirs: string[] = []
 
@@ -219,6 +220,467 @@ describe('lintProject', () => {
 
     const result = await lintProject(projectDir)
     expect(result.issues.some(issue => issue.code === 'installer-owned-check-env-runtime')).toBe(true)
+  })
+
+  it('errors when runtime-env shell-sources workspace env files', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+    mkdirSync(resolve(projectDir, 'scripts'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        scripts: './scripts/',
+        targets: ['codex'],
+        mcp: {
+          sendlens: {
+            transport: 'stdio',
+            command: 'bash',
+            args: ['./scripts/start-mcp.sh'],
+          },
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(resolve(projectDir, 'scripts/load-env.sh'), [
+      '#!/usr/bin/env bash',
+      'for file_path in "$WORKSPACE_ROOT/.env" "$WORKSPACE_ROOT/.env.local"; do',
+      '  [ -f "$file_path" ] || continue',
+      '  source "${file_path:?missing env file}"',
+      '  . "${file_path:-$WORKSPACE_ROOT/.env}"',
+      'done',
+      '',
+    ].join('\n'))
+    writeFileSync(resolve(projectDir, 'scripts/start-mcp.sh'), '#!/usr/bin/env bash\nsource "$(dirname "$0")/load-env.sh"\n')
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A valid skill description"', '---', '', '# My Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    const unsafeIssues = result.issues.filter(issue => issue.code === 'unsafe-shell-env-source')
+    expect(result.errors).toBeGreaterThan(0)
+    expect(unsafeIssues).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        level: 'error',
+        file: 'scripts/load-env.sh',
+        message: expect.stringContaining('line 4'),
+      }),
+      expect.objectContaining({
+        level: 'error',
+        file: 'scripts/load-env.sh',
+        message: expect.stringContaining('line 5'),
+      }),
+    ]))
+  })
+
+  it('errors when runtime-env shell-sources workspace env files with line continuations', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+    mkdirSync(resolve(projectDir, 'scripts'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        scripts: './scripts/',
+        targets: ['codex'],
+        mcp: {
+          sendlens: {
+            transport: 'stdio',
+            command: 'bash',
+            args: ['./scripts/start-mcp.sh'],
+          },
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(resolve(projectDir, 'scripts/load-env.sh'), [
+      '#!/usr/bin/env bash',
+      'for file_path in \\',
+      '  "$WORKSPACE_ROOT/.env" \\',
+      '  "$WORKSPACE_ROOT/.env.local"; do',
+      '  [ -f "$file_path" ] || continue',
+      '  source \\',
+      '    "$file_path"',
+      'done',
+      '. \\',
+      '  "$PWD/.env"',
+      '',
+    ].join('\n'))
+    writeFileSync(resolve(projectDir, 'scripts/start-mcp.sh'), '#!/usr/bin/env bash\nsource "$(dirname "$0")/load-env.sh"\n')
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A valid skill description"', '---', '', '# My Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    const unsafeIssues = result.issues.filter(issue => issue.code === 'unsafe-shell-env-source')
+    expect(result.errors).toBeGreaterThan(0)
+    expect(unsafeIssues).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        level: 'error',
+        file: 'scripts/load-env.sh',
+        message: expect.stringContaining('line 6'),
+      }),
+      expect.objectContaining({
+        level: 'error',
+        file: 'scripts/load-env.sh',
+        message: expect.stringContaining('line 9'),
+      }),
+    ]))
+  })
+
+  it('errors when extensionless runtime scripts shell-source workspace env files in control flow', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+    mkdirSync(resolve(projectDir, 'scripts'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        scripts: './scripts/',
+        targets: ['codex'],
+        mcp: {
+          sendlens: {
+            transport: 'stdio',
+            command: 'bash',
+            args: ['./scripts/load-env'],
+          },
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(resolve(projectDir, 'scripts/load-env'), [
+      '#!/usr/bin/env bash',
+      'for file_path in "$PWD/.env" "$PWD/.env.local"; do . "$file_path"; done',
+      'if [ -f "$PWD/.env" ]; then source "$PWD/.env"; fi',
+      '',
+    ].join('\n'))
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A valid skill description"', '---', '', '# My Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    const unsafeIssues = result.issues.filter(issue => issue.code === 'unsafe-shell-env-source')
+    expect(result.errors).toBeGreaterThan(0)
+    expect(unsafeIssues).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        level: 'error',
+        file: 'scripts/load-env',
+        message: expect.stringContaining('line 2'),
+      }),
+      expect.objectContaining({
+        level: 'error',
+        file: 'scripts/load-env',
+        message: expect.stringContaining('line 3'),
+      }),
+    ]))
+  })
+
+  it('checks every source command and valid if-source forms', async () => {
+    const projectDir = createTempProject()
+    const envName = '.' + 'env'
+    const deeplyNestedSource = '$('.repeat(20) + `source "$PWD/${envName}"` + ')'.repeat(20)
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+    mkdirSync(resolve(projectDir, 'scripts'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        scripts: './scripts/',
+        targets: ['codex'],
+      }, null, 2),
+    )
+
+    writeFileSync(resolve(projectDir, 'scripts/load-env.sh'), [
+      '#!/usr/bin/env bash',
+      `env_file="$PWD/${envName}"`,
+      'source ./safe-runtime.sh; source "$env_file"',
+      `if source "$PWD/${envName}"; then :; fi`,
+      `MODE=local source "$PWD/${envName}"`,
+      `time source "$PWD/${envName}"`,
+      `>runtime.log source "$PWD/${envName}"`,
+      `command -p -- source "$PWD/${envName}"`,
+      'builtin -- source "$env_file"',
+      `MODE= source "$PWD/${envName}"`,
+      `MODE+=local source "$PWD/${envName}"`,
+      `MODE=$'local value' source "$PWD/${envName}"`,
+      `MODE=$(printf local) source "$PWD/${envName}"`,
+      'source "${file_path:?missing; set WORKSPACE_ROOT}"',
+      `MODE=\${MODE:-local value} source "$PWD/${envName}"`,
+      `MODE=\${MODE:?missing; set MODE} source "$PWD/${envName}"`,
+      'MODE=`printf local` source "$PWD/' + envName + '"',
+      `A[0]=local source "$PWD/${envName}"`,
+      `MODE=local\\ value source "$PWD/${envName}"`,
+      `source ./My\\ Project/${envName}`,
+      `source ./team\\;ops/${envName}`,
+      `2>runtime.log source "$PWD/${envName}"`,
+      'source 2>runtime.log "$' + 'env_file"',
+      `source \\${envName}`,
+      'source .\\env',
+      'source "."env',
+      'source "$PWD/."env',
+      `<<<payload source "$PWD/${envName}"`,
+      'source <<<payload "$' + 'env_file"',
+      `source < <(printf payload) "$PWD/${envName}"`,
+      'source &>runtime.log "$' + 'env_file"',
+      `&>>runtime.log source "$PWD/${envName}"`,
+      `$'source' "$PWD/${envName}"`,
+      `$'.' "$PWD/${envName}"`,
+      `$'\\x73ource' "$PWD/${envName}"`,
+      `printf '%s' "$(source "$PWD/${envName}")"`,
+      `cat <(source "$PWD/${envName}")`,
+      'printf \'%s\' `source "$PWD/' + envName + '"`',
+      `commands=($(source "$PWD/${envName}"))`,
+      'printf \'%s\' `printf "\\`"; source "$PWD/' + envName + '"`',
+      `source $'\\x2eenv'`,
+      `source $'\\056env'`,
+      deeplyNestedSource,
+      `$'\\u0073ource' "$PWD/${envName}"`,
+      `source $'\\u002eenv'`,
+      `source -- "$PWD/${envName}"`,
+      `. -- "$PWD/${envName}"`,
+      'source -- "$' + 'env_file"',
+      '',
+    ].join('\n'))
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A valid skill description"', '---', '', '# My Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    const unsafeIssues = result.issues.filter(issue => issue.code === 'unsafe-shell-env-source')
+    expect(result.errors).toBeGreaterThan(0)
+    expect(unsafeIssues).toHaveLength(46)
+    for (let line = 3; line <= 48; line += 1) {
+      expect(unsafeIssues).toContainEqual(expect.objectContaining({
+        level: 'error',
+        file: 'scripts/load-env.sh',
+        message: expect.stringContaining(`line ${line}`),
+      }))
+    }
+  })
+
+  it('detects variable sources after relative workspace env assignments', async () => {
+    const projectDir = createTempProject()
+    const envName = '.' + 'env.local'
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+    mkdirSync(resolve(projectDir, 'scripts'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        scripts: './scripts/',
+        targets: ['codex'],
+      }, null, 2),
+    )
+
+    writeFileSync(resolve(projectDir, 'scripts/load-env.sh'), [
+      '#!/usr/bin/env bash',
+      `env_file=${envName}`,
+      'source "$env_file"',
+      '',
+    ].join('\n'))
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A valid skill description"', '---', '', '# My Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues).toContainEqual(expect.objectContaining({
+      code: 'unsafe-shell-env-source',
+      level: 'error',
+      file: 'scripts/load-env.sh',
+      message: expect.stringContaining('line 3'),
+    }))
+  })
+
+  it('handles encoded workspace assignments, named descriptors, and command introspection', () => {
+    const dot = '.'
+    const suffix = 'env'
+    const envName = dot + suffix
+    const findings = findUnsafeShellEnvSources([
+      `hex_file=$PWD/$'\\x2e${suffix}'`,
+      'source "$hex_file"',
+      `escaped_file=$PWD/${dot}\\${suffix}`,
+      'source "$escaped_file"',
+      `concat_file=$PWD/$'${dot}e'nv`,
+      'source "$concat_file"',
+      `source {logfd}>runtime.log "$PWD/${envName}"`,
+      `{logfd}>runtime.log source "$PWD/${envName}"`,
+      `command -v source "$PWD/${envName}"`,
+      `command -V source "$PWD/${envName}"`,
+      `command -pv -- source "$PWD/${envName}"`,
+      `command 2>/dev/null -p source "$PWD/${envName}"`,
+      `command 2>/dev/null -- source "$PWD/${envName}"`,
+      `builtin 2>/dev/null -- source "$PWD/${envName}"`,
+      `command {logfd}>runtime.log -p source "$PWD/${envName}"`,
+      `command 2>/dev/null -v source "$PWD/${envName}"`,
+      `command {logfd}>runtime.log -V source "$PWD/${envName}"`,
+      `env_files=(${envName})`,
+      'env_file=${env_files[0]}',
+      'source "$env_file"',
+      `eval "source $PWD/${envName}"`,
+      'eval "source $env_file"',
+      `bash -c 'source "$PWD/${envName}"'`,
+      `bash -lc 'source "$PWD/${envName}"'`,
+      `command 2>/dev/null bash -c 'source "$PWD/${envName}"'`,
+      `bash -o posix -c 'source "$PWD/${envName}"'`,
+      `zsh +o SH_WORD_SPLIT -c 'source "$PWD/${envName}"'`,
+      `bash --norc -c 'source "$PWD/${envName}"'`,
+      `bash --posix -c 'source "$PWD/${envName}"'`,
+      `bash --rcfile=/dev/null -c 'source "$PWD/${envName}"'`,
+      `env bash -c 'source "$PWD/${envName}"'`,
+      `/usr/bin/env -i MODE=local bash -c 'source "$PWD/${envName}"'`,
+      `exec bash -c 'source "$PWD/${envName}"'`,
+      `exec 2>/dev/null /bin/bash -lc 'source "$PWD/${envName}"'`,
+      `eval 'bash -c "source \\"$PWD/${envName}\\""'`,
+      `bash -c 'bash -c "source \\"$PWD/${envName}\\""'`,
+      `bash -n -c 'source "$PWD/${envName}"'`,
+      `sh -n -c 'source "$PWD/${envName}"'`,
+      `bash -D -c 'source "$PWD/${envName}"'`,
+      `eval '"source ${envName}"'`,
+      `bash -c '"source ${envName}"'`,
+      `/usr/bin/env -S 'bash -c "source $PWD/${envName}"'`,
+      `/usr/bin/env -S 'bash -c' 'source "$PWD/${envName}"'`,
+      `env --split-string='bash -c' 'source "$PWD/${envName}"'`,
+      'env -i',
+      'env -S',
+      `env --split-string='printf safe'`,
+      `bash -o 2>/dev/null pipefail -c 'source "$PWD/${envName}"'`,
+      `bash --rcfile 2>/dev/null /dev/null -c 'source "$PWD/${envName}"'`,
+      `env -u 2>/dev/null HOME bash -c 'source "$PWD/${envName}"'`,
+      `exec -a 2>/dev/null loader bash -c 'source "$PWD/${envName}"'`,
+      String.raw`env -S 'bash -c \"source \\\"\${PWD}/${envName}\\\"\"'`,
+      String.raw`env -S'bash -c \"source \\\"\${PWD}/${envName}\\\"\"'`,
+      String.raw`env -S 2>/dev/null 'bash -c \"source \\\"\${PWD}/${envName}\\\"\"'`,
+      `exec env -S 'bash -c' 'source "$PWD/${envName}"'`,
+      `command exec /usr/bin/env --split-string='bash -c' 'source "$PWD/${envName}"'`,
+      `env -S 'source "$PWD/${envName}"'`,
+      `env -S 'eval source "$PWD/${envName}"'`,
+    ].join('\n'))
+
+    expect(findings.map(finding => finding.line)).toEqual([
+      2, 4, 6, 7, 8, 12, 13, 14, 15, 20, 21, 22, 23, 24, 25, 26, 27,
+      28, 29, 30, 31, 32, 33, 34, 35, 36, 42, 43, 44,
+      48, 49, 50, 51, 52, 53, 54, 55, 56,
+    ])
+  })
+
+  it('detects static evaluator strings that shell-source workspace env files', () => {
+    const envName = '.' + 'env'
+    const findings = findUnsafeShellEnvSources([
+      '#!/usr/bin/env bash',
+      `env_file="$PWD/${envName}"`,
+      `eval "source $PWD/${envName}"`,
+      'eval "source $env_file"',
+      'eval source "$env_file"',
+      `bash -c 'source "$PWD/${envName}"'`,
+      `env FOO=bar bash -lc 'source "$PWD/${envName}"'`,
+      '',
+    ].join('\n'))
+
+    expect(findings.map(finding => finding.line)).toEqual([3, 4, 5, 6, 7])
+  })
+
+  it('allows runtime-env scripts that parse dotenv files as text', async () => {
+    const projectDir = createTempProject()
+    const envName = '.' + 'env'
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+    mkdirSync(resolve(projectDir, 'scripts'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        scripts: './scripts/',
+        targets: ['codex'],
+      }, null, 2),
+    )
+
+    writeFileSync(resolve(projectDir, 'scripts/load-env.sh'), [
+      '#!/usr/bin/env bash',
+      'node -e \'const fs = require("fs"); const text = fs.existsSync(".env") ? fs.readFileSync(".env", "utf8") : ""; process.stdout.write(text)\'',
+      `commands=(source "$PWD/${envName}")`,
+      '',
+    ].join('\n'))
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A valid skill description"', '---', '', '# My Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues.some(issue => issue.code === 'unsafe-shell-env-source')).toBe(false)
+  })
+
+  it('errors when hook runtime scripts shell-source workspace env files', async () => {
+    const projectDir = createTempProject()
+    mkdirSync(resolve(projectDir, 'skills/my-skill'), { recursive: true })
+    mkdirSync(resolve(projectDir, 'scripts'), { recursive: true })
+
+    writeFileSync(
+      resolve(projectDir, 'pluxx.config.json'),
+      JSON.stringify({
+        name: 'test-plugin',
+        version: '0.1.0',
+        description: 'test',
+        author: { name: 'Test Author' },
+        skills: './skills/',
+        scripts: './scripts/',
+        targets: ['claude-code', 'codex'],
+        hooks: {
+          sessionStart: [{ command: 'bash "${PLUGIN_ROOT}/scripts/session-start.sh"' }],
+        },
+      }, null, 2),
+    )
+
+    writeFileSync(resolve(projectDir, 'scripts/session-start.sh'), [
+      '#!/usr/bin/env bash',
+      'env_file="${PLUXX_HOOK_WORKSPACE_ROOT:-$PWD}/.env.local"',
+      '[ -f "$env_file" ] && . "$env_file"',
+      '',
+    ].join('\n'))
+    writeFileSync(
+      resolve(projectDir, 'skills/my-skill/SKILL.md'),
+      ['---', 'name: my-skill', 'description: "A valid skill description"', '---', '', '# My Skill'].join('\n'),
+    )
+
+    const result = await lintProject(projectDir)
+    expect(result.issues).toContainEqual(expect.objectContaining({
+      level: 'error',
+      code: 'unsafe-shell-env-source',
+      file: 'scripts/session-start.sh',
+    }))
   })
 
   it('warns when global stdio MCP config uses host-specific plugin root vars', async () => {

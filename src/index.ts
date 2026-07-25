@@ -81,12 +81,15 @@ export {
 export {
   INSTALLER_OWNED_CHECK_ENV_PATH,
   PORTABLE_RUNTIME_SCRIPT_ROLES,
+  findUnsafeShellEnvSources,
   getConsumerEnvScriptActiveDetail,
   getConsumerEnvScriptMissingDetail,
   getInstallerOwnedCheckEnvHookMessage,
   getInstallerOwnedCheckEnvRuntimeMessage,
   getPortableRuntimeScriptRoleGuidance,
+  getUnsafeShellEnvSourceMessage,
   referencesInstallerOwnedCheckEnv,
+  type UnsafeShellEnvSourceFinding,
 } from './runtime-script-contract'
 export {
   buildGeneratedPermissionHookScript,

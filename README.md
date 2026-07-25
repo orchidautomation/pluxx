@@ -146,6 +146,8 @@ Discovery reads Claude Code, Cursor, Codex, and OpenCode config locations and av
 
 For core-four stdio MCPs, Pluxx owns the runtime variable launcher. Pure placeholder values in MCP stdio config stay runtime-inherited, so a globally installed plugin can be reused from different workspaces without baking one workspace's local config into Claude Code, Cursor, Codex, or OpenCode bundles.
 
+Workspace `.env` files are parsed as dotenv text by the generated launcher. Bundled shell scripts must not `source` workspace env files; `lint`, `doctor`, `build`, and installed-bundle checks reject that pattern because shell sourcing can execute command substitutions from user-controlled env values.
+
 Plugins with expensive platform-native dependencies can opt into one content-addressed runtime shared by their generated core-four installers:
 
 ```ts

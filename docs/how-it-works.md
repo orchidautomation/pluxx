@@ -114,6 +114,8 @@ The package-level source of truth is [docs/runtime-contract.md](./runtime-contra
 
 Generated GitHub Release installers may also share expensive platform-native dependency outputs across the core four. A plugin opts in with `sharedRuntime.bootstrap`, `sharedRuntime.inputs`, and `sharedRuntime.output`; Pluxx fingerprints the complete declared input set with the platform and Node ABI, publishes an immutable generation under `~/.pluxx/runtimes`, and links each compatible host install to the same stable runtime. The bootstrap must be deterministic from those declared inputs and platform facts. If the shared lock or link path is unavailable, installation continues through the prior host-local bootstrap behavior.
 
+For workspace-local stdio MCP env vars, generated launchers parse `.env` as dotenv text. Product-owned shell scripts in the bundle must not `source` workspace `.env` files; Pluxx treats that as a blocking lint/doctor/build/install integrity issue because shell sourcing can execute command substitutions after the generated launcher preserved those values literally.
+
 The important practical distinction is:
 
 - the CLI is the real execution engine
@@ -605,7 +607,7 @@ Your single `INSTRUCTIONS.md` becomes the right native instruction surface for e
 
 The important rule is that Pluxx keeps one instruction source of truth and compiles it into the strongest honest native surface per host. It does not pretend there is one universal output filename.
 
-### 47 Lint Checks
+### 48 Lint Checks
 
 pluxx catches platform-specific gotchas before you ship:
 
@@ -614,6 +616,7 @@ pluxx catches platform-specific gotchas before you ship:
 - Claude Code hook events must be PascalCase (26 valid events)
 - Manifest paths must start with `./` and cannot contain `../`
 - Plugin directories must be at root, not inside `.claude-plugin/`
+- Runtime shell scripts must not `source` workspace `.env` files
 - Pluxx also applies conservative compatibility heuristics for some host-specific metadata where official docs are thinner than the real product surface
 - And 40 more checks across all 11 platforms
 
