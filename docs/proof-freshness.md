@@ -4,7 +4,7 @@ Last updated: 2026-07-17
 
 This document defines how Pluxx distinguishes repeatable repository checks from installed and real-host evidence. The machine-readable source is [proof-manifest.json](./proof-manifest.json), validated by `npm run proof:check`.
 
-The canonical `v0.1.37` security patch is in release-prep. Fresh repository-validation and fake-home-install receipts will be bound to the versioned release-prep commit after the first full gate. The released v0.1.36 and older receipts remain historical. No current receipt claims installed-runtime or real-host behavior until public host verification is refreshed.
+Current reviewed receipts for the `v0.1.37` security release-prep are `v0.1.37-repository-validation` (`bundle-contract`, `current`) and `v0.1.37-fake-home-install` (`fake-home-install`, `current`). Both are bound to versioned commit `f7ee0bd5d6cf5f8b75dec7df6dcda85dcf5a7af8` after the complete release gate passed. The released v0.1.36 and older receipts remain historical. No current receipt claims installed-runtime or real-host behavior until public host verification is refreshed.
 
 ## Version And Freshness Policy
 

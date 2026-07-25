@@ -388,7 +388,7 @@ This is for learning and proof, not for prematurely building the full trust laye
 
 ### 6. Next release
 
-The canonical repository version is `0.1.37`, preparing tag `v0.1.37`. Fresh repository-validation and fake-home-install receipts will be tied to the versioned PLUXX-339 runtime env-sourcing security patch state; released 0.1.36 proof is historical.
+The canonical repository version is `0.1.37`, preparing tag `v0.1.37`. Current repository-validation and fake-home-install receipts are tied to versioned commit `f7ee0bd5d6cf5f8b75dec7df6dcda85dcf5a7af8` for the PLUXX-339 runtime env-sourcing security patch; released 0.1.36 proof is historical.
 
 The next npm cut should stay primarily an operations step rather than a code-confidence rescue step.
 

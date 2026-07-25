@@ -113,8 +113,8 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
 
 - [x] Merge PLUXX-339 through PR #456 at exact reviewed head `b888c62dc7905fd66c9fdf50c4e752984fee5b48`
 - [x] Prepare synchronized 0.1.37 package, proof, planning, and release truth
-- [ ] Bind fresh current receipts to the versioned release-prep commit
-- [ ] Pass `npm run release:check`
+- [x] Bind fresh current receipts to versioned release-prep commit `f7ee0bd5d6cf5f8b75dec7df6dcda85dcf5a7af8`
+- [x] Pass `npm run release:check`
 - [ ] Merge the focused release PR and push immutable tag `v0.1.37`
 - [ ] Verify `@orchid-labs/pluxx@0.1.37`, GitHub release assets, tarball contents, and CLI behavior
 

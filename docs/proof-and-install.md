@@ -32,7 +32,7 @@ For the fuller release/distribution boundary, including publish commands and def
 
 Proof labels and freshness come from [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json). The May self-hosted run, April Firecrawl connector run, and released 0.1.36 evidence are preserved as historical environment evidence; they are not current host receipts for `0.1.37`.
 
-The v0.1.37 release-prep lane will record current `bundle-contract` and `fake-home-install` receipts after its versioned commit passes the full release gate. The security focus is fail-closed detection of bundled runtime scripts that source workspace `.env` files through direct or statically evaluable shell forms. No current receipt claims installed-runtime or real-host behavior until public host verification is refreshed.
+The v0.1.37 release-prep receipts prove the `bundle-contract` and maintained core-four `fake-home-install` tiers from exact versioned commit `f7ee0bd5d6cf5f8b75dec7df6dcda85dcf5a7af8`. The security focus is fail-closed detection of bundled runtime scripts that source workspace `.env` files through direct or statically evaluable shell forms. No current receipt claims installed-runtime or real-host behavior until public host verification is refreshed.
 
 ## The Story In One Screen
 

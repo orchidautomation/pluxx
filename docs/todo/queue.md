@@ -541,8 +541,8 @@ Current work:
 
 - [x] merge PLUXX-339 through exact reviewed PR #456 head `b888c62dc7905fd66c9fdf50c4e752984fee5b48`
 - [x] bump package and canonical release truth to 0.1.37
-- [ ] bind fresh repository-validation and fake-home-install receipts to the versioned release-prep commit
-- [ ] pass `npm run release:check`
+- [x] bind fresh repository-validation and fake-home-install receipts to versioned release-prep commit `f7ee0bd5d6cf5f8b75dec7df6dcda85dcf5a7af8`
+- [x] pass `npm run release:check`
 - [ ] merge the focused release PR and push immutable tag `v0.1.37` from main
 - [ ] verify npm, GitHub release assets, tarball contents, and CLI behavior
 
