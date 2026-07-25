@@ -1,6 +1,6 @@
 # Start Here
 
-Last updated: 2026-07-24
+Last updated: 2026-07-25
 
 ## Doc Links
 
@@ -39,7 +39,7 @@ If you want the shortest public proof and install path after this file, use [doc
 
 If you want the current release, distribution, and proof boundary, use [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md).
 
-If you need to know whether a proof claim is current, historical, repository-only, installed, or real-host evidence, use [docs/proof-freshness.md](./proof-freshness.md) and [docs/proof-manifest.json](./proof-manifest.json). Canonical repository version truth is `package.json` (`0.1.37`) and the proof manifest records immutable tag `v0.1.37` at `d5184752cd4898306390f20455619c34a42099dd`. Its first release run failed closed at proof freshness before pack or publish, so `@orchid-labs/pluxx@0.1.36` remains the verified public package until the reviewed immutable-tag recovery succeeds.
+If you need to know whether a proof claim is current, historical, repository-only, installed, or real-host evidence, use [docs/proof-freshness.md](./proof-freshness.md) and [docs/proof-manifest.json](./proof-manifest.json). Canonical repository version truth is `package.json` (`0.1.37`) and the proof manifest records immutable tag `v0.1.37` at `d5184752cd4898306390f20455619c34a42099dd`. The reviewed recovery ran from trusted-main commit `044673f947115bcf6117dd7c0139918bdd248a99` and published the verified `@orchid-labs/pluxx@0.1.37` package plus matching GitHub release assets without moving the tag.
 
 If you want the primitive-by-host proof ledger behind the core-four native shipping claim, use [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md).
 
@@ -369,7 +369,7 @@ The repo already proves a lot.
 - historical release-gate evidence from 2026-05-19 remains available but is not current proof:
   - `npm test` passed
   - `npm run release:check` passed
-- the canonical repository version and immutable tag are `@orchid-labs/pluxx@0.1.37` / `v0.1.37`; `@orchid-labs/pluxx@0.1.36` remains the verified public package until exact-tag recovery succeeds
+- the canonical and verified public release is `@orchid-labs/pluxx@0.1.37` / `v0.1.37`; npm and GitHub serve the same tarball at SHA-256 `7c996da682887ceedecc006307c207c5a834e5dedabaab17611cd586ef85b237`
 - marketplace submission APIs, a managed trust/distribution control plane, automatic rollback/unpublish orchestration, and real authenticated publish plus rollback proof remain explicit release gaps, not hidden shipped capabilities:
   - `docs/release-distribution-proof-map.md`
   - “automatic rollback” here means remote release rollback/unpublish; generated local installers now restore the prior bundle when staged setup fails
@@ -539,7 +539,7 @@ Run two lanes in parallel:
 
 ### 6. Release State
 
-The canonical repository version is `0.1.37`, and immutable tag `v0.1.37` exists at `d5184752cd4898306390f20455619c34a42099dd`. Its first release run failed closed before pack or publication because the pre-squash receipts were not reachable from the squash-merged tag. The reviewed recovery lane must rebuild and validate the exact tag tree, pass the normal proof checker with an ephemeral exact-tag receipt overlay, restore the immutable checkout, and publish only an artifact whose hashes match the validated candidate. Until that succeeds, `@orchid-labs/pluxx@0.1.36` remains the verified public package.
+The canonical and verified public release is `@orchid-labs/pluxx@0.1.37`. Immutable tag `v0.1.37` remains at `d5184752cd4898306390f20455619c34a42099dd` with tree `e63eea0f89995a44b7536b5403af57792e994cb9`. After the first release run failed closed before publication, reviewed recovery PR [#458](https://github.com/orchidautomation/pluxx/pull/458) landed as trusted-main commit `044673f947115bcf6117dd7c0139918bdd248a99`; recovery run [30144489420](https://github.com/orchidautomation/pluxx/actions/runs/30144489420) rebuilt, tested, packaged, published, and verified the exact tag without moving it. npm and GitHub serve the same tarball at SHA-256 `7c996da682887ceedecc006307c207c5a834e5dedabaab17611cd586ef85b237`, and the GitHub release includes the verified recovery receipt.
 
 For v0.1.37, PLUXX-339 is the tagged security focus: lint, doctor, install, and packaged-runtime verification fail closed when bundled runtime scripts source workspace `.env` files through direct or statically evaluable shell forms. The patch preserves valid safe shell forms and uses a bounded explicit scanner rather than an expanding regex.
 

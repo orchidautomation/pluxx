@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-07-24
+Last updated: 2026-07-25
 
 ## Doc Links
 
@@ -82,7 +82,7 @@ The full v0.1.31 audit-remediation tranche is merged. Main now includes safer in
 
 Proof governance now distinguishes unit, bundle-contract, fake-home install, installed-runtime, and real-host behavior evidence. Canonical version/freshness checks run in CI through [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json); historical April/May proof stays available without being treated as current.
 
-The active release-blocking slice is PLUXX-339 after the historical released 0.1.36 OpenCode workspace patch. The security patch blocks bundled runtime scripts from sourcing workspace `.env` files through direct and statically evaluable shell forms while preserving valid safe shell syntax.
+PLUXX-339 is shipped in the verified public `0.1.37` release after the historical `0.1.36` OpenCode workspace patch. The security patch blocks bundled runtime scripts from sourcing workspace `.env` files through direct and statically evaluable shell forms while preserving valid safe shell syntax.
 
 ### 1. Product clarity and source-of-truth coherence
 
@@ -228,7 +228,7 @@ The closure plan is now narrower than it was before:
 - historical release-gate evidence from 2026-05-19 remains available but is not current proof:
   - `npm test` passed
   - `npm run release:check` passed
-- the canonical repository version and immutable tag are `@orchid-labs/pluxx@0.1.37` / `v0.1.37`; `@orchid-labs/pluxx@0.1.36` remains the verified public package until exact-tag recovery succeeds
+- the canonical and verified public release is `@orchid-labs/pluxx@0.1.37` / `v0.1.37`; npm and GitHub serve the same tarball at SHA-256 `7c996da682887ceedecc006307c207c5a834e5dedabaab17611cd586ef85b237`
 - the release/distribution/proof boundary is now explicit:
   - [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md)
   - [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md)
@@ -388,13 +388,12 @@ This is for learning and proof, not for prematurely building the full trust laye
 
 ### 6. Next release
 
-The canonical repository version is `0.1.37`, and immutable tag `v0.1.37` exists at `d5184752cd4898306390f20455619c34a42099dd`. Current repository-validation and fake-home-install receipts record the split commands observed in an isolated exact-tag rehearsal for the PLUXX-339 runtime env-sourcing security patch; the earlier pre-squash full-gate receipts remain historical at `f7ee0bd5d6cf5f8b75dec7df6dcda85dcf5a7af8`. The first tag-triggered run failed closed at proof freshness before pack or publication, so 0.1.36 remains the verified public package until the reviewed recovery succeeds.
+The canonical and verified public release is `0.1.37`. Immutable tag `v0.1.37` remains at `d5184752cd4898306390f20455619c34a42099dd`; current repository-validation and fake-home-install receipts record the split commands observed in an isolated exact-tag rehearsal for the PLUXX-339 runtime env-sourcing security patch, while the earlier pre-squash full-gate receipts remain historical at `f7ee0bd5d6cf5f8b75dec7df6dcda85dcf5a7af8`. Recovery PR [#458](https://github.com/orchidautomation/pluxx/pull/458) landed as trusted-main commit `044673f947115bcf6117dd7c0139918bdd248a99`, and run [30144489420](https://github.com/orchidautomation/pluxx/actions/runs/30144489420) published and verified the exact tag artifact without moving it.
 
 The next npm cut should stay primarily an operations step rather than a code-confidence rescue step.
 
-- merge the bounded immutable-tag recovery workflow and dispatch it only from the exact current main commit
-- rebuild, test, package, and prove the exact tagged tree; publish only when the final artifact hashes match the validated candidate
-- attach and independently verify the recovery receipt with the GitHub release assets
+- preserve the completed immutable-tag recovery evidence: tag commit `d5184752cd4898306390f20455619c34a42099dd`, tree `e63eea0f89995a44b7536b5403af57792e994cb9`, trusted main `044673f947115bcf6117dd7c0139918bdd248a99`, and tarball SHA-256 `7c996da682887ceedecc006307c207c5a834e5dedabaab17611cd586ef85b237`
+- refresh installed-runtime or real-host receipts separately before making broader current host claims
 - use future focused release PRs and trusted tag workflows for the next package cut
 
 ## What This Roadmap Is Optimizing For
