@@ -3275,9 +3275,11 @@ function createReleaseArtifacts(
     repo: githubRelease.repo,
     version: plan.version,
     releaseTag: githubRelease.releaseTag,
-    builtTargets: githubRelease.assets
-      .filter((asset): asset is PublishAssetPlan & { platform: TargetPlatform } => asset.kind === 'archive' && asset.platform !== undefined)
-      .map((asset) => asset.platform),
+    builtTargets: Array.from(new Set(
+      githubRelease.assets
+        .filter((asset): asset is PublishAssetPlan & { platform: TargetPlatform } => asset.kind === 'archive' && asset.platform !== undefined)
+        .map((asset) => asset.platform),
+    )),
     installerTargets: githubRelease.assets
       .filter(
         (asset): asset is PublishAssetPlan & { platform: typeof INSTALLER_TARGETS[number] } =>

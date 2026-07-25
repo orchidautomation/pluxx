@@ -1098,6 +1098,58 @@ describe('runPublish', () => {
     expect(installAllContent).toContain('bash "$TMP_DIR/install.sh" --agents "$@"')
   })
 
+  it('emits one canonical manifest archive identity for a single host while checksumming both asset names', () => {
+    const config: PluginConfig = {
+      ...makeConfig(),
+      targets: ['codex'],
+    }
+    prepareBuiltTarget('codex', GENERATED_INSTALLER_FIXTURE_FILES.codex)
+
+    let manifestContent = ''
+    let checksumsContent = ''
+    const result = runPublish(config, {
+      rootDir: ROOT,
+      requestedChannels: ['github-release'],
+      runCommand: withGithubReleaseVerification((command, args, options) => {
+        if (command === 'tar') {
+          const proc = spawnSync(command, args, {
+            cwd: options?.cwd,
+            encoding: 'utf-8',
+          })
+          return {
+            status: proc.status,
+            stdout: proc.stdout ?? '',
+            stderr: proc.stderr ?? '',
+          }
+        }
+
+        if (command === 'git') return { status: 0, stdout: '', stderr: '' }
+        if (command === 'gh' && args[0] === 'release' && args[1] === 'view') return { status: 1, stdout: '', stderr: 'missing' }
+        if (command === 'gh' && args[0] === 'release' && args[1] === 'create') {
+          const manifestPath = args.find((value) => value.endsWith('/release-manifest.json'))
+          const checksumsPath = args.find((value) => value.endsWith('/SHA256SUMS.txt'))
+          manifestContent = readFileSync(manifestPath!, 'utf-8')
+          checksumsContent = readFileSync(checksumsPath!, 'utf-8')
+          return { status: 0, stdout: 'created', stderr: '' }
+        }
+        return { status: 0, stdout: '', stderr: '' }
+      }),
+    })
+
+    expect(result.ok).toBe(true)
+    const manifest = JSON.parse(manifestContent)
+    expect(manifest.assets.archives).toEqual([
+      {
+        platform: 'codex',
+        versionedAsset: 'publish-plugin-codex-v1.2.3.tar.gz',
+        latestAsset: 'publish-plugin-codex-latest.tar.gz',
+        latestUrl: 'https://github.com/orchidautomation/publish-plugin/releases/latest/download/publish-plugin-codex-latest.tar.gz',
+      },
+    ])
+    expect(checksumsContent).toContain('  publish-plugin-codex-v1.2.3.tar.gz')
+    expect(checksumsContent).toContain('  publish-plugin-codex-latest.tar.gz')
+  })
+
   it('generates a top-level installer that routes supported agent hosts', () => {
     const config: PluginConfig = {
       ...makeConfig(),
@@ -1155,6 +1207,14 @@ describe('runPublish', () => {
     expect(installerContent).toContain('--connect-timeout 10 --max-time 120 --retry 3 --retry-all-errors')
 
     const manifest = JSON.parse(manifestContent)
+    expect(manifest.assets.archives).toHaveLength(4)
+    expect(manifest.assets.archives.map((archive: { platform: TargetPlatform }) => archive.platform)).toEqual([
+      'claude-code',
+      'cursor',
+      'codex',
+      'opencode',
+    ])
+    expect(new Set(manifest.assets.archives.map((archive: { platform: TargetPlatform }) => archive.platform)).size).toBe(4)
     expect(manifest.assets.install).toEqual({
       script: 'install.sh',
       url: 'https://github.com/orchidautomation/publish-plugin/releases/latest/download/install.sh',
