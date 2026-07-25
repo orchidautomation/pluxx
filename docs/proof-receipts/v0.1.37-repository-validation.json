@@ -2,12 +2,36 @@
   "id": "v0.1.37-repository-validation",
   "tier": "bundle-contract",
   "freshness": "current",
-  "commitSha": "f7ee0bd5d6cf5f8b75dec7df6dcda85dcf5a7af8",
+  "commitSha": "d5184752cd4898306390f20455619c34a42099dd",
   "packageVersion": "0.1.37",
-  "timestamp": "2026-07-25T01:02:45.000Z",
+  "timestamp": "2026-07-25T04:20:51.363Z",
   "commands": [
     {
-      "command": "npm run release:check",
+      "command": "npm run build",
+      "outcome": "passed"
+    },
+    {
+      "command": "npm run typecheck",
+      "outcome": "passed"
+    },
+    {
+      "command": "npm test",
+      "outcome": "passed"
+    },
+    {
+      "command": "node scripts/run-npm-pack.mjs --dry-run",
+      "outcome": "passed"
+    },
+    {
+      "command": "npm pack --pack-destination \"${CANDIDATE_DIR}\"",
+      "outcome": "passed"
+    },
+    {
+      "command": "node scripts/verify-node-package-runtime.mjs --package-file \"${CANDIDATE_PATH}\"",
+      "outcome": "passed"
+    },
+    {
+      "command": "npm run proof:check",
       "outcome": "passed"
     }
   ],

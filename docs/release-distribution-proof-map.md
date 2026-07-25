@@ -1,6 +1,6 @@
 # Release Distribution Proof Map
 
-Last updated: 2026-07-16
+Last updated: 2026-07-24
 
 ## Doc Links
 
@@ -26,7 +26,7 @@ Last updated: 2026-07-16
 
 This is the short release/distribution map for what Pluxx can ship today, what is locally proven, and what still belongs to later marketplace or trust-layer work.
 
-Proof state is governed by [proof-freshness.md](./proof-freshness.md) and the machine-readable [proof manifest](./proof-manifest.json). The canonical repository version is `0.1.37`, preparing tag `v0.1.37`. The published `v0.1.36` release is historical; older host runs linked below are historical unless a current receipt says otherwise. PLUXX-339 is the release-prep security slice that blocks bundled runtime scripts from sourcing workspace `.env` files through direct and statically evaluable shell forms.
+Proof state is governed by [proof-freshness.md](./proof-freshness.md) and the machine-readable [proof manifest](./proof-manifest.json). The canonical repository version is `0.1.37`, and immutable tag `v0.1.37` exists at `d5184752cd4898306390f20455619c34a42099dd`. Its first release run stopped at proof freshness before pack or publication, so the published `v0.1.36` package remains the verified public release until the reviewed exact-tag recovery succeeds. Older host runs linked below are historical unless a current receipt says otherwise. PLUXX-339 is the tagged security slice that blocks bundled runtime scripts from sourcing workspace `.env` files through direct and statically evaluable shell forms.
 
 ## Current Primary Fronts
 

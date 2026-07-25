@@ -19,7 +19,9 @@ When you push a tag like `v0.1.1`, GitHub Actions will:
 
 That means GitHub pushes do **not** update npm by themselves. Only a versioned tag release does.
 
-The workflow also has a maintainer-only recovery dispatch for an existing release tag. Dispatch it from the `main` workflow ref and provide the existing `vX.Y.Z` tag. The workflow checks out that tag with full history, verifies that it exists, resolves to the checked-out commit, belongs to the trusted `main` history, and matches `package.json`, then runs the same release-check, pack, publish, and verification pipeline used by a normal tag push. It does not create or move tags.
+The workflow also has a maintainer-only recovery dispatch for an existing release tag. Dispatch it from the `main` workflow ref and provide the existing `vX.Y.Z` tag. The recovery checks out the immutable tag tree separately from the trusted workflow code, requires the dispatch SHA to remain exact current `origin/main`, proves that the tag commit belongs to that history, and verifies tag/package identity.
+
+Recovery reruns build, typecheck, the full test suite, packaged-runtime verification, and dry-run packaging against the exact tag tree. It then binds an ephemeral proof overlay and external recovery receipt to the exact tag commit, tree, and candidate artifact hashes. The normal proof checker must pass; the committed tag manifest is restored; the checkout must be clean; and the final npm tarball plus downloaded GitHub asset must match the validated candidate hashes. The receipt is attached to the GitHub release. Recovery does not create or move tags.
 
 Do not publish this package from a local shell. The package lifecycle now refuses local `npm publish` and only allows the trusted GitHub release workflow on a matching `vX.Y.Z` tag. This keeps npm provenance intact and avoids depending on local npm auth.
 
@@ -71,7 +73,7 @@ git tag v0.1.1
 git push origin v0.1.1
 ```
 
-If the trusted release workflow fails before publication for a recoverable infrastructure reason, do not move or recreate the tag and do not publish locally. Merge a reviewed workflow fix to `main`, then dispatch `Release` from `main` with the existing tag. The default recovery input is currently `v0.1.32`.
+If the trusted release workflow fails before publication for a recoverable infrastructure or proof-topology reason, do not move or recreate the tag and do not publish locally. Merge a reviewed workflow fix to `main`, then dispatch `Release` from exact current `main` with the existing tag. The default recovery input is currently `v0.1.37`.
 
 You can use `patch`, `minor`, or `major` depending on the release.
 
@@ -103,7 +105,10 @@ The workflow intentionally fails if:
 - the tag commit is not contained in current trusted `origin/main` history
 - the tag does not match `package.json` version
 - a recovery dispatch does not run from `main`
+- the recovery workflow SHA or trusted-code checkout is not exact current `origin/main`
 - the requested recovery tag is missing, malformed, not checked out, or not contained in trusted `main` history
+- the tagged checkout is dirty, the proof overlay changes anything except the proof manifest, or restoration does not return it to a clean state
+- candidate, final package, npm publication, or downloaded GitHub asset integrity differs
 - `npm run release:check` fails
 - npm auth is not configured correctly
 

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "canonicalVersion": "0.1.37",
   "expectedTag": "v0.1.37",
-  "releaseState": "release-prep",
+  "releaseState": "released",
   "policy": {
     "environmentReceiptMaxAgeDays": 30
   },
@@ -120,8 +120,24 @@
       "receiptId": "v0.1.36-fake-home-install"
     },
     {
+      "id": "v0.1.37-pre-squash-repository-validation",
+      "summary": "The pre-squash v0.1.37 release tree passed the complete repository release gate before the immutable tag was created by squash merge.",
+      "tier": "bundle-contract",
+      "freshness": "historical",
+      "evidencePath": "tests/proof-freshness.test.ts",
+      "receiptId": "v0.1.37-pre-squash-repository-validation"
+    },
+    {
+      "id": "v0.1.37-pre-squash-fake-home-install",
+      "summary": "The pre-squash v0.1.37 release tree passed maintained core-four isolated install coverage before the immutable tag was created by squash merge.",
+      "tier": "fake-home-install",
+      "freshness": "historical",
+      "evidencePath": "tests/release-smoke.test.ts",
+      "receiptId": "v0.1.37-pre-squash-fake-home-install"
+    },
+    {
       "id": "v0.1.37-repository-validation",
-      "summary": "The v0.1.37 release-prep state passes the complete repository release gate for the PLUXX-339 runtime env-sourcing security patch.",
+      "summary": "The exact immutable v0.1.37 tag passes the split recovery build, typecheck, full test, dry-pack, packaged-runtime, and proof gates for PLUXX-339.",
       "tier": "bundle-contract",
       "freshness": "current",
       "evidencePath": "tests/proof-freshness.test.ts",
@@ -129,7 +145,7 @@
     },
     {
       "id": "v0.1.37-fake-home-install",
-      "summary": "The v0.1.37 release gate passes maintained core-four isolated install and packaged-runtime verification with the runtime env-sourcing guard enabled.",
+      "summary": "The exact immutable v0.1.37 tag passes maintained core-four isolated install coverage with the runtime env-sourcing guard enabled.",
       "tier": "fake-home-install",
       "freshness": "current",
       "evidencePath": "tests/release-smoke.test.ts",
@@ -474,9 +490,9 @@
       ]
     },
     {
-      "id": "v0.1.37-repository-validation",
+      "id": "v0.1.37-pre-squash-repository-validation",
       "tier": "bundle-contract",
-      "freshness": "current",
+      "freshness": "historical",
       "commitSha": "f7ee0bd5d6cf5f8b75dec7df6dcda85dcf5a7af8",
       "packageVersion": "0.1.37",
       "timestamp": "2026-07-25T01:02:45.000Z",
@@ -497,15 +513,85 @@
       ]
     },
     {
-      "id": "v0.1.37-fake-home-install",
+      "id": "v0.1.37-pre-squash-fake-home-install",
       "tier": "fake-home-install",
-      "freshness": "current",
+      "freshness": "historical",
       "commitSha": "f7ee0bd5d6cf5f8b75dec7df6dcda85dcf5a7af8",
       "packageVersion": "0.1.37",
       "timestamp": "2026-07-25T01:02:45.000Z",
       "commands": [
         {
           "command": "npm run release:check",
+          "outcome": "passed"
+        }
+      ],
+      "targets": [
+        {
+          "target": "claude-code,cursor,codex,opencode",
+          "hostVersion": null,
+          "installedPath": null,
+          "sha256": null,
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "v0.1.37-repository-validation",
+      "tier": "bundle-contract",
+      "freshness": "current",
+      "commitSha": "d5184752cd4898306390f20455619c34a42099dd",
+      "packageVersion": "0.1.37",
+      "timestamp": "2026-07-25T04:20:51.363Z",
+      "commands": [
+        {
+          "command": "npm run build",
+          "outcome": "passed"
+        },
+        {
+          "command": "npm run typecheck",
+          "outcome": "passed"
+        },
+        {
+          "command": "npm test",
+          "outcome": "passed"
+        },
+        {
+          "command": "node scripts/run-npm-pack.mjs --dry-run",
+          "outcome": "passed"
+        },
+        {
+          "command": "npm pack --pack-destination \"${CANDIDATE_DIR}\"",
+          "outcome": "passed"
+        },
+        {
+          "command": "node scripts/verify-node-package-runtime.mjs --package-file \"${CANDIDATE_PATH}\"",
+          "outcome": "passed"
+        },
+        {
+          "command": "npm run proof:check",
+          "outcome": "passed"
+        }
+      ],
+      "targets": [
+        {
+          "target": "repository",
+          "hostVersion": null,
+          "installedPath": null,
+          "sha256": null,
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "v0.1.37-fake-home-install",
+      "tier": "fake-home-install",
+      "freshness": "current",
+      "commitSha": "d5184752cd4898306390f20455619c34a42099dd",
+      "packageVersion": "0.1.37",
+      "timestamp": "2026-07-25T04:20:51.363Z",
+      "commands": [
+        {
+          "command": "npm test",
           "outcome": "passed"
         }
       ],

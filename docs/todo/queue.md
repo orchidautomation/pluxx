@@ -1,6 +1,6 @@
 # Pluxx Queue
 
-Last updated: 2026-07-16
+Last updated: 2026-07-24
 
 ## Doc Links
 
@@ -188,7 +188,7 @@ The initial author-once hardening tranche is also materially done.
 The public baseline is also real.
 
 - npm package is live as `@orchid-labs/pluxx`
-- the canonical repository version is `@orchid-labs/pluxx@0.1.37`; released `v0.1.36` evidence is historical
+- the canonical repository version and immutable tag are `@orchid-labs/pluxx@0.1.37` / `v0.1.37`; `@orchid-labs/pluxx@0.1.36` remains the verified public package until exact-tag recovery succeeds
 - proof claims now use [docs/proof-freshness.md](../proof-freshness.md) and [docs/proof-manifest.json](../proof-manifest.json) so historical host runs cannot masquerade as current evidence
 - published CLI runtime is Node `>=18`
 - published CLI lifecycle ergonomics are now stronger for global installs:
@@ -541,9 +541,11 @@ Current work:
 
 - [x] merge PLUXX-339 through exact reviewed PR #456 head `b888c62dc7905fd66c9fdf50c4e752984fee5b48`
 - [x] bump package and canonical release truth to 0.1.37
-- [x] bind fresh repository-validation and fake-home-install receipts to versioned release-prep commit `f7ee0bd5d6cf5f8b75dec7df6dcda85dcf5a7af8`
+- [x] bind repository-validation and fake-home-install receipts to commands observed directly against immutable tag commit `d5184752cd4898306390f20455619c34a42099dd`; preserve the distinct pre-squash `f7ee0bd5d6cf5f8b75dec7df6dcda85dcf5a7af8` receipts as historical
 - [x] pass `npm run release:check`
-- [ ] merge the focused release PR and push immutable tag `v0.1.37` from main
+- [x] merge the focused release PR and push immutable tag `v0.1.37` from main
+- [x] confirm the first tag-triggered run failed closed at proof freshness before pack or publication
+- [ ] merge the reviewed immutable-tag recovery workflow, then dispatch it from exact current main without moving the tag
 - [ ] verify npm, GitHub release assets, tarball contents, and CLI behavior
 
 ### 7. Historical v0.1.28 release checklist
