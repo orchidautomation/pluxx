@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-07-16
+Last updated: 2026-07-24
 
 ## Doc Links
 
@@ -228,7 +228,7 @@ The closure plan is now narrower than it was before:
 - historical release-gate evidence from 2026-05-19 remains available but is not current proof:
   - `npm test` passed
   - `npm run release:check` passed
-- the canonical repository version is `@orchid-labs/pluxx@0.1.37`; released `v0.1.36` evidence is historical
+- the canonical repository version and immutable tag are `@orchid-labs/pluxx@0.1.37` / `v0.1.37`; `@orchid-labs/pluxx@0.1.36` remains the verified public package until exact-tag recovery succeeds
 - the release/distribution/proof boundary is now explicit:
   - [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md)
   - [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md)
@@ -388,12 +388,13 @@ This is for learning and proof, not for prematurely building the full trust laye
 
 ### 6. Next release
 
-The canonical repository version is `0.1.37`, preparing tag `v0.1.37`. Current repository-validation and fake-home-install receipts are tied to versioned commit `f7ee0bd5d6cf5f8b75dec7df6dcda85dcf5a7af8` for the PLUXX-339 runtime env-sourcing security patch; released 0.1.36 proof is historical.
+The canonical repository version is `0.1.37`, and immutable tag `v0.1.37` exists at `d5184752cd4898306390f20455619c34a42099dd`. Current repository-validation and fake-home-install receipts record the split commands observed in an isolated exact-tag rehearsal for the PLUXX-339 runtime env-sourcing security patch; the earlier pre-squash full-gate receipts remain historical at `f7ee0bd5d6cf5f8b75dec7df6dcda85dcf5a7af8`. The first tag-triggered run failed closed at proof freshness before pack or publication, so 0.1.36 remains the verified public package until the reviewed recovery succeeds.
 
 The next npm cut should stay primarily an operations step rather than a code-confidence rescue step.
 
-- complete the focused 0.1.37 release PR for PLUXX-339, then push the immutable tag from merged main
-- preserve the release proof as current repository-validation and fake-home-install evidence
+- merge the bounded immutable-tag recovery workflow and dispatch it only from the exact current main commit
+- rebuild, test, package, and prove the exact tagged tree; publish only when the final artifact hashes match the validated candidate
+- attach and independently verify the recovery receipt with the GitHub release assets
 - use future focused release PRs and trusted tag workflows for the next package cut
 
 ## What This Roadmap Is Optimizing For

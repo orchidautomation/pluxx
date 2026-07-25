@@ -1,13 +1,13 @@
 {
-  "id": "v0.1.37-fake-home-install",
+  "id": "v0.1.37-pre-squash-fake-home-install",
   "tier": "fake-home-install",
-  "freshness": "current",
-  "commitSha": "d5184752cd4898306390f20455619c34a42099dd",
+  "freshness": "historical",
+  "commitSha": "f7ee0bd5d6cf5f8b75dec7df6dcda85dcf5a7af8",
   "packageVersion": "0.1.37",
-  "timestamp": "2026-07-25T04:20:51.363Z",
+  "timestamp": "2026-07-25T01:02:45.000Z",
   "commands": [
     {
-      "command": "npm test",
+      "command": "npm run release:check",
       "outcome": "passed"
     }
   ],

@@ -9,7 +9,7 @@ on:
       release_tag:
         description: Existing release tag to recover from the trusted main workflow
         required: true
-        default: v0.1.32
+        default: v0.1.37
         type: string
 
 permissions:
@@ -19,13 +19,26 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: release
 
     steps:
-      - name: Check out repository
+      - name: Check out immutable release tree
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref }}
+          path: release
+
+      - name: Check out trusted recovery code
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          ref: ${{ github.sha }}
+          path: trusted-main
 
       - name: Set up Node.js
         uses: actions/setup-node@v5
@@ -68,6 +81,17 @@ jobs:
             echo "Release tag ${TAG_NAME} is not contained in trusted main commit ${TRUSTED_MAIN_COMMIT}." >&2
             exit 1
           fi
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            RECOVERY_CHECKOUT_COMMIT="$(git -C ../trusted-main rev-parse HEAD)"
+            if [[ "${GITHUB_SHA}" != "${TRUSTED_MAIN_COMMIT}" ]]; then
+              echo "Recovery commit ${GITHUB_SHA} does not match current trusted main ${TRUSTED_MAIN_COMMIT}." >&2
+              exit 1
+            fi
+            if [[ "${RECOVERY_CHECKOUT_COMMIT}" != "${TRUSTED_MAIN_COMMIT}" ]]; then
+              echo "Trusted recovery checkout ${RECOVERY_CHECKOUT_COMMIT} does not match current trusted main ${TRUSTED_MAIN_COMMIT}." >&2
+              exit 1
+            fi
+          fi
 
           PACKAGE_VERSION="$(node -p "require('./package.json').version")"
 
@@ -78,14 +102,57 @@ jobs:
 
           echo "package_version=${PACKAGE_VERSION}" >> "$GITHUB_OUTPUT"
           echo "release_tag=${TAG_NAME}" >> "$GITHUB_OUTPUT"
+          echo "tag_commit=${TAG_COMMIT}" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Run release checks
+      - name: Run standard release checks
+        if: github.event_name != 'workflow_dispatch'
         env:
           PLUXX_RELEASE_TAG: ${{ steps.version.outputs.release_tag }}
         run: npm run release:check
+
+      - name: Prepare immutable-tag recovery proof
+        if: github.event_name == 'workflow_dispatch'
+        id: recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(git -C ../trusted-main status --porcelain --untracked-files=no)"
+          test "$(git -C ../trusted-main rev-parse HEAD)" = "${GITHUB_SHA}"
+
+          CANDIDATE_DIR="${RUNNER_TEMP}/pluxx-recovery-candidate"
+          mkdir -p "${CANDIDATE_DIR}"
+          CANDIDATE_PATH="${CANDIDATE_DIR}/orchid-labs-pluxx-${{ steps.version.outputs.package_version }}.tgz"
+          RECEIPT_FILE="pluxx-${{ steps.version.outputs.release_tag }}-recovery-receipt.json"
+          RECEIPT_PATH="${RUNNER_TEMP}/${RECEIPT_FILE}"
+
+          node ../trusted-main/scripts/release-recovery-proof.mjs prepare \
+            --release-root "${PWD}" \
+            --tag "${{ steps.version.outputs.release_tag }}" \
+            --trusted-main-commit "${GITHUB_SHA}" \
+            --artifact "${CANDIDATE_PATH}" \
+            --receipt "${RECEIPT_PATH}"
+
+          CANDIDATE_INTEGRITY="sha512-$(openssl dgst -sha512 -binary "${CANDIDATE_PATH}" | openssl base64 -A)"
+          CANDIDATE_SHA256="$(openssl dgst -sha256 "${CANDIDATE_PATH}" | awk '{print $NF}')"
+          echo "candidate_path=${CANDIDATE_PATH}" >> "$GITHUB_OUTPUT"
+          echo "candidate_integrity=${CANDIDATE_INTEGRITY}" >> "$GITHUB_OUTPUT"
+          echo "candidate_sha256=${CANDIDATE_SHA256}" >> "$GITHUB_OUTPUT"
+          echo "receipt_file=${RECEIPT_FILE}" >> "$GITHUB_OUTPUT"
+          echo "receipt_path=${RECEIPT_PATH}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify immutable-tag recovery proof
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          set -euo pipefail
+          node ../trusted-main/scripts/release-recovery-proof.mjs finalize \
+            --release-root "${PWD}" \
+            --tag "${{ steps.version.outputs.release_tag }}" \
+            --trusted-main-commit "${GITHUB_SHA}" \
+            --artifact "${{ steps.recovery.outputs.candidate_path }}" \
+            --receipt "${{ steps.recovery.outputs.receipt_path }}"
 
       - name: Pack release tarball
         id: pack
@@ -95,10 +162,39 @@ jobs:
           PACKAGE_FILE="$(npm pack)"
           echo "package_file=${PACKAGE_FILE}" >> "$GITHUB_OUTPUT"
           PACKAGE_INTEGRITY="sha512-$(openssl dgst -sha512 -binary "$PACKAGE_FILE" | openssl base64 -A)"
+          PACKAGE_SHA256="$(openssl dgst -sha256 "$PACKAGE_FILE" | awk '{print $NF}')"
           echo "package_integrity=${PACKAGE_INTEGRITY}" >> "$GITHUB_OUTPUT"
+          echo "package_sha256=${PACKAGE_SHA256}" >> "$GITHUB_OUTPUT"
+
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            test "${PACKAGE_INTEGRITY}" = "${{ steps.recovery.outputs.candidate_integrity }}"
+            test "${PACKAGE_SHA256}" = "${{ steps.recovery.outputs.candidate_sha256 }}"
+            node ../trusted-main/scripts/release-recovery-proof.mjs verify \
+              --release-root "${PWD}" \
+              --tag "${{ steps.version.outputs.release_tag }}" \
+              --trusted-main-commit "${GITHUB_SHA}" \
+              --artifact "${PACKAGE_FILE}" \
+              --receipt "${{ steps.recovery.outputs.receipt_path }}"
+          fi
 
       - name: Verify packaged Node runtime
+        if: github.event_name != 'workflow_dispatch'
         run: node scripts/verify-node-package-runtime.mjs --package-file "${{ steps.pack.outputs.package_file }}"
+
+      - name: Revalidate recovery authority before npm publish
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG_NAME="${{ steps.version.outputs.release_tag }}"
+          git fetch --force --no-tags origin \
+            "main:refs/remotes/origin/main" \
+            "refs/tags/${TAG_NAME}:refs/release-validation/${TAG_NAME}"
+          CURRENT_MAIN="$(git rev-parse refs/remotes/origin/main^{commit})"
+          CURRENT_TAG="$(git rev-parse refs/release-validation/${TAG_NAME}^{commit})"
+          test "${CURRENT_MAIN}" = "${GITHUB_SHA}"
+          test "${CURRENT_TAG}" = "${{ steps.version.outputs.tag_commit }}"
+          git merge-base --is-ancestor "${CURRENT_TAG}" "${CURRENT_MAIN}"
 
       - name: Publish to npm
         env:
@@ -152,17 +248,50 @@ jobs:
           test "$PUBLISHED_INTEGRITY" = "$EXPECTED_INTEGRITY"
 
       - name: Create GitHub release
+        if: github.event_name != 'workflow_dispatch'
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.version.outputs.release_tag }}
           generate_release_notes: true
-          files: ${{ steps.pack.outputs.package_file }}
+          files: release/${{ steps.pack.outputs.package_file }}
+          name: v${{ steps.version.outputs.package_version }}
+          overwrite_files: true
+
+      - name: Stage recovery receipt asset
+        if: github.event_name == 'workflow_dispatch'
+        run: cp "${{ steps.recovery.outputs.receipt_path }}" "${{ steps.recovery.outputs.receipt_file }}"
+
+      - name: Revalidate recovery authority before GitHub release
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG_NAME="${{ steps.version.outputs.release_tag }}"
+          git fetch --force --no-tags origin \
+            "main:refs/remotes/origin/main" \
+            "refs/tags/${TAG_NAME}:refs/release-validation/${TAG_NAME}"
+          CURRENT_MAIN="$(git rev-parse refs/remotes/origin/main^{commit})"
+          CURRENT_TAG="$(git rev-parse refs/release-validation/${TAG_NAME}^{commit})"
+          test "${CURRENT_MAIN}" = "${GITHUB_SHA}"
+          test "${CURRENT_TAG}" = "${{ steps.version.outputs.tag_commit }}"
+          git merge-base --is-ancestor "${CURRENT_TAG}" "${CURRENT_MAIN}"
+
+      - name: Create GitHub recovery release
+        if: github.event_name == 'workflow_dispatch'
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ steps.version.outputs.release_tag }}
+          generate_release_notes: true
+          files: |
+            release/${{ steps.pack.outputs.package_file }}
+            release/${{ steps.recovery.outputs.receipt_file }}
           name: v${{ steps.version.outputs.package_version }}
           overwrite_files: true
 
       - name: Verify GitHub release asset
         env:
           GH_TOKEN: ${{ github.token }}
+          RECOVERY_RECEIPT_FILE: ${{ steps.recovery.outputs.receipt_file }}
         shell: bash
         run: |
           set -euo pipefail
@@ -179,3 +308,31 @@ jobs:
 
           RELEASE_INTEGRITY="sha512-$(openssl dgst -sha512 -binary "$DOWNLOAD_DIR/$PACKAGE_FILE" | openssl base64 -A)"
           test "$RELEASE_INTEGRITY" = "$EXPECTED_INTEGRITY"
+
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            gh release view "$TAG" --json tagName,assets \
+              --jq '.tagName == "'"$TAG"'" and any(.assets[]; .name == "'"$RECOVERY_RECEIPT_FILE"'")' \
+              | grep -qx true
+            gh release download "$TAG" --pattern "$RECOVERY_RECEIPT_FILE" --dir "$DOWNLOAD_DIR"
+            node ../trusted-main/scripts/release-recovery-proof.mjs verify \
+              --release-root "${PWD}" \
+              --tag "${{ steps.version.outputs.release_tag }}" \
+              --trusted-main-commit "${GITHUB_SHA}" \
+              --artifact "$DOWNLOAD_DIR/$PACKAGE_FILE" \
+              --receipt "$DOWNLOAD_DIR/$RECOVERY_RECEIPT_FILE"
+          fi
+
+      - name: Revalidate recovery authority after GitHub release
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG_NAME="${{ steps.version.outputs.release_tag }}"
+          git fetch --force --no-tags origin \
+            "main:refs/remotes/origin/main" \
+            "refs/tags/${TAG_NAME}:refs/release-validation/${TAG_NAME}"
+          CURRENT_MAIN="$(git rev-parse refs/remotes/origin/main^{commit})"
+          CURRENT_TAG="$(git rev-parse refs/release-validation/${TAG_NAME}^{commit})"
+          test "${CURRENT_MAIN}" = "${GITHUB_SHA}"
+          test "${CURRENT_TAG}" = "${{ steps.version.outputs.tag_commit }}"
+          git merge-base --is-ancestor "${CURRENT_TAG}" "${CURRENT_MAIN}"

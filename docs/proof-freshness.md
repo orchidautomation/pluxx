@@ -1,10 +1,10 @@
 # Proof Freshness And Evidence Tiers
 
-Last updated: 2026-07-17
+Last updated: 2026-07-24
 
 This document defines how Pluxx distinguishes repeatable repository checks from installed and real-host evidence. The machine-readable source is [proof-manifest.json](./proof-manifest.json), validated by `npm run proof:check`.
 
-Current reviewed receipts for the `v0.1.37` security release-prep are `v0.1.37-repository-validation` (`bundle-contract`, `current`) and `v0.1.37-fake-home-install` (`fake-home-install`, `current`). Both are bound to versioned commit `f7ee0bd5d6cf5f8b75dec7df6dcda85dcf5a7af8` after the complete release gate passed. The released v0.1.36 and older receipts remain historical. No current receipt claims installed-runtime or real-host behavior until public host verification is refreshed.
+Current reviewed receipts for the tagged `v0.1.37` security release are `v0.1.37-repository-validation` (`bundle-contract`, `current`) and `v0.1.37-fake-home-install` (`fake-home-install`, `current`). Both record the split commands observed in an isolated exact-tag rehearsal at immutable commit `d5184752cd4898306390f20455619c34a42099dd` on `2026-07-25T04:20:51.363Z`; the helper-owned rehearsal passed build, typecheck, 803 tests, dry-run packaging, candidate packaging, packaged-runtime verification, and the production proof checker, then restored a clean tag tree. The earlier `f7ee0bd5d6cf5f8b75dec7df6dcda85dcf5a7af8` full-release-check receipts are preserved separately as `pre-squash` historical evidence and are not attributed to the immutable tag. The first release run failed closed at proof freshness before pack or publication, so v0.1.36 remains the verified public package until exact-tag recovery completes. No current receipt claims installed-runtime or real-host behavior until public host verification is refreshed.
 
 ## Version And Freshness Policy
 
@@ -32,6 +32,14 @@ Current reviewed receipts for the `v0.1.37` security release-prep are `v0.1.37-r
 Each receipt records commit SHA, package version, timestamp, proof tier, commands, target and host versions, installed paths, hashes, and outcomes. Older evidence may provide a reason when an environment field was not captured.
 
 Current claims in `docs/proof-manifest.json` must resolve to a receipt whose tier and freshness match the claim. CI also rejects obsolete release-prep/current-version language in canonical planning and proof docs.
+
+## Immutable-Tag Recovery Contract
+
+An existing immutable tag may be recovered only after a reviewed workflow change lands on the exact current trusted `main` commit. The workflow must prove that the tag commit belongs to current `main`, that the checked-out tag, package version, and artifact identity match, and that the tagged checkout has no tracked changes.
+
+The recovery reruns build, typecheck, the full test suite, packaged-runtime verification, and dry-run packaging against the exact tag tree. It may then create an ephemeral proof-manifest overlay that binds only the existing current receipt set to that exact tag and the newly passed commands. The normal `proof:check` command must pass against the overlay. The workflow must restore the committed manifest and re-prove a clean tag checkout before packing the publish candidate.
+
+The recovery receipt records the exact tag commit and tree, trusted-main workflow commit, validation outcomes, proof baseline and overlay hashes, and package artifact hashes. The final npm tarball and downloaded GitHub release asset must match the independently validated candidate hashes. Recovery does not move the tag, weaken the normal proof checker, or claim installed-runtime or real-host evidence.
 
 ## Real-Host Refresh Guidance
 

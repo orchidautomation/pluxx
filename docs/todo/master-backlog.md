@@ -1,6 +1,6 @@
 # Master Backlog
 
-Last updated: 2026-07-16
+Last updated: 2026-07-24
 
 This is the most complete repo-native backlog for Pluxx.
 
@@ -113,9 +113,11 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
 
 - [x] Merge PLUXX-339 through PR #456 at exact reviewed head `b888c62dc7905fd66c9fdf50c4e752984fee5b48`
 - [x] Prepare synchronized 0.1.37 package, proof, planning, and release truth
-- [x] Bind fresh current receipts to versioned release-prep commit `f7ee0bd5d6cf5f8b75dec7df6dcda85dcf5a7af8`
+- [x] Bind current receipts to commands observed directly against immutable tag commit `d5184752cd4898306390f20455619c34a42099dd`; preserve the distinct pre-squash `f7ee0bd5d6cf5f8b75dec7df6dcda85dcf5a7af8` receipts as historical
 - [x] Pass `npm run release:check`
-- [ ] Merge the focused release PR and push immutable tag `v0.1.37`
+- [x] Merge the focused release PR and push immutable tag `v0.1.37`
+- [x] Confirm the first release run failed closed at proof freshness before pack or publication
+- [ ] Merge and dispatch the reviewed fail-closed immutable-tag recovery from exact current main
 - [ ] Verify `@orchid-labs/pluxx@0.1.37`, GitHub release assets, tarball contents, and CLI behavior
 
 ### 1. Product clarity and front-door coherence
