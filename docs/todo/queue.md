@@ -1,6 +1,6 @@
 # Pluxx Queue
 
-Last updated: 2026-07-24
+Last updated: 2026-07-25
 
 ## Doc Links
 
@@ -188,7 +188,7 @@ The initial author-once hardening tranche is also materially done.
 The public baseline is also real.
 
 - npm package is live as `@orchid-labs/pluxx`
-- the canonical repository version and immutable tag are `@orchid-labs/pluxx@0.1.37` / `v0.1.37`; `@orchid-labs/pluxx@0.1.36` remains the verified public package until exact-tag recovery succeeds
+- the canonical and verified public release is `@orchid-labs/pluxx@0.1.37` / `v0.1.37`; npm and GitHub serve the same tarball at SHA-256 `7c996da682887ceedecc006307c207c5a834e5dedabaab17611cd586ef85b237`
 - proof claims now use [docs/proof-freshness.md](../proof-freshness.md) and [docs/proof-manifest.json](../proof-manifest.json) so historical host runs cannot masquerade as current evidence
 - published CLI runtime is Node `>=18`
 - published CLI lifecycle ergonomics are now stronger for global installs:
@@ -545,8 +545,8 @@ Current work:
 - [x] pass `npm run release:check`
 - [x] merge the focused release PR and push immutable tag `v0.1.37` from main
 - [x] confirm the first tag-triggered run failed closed at proof freshness before pack or publication
-- [ ] merge the reviewed immutable-tag recovery workflow, then dispatch it from exact current main without moving the tag
-- [ ] verify npm, GitHub release assets, tarball contents, and CLI behavior
+- [x] merge recovery PR #458 at exact reviewed head `5f8a0d58786a7aae4e495bf7dbc484cbc12b348f`, then dispatch run `30144489420` from trusted-main commit `044673f947115bcf6117dd7c0139918bdd248a99` without moving the tag
+- [x] verify npm, GitHub release assets and receipt, byte-identical tarballs, immutable tag/tree identity, and installed CLI behavior
 
 ### 7. Historical v0.1.28 release checklist
 
