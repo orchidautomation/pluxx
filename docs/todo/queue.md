@@ -554,7 +554,7 @@ Current work:
 - [x] merge PR #461 exact reviewed head `b839f6d93ec1174c4da5dcfb1554c7c6f8f294d5` as trusted main commit `b979bc6e02bb9801fa623f80302000553a0693c7`
 - [x] prepare synchronized 0.1.38 package, proof, planning, recovery-default, and release truth
 - [x] bind fresh repository-validation and fake-home-install receipts to exact immutable release-prep commit `361958f6b16b1acc2bb901c97fc2c6d5a77ba880`
-- [ ] pass focused and full release gates plus independent review
+- [x] pass focused and full release gates plus independent review; review record: [2026-07-25-pluxx-340-release-0.1.38-review.md](../orchid/reviews/2026-07-25-pluxx-340-release-0.1.38-review.md)
 - [ ] merge the exact green release PR with a true merge commit, prove PR-head and receipt ancestry, and push immutable tag `v0.1.38` from trusted main
 - [ ] verify npm, GitHub release assets, byte-identical tarballs, immutable tag provenance, and installed CLI behavior
 
