@@ -33,9 +33,6 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
 
-      - name: Install dependencies
-        run: npm ci
-
       - name: Resolve release version
         id: version
         shell: bash
@@ -65,12 +62,11 @@ jobs:
             exit 1
           fi
 
-          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
-            TRUSTED_MAIN_COMMIT="$(git rev-parse "${GITHUB_SHA}^{commit}")"
-            if ! git merge-base --is-ancestor "${TAG_COMMIT}" "${TRUSTED_MAIN_COMMIT}"; then
-              echo "Release tag ${TAG_NAME} is not contained in trusted main commit ${TRUSTED_MAIN_COMMIT}." >&2
-              exit 1
-            fi
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          TRUSTED_MAIN_COMMIT="$(git rev-parse "refs/remotes/origin/main^{commit}")"
+          if ! git merge-base --is-ancestor "${TAG_COMMIT}" "${TRUSTED_MAIN_COMMIT}"; then
+            echo "Release tag ${TAG_NAME} is not contained in trusted main commit ${TRUSTED_MAIN_COMMIT}." >&2
+            exit 1
           fi
 
           PACKAGE_VERSION="$(node -p "require('./package.json').version")"
@@ -82,6 +78,9 @@ jobs:
 
           echo "package_version=${PACKAGE_VERSION}" >> "$GITHUB_OUTPUT"
           echo "release_tag=${TAG_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Run release checks
         env:

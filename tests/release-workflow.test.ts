@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test'
-import { readFileSync } from 'fs'
-import { resolve } from 'path'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs'
+import { tmpdir } from 'os'
+import { join, resolve } from 'path'
 import { parse } from 'yaml'
 import { spawnSync } from 'child_process'
 
@@ -45,10 +46,69 @@ describe('release workflow', () => {
     expect(version?.env?.REQUESTED_RELEASE_TAG).toBe("${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}")
     expect(version?.run).toContain('Release recovery must be dispatched from main')
     expect(version?.run).toContain('git show-ref --verify --quiet "refs/tags/${TAG_NAME}"')
+    expect(version?.run).toContain('git fetch --no-tags origin main:refs/remotes/origin/main')
+    expect(version?.run).toContain('git rev-parse "refs/remotes/origin/main^{commit}"')
     expect(version?.run).toContain('git merge-base --is-ancestor "${TAG_COMMIT}" "${TRUSTED_MAIN_COMMIT}"')
+    expect(version?.run).not.toContain('if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then')
     expect(version?.run).toContain('Checked-out commit ${HEAD_COMMIT} does not match ${TAG_NAME} commit ${TAG_COMMIT}.')
     expect(version?.run).toContain('echo "release_tag=${TAG_NAME}" >> "$GITHUB_OUTPUT"')
     expect(release?.with?.tag_name).toBe('${{ steps.version.outputs.release_tag }}')
+  })
+
+  it('rejects a normal release tag whose commit is outside trusted main history', () => {
+    const workflow = parse(releaseWorkflow) as {
+      jobs: { publish: { steps: Array<{ name?: string; run?: string }> } }
+    }
+    const versionScript = workflow.jobs.publish.steps.find((step) => step.name === 'Resolve release version')?.run
+    expect(versionScript).toBeTruthy()
+
+    const fixtureRoot = mkdtempSync(join(tmpdir(), 'pluxx-release-tag-'))
+    const remote = join(fixtureRoot, 'remote.git')
+    const checkout = join(fixtureRoot, 'checkout')
+    const output = join(fixtureRoot, 'github-output')
+    const git = (args: string[], cwd = checkout) => {
+      const result = spawnSync('git', args, { cwd, encoding: 'utf-8' })
+      expect(result.status, result.stderr).toBe(0)
+      return result.stdout.trim()
+    }
+
+    try {
+      git(['init', '--bare', remote], fixtureRoot)
+      git(['init', checkout], fixtureRoot)
+      git(['config', 'user.email', 'release-test@example.com'])
+      git(['config', 'user.name', 'Release Test'])
+      writeFileSync(join(checkout, 'package.json'), '{"version":"0.1.37"}\n')
+      git(['add', 'package.json'])
+      git(['commit', '-m', 'main release version'])
+      git(['branch', '-M', 'main'])
+      git(['remote', 'add', 'origin', remote])
+      git(['push', '-u', 'origin', 'main'])
+
+      git(['switch', '-c', 'side-release'])
+      writeFileSync(join(checkout, 'side-only.txt'), 'not reviewed on main\n')
+      git(['add', 'side-only.txt'])
+      git(['commit', '-m', 'side release'])
+      git(['tag', 'v0.1.37'])
+      const tagCommit = git(['rev-parse', 'HEAD'])
+
+      const result = spawnSync('bash', ['-c', versionScript!], {
+        cwd: checkout,
+        encoding: 'utf-8',
+        env: {
+          ...process.env,
+          GITHUB_EVENT_NAME: 'push',
+          GITHUB_REF: 'refs/tags/v0.1.37',
+          GITHUB_SHA: tagCommit,
+          GITHUB_OUTPUT: output,
+          REQUESTED_RELEASE_TAG: 'v0.1.37',
+        },
+      })
+
+      expect(result.status).toBe(1)
+      expect(result.stderr).toContain('Release tag v0.1.37 is not contained in trusted main commit')
+    } finally {
+      rmSync(fixtureRoot, { recursive: true, force: true })
+    }
   })
 
   it('uses GitHub Actions runtime versions that avoid the Node 20 deprecation path', () => {
@@ -80,6 +140,8 @@ describe('release workflow', () => {
     const names = workflow.jobs.publish.steps.map((step) => step.name)
     const releaseCheck = workflow.jobs.publish.steps.find((step) => step.name === 'Run release checks')
     expect(releaseCheck?.env?.PLUXX_RELEASE_TAG).toBe('${{ steps.version.outputs.release_tag }}')
+    expect(names.indexOf('Resolve release version')).toBeLessThan(names.indexOf('Install dependencies'))
+    expect(names.indexOf('Install dependencies')).toBeLessThan(names.indexOf('Run release checks'))
     expect(names.indexOf('Pack release tarball')).toBeLessThan(names.indexOf('Verify packaged Node runtime'))
     expect(names.indexOf('Verify packaged Node runtime')).toBeLessThan(names.indexOf('Publish to npm'))
     expect(names.indexOf('Publish to npm')).toBeLessThan(names.indexOf('Verify npm publication'))
