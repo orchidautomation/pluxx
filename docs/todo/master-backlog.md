@@ -112,13 +112,22 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
 ### 0. v0.1.37 runtime env-sourcing security patch release
 
 - [x] Merge PLUXX-339 through PR #456 at exact reviewed head `b888c62dc7905fd66c9fdf50c4e752984fee5b48`
-- [x] Prepare synchronized 0.1.37 package, proof, planning, and release truth
+- [x] Historical: prepare synchronized 0.1.37 package, proof, planning, and release truth
 - [x] Bind current receipts to commands observed directly against immutable tag commit `d5184752cd4898306390f20455619c34a42099dd`; preserve the distinct pre-squash `f7ee0bd5d6cf5f8b75dec7df6dcda85dcf5a7af8` receipts as historical
 - [x] Pass `npm run release:check`
 - [x] Merge the focused release PR and push immutable tag `v0.1.37`
 - [x] Confirm the first release run failed closed at proof freshness before pack or publication
 - [x] Merge recovery PR #458 at exact reviewed head `5f8a0d58786a7aae4e495bf7dbc484cbc12b348f` and dispatch the fail-closed immutable-tag recovery from trusted-main commit `044673f947115bcf6117dd7c0139918bdd248a99`
 - [x] Verify `@orchid-labs/pluxx@0.1.37`, GitHub release assets and recovery receipt, byte-identical npm/GitHub tarballs, immutable tag/tree identity, and installed CLI behavior
+
+### 0. v0.1.38 PLUXX-340 manifest-identity correction
+
+- [x] Merge PR #461 exact reviewed head `b839f6d93ec1174c4da5dcfb1554c7c6f8f294d5` as trusted main commit `b979bc6e02bb9801fa623f80302000553a0693c7`
+- [~] Prepare synchronized 0.1.38 package, proof, planning, recovery-default, and release truth
+- [ ] Bind fresh repository-validation and fake-home-install receipts to the exact immutable release-prep commit
+- [ ] Pass focused and full release gates plus independent review
+- [ ] Merge the exact green release PR and push immutable tag `v0.1.38` from trusted main
+- [ ] Verify npm, GitHub release assets, byte-identical tarballs, immutable tag provenance, and installed CLI behavior
 
 ### 1. Product clarity and front-door coherence
 

@@ -73,7 +73,7 @@ git tag v0.1.1
 git push origin v0.1.1
 ```
 
-If the trusted release workflow fails before publication for a recoverable infrastructure or proof-topology reason, do not move or recreate the tag and do not publish locally. Merge a reviewed workflow fix to `main`, then dispatch `Release` from exact current `main` with the existing tag. The default recovery input is currently `v0.1.37`.
+If the trusted release workflow fails before publication for a recoverable infrastructure or proof-topology reason, do not move or recreate the tag and do not publish locally. Merge a reviewed workflow fix to `main`, then dispatch `Release` from exact current `main` with the existing tag. The default recovery input is currently `v0.1.38`.
 
 You can use `patch`, `minor`, or `major` depending on the release.
 

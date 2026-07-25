@@ -189,6 +189,7 @@ The public baseline is also real.
 
 - npm package is live as `@orchid-labs/pluxx`
 - the canonical and verified public release is `@orchid-labs/pluxx@0.1.37` / `v0.1.37`; npm and GitHub serve the same tarball at SHA-256 `7c996da682887ceedecc006307c207c5a834e5dedabaab17611cd586ef85b237`
+- the canonical repository version is pending `0.1.38` release-prep only for the PLUXX-340 manifest-identity correction discovered after 0.1.37 shipped
 - proof claims now use [docs/proof-freshness.md](../proof-freshness.md) and [docs/proof-manifest.json](../proof-manifest.json) so historical host runs cannot masquerade as current evidence
 - published CLI runtime is Node `>=18`
 - published CLI lifecycle ergonomics are now stronger for global installs:
@@ -547,6 +548,15 @@ Current work:
 - [x] confirm the first tag-triggered run failed closed at proof freshness before pack or publication
 - [x] merge recovery PR #458 at exact reviewed head `5f8a0d58786a7aae4e495bf7dbc484cbc12b348f`, then dispatch run `30144489420` from trusted-main commit `044673f947115bcf6117dd7c0139918bdd248a99` without moving the tag
 - [x] verify npm, GitHub release assets and receipt, byte-identical tarballs, immutable tag/tree identity, and installed CLI behavior
+
+### 10. v0.1.38 PLUXX-340 manifest-identity correction
+
+- [x] merge PR #461 exact reviewed head `b839f6d93ec1174c4da5dcfb1554c7c6f8f294d5` as trusted main commit `b979bc6e02bb9801fa623f80302000553a0693c7`
+- [~] prepare synchronized 0.1.38 package, proof, planning, recovery-default, and release truth
+- [ ] bind fresh repository-validation and fake-home-install receipts to the exact immutable release-prep commit
+- [ ] pass focused and full release gates plus independent review
+- [ ] merge the exact green release PR and push immutable tag `v0.1.38` from trusted main
+- [ ] verify npm, GitHub release assets, byte-identical tarballs, immutable tag provenance, and installed CLI behavior
 
 ### 7. Historical v0.1.28 release checklist
 
