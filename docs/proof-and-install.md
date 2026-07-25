@@ -32,7 +32,7 @@ For the fuller release/distribution boundary, including publish commands and def
 
 Proof labels and freshness come from [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json). The May self-hosted run, April Firecrawl connector run, and shipped 0.1.37 evidence remain historical relative to tagged repository version `0.1.38`.
 
-The 0.1.38 proof covers only the PLUXX-340 manifest-identity correction: one manifest archive record per host while versioned and `latest` assets remain produced and checksummed. Fresh receipts `v0.1.38-repository-validation` and `v0.1.38-fake-home-install` bind to exact release-prep commit `361958f6b16b1acc2bb901c97fc2c6d5a77ba880`, which is contained by reviewed PR head `cbc14e007626328a8d25340419a455f40701426c` and trusted merge commit `e24d4db3f57fa0942376237fb212cb49368d7704`. Immutable tag `v0.1.38` points to that merge. Its first Release run failed closed during the full test gate before pack or publication, so the historical shipped 0.1.37 npm and GitHub artifact remains the independently verified public release at SHA-256 `7c996da682887ceedecc006307c207c5a834e5dedabaab17611cd586ef85b237` until reviewed recovery succeeds.
+The 0.1.38 proof covers only the PLUXX-340 manifest-identity correction: one manifest archive record per host while versioned and `latest` assets remain produced and checksummed. Fresh receipts `v0.1.38-repository-validation` and `v0.1.38-fake-home-install` bind to exact release-prep commit `361958f6b16b1acc2bb901c97fc2c6d5a77ba880`, which is contained by reviewed PR head `cbc14e007626328a8d25340419a455f40701426c` and trusted merge/tag commit `e24d4db3f57fa0942376237fb212cb49368d7704`. After the first Release run failed closed before pack or publication, recovery PR #463 merged unchanged head `4024ca07fe9cc78b98e93bb0931b8d91ddc36f0f` as trusted main `a67803184890795457d095da52f4a243d61daf2a`. Recovery run [30154432818](https://github.com/orchidautomation/pluxx/actions/runs/30154432818) published and verified byte-identical npm and GitHub artifacts at SHA-256 `34af5bd24a441f13094b651658d6728509771a8cb9295f82b1bc66a985cb2c24` without moving the immutable tag.
 
 ## The Story In One Screen
 
@@ -210,8 +210,8 @@ curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example
 
 Current release note:
 
-- the canonical and verified public release is `@orchid-labs/pluxx@0.1.37` / `v0.1.37` for the PLUXX-339 runtime env-sourcing security patch; npm and GitHub serve the same verified tarball and the GitHub release includes its recovery receipt
-- repository version `0.1.38` is tagged only for the separately discovered PLUXX-340 duplicate archive-identity correction; its first Release run failed closed before pack or publication, so public verification awaits reviewed trusted-main recovery
+- the canonical and verified public release is `@orchid-labs/pluxx@0.1.38` / `v0.1.38`, only for the separately discovered PLUXX-340 duplicate archive-identity correction; npm and GitHub serve the same verified tarball at SHA-256 `34af5bd24a441f13094b651658d6728509771a8cb9295f82b1bc66a985cb2c24`
+- 0.1.37 remains the shipped and independently verified historical PLUXX-339 runtime env-sourcing security release
 - the published CLI runtime is Node `>=18`; see [runtime contract](./runtime-contract.md)
 - the published package includes the Claude plugin-agent manifest fix and packaged Node runtime verification
 - the public `pluxx test --install --trust --behavioral` path now matches the repo-local Exa proof state
