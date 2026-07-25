@@ -32,7 +32,7 @@ For the fuller release/distribution boundary, including publish commands and def
 
 Proof labels and freshness come from [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json). The May self-hosted run, April Firecrawl connector run, and shipped 0.1.37 evidence remain historical relative to pending repository version `0.1.38`.
 
-The 0.1.38 release-prep proof covers only the PLUXX-340 manifest-identity correction: one manifest archive record per host while versioned and `latest` assets remain produced and checksummed. Fresh repository-validation and maintained core-four fake-home receipts bind to the exact release-prep commit after their named gates pass. The historical shipped 0.1.37 npm and GitHub artifact remains independently verified at SHA-256 `7c996da682887ceedecc006307c207c5a834e5dedabaab17611cd586ef85b237`.
+The 0.1.38 release-prep proof covers only the PLUXX-340 manifest-identity correction: one manifest archive record per host while versioned and `latest` assets remain produced and checksummed. Fresh receipts `v0.1.38-repository-validation` and `v0.1.38-fake-home-install` bind to exact release-prep commit `361958f6b16b1acc2bb901c97fc2c6d5a77ba880`, where `npm run release:check` passed on 2026-07-25. The historical shipped 0.1.37 npm and GitHub artifact remains independently verified at SHA-256 `7c996da682887ceedecc006307c207c5a834e5dedabaab17611cd586ef85b237`.
 
 ## The Story In One Screen
 
