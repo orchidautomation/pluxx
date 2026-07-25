@@ -324,7 +324,7 @@ function skipShellRedirections(tokens: ShellToken[], start: number): number {
   return index
 }
 
-function sourceTargetAt(tokens: ShellToken[], start: number): string | null {
+function commandWordIndexAt(tokens: ShellToken[], start: number): number | null {
   let index = start
 
   while (index < tokens.length) {
@@ -373,16 +373,24 @@ function sourceTargetAt(tokens: ShellToken[], start: number): string | null {
       index += 1
       continue
     }
-    if (value !== 'source' && value !== '.') return null
-
-    index = skipShellRedirections(tokens, index + 1)
-    if (tokens[index]?.kind === 'word' && staticShellWordValue(tokens[index].value) === '--') {
-      index = skipShellRedirections(tokens, index + 1)
-    }
-    return tokens[index]?.kind === 'word' ? tokens[index].value : null
+    return index
   }
 
   return null
+}
+
+function sourceTargetAt(tokens: ShellToken[], start: number): string | null {
+  const commandIndex = commandWordIndexAt(tokens, start)
+  if (commandIndex === null) return null
+
+  const value = staticShellWordValue(tokens[commandIndex].value)
+  if (value !== 'source' && value !== '.') return null
+
+  let targetIndex = skipShellRedirections(tokens, commandIndex + 1)
+  if (tokens[targetIndex]?.kind === 'word' && staticShellWordValue(tokens[targetIndex].value) === '--') {
+    targetIndex = skipShellRedirections(tokens, targetIndex + 1)
+  }
+  return tokens[targetIndex]?.kind === 'word' ? tokens[targetIndex].value : null
 }
 
 function executableShellSpans(command: string): string[] {
@@ -471,127 +479,365 @@ function executableShellSpans(command: string): string[] {
 
 const SHELL_EVALUATOR_COMMANDS = new Set(['bash', 'dash', 'ksh', 'sh', 'zsh'])
 
-function shellCommandName(word: string): string | null {
-  const value = staticShellWordValue(word)
-  if (!value) return null
-  return value.split('/').at(-1) ?? value
+function commandStarts(tokens: ShellToken[]): number[] {
+  const starts = new Set([0])
+  tokens.forEach((token, index) => {
+    if (token.kind === 'operator' && COMMAND_BOUNDARY_OPERATORS.has(token.value)) starts.add(index + 1)
+  })
+  return Array.from(starts)
 }
 
-function staticShellWordArgument(token: ShellToken | undefined): string | null {
-  return token?.kind === 'word' ? staticShellWordValue(token.value) : null
+function evaluatorShellArgumentValue(token: ShellToken | undefined): string | null {
+  if (token?.kind !== 'word') return null
+
+  let value = ''
+  let quote: '"' | "'" | null = null
+
+  for (let index = 0; index < token.value.length; index += 1) {
+    const char = token.value[index]
+    if (!quote) {
+      const ansiSegment = readAnsiCQuotedSegment(token.value, index)
+      if (ansiSegment) {
+        value += ansiSegment.decoded
+        index = ansiSegment.end
+        continue
+      }
+    }
+
+    if (quote === "'") {
+      if (char === "'") quote = null
+      else value += char
+      continue
+    }
+
+    if (quote === '"') {
+      if (char === '"') {
+        quote = null
+        continue
+      }
+      if (char === '\\') {
+        const next = token.value[index + 1]
+        if (next === undefined) return null
+        if ('$`"\\\n'.includes(next)) {
+          value += next
+          index += 1
+        } else {
+          value += char
+        }
+        continue
+      }
+      value += char
+      continue
+    }
+
+    if (char === '\\') {
+      const next = token.value[index + 1]
+      if (next === undefined) return null
+      value += next
+      index += 1
+      continue
+    }
+    if (char === '"' || char === "'") {
+      quote = char
+      continue
+    }
+    value += char
+  }
+
+  return quote ? null : value
 }
 
-function commandStartAt(tokens: ShellToken[], start: number): number | null {
-  let index = start
+function evaluatorCommandIndexAt(tokens: ShellToken[], start: number): number | null {
+  let index = commandWordIndexAt(tokens, start)
 
+  while (index !== null) {
+    if (index >= tokens.length) return null
+    const commandValue = staticShellWordValue(tokens[index].value)
+    const commandName = commandValue?.split('/').at(-1)
+    if (commandName !== 'env' && commandName !== 'exec') return index
+
+    index += 1
+    while (index < tokens.length) {
+      const afterRedirections = skipShellRedirections(tokens, index)
+      if (afterRedirections !== index) {
+        index = afterRedirections
+        continue
+      }
+      if (tokens[index]?.kind !== 'word') return null
+
+      const word = staticShellWordValue(tokens[index].value)
+      if (word === '--') {
+        index += 1
+        break
+      }
+      if (commandName === 'env' && isAssignmentWord(tokens[index].value)) {
+        index += 1
+        continue
+      }
+      if (!word?.startsWith('-') || word === '-') break
+
+      index += 1
+      if (
+        (commandName === 'env' && ['-u', '--unset', '-C', '--chdir', '-a', '--argv0'].includes(word))
+        || (commandName === 'exec' && word === '-a')
+      ) {
+        const operandIndex = skipShellRedirections(tokens, index)
+        if (tokens[operandIndex]?.kind !== 'word') return null
+        index = operandIndex + 1
+      }
+    }
+  }
+
+  return null
+}
+
+function commandAfterExecWrappersAt(tokens: ShellToken[], start: number): number | null {
+  let index = commandWordIndexAt(tokens, start)
+
+  while (index !== null && staticShellWordValue(tokens[index].value)?.split('/').at(-1) === 'exec') {
+    index += 1
+    while (index < tokens.length) {
+      const afterRedirections = skipShellRedirections(tokens, index)
+      if (afterRedirections !== index) {
+        index = afterRedirections
+        continue
+      }
+      if (tokens[index]?.kind !== 'word') return null
+
+      const option = staticShellWordValue(tokens[index].value)
+      if (option === '--') {
+        index += 1
+        break
+      }
+      if (!option?.startsWith('-') || option === '-') break
+
+      index += 1
+      if (option === '-a') {
+        const operandIndex = skipShellRedirections(tokens, index)
+        if (tokens[operandIndex]?.kind !== 'word') return null
+        index = operandIndex + 1
+      }
+    }
+    if (index >= tokens.length) return null
+  }
+
+  return index
+}
+
+function envSplitStringShellPayload(splitString: string, remainingArguments: string[]): string | null {
+  const words = splitString
+    .replace(/\\/g, '')
+    .replace(/["']/g, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+
+  let index = 0
+  while (words[index]?.split('/').at(-1) === 'exec') {
+    index += 1
+    while (words[index]?.startsWith('-')) {
+      const option = words[index]
+      index += option === '-a' ? 2 : 1
+    }
+  }
+
+  const shellName = words[index]?.split('/').at(-1)
+  if (!shellName || !SHELL_EVALUATOR_COMMANDS.has(shellName)) return null
+
+  index += 1
+  let noExec = false
+  while (index < words.length) {
+    const option = words[index]
+    if (!option.startsWith('-') && !option.startsWith('+')) return null
+    if (option === '--') return null
+
+    index += 1
+    if (['-O', '+O', '-o', '+o', '--rcfile', '--init-file'].includes(option)) {
+      index += 1
+      continue
+    }
+    if (option.startsWith('--')) {
+      if (option === '--noexec' || option === '--dump-strings' || option === '--dump-po-strings') noExec = true
+      continue
+    }
+
+    const flags = option.slice(1)
+    if (flags.includes('n')) noExec = option.startsWith('-')
+    if (flags.includes('D') && option.startsWith('-')) noExec = true
+    if (!flags.includes('c')) continue
+    if (noExec) return null
+
+    const inlinePayload = words.slice(index)
+    return [...inlinePayload, ...remainingArguments].join(' ') || null
+  }
+
+  return null
+}
+
+function envSplitStringSpanAt(tokens: ShellToken[], start: number): string | null {
+  const commandIndex = commandAfterExecWrappersAt(tokens, start)
+  if (commandIndex === null) return null
+
+  const commandValue = staticShellWordValue(tokens[commandIndex].value)
+  if (commandValue?.split('/').at(-1) !== 'env') return null
+
+  let index = commandIndex + 1
+  let splitString: string | null = null
   while (index < tokens.length) {
     const afterRedirections = skipShellRedirections(tokens, index)
     if (afterRedirections !== index) {
       index = afterRedirections
       continue
     }
+    if (tokens[index]?.kind !== 'word') return null
 
-    const token = tokens[index]
-    if (token.kind !== 'word') return null
+    const option = evaluatorShellArgumentValue(tokens[index])
+    if (option === '-S' || option === '--split-string') {
+      const operandIndex = skipShellRedirections(tokens, index + 1)
+      splitString = evaluatorShellArgumentValue(tokens[operandIndex])
+      index = operandIndex + 1
+      break
+    }
+    if (option?.startsWith('-S') && option.length > 2) {
+      splitString = option.slice(2)
+      index += 1
+      break
+    }
+    if (option?.startsWith('--split-string=')) {
+      splitString = option.slice('--split-string='.length)
+      index += 1
+      break
+    }
+    if (option === '--' || !option?.startsWith('-') || option === '-') return null
 
-    const value = staticShellWordValue(token.value)
-    if (value && CONTROL_PREFIXES.has(value)) {
-      index += 1
+    index += 1
+    if (['-u', '--unset', '-C', '--chdir', '-a', '--argv0'].includes(option)) {
+      const operandIndex = skipShellRedirections(tokens, index)
+      if (tokens[operandIndex]?.kind !== 'word') return null
+      index = operandIndex + 1
+    }
+  }
+  if (!splitString) return null
+
+  const remainingArguments: string[] = []
+  while (index < tokens.length) {
+    const afterRedirections = skipShellRedirections(tokens, index)
+    if (afterRedirections !== index) {
+      index = afterRedirections
       continue
     }
-    if (value === 'time') {
-      index += 1
-      while (tokens[index]?.kind === 'word' && tokens[index].value.startsWith('-')) index += 1
-      continue
-    }
-    if (isAssignmentWord(token.value)) {
-      index += 1
-      continue
-    }
-    return index
+    if (tokens[index]?.kind !== 'word') break
+    const argument = evaluatorShellArgumentValue(tokens[index])
+    if (argument === null) return null
+    remainingArguments.push(argument)
+    index += 1
   }
 
-  return null
+  return envSplitStringShellPayload(splitString, remainingArguments)
 }
 
-function shellEvalSpansAt(tokens: ShellToken[], start: number): string[] {
-  const commandIndex = commandStartAt(tokens, start)
-  if (commandIndex === null) return []
+function evaluatorShellSpans(command: string): string[] {
+  const tokens = tokenizeShellCommand(command)
+  const spans: string[] = []
 
-  const commandName = shellCommandName(tokens[commandIndex].value)
-  if (commandName === 'eval') {
-    const args = tokens
-      .slice(commandIndex + 1)
-      .filter((token) => token.kind === 'word')
-      .map((token) => staticShellWordValue(token.value))
-      .filter((value): value is string => value !== null)
-    return args.length > 0 ? [args.join(' ')] : []
-  }
+  for (const start of commandStarts(tokens)) {
+    const envSplitStringSpan = envSplitStringSpanAt(tokens, start)
+    if (envSplitStringSpan !== null) spans.push(envSplitStringSpan)
 
-  let shellIndex = commandIndex
-  if (commandName === 'env') {
-    shellIndex += 1
-    while (shellIndex < tokens.length) {
-      if (tokens[shellIndex].kind !== 'word') return []
-      const value = staticShellWordValue(tokens[shellIndex].value)
-      if (value === null) return []
-      if (value === '--' || value.startsWith('-') || isAssignmentWord(tokens[shellIndex].value)) {
-        shellIndex += 1
+    const commandIndex = evaluatorCommandIndexAt(tokens, start)
+    if (commandIndex === null) continue
+
+    const commandValue = staticShellWordValue(tokens[commandIndex].value)
+    if (commandValue === 'eval') {
+      const argumentsToEvaluate: string[] = []
+      let index = commandIndex + 1
+      while (index < tokens.length) {
+        const afterRedirections = skipShellRedirections(tokens, index)
+        if (afterRedirections !== index) {
+          index = afterRedirections
+          continue
+        }
+        if (tokens[index]?.kind !== 'word') break
+        const argument = evaluatorShellArgumentValue(tokens[index])
+        if (argument === null) break
+        if (!(argumentsToEvaluate.length === 0 && argument === '--')) argumentsToEvaluate.push(argument)
+        index += 1
+      }
+      if (argumentsToEvaluate.length > 0) spans.push(argumentsToEvaluate.join(' '))
+      continue
+    }
+
+    const shellName = commandValue?.split('/').at(-1)
+    if (!shellName || !SHELL_EVALUATOR_COMMANDS.has(shellName)) continue
+
+    let index = commandIndex + 1
+    let noExec = false
+    while (index < tokens.length) {
+      const afterRedirections = skipShellRedirections(tokens, index)
+      if (afterRedirections !== index) {
+        index = afterRedirections
         continue
       }
+
+      const option = tokens[index]?.kind === 'word' ? staticShellWordValue(tokens[index].value) : null
+      if (!option || option === '--' || (!option.startsWith('-') && !option.startsWith('+'))) break
+
+      index += 1
+      if (option.startsWith('--')) {
+        if (option === '--noexec' || option === '--dump-strings' || option === '--dump-po-strings') noExec = true
+        if ((option === '--rcfile' || option === '--init-file') && !option.includes('=')) {
+          const operandIndex = skipShellRedirections(tokens, index)
+          if (tokens[operandIndex]?.kind !== 'word') break
+          index = operandIndex + 1
+        }
+        continue
+      }
+
+      if (
+        option === '-O'
+        || option === '+O'
+        || option === '-o'
+        || option === '+o'
+        || option === '--rcfile'
+        || option === '--init-file'
+      ) {
+        const operandIndex = skipShellRedirections(tokens, index)
+        if (tokens[operandIndex]?.kind !== 'word') break
+        index = operandIndex + 1
+        continue
+      }
+      const optionFlags = option.slice(1)
+      if (optionFlags.includes('n')) noExec = option.startsWith('-')
+      if (optionFlags.includes('D') && option.startsWith('-')) noExec = true
+      if (!optionFlags.includes('c')) continue
+
+      const payloadIndex = skipShellRedirections(tokens, index)
+      const payload = evaluatorShellArgumentValue(tokens[payloadIndex])
+      if (!noExec && payload !== null) spans.push(payload)
       break
     }
   }
 
-  const shellName = shellCommandName(tokens[shellIndex]?.value ?? '')
-  if (!shellName || !SHELL_EVALUATOR_COMMANDS.has(shellName)) return []
-
-  for (let index = shellIndex + 1; index < tokens.length; index += 1) {
-    if (tokens[index].kind !== 'word') return []
-    const option = staticShellWordValue(tokens[index].value)
-    if (option === null) return []
-    if (option === '--') continue
-    if (!option.startsWith('-') || option === '-') return []
-    if (option.slice(1).includes('c')) {
-      const command = staticShellWordArgument(tokens[index + 1])
-      return command === null ? [] : [command]
-    }
-  }
-
-  return []
-}
-
-function shellEvalSpans(tokens: ShellToken[]): string[] {
-  const starts = new Set([0])
-  tokens.forEach((token, index) => {
-    if (token.kind === 'operator' && COMMAND_BOUNDARY_OPERATORS.has(token.value)) starts.add(index + 1)
-  })
-
-  return Array.from(starts).flatMap(start => shellEvalSpansAt(tokens, start))
+  return spans
 }
 
 function sourceCommandTargets(command: string): string[] {
   const targets: string[] = []
   const pendingCommands = [command]
-  const seenCommands = new Set<string>()
+  const scannedCommands = new Set<string>()
 
   while (pendingCommands.length > 0) {
     const current = pendingCommands.pop()
     if (current === undefined) break
-    if (seenCommands.has(current)) continue
-    seenCommands.add(current)
+    if (scannedCommands.has(current)) continue
+    scannedCommands.add(current)
 
     const tokens = tokenizeShellCommand(current)
-    const starts = new Set([0])
-    tokens.forEach((token, index) => {
-      if (token.kind === 'operator' && COMMAND_BOUNDARY_OPERATORS.has(token.value)) starts.add(index + 1)
-    })
 
-    targets.push(...Array.from(starts)
+    targets.push(...commandStarts(tokens)
       .map(start => sourceTargetAt(tokens, start))
       .filter((target): target is string => target !== null))
-    pendingCommands.push(...executableShellSpans(current))
-    pendingCommands.push(...shellEvalSpans(tokens))
+    pendingCommands.push(...executableShellSpans(current), ...evaluatorShellSpans(current))
   }
 
   return targets
