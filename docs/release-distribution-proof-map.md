@@ -26,7 +26,7 @@ Last updated: 2026-07-16
 
 This is the short release/distribution map for what Pluxx can ship today, what is locally proven, and what still belongs to later marketplace or trust-layer work.
 
-Proof state is governed by [proof-freshness.md](./proof-freshness.md) and the machine-readable [proof manifest](./proof-manifest.json). The canonical repository version is `0.1.36`, tagged as `v0.1.36`. The previous published `v0.1.35` release is historical; older host runs linked below are historical unless a current receipt says otherwise. PLUXX-337 is the released slice for installed OpenCode top-level wrappers preserving the selected workspace context.
+Proof state is governed by [proof-freshness.md](./proof-freshness.md) and the machine-readable [proof manifest](./proof-manifest.json). The canonical repository version is `0.1.37`, preparing tag `v0.1.37`. The published `v0.1.36` release is historical; older host runs linked below are historical unless a current receipt says otherwise. PLUXX-339 is the release-prep security slice that blocks bundled runtime scripts from sourcing workspace `.env` files through direct and statically evaluable shell forms.
 
 ## Current Primary Fronts
 

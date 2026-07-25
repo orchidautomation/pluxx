@@ -99,15 +99,24 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
 - [x] Pass `npm run release:check`
 - [x] Push immutable tag `v0.1.35` from main
 - [x] Verify `@orchid-labs/pluxx@0.1.35`, GitHub release assets, tarball contents, and CLI behavior
-- [~] Complete PLUXX-337 before the next patch release: generated local and release OpenCode top-level wrappers must preserve `context.directory` exactly while the inner bundle continues to derive plugin root from its installed module URL.
-- [ ] Cut and verify the next patch release after PLUXX-337 merges.
+- [x] Complete PLUXX-337: generated local and release OpenCode top-level wrappers preserve `context.directory` exactly while the inner bundle continues to derive plugin root from its installed module URL.
+- [x] Cut and verify v0.1.36 after PLUXX-337 merged.
 
-### 0. v0.1.36 OpenCode installed-wrapper workspace patch release
+### 0. Historical v0.1.36 OpenCode installed-wrapper workspace patch release
 
-- [~] Prepare 0.1.36 through PLUXX-337 with synchronized package, proof, planning, generated release, local install, doctor, verify-install, legacy-adoption, and example fixture truth.
+- [x] Historical: prepare 0.1.36 through PLUXX-337 with synchronized package, proof, planning, generated release, local install, doctor, verify-install, legacy-adoption, and example fixture truth.
+- [x] Pass `npm run release:check`
+- [x] Push immutable tag `v0.1.36` from main
+- [x] Verify `@orchid-labs/pluxx@0.1.36`, GitHub release assets, tarball contents, and CLI behavior
+
+### 0. v0.1.37 runtime env-sourcing security patch release
+
+- [x] Merge PLUXX-339 through PR #456 at exact reviewed head `b888c62dc7905fd66c9fdf50c4e752984fee5b48`
+- [x] Prepare synchronized 0.1.37 package, proof, planning, and release truth
+- [ ] Bind fresh current receipts to the versioned release-prep commit
 - [ ] Pass `npm run release:check`
-- [ ] Push immutable tag `v0.1.36` from main
-- [ ] Verify `@orchid-labs/pluxx@0.1.36`, GitHub release assets, tarball contents, and CLI behavior
+- [ ] Merge the focused release PR and push immutable tag `v0.1.37`
+- [ ] Verify `@orchid-labs/pluxx@0.1.37`, GitHub release assets, tarball contents, and CLI behavior
 
 ### 1. Product clarity and front-door coherence
 

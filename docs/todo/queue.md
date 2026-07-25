@@ -188,7 +188,7 @@ The initial author-once hardening tranche is also materially done.
 The public baseline is also real.
 
 - npm package is live as `@orchid-labs/pluxx`
-- the canonical repository version is `@orchid-labs/pluxx@0.1.36`; previous `v0.1.35` evidence is historical
+- the canonical repository version is `@orchid-labs/pluxx@0.1.37`; released `v0.1.36` evidence is historical
 - proof claims now use [docs/proof-freshness.md](../proof-freshness.md) and [docs/proof-manifest.json](../proof-manifest.json) so historical host runs cannot masquerade as current evidence
 - published CLI runtime is Node `>=18`
 - published CLI lifecycle ergonomics are now stronger for global installs:
@@ -525,16 +525,25 @@ Current work:
 - [x] pass `npm run release:check`
 - [x] push immutable tag `v0.1.35` from main
 - [x] verify npm, GitHub release assets, tarball contents, and CLI behavior
-- [~] PLUXX-337 is the active follow-up: installed local and generated-release OpenCode top-level wrappers must call `pluginFactory(context)` so the selected workspace root is not rewritten to `<workspace>/<plugin>`.
-- [ ] after PLUXX-337 merges, cut the next patch release with refreshed repository-validation and fake-home-install receipts, then verify npm, GitHub release assets, tarball contents, and CLI behavior.
+- [x] PLUXX-337 shipped in v0.1.36: installed local and generated-release OpenCode top-level wrappers call `pluginFactory(context)` so the selected workspace root is not rewritten to `<workspace>/<plugin>`.
+- [x] cut and verify v0.1.36 with refreshed repository-validation and fake-home-install receipts.
 
-### 8. v0.1.36 OpenCode installed-wrapper workspace patch release
+### 8. Historical v0.1.36 OpenCode installed-wrapper workspace patch release
 
 Current work:
 
-- [~] PLUXX-337 prepares 0.1.36 with package, proof, planning, local-install, generated-release, doctor, verify-install, legacy-adoption, and example-release fixture alignment.
+- [x] Historical: PLUXX-337 prepared 0.1.36 with package, proof, planning, local-install, generated-release, doctor, verify-install, legacy-adoption, and example-release fixture alignment.
+- [x] passed `npm run release:check`
+- [x] pushed immutable tag `v0.1.36` from main
+- [x] verified npm, GitHub release assets, tarball contents, and CLI behavior
+
+### 9. v0.1.37 runtime env-sourcing security patch release
+
+- [x] merge PLUXX-339 through exact reviewed PR #456 head `b888c62dc7905fd66c9fdf50c4e752984fee5b48`
+- [x] bump package and canonical release truth to 0.1.37
+- [ ] bind fresh repository-validation and fake-home-install receipts to the versioned release-prep commit
 - [ ] pass `npm run release:check`
-- [ ] push immutable tag `v0.1.36` from main after merge
+- [ ] merge the focused release PR and push immutable tag `v0.1.37` from main
 - [ ] verify npm, GitHub release assets, tarball contents, and CLI behavior
 
 ### 7. Historical v0.1.28 release checklist

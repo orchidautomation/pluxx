@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "canonicalVersion": "0.1.36",
-  "expectedTag": "v0.1.36",
-  "releaseState": "released",
+  "canonicalVersion": "0.1.37",
+  "expectedTag": "v0.1.37",
+  "releaseState": "release-prep",
   "policy": {
     "environmentReceiptMaxAgeDays": 30
   },
@@ -105,17 +105,17 @@
     },
     {
       "id": "v0.1.36-repository-validation",
-      "summary": "The v0.1.36 released state passes the repository release gate for installed OpenCode wrapper workspace passthrough.",
+      "summary": "The v0.1.36 released state remains historical proof for installed OpenCode wrapper workspace passthrough.",
       "tier": "bundle-contract",
-      "freshness": "current",
+      "freshness": "historical",
       "evidencePath": "tests/proof-freshness.test.ts",
       "receiptId": "v0.1.36-repository-validation"
     },
     {
       "id": "v0.1.36-fake-home-install",
-      "summary": "Generated installer fake-home coverage proves OpenCode top-level wrappers preserve selected workspace context for v0.1.36.",
+      "summary": "Generated installer fake-home coverage for v0.1.36 remains historical proof of OpenCode workspace preservation.",
       "tier": "fake-home-install",
-      "freshness": "current",
+      "freshness": "historical",
       "evidencePath": "tests/publish.test.ts",
       "receiptId": "v0.1.36-fake-home-install"
     }
@@ -414,7 +414,7 @@
     {
       "id": "v0.1.36-repository-validation",
       "tier": "bundle-contract",
-      "freshness": "current",
+      "freshness": "historical",
       "commitSha": "bfbdd5fc80e73ff1014d64ac3d9c59f9e48dfeee",
       "packageVersion": "0.1.36",
       "timestamp": "2026-07-18T20:54:05.637Z",
@@ -437,7 +437,7 @@
     {
       "id": "v0.1.36-fake-home-install",
       "tier": "fake-home-install",
-      "freshness": "current",
+      "freshness": "historical",
       "commands": [
         {
           "command": "bun test tests/publish.test.ts tests/doctor.test.ts tests/install.test.ts tests/verify-install.test.ts",
