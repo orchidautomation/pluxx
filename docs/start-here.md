@@ -39,7 +39,7 @@ If you want the shortest public proof and install path after this file, use [doc
 
 If you want the current release, distribution, and proof boundary, use [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md).
 
-If you need to know whether a proof claim is current, historical, repository-only, installed, or real-host evidence, use [docs/proof-freshness.md](./proof-freshness.md) and [docs/proof-manifest.json](./proof-manifest.json). Canonical repository version truth is `package.json` (`0.1.38`), tagged only for the PLUXX-340 manifest-identity correction at trusted merge `e24d4db3f57fa0942376237fb212cb49368d7704`. Its first Release run failed closed during the full test gate before pack or publication. The shipped and independently verified public release therefore remains `@orchid-labs/pluxx@0.1.37` until reviewed trusted-main recovery succeeds.
+If you need to know whether a proof claim is current, historical, repository-only, installed, or real-host evidence, use [docs/proof-freshness.md](./proof-freshness.md) and [docs/proof-manifest.json](./proof-manifest.json). Canonical repository and independently verified public release truth is `@orchid-labs/pluxx@0.1.38`, tagged only for the PLUXX-340 manifest-identity correction at trusted merge `e24d4db3f57fa0942376237fb212cb49368d7704`. Recovery run [30154432818](https://github.com/orchidautomation/pluxx/actions/runs/30154432818) published byte-identical npm and GitHub artifacts at SHA-256 `34af5bd24a441f13094b651658d6728509771a8cb9295f82b1bc66a985cb2c24`.
 
 If you want the primitive-by-host proof ledger behind the core-four native shipping claim, use [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md).
 
@@ -369,8 +369,8 @@ The repo already proves a lot.
 - historical release-gate evidence from 2026-05-19 remains available but is not current proof:
   - `npm test` passed
   - `npm run release:check` passed
-- the canonical and verified public release is `@orchid-labs/pluxx@0.1.37` / `v0.1.37`; npm and GitHub serve the same tarball at SHA-256 `7c996da682887ceedecc006307c207c5a834e5dedabaab17611cd586ef85b237`
-- immutable tag `v0.1.38` records only the follow-up PLUXX-340 correction for duplicate release-manifest archive identities discovered after the historical shipped 0.1.37 release; its first Release run failed closed before pack or publication
+- the canonical and verified public release is `@orchid-labs/pluxx@0.1.38` / `v0.1.38`; npm and GitHub serve the same tarball at SHA-256 `34af5bd24a441f13094b651658d6728509771a8cb9295f82b1bc66a985cb2c24`
+- immutable tag `v0.1.38` records only the follow-up PLUXX-340 correction for duplicate release-manifest archive identities discovered after the historical shipped 0.1.37 release
 - marketplace submission APIs, a managed trust/distribution control plane, automatic rollback/unpublish orchestration, and real authenticated publish plus rollback proof remain explicit release gaps, not hidden shipped capabilities:
   - `docs/release-distribution-proof-map.md`
   - “automatic rollback” here means remote release rollback/unpublish; generated local installers now restore the prior bundle when staged setup fails
@@ -540,7 +540,7 @@ Run two lanes in parallel:
 
 ### 6. Release State
 
-The canonical repository version is tagged as `0.1.38` only for the PLUXX-340 manifest-identity correction. Immutable tag `v0.1.38` points to trusted merge `e24d4db3f57fa0942376237fb212cb49368d7704`, which contains exact reviewed PR head `cbc14e007626328a8d25340419a455f40701426c` and receipt commit `361958f6b16b1acc2bb901c97fc2c6d5a77ba880`. Release run [30152484521](https://github.com/orchidautomation/pluxx/actions/runs/30152484521) failed closed during the full test gate before pack or publication, so the canonical and verified public release remains `@orchid-labs/pluxx@0.1.37` until reviewed trusted-main recovery succeeds.
+The canonical and verified public release is `@orchid-labs/pluxx@0.1.38`, only for the PLUXX-340 manifest-identity correction. Immutable tag `v0.1.38` points to trusted merge `e24d4db3f57fa0942376237fb212cb49368d7704`, which contains exact reviewed PR head `cbc14e007626328a8d25340419a455f40701426c` and receipt commit `361958f6b16b1acc2bb901c97fc2c6d5a77ba880`. Recovery PR #463 merged exact head `4024ca07fe9cc78b98e93bb0931b8d91ddc36f0f` as trusted main `a67803184890795457d095da52f4a243d61daf2a`; run [30154432818](https://github.com/orchidautomation/pluxx/actions/runs/30154432818) then published and verified the byte-identical npm/GitHub artifact at SHA-256 `34af5bd24a441f13094b651658d6728509771a8cb9295f82b1bc66a985cb2c24` without moving the tag.
 
 For v0.1.37, PLUXX-339 is the tagged security focus: lint, doctor, install, and packaged-runtime verification fail closed when bundled runtime scripts source workspace `.env` files through direct or statically evaluable shell forms. The patch preserves valid safe shell forms and uses a bounded explicit scanner rather than an expanding regex.
 

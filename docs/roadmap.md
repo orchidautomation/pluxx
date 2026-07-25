@@ -84,7 +84,7 @@ Proof governance now distinguishes unit, bundle-contract, fake-home install, ins
 
 PLUXX-339 is shipped in the verified public `0.1.37` release after the historical `0.1.36` OpenCode workspace patch. The security patch blocks bundled runtime scripts from sourcing workspace `.env` files through direct and statically evaluable shell forms while preserving valid safe shell syntax.
 
-PLUXX-340 is the separate tagged `0.1.38` follow-up for duplicate release-manifest archive identities discovered after the historical shipped 0.1.37 release. It preserves both versioned and `latest` physical assets while exposing one deterministic manifest identity per host. The first tag-triggered Release run failed closed during the full test gate before pack or publication, so public verification remains blocked on reviewed trusted-main recovery.
+PLUXX-340 is the separately shipped and independently verified `0.1.38` follow-up for duplicate release-manifest archive identities discovered after the historical shipped 0.1.37 release. It preserves both versioned and `latest` physical assets while exposing one deterministic manifest identity per host. Recovery run [30154432818](https://github.com/orchidautomation/pluxx/actions/runs/30154432818) published byte-identical npm and GitHub artifacts without moving the immutable tag.
 
 ### 1. Product clarity and source-of-truth coherence
 
@@ -230,8 +230,8 @@ The closure plan is now narrower than it was before:
 - historical release-gate evidence from 2026-05-19 remains available but is not current proof:
   - `npm test` passed
   - `npm run release:check` passed
-- the canonical and verified public release is `@orchid-labs/pluxx@0.1.37` / `v0.1.37`; npm and GitHub serve the same tarball at SHA-256 `7c996da682887ceedecc006307c207c5a834e5dedabaab17611cd586ef85b237`
-- the canonical repository version is tagged as `0.1.38` for PLUXX-340; the failed-closed first Release run did not publish artifacts and does not change the shipped status of 0.1.37
+- the canonical and verified public release is `@orchid-labs/pluxx@0.1.38` / `v0.1.38`; npm and GitHub serve the same tarball at SHA-256 `34af5bd24a441f13094b651658d6728509771a8cb9295f82b1bc66a985cb2c24`
+- 0.1.38 is only the PLUXX-340 manifest-identity follow-up discovered after shipped and independently verified 0.1.37
 - the release/distribution/proof boundary is now explicit:
   - [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md)
   - [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md)
@@ -391,11 +391,11 @@ This is for learning and proof, not for prematurely building the full trust laye
 
 ### 6. Next release
 
-The canonical repository version is tagged as `0.1.38` for PLUXX-340. Immutable tag `v0.1.38` points to trusted merge `e24d4db3f57fa0942376237fb212cb49368d7704`; its first Release run [30152484521](https://github.com/orchidautomation/pluxx/actions/runs/30152484521) failed closed during the full test gate before pack or publication. The canonical and verified public release remains 0.1.37 until reviewed trusted-main recovery publishes and independently verifies the exact immutable 0.1.38 artifact.
+The canonical and verified public release is `@orchid-labs/pluxx@0.1.38` for PLUXX-340. Immutable tag `v0.1.38` points to trusted merge `e24d4db3f57fa0942376237fb212cb49368d7704`; reviewed recovery run [30154432818](https://github.com/orchidautomation/pluxx/actions/runs/30154432818) published byte-identical npm and GitHub artifacts at SHA-256 `34af5bd24a441f13094b651658d6728509771a8cb9295f82b1bc66a985cb2c24`.
 
 The next npm cut should stay primarily an operations step rather than a code-confidence rescue step.
 
-- merge the reviewed tag-aware recovery-test fix on trusted main, dispatch immutable-tag recovery without moving `v0.1.38`, and independently verify 0.1.38 as the focused PLUXX-340 manifest-identity correction
+- preserve completed 0.1.38 recovery evidence: tag commit `e24d4db3f57fa0942376237fb212cb49368d7704`, tree `8d876bac5753d0dab019f573b4f3bf806bddaa04`, trusted recovery main `a67803184890795457d095da52f4a243d61daf2a`, and tarball SHA-256 `34af5bd24a441f13094b651658d6728509771a8cb9295f82b1bc66a985cb2c24`
 - preserve the completed 0.1.37 immutable-tag recovery evidence: tag commit `d5184752cd4898306390f20455619c34a42099dd`, tree `e63eea0f89995a44b7536b5403af57792e994cb9`, trusted main `044673f947115bcf6117dd7c0139918bdd248a99`, and tarball SHA-256 `7c996da682887ceedecc006307c207c5a834e5dedabaab17611cd586ef85b237`
 - refresh installed-runtime or real-host receipts separately before making broader current host claims
 - use future focused release PRs and trusted tag workflows for the next package cut

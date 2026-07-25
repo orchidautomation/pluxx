@@ -26,7 +26,7 @@ Last updated: 2026-07-25
 
 This is the short release/distribution map for what Pluxx can ship today, what is locally proven, and what still belongs to later marketplace or trust-layer work.
 
-Proof state is governed by [proof-freshness.md](./proof-freshness.md) and the machine-readable [proof manifest](./proof-manifest.json). The canonical repository version is tagged as `0.1.38` only for the PLUXX-340 manifest-identity correction. Immutable tag `v0.1.38` points to trusted merge `e24d4db3f57fa0942376237fb212cb49368d7704`, but Release run [30152484521](https://github.com/orchidautomation/pluxx/actions/runs/30152484521) failed closed during the full test gate before pack or publication. The canonical and independently verified public release therefore remains `@orchid-labs/pluxx@0.1.37`; npm plus GitHub serve its byte-identical tarball at SHA-256 `7c996da682887ceedecc006307c207c5a834e5dedabaab17611cd586ef85b237` until reviewed trusted-main recovery succeeds.
+Proof state is governed by [proof-freshness.md](./proof-freshness.md) and the machine-readable [proof manifest](./proof-manifest.json). The canonical and independently verified public release is `@orchid-labs/pluxx@0.1.38`, only for the PLUXX-340 manifest-identity correction discovered after shipped 0.1.37. Immutable tag `v0.1.38` remains fixed at trusted merge `e24d4db3f57fa0942376237fb212cb49368d7704`; recovery run [30154432818](https://github.com/orchidautomation/pluxx/actions/runs/30154432818) published byte-identical npm and GitHub artifacts at SHA-256 `34af5bd24a441f13094b651658d6728509771a8cb9295f82b1bc66a985cb2c24`.
 
 ## Current Primary Fronts
 

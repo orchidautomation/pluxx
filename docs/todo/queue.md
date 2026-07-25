@@ -188,8 +188,8 @@ The initial author-once hardening tranche is also materially done.
 The public baseline is also real.
 
 - npm package is live as `@orchid-labs/pluxx`
-- the canonical and verified public release is `@orchid-labs/pluxx@0.1.37` / `v0.1.37`; npm and GitHub serve the same tarball at SHA-256 `7c996da682887ceedecc006307c207c5a834e5dedabaab17611cd586ef85b237`
-- the canonical repository version is tagged as `0.1.38` only for the PLUXX-340 manifest-identity correction discovered after 0.1.37 shipped; its first Release run failed closed before pack or publication
+- the canonical and verified public release is `@orchid-labs/pluxx@0.1.38` / `v0.1.38`; npm and GitHub serve the same tarball at SHA-256 `34af5bd24a441f13094b651658d6728509771a8cb9295f82b1bc66a985cb2c24`
+- 0.1.38 is only the PLUXX-340 manifest-identity correction discovered after the shipped and independently verified 0.1.37 release
 - proof claims now use [docs/proof-freshness.md](../proof-freshness.md) and [docs/proof-manifest.json](../proof-manifest.json) so historical host runs cannot masquerade as current evidence
 - published CLI runtime is Node `>=18`
 - published CLI lifecycle ergonomics are now stronger for global installs:
@@ -557,8 +557,8 @@ Current work:
 - [x] pass focused and full release gates plus independent review; review record: [2026-07-25-pluxx-340-release-0.1.38-review.md](../orchid/reviews/2026-07-25-pluxx-340-release-0.1.38-review.md)
 - [x] merge PR #462 exact reviewed head `cbc14e007626328a8d25340419a455f40701426c` with true merge commit `e24d4db3f57fa0942376237fb212cb49368d7704`, prove PR-head and receipt ancestry, and push immutable tag `v0.1.38`
 - [x] confirm tag-triggered Release run `30152484521` failed closed during the full test gate before pack or publication
-- [ ] merge the reviewed trusted-main recovery fix and dispatch immutable-tag recovery without moving or recreating `v0.1.38`
-- [ ] verify npm, GitHub release assets, byte-identical tarballs, immutable tag provenance, and installed CLI behavior
+- [x] merge recovery PR #463 exact head `4024ca07fe9cc78b98e93bb0931b8d91ddc36f0f` as trusted main `a67803184890795457d095da52f4a243d61daf2a`, then dispatch run `30154432818` without moving or recreating `v0.1.38`
+- [x] verify npm, GitHub release assets and recovery receipt, byte-identical tarballs at SHA-256 `34af5bd24a441f13094b651658d6728509771a8cb9295f82b1bc66a985cb2c24`, immutable tag provenance, and isolated installed CLI `0.1.38`
 
 ### 7. Historical v0.1.28 release checklist
 
