@@ -11,10 +11,11 @@ This repo now has a tag-based GitHub Actions workflow at [`.github/workflows/rel
 When you push a tag like `v0.1.1`, GitHub Actions will:
 
 1. install Node dependencies
-2. run `npm run release:check`
-3. verify the tag matches `package.json` version
-4. run `npm publish --provenance --access public`
-5. create a GitHub release and attach the packed npm tarball
+2. verify the tag commit belongs to the current trusted `origin/main` history
+3. run `npm run release:check`
+4. verify the tag matches `package.json` version
+5. run `npm publish --provenance --access public`
+6. create a GitHub release and attach the packed npm tarball
 
 That means GitHub pushes do **not** update npm by themselves. Only a versioned tag release does.
 
@@ -23,6 +24,8 @@ The workflow also has a maintainer-only recovery dispatch for an existing releas
 Do not publish this package from a local shell. The package lifecycle now refuses local `npm publish` and only allows the trusted GitHub release workflow on a matching `vX.Y.Z` tag. This keeps npm provenance intact and avoids depending on local npm auth.
 
 That package-release rule is separate from `pluxx publish`, which packages a user's built plugin bundles and generated installers for distribution.
+
+The workflow rejects normal tag pushes and recovery dispatches when the tag commit is outside current `origin/main` history. Repository administrators should also restrict `v*` tag creation and preserve any configured GitHub release approvals: workflow code is loaded from the tagged commit, so GitHub-side tag governance remains part of the trust boundary.
 
 ## One-Time Setup
 
@@ -97,6 +100,7 @@ Check:
 
 The workflow intentionally fails if:
 
+- the tag commit is not contained in current trusted `origin/main` history
 - the tag does not match `package.json` version
 - a recovery dispatch does not run from `main`
 - the requested recovery tag is missing, malformed, not checked out, or not contained in trusted `main` history
