@@ -551,6 +551,22 @@ describe('lintProject', () => {
     expect(findings.map(finding => finding.line)).toEqual([2, 4, 6, 7, 8, 12, 13, 14, 15, 20])
   })
 
+  it('detects static evaluator strings that shell-source workspace env files', () => {
+    const envName = '.' + 'env'
+    const findings = findUnsafeShellEnvSources([
+      '#!/usr/bin/env bash',
+      `env_file="$PWD/${envName}"`,
+      `eval "source $PWD/${envName}"`,
+      'eval "source $env_file"',
+      'eval source "$env_file"',
+      `bash -c 'source "$PWD/${envName}"'`,
+      `env FOO=bar bash -lc 'source "$PWD/${envName}"'`,
+      '',
+    ].join('\n'))
+
+    expect(findings.map(finding => finding.line)).toEqual([3, 4, 5, 6, 7])
+  })
+
   it('allows runtime-env scripts that parse dotenv files as text', async () => {
     const projectDir = createTempProject()
     const envName = '.' + 'env'

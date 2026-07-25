@@ -469,13 +469,117 @@ function executableShellSpans(command: string): string[] {
   return spans
 }
 
+const SHELL_EVALUATOR_COMMANDS = new Set(['bash', 'dash', 'ksh', 'sh', 'zsh'])
+
+function shellCommandName(word: string): string | null {
+  const value = staticShellWordValue(word)
+  if (!value) return null
+  return value.split('/').at(-1) ?? value
+}
+
+function staticShellWordArgument(token: ShellToken | undefined): string | null {
+  return token?.kind === 'word' ? staticShellWordValue(token.value) : null
+}
+
+function commandStartAt(tokens: ShellToken[], start: number): number | null {
+  let index = start
+
+  while (index < tokens.length) {
+    const afterRedirections = skipShellRedirections(tokens, index)
+    if (afterRedirections !== index) {
+      index = afterRedirections
+      continue
+    }
+
+    const token = tokens[index]
+    if (token.kind !== 'word') return null
+
+    const value = staticShellWordValue(token.value)
+    if (value && CONTROL_PREFIXES.has(value)) {
+      index += 1
+      continue
+    }
+    if (value === 'time') {
+      index += 1
+      while (tokens[index]?.kind === 'word' && tokens[index].value.startsWith('-')) index += 1
+      continue
+    }
+    if (isAssignmentWord(token.value)) {
+      index += 1
+      continue
+    }
+    return index
+  }
+
+  return null
+}
+
+function shellEvalSpansAt(tokens: ShellToken[], start: number): string[] {
+  const commandIndex = commandStartAt(tokens, start)
+  if (commandIndex === null) return []
+
+  const commandName = shellCommandName(tokens[commandIndex].value)
+  if (commandName === 'eval') {
+    const args = tokens
+      .slice(commandIndex + 1)
+      .filter((token) => token.kind === 'word')
+      .map((token) => staticShellWordValue(token.value))
+      .filter((value): value is string => value !== null)
+    return args.length > 0 ? [args.join(' ')] : []
+  }
+
+  let shellIndex = commandIndex
+  if (commandName === 'env') {
+    shellIndex += 1
+    while (shellIndex < tokens.length) {
+      if (tokens[shellIndex].kind !== 'word') return []
+      const value = staticShellWordValue(tokens[shellIndex].value)
+      if (value === null) return []
+      if (value === '--' || value.startsWith('-') || isAssignmentWord(tokens[shellIndex].value)) {
+        shellIndex += 1
+        continue
+      }
+      break
+    }
+  }
+
+  const shellName = shellCommandName(tokens[shellIndex]?.value ?? '')
+  if (!shellName || !SHELL_EVALUATOR_COMMANDS.has(shellName)) return []
+
+  for (let index = shellIndex + 1; index < tokens.length; index += 1) {
+    if (tokens[index].kind !== 'word') return []
+    const option = staticShellWordValue(tokens[index].value)
+    if (option === null) return []
+    if (option === '--') continue
+    if (!option.startsWith('-') || option === '-') return []
+    if (option.slice(1).includes('c')) {
+      const command = staticShellWordArgument(tokens[index + 1])
+      return command === null ? [] : [command]
+    }
+  }
+
+  return []
+}
+
+function shellEvalSpans(tokens: ShellToken[]): string[] {
+  const starts = new Set([0])
+  tokens.forEach((token, index) => {
+    if (token.kind === 'operator' && COMMAND_BOUNDARY_OPERATORS.has(token.value)) starts.add(index + 1)
+  })
+
+  return Array.from(starts).flatMap(start => shellEvalSpansAt(tokens, start))
+}
+
 function sourceCommandTargets(command: string): string[] {
   const targets: string[] = []
   const pendingCommands = [command]
+  const seenCommands = new Set<string>()
 
   while (pendingCommands.length > 0) {
     const current = pendingCommands.pop()
     if (current === undefined) break
+    if (seenCommands.has(current)) continue
+    seenCommands.add(current)
 
     const tokens = tokenizeShellCommand(current)
     const starts = new Set([0])
@@ -487,6 +591,7 @@ function sourceCommandTargets(command: string): string[] {
       .map(start => sourceTargetAt(tokens, start))
       .filter((target): target is string => target !== null))
     pendingCommands.push(...executableShellSpans(current))
+    pendingCommands.push(...shellEvalSpans(tokens))
   }
 
   return targets
