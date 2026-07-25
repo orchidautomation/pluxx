@@ -73,6 +73,13 @@ git tag v0.1.1
 git push origin v0.1.1
 ```
 
+When a release-prep PR contains current receipts bound to an ancestor commit, merge it with a true merge commit. Do not squash or rebase that PR: rewriting its commits makes the receipt SHA unreachable and the proof checker fails closed. Before tagging, verify both the exact PR head and every current receipt commit are ancestors of the trusted `main` commit:
+
+```bash
+git merge-base --is-ancestor <exact-pr-head> <trusted-main-commit>
+git merge-base --is-ancestor <current-receipt-commit> <trusted-main-commit>
+```
+
 If the trusted release workflow fails before publication for a recoverable infrastructure or proof-topology reason, do not move or recreate the tag and do not publish locally. Merge a reviewed workflow fix to `main`, then dispatch `Release` from exact current `main` with the existing tag. The default recovery input is currently `v0.1.38`.
 
 You can use `patch`, `minor`, or `major` depending on the release.

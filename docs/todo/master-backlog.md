@@ -126,7 +126,7 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
 - [x] Prepare synchronized 0.1.38 package, proof, planning, recovery-default, and release truth
 - [x] Bind fresh repository-validation and fake-home-install receipts to exact immutable release-prep commit `361958f6b16b1acc2bb901c97fc2c6d5a77ba880`
 - [ ] Pass focused and full release gates plus independent review
-- [ ] Merge the exact green release PR and push immutable tag `v0.1.38` from trusted main
+- [ ] Merge the exact green release PR with a true merge commit, prove PR-head and receipt ancestry, and push immutable tag `v0.1.38` from trusted main
 - [ ] Verify npm, GitHub release assets, byte-identical tarballs, immutable tag provenance, and installed CLI behavior
 
 ### 1. Product clarity and front-door coherence

@@ -6,8 +6,8 @@ import { spawnSync } from 'child_process'
 
 const ROOT = resolve(import.meta.dir, '..')
 const SCRIPT = resolve(ROOT, 'scripts/release-recovery-proof.mjs')
-const TAG = 'v0.1.37'
-const VERSION = '0.1.37'
+const VERSION = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf-8')).version
+const TAG = `v${VERSION}`
 const TEST_NPM_CACHE = join(tmpdir(), 'pluxx-release-recovery-npm-cache')
 const PRE_PROOF_COMMANDS = [
   'npm run build',
@@ -71,7 +71,7 @@ function fixture(packageVersion = VERSION, manifestSuffix = '\n', proofPasses = 
   writeFileSync(
     join(root, 'proof-check.mjs'),
     proofPasses
-      ? "import { readFileSync } from 'fs'; const manifest = JSON.parse(readFileSync('docs/proof-manifest.json', 'utf8')); if (process.env.PLUXX_RELEASE_TAG !== 'v0.1.37' || !manifest.receipts.every((receipt) => receipt.freshness !== 'current' || receipt.commands.every((command) => command.outcome === 'passed'))) process.exit(1)\n"
+      ? `import { readFileSync } from 'fs'; const manifest = JSON.parse(readFileSync('docs/proof-manifest.json', 'utf8')); if (process.env.PLUXX_RELEASE_TAG !== '${TAG}' || !manifest.receipts.every((receipt) => receipt.freshness !== 'current' || receipt.commands.every((command) => command.outcome === 'passed'))) process.exit(1)\n`
       : 'process.exit(1)\n',
   )
   writeFileSync(join(root, 'scripts/run-npm-pack.mjs'), 'process.exit(0)\n')
@@ -114,12 +114,12 @@ function fixture(packageVersion = VERSION, manifestSuffix = '\n', proofPasses = 
   git(root, 'commit', '-m', 'tagged release tree')
   git(root, 'tag', TAG)
 
-  const artifact = join(root, 'orchid-labs-pluxx-0.1.37.tgz')
+  const artifact = join(root, `orchid-labs-pluxx-${VERSION}.tgz`)
 
   return {
     root,
     artifact,
-    receipt: join(root, 'pluxx-v0.1.37-recovery-receipt.json'),
+    receipt: join(root, `pluxx-${TAG}-recovery-receipt.json`),
     head: git(root, 'rev-parse', 'HEAD'),
     tree: git(root, 'rev-parse', 'HEAD^{tree}'),
     originalManifest: readFileSync(join(root, 'docs/proof-manifest.json'), 'utf-8'),
@@ -191,7 +191,8 @@ describe('immutable-tag release recovery proof', () => {
     const checkout = join(fixtureRoot, 'release')
     try {
       expect(run('git', ['clone', '--no-local', ROOT, checkout], fixtureRoot).status).toBe(0)
-      expect(run('git', ['checkout', '--detach', TAG], checkout).status).toBe(0)
+      expect(run('git', ['checkout', '--detach', 'HEAD'], checkout).status).toBe(0)
+      expect(run('git', ['tag', TAG], checkout).status).toBe(0)
       symlinkSync(join(ROOT, 'node_modules'), join(checkout, 'node_modules'), 'dir')
 
       const manifestPath = join(checkout, 'docs/proof-manifest.json')
@@ -200,7 +201,7 @@ describe('immutable-tag release recovery proof', () => {
       for (const receipt of manifest.receipts.filter((item: { freshness: string }) => item.freshness === 'current')) {
         receipt.commitSha = head
         receipt.timestamp = '2026-07-25T03:35:25.299Z'
-        receipt.commands = receipt.id === 'v0.1.37-fake-home-install'
+        receipt.commands = receipt.tier === 'fake-home-install'
           ? [{ command: 'npm test', outcome: 'passed' }]
           : PRE_PROOF_COMMANDS.map((command) => ({ command, outcome: 'passed' }))
       }
@@ -214,7 +215,7 @@ describe('immutable-tag release recovery proof', () => {
         ['e' + 'nv']: { ...process['e' + 'nv'], PLUXX_RELEASE_TAG: TAG },
       })
       expect(result.status, result.stderr).toBe(0)
-      expect(result.stdout).toContain('Proof freshness check passed for 0.1.37')
+      expect(result.stdout).toContain(`Proof freshness check passed for ${VERSION}`)
     } finally {
       rmSync(fixtureRoot, { recursive: true, force: true })
     }
@@ -264,7 +265,7 @@ describe('immutable-tag release recovery proof', () => {
         '--receipt', runFixture.receipt,
       ], runFixture.root)
       expect(finalized.status).toBe(1)
-      expect(finalized.stderr).toContain('Recovery proof check failed for v0.1.37')
+      expect(finalized.stderr).toContain(`Recovery proof check failed for ${TAG}`)
       expect(JSON.parse(readFileSync(runFixture.receipt, 'utf-8')).status).toBe('awaiting-proof')
     } finally {
       rmSync(runFixture.root, { recursive: true, force: true })
@@ -297,7 +298,7 @@ describe('immutable-tag release recovery proof', () => {
       const manifestPath = join(runFixture.root, 'docs/proof-manifest.json')
       const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
       manifest.receipts.push({
-        id: 'v0.1.37-real-host',
+        id: `${TAG}-real-host`,
         tier: 'real-host-behavior',
         freshness: 'current',
         commitSha: runFixture.head,
@@ -328,14 +329,14 @@ describe('immutable-tag release recovery proof', () => {
         '--receipt', runFixture.receipt,
       ], runFixture.root)
       expect(prepared.status).toBe(1)
-      expect(prepared.stderr).toContain('Recovery does not support current receipt v0.1.37-real-host')
+      expect(prepared.stderr).toContain(`Recovery does not support current receipt ${TAG}-real-host`)
     } finally {
       rmSync(runFixture.root, { recursive: true, force: true })
     }
   }, 15_000)
 
   it('rejects a tag whose version differs from the package identity', () => {
-    const runFixture = fixture('0.1.38')
+    const runFixture = fixture('0.1.39')
     try {
       const result = run('node', [
         SCRIPT,
@@ -347,7 +348,7 @@ describe('immutable-tag release recovery proof', () => {
         '--receipt', runFixture.receipt,
       ], runFixture.root)
       expect(result.status).toBe(1)
-      expect(result.stderr).toContain('Release tag v0.1.37 does not match package version 0.1.38')
+      expect(result.stderr).toContain(`Release tag ${TAG} does not match package version 0.1.39`)
     } finally {
       rmSync(runFixture.root, { recursive: true, force: true })
     }
