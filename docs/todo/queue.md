@@ -564,9 +564,9 @@ Current work:
 ### 11. v0.1.39 quiet OpenCode hook scope
 
 - [x] merge PR #468 exact reviewed head `e4c11db` as true merge commit `a750c593f1fb694a71aa60365ae6f8792e51a246`
-- [~] prepare synchronized 0.1.39 package, proof, planning, recovery-default, and release truth
-- [ ] bind fresh repository-validation and fake-home-install receipts to the exact release-prep commit
-- [ ] pass focused and full release gates plus independent review
+- [x] prepare synchronized 0.1.39 package, proof, planning, recovery-default, and release truth
+- [x] bind fresh repository-validation and fake-home-install receipts to exact release-prep commit `6ffb6337b351c5a87b985394f0c011d2c271a940`
+- [~] pass focused and full release gates plus independent review; full local gate passed with 62 files and 828 tests
 - [ ] merge the exact green release PR with a true merge commit and push immutable tag `v0.1.39`
 - [ ] verify npm, GitHub release assets, immutable tag provenance, and isolated installed CLI `0.1.39`
 

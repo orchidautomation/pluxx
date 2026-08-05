@@ -4,7 +4,7 @@ Last updated: 2026-08-05
 
 This document defines how Pluxx distinguishes repeatable repository checks from installed and real-host evidence. The machine-readable source is [proof-manifest.json](./proof-manifest.json), validated by `npm run proof:check`.
 
-The repository is preparing `v0.1.39` for the PLUXX-341/PLUXX-342 quiet OpenCode hook-scope repair merged through PR #468. The shipped and independently verified `v0.1.38` receipts remain historical evidence; fresh current 0.1.39 repository-validation and fake-home-install receipts are recorded only after the exact release-prep commit passes their named gates. No current receipt claims installed-runtime or real-host behavior.
+The repository is preparing `v0.1.39` for the PLUXX-341/PLUXX-342 quiet OpenCode hook-scope repair merged through PR #468. The shipped and independently verified `v0.1.38` receipts remain historical evidence. Fresh current receipts `v0.1.39-repository-validation` and `v0.1.39-fake-home-install` bind to exact release-prep commit `6ffb6337b351c5a87b985394f0c011d2c271a940`, where `npm run release:check` passed on 2026-08-05 with 62 test files and 828 tests plus isolated packed-runtime and dry-pack verification. No current receipt claims installed-runtime or real-host behavior.
 
 ## Version And Freshness Policy
 

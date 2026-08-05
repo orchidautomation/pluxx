@@ -32,7 +32,7 @@ For the fuller release/distribution boundary, including publish commands and def
 
 Proof labels and freshness come from [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json). The May self-hosted run, April Firecrawl connector run, and shipped 0.1.37 and 0.1.38 evidence remain historical relative to pending repository version `0.1.39`.
 
-Historical 0.1.38 proof covers only the PLUXX-340 manifest-identity correction. Pending 0.1.39 release-prep covers only the merged PLUXX-341/PLUXX-342 quiet OpenCode hook-scope repair; fresh receipts are added only after the exact release-prep commit passes `npm run release:check`.
+Historical 0.1.38 proof covers only the PLUXX-340 manifest-identity correction. Pending 0.1.39 release-prep covers only the merged PLUXX-341/PLUXX-342 quiet OpenCode hook-scope repair. Fresh receipts `v0.1.39-repository-validation` and `v0.1.39-fake-home-install` bind to exact release-prep commit `6ffb6337b351c5a87b985394f0c011d2c271a940`, where the complete release gate passed on 2026-08-05.
 
 ## The Story In One Screen
 
