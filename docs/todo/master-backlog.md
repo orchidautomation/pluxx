@@ -131,14 +131,14 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
 - [x] Merge recovery PR #463 exact head `4024ca07fe9cc78b98e93bb0931b8d91ddc36f0f` as trusted main `a67803184890795457d095da52f4a243d61daf2a`, then dispatch run `30154432818` without moving or recreating `v0.1.38`
 - [x] Verify npm, GitHub release assets and recovery receipt, byte-identical tarballs at SHA-256 `34af5bd24a441f13094b651658d6728509771a8cb9295f82b1bc66a985cb2c24`, immutable tag provenance, and isolated installed CLI `0.1.38`
 
-### 0. v0.1.39 quiet OpenCode hook scope
+### 0. Historical v0.1.39 quiet OpenCode hook scope
 
 - [x] Merge PR #468 exact reviewed head `e4c11db` as true merge commit `a750c593f1fb694a71aa60365ae6f8792e51a246`
 - [x] Prepare synchronized 0.1.39 package, proof, planning, recovery-default, and release truth
 - [x] Bind fresh repository-validation and fake-home-install receipts to exact release-prep commit `6ffb6337b351c5a87b985394f0c011d2c271a940`
 - [x] Pass focused and full release gates plus independent review; review record: [2026-08-05-pluxx-343-release-0.1.39-review.md](../orchid/reviews/2026-08-05-pluxx-343-release-0.1.39-review.md)
-- [ ] Merge the exact green release PR with a true merge commit and push immutable tag `v0.1.39`
-- [ ] Verify npm, GitHub release assets, immutable tag provenance, and isolated installed CLI `0.1.39`
+- [x] Merge PR #470 exact reviewed head `4d0465930ead185d462f3e11c47281576098bcec` with true merge commit `9e404537e8f3b007cfadf67d90487efdad160f20` and push immutable tag `v0.1.39`
+- [x] Verify tag-triggered Release run `31023227838`, npm, GitHub release asset, byte-identical tarballs at SHA-256 `79a75caa36f636e34e03dbadc36376ca513c279cbae03fecab9c9da1235e2fe5`, immutable tag provenance, and isolated installed CLI `0.1.39`
 
 ### 1. Product clarity and front-door coherence
 
