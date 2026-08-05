@@ -172,9 +172,15 @@ export class OpenCodeGenerator extends Generator {
       `  [tool, ...(TOOL_MATCHER_ALIASES[tool] ?? []), ...(isMcpTool(tool) ? ["MCP"] : [])]`,
       '',
       `const getToolMatcherPattern = (matcher: GeneratedHook["matcher"]): string | undefined => {`,
-      `  if (typeof matcher === "string") return matcher`,
-      `  if (matcher && typeof matcher.tool === "string") return matcher.tool`,
-      `  return undefined`,
+      `  const pattern = typeof matcher === "string"`,
+      `    ? matcher`,
+      `    : matcher && typeof matcher.tool === "string"`,
+      `      ? matcher.tool`,
+      `      : undefined`,
+      `  if (pattern === undefined) return undefined`,
+      `  const alternatives = pattern.split("|").map(value => value.trim())`,
+      `  if (alternatives.some(value => value.length === 0)) return undefined`,
+      `  return alternatives.join("|")`,
       `}`,
       '',
       `const hookMatchesTool = (hook: GeneratedHook, tool: string): boolean => {`,
@@ -838,15 +844,25 @@ const OPENCODE_EDIT_MATCHER_NAMES = new Set([
 ])
 
 function isOpenCodeEditOnlyMatcher(matcher: GeneratedHook['matcher']): boolean {
+  const pattern = normalizeOpenCodeToolMatcherPattern(matcher)
+  if (!pattern) return false
+  const alternatives = pattern.split('|')
+  return alternatives.length > 0
+    && alternatives.every(value => OPENCODE_EDIT_MATCHER_NAMES.has(value))
+}
+
+function normalizeOpenCodeToolMatcherPattern(
+  matcher: GeneratedHook['matcher'],
+): string | undefined {
   const pattern = typeof matcher === 'string'
     ? matcher
     : matcher && typeof matcher.tool === 'string'
       ? matcher.tool
       : undefined
-  if (!pattern) return false
+  if (pattern === undefined) return undefined
   const alternatives = pattern.split('|').map(value => value.trim())
-  return alternatives.length > 0
-    && alternatives.every(value => value.length > 0 && OPENCODE_EDIT_MATCHER_NAMES.has(value))
+  if (alternatives.some(value => value.length === 0)) return undefined
+  return alternatives.join('|')
 }
 
 function asOpenCodeMap(value: unknown): AgentFrontmatterMap | undefined {

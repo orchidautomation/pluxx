@@ -1957,12 +1957,24 @@ describe('build', () => {
             matcher: { tool: 'Edit|Write' },
           },
           {
+            command: 'echo before-padded-edit',
+            matcher: ' Edit | Write ',
+          },
+          {
+            command: 'echo before-padded-object-edit',
+            matcher: { tool: ' Edit | Write ' },
+          },
+          {
             command: 'echo never-run-unsupported-matcher',
             matcher: { unsupported: true },
           },
           {
             command: 'echo never-run-empty-matcher',
             matcher: '',
+          },
+          {
+            command: 'echo never-run-empty-object-alternatives',
+            matcher: { tool: ' Edit | ' },
           },
           {
             command: 'echo before-mcp',
@@ -1976,6 +1988,10 @@ describe('build', () => {
           {
             command: 'echo after-edit',
             matcher: 'Edit|Write',
+          },
+          {
+            command: 'echo after-padded-object-edit',
+            matcher: { tool: ' Edit | Write ' },
           },
         ],
         afterFileEdit: [
@@ -2002,8 +2018,11 @@ describe('build', () => {
     expect(toolBeforeHooks.matched.map(hook => hook.command)).toEqual([
       'echo before-edit',
       'echo before-object-edit',
+      'echo before-padded-edit',
+      'echo before-padded-object-edit',
       'echo never-run-unsupported-matcher',
       'echo never-run-empty-matcher',
+      'echo never-run-empty-object-alternatives',
       'echo before-mcp',
     ])
     const toolAfterHooks = extractGeneratedJson<{
@@ -2015,6 +2034,7 @@ describe('build', () => {
     expect(toolAfterHooks.matched).toEqual([])
     expect(toolAfterHooks.edit.map(hook => hook.command)).toEqual([
       'echo after-edit',
+      'echo after-padded-object-edit',
       'echo file-edited',
     ])
 
@@ -2060,8 +2080,11 @@ describe('build', () => {
         expect.stringContaining('before-all'),
         expect.stringContaining('before-edit'),
         expect.stringContaining('before-object-edit'),
+        expect.stringContaining('before-padded-edit'),
+        expect.stringContaining('before-padded-object-edit'),
         expect.stringContaining('after-all'),
         expect.stringContaining('after-edit'),
+        expect.stringContaining('after-padded-object-edit'),
         expect.stringContaining('file-edited'),
       ])
     }

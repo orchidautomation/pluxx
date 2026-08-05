@@ -2467,6 +2467,68 @@ function isLikelyOpenCodeInstallPath(rootDir: string): boolean {
   return basename(parent) === 'plugins' && basename(grandparent) === 'opencode'
 }
 
+function extractOpenCodeHandlerBody(source: string, event: string): string | null {
+  const escapedEvent = event.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const declaration = new RegExp(`["']${escapedEvent}["']\\s*:\\s*async\\s*\\([^)]*\\)\\s*=>\\s*\\{`, 'm').exec(source)
+  if (!declaration || declaration.index === undefined) return null
+
+  const bodyStart = declaration.index + declaration[0].lastIndexOf('{')
+  let depth = 0
+  let quote: '"' | "'" | '`' | null = null
+  let escaped = false
+  let lineComment = false
+  let blockComment = false
+
+  for (let index = bodyStart; index < source.length; index += 1) {
+    const character = source[index]
+    const next = source[index + 1]
+
+    if (lineComment) {
+      if (character === '\n') lineComment = false
+      continue
+    }
+    if (blockComment) {
+      if (character === '*' && next === '/') {
+        blockComment = false
+        index += 1
+      }
+      continue
+    }
+    if (quote) {
+      if (escaped) {
+        escaped = false
+      } else if (character === '\\') {
+        escaped = true
+      } else if (character === quote) {
+        quote = null
+      }
+      continue
+    }
+    if (character === '/' && next === '/') {
+      lineComment = true
+      index += 1
+      continue
+    }
+    if (character === '/' && next === '*') {
+      blockComment = true
+      index += 1
+      continue
+    }
+    if (character === '"' || character === "'" || character === '`') {
+      quote = character
+      continue
+    }
+    if (character === '{') {
+      depth += 1
+    } else if (character === '}') {
+      depth -= 1
+      if (depth === 0) return source.slice(bodyStart + 1, index)
+    }
+  }
+
+  return null
+}
+
 function checkInstalledOpenCodeHookScope(checks: DoctorCheck[], rootDir: string): void {
   const pluginPath = resolve(rootDir, 'index.ts')
   if (!existsSync(pluginPath)) return
@@ -2536,8 +2598,70 @@ function checkInstalledOpenCodeHookScope(checks: DoctorCheck[], rootDir: string)
     return
   }
 
-  const beforeBody = source.match(/"tool\.execute\.before": async \(input, output\) => \{([\s\S]*?)\n    \},\n\n    "tool\.execute\.after"/)?.[1] ?? ''
-  const afterBody = source.match(/"tool\.execute\.after": async \(input, output\) => \{([\s\S]*?)\n    \},\n\n    "shell\.env"/)?.[1] ?? ''
+  const malformedEntries = expectedBuckets.flatMap(([name, hooks]) => (
+    (hooks as unknown[]).flatMap((hook, index) => {
+      if (!hook || typeof hook !== 'object' || Array.isArray(hook)) return [`${name}[${index}]`]
+      const command = (hook as Record<string, unknown>).command
+      return typeof command !== 'string' || command.trim().length === 0
+        ? [`${name}[${index}]`]
+        : []
+    })
+  ))
+  if (malformedEntries.length > 0) {
+    addCheck(checks, {
+      level: 'error',
+      code: 'consumer-opencode-hook-scope-malformed',
+      title: 'OpenCode hook scope metadata is malformed',
+      detail: `Expected object-shaped hook entries with non-empty string commands: ${malformedEntries.join(', ')}.`,
+      fix: 'Rebuild and reinstall this consumer with a current Pluxx release.',
+      path: 'index.ts',
+    })
+    return
+  }
+
+  const hasSupportedMatcher = (hook: unknown): boolean => {
+    if (!hook || typeof hook !== 'object' || Array.isArray(hook)) return false
+    const matcher = (hook as Record<string, unknown>).matcher
+    if (typeof matcher === 'string') return matcher.trim().length > 0
+    if (!matcher || typeof matcher !== 'object' || Array.isArray(matcher)) return false
+    const tool = (matcher as Record<string, unknown>).tool
+    return typeof tool === 'string' && tool.trim().length > 0
+  }
+  const unsupportedMatchedEntries = [
+    ['TOOL_BEFORE_HOOKS.matched', before.matched as unknown[]],
+    ['TOOL_AFTER_HOOKS.matched', after.matched as unknown[]],
+  ].flatMap(([name, hooks]) => (hooks as unknown[]).flatMap((hook, index) => (
+    hasSupportedMatcher(hook) ? [] : [`${name}[${index}]`]
+  )))
+  if (unsupportedMatchedEntries.length > 0) {
+    addCheck(checks, {
+      level: 'error',
+      code: 'consumer-opencode-hook-scope-malformed',
+      title: 'OpenCode hook scope metadata is malformed',
+      detail: `Expected matcher-scoped hook entries with a non-empty string matcher or matcher.tool: ${unsupportedMatchedEntries.join(', ')}.`,
+      fix: 'Rebuild and reinstall this consumer with a current Pluxx release.',
+      path: 'index.ts',
+    })
+    return
+  }
+
+  const beforeBody = extractOpenCodeHandlerBody(source, 'tool.execute.before')
+  const afterBody = extractOpenCodeHandlerBody(source, 'tool.execute.after')
+  if (beforeBody === null || afterBody === null) {
+    const missingHandlers = [
+      beforeBody === null ? 'tool.execute.before' : undefined,
+      afterBody === null ? 'tool.execute.after' : undefined,
+    ].filter(Boolean).join(', ')
+    addCheck(checks, {
+      level: 'error',
+      code: 'consumer-opencode-hook-scope-malformed',
+      title: 'OpenCode hook scope runtime is malformed',
+      detail: `Could not validate generated OpenCode handler structure for: ${missingHandlers}.`,
+      fix: 'Rebuild and reinstall this consumer with a current Pluxx release.',
+      path: 'index.ts',
+    })
+    return
+  }
   const hasMatcher = (hooks: unknown): boolean => Array.isArray(hooks) && hooks.some(hook => (
     !!hook && typeof hook === 'object' && !Array.isArray(hook) && 'matcher' in hook
   ))

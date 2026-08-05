@@ -1731,6 +1731,8 @@ describe('doctorConsumer', () => {
         'const SHELL_ENV_HOOKS = []',
         '',
         'export const MegamindPlugin = async () => ({',
+        '  "tool.execute.before": async (input, output) => {},',
+        '',
         '  "tool.execute.after": async (input) => {',
         '    await runHooks(TOOL_AFTER_HOOKS.all, { tool: input.tool })',
         '  },',
@@ -1796,6 +1798,30 @@ describe('doctorConsumer', () => {
       code: 'consumer-opencode-hook-scope-malformed',
     },
     {
+      name: 'null hook entry',
+      before: '{"all":[null],"matched":[],"read":[],"mcp":[]}',
+      after: '{"all":[],"matched":[],"edit":[],"mcp":[]}',
+      code: 'consumer-opencode-hook-scope-malformed',
+    },
+    {
+      name: 'hook entry without a command',
+      before: '{"all":[{"matcher":"Edit"}],"matched":[],"read":[],"mcp":[]}',
+      after: '{"all":[],"matched":[],"edit":[],"mcp":[]}',
+      code: 'consumer-opencode-hook-scope-malformed',
+    },
+    {
+      name: 'unscoped matched hook entry',
+      before: '{"all":[],"matched":[{"command":"echo edit"}],"read":[],"mcp":[]}',
+      after: '{"all":[],"matched":[],"edit":[],"mcp":[]}',
+      code: 'consumer-opencode-hook-scope-malformed',
+    },
+    {
+      name: 'mixed scoped and unscoped matched hook entries',
+      before: '{"all":[],"matched":[{"command":"echo edit","matcher":"Edit"},{"command":"echo unscoped"}],"read":[],"mcp":[]}',
+      after: '{"all":[],"matched":[],"edit":[],"mcp":[]}',
+      code: 'consumer-opencode-hook-scope-malformed',
+    },
+    {
       name: 'dead matcher helper without handler dispatch',
       before: '{"all":[],"matched":[{"command":"echo edit","matcher":"Edit"}],"read":[],"mcp":[]}',
       after: '{"all":[],"matched":[],"edit":[],"mcp":[]}',
@@ -1837,6 +1863,80 @@ describe('doctorConsumer', () => {
       const report = await doctorConsumer(dir)
       expect(report.ok).toBe(false)
       expect(report.checks).toContainEqual(expect.objectContaining({ code, level: 'error' }))
+    } finally {
+      rmSync(resolve(dir, '..', '..', '..', '..'), { recursive: true, force: true })
+    }
+  })
+
+  it('validates OpenCode hook handlers independently of handler order and formatting', async () => {
+    const dir = createOpenCodeConsumerFixture()
+    writeFileSync(
+      resolve(dir, 'index.ts'),
+      [
+        'const TOOL_BEFORE_HOOKS = {"all":[],"matched":[{"command":"echo before","matcher":{"tool":"Edit"}}],"read":[],"mcp":[]}',
+        '',
+        'const TOOL_AFTER_HOOKS = {"all":[],"matched":[],"edit":[{"command":"echo after"}],"mcp":[]}',
+        '',
+        'const SHELL_ENV_HOOKS = []',
+        '',
+        'export const MegamindPlugin = async () => ({',
+        "  'tool.execute.after': async (",
+        '    input,',
+        '    output,',
+        '  ) => {',
+        '    if (input.tool === "edit" || input.tool === "write" || input.tool === "apply_patch") {',
+        '      await runMatchingHooks(TOOL_AFTER_HOOKS.edit, input.tool, { tool: input.tool })',
+        '    }',
+        '  },',
+        '',
+        "  'tool.execute.before': async (input, output) => {",
+        '    await runMatchingHooks(TOOL_BEFORE_HOOKS.matched, input.tool, { tool: input.tool })',
+        '  },',
+        '})',
+        '',
+      ].join('\n'),
+    )
+
+    try {
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(true)
+      expect(report.checks).toContainEqual(expect.objectContaining({
+        code: 'consumer-opencode-hook-scope-valid',
+        level: 'success',
+      }))
+    } finally {
+      rmSync(resolve(dir, '..', '..', '..', '..'), { recursive: true, force: true })
+    }
+  })
+
+  it('fails OpenCode hook scope checks when a generated handler cannot be extracted', async () => {
+    const dir = createOpenCodeConsumerFixture()
+    writeFileSync(
+      resolve(dir, 'index.ts'),
+      [
+        'const TOOL_BEFORE_HOOKS = {"all":[],"matched":[],"read":[],"mcp":[]}',
+        '',
+        'const TOOL_AFTER_HOOKS = {"all":[],"matched":[],"edit":[],"mcp":[]}',
+        '',
+        'const SHELL_ENV_HOOKS = []',
+        '',
+        'export const MegamindPlugin = async () => ({',
+        '  "tool.execute.before": createBeforeHandler(),',
+        '  "tool.execute.after": async (input, output) => {},',
+        '})',
+        '',
+      ].join('\n'),
+    )
+
+    try {
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(false)
+      expect(report.checks).toContainEqual(expect.objectContaining({
+        code: 'consumer-opencode-hook-scope-malformed',
+        level: 'error',
+        detail: expect.stringContaining('tool.execute.before'),
+      }))
+      expect(report.checks.some((check) => check.code === 'consumer-opencode-hook-scope-valid')).toBe(false)
     } finally {
       rmSync(resolve(dir, '..', '..', '..', '..'), { recursive: true, force: true })
     }
