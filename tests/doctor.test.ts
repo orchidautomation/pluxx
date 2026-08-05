@@ -5,6 +5,8 @@ import { tmpdir } from 'os'
 import { resolve } from 'path'
 import { doctorConsumer, doctorProject } from '../src/cli/doctor'
 import { buildOpenCodeEntryFile } from '../src/opencode-entry'
+import { build } from '../src/generators'
+import type { PluginConfig } from '../src/schema'
 
 const ROOT = resolve(import.meta.dir, '..')
 
@@ -1712,6 +1714,129 @@ describe('doctorConsumer', () => {
       expect(report.ok).toBe(true)
       expect(report.checks.some((check) => check.code === 'consumer-opencode-entry-valid' && check.level === 'success')).toBe(true)
       expect(report.checks.some((check) => check.code === 'consumer-opencode-skill-sync-valid' && check.level === 'success')).toBe(true)
+    } finally {
+      rmSync(resolve(dir, '..', '..', '..', '..'), { recursive: true, force: true })
+    }
+  })
+
+  it('fails OpenCode consumer checks for legacy widened matcher buckets', async () => {
+    const dir = createOpenCodeConsumerFixture()
+    writeFileSync(
+      resolve(dir, 'index.ts'),
+      [
+        'const TOOL_BEFORE_HOOKS = {"all":[],"matched":[],"read":[],"mcp":[]}',
+        '',
+        'const TOOL_AFTER_HOOKS = {"all":[{"command":"echo edit","matcher":"Edit|Write"}],"matched":[],"edit":[],"mcp":[]}',
+        '',
+        'const SHELL_ENV_HOOKS = []',
+        '',
+        'export const MegamindPlugin = async () => ({',
+        '  "tool.execute.after": async (input) => {',
+        '    await runHooks(TOOL_AFTER_HOOKS.all, { tool: input.tool })',
+        '  },',
+        '})',
+        '',
+      ].join('\n'),
+    )
+
+    try {
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(false)
+      expect(report.checks).toContainEqual(expect.objectContaining({
+        code: 'consumer-opencode-hook-scope-widened',
+        level: 'error',
+      }))
+    } finally {
+      rmSync(resolve(dir, '..', '..', '..', '..'), { recursive: true, force: true })
+    }
+  })
+
+  it('validates the current generated OpenCode matcher runtime', async () => {
+    const buildDir = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-opencode-build-'))
+    const dir = createOpenCodeConsumerFixture()
+    mkdirSync(resolve(buildDir, 'skills'), { recursive: true })
+    const config: PluginConfig = {
+      name: 'doctor-opencode-hooks',
+      version: '1.0.0',
+      description: 'Doctor OpenCode hook fixture',
+      author: { name: 'Test Author' },
+      license: 'MIT',
+      skills: './skills',
+      targets: ['opencode'],
+      outDir: './dist',
+      hooks: {
+        preToolUse: [{ command: 'echo before', matcher: 'Edit|Write' }],
+        afterFileEdit: [{ command: 'echo after', matcher: 'Edit|Write' }],
+      },
+    }
+
+    try {
+      await build(config, buildDir)
+      writeFileSync(
+        resolve(dir, 'index.ts'),
+        readFileSync(resolve(buildDir, 'dist/opencode/index.ts'), 'utf-8'),
+      )
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(true)
+      expect(report.checks).toContainEqual(expect.objectContaining({
+        code: 'consumer-opencode-hook-scope-valid',
+        level: 'success',
+      }))
+    } finally {
+      rmSync(buildDir, { recursive: true, force: true })
+      rmSync(resolve(dir, '..', '..', '..', '..'), { recursive: true, force: true })
+    }
+  })
+
+  it.each([
+    {
+      name: 'malformed matcher bucket',
+      before: '{"all":[],"matched":{},"read":[],"mcp":[]}',
+      after: '{"all":[],"matched":[],"edit":[],"mcp":[]}',
+      code: 'consumer-opencode-hook-scope-malformed',
+    },
+    {
+      name: 'dead matcher helper without handler dispatch',
+      before: '{"all":[],"matched":[{"command":"echo edit","matcher":"Edit"}],"read":[],"mcp":[]}',
+      after: '{"all":[],"matched":[],"edit":[],"mcp":[]}',
+      code: 'consumer-opencode-hook-scope-widened',
+    },
+    {
+      name: 'specialized matcher bucket without filtered dispatch',
+      before: '{"all":[],"matched":[],"read":[{"command":"echo read","matcher":"Read"}],"mcp":[]}',
+      after: '{"all":[],"matched":[],"edit":[],"mcp":[]}',
+      code: 'consumer-opencode-hook-scope-widened',
+    },
+  ])('fails OpenCode consumer checks for $name', async ({ before, after, code }) => {
+    const dir = createOpenCodeConsumerFixture()
+    writeFileSync(
+      resolve(dir, 'index.ts'),
+      [
+        `const TOOL_BEFORE_HOOKS = ${before}`,
+        '',
+        `const TOOL_AFTER_HOOKS = ${after}`,
+        '',
+        'const SHELL_ENV_HOOKS = []',
+        '',
+        'const runMatchingHooks = async () => {}',
+        '',
+        'export const MegamindPlugin = async () => ({',
+        '  "tool.execute.before": async (input, output) => {',
+        '    await runHooks(TOOL_BEFORE_HOOKS.read, { tool: input.tool })',
+        '  },',
+        '',
+        '  "tool.execute.after": async (input, output) => {},',
+        '',
+        '  "shell.env": async () => {},',
+        '})',
+        '',
+      ].join('\n'),
+    )
+
+    try {
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(false)
+      expect(report.checks).toContainEqual(expect.objectContaining({ code, level: 'error' }))
     } finally {
       rmSync(resolve(dir, '..', '..', '..', '..'), { recursive: true, force: true })
     }

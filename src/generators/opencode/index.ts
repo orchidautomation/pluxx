@@ -42,11 +42,13 @@ interface OpenCodeHookPlan {
   event: Record<string, GeneratedHook[]>
   toolBefore: {
     all: GeneratedHook[]
+    matched: GeneratedHook[]
     read: GeneratedHook[]
     mcp: GeneratedHook[]
   }
   toolAfter: {
     all: GeneratedHook[]
+    matched: GeneratedHook[]
     edit: GeneratedHook[]
     mcp: GeneratedHook[]
   }
@@ -121,7 +123,7 @@ export class OpenCodeGenerator extends Generator {
       `type GeneratedHook = {`,
       `  command: string`,
       `  timeout?: number`,
-      `  matcher?: string`,
+      `  matcher?: string | Record<string, unknown>`,
       `  failClosed?: boolean`,
       `}`,
       '',
@@ -155,6 +157,38 @@ export class OpenCodeGenerator extends Generator {
       '',
       `const isMcpTool = (tool: string): boolean =>`,
       `  tool === "mcp" || tool.startsWith("mcp.") || tool.startsWith("mcp_")`,
+      '',
+      `const TOOL_MATCHER_ALIASES: Record<string, string[]> = {`,
+      `    apply_patch: ["ApplyPatch", "Edit", "Write"],`,
+      `    bash: ["Bash", "Shell"],`,
+      `    edit: ["Edit"],`,
+      `    glob: ["Glob", "List"],`,
+      `    grep: ["Grep", "Search"],`,
+      `    read: ["Read"],`,
+      `    write: ["Write"],`,
+      `  }`,
+      '',
+      `const getToolMatcherCandidates = (tool: string): string[] =>`,
+      `  [tool, ...(TOOL_MATCHER_ALIASES[tool] ?? []), ...(isMcpTool(tool) ? ["MCP"] : [])]`,
+      '',
+      `const getToolMatcherPattern = (matcher: GeneratedHook["matcher"]): string | undefined => {`,
+      `  if (typeof matcher === "string") return matcher`,
+      `  if (matcher && typeof matcher.tool === "string") return matcher.tool`,
+      `  return undefined`,
+      `}`,
+      '',
+      `const hookMatchesTool = (hook: GeneratedHook, tool: string): boolean => {`,
+      `  if (hook.matcher === undefined) return true`,
+      `  const pattern = getToolMatcherPattern(hook.matcher)`,
+      `  if (!pattern) return false`,
+      `  const candidates = getToolMatcherCandidates(tool)`,
+      `  try {`,
+      `    const matcher = new RegExp(\`^(?:\${pattern})$\`, "i")`,
+      `    return candidates.some(candidate => matcher.test(candidate))`,
+      `  } catch {`,
+      `    return candidates.some(candidate => candidate.toLowerCase() === pattern.toLowerCase())`,
+      `  }`,
+      `}`,
       '',
       `const loadUserConfig = (pluginRoot: string): { values?: Record<string, string | number | boolean>; env?: Record<string, string>; envRefs?: Record<string, string> } => {`,
       `  const filepath = resolve(pluginRoot, ".pluxx-user.json")`,
@@ -325,6 +359,10 @@ export class OpenCodeGenerator extends Generator {
       `    }`,
       `  }`,
       '',
+      `  const runMatchingHooks = async (hooks: GeneratedHook[], tool: string, context: Record<string, string>): Promise<void> => {`,
+      `    await runHooks(hooks.filter(hook => hookMatchesTool(hook, tool)), context)`,
+      `  }`,
+      '',
       `  const runReadiness = async (mode: string, event: Record<string, unknown>): Promise<void> => {`,
       `    if (!READINESS_SCRIPT) return`,
       `    const payload = Buffer.from(JSON.stringify(event ?? {}), "utf-8").toString("base64")`,
@@ -378,21 +416,23 @@ export class OpenCodeGenerator extends Generator {
       `        await runReadiness("mcp-gate", { ...input, tool_name: input.tool })`,
       `      }`,
       `      await runHooks(TOOL_BEFORE_HOOKS.all, { hookType: "tool.execute.before", tool: input.tool })`,
+      `      await runMatchingHooks(TOOL_BEFORE_HOOKS.matched, input.tool, { hookType: "tool.execute.before", tool: input.tool })`,
       `      if (input.tool === "read") {`,
-      `        await runHooks(TOOL_BEFORE_HOOKS.read, { hookType: "tool.execute.before", tool: input.tool })`,
+      `        await runMatchingHooks(TOOL_BEFORE_HOOKS.read, input.tool, { hookType: "tool.execute.before", tool: input.tool })`,
       `      }`,
       `      if (isMcpTool(input.tool)) {`,
-      `        await runHooks(TOOL_BEFORE_HOOKS.mcp, { hookType: "tool.execute.before", tool: input.tool })`,
+      `        await runMatchingHooks(TOOL_BEFORE_HOOKS.mcp, input.tool, { hookType: "tool.execute.before", tool: input.tool })`,
       `      }`,
       `    },`,
       '',
       `    "tool.execute.after": async (input, output) => {`,
       `      await runHooks(TOOL_AFTER_HOOKS.all, { hookType: "tool.execute.after", tool: input.tool })`,
-      `      if (input.tool === "edit" || input.tool === "write") {`,
-      `        await runHooks(TOOL_AFTER_HOOKS.edit, { hookType: "tool.execute.after", tool: input.tool })`,
+      `      await runMatchingHooks(TOOL_AFTER_HOOKS.matched, input.tool, { hookType: "tool.execute.after", tool: input.tool })`,
+      `      if (input.tool === "edit" || input.tool === "write" || input.tool === "apply_patch") {`,
+      `        await runMatchingHooks(TOOL_AFTER_HOOKS.edit, input.tool, { hookType: "tool.execute.after", tool: input.tool })`,
       `      }`,
       `      if (isMcpTool(input.tool)) {`,
-      `        await runHooks(TOOL_AFTER_HOOKS.mcp, { hookType: "tool.execute.after", tool: input.tool })`,
+      `        await runMatchingHooks(TOOL_AFTER_HOOKS.mcp, input.tool, { hookType: "tool.execute.after", tool: input.tool })`,
       `      }`,
       `    },`,
       '',
@@ -663,8 +703,8 @@ export class OpenCodeGenerator extends Generator {
   private getOpenCodeHookPlan(): OpenCodeHookPlan {
     const plan: OpenCodeHookPlan = {
       event: {},
-      toolBefore: { all: [], read: [], mcp: [] },
-      toolAfter: { all: [], edit: [], mcp: [] },
+      toolBefore: { all: [], matched: [], read: [], mcp: [] },
+      toolAfter: { all: [], matched: [], edit: [], mcp: [] },
       shellEnv: [],
       chatMessage: [],
     }
@@ -679,25 +719,27 @@ export class OpenCodeGenerator extends Generator {
         .map(entry => ({
           command: entry.command!,
           ...(entry.timeout ? { timeout: entry.timeout } : {}),
-          ...(entry.matcher ? { matcher: entry.matcher } : {}),
+          ...(entry.matcher !== undefined ? { matcher: entry.matcher } : {}),
           ...(entry.failClosed !== undefined ? { failClosed: entry.failClosed } : {}),
         }))
 
       if (hooks.length === 0) continue
 
       switch (event) {
-        case 'preToolUse':
-          plan.toolBefore.all.push(...hooks)
+        case 'preToolUse': {
+          appendScopedToolHooks(plan.toolBefore, hooks)
           break
+        }
         case 'beforeReadFile':
           plan.toolBefore.read.push(...hooks)
           break
         case 'beforeMCPExecution':
           plan.toolBefore.mcp.push(...hooks)
           break
-        case 'postToolUse':
-          plan.toolAfter.all.push(...hooks)
+        case 'postToolUse': {
+          appendScopedToolHooks(plan.toolAfter, hooks)
           break
+        }
         case 'afterFileEdit':
           plan.toolAfter.edit.push(...hooks)
           break
@@ -765,6 +807,15 @@ export class OpenCodeGenerator extends Generator {
         writeFileSync(filePath, rewritten)
       }
     }
+  }
+}
+
+function appendScopedToolHooks(
+  buckets: Pick<OpenCodeHookPlan['toolBefore'], 'all' | 'matched'>,
+  hooks: GeneratedHook[],
+): void {
+  for (const hook of hooks) {
+    buckets[hook.matcher === undefined ? 'all' : 'matched'].push(hook)
   }
 }
 
