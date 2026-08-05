@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "canonicalVersion": "0.1.38",
-  "expectedTag": "v0.1.38",
-  "releaseState": "released",
+  "canonicalVersion": "0.1.39",
+  "expectedTag": "v0.1.39",
+  "releaseState": "release-prep",
   "policy": {
     "environmentReceiptMaxAgeDays": 30
   },
@@ -153,17 +153,17 @@
     },
     {
       "id": "v0.1.38-repository-validation",
-      "summary": "The exact v0.1.38 release-prep commit passes the complete repository release gate for the PLUXX-340 manifest-identity correction.",
+      "summary": "The shipped and independently verified v0.1.38 release remains historical proof for PLUXX-340.",
       "tier": "bundle-contract",
-      "freshness": "current",
+      "freshness": "historical",
       "evidencePath": "tests/proof-freshness.test.ts",
       "receiptId": "v0.1.38-repository-validation"
     },
     {
       "id": "v0.1.38-fake-home-install",
-      "summary": "The exact v0.1.38 release-prep commit passes maintained core-four isolated install coverage for the PLUXX-340 manifest-identity correction.",
+      "summary": "The shipped and independently verified v0.1.38 release remains historical maintained core-four isolated install proof.",
       "tier": "fake-home-install",
-      "freshness": "current",
+      "freshness": "historical",
       "evidencePath": "tests/release-smoke.test.ts",
       "receiptId": "v0.1.38-fake-home-install"
     }
@@ -624,7 +624,7 @@
     {
       "id": "v0.1.38-repository-validation",
       "tier": "bundle-contract",
-      "freshness": "current",
+      "freshness": "historical",
       "commitSha": "361958f6b16b1acc2bb901c97fc2c6d5a77ba880",
       "packageVersion": "0.1.38",
       "timestamp": "2026-07-25T08:28:31.000Z",
@@ -647,7 +647,7 @@
     {
       "id": "v0.1.38-fake-home-install",
       "tier": "fake-home-install",
-      "freshness": "current",
+      "freshness": "historical",
       "commitSha": "361958f6b16b1acc2bb901c97fc2c6d5a77ba880",
       "packageVersion": "0.1.38",
       "timestamp": "2026-07-25T08:28:31.000Z",

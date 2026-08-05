@@ -56,7 +56,7 @@ describe('release workflow', () => {
     expect(workflow.on.workflow_dispatch.inputs.release_tag).toEqual({
       description: 'Existing release tag to recover from the trusted main workflow',
       required: true,
-      default: 'v0.1.38',
+      default: 'v0.1.39',
       type: 'string',
     })
     expect(workflow.jobs.publish.defaults.run['working-directory']).toBe('release')

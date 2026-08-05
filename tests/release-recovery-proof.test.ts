@@ -8,6 +8,7 @@ const ROOT = resolve(import.meta.dir, '..')
 const SCRIPT = resolve(ROOT, 'scripts/release-recovery-proof.mjs')
 const VERSION = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf-8')).version
 const TAG = `v${VERSION}`
+const MISMATCHED_VERSION = VERSION === '0.0.0' ? '0.0.1' : '0.0.0'
 const TEST_NPM_CACHE = join(tmpdir(), 'pluxx-release-recovery-npm-cache')
 const PRE_PROOF_COMMANDS = [
   'npm run build',
@@ -338,7 +339,7 @@ describe('immutable-tag release recovery proof', () => {
   }, 15_000)
 
   it('rejects a tag whose version differs from the package identity', () => {
-    const runFixture = fixture('0.1.39')
+    const runFixture = fixture(MISMATCHED_VERSION)
     try {
       const result = run('node', [
         SCRIPT,
@@ -350,7 +351,7 @@ describe('immutable-tag release recovery proof', () => {
         '--receipt', runFixture.receipt,
       ], runFixture.root)
       expect(result.status).toBe(1)
-      expect(result.stderr).toContain(`Release tag ${TAG} does not match package version 0.1.39`)
+      expect(result.stderr).toContain(`Release tag ${TAG} does not match package version ${MISMATCHED_VERSION}`)
     } finally {
       rmSync(runFixture.root, { recursive: true, force: true })
     }

@@ -1,10 +1,10 @@
 # Proof Freshness And Evidence Tiers
 
-Last updated: 2026-07-25
+Last updated: 2026-08-05
 
 This document defines how Pluxx distinguishes repeatable repository checks from installed and real-host evidence. The machine-readable source is [proof-manifest.json](./proof-manifest.json), validated by `npm run proof:check`.
 
-Immutable tag `v0.1.38` records only the PLUXX-340 follow-up for duplicate release-manifest archive identities discovered after 0.1.37 shipped. The shipped and independently verified `v0.1.37` receipts remain historical evidence. Fresh current receipts `v0.1.38-repository-validation` and `v0.1.38-fake-home-install` bind to exact release-prep commit `361958f6b16b1acc2bb901c97fc2c6d5a77ba880`, where `npm run release:check` passed on 2026-07-25. Recovery run [30154432818](https://github.com/orchidautomation/pluxx/actions/runs/30154432818) independently revalidated the immutable tag tree and published byte-identical npm and GitHub artifacts at SHA-256 `34af5bd24a441f13094b651658d6728509771a8cb9295f82b1bc66a985cb2c24`. No current receipt claims installed-runtime or real-host behavior.
+The repository is preparing `v0.1.39` for the PLUXX-341/PLUXX-342 quiet OpenCode hook-scope repair merged through PR #468. The shipped and independently verified `v0.1.38` receipts remain historical evidence; fresh current 0.1.39 repository-validation and fake-home-install receipts are recorded only after the exact release-prep commit passes their named gates. No current receipt claims installed-runtime or real-host behavior.
 
 ## Version And Freshness Policy
 
