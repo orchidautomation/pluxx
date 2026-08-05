@@ -136,7 +136,7 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
 - [x] Merge PR #468 exact reviewed head `e4c11db` as true merge commit `a750c593f1fb694a71aa60365ae6f8792e51a246`
 - [x] Prepare synchronized 0.1.39 package, proof, planning, recovery-default, and release truth
 - [x] Bind fresh repository-validation and fake-home-install receipts to exact release-prep commit `6ffb6337b351c5a87b985394f0c011d2c271a940`
-- [~] Pass focused and full release gates plus independent review; full local gate passed with 62 files and 828 tests
+- [x] Pass focused and full release gates plus independent review; review record: [2026-08-05-pluxx-343-release-0.1.39-review.md](../orchid/reviews/2026-08-05-pluxx-343-release-0.1.39-review.md)
 - [ ] Merge the exact green release PR with a true merge commit and push immutable tag `v0.1.39`
 - [ ] Verify npm, GitHub release assets, immutable tag provenance, and isolated installed CLI `0.1.39`
 
