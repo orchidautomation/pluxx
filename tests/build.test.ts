@@ -2006,6 +2006,17 @@ describe('build', () => {
       'echo never-run-empty-matcher',
       'echo before-mcp',
     ])
+    const toolAfterHooks = extractGeneratedJson<{
+      all: Array<{ command: string }>
+      matched: Array<{ command: string }>
+      edit: Array<{ command: string }>
+    }>(generatedSource, 'TOOL_AFTER_HOOKS')
+    expect(toolAfterHooks.all.map(hook => hook.command)).toEqual(['echo after-all'])
+    expect(toolAfterHooks.matched).toEqual([])
+    expect(toolAfterHooks.edit.map(hook => hook.command)).toEqual([
+      'echo after-edit',
+      'echo file-edited',
+    ])
 
     const generatedModule = await import(
       pathToFileURL(resolve(TEST_DIR, 'opencode-hook-matcher-dist/opencode/index.ts')).href

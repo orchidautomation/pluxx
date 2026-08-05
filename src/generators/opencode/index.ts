@@ -181,6 +181,7 @@ export class OpenCodeGenerator extends Generator {
       `  if (hook.matcher === undefined) return true`,
       `  const pattern = getToolMatcherPattern(hook.matcher)`,
       `  if (!pattern) return false`,
+      `  if (pattern === "*") return true`,
       `  const candidates = getToolMatcherCandidates(tool)`,
       `  try {`,
       `    const matcher = new RegExp(\`^(?:\${pattern})$\`, "i")`,
@@ -737,7 +738,13 @@ export class OpenCodeGenerator extends Generator {
           plan.toolBefore.mcp.push(...hooks)
           break
         case 'postToolUse': {
-          appendScopedToolHooks(plan.toolAfter, hooks)
+          for (const hook of hooks) {
+            if (isOpenCodeEditOnlyMatcher(hook.matcher)) {
+              plan.toolAfter.edit.push(hook)
+            } else {
+              appendScopedToolHooks(plan.toolAfter, [hook])
+            }
+          }
           break
         }
         case 'afterFileEdit':
@@ -817,6 +824,29 @@ function appendScopedToolHooks(
   for (const hook of hooks) {
     buckets[hook.matcher === undefined ? 'all' : 'matched'].push(hook)
   }
+}
+
+const OPENCODE_EDIT_MATCHER_NAMES = new Set([
+  'ApplyPatch',
+  'Create',
+  'Edit',
+  'MultiEdit',
+  'Write',
+  'apply_patch',
+  'edit',
+  'write',
+])
+
+function isOpenCodeEditOnlyMatcher(matcher: GeneratedHook['matcher']): boolean {
+  const pattern = typeof matcher === 'string'
+    ? matcher
+    : matcher && typeof matcher.tool === 'string'
+      ? matcher.tool
+      : undefined
+  if (!pattern) return false
+  const alternatives = pattern.split('|').map(value => value.trim())
+  return alternatives.length > 0
+    && alternatives.every(value => value.length > 0 && OPENCODE_EDIT_MATCHER_NAMES.has(value))
 }
 
 function asOpenCodeMap(value: unknown): AgentFrontmatterMap | undefined {
