@@ -6,6 +6,8 @@ import { parse } from 'yaml'
 import { spawnSync } from 'child_process'
 
 const ROOT = resolve(import.meta.dir, '..')
+const packageVersion = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf-8')).version as string
+const expectedReleaseTag = `v${packageVersion}`
 const releaseWorkflow = readFileSync(resolve(ROOT, '.github/workflows/release.yml'), 'utf-8')
 const ciWorkflow = readFileSync(resolve(ROOT, '.github/workflows/ci.yml'), 'utf-8')
 const recoveryProofScript = readFileSync(resolve(ROOT, 'scripts/release-recovery-proof.mjs'), 'utf-8')
@@ -56,7 +58,7 @@ describe('release workflow', () => {
     expect(workflow.on.workflow_dispatch.inputs.release_tag).toEqual({
       description: 'Existing release tag to recover from the trusted main workflow',
       required: true,
-      default: 'v0.1.39',
+      default: expectedReleaseTag,
       type: 'string',
     })
     expect(workflow.jobs.publish.defaults.run['working-directory']).toBe('release')
