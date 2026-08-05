@@ -5,6 +5,7 @@ import { tmpdir } from 'os'
 import { resolve } from 'path'
 import { doctorConsumer, doctorProject } from '../src/cli/doctor'
 import { buildOpenCodeEntryFile } from '../src/opencode-entry'
+import { OPENCODE_HOOK_MATCHER_RUNTIME_CONTRACT_VERSION } from '../src/opencode-hook-matchers'
 
 const ROOT = resolve(import.meta.dir, '..')
 
@@ -1712,6 +1713,166 @@ describe('doctorConsumer', () => {
       expect(report.ok).toBe(true)
       expect(report.checks.some((check) => check.code === 'consumer-opencode-entry-valid' && check.level === 'success')).toBe(true)
       expect(report.checks.some((check) => check.code === 'consumer-opencode-skill-sync-valid' && check.level === 'success')).toBe(true)
+    } finally {
+      rmSync(resolve(dir, '..', '..', '..', '..'), { recursive: true, force: true })
+    }
+  })
+
+  it('fails OpenCode consumer checks when an edit matcher is widened into the all-tools hook bucket', async () => {
+    const dir = createOpenCodeConsumerFixture()
+    writeFileSync(
+      resolve(dir, 'index.ts'),
+      [
+        'const TOOL_AFTER_HOOKS = {',
+        '  "all": [{ "command": "node edit-validator.mjs", "matcher": "Edit|Write|MultiEdit" }],',
+        '  "edit": [],',
+        '  "mcp": []',
+        '}',
+        '',
+        'const OTHER_GENERATED_STATE = {}',
+        '',
+        'export const MegamindPlugin = async () => ({})',
+        '',
+      ].join('\n'),
+    )
+
+    try {
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(false)
+      expect(report.checks.some((check) => (
+        check.code === 'consumer-opencode-hook-scope-widened'
+        && check.level === 'error'
+      ))).toBe(true)
+    } finally {
+      rmSync(resolve(dir, '..', '..', '..', '..'), { recursive: true, force: true })
+    }
+  })
+
+  it('accepts OpenCode consumer hooks whose edit matcher stays in the edit-only bucket', async () => {
+    const dir = createOpenCodeConsumerFixture()
+    writeFileSync(
+      resolve(dir, 'index.ts'),
+      [
+        'const TOOL_AFTER_HOOKS = {',
+        '  "all": [{ "command": "node all-tools.mjs" }],',
+        '  "edit": [{ "command": "node edit-validator.mjs", "matcher": "Edit|Write|MultiEdit" }],',
+        '  "mcp": []',
+        '}',
+        '',
+        `const TOOL_MATCHER_RUNTIME_CONTRACT = ${OPENCODE_HOOK_MATCHER_RUNTIME_CONTRACT_VERSION}`,
+        '',
+        'const OTHER_GENERATED_STATE = {}',
+        '',
+        'export const MegamindPlugin = async () => ({})',
+        '',
+      ].join('\n'),
+    )
+
+    try {
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(true)
+      expect(report.checks.some((check) => (
+        check.code === 'consumer-opencode-hook-scope-valid'
+        && check.level === 'success'
+      ))).toBe(true)
+    } finally {
+      rmSync(resolve(dir, '..', '..', '..', '..'), { recursive: true, force: true })
+    }
+  })
+
+  it('fails OpenCode consumer checks when a generated hook bucket contains a malformed entry', async () => {
+    const dir = createOpenCodeConsumerFixture()
+    writeFileSync(
+      resolve(dir, 'index.ts'),
+      [
+        'const TOOL_AFTER_HOOKS = {',
+        '  "all": [null],',
+        '  "edit": [],',
+        '  "mcp": []',
+        '}',
+        '',
+        `const TOOL_MATCHER_RUNTIME_CONTRACT = ${OPENCODE_HOOK_MATCHER_RUNTIME_CONTRACT_VERSION}`,
+        '',
+        'const OTHER_GENERATED_STATE = {}',
+        '',
+        'export const MegamindPlugin = async () => ({})',
+        '',
+      ].join('\n'),
+    )
+
+    try {
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(false)
+      expect(report.checks.some((check) => (
+        check.code === 'consumer-opencode-hook-plan-invalid'
+        && check.level === 'error'
+      ))).toBe(true)
+    } finally {
+      rmSync(resolve(dir, '..', '..', '..', '..'), { recursive: true, force: true })
+    }
+  })
+
+  it('rejects legacy OpenCode runtimes with generic, grouped, or structured scoped matchers', async () => {
+    const matcherCases: unknown[] = ['Read', 'Read|Grep', { tools: ['read'] }]
+
+    for (const matcher of matcherCases) {
+      const dir = createOpenCodeConsumerFixture()
+      writeFileSync(
+        resolve(dir, 'index.ts'),
+        [
+          'const TOOL_AFTER_HOOKS = {',
+          `  "all": [{ "command": "node scoped-validator.mjs", "matcher": ${JSON.stringify(matcher)} }],`,
+          '  "edit": [],',
+          '  "mcp": []',
+          '}',
+          '',
+          'const OTHER_GENERATED_STATE = {}',
+          '',
+          'export const MegamindPlugin = async () => ({})',
+          '',
+        ].join('\n'),
+      )
+
+      try {
+        const report = await doctorConsumer(dir)
+        expect(report.ok).toBe(false)
+        expect(report.checks.some((check) => (
+          check.code === 'consumer-opencode-hook-runtime-legacy'
+          && check.level === 'error'
+        ))).toBe(true)
+      } finally {
+        rmSync(resolve(dir, '..', '..', '..', '..'), { recursive: true, force: true })
+      }
+    }
+  })
+
+  it('warns safely for structured OpenCode matchers under the current runtime contract', async () => {
+    const dir = createOpenCodeConsumerFixture()
+    writeFileSync(
+      resolve(dir, 'index.ts'),
+      [
+        'const TOOL_AFTER_HOOKS = {',
+        '  "all": [{ "command": "node scoped-validator.mjs", "matcher": { "tools": ["read"] } }],',
+        '  "edit": [],',
+        '  "mcp": []',
+        '}',
+        '',
+        `const TOOL_MATCHER_RUNTIME_CONTRACT = ${OPENCODE_HOOK_MATCHER_RUNTIME_CONTRACT_VERSION}`,
+        '',
+        'const OTHER_GENERATED_STATE = {}',
+        '',
+        'export const MegamindPlugin = async () => ({})',
+        '',
+      ].join('\n'),
+    )
+
+    try {
+      const report = await doctorConsumer(dir)
+      expect(report.ok).toBe(true)
+      expect(report.checks.some((check) => (
+        check.code === 'consumer-opencode-hook-matcher-degraded'
+        && check.level === 'warning'
+      ))).toBe(true)
     } finally {
       rmSync(resolve(dir, '..', '..', '..', '..'), { recursive: true, force: true })
     }

@@ -16,6 +16,13 @@ import {
   collectStdioServerRuntimeEnvVars,
   MCP_RUNTIME_ENV_SCRIPT_RELATIVE_PATH,
 } from '../../mcp-runtime-env'
+import {
+  isOpenCodeEditOnlyMatcher,
+  normalizeOpenCodeToolMatcher,
+  OPENCODE_EDIT_TOOL_IDS,
+  OPENCODE_HOOK_MATCHER_RUNTIME_CONTRACT_VERSION,
+  OPENCODE_TOOL_MATCHER_ALIASES,
+} from '../../opencode-hook-matchers'
 
 type GeneratedHook = {
   command: string
@@ -121,9 +128,11 @@ export class OpenCodeGenerator extends Generator {
       `type GeneratedHook = {`,
       `  command: string`,
       `  timeout?: number`,
-      `  matcher?: string`,
+      `  matcher?: string | Record<string, unknown>`,
       `  failClosed?: boolean`,
       `}`,
+      '',
+      `const TOOL_MATCHER_RUNTIME_CONTRACT = ${OPENCODE_HOOK_MATCHER_RUNTIME_CONTRACT_VERSION}`,
       '',
       `const REQUIRED_ENV_VARS = ${JSON.stringify(envVars, null, 2)}`,
       '',
@@ -155,6 +164,22 @@ export class OpenCodeGenerator extends Generator {
       '',
       `const isMcpTool = (tool: string): boolean =>`,
       `  tool === "mcp" || tool.startsWith("mcp.") || tool.startsWith("mcp_")`,
+      '',
+      `const EDIT_TOOL_IDS: readonly string[] = ${JSON.stringify(OPENCODE_EDIT_TOOL_IDS)}`,
+      '',
+      `const TOOL_MATCHER_ALIASES: Record<string, string[]> = ${JSON.stringify(OPENCODE_TOOL_MATCHER_ALIASES, null, 2)}`,
+      '',
+      `const matchesToolMatcher = (matcher: GeneratedHook["matcher"], tool: string): boolean => {`,
+      `  if (matcher === undefined || matcher === "" || matcher === "*") return true`,
+      `  if (typeof matcher !== "string") return false`,
+      `  try {`,
+      `    const pattern = new RegExp(\`^(?:\${matcher})$\`)`,
+      `    const candidates = [tool, ...(TOOL_MATCHER_ALIASES[tool] ?? []), ...(isMcpTool(tool) ? ["MCP"] : [])]`,
+      `    return candidates.some((candidate) => pattern.test(candidate))`,
+      `  } catch {`,
+      `    return false`,
+      `  }`,
+      `}`,
       '',
       `const loadUserConfig = (pluginRoot: string): { values?: Record<string, string | number | boolean>; env?: Record<string, string>; envRefs?: Record<string, string> } => {`,
       `  const filepath = resolve(pluginRoot, ".pluxx-user.json")`,
@@ -321,6 +346,7 @@ export class OpenCodeGenerator extends Generator {
       '',
       `  const runHooks = async (hooks: GeneratedHook[], context: Record<string, string>): Promise<void> => {`,
       `    for (const hook of hooks) {`,
+      `      if (context.tool && !matchesToolMatcher(hook.matcher, context.tool)) continue`,
       `      await runHook(hook, context)`,
       `    }`,
       `  }`,
@@ -388,7 +414,7 @@ export class OpenCodeGenerator extends Generator {
       '',
       `    "tool.execute.after": async (input, output) => {`,
       `      await runHooks(TOOL_AFTER_HOOKS.all, { hookType: "tool.execute.after", tool: input.tool })`,
-      `      if (input.tool === "edit" || input.tool === "write") {`,
+      `      if (EDIT_TOOL_IDS.includes(input.tool)) {`,
       `        await runHooks(TOOL_AFTER_HOOKS.edit, { hookType: "tool.execute.after", tool: input.tool })`,
       `      }`,
       `      if (isMcpTool(input.tool)) {`,
@@ -679,7 +705,7 @@ export class OpenCodeGenerator extends Generator {
         .map(entry => ({
           command: entry.command!,
           ...(entry.timeout ? { timeout: entry.timeout } : {}),
-          ...(entry.matcher ? { matcher: entry.matcher } : {}),
+          ...(entry.matcher ? { matcher: normalizeOpenCodeToolMatcher(entry.matcher) } : {}),
           ...(entry.failClosed !== undefined ? { failClosed: entry.failClosed } : {}),
         }))
 
@@ -696,7 +722,13 @@ export class OpenCodeGenerator extends Generator {
           plan.toolBefore.mcp.push(...hooks)
           break
         case 'postToolUse':
-          plan.toolAfter.all.push(...hooks)
+          for (const hook of hooks) {
+            if (isOpenCodeEditOnlyMatcher(hook.matcher)) {
+              plan.toolAfter.edit.push(hook)
+            } else {
+              plan.toolAfter.all.push(hook)
+            }
+          }
           break
         case 'afterFileEdit':
           plan.toolAfter.edit.push(...hooks)
@@ -859,7 +891,6 @@ function translateLegacyOpenCodeToolValue(value: unknown): AgentFrontmatterValue
 function isOpenCodeMap(value: unknown): value is AgentFrontmatterMap {
   return !!value && typeof value === 'object' && !Array.isArray(value)
 }
-
 
 function mapHookEventName(event: string): string {
   const map: Record<string, string> = {

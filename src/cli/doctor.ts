@@ -41,6 +41,11 @@ import {
 import type { ParsedPermissionRule } from '../permissions'
 import { parseTomlValue, stripTomlComment } from '../toml-lite'
 import { isCurrentOpenCodeEntryFile } from '../opencode-entry'
+import {
+  isOpenCodeEditOnlyMatcher,
+  isValidOpenCodeStringMatcher,
+  OPENCODE_HOOK_MATCHER_RUNTIME_CONTRACT_VERSION,
+} from '../opencode-hook-matchers'
 
 export type DoctorLevel = 'error' | 'warning' | 'info' | 'success'
 
@@ -2467,6 +2472,140 @@ function isLikelyOpenCodeInstallPath(rootDir: string): boolean {
   return basename(parent) === 'plugins' && basename(grandparent) === 'opencode'
 }
 
+interface InstalledOpenCodeHook {
+  command?: unknown
+  matcher?: unknown
+}
+
+interface InstalledOpenCodeHookPlan {
+  all: InstalledOpenCodeHook[]
+  edit: InstalledOpenCodeHook[]
+  mcp: InstalledOpenCodeHook[]
+}
+
+function isInstalledOpenCodeHook(value: unknown): value is InstalledOpenCodeHook {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function isInstalledOpenCodeHookPlan(value: unknown): value is InstalledOpenCodeHookPlan {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false
+  const plan = value as Record<string, unknown>
+  return Array.isArray(plan.all)
+    && Array.isArray(plan.edit)
+    && Array.isArray(plan.mcp)
+    && [...plan.all, ...plan.edit, ...plan.mcp].every(isInstalledOpenCodeHook)
+}
+
+function checkInstalledOpenCodeHookScope(checks: DoctorCheck[], rootDir: string): void {
+  const indexPath = resolve(rootDir, 'index.ts')
+  if (!existsSync(indexPath)) return
+
+  const source = readFileSync(indexPath, 'utf-8')
+  if (!source.includes('const TOOL_AFTER_HOOKS = ')) {
+    addCheck(checks, {
+      level: 'info',
+      code: 'consumer-opencode-hook-scope-not-applicable',
+      title: 'No generated OpenCode post-tool hook plan found',
+      detail: 'This bundle does not expose Pluxx generated TOOL_AFTER_HOOKS state for matcher-scope verification.',
+      fix: 'No action needed for bundles without generated post-tool hooks.',
+      path: 'index.ts',
+    })
+    return
+  }
+
+  const match = source.match(/const TOOL_AFTER_HOOKS = ([\s\S]*?)\n\nconst /)
+  let plan: InstalledOpenCodeHookPlan
+  try {
+    const parsed: unknown = match?.[1] ? JSON.parse(match[1]) : undefined
+    if (!isInstalledOpenCodeHookPlan(parsed)) {
+      throw new Error('expected all, edit, and mcp hook arrays containing only hook objects')
+    }
+    plan = parsed
+  } catch (error) {
+    addCheck(checks, {
+      level: 'error',
+      code: 'consumer-opencode-hook-plan-invalid',
+      title: 'OpenCode generated hook plan is malformed',
+      detail: `Could not parse the generated TOOL_AFTER_HOOKS buckets: ${error instanceof Error ? error.message : String(error)}.`,
+      fix: 'Rebuild and reinstall this OpenCode bundle with the current Pluxx compiler.',
+      path: 'index.ts',
+    })
+    return
+  }
+
+  const widenedHooks = plan.all.filter(hook => isOpenCodeEditOnlyMatcher(hook.matcher))
+  if (widenedHooks.length > 0) {
+    addCheck(checks, {
+      level: 'error',
+      code: 'consumer-opencode-hook-scope-widened',
+      title: 'OpenCode edit hook matcher was widened to all tools',
+      detail: `Found ${widenedHooks.length} edit-only matcher${widenedHooks.length === 1 ? '' : 's'} in TOOL_AFTER_HOOKS.all. These hooks can run after read, search, list, or shell tools.`,
+      fix: 'Rebuild and reinstall this OpenCode bundle with a Pluxx version that preserves matcher scope.',
+      path: 'index.ts',
+    })
+    return
+  }
+
+  const hooks = [...plan.all, ...plan.edit, ...plan.mcp]
+  const hasCurrentMatcherRuntime = new RegExp(
+    `^const TOOL_MATCHER_RUNTIME_CONTRACT = ${OPENCODE_HOOK_MATCHER_RUNTIME_CONTRACT_VERSION}$`,
+    'm',
+  ).test(source)
+  const requiresMatcherRuntime = hooks.some(hook => (
+    hook.matcher !== undefined && hook.matcher !== '' && hook.matcher !== '*'
+  ))
+  if (requiresMatcherRuntime && !hasCurrentMatcherRuntime) {
+    addCheck(checks, {
+      level: 'error',
+      code: 'consumer-opencode-hook-runtime-legacy',
+      title: 'OpenCode hook matcher runtime is missing',
+      detail: `This bundle has scoped hook matchers but does not declare matcher runtime contract ${OPENCODE_HOOK_MATCHER_RUNTIME_CONTRACT_VERSION}. Legacy runtimes can run these hooks outside their intended tool scope.`,
+      fix: 'Rebuild and reinstall this OpenCode bundle with the current Pluxx compiler.',
+      path: 'index.ts',
+    })
+    return
+  }
+
+  const invalidMatchers = hooks.filter(hook => (
+    typeof hook.matcher === 'string' && !isValidOpenCodeStringMatcher(hook.matcher)
+  ))
+  if (invalidMatchers.length > 0) {
+    addCheck(checks, {
+      level: 'error',
+      code: 'consumer-opencode-hook-matcher-invalid',
+      title: 'OpenCode hook matcher is invalid',
+      detail: `Found ${invalidMatchers.length} matcher${invalidMatchers.length === 1 ? '' : 's'} that cannot be compiled as anchored regular expressions.`,
+      fix: 'Correct the canonical matcher and rebuild the OpenCode bundle.',
+      path: 'index.ts',
+    })
+    return
+  }
+
+  const structuredMatchers = hooks.filter(hook => (
+    hook.matcher !== undefined && typeof hook.matcher !== 'string'
+  ))
+  if (structuredMatchers.length > 0) {
+    addCheck(checks, {
+      level: 'warning',
+      code: 'consumer-opencode-hook-matcher-degraded',
+      title: 'Structured OpenCode hook matchers degrade safely',
+      detail: `Found ${structuredMatchers.length} structured matcher${structuredMatchers.length === 1 ? '' : 's'}. OpenCode tool hooks only have a string tool id, so Pluxx skips these hooks instead of widening them.`,
+      fix: 'Author a string matcher when the source intent can be expressed against OpenCode tool ids.',
+      path: 'index.ts',
+    })
+    return
+  }
+
+  addCheck(checks, {
+    level: 'success',
+    code: 'consumer-opencode-hook-scope-valid',
+    title: 'OpenCode hook matcher scope is narrow',
+    detail: 'Generated post-tool hook buckets keep recognized edit-only matchers out of the all-tools path.',
+    fix: 'No action needed.',
+    path: 'index.ts',
+  })
+}
+
 function checkInstalledOpenCodeHostBridge(checks: DoctorCheck[], rootDir: string): void {
   if (!isLikelyOpenCodeInstallPath(rootDir)) {
     addCheck(checks, {
@@ -2668,6 +2807,7 @@ export async function doctorConsumer(
   checkUnsafeShellEnvSources(checks, rootDir, 'scripts')
   await checkInstalledMcpConfig(checks, rootDir, layout)
   if (layout.platform === 'opencode') {
+    checkInstalledOpenCodeHookScope(checks, rootDir)
     checkInstalledOpenCodeHostBridge(checks, rootDir)
     checkInstalledOpenCodeSkills(checks, rootDir)
   }

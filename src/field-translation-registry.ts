@@ -120,7 +120,7 @@ const HOOK_FIELD_TRANSLATIONS: FieldTranslationEntry[] = [
     'claude-code': outcome('preserve', ['hooks/hooks.json'], 'Claude preserves hook matchers.'),
     cursor: outcome('preserve', ['hooks/hooks.json'], 'Cursor preserves hook matchers.'),
     codex: outcome('degrade', ['hooks/hooks.json'], 'Codex preserves matchers only on documented matcher-capable events.'),
-    opencode: outcome('translate', ['plugin runtime event filters'], 'OpenCode translates matcher intent into runtime filtering.'),
+    opencode: outcome('translate', ['plugin runtime event filters'], 'OpenCode translates string matchers into anchored runtime filters and narrows recognized edit-only matchers to edit, write, and apply_patch. Structured matcher records have no exact OpenCode tool-id equivalent, so generated runtimes skip them instead of widening them.'),
   }),
   hookEntry('failClosed', 'Hook failure policy.', {
     'claude-code': outcome('drop', [], 'Claude generation currently drops `failClosed`.'),

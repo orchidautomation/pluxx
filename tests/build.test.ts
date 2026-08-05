@@ -974,6 +974,166 @@ describe('build', () => {
     expect(existsSync(resolve(workspaceRoot, 'opencode-root-proof.json'))).toBe(false)
   })
 
+  it('keeps matcher-scoped OpenCode post-tool hooks quiet for unrelated tools', async () => {
+    const rootDir = resolve(TEST_DIR, 'opencode matcher scope source')
+    const pluginRoot = resolve(rootDir, 'dist/opencode')
+    const workspaceRoot = resolve(TEST_DIR, 'opencode matcher scope workspace')
+
+    rmSync(rootDir, { recursive: true, force: true })
+    rmSync(workspaceRoot, { recursive: true, force: true })
+    mkdirSync(resolve(rootDir, 'skills/basic'), { recursive: true })
+    mkdirSync(resolve(rootDir, 'scripts'), { recursive: true })
+    mkdirSync(workspaceRoot, { recursive: true })
+
+    writeFileSync(resolve(rootDir, 'skills/basic/SKILL.md'), '---\nname: basic\ndescription: Basic skill\n---\n\nBasic skill body.\n')
+    writeFileSync(
+      resolve(rootDir, 'scripts/edit-validator.mjs'),
+      [
+        'import { appendFileSync, existsSync } from "node:fs"',
+        'import { resolve } from "node:path"',
+        'const pluginRoot = process.env.PLUXX_PLUGIN_ROOT',
+        'if (!pluginRoot) throw new Error("missing PLUXX_PLUGIN_ROOT")',
+        'if (existsSync(resolve(pluginRoot, "fail-on-unrelated-tool"))) {',
+        '  throw new Error("edit validator ran for an unrelated tool")',
+        '}',
+        'appendFileSync(resolve(pluginRoot, "edit-hook-count.txt"), "edit\\n")',
+      ].join('\n'),
+    )
+    writeFileSync(
+      resolve(rootDir, 'scripts/all-tools.mjs'),
+      [
+        'import { appendFileSync } from "node:fs"',
+        'import { resolve } from "node:path"',
+        'const pluginRoot = process.env.PLUXX_PLUGIN_ROOT',
+        'if (!pluginRoot) throw new Error("missing PLUXX_PLUGIN_ROOT")',
+        'appendFileSync(resolve(pluginRoot, "all-hook-count.txt"), "all\\n")',
+      ].join('\n'),
+    )
+    writeFileSync(
+      resolve(rootDir, 'scripts/mcp-validator.mjs'),
+      [
+        'import { appendFileSync } from "node:fs"',
+        'import { resolve } from "node:path"',
+        'const pluginRoot = process.env.PLUXX_PLUGIN_ROOT',
+        'if (!pluginRoot) throw new Error("missing PLUXX_PLUGIN_ROOT")',
+        'appendFileSync(resolve(pluginRoot, "mcp-hook-count.txt"), "mcp\\n")',
+      ].join('\n'),
+    )
+    writeFileSync(
+      resolve(rootDir, 'scripts/must-not-run.mjs'),
+      'throw new Error("unsupported matcher widened to a tool execution")\n',
+    )
+
+    const config: PluginConfig = {
+      ...testConfig,
+      name: 'opencode-matcher-scope-plugin',
+      skills: './skills/',
+      hooks: {
+        postToolUse: [
+          {
+            command: 'node "${PLUGIN_ROOT}/scripts/edit-validator.mjs"',
+            matcher: 'Edit | Write | MultiEdit',
+          },
+          {
+            command: 'node "${PLUGIN_ROOT}/scripts/all-tools.mjs"',
+            matcher: '*',
+          },
+          {
+            command: 'node "${PLUGIN_ROOT}/scripts/mcp-validator.mjs"',
+            matcher: 'MCP',
+          },
+          {
+            command: 'node "${PLUGIN_ROOT}/scripts/must-not-run.mjs"',
+            matcher: '[',
+          },
+          {
+            command: 'node "${PLUGIN_ROOT}/scripts/must-not-run.mjs"',
+            matcher: { tool: 'Edit' },
+          },
+        ],
+      },
+      mcp: undefined,
+      commands: undefined,
+      agents: undefined,
+      brand: undefined,
+      scripts: './scripts/',
+      assets: undefined,
+      passthrough: undefined,
+      instructions: undefined,
+      targets: ['opencode'],
+      outDir: './dist',
+    }
+
+    await build(config, rootDir)
+
+    const generatedSource = readFileSync(resolve(pluginRoot, 'index.ts'), 'utf-8')
+    const toolAfterHooks = extractGeneratedJson<{
+      all: Array<{ matcher?: string | Record<string, unknown> }>
+      edit: Array<{ matcher?: string | Record<string, unknown> }>
+      mcp: Array<{ matcher?: string | Record<string, unknown> }>
+    }>(generatedSource, 'TOOL_AFTER_HOOKS')
+
+    expect(toolAfterHooks.edit.map((hook) => hook.matcher)).toContain('Edit|Write|MultiEdit')
+    expect(toolAfterHooks.all).toHaveLength(4)
+    expect(toolAfterHooks.all[0]?.matcher).toBe('*')
+    expect(generatedSource).toContain('const TOOL_MATCHER_RUNTIME_CONTRACT = 1')
+
+    const generatedModule = await import(`${pathToFileURL(resolve(pluginRoot, 'index.ts')).href}?case=${Date.now()}`)
+    const pluginFactory = Object.values(generatedModule).find((value) => typeof value === 'function') as (
+      input: {
+        project: Record<string, unknown>
+        client: { app: { log: (entry: unknown) => Promise<void> } }
+        $: (strings: TemplateStringsArray, ...values: unknown[]) => Promise<void>
+        directory: string
+      }
+    ) => Promise<Record<string, (...args: any[]) => Promise<void>>>
+
+    const logs: unknown[] = []
+    const shell = async (_strings: TemplateStringsArray, command: unknown): Promise<void> => {
+      const result = spawnSync('bash', ['-lc', String(command)], {
+        cwd: workspaceRoot,
+        encoding: 'utf-8',
+        env: { ...process.env },
+      })
+      if (result.status !== 0) {
+        throw new Error(result.stderr || `command failed with ${result.status}`)
+      }
+    }
+    const plugin = await pluginFactory({
+      project: {},
+      client: { app: { log: async (entry) => { logs.push(entry) } } },
+      $: shell,
+      directory: workspaceRoot,
+    })
+    const afterTool = plugin['tool.execute.after']
+
+    writeFileSync(resolve(pluginRoot, 'fail-on-unrelated-tool'), '')
+    for (const tool of ['read', 'grep', 'list', 'bash']) {
+      await afterTool({ tool }, {})
+    }
+
+    expect(logs).toEqual([])
+    expect(existsSync(resolve(pluginRoot, 'edit-hook-count.txt'))).toBe(false)
+    expect(readFileSync(resolve(pluginRoot, 'all-hook-count.txt'), 'utf-8').trim().split('\n')).toHaveLength(4)
+
+    rmSync(resolve(pluginRoot, 'fail-on-unrelated-tool'))
+    for (const tool of ['edit', 'write', 'apply_patch']) {
+      await afterTool({ tool }, {})
+    }
+
+    expect(logs).toEqual([])
+    expect(readFileSync(resolve(pluginRoot, 'edit-hook-count.txt'), 'utf-8').trim().split('\n')).toHaveLength(3)
+    expect(readFileSync(resolve(pluginRoot, 'all-hook-count.txt'), 'utf-8').trim().split('\n')).toHaveLength(7)
+
+    for (const tool of ['mcp', 'mcp.test-server.search', 'mcp__test-server__search']) {
+      await afterTool({ tool }, {})
+    }
+
+    expect(logs).toEqual([])
+    expect(readFileSync(resolve(pluginRoot, 'mcp-hook-count.txt'), 'utf-8').trim().split('\n')).toHaveLength(3)
+    expect(readFileSync(resolve(pluginRoot, 'all-hook-count.txt'), 'utf-8').trim().split('\n')).toHaveLength(10)
+  })
+
   it('quotes generated hook commands so plugin roots with spaces still execute', async () => {
     const rootDir = resolve(TEST_DIR, 'hook path with spaces')
     const outDir = resolve(rootDir, 'dist')
