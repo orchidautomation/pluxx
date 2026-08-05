@@ -1,6 +1,6 @@
 # Proof And Install
 
-Last updated: 2026-07-25
+Last updated: 2026-08-05
 
 ## Doc Links
 
@@ -30,9 +30,9 @@ This is the shortest current repo-native path to:
 
 For the fuller release/distribution boundary, including publish commands and deferred marketplace/trust-layer work, use [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md).
 
-Proof labels and freshness come from [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json). The May self-hosted run, April Firecrawl connector run, and shipped 0.1.37 evidence remain historical relative to tagged repository version `0.1.38`.
+Proof labels and freshness come from [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json). The May self-hosted run, April Firecrawl connector run, and shipped 0.1.37 and 0.1.38 evidence remain historical relative to pending repository version `0.1.39`.
 
-The 0.1.38 proof covers only the PLUXX-340 manifest-identity correction: one manifest archive record per host while versioned and `latest` assets remain produced and checksummed. Fresh receipts `v0.1.38-repository-validation` and `v0.1.38-fake-home-install` bind to exact release-prep commit `361958f6b16b1acc2bb901c97fc2c6d5a77ba880`, which is contained by reviewed PR head `cbc14e007626328a8d25340419a455f40701426c` and trusted merge/tag commit `e24d4db3f57fa0942376237fb212cb49368d7704`. After the first Release run failed closed before pack or publication, recovery PR #463 merged unchanged head `4024ca07fe9cc78b98e93bb0931b8d91ddc36f0f` as trusted main `a67803184890795457d095da52f4a243d61daf2a`. Recovery run [30154432818](https://github.com/orchidautomation/pluxx/actions/runs/30154432818) published and verified byte-identical npm and GitHub artifacts at SHA-256 `34af5bd24a441f13094b651658d6728509771a8cb9295f82b1bc66a985cb2c24` without moving the immutable tag.
+Historical 0.1.38 proof covers only the PLUXX-340 manifest-identity correction. Pending 0.1.39 release-prep covers only the merged PLUXX-341/PLUXX-342 quiet OpenCode hook-scope repair. Fresh receipts `v0.1.39-repository-validation` and `v0.1.39-fake-home-install` bind to exact release-prep commit `6ffb6337b351c5a87b985394f0c011d2c271a940`, where the complete release gate passed on 2026-08-05.
 
 ## The Story In One Screen
 
