@@ -188,8 +188,8 @@ The initial author-once hardening tranche is also materially done.
 The public baseline is also real.
 
 - npm package is live as `@orchid-labs/pluxx`
-- the canonical and verified public release is `@orchid-labs/pluxx@0.1.38` / `v0.1.38`; npm and GitHub serve the same tarball at SHA-256 `34af5bd24a441f13094b651658d6728509771a8cb9295f82b1bc66a985cb2c24`
-- the canonical repository version is pending `0.1.39` release-prep for the PLUXX-341/PLUXX-342 quiet OpenCode hook-scope repair merged through PR #468
+- the canonical and verified public release is `@orchid-labs/pluxx@0.1.39` / `v0.1.39`; npm and GitHub serve the same tarball at SHA-256 `79a75caa36f636e34e03dbadc36376ca513c279cbae03fecab9c9da1235e2fe5`
+- 0.1.39 is the focused PLUXX-341/PLUXX-342 quiet OpenCode hook-scope repair merged through PR #468 and released through trusted merge `9e404537e8f3b007cfadf67d90487efdad160f20`
 - 0.1.38 is only the PLUXX-340 manifest-identity correction discovered after the shipped and independently verified 0.1.37 release
 - proof claims now use [docs/proof-freshness.md](../proof-freshness.md) and [docs/proof-manifest.json](../proof-manifest.json) so historical host runs cannot masquerade as current evidence
 - published CLI runtime is Node `>=18`
@@ -561,14 +561,14 @@ Current work:
 - [x] merge recovery PR #463 exact head `4024ca07fe9cc78b98e93bb0931b8d91ddc36f0f` as trusted main `a67803184890795457d095da52f4a243d61daf2a`, then dispatch run `30154432818` without moving or recreating `v0.1.38`
 - [x] verify npm, GitHub release assets and recovery receipt, byte-identical tarballs at SHA-256 `34af5bd24a441f13094b651658d6728509771a8cb9295f82b1bc66a985cb2c24`, immutable tag provenance, and isolated installed CLI `0.1.38`
 
-### 11. v0.1.39 quiet OpenCode hook scope
+### 11. Historical v0.1.39 quiet OpenCode hook scope
 
 - [x] merge PR #468 exact reviewed head `e4c11db` as true merge commit `a750c593f1fb694a71aa60365ae6f8792e51a246`
 - [x] prepare synchronized 0.1.39 package, proof, planning, recovery-default, and release truth
 - [x] bind fresh repository-validation and fake-home-install receipts to exact release-prep commit `6ffb6337b351c5a87b985394f0c011d2c271a940`
 - [x] pass focused and full release gates plus independent review; review record: [2026-08-05-pluxx-343-release-0.1.39-review.md](../orchid/reviews/2026-08-05-pluxx-343-release-0.1.39-review.md)
-- [ ] merge the exact green release PR with a true merge commit and push immutable tag `v0.1.39`
-- [ ] verify npm, GitHub release assets, immutable tag provenance, and isolated installed CLI `0.1.39`
+- [x] merge PR #470 exact reviewed head `4d0465930ead185d462f3e11c47281576098bcec` with true merge commit `9e404537e8f3b007cfadf67d90487efdad160f20` and push immutable tag `v0.1.39`
+- [x] verify tag-triggered Release run `31023227838`, npm, GitHub release asset, byte-identical tarballs at SHA-256 `79a75caa36f636e34e03dbadc36376ca513c279cbae03fecab9c9da1235e2fe5`, immutable tag provenance, and isolated installed CLI `0.1.39`
 
 ### 7. Historical v0.1.28 release checklist
 

@@ -39,7 +39,7 @@ If you want the shortest public proof and install path after this file, use [doc
 
 If you want the current release, distribution, and proof boundary, use [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md).
 
-If you need to know whether a proof claim is current, historical, repository-only, installed, or real-host evidence, use [docs/proof-freshness.md](./proof-freshness.md) and [docs/proof-manifest.json](./proof-manifest.json). Canonical repository version truth is `package.json` (`0.1.39`), currently in release-prep for the PLUXX-341/PLUXX-342 quiet OpenCode hook-scope repair. The independently verified public release remains `@orchid-labs/pluxx@0.1.38`.
+If you need to know whether a proof claim is current, historical, repository-only, installed, or real-host evidence, use [docs/proof-freshness.md](./proof-freshness.md) and [docs/proof-manifest.json](./proof-manifest.json). Canonical repository and independently verified public release truth is `@orchid-labs/pluxx@0.1.39` for the PLUXX-341/PLUXX-342 quiet OpenCode hook-scope repair.
 
 If you want the primitive-by-host proof ledger behind the core-four native shipping claim, use [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md).
 
@@ -369,8 +369,8 @@ The repo already proves a lot.
 - historical release-gate evidence from 2026-05-19 remains available but is not current proof:
   - `npm test` passed
   - `npm run release:check` passed
-- the canonical and verified public release is `@orchid-labs/pluxx@0.1.38` / `v0.1.38`; npm and GitHub serve the same tarball at SHA-256 `34af5bd24a441f13094b651658d6728509771a8cb9295f82b1bc66a985cb2c24`
-- the repository is preparing `0.1.39` only for the merged PLUXX-341/PLUXX-342 OpenCode hook matcher-scope and quiet-health repair
+- the canonical and verified public release is `@orchid-labs/pluxx@0.1.39` / `v0.1.39`; npm and GitHub serve the same tarball at SHA-256 `79a75caa36f636e34e03dbadc36376ca513c279cbae03fecab9c9da1235e2fe5`
+- `0.1.39` contains only the merged PLUXX-341/PLUXX-342 OpenCode hook matcher-scope and quiet-health repair
 - immutable tag `v0.1.38` records only the follow-up PLUXX-340 correction for duplicate release-manifest archive identities discovered after the historical shipped 0.1.37 release
 - marketplace submission APIs, a managed trust/distribution control plane, automatic rollback/unpublish orchestration, and real authenticated publish plus rollback proof remain explicit release gaps, not hidden shipped capabilities:
   - `docs/release-distribution-proof-map.md`
@@ -541,13 +541,13 @@ Run two lanes in parallel:
 
 ### 6. Release State
 
-The canonical repository version is pending `0.1.39` release-prep for the PLUXX-341/PLUXX-342 quiet OpenCode hook-scope repair. The canonical and verified public release remains `@orchid-labs/pluxx@0.1.38`; immutable tag `v0.1.38` remains at trusted merge `e24d4db3f57fa0942376237fb212cb49368d7704`.
+The canonical repository and verified public release is `@orchid-labs/pluxx@0.1.39`; immutable tag `v0.1.39` remains at trusted merge `9e404537e8f3b007cfadf67d90487efdad160f20`.
 
 For v0.1.37, PLUXX-339 is the tagged security focus: lint, doctor, install, and packaged-runtime verification fail closed when bundled runtime scripts source workspace `.env` files through direct or statically evaluable shell forms. The patch preserves valid safe shell forms and uses a bounded explicit scanner rather than an expanding regex.
 
 For historical tagged v0.1.38, PLUXX-340 is the only release focus: one unambiguous release-manifest archive identity per host while versioned and `latest` physical assets remain generated and checksummed.
 
-For pending v0.1.39, PLUXX-341/PLUXX-342 is the only release focus: OpenCode hooks keep matcher scope, normalize supported tool alternatives consistently, and doctor fails closed on malformed or unscoped plans without emitting noisy health output.
+For v0.1.39, PLUXX-341/PLUXX-342 is the only release focus: OpenCode hooks keep matcher scope, normalize supported tool alternatives consistently, and doctor fails closed on malformed or unscoped plans without emitting noisy health output.
 
 ## Working Rules
 
