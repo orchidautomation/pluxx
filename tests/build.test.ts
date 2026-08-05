@@ -5,7 +5,7 @@ import { pathToFileURL } from 'url'
 import { spawnSync } from 'child_process'
 import { build } from '../src/generators'
 import { checkGeneratedBundles } from '../src/bundle-check'
-import type { PluginConfig } from '../src/schema'
+import type { HookEntry, PluginConfig } from '../src/schema'
 import {
   makeSecretReferenceFixtureConfig,
   readTextTree,
@@ -1937,6 +1937,167 @@ describe('build', () => {
     expect(opencodeIndex).not.toContain('Confirm before sending the prompt.')
     expect(opencodeIndex).not.toContain('https://example.com/hooks/notify')
     expect(opencodeIndex).not.toContain('"loop_limit": 3')
+  })
+
+  it('keeps matcher-scoped OpenCode hooks quiet for unrelated tools', async () => {
+    const hookConfig: PluginConfig = {
+      ...testConfig,
+      name: 'opencode-hook-matcher',
+      hooks: {
+        preToolUse: [
+          {
+            command: 'echo before-all',
+          },
+          {
+            command: 'echo before-edit',
+            matcher: 'Edit|Write',
+          },
+          {
+            command: 'echo before-object-edit',
+            matcher: { tool: 'Edit|Write' },
+          },
+          {
+            command: 'echo before-padded-edit',
+            matcher: ' Edit | Write ',
+          },
+          {
+            command: 'echo before-padded-object-edit',
+            matcher: { tool: ' Edit | Write ' },
+          },
+          {
+            command: 'echo never-run-unsupported-matcher',
+            matcher: { unsupported: true },
+          },
+          {
+            command: 'echo never-run-empty-matcher',
+            matcher: '',
+          },
+          {
+            command: 'echo never-run-empty-object-alternatives',
+            matcher: { tool: ' Edit | ' },
+          },
+          {
+            command: 'echo before-mcp',
+            matcher: 'MCP',
+          },
+        ],
+        postToolUse: [
+          {
+            command: 'echo after-all',
+          },
+          {
+            command: 'echo after-edit',
+            matcher: 'Edit|Write',
+          },
+          {
+            command: 'echo after-padded-object-edit',
+            matcher: { tool: ' Edit | Write ' },
+          },
+        ],
+        afterFileEdit: [
+          {
+            command: 'echo file-edited',
+          },
+        ],
+      },
+      targets: ['opencode'],
+      outDir: './opencode-hook-matcher-dist',
+    }
+
+    await build(hookConfig, TEST_DIR)
+
+    const generatedSource = readFileSync(
+      resolve(TEST_DIR, 'opencode-hook-matcher-dist/opencode/index.ts'),
+      'utf-8',
+    )
+    const toolBeforeHooks = extractGeneratedJson<{
+      all: Array<{ command: string }>
+      matched: Array<{ command: string; matcher: HookEntry['matcher'] }>
+    }>(generatedSource, 'TOOL_BEFORE_HOOKS')
+    expect(toolBeforeHooks.all.map(hook => hook.command)).toEqual(['echo before-all'])
+    expect(toolBeforeHooks.matched.map(hook => hook.command)).toEqual([
+      'echo before-edit',
+      'echo before-object-edit',
+      'echo before-padded-edit',
+      'echo before-padded-object-edit',
+      'echo never-run-unsupported-matcher',
+      'echo never-run-empty-matcher',
+      'echo never-run-empty-object-alternatives',
+      'echo before-mcp',
+    ])
+    const toolAfterHooks = extractGeneratedJson<{
+      all: Array<{ command: string }>
+      matched: Array<{ command: string }>
+      edit: Array<{ command: string }>
+    }>(generatedSource, 'TOOL_AFTER_HOOKS')
+    expect(toolAfterHooks.all.map(hook => hook.command)).toEqual(['echo after-all'])
+    expect(toolAfterHooks.matched).toEqual([])
+    expect(toolAfterHooks.edit.map(hook => hook.command)).toEqual([
+      'echo after-edit',
+      'echo after-padded-object-edit',
+      'echo file-edited',
+    ])
+
+    const generatedModule = await import(
+      pathToFileURL(resolve(TEST_DIR, 'opencode-hook-matcher-dist/opencode/index.ts')).href
+    ) as {
+      OpencodeHookMatcherPlugin: (context: Record<string, unknown>) => Promise<Record<string, (...args: unknown[]) => Promise<void>>>
+    }
+    const commands: string[] = []
+    const logs: unknown[] = []
+    const plugin = await generatedModule.OpencodeHookMatcherPlugin({
+      project: {},
+      directory: TEST_DIR,
+      client: {
+        app: {
+          log: async (entry: unknown) => {
+            logs.push(entry)
+          },
+        },
+      },
+      $: (_strings: TemplateStringsArray, command: string) => {
+        commands.push(command)
+        return Promise.resolve()
+      },
+    })
+
+    const runTool = async (tool: string): Promise<string[]> => {
+      const commandOffset = commands.length
+      await plugin['tool.execute.before']?.({ tool }, {})
+      await plugin['tool.execute.after']?.({ tool }, {})
+      return commands.slice(commandOffset)
+    }
+
+    for (const tool of ['read', 'grep', 'glob', 'bash']) {
+      expect(await runTool(tool)).toEqual([
+        expect.stringContaining('before-all'),
+        expect.stringContaining('after-all'),
+      ])
+    }
+
+    for (const tool of ['edit', 'write', 'apply_patch']) {
+      expect(await runTool(tool)).toEqual([
+        expect.stringContaining('before-all'),
+        expect.stringContaining('before-edit'),
+        expect.stringContaining('before-object-edit'),
+        expect.stringContaining('before-padded-edit'),
+        expect.stringContaining('before-padded-object-edit'),
+        expect.stringContaining('after-all'),
+        expect.stringContaining('after-edit'),
+        expect.stringContaining('after-padded-object-edit'),
+        expect.stringContaining('file-edited'),
+      ])
+    }
+
+    for (const tool of ['mcp', 'mcp.example', 'mcp_example']) {
+      expect(await runTool(tool)).toEqual([
+        expect.stringContaining('before-all'),
+        expect.stringContaining('before-mcp'),
+        expect.stringContaining('after-all'),
+      ])
+    }
+
+    expect(logs).toEqual([])
   })
 
   it('preserves richer Claude-native hook handler types', async () => {
