@@ -109,7 +109,7 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
 - [x] Push immutable tag `v0.1.36` from main
 - [x] Verify `@orchid-labs/pluxx@0.1.36`, GitHub release assets, tarball contents, and CLI behavior
 
-### 0. v0.1.37 runtime env-sourcing security patch release
+### 0. Historical v0.1.37 runtime env-sourcing security patch release
 
 - [x] Merge PLUXX-339 through PR #456 at exact reviewed head `b888c62dc7905fd66c9fdf50c4e752984fee5b48`
 - [x] Historical: prepare synchronized 0.1.37 package, proof, planning, and release truth

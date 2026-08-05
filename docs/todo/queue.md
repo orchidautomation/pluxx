@@ -539,10 +539,10 @@ Current work:
 - [x] pushed immutable tag `v0.1.36` from main
 - [x] verified npm, GitHub release assets, tarball contents, and CLI behavior
 
-### 9. v0.1.37 runtime env-sourcing security patch release
+### 9. Historical v0.1.37 runtime env-sourcing security patch release
 
 - [x] merge PLUXX-339 through exact reviewed PR #456 head `b888c62dc7905fd66c9fdf50c4e752984fee5b48`
-- [x] bump package and canonical release truth to 0.1.37
+- [x] Historical: bump package and canonical release truth to 0.1.37
 - [x] bind repository-validation and fake-home-install receipts to commands observed directly against immutable tag commit `d5184752cd4898306390f20455619c34a42099dd`; preserve the distinct pre-squash `f7ee0bd5d6cf5f8b75dec7df6dcda85dcf5a7af8` receipts as historical
 - [x] pass `npm run release:check`
 - [x] merge the focused release PR and push immutable tag `v0.1.37` from main
