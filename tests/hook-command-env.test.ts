@@ -102,4 +102,29 @@ describe('hook command wrapper environment', () => {
       rmSync(fixture.root, { recursive: true, force: true })
     }
   })
+
+  it('prefers the hook payload over a stale generic workspace env var', () => {
+    const fixture = createHookWrapperFixture()
+    const payloadWorkspace = resolve(fixture.root, 'payload-workspace')
+    mkdirSync(payloadWorkspace, { recursive: true })
+    const payload = JSON.stringify({ cwd: payloadWorkspace })
+
+    try {
+      const result = spawnSync('node', [fixture.wrapperPath], {
+        cwd: fixture.root,
+        input: payload,
+        encoding: 'utf-8',
+        env: {
+          ...process.env,
+          CODEX_PLUGIN_ROOT: fixture.pluginRoot,
+          CODEX_WORKSPACE_ROOT: fixture.workspaceRoot,
+        },
+      })
+
+      expect(result.status).toBe(0)
+      expect(JSON.parse(result.stdout).workspaceRoot).toBe(payloadWorkspace)
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true })
+    }
+  })
 })
