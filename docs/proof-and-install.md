@@ -1,6 +1,6 @@
 # Proof And Install
 
-Last updated: 2026-08-05
+Last updated: 2026-08-08
 
 ## Doc Links
 
@@ -30,9 +30,9 @@ This is the shortest current repo-native path to:
 
 For the fuller release/distribution boundary, including publish commands and deferred marketplace/trust-layer work, use [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md).
 
-Proof labels and freshness come from [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json). The May self-hosted run, April Firecrawl connector run, and shipped 0.1.37 and 0.1.38 evidence remain historical relative to the canonical public `0.1.39` release.
+Proof labels and freshness come from [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json). The May self-hosted run, April Firecrawl connector run, and shipped 0.1.37 through 0.1.39 evidence remain historical relative to the canonical public `0.1.40` release.
 
-Historical 0.1.38 proof covers only the PLUXX-340 manifest-identity correction. Canonical 0.1.39 covers only the merged PLUXX-341/PLUXX-342 quiet OpenCode hook-scope repair. Fresh receipts `v0.1.39-repository-validation` and `v0.1.39-fake-home-install` bind to exact release-prep commit `6ffb6337b351c5a87b985394f0c011d2c271a940`, where the complete release gate passed on 2026-08-05; immutable tag `v0.1.39` points to trusted merge `9e404537e8f3b007cfadf67d90487efdad160f20` and its npm and GitHub tarballs are byte-identical at SHA-256 `79a75caa36f636e34e03dbadc36376ca513c279cbae03fecab9c9da1235e2fe5`.
+Canonical 0.1.40 covers only the PLUXX-344 hook workspace-precedence repair. Fresh receipts `v0.1.40-repository-validation` and `v0.1.40-fake-home-install` bind to exact release-prep commit `32019d73f046ce7b69a55bff0019e0afa948b0c0`, where the complete release gate passed on 2026-08-08; immutable tag `v0.1.40` points to trusted merge `8a7152a0433a930608caca73283040c068762071` and its npm and GitHub tarballs are byte-identical at SHA-256 `5e9b39c5ad0a2a2b99bf8335ae7b8e51552d7679744a2beafbd323e6b89e3ab3`.
 
 ## The Story In One Screen
 
@@ -210,7 +210,7 @@ curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example
 
 Current release note:
 
-- the canonical and verified public release is `@orchid-labs/pluxx@0.1.39` / `v0.1.39`, only for the PLUXX-341/PLUXX-342 quiet OpenCode hook-scope repair; npm and GitHub serve the same verified tarball at SHA-256 `79a75caa36f636e34e03dbadc36376ca513c279cbae03fecab9c9da1235e2fe5`
+- the canonical and verified public release is `@orchid-labs/pluxx@0.1.40` / `v0.1.40`, only for the PLUXX-344 hook workspace-precedence repair; npm and GitHub serve the same verified tarball at SHA-256 `5e9b39c5ad0a2a2b99bf8335ae7b8e51552d7679744a2beafbd323e6b89e3ab3`
 - 0.1.38 remains the shipped and independently verified historical PLUXX-340 duplicate archive-identity correction
 - 0.1.37 remains the shipped and independently verified historical PLUXX-339 runtime env-sourcing security release
 - the published CLI runtime is Node `>=18`; see [runtime contract](./runtime-contract.md)
