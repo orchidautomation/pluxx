@@ -80,7 +80,7 @@ git merge-base --is-ancestor <exact-pr-head> <trusted-main-commit>
 git merge-base --is-ancestor <current-receipt-commit> <trusted-main-commit>
 ```
 
-If the trusted release workflow fails before publication for a recoverable infrastructure or proof-topology reason, do not move or recreate the tag and do not publish locally. Merge a reviewed workflow fix to `main`, then dispatch `Release` from exact current `main` with the existing tag. The default recovery input is currently `v0.1.39`.
+If the trusted release workflow fails before publication for a recoverable infrastructure or proof-topology reason, do not move or recreate the tag and do not publish locally. Merge a reviewed workflow fix to `main`, then dispatch `Release` from exact current `main` with the existing tag. The default recovery input is currently `v0.1.40`.
 
 You can use `patch`, `minor`, or `major` depending on the release.
 

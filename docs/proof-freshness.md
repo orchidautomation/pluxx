@@ -1,10 +1,10 @@
 # Proof Freshness And Evidence Tiers
 
-Last updated: 2026-08-05
+Last updated: 2026-08-08
 
 This document defines how Pluxx distinguishes repeatable repository checks from installed and real-host evidence. The machine-readable source is [proof-manifest.json](./proof-manifest.json), validated by `npm run proof:check`.
 
-The canonical and independently verified public release is `@orchid-labs/pluxx@0.1.39` for the PLUXX-341/PLUXX-342 quiet OpenCode hook-scope repair merged through PR #468. Immutable tag `v0.1.39` points to trusted merge `9e404537e8f3b007cfadf67d90487efdad160f20`; tag-triggered Release run [31023227838](https://github.com/orchidautomation/pluxx/actions/runs/31023227838) published byte-identical npm and GitHub artifacts at SHA-256 `79a75caa36f636e34e03dbadc36376ca513c279cbae03fecab9c9da1235e2fe5`. Fresh current receipts `v0.1.39-repository-validation` and `v0.1.39-fake-home-install` bind to exact release-prep commit `6ffb6337b351c5a87b985394f0c011d2c271a940`, where `npm run release:check` passed on 2026-08-05 with 62 test files and 828 tests plus isolated packed-runtime and dry-pack verification. No current receipt claims installed-runtime or real-host behavior.
+The canonical repository release candidate is `@orchid-labs/pluxx@0.1.40` for the PLUXX-344 hook workspace-precedence repair merged through PR #473. It is not yet tagged or published. The independently verified historical public release remains `@orchid-labs/pluxx@0.1.39`; immutable tag `v0.1.39` points to trusted merge `9e404537e8f3b007cfadf67d90487efdad160f20`, and Release run [31023227838](https://github.com/orchidautomation/pluxx/actions/runs/31023227838) published byte-identical npm and GitHub artifacts at SHA-256 `79a75caa36f636e34e03dbadc36376ca513c279cbae03fecab9c9da1235e2fe5`. The 0.1.39 receipts are historical while 0.1.40 proof is prepared. No current receipt claims installed-runtime or real-host behavior.
 
 ## Version And Freshness Policy
 

@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "canonicalVersion": "0.1.39",
-  "expectedTag": "v0.1.39",
-  "releaseState": "released",
+  "canonicalVersion": "0.1.40",
+  "expectedTag": "v0.1.40",
+  "releaseState": "release-prep",
   "policy": {
     "environmentReceiptMaxAgeDays": 30
   },
@@ -171,7 +171,7 @@
       "id": "v0.1.39-repository-validation",
       "summary": "The exact v0.1.39 release-prep commit passes the complete repository release gate for the PLUXX-341/PLUXX-342 quiet OpenCode hook-scope repair.",
       "tier": "bundle-contract",
-      "freshness": "current",
+      "freshness": "historical",
       "evidencePath": "tests/proof-freshness.test.ts",
       "receiptId": "v0.1.39-repository-validation"
     },
@@ -179,7 +179,7 @@
       "id": "v0.1.39-fake-home-install",
       "summary": "The exact v0.1.39 release-prep commit passes maintained core-four isolated install coverage for the PLUXX-341/PLUXX-342 quiet OpenCode hook-scope repair.",
       "tier": "fake-home-install",
-      "freshness": "current",
+      "freshness": "historical",
       "evidencePath": "tests/release-smoke.test.ts",
       "receiptId": "v0.1.39-fake-home-install"
     }
@@ -686,7 +686,7 @@
     {
       "id": "v0.1.39-repository-validation",
       "tier": "bundle-contract",
-      "freshness": "current",
+      "freshness": "historical",
       "commitSha": "6ffb6337b351c5a87b985394f0c011d2c271a940",
       "packageVersion": "0.1.39",
       "timestamp": "2026-08-05T15:23:51.000Z",
@@ -709,7 +709,7 @@
     {
       "id": "v0.1.39-fake-home-install",
       "tier": "fake-home-install",
-      "freshness": "current",
+      "freshness": "historical",
       "commitSha": "6ffb6337b351c5a87b985394f0c011d2c271a940",
       "packageVersion": "0.1.39",
       "timestamp": "2026-08-05T15:23:51.000Z",
