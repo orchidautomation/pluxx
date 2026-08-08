@@ -182,6 +182,22 @@
       "freshness": "historical",
       "evidencePath": "tests/release-smoke.test.ts",
       "receiptId": "v0.1.39-fake-home-install"
+    },
+    {
+      "id": "v0.1.40-repository-validation",
+      "summary": "The exact v0.1.40 release-prep commit passes the complete repository release gate for the PLUXX-344 hook workspace-precedence repair.",
+      "tier": "bundle-contract",
+      "freshness": "current",
+      "evidencePath": "tests/proof-freshness.test.ts",
+      "receiptId": "v0.1.40-repository-validation"
+    },
+    {
+      "id": "v0.1.40-fake-home-install",
+      "summary": "The exact v0.1.40 release-prep commit passes maintained core-four isolated install coverage for the PLUXX-344 hook workspace-precedence repair.",
+      "tier": "fake-home-install",
+      "freshness": "current",
+      "evidencePath": "tests/release-smoke.test.ts",
+      "receiptId": "v0.1.40-fake-home-install"
     }
   ],
   "receipts": [
@@ -728,6 +744,52 @@
           "outcome": "passed"
         }
       ]
+    },
+    {
+      "id": "v0.1.40-repository-validation",
+      "tier": "bundle-contract",
+      "freshness": "current",
+      "commitSha": "32019d73f046ce7b69a55bff0019e0afa948b0c0",
+      "packageVersion": "0.1.40",
+      "timestamp": "2026-08-08T22:49:53.696Z",
+      "commands": [
+        {
+          "command": "npm run release:check",
+          "outcome": "passed"
+        }
+      ],
+      "targets": [
+        {
+          "target": "repository",
+          "hostVersion": null,
+          "installedPath": null,
+          "sha256": null,
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "v0.1.40-fake-home-install",
+      "tier": "fake-home-install",
+      "freshness": "current",
+      "commands": [
+        {
+          "command": "npm run release:check",
+          "outcome": "passed"
+        }
+      ],
+      "targets": [
+        {
+          "target": "claude-code,cursor,codex,opencode",
+          "hostVersion": null,
+          "installedPath": null,
+          "sha256": null,
+          "outcome": "passed"
+        }
+      ],
+      "commitSha": "32019d73f046ce7b69a55bff0019e0afa948b0c0",
+      "packageVersion": "0.1.40",
+      "timestamp": "2026-08-08T22:49:53.927Z"
     }
   ]
 }

@@ -565,7 +565,7 @@ Current work:
 
 - [x] merge PR #473 exact reviewed head `80e12d6cc50efb14749d8cb1968d3ec8170abdb7` as true merge commit `d893bb3d6aba5235481c51f8fb5b2d1c5e4065bb`
 - [~] prepare synchronized 0.1.40 package, proof, planning, recovery-default, and release truth
-- [ ] bind fresh repository-validation and fake-home-install receipts to an exact release-prep commit
+- [x] bind fresh repository-validation and fake-home-install receipts to exact release-prep commit `32019d73f046ce7b69a55bff0019e0afa948b0c0`
 - [ ] pass the full release gate and merge the release-prep PR with a true merge commit
 - [ ] push immutable tag `v0.1.40` and verify npm, GitHub release assets, tag provenance, and an isolated installed CLI
 
