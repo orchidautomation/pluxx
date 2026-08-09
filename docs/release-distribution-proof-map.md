@@ -1,6 +1,6 @@
 # Release Distribution Proof Map
 
-Last updated: 2026-08-05
+Last updated: 2026-08-08
 
 ## Doc Links
 
@@ -26,7 +26,7 @@ Last updated: 2026-08-05
 
 This is the short release/distribution map for what Pluxx can ship today, what is locally proven, and what still belongs to later marketplace or trust-layer work.
 
-Proof state is governed by [proof-freshness.md](./proof-freshness.md) and the machine-readable [proof manifest](./proof-manifest.json). The canonical and independently verified public release is `@orchid-labs/pluxx@0.1.39`, focused on the PLUXX-341/PLUXX-342 quiet OpenCode hook-scope repair. Immutable tag `v0.1.39` is fixed at trusted merge `9e404537e8f3b007cfadf67d90487efdad160f20`; tag-triggered Release run [31023227838](https://github.com/orchidautomation/pluxx/actions/runs/31023227838) published byte-identical npm and GitHub artifacts at SHA-256 `79a75caa36f636e34e03dbadc36376ca513c279cbae03fecab9c9da1235e2fe5`.
+Proof state is governed by [proof-freshness.md](./proof-freshness.md) and the machine-readable [proof manifest](./proof-manifest.json). The canonical and independently verified public release is `@orchid-labs/pluxx@0.1.40`, focused on the PLUXX-344 hook workspace-precedence repair. Immutable tag `v0.1.40` is fixed at trusted merge `8a7152a0433a930608caca73283040c068762071`; tag-triggered Release run [31283794540](https://github.com/orchidautomation/pluxx/actions/runs/31283794540) published byte-identical npm and GitHub artifacts at SHA-256 `5e9b39c5ad0a2a2b99bf8335ae7b8e51552d7679744a2beafbd323e6b89e3ab3`.
 
 ## Current Primary Fronts
 
