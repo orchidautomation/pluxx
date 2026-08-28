@@ -1451,6 +1451,77 @@ describe('build', () => {
     expect(codexAgentsMd).toContain('## Command Routing')
   })
 
+  it('executes exact generated Codex hook commands from an unrelated workspace', async () => {
+    const rootDir = resolve(TEST_DIR, 'codex-manifest-command-execution')
+    const outDir = resolve(rootDir, 'dist')
+    const codexRoot = resolve(outDir, 'codex')
+    const unrelatedWorkspace = resolve(TEST_DIR, 'unrelated-codex-hook-workspace')
+
+    rmSync(rootDir, { recursive: true, force: true })
+    rmSync(unrelatedWorkspace, { recursive: true, force: true })
+    mkdirSync(resolve(rootDir, 'skills/basic'), { recursive: true })
+    mkdirSync(resolve(rootDir, 'scripts'), { recursive: true })
+    mkdirSync(unrelatedWorkspace, { recursive: true })
+    await Bun.write(
+      resolve(rootDir, 'skills/basic/SKILL.md'),
+      '---\nname: basic\ndescription: Basic skill\n---\n\nBasic skill body.\n',
+    )
+    for (const scriptName of ['session-start', 'user-prompt-submit']) {
+      await Bun.write(
+        resolve(rootDir, `scripts/${scriptName}.sh`),
+        `#!/usr/bin/env bash\nprintf '%s' "$PLUGIN_ROOT" > "$PLUGIN_ROOT/${scriptName}-proof.txt"\n`,
+      )
+    }
+
+    try {
+      await build({
+        ...testConfig,
+        name: 'codex-manifest-command-plugin',
+        skills: './skills/',
+        scripts: './scripts/',
+        brand: undefined,
+        assets: undefined,
+        hooks: {
+          sessionStart: [{ command: 'bash "${PLUGIN_ROOT}/scripts/session-start.sh"' }],
+          beforeSubmitPrompt: [{ command: 'bash "${PLUGIN_ROOT}/scripts/user-prompt-submit.sh"' }],
+        },
+        targets: ['codex'],
+        outDir: './dist',
+      }, rootDir)
+
+      const generatedHooks = JSON.parse(
+        readFileSync(resolve(codexRoot, 'hooks/hooks.json'), 'utf-8'),
+      ) as { hooks: Record<string, Array<{ hooks: Array<{ command: string }> }>> }
+      const commands = [
+        generatedHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command,
+        generatedHooks.hooks.UserPromptSubmit?.[0]?.hooks?.[0]?.command,
+      ]
+      expect(commands.every(Boolean)).toBe(true)
+
+      for (const [index, command] of commands.entries()) {
+        expect(command).not.toContain('CODEX_PLUGIN_ROOT')
+        expect(command).toContain('${PLUGIN_ROOT}/hooks/')
+        const env = { ...process.env, PLUGIN_ROOT: codexRoot }
+        delete env.CODEX_PLUGIN_ROOT
+        const result = spawnSync('sh', ['-c', command!], {
+          cwd: unrelatedWorkspace,
+          encoding: 'utf-8',
+          env,
+        })
+
+        expect(result.status, `hook command ${index + 1} failed: ${result.stderr}`).toBe(0)
+        expect(result.stderr).not.toContain("Cannot find module '/hooks")
+        expect(result.stderr).not.toContain("Cannot find module '/.codex")
+      }
+
+      expect(readFileSync(resolve(codexRoot, 'session-start-proof.txt'), 'utf-8')).toBe(codexRoot)
+      expect(readFileSync(resolve(codexRoot, 'user-prompt-submit-proof.txt'), 'utf-8')).toBe(codexRoot)
+    } finally {
+      rmSync(rootDir, { recursive: true, force: true })
+      rmSync(unrelatedWorkspace, { recursive: true, force: true })
+    }
+  })
+
   it('generates OpenCode plugin wrapper with env var check', async () => {
     const indexTs = readFileSync(resolve(OUT_DIR, 'opencode/index.ts'), 'utf-8')
     expect(indexTs).toContain('TestPluginPlugin')
