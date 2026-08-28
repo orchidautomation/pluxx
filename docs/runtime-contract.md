@@ -58,7 +58,7 @@ Config imports of `pluxx` or `@orchid-labs/pluxx` are rewritten to the package r
 
 ## Generated Hook Command Runtime
 
-Generated command-hook wrappers run bundle-owned commands from the installed plugin root. They export the host/plugin root variable for the target plus the shared `PLUGIN_ROOT` and `PLUXX_PLUGIN_ROOT` variables so scripts can reference bundled files without depending on the host launch directory.
+Generated command-hook wrappers run bundle-owned commands from the installed plugin root. Codex uses the documented `PLUGIN_ROOT` variable for its bundled hook and readiness commands; the wrapper accepts that hint only when it resolves to the bundle root that owns the wrapper, and otherwise falls back to the root derived from its own `import.meta.url`. This rejects stale host hints while keeping an unset hint safe. Wrappers normalize and export the proven root as `PLUGIN_ROOT` and `PLUXX_PLUGIN_ROOT` (and the target-specific variable for other hosts) so scripts can reference bundled files without depending on the host launch directory.
 
 Wrappers also expose `PLUXX_HOOK_WORKSPACE_ROOT` when Pluxx can prove the active agent workspace from an explicit setting, a known host workspace variable, or a JSON hook payload on stdin. If no workspace can be proven, the variable is omitted instead of falling back to the plugin root.
 
