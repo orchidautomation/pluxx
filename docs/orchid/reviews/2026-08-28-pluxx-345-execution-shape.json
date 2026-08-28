@@ -1,0 +1,124 @@
+{
+  "schema": "orchid.work.execution-shape/v1",
+  "repository": "orchidautomation/pluxx",
+  "sourceRef": "codex/pluxx-345-codex-hook-root",
+  "sourceCommit": "ad91af3a112da8d97f0afb497e44f6f75ad7cfe7",
+  "plan": {
+    "path": "docs/orchid/plans/2026-08-28-pluxx-345-codex-hook-root.md",
+    "sha256": "5496b4dcb8c43d3d62e781467160265ae8da93e977c1b27c44c34519bf6be7c8",
+    "sourceRef": "codex/pluxx-345-codex-hook-root",
+    "sourceCommit": "ad91af3a112da8d97f0afb497e44f6f75ad7cfe7"
+  },
+  "risk": "Elevated",
+  "orchestrationRequired": true,
+  "selectedShape": "inline-luna",
+  "delivery": {
+    "shape": "single-pr",
+    "sourceRef": "codex/pluxx-345-codex-hook-root",
+    "targetRef": "main",
+    "pullRequestCount": 1
+  },
+  "solIntegrationOwnership": [
+    "docs/orchid/reviews"
+  ],
+  "lunaLanes": [
+    {
+      "issueId": "PLUXX-345",
+      "taskId": "PLUXX-345-inline-luna-initial",
+      "threadId": "01a047eb-0504-7c80-81d1-902761bc0827",
+      "mode": "initial",
+      "cycle": "initial",
+      "ownership": [
+        "src/generators/codex/index.ts",
+        "src/hook-command-env.ts",
+        "tests/build.test.ts",
+        "tests/hook-command-env.test.ts",
+        "docs/runtime-contract.md",
+        "docs/core-four-primitive-matrix.md"
+      ],
+      "assignedBranch": "codex/pluxx-345-codex-hook-root",
+      "observedBranch": "codex/pluxx-345-codex-hook-root",
+      "worktreeBindingState": "confirmed",
+      "worktree": "/home/brandon/repos/pluxx-PLUXX-345-codex-hook-root",
+      "plan": {
+        "path": "docs/orchid/plans/2026-08-28-pluxx-345-codex-hook-root.md",
+        "sha256": "5496b4dcb8c43d3d62e781467160265ae8da93e977c1b27c44c34519bf6be7c8",
+        "sourceRef": "codex/pluxx-345-codex-hook-root",
+        "sourceCommit": "ad91af3a112da8d97f0afb497e44f6f75ad7cfe7"
+      },
+      "execution": {
+        "model": "gpt-5.6-luna",
+        "reasoningEffort": "medium",
+        "role": "execute-pinned-plan-only",
+        "requestedServiceTier": "fast",
+        "serviceTierControl": "explicit",
+        "serviceTierEvidence": "thread/start confirmed serviceTier=priority",
+        "observedServiceTier": "priority",
+        "fastModeState": "confirmed"
+      },
+      "dispatchReceipt": {
+        "schema": "orchid.work.luna-dispatch/v1",
+        "mode": "initial",
+        "role": "execute-pinned-plan-only",
+        "lane": "PLUXX-345",
+        "cycle": "initial",
+        "taskId": "PLUXX-345-inline-luna-initial",
+        "threadId": "01a047eb-0504-7c80-81d1-902761bc0827",
+        "cwd": "/home/brandon/repos/pluxx-PLUXX-345-codex-hook-root",
+        "branch": "codex/pluxx-345-codex-hook-root",
+        "worktree": "/home/brandon/repos/pluxx-PLUXX-345-codex-hook-root",
+        "plan": {
+          "path": "docs/orchid/plans/2026-08-28-pluxx-345-codex-hook-root.md",
+          "sha256": "5496b4dcb8c43d3d62e781467160265ae8da93e977c1b27c44c34519bf6be7c8",
+          "sourceRef": "codex/pluxx-345-codex-hook-root",
+          "sourceCommit": "ad91af3a112da8d97f0afb497e44f6f75ad7cfe7"
+        },
+        "request": {
+          "cwd": "/home/brandon/repos/pluxx-PLUXX-345-codex-hook-root",
+          "model": "gpt-5.6-luna",
+          "reasoningEffort": "medium",
+          "serviceTier": "priority",
+          "title": "PLUXX-345-implementation-codex-hook-root",
+          "method": "thread/start"
+        },
+        "requestedTitle": "PLUXX-345-implementation-codex-hook-root",
+        "observed": {
+          "model": "gpt-5.6-luna",
+          "reasoningEffort": "medium",
+          "serviceTier": "priority",
+          "title": "PLUXX-345-implementation-codex-hook-root",
+          "turnId": null
+        },
+        "titleEvidence": {
+          "state": "confirmed",
+          "requested": "PLUXX-345-implementation-codex-hook-root",
+          "observed": "PLUXX-345-implementation-codex-hook-root"
+        },
+        "modelEvidence": {
+          "source": "model/list",
+          "model": "gpt-5.6-luna",
+          "reasoningEffort": "medium",
+          "priorityObserved": true
+        },
+        "execution": {
+          "model": "gpt-5.6-luna",
+          "reasoningEffort": "medium",
+          "role": "execute-pinned-plan-only",
+          "requestedServiceTier": "fast",
+          "serviceTierControl": "explicit",
+          "serviceTierEvidence": "thread/start confirmed serviceTier=priority",
+          "observedServiceTier": "priority",
+          "fastModeState": "confirmed"
+        },
+        "observedAt": "2026-08-28T10:29:42.374Z",
+        "contentHash": "027cdbdd0e55fa0007ca9962cd70ad535c9e8554195fdc6f64d2653b8acdfb20"
+      }
+    }
+  ],
+  "exceptionReason": null,
+  "exceptionPaths": [],
+  "exceptionJustification": null,
+  "validation": [],
+  "verdict": "valid",
+  "observedAt": "2026-08-28T10:36:56.496Z"
+}
