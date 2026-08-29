@@ -37,7 +37,7 @@ function createHookWrapperFixture(): {
     wrapperPath,
     buildHookCommandWrapperScript(
       'node "${PLUXX_PLUGIN_ROOT}/scripts/print-workspace.mjs"',
-      'CODEX_PLUGIN_ROOT',
+      'PLUGIN_ROOT',
     ),
   )
 
@@ -56,7 +56,7 @@ describe('hook command wrapper environment', () => {
         encoding: 'utf-8',
         env: {
           ...process.env,
-          CODEX_PLUGIN_ROOT: fixture.pluginRoot,
+          PLUGIN_ROOT: fixture.pluginRoot,
         },
       })
 
@@ -76,10 +76,11 @@ describe('hook command wrapper environment', () => {
     try {
       const explicitResult = spawnSync('node', [fixture.wrapperPath], {
         cwd: fixture.root,
+        input: '',
         encoding: 'utf-8',
         env: {
           ...process.env,
-          CODEX_PLUGIN_ROOT: fixture.pluginRoot,
+          PLUGIN_ROOT: fixture.pluginRoot,
           PLUXX_HOOK_WORKSPACE_ROOT: fixture.workspaceRoot,
         },
       })
@@ -89,10 +90,11 @@ describe('hook command wrapper environment', () => {
 
       const noWorkspaceResult = spawnSync('node', [fixture.wrapperPath], {
         cwd: fixture.root,
+        input: '',
         encoding: 'utf-8',
         env: {
           ...process.env,
-          CODEX_PLUGIN_ROOT: fixture.pluginRoot,
+          PLUGIN_ROOT: fixture.pluginRoot,
         },
       })
 
@@ -116,13 +118,56 @@ describe('hook command wrapper environment', () => {
         encoding: 'utf-8',
         env: {
           ...process.env,
-          CODEX_PLUGIN_ROOT: fixture.pluginRoot,
+          PLUGIN_ROOT: fixture.pluginRoot,
           CODEX_WORKSPACE_ROOT: fixture.workspaceRoot,
         },
       })
 
       expect(result.status).toBe(0)
       expect(JSON.parse(result.stdout).workspaceRoot).toBe(payloadWorkspace)
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true })
+    }
+  })
+
+  it('falls back to the installed wrapper bundle when the documented root is unset', () => {
+    const fixture = createHookWrapperFixture()
+
+    try {
+      const env = { ...process.env }
+      delete env.PLUGIN_ROOT
+      const result = spawnSync('node', [fixture.wrapperPath], {
+        cwd: fixture.root,
+        input: '',
+        encoding: 'utf-8',
+        env,
+      })
+
+      expect(result.status).toBe(0)
+      expect(JSON.parse(result.stdout).pluginRoot).toBe(fixture.pluginRoot)
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects a stale documented root and uses the installed wrapper bundle', () => {
+    const fixture = createHookWrapperFixture()
+    const staleRoot = resolve(fixture.root, 'stale-bundle')
+    mkdirSync(staleRoot, { recursive: true })
+
+    try {
+      const result = spawnSync('node', [fixture.wrapperPath], {
+        cwd: fixture.root,
+        input: '',
+        encoding: 'utf-8',
+        env: {
+          ...process.env,
+          PLUGIN_ROOT: staleRoot,
+        },
+      })
+
+      expect(result.status).toBe(0)
+      expect(JSON.parse(result.stdout).pluginRoot).toBe(fixture.pluginRoot)
     } finally {
       rmSync(fixture.root, { recursive: true, force: true })
     }

@@ -724,7 +724,7 @@ describe('build', () => {
     )
     expect(cursorHooks.hooks.sessionStart[0].command).toBe('node ./hooks/pluxx-hook-command-1.mjs')
     expect(codexHooks.hooks.SessionStart[0].hooks[0].type).toBe('command')
-    expect(codexHooks.hooks.SessionStart[0].hooks[0].command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
+    expect(codexHooks.hooks.SessionStart[0].hooks[0].command).toBe('node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
     expect(opencodeIndex).toContain('const buildHookShellCommand = (rawCommand: string): string => {')
     expect(opencodeIndex).toContain('const userConfig = loadUserConfig(pluginRoot)')
     expect(opencodeIndex).toContain('const userEnvRefs = userConfig.envRefs ?? {}')
@@ -811,7 +811,7 @@ describe('build', () => {
           ...process.env,
           ...(platform === 'cursor'
             ? { CURSOR_PLUGIN_ROOT: resolve(TEST_DIR, `hook-env-dist/${platform}`) }
-            : { CODEX_PLUGIN_ROOT: resolve(TEST_DIR, `hook-env-dist/${platform}`) }),
+            : { PLUGIN_ROOT: resolve(TEST_DIR, `hook-env-dist/${platform}`) }),
         },
       })
 
@@ -1011,7 +1011,7 @@ describe('build', () => {
     const codexHooks = JSON.parse(readFileSync(resolve(outDir, 'codex/hooks/hooks.json'), 'utf-8'))
     expect(claudeHooks.hooks.PreToolUse?.[0]?.hooks?.[0]?.command).toBe('node "${CLAUDE_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
     expect(cursorHooks.hooks.preToolUse?.[0]?.command).toBe('node ./hooks/pluxx-hook-command-1.mjs')
-    expect(codexHooks.hooks.PreToolUse?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
+    expect(codexHooks.hooks.PreToolUse?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
     expect(codexHooks).not.toHaveProperty('version')
 
     const claudeWrapperPath = resolve(outDir, 'claude-code/hooks/pluxx-hook-command-1.mjs')
@@ -1439,16 +1439,87 @@ describe('build', () => {
     })
     expect(codexManifest.hooks).toBe('./hooks/hooks.json')
     expect(codexBundledHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.type).toBe('command')
-    expect(codexBundledHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
+    expect(codexBundledHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
     expect(codexHooks.pluginBundleFeatureFlag).toBe('hooks')
     expect(codexHooks.generalFeatureFlag).toBe('hooks')
     expect(codexHooks.deprecatedGeneralFeatureFlag).toBe('codex_hooks')
-    expect(codexHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
+    expect(codexHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
     expect(readFileSync(resolve(OUT_DIR, 'codex/hooks/pluxx-hook-command-1.mjs'), 'utf-8')).toContain('${PLUXX_PLUGIN_ROOT}/scripts/validate.sh')
     expect(codexCommands.commands[0]?.id).toBe('pulse')
     expect(codexAgent).toContain('name = "escalation"')
     expect(codexAgent).toContain('description = "Escalation specialist."')
     expect(codexAgentsMd).toContain('## Command Routing')
+  })
+
+  it('executes exact generated Codex hook commands from an unrelated workspace', async () => {
+    const rootDir = resolve(TEST_DIR, 'codex-manifest-command-execution')
+    const outDir = resolve(rootDir, 'dist')
+    const codexRoot = resolve(outDir, 'codex')
+    const unrelatedWorkspace = resolve(TEST_DIR, 'unrelated-codex-hook-workspace')
+
+    rmSync(rootDir, { recursive: true, force: true })
+    rmSync(unrelatedWorkspace, { recursive: true, force: true })
+    mkdirSync(resolve(rootDir, 'skills/basic'), { recursive: true })
+    mkdirSync(resolve(rootDir, 'scripts'), { recursive: true })
+    mkdirSync(unrelatedWorkspace, { recursive: true })
+    await Bun.write(
+      resolve(rootDir, 'skills/basic/SKILL.md'),
+      '---\nname: basic\ndescription: Basic skill\n---\n\nBasic skill body.\n',
+    )
+    for (const scriptName of ['session-start', 'user-prompt-submit']) {
+      await Bun.write(
+        resolve(rootDir, `scripts/${scriptName}.sh`),
+        `#!/usr/bin/env bash\nprintf '%s' "$PLUGIN_ROOT" > "$PLUGIN_ROOT/${scriptName}-proof.txt"\n`,
+      )
+    }
+
+    try {
+      await build({
+        ...testConfig,
+        name: 'codex-manifest-command-plugin',
+        skills: './skills/',
+        scripts: './scripts/',
+        brand: undefined,
+        assets: undefined,
+        hooks: {
+          sessionStart: [{ command: 'bash "${PLUGIN_ROOT}/scripts/session-start.sh"' }],
+          beforeSubmitPrompt: [{ command: 'bash "${PLUGIN_ROOT}/scripts/user-prompt-submit.sh"' }],
+        },
+        targets: ['codex'],
+        outDir: './dist',
+      }, rootDir)
+
+      const generatedHooks = JSON.parse(
+        readFileSync(resolve(codexRoot, 'hooks/hooks.json'), 'utf-8'),
+      ) as { hooks: Record<string, Array<{ hooks: Array<{ command: string }> }>> }
+      const commands = [
+        generatedHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command,
+        generatedHooks.hooks.UserPromptSubmit?.[0]?.hooks?.[0]?.command,
+      ]
+      expect(commands.every(Boolean)).toBe(true)
+
+      for (const [index, command] of commands.entries()) {
+        expect(command).not.toContain('CODEX_PLUGIN_ROOT')
+        expect(command).toContain('${PLUGIN_ROOT}/hooks/')
+        const env = { ...process.env, PLUGIN_ROOT: codexRoot }
+        delete env.CODEX_PLUGIN_ROOT
+        const result = spawnSync('sh', ['-c', command!], {
+          cwd: unrelatedWorkspace,
+          encoding: 'utf-8',
+          env,
+        })
+
+        expect(result.status, `hook command ${index + 1} failed: ${result.stderr}`).toBe(0)
+        expect(result.stderr).not.toContain("Cannot find module '/hooks")
+        expect(result.stderr).not.toContain("Cannot find module '/.codex")
+      }
+
+      expect(readFileSync(resolve(codexRoot, 'session-start-proof.txt'), 'utf-8')).toBe(codexRoot)
+      expect(readFileSync(resolve(codexRoot, 'user-prompt-submit-proof.txt'), 'utf-8')).toBe(codexRoot)
+    } finally {
+      rmSync(rootDir, { recursive: true, force: true })
+      rmSync(unrelatedWorkspace, { recursive: true, force: true })
+    }
   })
 
   it('generates OpenCode plugin wrapper with env var check', async () => {
@@ -1745,18 +1816,18 @@ describe('build', () => {
 
     expect(existsSync(resolve(TEST_DIR, 'readiness-dist/codex/.codex/pluxx-readiness.mjs'))).toBe(true)
     expect(codexBundledHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.type).toBe('command')
-    expect(codexBundledHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/.codex/pluxx-readiness.mjs" session-start')
+    expect(codexBundledHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/.codex/pluxx-readiness.mjs" session-start')
     expect(codexBundledHooks.hooks.PreToolUse?.[0]?.matcher).toBe('MCP')
-    expect(codexBundledHooks.hooks.PreToolUse?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/.codex/pluxx-readiness.mjs" mcp-gate')
+    expect(codexBundledHooks.hooks.PreToolUse?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/.codex/pluxx-readiness.mjs" mcp-gate')
     expect(codexHooks.pluginBundleFeatureFlag).toBe('hooks')
     expect(codexHooks.generalFeatureFlag).toBe('hooks')
     expect(codexHooks.deprecatedGeneralFeatureFlag).toBe('codex_hooks')
-    expect(codexHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/.codex/pluxx-readiness.mjs" session-start')
+    expect(codexHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/.codex/pluxx-readiness.mjs" session-start')
     expect(codexHooks.hooks.PreToolUse?.[0]?.matcher).toBe('MCP')
-    expect(codexHooks.hooks.PreToolUse?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/.codex/pluxx-readiness.mjs" mcp-gate')
-    expect(codexHooks.hooks.UserPromptSubmit?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/.codex/pluxx-readiness.mjs" prompt-gate')
+    expect(codexHooks.hooks.PreToolUse?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/.codex/pluxx-readiness.mjs" mcp-gate')
+    expect(codexHooks.hooks.UserPromptSubmit?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/.codex/pluxx-readiness.mjs" prompt-gate')
     expect(codexReadiness.model).toBe('pluxx.readiness.v1')
-    expect(codexReadiness.translatedHooks.mcpGate).toBe('node "${CODEX_PLUGIN_ROOT}/.codex/pluxx-readiness.mjs" mcp-gate')
+    expect(codexReadiness.translatedHooks.mcpGate).toBe('node "${PLUGIN_ROOT}/.codex/pluxx-readiness.mjs" mcp-gate')
 
     expect(existsSync(resolve(TEST_DIR, 'readiness-dist/opencode/runtime/pluxx-readiness.mjs'))).toBe(true)
     expect(opencodeIndex).toContain('const READINESS_SCRIPT = "runtime/pluxx-readiness.mjs"')
@@ -1783,19 +1854,19 @@ describe('build', () => {
 
     expect(codexBundledHooks.hooks.SessionStart?.[0]?.hooks?.[0]).toEqual({
       type: 'command',
-      command: 'node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"',
+      command: 'node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"',
     })
     expect(codexBundledHooks.hooks.UserPromptSubmit?.[0]?.hooks?.[0]).toEqual({
       type: 'command',
-      command: 'node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-2.mjs"',
+      command: 'node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-2.mjs"',
     })
     expect(codexHooks.model).toBe('pluxx.codex-hooks.v1')
     expect(codexHooks.pluginBundleFeatureFlag).toBe('hooks')
     expect(codexHooks.generalFeatureFlag).toBe('hooks')
     expect(codexHooks.deprecatedGeneralFeatureFlag).toBe('codex_hooks')
     expect(codexBundledHooks).not.toHaveProperty('version')
-    expect(codexHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
-    expect(codexHooks.hooks.UserPromptSubmit?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-2.mjs"')
+    expect(codexHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
+    expect(codexHooks.hooks.UserPromptSubmit?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-2.mjs"')
     expect(readFileSync(resolve(OUT_DIR, 'codex/hooks/pluxx-hook-command-1.mjs'), 'utf-8')).toContain('${PLUXX_PLUGIN_ROOT}/scripts/validate.sh')
     expect(readFileSync(resolve(OUT_DIR, 'codex/hooks/pluxx-hook-command-2.mjs'), 'utf-8')).toContain('${PLUXX_PLUGIN_ROOT}/scripts/check-prompt.sh')
   })
@@ -1828,15 +1899,15 @@ describe('build', () => {
       unsupported?: unknown[]
     }
 
-    expect(codexBundledHooks.hooks.SubagentStart?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
-    expect(codexBundledHooks.hooks.PreCompact?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-2.mjs"')
-    expect(codexBundledHooks.hooks.PostCompact?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-3.mjs"')
-    expect(codexBundledHooks.hooks.SubagentStop?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-4.mjs"')
+    expect(codexBundledHooks.hooks.SubagentStart?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
+    expect(codexBundledHooks.hooks.PreCompact?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-2.mjs"')
+    expect(codexBundledHooks.hooks.PostCompact?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-3.mjs"')
+    expect(codexBundledHooks.hooks.SubagentStop?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-4.mjs"')
     expect(codexBundledHooks).not.toHaveProperty('version')
-    expect(codexHooks.hooks.SubagentStart?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
-    expect(codexHooks.hooks.PreCompact?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-2.mjs"')
-    expect(codexHooks.hooks.PostCompact?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-3.mjs"')
-    expect(codexHooks.hooks.SubagentStop?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-4.mjs"')
+    expect(codexHooks.hooks.SubagentStart?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
+    expect(codexHooks.hooks.PreCompact?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-2.mjs"')
+    expect(codexHooks.hooks.PostCompact?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-3.mjs"')
+    expect(codexHooks.hooks.SubagentStop?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-4.mjs"')
     expect(codexHooks.unsupported).toBeUndefined()
   })
 
@@ -1908,18 +1979,18 @@ describe('build', () => {
     expect(codexBundledHooks.hooks.PreToolUse?.[0]?.matcher).toBe('Bash')
     expect(codexBundledHooks.hooks.PreToolUse?.[0]?.hooks?.[0]).toEqual({
       type: 'command',
-      command: 'node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"',
+      command: 'node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"',
     })
     expect(codexBundledHooks.hooks.PermissionRequest?.[0]?.matcher).toBe('Edit')
     expect(codexBundledHooks.hooks.PermissionRequest?.[0]?.hooks?.[0]).toEqual({
       type: 'command',
-      command: 'node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-2.mjs"',
+      command: 'node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-2.mjs"',
     })
     expect(codexBundledHooks.hooks.UserPromptSubmit).toBeUndefined()
     expect(codexHooks.hooks.PreToolUse?.[0]?.matcher).toBe('Bash')
-    expect(codexHooks.hooks.PreToolUse?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
+    expect(codexHooks.hooks.PreToolUse?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
     expect(codexHooks.hooks.PermissionRequest?.[0]?.matcher).toBe('Edit')
-    expect(codexHooks.hooks.PermissionRequest?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-2.mjs"')
+    expect(codexHooks.hooks.PermissionRequest?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-2.mjs"')
     expect(codexHooks.hooks.PreToolUse?.[0]?.hooks?.[0]?.timeout).toBeUndefined()
     expect(codexHooks.hooks.UserPromptSubmit).toBeUndefined()
     expect(codexHooks.unsupported).toEqual(

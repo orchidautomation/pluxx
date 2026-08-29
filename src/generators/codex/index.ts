@@ -285,7 +285,7 @@ export class CodexGenerator extends Generator {
 
   private async generateHooksCompanion(): Promise<void> {
     const readinessPlan = getRuntimeReadinessPlan(this.config.readiness)
-    const readinessCapability = getRuntimeReadinessCapability('codex', 'CODEX_PLUGIN_ROOT')
+    const readinessCapability = getRuntimeReadinessCapability('codex', 'PLUGIN_ROOT')
     if (!this.config.hooks && !readinessPlan.hasReadiness) return
 
     const hooks: Record<string, CodexHookMatcherGroup[]> = {}
@@ -343,7 +343,7 @@ export class CodexGenerator extends Generator {
         const relativePath = `hooks/pluxx-hook-command-${nextWrapperIndex}.mjs`
         await this.writeFile(
           relativePath,
-          buildHookCommandWrapperScript(entry.command.replace('${PLUGIN_ROOT}', '${PLUXX_PLUGIN_ROOT}'), 'CODEX_PLUGIN_ROOT'),
+          buildHookCommandWrapperScript(entry.command.replace('${PLUGIN_ROOT}', '${PLUXX_PLUGIN_ROOT}'), 'PLUGIN_ROOT'),
         )
 
         const matcher = typeof entry.matcher === 'string' && isHookFieldPreserved('codex', 'matcher', codexEvent)
@@ -352,7 +352,7 @@ export class CodexGenerator extends Generator {
 
         mappedEntries.push(this.buildCodexCommandHookGroup(
           codexEvent,
-          `node "\${CODEX_PLUGIN_ROOT}/${relativePath}"`,
+          `node "\${PLUGIN_ROOT}/${relativePath}"`,
           matcher,
           entry.timeout,
         ))
@@ -384,7 +384,7 @@ export class CodexGenerator extends Generator {
 
   private async generateReadinessCompanion(): Promise<void> {
     const readinessPlan = getRuntimeReadinessPlan(this.config.readiness)
-    const readinessCapability = getRuntimeReadinessCapability('codex', 'CODEX_PLUGIN_ROOT')
+    const readinessCapability = getRuntimeReadinessCapability('codex', 'PLUGIN_ROOT')
     if (!readinessPlan.hasReadiness || !this.config.readiness) return
 
     const translatedHooks = Object.fromEntries(
