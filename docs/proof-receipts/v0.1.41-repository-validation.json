@@ -1,0 +1,23 @@
+{
+  "id": "v0.1.41-repository-validation",
+  "tier": "bundle-contract",
+  "freshness": "current",
+  "commitSha": "e3d9cd3389673dfa6ff8f22939c287dee20866db",
+  "packageVersion": "0.1.41",
+  "timestamp": "2026-08-29T12:53:34.450Z",
+  "commands": [
+    {
+      "command": "npm run release:check",
+      "outcome": "passed"
+    }
+  ],
+  "targets": [
+    {
+      "target": "repository",
+      "hostVersion": null,
+      "installedPath": null,
+      "sha256": null,
+      "outcome": "passed"
+    }
+  ]
+}

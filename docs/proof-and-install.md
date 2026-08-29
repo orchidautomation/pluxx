@@ -1,6 +1,6 @@
 # Proof And Install
 
-Last updated: 2026-08-08
+Last updated: 2026-08-29
 
 ## Doc Links
 
@@ -30,9 +30,9 @@ This is the shortest current repo-native path to:
 
 For the fuller release/distribution boundary, including publish commands and deferred marketplace/trust-layer work, use [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md).
 
-Proof labels and freshness come from [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json). The May self-hosted run, April Firecrawl connector run, and shipped 0.1.37 through 0.1.39 evidence remain historical relative to the canonical public `0.1.40` release.
+Proof labels and freshness come from [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json). The May self-hosted run, April Firecrawl connector run, and shipped 0.1.37 through 0.1.40 evidence remain historical relative to the 0.1.41 release candidate.
 
-Canonical 0.1.40 covers only the PLUXX-344 hook workspace-precedence repair. Fresh receipts `v0.1.40-repository-validation` and `v0.1.40-fake-home-install` bind to exact release-prep commit `32019d73f046ce7b69a55bff0019e0afa948b0c0`, where the complete release gate passed on 2026-08-08; immutable tag `v0.1.40` points to trusted merge `8a7152a0433a930608caca73283040c068762071` and its npm and GitHub tarballs are byte-identical at SHA-256 `5e9b39c5ad0a2a2b99bf8335ae7b8e51552d7679744a2beafbd323e6b89e3ab3`.
+The 0.1.41 release candidate carries the merged PLUXX-345 Codex hook-root repair. Fresh repository and isolated fake-home receipts bind to exact release-prep commit `e3d9cd3389673dfa6ff8f22939c287dee20866db`, where the complete release gate passed. Installed Codex Desktop verification remains explicitly outstanding until after a real 0.1.41 release; source and fixture proof must not be relabeled as installed proof.
 
 ## The Story In One Screen
 

@@ -1,0 +1,48 @@
+{
+  "schema": "orchid.work.execution-shape/v1",
+  "repository": "orchidautomation/pluxx",
+  "sourceRef": "codex/pluxx-345-release-0.1.41",
+  "sourceCommit": "ad42f52a874110761163334344d84bf95f69db14",
+  "plan": {
+    "path": "docs/orchid/plans/2026-08-29-pluxx-345-release-0.1.41.md",
+    "sha256": "bc674e38519e7daec17994b9d63253596bb265eda05b85cb8759a4728776b934",
+    "sourceRef": "codex/pluxx-345-release-0.1.41",
+    "sourceCommit": "ad42f52a874110761163334344d84bf95f69db14"
+  },
+  "risk": "Elevated",
+  "orchestrationRequired": true,
+  "selectedShape": "sol-implementation-exception",
+  "delivery": {
+    "shape": "cumulative-pr",
+    "sourceRef": "codex/pluxx-345-release-0.1.41",
+    "targetRef": "main",
+    "pullRequestCount": 1
+  },
+  "solIntegrationOwnership": [
+    "docs/orchid/reviews"
+  ],
+  "lunaLanes": [],
+  "exceptionReason": "risk-escalation",
+  "exceptionPaths": [
+    ".github/workflows/release.yml",
+    "package.json",
+    "package-lock.json",
+    "docs/proof-manifest.json",
+    "docs/proof-freshness.md",
+    "docs/proof-and-install.md",
+    "docs/proof-receipts",
+    "docs/releasing-pluxx.md",
+    "docs/todo/queue.md",
+    "docs/todo/master-backlog.md",
+    "docs/orchid/plans/2026-08-29-pluxx-345-release-0.1.41.md"
+  ],
+  "exceptionJustification": "The visible Luna retry reached a terminal failed event during release validation and left uncommitted release metadata that prematurely claimed current 0.1.41 proof without exact receipts. Sol took over only the bounded release-preparation paths to remove the unsupported claims, preserve historical proof, run the complete gate without weakening checks, and bind receipts after an exact passing commit. Proof-integrity correction at a public release boundary is a risk escalation, not a convenience substitution.",
+  "validation": [
+    "npm run proof:check — passed with 26 claims and 26 receipts after binding",
+    "npx vitest run tests/agent-mode.test.ts — 48 passed in isolation after duplicate-run contamination was removed",
+    "npm run release:check — passed at exact receipt commit e3d9cd3389673dfa6ff8f22939c287dee20866db with 62 files and 832 tests plus packed-runtime and dry-pack verification",
+    "git diff --check — passed"
+  ],
+  "verdict": "valid",
+  "observedAt": "2026-08-29T12:56:00.000Z"
+}
