@@ -30,9 +30,9 @@ This is the shortest current repo-native path to:
 
 For the fuller release/distribution boundary, including publish commands and deferred marketplace/trust-layer work, use [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md).
 
-Proof labels and freshness come from [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json). The May self-hosted run, April Firecrawl connector run, and shipped 0.1.37 through 0.1.40 evidence remain historical relative to the 0.1.41 release candidate.
+Proof labels and freshness come from [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json). The May self-hosted run, April Firecrawl connector run, and shipped 0.1.37 through 0.1.40 evidence remain historical relative to the canonical public 0.1.41 release.
 
-The 0.1.41 release candidate carries the merged PLUXX-345 Codex hook-root repair. Fresh repository and isolated fake-home receipts bind to exact release-prep commit `e3d9cd3389673dfa6ff8f22939c287dee20866db`, where the complete release gate passed. Installed Codex Desktop verification remains explicitly outstanding until after a real 0.1.41 release; source and fixture proof must not be relabeled as installed proof.
+Canonical 0.1.41 carries the merged PLUXX-345 Codex hook-root repair. Fresh repository and isolated fake-home receipts bind to exact release-prep commit `e3d9cd3389673dfa6ff8f22939c287dee20866db`, where the complete release gate passed. Immutable tag `v0.1.41` points to trusted merge `0379d2c646ad9b83fb31016d9d553ba5dea96e76`, and npm and GitHub serve byte-identical tarballs at SHA-256 `25e0039ad63f10a79970d8028c56461f9813cbfb522088be93beba18bde6508e`. Installed Codex Desktop verification remains explicitly outstanding; source, fixture, and isolated CLI proof must not be relabeled as installed-host proof.
 
 ## The Story In One Screen
 
@@ -210,7 +210,7 @@ curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example
 
 Current release note:
 
-- the canonical and verified public release is `@orchid-labs/pluxx@0.1.40` / `v0.1.40`, only for the PLUXX-344 hook workspace-precedence repair; npm and GitHub serve the same verified tarball at SHA-256 `5e9b39c5ad0a2a2b99bf8335ae7b8e51552d7679744a2beafbd323e6b89e3ab3`
+- the canonical and verified public release is `@orchid-labs/pluxx@0.1.41` / `v0.1.41`, only for the PLUXX-345 Codex hook-root repair; npm and GitHub serve the same verified tarball at SHA-256 `25e0039ad63f10a79970d8028c56461f9813cbfb522088be93beba18bde6508e`
 - 0.1.38 remains the shipped and independently verified historical PLUXX-340 duplicate archive-identity correction
 - 0.1.37 remains the shipped and independently verified historical PLUXX-339 runtime env-sourcing security release
 - the published CLI runtime is Node `>=18`; see [runtime contract](./runtime-contract.md)

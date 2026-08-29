@@ -131,13 +131,15 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
 - [x] Merge recovery PR #463 exact head `4024ca07fe9cc78b98e93bb0931b8d91ddc36f0f` as trusted main `a67803184890795457d095da52f4a243d61daf2a`, then dispatch run `30154432818` without moving or recreating `v0.1.38`
 - [x] Verify npm, GitHub release assets and recovery receipt, byte-identical tarballs at SHA-256 `34af5bd24a441f13094b651658d6728509771a8cb9295f82b1bc66a985cb2c24`, immutable tag provenance, and isolated installed CLI `0.1.38`
 
-### 0. v0.1.41 Codex hook-root release preparation
+### 0. v0.1.41 Codex hook-root release
 
 - [x] PLUXX-345 source fix merged through PR #479 at trusted merge `fc16e218ede1f49ae2a9993983875b67613a24b5`
-- [~] Prepare synchronized 0.1.41 package, proof, planning, recovery-default, and release truth
+- [x] Prepare synchronized 0.1.41 package, proof, planning, recovery-default, and release truth
 - [x] Bind fresh repository-validation and fake-home-install receipts to exact release-prep commit `e3d9cd3389673dfa6ff8f22939c287dee20866db`
-- [ ] Pass the complete release gate and open one validated PR targeting main
-- [ ] Tag, publish, or claim installed Codex Desktop proof; these remain downstream release actions
+- [x] Pass the complete release gate and merge PR #480 exact head `ad829457f49ee8846625ffdc3651ac11e439945c` with trusted merge `0379d2c646ad9b83fb31016d9d553ba5dea96e76`
+- [x] Push immutable tag `v0.1.41` and verify Release run `33254601754`, npm, GitHub release asset, byte-identical tarballs at SHA-256 `25e0039ad63f10a79970d8028c56461f9813cbfb522088be93beba18bde6508e`, tag provenance, and isolated CLI `0.1.41`
+- [ ] Capture installed Codex Desktop proof separately; package, fake-home, and isolated CLI evidence do not satisfy this host-proof tier
+- [ ] Execute the already-pushed MDP-211 and SENDOSS-174 rebuild plans after Relay can canonically bootstrap valid legacy issues from the unlabeled lifecycle state; do not bypass the failed `delegation.ready` transition with manual managed labels
 
 ### 1. Historical v0.1.40 hook workspace precedence
 
