@@ -1,6 +1,6 @@
 # Pluxx Queue
 
-Last updated: 2026-08-08
+Last updated: 2026-08-29
 
 ## Doc Links
 
@@ -188,7 +188,8 @@ The initial author-once hardening tranche is also materially done.
 The public baseline is also real.
 
 - npm package is live as `@orchid-labs/pluxx`
-- the canonical and independently verified public release is `@orchid-labs/pluxx@0.1.40` / `v0.1.40` for PLUXX-344; npm and GitHub serve the same tarball at SHA-256 `5e9b39c5ad0a2a2b99bf8335ae7b8e51552d7679744a2beafbd323e6b89e3ab3`
+- the canonical repository release candidate is `@orchid-labs/pluxx@0.1.41` for PLUXX-345; it is merged at source level but not yet tagged or published
+- the independently verified public release remains `@orchid-labs/pluxx@0.1.40` / `v0.1.40`; npm and GitHub serve the same tarball at SHA-256 `5e9b39c5ad0a2a2b99bf8335ae7b8e51552d7679744a2beafbd323e6b89e3ab3`
 - 0.1.39 is now the historical PLUXX-341/PLUXX-342 quiet OpenCode hook-scope release
 - 0.1.38 is only the PLUXX-340 manifest-identity correction discovered after the shipped and independently verified 0.1.37 release
 - proof claims now use [docs/proof-freshness.md](../proof-freshness.md) and [docs/proof-manifest.json](../proof-manifest.json) so historical host runs cannot masquerade as current evidence
@@ -561,7 +562,15 @@ Current work:
 - [x] merge recovery PR #463 exact head `4024ca07fe9cc78b98e93bb0931b8d91ddc36f0f` as trusted main `a67803184890795457d095da52f4a243d61daf2a`, then dispatch run `30154432818` without moving or recreating `v0.1.38`
 - [x] verify npm, GitHub release assets and recovery receipt, byte-identical tarballs at SHA-256 `34af5bd24a441f13094b651658d6728509771a8cb9295f82b1bc66a985cb2c24`, immutable tag provenance, and isolated installed CLI `0.1.38`
 
-### 11. Historical v0.1.40 hook workspace precedence
+### 11. v0.1.41 Codex hook-root release preparation
+
+- [x] PLUXX-345 source fix merged through PR #479 at trusted merge `fc16e218ede1f49ae2a9993983875b67613a24b5`
+- [~] prepare synchronized 0.1.41 package, proof, planning, recovery-default, and release truth
+- [ ] bind fresh repository-validation and fake-home-install receipts to the exact release-prep commit
+- [ ] pass the complete release gate and open one validated PR targeting main
+- [ ] tag, publish, or claim installed Codex Desktop proof; these remain downstream release actions
+
+### 12. Historical v0.1.40 hook workspace precedence
 
 - [x] merge PR #473 exact reviewed head `80e12d6cc50efb14749d8cb1968d3ec8170abdb7` as true merge commit `d893bb3d6aba5235481c51f8fb5b2d1c5e4065bb`
 - [x] Historical: prepare synchronized 0.1.40 package, proof, planning, recovery-default, and release truth
@@ -570,7 +579,7 @@ Current work:
 - [x] push immutable tag `v0.1.40` and verify Release run `31283794540`, npm, GitHub release asset, byte-identical tarballs at SHA-256 `5e9b39c5ad0a2a2b99bf8335ae7b8e51552d7679744a2beafbd323e6b89e3ab3`, tag provenance, and isolated CLI `0.1.40`
 - [x] Historical downstream installed-artifact proof: rebuild Message Decision Packs against released Pluxx `0.1.40`, publish MDP `v0.1.61` from trusted merge `b7d28223f05e4bcc6b7ef9b5837ba3392faaf0f8`, and verify the documented all-agent installer plus an idempotent Codex reinstall on an installed host
 
-### 12. Historical v0.1.39 quiet OpenCode hook scope
+### 13. Historical v0.1.39 quiet OpenCode hook scope
 
 - [x] merge PR #468 exact reviewed head `e4c11db` as true merge commit `a750c593f1fb694a71aa60365ae6f8792e51a246`
 - [x] Historical: prepare synchronized 0.1.39 package, proof, planning, recovery-default, and release truth
