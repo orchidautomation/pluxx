@@ -39,7 +39,7 @@ If you want the shortest public proof and install path after this file, use [doc
 
 If you want the current release, distribution, and proof boundary, use [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md).
 
-If you need to know whether a proof claim is current, historical, repository-only, installed, or real-host evidence, use [docs/proof-freshness.md](./proof-freshness.md) and [docs/proof-manifest.json](./proof-manifest.json). Canonical repository and independently verified public release truth is `@orchid-labs/pluxx@0.1.40` for the PLUXX-344 hook workspace-precedence repair.
+If you need to know whether a proof claim is current, historical, repository-only, installed, or real-host evidence, use [docs/proof-freshness.md](./proof-freshness.md) and [docs/proof-manifest.json](./proof-manifest.json). Canonical repository and independently verified public release truth is `@orchid-labs/pluxx@0.1.41` for the PLUXX-345 Codex hook-root repair.
 
 If you want the primitive-by-host proof ledger behind the core-four native shipping claim, use [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md).
 
@@ -369,8 +369,8 @@ The repo already proves a lot.
 - historical release-gate evidence from 2026-05-19 remains available but is not current proof:
   - `npm test` passed
   - `npm run release:check` passed
-- the canonical and verified public release is `@orchid-labs/pluxx@0.1.40` / `v0.1.40`; npm and GitHub serve the same tarball at SHA-256 `5e9b39c5ad0a2a2b99bf8335ae7b8e51552d7679744a2beafbd323e6b89e3ab3`
-- `0.1.40` contains only the merged PLUXX-344 hook workspace-precedence repair
+- the canonical and verified public release is `@orchid-labs/pluxx@0.1.41` / `v0.1.41`; npm and GitHub serve the same tarball at SHA-256 `25e0039ad63f10a79970d8028c56461f9813cbfb522088be93beba18bde6508e`
+- `0.1.41` contains only the merged PLUXX-345 Codex hook-root repair
 - immutable tag `v0.1.38` records only the follow-up PLUXX-340 correction for duplicate release-manifest archive identities discovered after the historical shipped 0.1.37 release
 - marketplace submission APIs, a managed trust/distribution control plane, automatic rollback/unpublish orchestration, and real authenticated publish plus rollback proof remain explicit release gaps, not hidden shipped capabilities:
   - `docs/release-distribution-proof-map.md`
@@ -541,7 +541,7 @@ Run two lanes in parallel:
 
 ### 6. Release State
 
-The canonical repository and verified public release is `@orchid-labs/pluxx@0.1.40`; immutable tag `v0.1.40` remains at trusted merge `8a7152a0433a930608caca73283040c068762071`.
+The canonical repository and verified public release is `@orchid-labs/pluxx@0.1.41`; immutable tag `v0.1.41` remains at trusted merge `0379d2c646ad9b83fb31016d9d553ba5dea96e76`.
 
 For v0.1.37, PLUXX-339 is the tagged security focus: lint, doctor, install, and packaged-runtime verification fail closed when bundled runtime scripts source workspace `.env` files through direct or statically evaluable shell forms. The patch preserves valid safe shell forms and uses a bounded explicit scanner rather than an expanding regex.
 
@@ -550,6 +550,8 @@ For historical tagged v0.1.38, PLUXX-340 is the only release focus: one unambigu
 For v0.1.39, PLUXX-341/PLUXX-342 is the only release focus: OpenCode hooks keep matcher scope, normalize supported tool alternatives consistently, and doctor fails closed on malformed or unscoped plans without emitting noisy health output.
 
 For v0.1.40, PLUXX-344 is the only release focus: explicit hook roots remain authoritative, hook payload workspace context wins over stale ambient variables, and legacy fallback behavior remains available when payload workspace context is absent.
+
+For v0.1.41, PLUXX-345 is the only release focus: generated Codex hooks resolve the installed plugin root even when `CODEX_PLUGIN_ROOT` is unset, without weakening explicit-root precedence or legacy fallbacks. Installed Codex Desktop verification remains separate from repository, fake-home, and isolated CLI proof.
 
 ## Working Rules
 

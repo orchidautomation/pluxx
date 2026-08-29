@@ -188,8 +188,8 @@ The initial author-once hardening tranche is also materially done.
 The public baseline is also real.
 
 - npm package is live as `@orchid-labs/pluxx`
-- the canonical repository release candidate is `@orchid-labs/pluxx@0.1.41` for PLUXX-345; it is merged at source level but not yet tagged or published
-- the independently verified public release remains `@orchid-labs/pluxx@0.1.40` / `v0.1.40`; npm and GitHub serve the same tarball at SHA-256 `5e9b39c5ad0a2a2b99bf8335ae7b8e51552d7679744a2beafbd323e6b89e3ab3`
+- the canonical and independently verified public release is `@orchid-labs/pluxx@0.1.41` / `v0.1.41` for PLUXX-345; npm and GitHub serve the same tarball at SHA-256 `25e0039ad63f10a79970d8028c56461f9813cbfb522088be93beba18bde6508e`
+- 0.1.40 is now the historical PLUXX-344 hook workspace-precedence release
 - 0.1.39 is now the historical PLUXX-341/PLUXX-342 quiet OpenCode hook-scope release
 - 0.1.38 is only the PLUXX-340 manifest-identity correction discovered after the shipped and independently verified 0.1.37 release
 - proof claims now use [docs/proof-freshness.md](../proof-freshness.md) and [docs/proof-manifest.json](../proof-manifest.json) so historical host runs cannot masquerade as current evidence
@@ -562,13 +562,15 @@ Current work:
 - [x] merge recovery PR #463 exact head `4024ca07fe9cc78b98e93bb0931b8d91ddc36f0f` as trusted main `a67803184890795457d095da52f4a243d61daf2a`, then dispatch run `30154432818` without moving or recreating `v0.1.38`
 - [x] verify npm, GitHub release assets and recovery receipt, byte-identical tarballs at SHA-256 `34af5bd24a441f13094b651658d6728509771a8cb9295f82b1bc66a985cb2c24`, immutable tag provenance, and isolated installed CLI `0.1.38`
 
-### 11. v0.1.41 Codex hook-root release preparation
+### 11. v0.1.41 Codex hook-root release
 
 - [x] PLUXX-345 source fix merged through PR #479 at trusted merge `fc16e218ede1f49ae2a9993983875b67613a24b5`
-- [~] prepare synchronized 0.1.41 package, proof, planning, recovery-default, and release truth
+- [x] prepare synchronized 0.1.41 package, proof, planning, recovery-default, and release truth
 - [x] bind fresh repository-validation and fake-home-install receipts to exact release-prep commit `e3d9cd3389673dfa6ff8f22939c287dee20866db`
-- [ ] pass the complete release gate and open one validated PR targeting main
-- [ ] tag, publish, or claim installed Codex Desktop proof; these remain downstream release actions
+- [x] pass the complete release gate and merge PR #480 exact head `ad829457f49ee8846625ffdc3651ac11e439945c` with trusted merge `0379d2c646ad9b83fb31016d9d553ba5dea96e76`
+- [x] push immutable tag `v0.1.41` and verify Release run `33254601754`, npm, GitHub release asset, byte-identical tarballs at SHA-256 `25e0039ad63f10a79970d8028c56461f9813cbfb522088be93beba18bde6508e`, tag provenance, and isolated CLI `0.1.41`
+- [ ] capture installed Codex Desktop proof separately; package, fake-home, and isolated CLI evidence do not satisfy this host-proof tier
+- [ ] execute the already-pushed MDP-211 and SENDOSS-174 rebuild plans after Relay can canonically bootstrap valid legacy issues from the unlabeled lifecycle state; do not bypass the failed `delegation.ready` transition with manual managed labels
 
 ### 12. Historical v0.1.40 hook workspace precedence
 
