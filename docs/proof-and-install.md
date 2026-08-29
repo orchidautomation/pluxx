@@ -32,7 +32,7 @@ For the fuller release/distribution boundary, including publish commands and def
 
 Proof labels and freshness come from [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json). The May self-hosted run, April Firecrawl connector run, and shipped 0.1.37 through 0.1.40 evidence remain historical relative to the 0.1.41 release candidate.
 
-The 0.1.41 release candidate carries the merged PLUXX-345 Codex hook-root repair. Fresh repository and isolated fake-home receipts will bind to the exact release-prep commit after the complete gate passes. Installed Codex Desktop verification remains explicitly outstanding until after a real 0.1.41 release; source and fixture proof must not be relabeled as installed proof.
+The 0.1.41 release candidate carries the merged PLUXX-345 Codex hook-root repair. Fresh repository and isolated fake-home receipts bind to exact release-prep commit `e3d9cd3389673dfa6ff8f22939c287dee20866db`, where the complete release gate passed. Installed Codex Desktop verification remains explicitly outstanding until after a real 0.1.41 release; source and fixture proof must not be relabeled as installed proof.
 
 ## The Story In One Screen
 

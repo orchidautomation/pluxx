@@ -135,7 +135,7 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
 
 - [x] PLUXX-345 source fix merged through PR #479 at trusted merge `fc16e218ede1f49ae2a9993983875b67613a24b5`
 - [~] Prepare synchronized 0.1.41 package, proof, planning, recovery-default, and release truth
-- [ ] Bind fresh repository-validation and fake-home-install receipts to the exact release-prep commit
+- [x] Bind fresh repository-validation and fake-home-install receipts to exact release-prep commit `e3d9cd3389673dfa6ff8f22939c287dee20866db`
 - [ ] Pass the complete release gate and open one validated PR targeting main
 - [ ] Tag, publish, or claim installed Codex Desktop proof; these remain downstream release actions
 

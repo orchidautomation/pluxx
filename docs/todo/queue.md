@@ -566,7 +566,7 @@ Current work:
 
 - [x] PLUXX-345 source fix merged through PR #479 at trusted merge `fc16e218ede1f49ae2a9993983875b67613a24b5`
 - [~] prepare synchronized 0.1.41 package, proof, planning, recovery-default, and release truth
-- [ ] bind fresh repository-validation and fake-home-install receipts to the exact release-prep commit
+- [x] bind fresh repository-validation and fake-home-install receipts to exact release-prep commit `e3d9cd3389673dfa6ff8f22939c287dee20866db`
 - [ ] pass the complete release gate and open one validated PR targeting main
 - [ ] tag, publish, or claim installed Codex Desktop proof; these remain downstream release actions
 

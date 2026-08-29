@@ -198,6 +198,22 @@
       "freshness": "historical",
       "evidencePath": "tests/release-smoke.test.ts",
       "receiptId": "v0.1.40-fake-home-install"
+    },
+    {
+      "id": "v0.1.41-repository-validation",
+      "summary": "The exact v0.1.41 release-prep commit passes the complete repository release gate for the PLUXX-345 Codex hook-root repair.",
+      "tier": "bundle-contract",
+      "freshness": "current",
+      "evidencePath": "tests/proof-freshness.test.ts",
+      "receiptId": "v0.1.41-repository-validation"
+    },
+    {
+      "id": "v0.1.41-fake-home-install",
+      "summary": "The exact v0.1.41 release-prep commit passes maintained core-four isolated install coverage for the PLUXX-345 Codex hook-root repair.",
+      "tier": "fake-home-install",
+      "freshness": "current",
+      "evidencePath": "tests/release-smoke.test.ts",
+      "receiptId": "v0.1.41-fake-home-install"
     }
   ],
   "receipts": [
@@ -790,6 +806,52 @@
       "commitSha": "32019d73f046ce7b69a55bff0019e0afa948b0c0",
       "packageVersion": "0.1.40",
       "timestamp": "2026-08-08T22:49:53.927Z"
+    },
+    {
+      "id": "v0.1.41-repository-validation",
+      "tier": "bundle-contract",
+      "freshness": "current",
+      "commitSha": "e3d9cd3389673dfa6ff8f22939c287dee20866db",
+      "packageVersion": "0.1.41",
+      "timestamp": "2026-08-29T12:53:34.450Z",
+      "commands": [
+        {
+          "command": "npm run release:check",
+          "outcome": "passed"
+        }
+      ],
+      "targets": [
+        {
+          "target": "repository",
+          "hostVersion": null,
+          "installedPath": null,
+          "sha256": null,
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "v0.1.41-fake-home-install",
+      "tier": "fake-home-install",
+      "freshness": "current",
+      "commands": [
+        {
+          "command": "npm run release:check",
+          "outcome": "passed"
+        }
+      ],
+      "targets": [
+        {
+          "target": "claude-code,cursor,codex,opencode",
+          "hostVersion": null,
+          "installedPath": null,
+          "sha256": null,
+          "outcome": "passed"
+        }
+      ],
+      "commitSha": "e3d9cd3389673dfa6ff8f22939c287dee20866db",
+      "packageVersion": "0.1.41",
+      "timestamp": "2026-08-29T12:53:34.450Z"
     }
   ]
 }
