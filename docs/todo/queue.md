@@ -1,6 +1,6 @@
 # Pluxx Queue
 
-Last updated: 2026-08-29
+Last updated: 2026-08-30
 
 ## Doc Links
 
@@ -185,6 +185,18 @@ The initial author-once hardening tranche is also materially done.
 - the core-four native shipping claim now has a primitive-by-host proof ledger:
   - [docs/core-four-primitive-proof-ledger.md](../core-four-primitive-proof-ledger.md)
 
+## Active Portable-Core Release Lane
+
+The next cohesive execution path is deliberately split between implementation, release, and downstream proof:
+
+1. `PLUXX-346` — add the strict Agent Plugins v1 portable-core output without weakening or replacing the native core-four outputs; stop before version bump, publication, release, or active-home installation while retaining isolated clean-fixture discovery as implementation validation.
+2. `PLUXX-348` — after `PLUXX-346` merges and exact-main checks pass, prepare and publish the provisional `0.1.42` release containing the portable target, the merged native-overlay policy from `PLUXX-347`, and the merged Codex installer rollback repair from PR #483.
+3. `MDP-221` — consume the exact verified published Pluxx version, emit an Agent Plugins archive, preserve native hook behavior, and validate portable discovery under a separate portable-core contract.
+4. `MDP-222` — update downstream docs from installed evidence rather than planned behavior.
+5. `MDP-218` — compare the measured native and portable artifacts and record the keep / further narrow / switch decision.
+
+Do not treat a merged `PLUXX-346` PR as a shipped target. `MDP-221` remains blocked until `PLUXX-348` proves the public npm and GitHub artifacts plus an isolated installed portable-target smoke and clean Cursor/Codex fixture discovery. Do not claim portable MCP output unless the source project explicitly declares a supported portable MCP configuration.
+
 The public baseline is also real.
 
 - npm package is live as `@orchid-labs/pluxx`
@@ -230,10 +242,10 @@ Goal:
 Open work:
 
 - keep [docs/start-here.md](../start-here.md), this queue, the master backlog, and Linear aligned
-- treat Codex companion apply/verify as the next concrete robustness slice:
-  - make generated readiness, hook, MCP approval, and companion config guidance operational instead of advisory only
-  - keep this aligned with `PLUXX-226`, `PLUXX-264`, `PLUXX-248`, and [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
-  - build the companion workflow on the shipped install-ownership layer rather than reopening ownership as future work
+- treat the shipped Codex companion apply/verify slice as a maintained robustness surface:
+  - keep generated readiness, hook, MCP approval, and companion config guidance operational instead of advisory only
+  - keep remaining caveats aligned with `PLUXX-226`, `PLUXX-264`, `PLUXX-248`, and [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
+  - maintain the companion workflow on the shipped install-ownership layer rather than reopening ownership as future work
 - use [docs/core-four-reliability-register.md](../core-four-reliability-register.md) as the current Claude Code and Codex failure-mode inventory:
   - keep the documented break modes aligned with the actual proof stack
   - treat Cursor and OpenCode as secondary reliability follow-ons rather than flattening all four hosts into one identical work block
@@ -241,10 +253,10 @@ Open work:
 - tighten the remaining top-level docs framing and entrypoint docs
 - keep [docs/release-distribution-proof-map.md](../release-distribution-proof-map.md) aligned with CLI release/publish behavior and proof docs
 - keep [docs/core-four-primitive-proof-ledger.md](../core-four-primitive-proof-ledger.md) aligned with the matrix, reliability register, and maintained example proofs
-- make Codex companion apply and verify the next concrete product slice:
-  - turn generated Codex companion artifacts into a safe operational workflow rather than only advisory files
-  - cover hooks, readiness, MCP approval stanzas, companion config diffs/backups, idempotency, stale config, malformed companion artifacts, and no-op behavior when companion files are absent
-  - keep this aligned with `PLUXX-226`, `PLUXX-264`, and `PLUXX-248`
+- maintain the shipped Codex companion apply and verify workflow while closing its remaining narrow runtime gaps:
+  - preserve safe operational handling for generated Codex companion artifacts rather than treating them as only advisory files
+  - maintain coverage for hooks, readiness, MCP approval stanzas, companion config diffs/backups, idempotency, stale config, malformed companion artifacts, and no-op behavior when companion files are absent
+  - keep remaining caveats aligned with `PLUXX-226`, `PLUXX-264`, and `PLUXX-248`
   - use [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md) as the decision note
 - [x] Ship transactional core-four install ownership for conservative reinstall, uninstall, and content diagnostics:
 - [x] Ship PLUXX-333 trusted pre-ownership installer adoption so existing generated plugin installs can upgrade without manual removal:
@@ -622,7 +634,7 @@ These are real, but not the current queue:
 Right now the priority order is:
 
 1. keep the product story and source-of-truth docs clean
-2. make the OSS authoring substrate obviously useful, starting with Codex companion apply/verify as the next small robustness slice
+2. finish the Agent Plugins portable-core and release lane without weakening the native OSS authoring substrate
 3. prove richer plugin depth with a flagship example
 4. make the Pluxx plugin itself excellent
 5. use customer discovery to learn where the later trust layer should go

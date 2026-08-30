@@ -131,6 +131,16 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
 - [x] Merge recovery PR #463 exact head `4024ca07fe9cc78b98e93bb0931b8d91ddc36f0f` as trusted main `a67803184890795457d095da52f4a243d61daf2a`, then dispatch run `30154432818` without moving or recreating `v0.1.38`
 - [x] Verify npm, GitHub release assets and recovery receipt, byte-identical tarballs at SHA-256 `34af5bd24a441f13094b651658d6728509771a8cb9295f82b1bc66a985cb2c24`, immutable tag provenance, and isolated installed CLI `0.1.38`
 
+### 0. Active portable-core and v0.1.42 release lane
+
+- [ ] `PLUXX-346`: implement the strict Agent Plugins v1 portable-core target while preserving the native core four; stop before version bump, publication, release, or active-home installation while retaining isolated clean-fixture discovery as implementation validation
+- [x] `PLUXX-347`: merge the fail-closed native-enhancement overlay policy through PR #482
+- [x] Merge the Codex installer failure-path rollback repair through PR #483; publication remains pending
+- [ ] `PLUXX-348`: after `PLUXX-346` merges, prepare the provisional `0.1.42` release, bind receipts to the exact release-prep commit, pass `npm run release:check`, and stop for explicit tag/publication authorization
+- [ ] Verify the public npm package, GitHub release asset, checksum equality, isolated CLI, an isolated installed portable-target smoke, and clean Cursor/Codex fixture discovery before declaring the target shipped
+- [ ] `MDP-221`: consume the exact published release and validate portable-core discovery separately from native hook parity
+- [ ] `MDP-222` and `MDP-218`: update downstream guidance and record the measured keep / further narrow / switch decision
+
 ### 0. v0.1.41 Codex hook-root release
 
 - [x] PLUXX-345 source fix merged through PR #479 at trusted merge `fc16e218ede1f49ae2a9993983875b67613a24b5`
@@ -173,7 +183,7 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
   - marketplace submission APIs, managed trust/distribution, automatic remote rollback/unpublish, and live credentialed publish/rollback proof remain open
 - [~] Keep [docs/core-four-primitive-proof-ledger.md](../core-four-primitive-proof-ledger.md) current as the primitive-by-host proof ledger for the core-four native shipping claim
 - [~] Close the remaining ticket-state drift where shipped work can still appear as backlog in Linear
-- [~] Make Codex companion apply/verify the next concrete robustness slice so generated readiness, hook, MCP approval, and companion config artifacts become operational and verifiable instead of advisory only:
+- [~] Maintain the shipped Codex companion apply/verify surface and close only its remaining narrow runtime gaps:
   - `PLUXX-226`
   - `PLUXX-264`
   - `PLUXX-248`
@@ -185,7 +195,7 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
 - [ ] Decide which docs are public product docs vs strategy docs vs internal-only GTM docs
 - [ ] Move account-specific GTM and customer notes out of the public repo
 - [ ] Define a simple rule for when repo docs should be updated alongside Linear
-- [ ] Ship the first-class Codex companion apply and verify workflow as the next concrete product slice:
+- [x] Ship the first-class Codex companion apply and verify workflow; keep the remaining runtime caveats explicit:
   - register plugin-generated custom agents under the active `CODEX_HOME/agents/<plugin>/` through install and `codex apply`
   - verify missing, stale, conflicting, and unowned agent registrations
   - apply generated Codex companion config safely with reviewable diffs/backups
@@ -646,12 +656,12 @@ It is:
 
 If someone needs the next concrete path without reopening strategy debates:
 
-1. Finish any remaining clarity drift between repo docs and Linear.
-2. Build the flagship reference plugin.
-3. Capture the live docs-ingestion proof.
-4. Polish the self-hosted Pluxx plugin.
-5. Run customer discovery in the two explicit lanes.
-6. Cut the next release once those surfaces feel coherent together.
+1. Finish and review `PLUXX-346` without duplicating its active implementation lane.
+2. Run `PLUXX-348` from merged exact-main truth and publish the provisional `0.1.42` only after explicit authorization.
+3. Prove the public artifacts, an isolated installed portable-target smoke, and clean Cursor/Codex fixture discovery.
+4. Complete `MDP-221` against that exact published package while preserving native hook proof.
+5. Complete `MDP-222`, then record the measured `MDP-218` keep / further narrow / switch decision.
+6. Route the remaining host-acceptance and provider-refresh work through `PLUXX-289` and `PLUXX-309` from the resulting evidence.
 
 ## Linear Note
 

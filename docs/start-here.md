@@ -1,6 +1,6 @@
 # Start Here
 
-Last updated: 2026-08-08
+Last updated: 2026-08-30
 
 ## Doc Links
 
@@ -121,19 +121,16 @@ This is important strategically, but it should not drive the near-term roadmap.
 
 ## Current Next Ship
 
-The next concrete product slice is a first-class Codex companion apply and verify workflow.
+The active product slice is the strict Agent Plugins v1 portable-core target tracked by `PLUXX-346`, followed by the explicit `PLUXX-348` release gate. Portable output must contain only documented portable skills and supported MCP declarations, reject undocumented client-extension paths, report native-only degradation, and preserve all four native targets and their hook behavior.
 
-Generated Codex companion artifacts should become operational rather than only advisory:
+The execution boundary is intentionally explicit:
 
-- register generated custom-agent TOML under the active `CODEX_HOME/agents/<plugin>/` because Codex does not discover it from plugin-local `.codex/agents/`
-- track hashes and ownership so reinstall, collision handling, verification, and uninstall remain conservative
-- apply safe, reviewable config stanzas for hooks, readiness, MCP approvals, and adjacent companion config
-- back up or diff target config before modifying it
-- print exactly what was applied, skipped, already present, or unsafe
-- verify active project/user config, plugin cache state, generated companion artifacts, and known Codex caveats
-- cover idempotency, stale config, malformed companion artifacts, and no-op behavior when companion files are absent
+1. `PLUXX-346` implements and proves the portable target, then stops before version bump, publication, release, or active-home installation; isolated clean-fixture discovery remains implementation validation.
+2. `PLUXX-348` prepares and publishes the provisional `0.1.42` release only after the implementation is merged and exact-main validation is green.
+3. `MDP-221` consumes the published npm release in Message Decision Packs and proves portable discovery separately from native hook parity.
+4. `MDP-222` updates downstream distribution guidance, and `MDP-218` records the measured keep / narrow / switch decision.
 
-The decision note is [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisions/2026-06-26-pluxx-next-ship-review.md).
+The Codex companion apply/verify workflow from the earlier next-ship decision is now implemented. The historical decision note remains at [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisions/2026-06-26-pluxx-next-ship-review.md).
 
 Core-four local installs now use a shared transactional ownership layer. Copied bundles are staged and validated before an atomic sibling swap, the previous bundle stays recoverable until post-install work succeeds, ownership records hash installed files, reinstall refuses modified or unowned content, uninstall removes only unchanged owned files, and `verify-install` reports same-version content drift. Generated GitHub Release installers pin their tagged release and add install-scoped locking, bounded downloads, signal-safe recovery, and the same stage/backup/rollback and ownership contract. The 0.1.33 tagged release lane also allows a one-time trusted legacy adoption when a pre-ownership installed host manifest matches the candidate bundle identity; arbitrary or mismatched directories still fail closed.
 
@@ -245,7 +242,7 @@ The repo already proves a lot.
 - native Claude install verification now follows Claude's real cache install path (`~/.claude/plugins/cache/<marketplace>/<plugin>/<version>`) instead of the old direct plugin-directory assumption
 - the shared `src/skills.ts` reader now uses a real YAML parser for multiline scalars, quoted commas, arrays, and nested values; normalized metadata nodes retain line/column provenance, and invalid or unsupported shapes are explicit lint findings
 - audited skill and hook translation truth now lives in one field-level registry consumed by generators, lint/doctor summaries, compatibility rendering, and generated docs; primitive labels are derived from field outcomes so a `preserve` bucket cannot hide dropped or companion-only fields
-- the current next robustness slice is making Codex companion apply/verify first-class enough that generated readiness, hook, MCP approval, and companion config guidance becomes operational and verifiable rather than advisory only:
+- the shipped Codex companion apply/verify slice made generated readiness, hook, MCP approval, and companion config guidance operational and verifiable rather than advisory only; remaining gaps stay tracked under:
   - `PLUXX-226`
   - `PLUXX-264`
   - `PLUXX-248`
