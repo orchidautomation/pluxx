@@ -285,6 +285,9 @@ export async function verifyInstall(
   const rootDir = options.rootDir ?? process.cwd()
   const distDir = resolve(rootDir, config.outDir)
   const targets = options.targets ?? config.targets
+  if (targets.includes('agent-plugins')) {
+    throw new Error('Agent Plugins verification is client-managed. Pluxx cannot treat dist/agent-plugins as an installed client path; validate it with `pluxx test --target agent-plugins` and record real-client proof separately.')
+  }
   const installPlan = planInstallPlugin(distDir, config.name, targets)
   const filteredPlan = options.builtOnly
     ? installPlan.filter((target) => target.built)

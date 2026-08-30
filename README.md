@@ -94,6 +94,8 @@ Pluxx is currently centered on the core four:
 
 Other targets still exist as generated secondary/beta outputs, but the product and docs are intentionally optimized around the core four. Gemini CLI is one of those beta generator targets today: it is fixture-tested, but it is not in the current release-smoked core-four installer lane.
 
+Pluxx also provides an opt-in `agent-plugins` portable floor for a strict Agent Plugins 1.0.0 package (`plugin.json`, immediate-child Agent Skills, and optional representable `mcp.json`). It is not a fifth native host: native-only capabilities degrade explicitly, GitHub Release planning can archive the package, and Pluxx does not invent a generic native installer path. See [docs/agent-plugins-portable-target.md](./docs/agent-plugins-portable-target.md).
+
 For the detailed compatibility and verification matrix, see [docs/compatibility.md](./docs/compatibility.md).
 For the release/distribution/proof lane, see [docs/release-distribution-proof-map.md](./docs/release-distribution-proof-map.md).
 

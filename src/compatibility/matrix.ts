@@ -3,7 +3,7 @@ import { PLATFORM_VALIDATION_RULES, type PlatformRules } from '../validation/pla
 
 export interface PlatformCompatibilityRow {
   platform: TargetPlatform
-  status: 'Primary' | 'Beta'
+  status: 'Primary' | 'Beta' | 'Portable'
   docsBasis: string
   manifest: string
   hooks: string
@@ -24,6 +24,7 @@ const ALL_TARGET_PLATFORMS: TargetPlatform[] = [
   'roo-code',
   'cline',
   'amp',
+  'agent-plugins',
 ]
 
 const PRIMARY_TARGETS = new Set<TargetPlatform>(['claude-code', 'cursor', 'codex', 'opencode'])
@@ -69,6 +70,7 @@ const PLATFORM_LABELS: Record<TargetPlatform, string> = {
   'roo-code': 'Roo Code',
   cline: 'Cline',
   amp: 'AMP',
+  'agent-plugins': 'Agent Plugins v1',
 }
 
 function humanizePlatformName(platform: TargetPlatform): string {
@@ -99,7 +101,7 @@ export function getPlatformCompatibilityMatrix(): PlatformCompatibilityRow[] {
 
     return {
       platform,
-      status: PRIMARY_TARGETS.has(platform) ? 'Primary' : 'Beta',
+      status: platform === 'agent-plugins' ? 'Portable' : PRIMARY_TARGETS.has(platform) ? 'Primary' : 'Beta',
       docsBasis,
       manifest: formatFiles(rules.manifest.files, 'No dedicated manifest'),
       hooks: rules.hooks.supported
@@ -140,6 +142,7 @@ export function renderCompatibilityMatrixMarkdown(): string {
     '## Notes',
     '',
     '- The prime-time launch path remains Claude Code, Cursor, Codex, and OpenCode.',
+    '- Agent Plugins v1 is an opt-in portable package floor for skills and representable MCP; it is not a fifth native host and receives no invented installer.',
     '- GitHub Copilot currently inherits the Claude Code packaging model in Pluxx rather than using its own separately audited plugin surface.',
     '- Beta platforms are generated and fixture-tested, but they do not yet have the same release-smoke coverage as the core four.',
     '',

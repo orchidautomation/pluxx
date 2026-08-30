@@ -294,6 +294,7 @@ export const TargetPlatform = z.enum([
   'roo-code',
   'cline',
   'amp',
+  'agent-plugins',
 ])
 export type TargetPlatform = z.infer<typeof TargetPlatform>
 

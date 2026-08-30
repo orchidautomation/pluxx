@@ -2,9 +2,10 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'fs'
 import { join, relative, resolve } from 'path'
 import { getRuntimeReadinessPlan } from './readiness'
 import type { PluginConfig, TargetPlatform } from './schema'
+import { AGENT_PLUGINS_PLUGIN_SCHEMA, validateAgentPluginsPackage } from './agent-plugins'
 
 export interface GeneratedBundleCheckIssue {
-  code: 'manifest-missing' | 'manifest-invalid' | 'manifest-field-drift' | 'manifest-reference-missing'
+  code: 'manifest-missing' | 'manifest-invalid' | 'manifest-field-drift' | 'manifest-reference-missing' | 'package-invalid'
   target: TargetPlatform
   path: string
   detail: string
@@ -90,6 +91,14 @@ const MANIFEST_DESCRIPTORS: Partial<Record<TargetPlatform, TargetManifestDescrip
     expectedFields: config => commonExpectedFields(config, ['name', 'version', 'description', MAKER_FIELD]),
     referenceFields: ['skills'],
   },
+  'agent-plugins': {
+    path: 'plugin.json',
+    expectedFields: config => [
+      { field: '$schema', expected: AGENT_PLUGINS_PLUGIN_SCHEMA },
+      ...commonExpectedFields(config, ['name', 'version', 'description', MAKER_FIELD, 'repository', 'license', 'keywords']),
+      ...(config.brand?.websiteURL ? [{ field: 'homepage', expected: config.brand.websiteURL }] : []),
+    ],
+  },
 }
 
 export function checkGeneratedBundles(
@@ -102,6 +111,19 @@ export function checkGeneratedBundles(
     const descriptor = MANIFEST_DESCRIPTORS[target]
     const files = collectFileInventory(targetRoot)
     const issues: GeneratedBundleCheckIssue[] = []
+
+    if (target === 'agent-plugins') {
+      try {
+        validateAgentPluginsPackage(targetRoot)
+      } catch (error) {
+        issues.push({
+          code: 'package-invalid',
+          target,
+          path: '.',
+          detail: error instanceof Error ? error.message : String(error),
+        })
+      }
+    }
 
     if (!descriptor) {
       return { target, files, issues }

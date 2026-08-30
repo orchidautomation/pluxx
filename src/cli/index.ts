@@ -131,6 +131,7 @@ const ALL_TARGET_PLATFORMS = [
   'roo-code',
   'cline',
   'amp',
+  'agent-plugins',
 ] as const satisfies readonly TargetPlatform[]
 
 export interface InitFromMcpOptions {
@@ -3846,10 +3847,15 @@ async function runPublishCommand() {
 async function runVerifyInstall() {
   const targets = parseTargetFlagValues(args)
   const config = await loadConfig()
+  const selectedTargets = targets ?? config.targets
+
+  if (!runtime.dryRun && selectedTargets.includes('agent-plugins')) {
+    throw new Error('Agent Plugins verification is client-managed. Use `pluxx test --target agent-plugins`; real installed proof must come from a compatible client, not the build directory.')
+  }
 
   if (runtime.dryRun) {
     const distDir = resolve(process.cwd(), config.outDir)
-    const plan = planInstallPlugin(distDir, config.name, targets ?? config.targets)
+    const plan = planInstallPlugin(distDir, config.name, selectedTargets)
     const summary = {
       dryRun: true,
       pluginName: config.name,
@@ -4062,6 +4068,7 @@ Examples:
   pluxx build                             Build for all configured targets
   pluxx build --install                   Build and install all configured targets locally
   pluxx build --target claude-code cursor  Build for specific platforms
+  pluxx build --target agent-plugins      Build the strict Agent Plugins 1.0.0 portable floor
   pluxx init my-plugin                    Scaffold a new plugin config
   pluxx init --from-mcp https://example.com/mcp  Scaffold from a remote MCP server
   pluxx init --from-mcp "npx -y -p @acme/mcp acme-mcp"  Scaffold from a local MCP command
@@ -4109,6 +4116,7 @@ Examples:
   pluxx test --install --trust --behavioral --behavioral-prompt "Use My Plugin to summarize this repo"
   pluxx install                           Install to all configured targets
   pluxx install --target claude-code      Install to Claude Code only
+  pluxx install --dry-run --target agent-plugins  Show the client-managed portable package plan
   pluxx verify-install --target codex     Verify the installed Codex bundle in its native local path
   pluxx install --dry-run                 Preview local install paths and trust implications
   pluxx install --trust                   Install without hook trust confirmation

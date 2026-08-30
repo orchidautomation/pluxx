@@ -14,6 +14,7 @@ import { GeminiCliGenerator } from './gemini-cli'
 import { RooCodeGenerator } from './roo-code'
 import { ClineGenerator } from './cline'
 import { AmpGenerator } from './amp'
+import { AgentPluginsGenerator } from './agent-plugins'
 import { copyDirectoryForStaging, publishStagedDirectory, type MutationHooks } from '../fs-transaction'
 
 const GENERATORS: Record<TargetPlatform, new (config: PluginConfig, rootDir: string) => Generator> = {
@@ -28,6 +29,7 @@ const GENERATORS: Record<TargetPlatform, new (config: PluginConfig, rootDir: str
   'roo-code': RooCodeGenerator,
   cline: ClineGenerator,
   amp: AmpGenerator,
+  'agent-plugins': AgentPluginsGenerator,
 }
 
 export interface BuildOptions {
@@ -158,7 +160,7 @@ export async function build(
         inputs: [...config.sharedRuntime.inputs].sort(),
         output: config.sharedRuntime.output,
       }
-      for (const platform of targets) {
+      for (const platform of targets.filter(target => target !== 'agent-plugins')) {
         const targetRoot = resolve(stageDir, platform)
         for (const relativePath of [manifest.bootstrap, ...manifest.inputs]) {
           if (!existsSync(resolve(targetRoot, relativePath))) {
