@@ -143,3 +143,18 @@ export {
   type VerifyInstallCheck,
   type VerifyInstallResult,
 } from './cli/verify-install'
+export {
+  AGENT_PLUGINS_NATIVE_OVERLAY_CONTRACT_DOCUMENT_PATH,
+  getAgentPluginsNativeOverlayContractAllowlist,
+  getAgentPluginsNativeOverlayContractMatrix,
+  renderAgentPluginsNativeOverlayContractMarkdown,
+  validateAgentPluginsNativeOverlayContract,
+  lintUndocumentedAgentPluginsExtensionEmission,
+  detectAgentPluginsEmissionNamespaceOwner,
+  type OverlayContractEntry,
+  type OverlayContractDiagnostic,
+  type OverlayDisposition,
+  type OverlayEmissionCandidate,
+  type OverlayCapability,
+  type OverlayNamespaceOwner,
+} from './agent-plugins-native-overlay-contract'
