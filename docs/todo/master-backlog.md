@@ -136,7 +136,7 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
 - [ ] `PLUXX-346`: implement the strict Agent Plugins v1 portable-core target while preserving the native core four; stop before version bump, publication, release, or active-home installation while retaining isolated clean-fixture discovery as implementation validation
 - [x] `PLUXX-347`: merge the fail-closed native-enhancement overlay policy through PR #482
 - [x] Merge the Codex installer failure-path rollback repair through PR #483; publication remains pending
-- [ ] `PLUXX-348`: after `PLUXX-346` merges, prepare the provisional `0.1.42` release, bind receipts to the exact release-prep commit, pass `npm run release:check`, and stop for explicit tag/publication authorization
+- [ ] `PLUXX-348`: after `PLUXX-346` merges, run the separate release gate, bind receipts to the exact release-prep commit, pass `npm run release:check`, and stop for explicit tag/publication authorization; the intended package version is `0.1.42`, pending the action-time semver check
 - [ ] Verify the public npm package, GitHub release asset, checksum equality, isolated CLI, an isolated installed portable-target smoke, and clean Cursor/Codex fixture discovery before declaring the target shipped
 - [ ] `MDP-221`: consume the exact published release and validate portable-core discovery separately from native hook parity
 - [ ] `MDP-222` and `MDP-218`: update downstream guidance and record the measured keep / further narrow / switch decision

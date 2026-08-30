@@ -126,7 +126,7 @@ The active product slice is the strict Agent Plugins v1 portable-core target tra
 The execution boundary is intentionally explicit:
 
 1. `PLUXX-346` implements and proves the portable target, then stops before version bump, publication, release, or active-home installation; isolated clean-fixture discovery remains implementation validation.
-2. `PLUXX-348` prepares and publishes the provisional `0.1.42` release only after the implementation is merged and exact-main validation is green.
+2. `PLUXX-348` owns the separate release gate only after the implementation is merged and exact-main validation is green. Its intended package version is `0.1.42`, pending the action-time semver check.
 3. `MDP-221` consumes the published npm release in Message Decision Packs and proves portable discovery separately from native hook parity.
 4. `MDP-222` updates downstream distribution guidance, and `MDP-218` records the measured keep / narrow / switch decision.
 

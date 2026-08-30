@@ -190,7 +190,7 @@ The initial author-once hardening tranche is also materially done.
 The next cohesive execution path is deliberately split between implementation, release, and downstream proof:
 
 1. `PLUXX-346` — add the strict Agent Plugins v1 portable-core output without weakening or replacing the native core-four outputs; stop before version bump, publication, release, or active-home installation while retaining isolated clean-fixture discovery as implementation validation.
-2. `PLUXX-348` — after `PLUXX-346` merges and exact-main checks pass, prepare and publish the provisional `0.1.42` release containing the portable target, the merged native-overlay policy from `PLUXX-347`, and the merged Codex installer rollback repair from PR #483.
+2. `PLUXX-348` — after `PLUXX-346` merges and exact-main checks pass, run the separate release gate containing the portable target, the merged native-overlay policy from `PLUXX-347`, and the merged Codex installer rollback repair from PR #483. The intended package version is `0.1.42`, pending the action-time semver check.
 3. `MDP-221` — consume the exact verified published Pluxx version, emit an Agent Plugins archive, preserve native hook behavior, and validate portable discovery under a separate portable-core contract.
 4. `MDP-222` — update downstream docs from installed evidence rather than planned behavior.
 5. `MDP-218` — compare the measured native and portable artifacts and record the keep / further narrow / switch decision.
