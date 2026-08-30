@@ -1,6 +1,6 @@
 # Master Backlog
 
-Last updated: 2026-08-30
+Last updated: 2026-08-31
 
 This is the most complete repo-native backlog for Pluxx.
 
@@ -137,7 +137,8 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
 - [x] `PLUXX-347`: merge the fail-closed native-enhancement overlay policy through PR #482
 - [x] Merge the Codex installer failure-path rollback repair through PR #483; publication remains pending
 - [~] `PLUXX-348`: release preparation reconstructed from exact trusted `main` retains semver `0.1.42`, bumps package/proof/recovery truth, and adds bounded fake-home compatible-client proof
-- [ ] Bind receipts to the exact release-prep commit, pass `npm run release:check`, and stop for explicit merge plus action-time tag/publication authorization
+- [x] Bind final local repository, native fake-home, and portable compatible-client fixture receipts to exact release-prep commit `aa13f53f938eeba67d38b22de7070dcbff57eb44`; pass `npm run release:check` with 65 files / 868 tests plus packaged-runtime and dry-pack verification
+- [ ] Open/review and human-merge the release-prep PR, then obtain separate action-time tag/publication authorization
 - [ ] Verify the public npm package, GitHub release asset, checksum equality, isolated CLI, an isolated portable-target fake-home smoke, and clean Cursor/Codex contract-fixture discovery before declaring the target shipped; do not relabel fixtures as installed-host proof
 - [ ] `MDP-221`: consume the exact published release and validate portable-core discovery separately from native hook parity
 - [ ] `MDP-222` and `MDP-218`: update downstream guidance and record the measured keep / further narrow / switch decision

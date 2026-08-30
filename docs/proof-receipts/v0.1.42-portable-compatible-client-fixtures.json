@@ -1,0 +1,28 @@
+{
+  "id": "v0.1.42-portable-compatible-client-fixtures",
+  "tier": "fake-home-install",
+  "freshness": "current",
+  "commitSha": "aa13f53f938eeba67d38b22de7070dcbff57eb44",
+  "packageVersion": "0.1.42",
+  "timestamp": "2026-08-31T03:53:48.093Z",
+  "commands": [
+    {
+      "command": "npm run release:check",
+      "outcome": "passed"
+    },
+    {
+      "command": "npx vitest run tests/release-agent-plugins-smoke.test.ts",
+      "outcome": "passed"
+    }
+  ],
+  "targets": [
+    {
+      "target": "cursor-fixture,codex-fixture",
+      "hostVersion": "release-fixture-contract-1.0.0",
+      "installedPath": null,
+      "sha256": "dee9383c71a53222f00f6dc72bbcee19cf451e5dde59a7c2b56c64b5cfae89fb",
+      "outcome": "passed",
+      "unavailableReason": "The fixtures use isolated ephemeral fake-home paths; they are not active host installations."
+    }
+  ]
+}

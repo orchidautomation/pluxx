@@ -1,6 +1,6 @@
 # Pluxx Queue
 
-Last updated: 2026-08-30
+Last updated: 2026-08-31
 
 ## Doc Links
 
@@ -196,6 +196,8 @@ The next cohesive execution path is deliberately split between implementation, r
 5. `MDP-218` — compare the measured native and portable artifacts and record the keep / further narrow / switch decision.
 
 Do not treat a merged `PLUXX-346` PR as a shipped target. `MDP-221` remains blocked until `PLUXX-348` proves the public npm and GitHub artifacts plus an isolated portable fake-home smoke and clean Cursor/Codex contract-fixture discovery. Those fixtures are not real-host installed proof. Do not claim portable MCP output unless the source project explicitly declares a supported portable MCP configuration.
+
+Final local PLUXX-348 preparation proof is now bound to exact commit `aa13f53f938eeba67d38b22de7070dcbff57eb44`: the complete release gate passed with 65 files / 868 tests, native release smoke passed, and the portable Cursor/Codex fixture copies share artifact SHA-256 `dee9383c71a53222f00f6dc72bbcee19cf451e5dde59a7c2b56c64b5cfae89fb`. The branch was reconstructed from exact merged trusted `main`; the remaining gates are review, human merge, separate action-time tag/publication authorization, and post-publication proof. No release, tag, publication, or active-home install has occurred.
 
 The public baseline is also real.
 

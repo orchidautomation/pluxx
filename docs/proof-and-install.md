@@ -1,6 +1,6 @@
 # Proof And Install
 
-Last updated: 2026-08-30
+Last updated: 2026-08-31
 
 ## Doc Links
 
@@ -32,7 +32,7 @@ For the fuller release/distribution boundary, including publish commands and def
 
 Proof labels and freshness come from [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json). The May self-hosted run, April Firecrawl connector run, and shipped 0.1.37 through 0.1.41 evidence remain historical relative to the 0.1.42 repository release candidate.
 
-The 0.1.42 repository release candidate carries the strict Agent Plugins portable target, its fail-closed native-overlay policy, and the generated Codex installer rollback repair. It is not yet tagged or public. Fresh repository, native fake-home, and portable compatible-client fixture receipts will bind to the exact release-prep commit after their named commands pass. The portable fixture copies are not real Cursor or Codex host executions, and Codex does not have a documented Agent Plugins local-import path in this proof lane; source, fixture, and isolated CLI proof must not be relabeled as installed-host proof.
+The 0.1.42 repository release candidate carries the strict Agent Plugins portable target, its fail-closed native-overlay policy, and the generated Codex installer rollback repair. It is not yet tagged or public. Fresh repository, native fake-home, and portable compatible-client fixture receipts bind to exact release-prep commit `aa13f53f938eeba67d38b22de7070dcbff57eb44`, where the complete release gate passed with 65 test files and 868 tests. The portable fixture copies share artifact SHA-256 `dee9383c71a53222f00f6dc72bbcee19cf451e5dde59a7c2b56c64b5cfae89fb`; they are not real Cursor or Codex host executions, and Codex does not have a documented Agent Plugins local-import path in this proof lane. Source, fixture, and isolated CLI proof must not be relabeled as installed-host proof.
 
 ## The Story In One Screen
 

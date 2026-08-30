@@ -10,6 +10,7 @@ import { build } from '../src/generators'
 import type { PluginConfig } from '../src/schema'
 
 const PACKAGE_VERSION = JSON.parse(readFileSync(resolve(import.meta.dir, '../package.json'), 'utf-8')).version as string
+const EXPECTED_ARTIFACT_SHA256 = 'dee9383c71a53222f00f6dc72bbcee19cf451e5dde59a7c2b56c64b5cfae89fb'
 const roots: string[] = []
 
 function temporaryRoot(): string {
@@ -69,6 +70,7 @@ describe('Agent Plugins release-prep isolated fixture proof', () => {
     expect(codex.skills).toEqual(cursor.skills)
     expect(codex.mcpServers).toEqual(cursor.mcpServers)
     expect(codex.artifactSha256).toBe(cursor.artifactSha256)
+    expect(cursor.artifactSha256).toBe(EXPECTED_ARTIFACT_SHA256)
     expect(validateAgentPluginsPackage(cursorFixture)).toEqual([
       'mcp.json',
       'plugin.json',

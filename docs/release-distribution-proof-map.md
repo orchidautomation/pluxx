@@ -1,6 +1,6 @@
 # Release Distribution Proof Map
 
-Last updated: 2026-08-30
+Last updated: 2026-08-31
 
 ## Doc Links
 
