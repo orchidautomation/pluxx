@@ -2231,7 +2231,9 @@ esac
     })
 
     expect(run.status).toBe(1)
+    expect(run.installerContent).not.toContain('rollback_install')
     expect(run.stderr).toContain('Codex agent name collision')
+    expect(run.stderr).not.toContain('rollback_install: command not found')
     expect(run.installedUserConfig?.values?.marker).toBe('previous-install')
     expect(readFileSync(resolve(run.rootDir, 'codex-marketplace.json'), 'utf-8')).toBe(originalMarketplace)
   })
@@ -2249,6 +2251,7 @@ esac
     })
 
     expect(run.status).toBe(1)
+    expect(run.stderr).not.toContain('rollback_install: command not found')
     expect(run.installedUserConfig?.values?.marker).toBe('previous-install')
     expect(existsSync(resolve(run.rootDir, 'home/.codex/agents/publish-plugin/reviewer.toml'))).toBe(false)
     expect(existsSync(resolve(run.rootDir, 'home/.codex/pluxx/agent-installs/publish-plugin.json'))).toBe(false)
