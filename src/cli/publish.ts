@@ -1727,7 +1727,6 @@ process.exit(hasPluginHooks ? 0 : 2)
 NODE
 PLUXX_CODEX_BUNDLE_HAS_HOOKS="$?"
 set -e
-trap rollback_install ERR
 
 if [[ "$PLUXX_CODEX_BUNDLE_HAS_HOOKS" == "0" ]]; then
   CODEX_HOME_DIR="\${CODEX_HOME:-$HOME/.codex}"
