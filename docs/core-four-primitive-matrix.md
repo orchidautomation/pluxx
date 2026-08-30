@@ -401,3 +401,10 @@ This is intentionally closure-oriented:
 
 - [Portable Delegation Model](./portable-delegation-model.md)
 - [Core-Four Provider Docs Audit](./core-four-provider-docs-audit.md)
+
+## Agent Plugins Overlay Boundary
+
+The portable floor is owned by Agent Plugins v1 and includes exactly two component types: skills and MCP servers. Everything else — hooks, agents/subagents, commands, metadata, permissions, and host-specific install mechanics — is either native to the host bundle, or a documented reverse-domain extension whose namespace owner publishes a first-party schema plus an installed-client behavioral fixture.
+
+The mapping rules above describe Pluxx's native output; the overlay contract describes whether Pluxx may also emit a reverse-domain extension. According to the [Agent Plugins Native Enhancement Overlay Contract](./agent-plugins-native-overlay-contract.md) PLUXX-347 enforces, today the contract records explicit negative decisions for `com.cursor/hooks`, `com.openai/hooks`, and `com.cursor/agents` because no first-party Agent Plugins extension exists at retrieval time. Any future portable-emitter change must consult the overlay contract before claiming a portable capability.
+
