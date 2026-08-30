@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "canonicalVersion": "0.1.41",
-  "expectedTag": "v0.1.41",
-  "releaseState": "released",
+  "canonicalVersion": "0.1.42",
+  "expectedTag": "v0.1.42",
+  "releaseState": "release-prep",
   "policy": {
     "environmentReceiptMaxAgeDays": 30
   },
@@ -203,7 +203,7 @@
       "id": "v0.1.41-repository-validation",
       "summary": "The exact v0.1.41 release-prep commit passes the complete repository release gate for the PLUXX-345 Codex hook-root repair.",
       "tier": "bundle-contract",
-      "freshness": "current",
+      "freshness": "historical",
       "evidencePath": "tests/proof-freshness.test.ts",
       "receiptId": "v0.1.41-repository-validation"
     },
@@ -211,7 +211,7 @@
       "id": "v0.1.41-fake-home-install",
       "summary": "The exact v0.1.41 release-prep commit passes maintained core-four isolated install coverage for the PLUXX-345 Codex hook-root repair.",
       "tier": "fake-home-install",
-      "freshness": "current",
+      "freshness": "historical",
       "evidencePath": "tests/release-smoke.test.ts",
       "receiptId": "v0.1.41-fake-home-install"
     }
@@ -810,7 +810,7 @@
     {
       "id": "v0.1.41-repository-validation",
       "tier": "bundle-contract",
-      "freshness": "current",
+      "freshness": "historical",
       "commitSha": "e3d9cd3389673dfa6ff8f22939c287dee20866db",
       "packageVersion": "0.1.41",
       "timestamp": "2026-08-29T12:53:34.450Z",
@@ -833,7 +833,7 @@
     {
       "id": "v0.1.41-fake-home-install",
       "tier": "fake-home-install",
-      "freshness": "current",
+      "freshness": "historical",
       "commands": [
         {
           "command": "npm run release:check",

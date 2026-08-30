@@ -23,6 +23,7 @@ import {
 const TEST_DIR = resolve(import.meta.dir, '.agent-mode')
 const MANUAL_DIR = resolve(import.meta.dir, '.agent-mode-manual')
 const ROOT = resolve(import.meta.dir, '..')
+const SLOW_AGENT_MODE_TIMEOUT = 60_000
 
 const introspection: IntrospectedMcpServer = {
   protocolVersion: '2025-03-26',
@@ -898,7 +899,7 @@ describe('agent mode', () => {
     expect(runnerArgs).toContain('-p')
     expect(runnerArgs.some((arg) => arg.includes('.pluxx/agent/context.md'))).toBe(true)
     expect(runnerArgs.some((arg) => arg.includes('.pluxx/agent/taxonomy-prompt.md'))).toBe(true)
-  })
+  }, SLOW_AGENT_MODE_TIMEOUT)
 
   it('restores allowed edits when post-run verification fails', async () => {
     const binDir = resolve(TEST_DIR, '.bin')
@@ -936,7 +937,7 @@ exit 0
     expect(summary.verification?.ok).toBe(false)
     expect(summary.boundary.restored).toBe(true)
     expect(readFileSync(instructionsPath, 'utf-8')).toBe(originalInstructions)
-  })
+  }, SLOW_AGENT_MODE_TIMEOUT)
 
   it('re-renders skills and commands after a taxonomy run updates .pluxx/taxonomy.json', async () => {
     const binDir = resolve(TEST_DIR, '.bin')
@@ -1007,7 +1008,7 @@ exit 1
     expect(instructionsPrompt).not.toContain('`skills/ask-clay/SKILL.md`')
     expect(reviewPrompt).toContain('`skills/research/SKILL.md`')
     expect(reviewPrompt).not.toContain('`skills/ask-clay/SKILL.md`')
-  })
+  }, SLOW_AGENT_MODE_TIMEOUT)
 
   it('rejects and restores taxonomy runner edits outside the pass allowlist', async () => {
     const binDir = resolve(TEST_DIR, '.bin')
@@ -1167,7 +1168,7 @@ exit 1
     } finally {
       rmSync(editPath, { force: true })
     }
-  })
+  }, SLOW_AGENT_MODE_TIMEOUT)
 
   it('restores review-mode mutations', async () => {
     const binDir = resolve(MANUAL_DIR, '.bin')

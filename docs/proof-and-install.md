@@ -1,6 +1,6 @@
 # Proof And Install
 
-Last updated: 2026-08-29
+Last updated: 2026-08-30
 
 ## Doc Links
 
@@ -30,9 +30,9 @@ This is the shortest current repo-native path to:
 
 For the fuller release/distribution boundary, including publish commands and deferred marketplace/trust-layer work, use [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md).
 
-Proof labels and freshness come from [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json). The May self-hosted run, April Firecrawl connector run, and shipped 0.1.37 through 0.1.40 evidence remain historical relative to the canonical public 0.1.41 release.
+Proof labels and freshness come from [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json). The May self-hosted run, April Firecrawl connector run, and shipped 0.1.37 through 0.1.41 evidence remain historical relative to the 0.1.42 repository release candidate.
 
-Canonical 0.1.41 carries the merged PLUXX-345 Codex hook-root repair. Fresh repository and isolated fake-home receipts bind to exact release-prep commit `e3d9cd3389673dfa6ff8f22939c287dee20866db`, where the complete release gate passed. Immutable tag `v0.1.41` points to trusted merge `0379d2c646ad9b83fb31016d9d553ba5dea96e76`, and npm and GitHub serve byte-identical tarballs at SHA-256 `25e0039ad63f10a79970d8028c56461f9813cbfb522088be93beba18bde6508e`. Installed Codex Desktop verification remains explicitly outstanding; source, fixture, and isolated CLI proof must not be relabeled as installed-host proof.
+The 0.1.42 repository release candidate carries the strict Agent Plugins portable target, its fail-closed native-overlay policy, and the generated Codex installer rollback repair. It is not yet tagged or public. Fresh repository, native fake-home, and portable compatible-client fixture receipts will bind to the exact release-prep commit after their named commands pass. The portable fixture copies are not real Cursor or Codex host executions, and Codex does not have a documented Agent Plugins local-import path in this proof lane; source, fixture, and isolated CLI proof must not be relabeled as installed-host proof.
 
 ## The Story In One Screen
 

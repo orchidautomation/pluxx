@@ -189,18 +189,19 @@ The initial author-once hardening tranche is also materially done.
 
 The next cohesive execution path is deliberately split between implementation, release, and downstream proof:
 
-1. `PLUXX-346` — add the strict Agent Plugins v1 portable-core output without weakening or replacing the native core-four outputs; stop before version bump, publication, release, or active-home installation while retaining isolated clean-fixture discovery as implementation validation.
-2. `PLUXX-348` — after `PLUXX-346` merges and exact-main checks pass, run the separate release gate containing the portable target, the merged native-overlay policy from `PLUXX-347`, and the merged Codex installer rollback repair from PR #483. The intended package version is `0.1.42`, pending the action-time semver check.
+1. `PLUXX-346` — merged through PR #486 with the strict Agent Plugins v1 portable-core output without weakening or replacing the native core-four outputs; isolated clean-fixture discovery remains implementation validation, not installed-host proof.
+2. `PLUXX-348` — run the separately reconstructed release gate from exact trusted `main`, containing the portable target, the merged native-overlay policy from `PLUXX-347`, and the merged Codex installer rollback repair from PR #483. The semver check retains `0.1.42` under the project's compatible pre-1.0 patch convention.
 3. `MDP-221` — consume the exact verified published Pluxx version, emit an Agent Plugins archive, preserve native hook behavior, and validate portable discovery under a separate portable-core contract.
 4. `MDP-222` — update downstream docs from installed evidence rather than planned behavior.
 5. `MDP-218` — compare the measured native and portable artifacts and record the keep / further narrow / switch decision.
 
-Do not treat a merged `PLUXX-346` PR as a shipped target. `MDP-221` remains blocked until `PLUXX-348` proves the public npm and GitHub artifacts plus an isolated installed portable-target smoke and clean Cursor/Codex fixture discovery. Do not claim portable MCP output unless the source project explicitly declares a supported portable MCP configuration.
+Do not treat a merged `PLUXX-346` PR as a shipped target. `MDP-221` remains blocked until `PLUXX-348` proves the public npm and GitHub artifacts plus an isolated portable fake-home smoke and clean Cursor/Codex contract-fixture discovery. Those fixtures are not real-host installed proof. Do not claim portable MCP output unless the source project explicitly declares a supported portable MCP configuration.
 
 The public baseline is also real.
 
 - npm package is live as `@orchid-labs/pluxx`
-- the canonical and independently verified public release is `@orchid-labs/pluxx@0.1.41` / `v0.1.41` for PLUXX-345; npm and GitHub serve the same tarball at SHA-256 `25e0039ad63f10a79970d8028c56461f9813cbfb522088be93beba18bde6508e`
+- the canonical repository release candidate is `@orchid-labs/pluxx@0.1.42` / intended `v0.1.42`; it is not yet tagged or public
+- the independently verified historical public release remains `@orchid-labs/pluxx@0.1.41` / `v0.1.41` for PLUXX-345; npm and GitHub serve the same tarball at SHA-256 `25e0039ad63f10a79970d8028c56461f9813cbfb522088be93beba18bde6508e`
 - 0.1.40 is now the historical PLUXX-344 hook workspace-precedence release
 - 0.1.39 is now the historical PLUXX-341/PLUXX-342 quiet OpenCode hook-scope release
 - 0.1.38 is only the PLUXX-340 manifest-identity correction discovered after the shipped and independently verified 0.1.37 release
@@ -577,7 +578,7 @@ Current work:
 ### 11. v0.1.41 Codex hook-root release
 
 - [x] PLUXX-345 source fix merged through PR #479 at trusted merge `fc16e218ede1f49ae2a9993983875b67613a24b5`
-- [x] prepare synchronized 0.1.41 package, proof, planning, recovery-default, and release truth
+- [x] historical: prepare synchronized 0.1.41 package, proof, planning, recovery-default, and release truth
 - [x] bind fresh repository-validation and fake-home-install receipts to exact release-prep commit `e3d9cd3389673dfa6ff8f22939c287dee20866db`
 - [x] pass the complete release gate and merge PR #480 exact head `ad829457f49ee8846625ffdc3651ac11e439945c` with trusted merge `0379d2c646ad9b83fb31016d9d553ba5dea96e76`
 - [x] push immutable tag `v0.1.41` and verify Release run `33254601754`, npm, GitHub release asset, byte-identical tarballs at SHA-256 `25e0039ad63f10a79970d8028c56461f9813cbfb522088be93beba18bde6508e`, tag provenance, and isolated CLI `0.1.41`

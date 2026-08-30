@@ -1,10 +1,10 @@
 # Proof Freshness And Evidence Tiers
 
-Last updated: 2026-08-29
+Last updated: 2026-08-30
 
 This document defines how Pluxx distinguishes repeatable repository checks from installed and real-host evidence. The machine-readable source is [proof-manifest.json](./proof-manifest.json), validated by `npm run proof:check`.
 
-The canonical and independently verified public release is `@orchid-labs/pluxx@0.1.41` for the PLUXX-345 Codex hook-root repair merged through PR #479 and released through PR #480. Immutable tag `v0.1.41` points to trusted merge `0379d2c646ad9b83fb31016d9d553ba5dea96e76`; tag-triggered Release run [33254601754](https://github.com/orchidautomation/pluxx/actions/runs/33254601754) published byte-identical npm and GitHub artifacts at SHA-256 `25e0039ad63f10a79970d8028c56461f9813cbfb522088be93beba18bde6508e`. Fresh current receipts `v0.1.41-repository-validation` and `v0.1.41-fake-home-install` bind to exact release-prep commit `e3d9cd3389673dfa6ff8f22939c287dee20866db`, where `npm run release:check` passed on 2026-08-29 with 62 test files and 832 tests plus isolated packed-runtime and dry-pack verification. The registry-installed CLI reports `0.1.41`, but no current receipt claims installed Codex Desktop, installed-runtime, or real-host behavior.
+The canonical repository release candidate is `@orchid-labs/pluxx@0.1.42` for PLUXX-348, carrying the merged PLUXX-346 strict Agent Plugins portable target, the merged PLUXX-347 overlay policy, and the merged PR #483 installer rollback repair. It is not yet tagged or published; this preparation was reconstructed from exact trusted `main` at `ff8d5abc8beb7a9e5aac363234f4ffd7646757fe` after PRs #485 and #486 merged. The independently verified historical public release remains `@orchid-labs/pluxx@0.1.41`; immutable tag `v0.1.41` points to trusted merge `0379d2c646ad9b83fb31016d9d553ba5dea96e76`, and Release run [33254601754](https://github.com/orchidautomation/pluxx/actions/runs/33254601754) published byte-identical npm and GitHub artifacts at SHA-256 `25e0039ad63f10a79970d8028c56461f9813cbfb522088be93beba18bde6508e`. The 0.1.41 receipts are historical while 0.1.42 proof is prepared. No current preparation receipt claims installed-runtime, real-host behavior, or a documented Codex Agent Plugins local installation.
 
 ## Version And Freshness Policy
 

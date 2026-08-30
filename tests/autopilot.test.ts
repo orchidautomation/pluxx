@@ -459,7 +459,7 @@ exit 0
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
-  }, 60_000)
+  }, SLOW_AUTOPILOT_TIMEOUT)
 
   it('resumes from the last successful pass without reapplying completed stages', async () => {
     const { dir, statePath, stubServerPath } = createStubServerFixture()
@@ -531,7 +531,7 @@ exit 0
       rmSync(countPath, { force: true })
       rmSync(dir, { recursive: true, force: true })
     }
-  }, 60_000)
+  }, SLOW_AUTOPILOT_TIMEOUT)
 
   it('re-introspects and reapplies the scaffold after baseline failure is resumed', async () => {
     const { dir, statePath, stubServerPath } = createStubServerFixture()
