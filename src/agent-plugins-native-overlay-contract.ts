@@ -15,8 +15,9 @@
  * - Every emitted extension must have a client-owned namespace owner.
  * - Every emitted extension path or field must be cited in a first-party
  *   schema that the namespace owner publishes.
- * - Every emitted extension contract must have an installed-client behavioral
- *   fixture identity; an absent fixture means the extension cannot be claimed.
+ * - Every emitted extension contract must have installed-client evidence.
+ *   Portable core rows may instead carry an explicitly labelled contract
+ *   fixture that proves package shape without claiming real-client execution.
  * - The allowlist may be empty; an empty allowlist keeps the portable core
  *   package valid and useful when every extension is degraded or omitted.
  *
@@ -108,12 +109,13 @@ export interface OverlayContractEntry {
   documentedPaths: string[]
 
   /**
-   * Identity of an installed-client behavioral fixture that proves the
-   * behavior. Required for any entry with disposition `extension-proven` or
-   * `portable`; absent or omitted entries fail closed.
+   * Identity and proof tier of the evidence fixture. `extension-proven` rows
+   * require an `installed` fixture. Portable spec rows may use a `contract`
+   * fixture, which validates package semantics but is not installed-client proof.
    */
-  installedFixture?: {
-    /** Stable fixture id, e.g. `pluxx:fixture:agent-plugins-skills-cursor-2026-08`. */
+  evidenceFixture?: {
+    tier: 'contract' | 'installed'
+    /** Stable fixture id, e.g. `pluxx:fixture:agent-plugins-skills-contract-2026-08`. */
     id: string
     /** One-line description captured during authoring. */
     description: string
@@ -303,17 +305,21 @@ export function validateOverlayContract(
       })
     }
 
-    if (
-      (entry.disposition === 'extension-proven' || entry.disposition === 'portable') &&
-      !entry.installedFixture
-    ) {
+    const missingRequiredFixture =
+      (entry.disposition === 'portable' && !entry.evidenceFixture) ||
+      (entry.disposition === 'extension-proven' && entry.evidenceFixture?.tier !== 'installed')
+    if (missingRequiredFixture) {
       diagnostics.push({
         code: 'overlay.entry.missing-fixture',
         level: 'error',
         entryId: entry.id,
-        message: `Extension entry ${entry.id} claims ${entry.disposition} but has no installed-fixture identity.`,
+        message: entry.disposition === 'extension-proven'
+          ? `Extension entry ${entry.id} claims extension-proven but has no installed-client evidence fixture.`
+          : `Portable entry ${entry.id} has no package-contract evidence fixture.`,
         suggestion:
-          'Add an installed-client behavioral fixture id and a one-line description proving the behavior ran against the documented client.',
+          entry.disposition === 'extension-proven'
+            ? 'Add an installed-client evidence fixture id and a one-line description proving the behavior ran against the documented client.'
+            : 'Add a contract fixture, or an installed-client fixture when real execution evidence exists.',
       })
     }
 
@@ -475,8 +481,8 @@ const CAPABILITY_LABELS: Record<OverlayCapability, string> = {
  *
  * The matrix records what is known, what is proved, and what is a deliberate
  * negative decision. A row whose disposition is `extension-proven` or
- * `portable` is also a potential allowlist entry, but only after it carries an
- * installed fixture.
+ * `portable` is also a potential allowlist entry, but only after it carries the
+ * evidence tier required for that disposition.
  */
 export const AGENT_PLUGINS_NATIVE_OVERLAY_CONTRACT_MATRIX: OverlayContractEntry[] = [
   {
@@ -489,10 +495,11 @@ export const AGENT_PLUGINS_NATIVE_OVERLAY_CONTRACT_MATRIX: OverlayContractEntry[
       'https://github.com/vercel-labs/open-plugin-spec/blob/main/spec/1.0.0.md',
     retrievedAt: '2026-08-30',
     documentedPaths: ['skills/<name>/SKILL.md'],
-    installedFixture: {
-      id: 'pluxx:fixture:agent-plugins-skills-portable-2026-08',
+    evidenceFixture: {
+      tier: 'contract',
+      id: 'pluxx:fixture:agent-plugins-skills-contract-2026-08',
       description:
-        'A clean-room `pluxx build --target agent-plugins` package installed in a controlled Cursor and Codex profile discovers every immediate-child skill entry.',
+        'A deterministic package-contract fixture validates every immediate-child skill entry. It is not installed Cursor or Codex proof.',
     },
   },
   {
@@ -505,10 +512,11 @@ export const AGENT_PLUGINS_NATIVE_OVERLAY_CONTRACT_MATRIX: OverlayContractEntry[
       'https://github.com/vercel-labs/open-plugin-spec/blob/main/spec/1.0.0.md',
     retrievedAt: '2026-08-30',
     documentedPaths: ['mcp.json'],
-    installedFixture: {
-      id: 'pluxx:fixture:agent-plugins-mcp-portable-2026-08',
+    evidenceFixture: {
+      tier: 'contract',
+      id: 'pluxx:fixture:agent-plugins-mcp-contract-2026-08',
       description:
-        'A portable `mcp.json` succeeds after install in a controlled Cursor and Codex profile.',
+        'A deterministic package-contract fixture validates portable `mcp.json`. It is not installed Cursor or Codex proof.',
     },
   },
   {
@@ -622,13 +630,13 @@ export function renderAgentPluginsNativeOverlayContractMarkdown(): string {
     'Those directories are client-owned, not portable, and their contents are not guaranteed to',
     'be shared across hosts. This document is the authoritative table Pluxx consults before',
     'emitting any client extension; every row carries either a first-party citation with an',
-    'installed-fixture identity or an explicit negative decision with a rationale.',
+    'explicitly tiered evidence-fixture identity or an explicit negative decision with a rationale.',
     '',
     '## Dispositions',
     '',
     'Five stable values describe each (client, capability) pair:',
     '',
-    '- `portable` — the Agent Plugins v1 specification publishes the contract; installed proof exists.',
+    '- `portable` — the Agent Plugins v1 specification publishes the contract; a package-contract fixture exists, while installed proof is tracked separately.',
     '- `native` — the host bundles the capability through its own native path; no portable extension is published.',
     '- `extension-proven` — the namespace owner publishes a reverse-domain extension; installed proof exists.',
     '- `degraded` — limited support with a deliberate degradation path; documented separately.',
@@ -636,7 +644,7 @@ export function renderAgentPluginsNativeOverlayContractMarkdown(): string {
     '',
     '## Matrix',
     '',
-    '| Client | Namespace owner | Capability | Directory / schema | Disposition | First-party source | Retrieved | Installed fixture | Decision |',
+    '| Client | Namespace owner | Capability | Directory / schema | Disposition | First-party source | Retrieved | Evidence fixture | Decision |',
     '|---|---|---|---|---|---|---|---|---|',
   ]
 
@@ -674,8 +682,8 @@ export function renderAgentPluginsNativeOverlayContractMarkdown(): string {
     const pathSnippet = entry.documentedPaths.length === 0
       ? '—'
       : entry.documentedPaths.map((p) => `\`${p}\``).join(', ')
-    const fixtureCell = entry.installedFixture
-      ? `\`${entry.installedFixture.id}\``
+    const fixtureCell = entry.evidenceFixture
+      ? `\`${entry.evidenceFixture.tier}: ${entry.evidenceFixture.id}\``
       : '— (negative decision or native-only)'
     const decision = entry.negativeDecision
       ? `Negative: ${entry.rationale ?? '(missing rationale, fail closed)'}`

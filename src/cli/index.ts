@@ -4059,7 +4059,7 @@ Common flags:
 
 Targets:
   claude-code, cursor, codex, opencode, github-copilot, openhands,
-  warp, gemini-cli, roo-code, cline, amp
+  warp, gemini-cli, roo-code, cline, amp, agent-plugins
 
 Examples:
   pluxx --version                         Print the installed CLI version

@@ -26,13 +26,13 @@ and permits reverse-domain client-extension directories under `<namespace-owner>
 Those directories are client-owned, not portable, and their contents are not guaranteed to
 be shared across hosts. This document is the authoritative table Pluxx consults before
 emitting any client extension; every row carries either a first-party citation with an
-installed-fixture identity or an explicit negative decision with a rationale.
+explicitly tiered evidence-fixture identity or an explicit negative decision with a rationale.
 
 ## Dispositions
 
 Five stable values describe each (client, capability) pair:
 
-- `portable` — the Agent Plugins v1 specification publishes the contract; installed proof exists.
+- `portable` — the Agent Plugins v1 specification publishes the contract; a package-contract fixture exists, while installed proof is tracked separately.
 - `native` — the host bundles the capability through its own native path; no portable extension is published.
 - `extension-proven` — the namespace owner publishes a reverse-domain extension; installed proof exists.
 - `degraded` — limited support with a deliberate degradation path; documented separately.
@@ -40,10 +40,10 @@ Five stable values describe each (client, capability) pair:
 
 ## Matrix
 
-| Client | Namespace owner | Capability | Directory / schema | Disposition | First-party source | Retrieved | Installed fixture | Decision |
+| Client | Namespace owner | Capability | Directory / schema | Disposition | First-party source | Retrieved | Evidence fixture | Decision |
 |---|---|---|---|---|---|---|---|---|
-| Agent Plugins (portable spec) | `agent-plugins` | Skills | `agent-plugins/skills` (`skills/<name>/SKILL.md`) | `portable` | https://github.com/vercel-labs/open-plugin-spec/blob/main/spec/1.0.0.md | 2026-08-30 | `pluxx:fixture:agent-plugins-skills-portable-2026-08` | Allowlisted via agent-plugins.skills. |
-| Agent Plugins (portable spec) | `agent-plugins` | Install mechanics | `agent-plugins/mcp.json` (`mcp.json`) | `portable` | https://github.com/vercel-labs/open-plugin-spec/blob/main/spec/1.0.0.md | 2026-08-30 | `pluxx:fixture:agent-plugins-mcp-portable-2026-08` | Allowlisted via agent-plugins.mcp. |
+| Agent Plugins (portable spec) | `agent-plugins` | Skills | `agent-plugins/skills` (`skills/<name>/SKILL.md`) | `portable` | https://github.com/vercel-labs/open-plugin-spec/blob/main/spec/1.0.0.md | 2026-08-30 | `contract: pluxx:fixture:agent-plugins-skills-contract-2026-08` | Allowlisted via agent-plugins.skills. |
+| Agent Plugins (portable spec) | `agent-plugins` | Install mechanics | `agent-plugins/mcp.json` (`mcp.json`) | `portable` | https://github.com/vercel-labs/open-plugin-spec/blob/main/spec/1.0.0.md | 2026-08-30 | `contract: pluxx:fixture:agent-plugins-mcp-contract-2026-08` | Allowlisted via agent-plugins.mcp. |
 | Cursor | `cursor` | Hooks | `cursor/hooks` (—) | `unsupported` | https://cursor.com/docs/reference/plugins | 2026-08-30 | — (negative decision or native-only) | Negative: Cursor ships a native Cursor Plugins surface (hooks/hooks.json) and a portable Agent Plugins surface for skills + MCP. Pluxx does not assert a `com.cursor/hooks` Agent Plugins extension; hooks remain a native Cursor bundle capability. Re-evaluate only if Cursor publishes a reverse-domain Agent Plugins hooks schema and an installed fixture proves it. |
 | OpenAI / Codex | `openai` | Hooks | `openai/hooks` (—) | `unsupported` | https://learn.chatgpt.com/docs/hooks | 2026-08-30 | — (negative decision or native-only) | Negative: Codex loads native plugin hooks from `hooks/hooks.json`; that is not evidence for a `com.openai/hooks` Agent Plugins reverse-domain extension. Pluxx must not emit a `com.openai/hooks` directory; hooks stay in the native Codex bundle until OpenAI publishes an Agent Plugins extension contract and an installed fixture proves it. |
 | Cursor | `cursor` | Agents / subagents | `cursor/agents` (—) | `unsupported` | https://cursor.com/docs/reference/plugins | 2026-08-30 | — (negative decision or native-only) | Negative: Cursor ships native plugin agents under its Cursor Plugins surface. There is no documented Agent Plugins `com.cursor/agents` extension at retrieval time; native output is the only path until Cursor publishes a reverse-domain extension contract. |

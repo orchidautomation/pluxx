@@ -28,7 +28,8 @@ function fullyEvidencedFixtureEntry(
     firstPartyCitation: 'https://example.com/cursor/skills',
     retrievedAt: '2026-08-30',
     documentedPaths: ['skills/<name>/SKILL.md'],
-    installedFixture: {
+    evidenceFixture: {
+      tier: 'installed',
       id: 'pluxx:fixture:synthetic-cursor-skills-2026-08',
       description: 'Synthetic Cursor skills fixture proven by an installed client probe.',
     },
@@ -65,13 +66,43 @@ describe('agent-plugins native overlay contract policy', () => {
     expect(diagnostics.find((d) => d.code === 'overlay.entry.missing-citation')).toBeTruthy()
   })
 
-  it('rejects a portable / extension-proven entry without an installed fixture', () => {
-    const entry = fullyEvidencedFixtureEntry({ installedFixture: undefined })
+  it('rejects an extension-proven entry without an installed evidence fixture', () => {
+    const entry = fullyEvidencedFixtureEntry({ evidenceFixture: undefined })
     const diagnostics = validateAgentPluginsNativeOverlayContract(
       { namespaceOwner: 'cursor', directory: 'skills', paths: ['skills/x/SKILL.md'] },
       [entry],
     )
     expect(diagnostics.find((d) => d.code === 'overlay.entry.missing-fixture')).toBeTruthy()
+  })
+
+  it('accepts a portable contract fixture without treating it as installed proof', () => {
+    const entry = fullyEvidencedFixtureEntry({
+      namespaceOwner: 'agent-plugins',
+      disposition: 'portable',
+      evidenceFixture: {
+        tier: 'contract',
+        id: 'pluxx:fixture:portable-contract',
+        description: 'Package-contract fixture only.',
+      },
+    })
+    expect(validateAgentPluginsNativeOverlayContract(
+      { namespaceOwner: 'agent-plugins', directory: 'skills', paths: ['skills/x/SKILL.md'] },
+      [entry],
+    )).toEqual([])
+  })
+
+  it('rejects contract-only evidence for an extension-proven claim', () => {
+    const entry = fullyEvidencedFixtureEntry({
+      evidenceFixture: {
+        tier: 'contract',
+        id: 'pluxx:fixture:not-installed',
+        description: 'Does not prove installed behavior.',
+      },
+    })
+    expect(validateAgentPluginsNativeOverlayContract(
+      { namespaceOwner: 'cursor', directory: 'skills', paths: ['skills/x/SKILL.md'] },
+      [entry],
+    ).some((diagnostic) => diagnostic.code === 'overlay.entry.missing-fixture')).toBe(true)
   })
 
   it('rejects an undocumented path even when the entry is fully evidenced', () => {
@@ -154,7 +185,7 @@ describe('agent-plugins native overlay contract policy', () => {
       negativeDecision: true,
       rationale: undefined,
       documentedPaths: [],
-      installedFixture: undefined,
+      evidenceFixture: undefined,
     })
     const diagnostics = validateAgentPluginsNativeOverlayContract(
       { namespaceOwner: 'cursor', directory: 'hooks', paths: ['hooks/hooks.json'] },

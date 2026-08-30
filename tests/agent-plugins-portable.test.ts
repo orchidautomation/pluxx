@@ -160,6 +160,7 @@ describe('Agent Plugins 1.0.0 portable target', () => {
       { type: 'stdio', command: 'node', cwd: '${PLUGIN_DATA}/../escape' },
       { type: 'stdio', command: 'node', cwd: '${PLUGIN_DATA}/bad\\path' },
       { type: 'streamable-http', url: 'https://example.com/mcp', headers: { 'Bad Header': 'x' } },
+      { type: 'streamable-http', url: 'https://example.com/mcp', headers: { 'X-Portable': 'not-a-byte-emoji-🚫' } },
       { type: 'streamable-http', url: 'https://example.com/mcp', headers: { Authorization: 'x', authorization: 'y' } },
       { type: 'streamable-http', url: 'https://example.com/mcp', args: [] },
     ]
@@ -180,6 +181,22 @@ describe('Agent Plugins 1.0.0 portable target', () => {
   it('requires optional Agent Skill license to retain its portable string shape', async () => {
     writeProject('name: portable-skill\ndescription: Use this skill.\nlicense:\n  name: MIT')
     await expect(build(config(), ROOT)).rejects.toThrow('license must be a string')
+  })
+
+  it('preserves a contained stdio executable path containing spaces as one JSON command value', async () => {
+    const commandPath = resolve(ROOT, 'skills/portable-skill/scripts/my server.mjs')
+    writeFileSync(commandPath, '#!/usr/bin/env node\n')
+    await build(config({
+      mcp: {
+        spaced: {
+          transport: 'stdio',
+          command: '${PLUGIN_ROOT}/skills/portable-skill/scripts/my server.mjs',
+        },
+      },
+    }), ROOT)
+    const mcp = JSON.parse(readFileSync(resolve(OUT, 'mcp.json'), 'utf-8'))
+    expect(mcp.mcpServers.spaced.command).toBe('./skills/portable-skill/scripts/my server.mjs')
+    expect(() => validateAgentPluginsPackage(OUT)).not.toThrow()
   })
 
   it('rejects nested skills, non-portable frontmatter, source symlinks, and client extensions', async () => {

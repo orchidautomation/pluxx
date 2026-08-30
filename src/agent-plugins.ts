@@ -7,6 +7,7 @@ import {
   statSync,
 } from 'fs'
 import { createHash } from 'crypto'
+import { validateHeaderName, validateHeaderValue } from 'http'
 import { relative, resolve } from 'path'
 import type { McpServer, PluginConfig, PluxxCompilerBucket } from './schema'
 import { parseSkillMarkdown } from './skills'
@@ -134,8 +135,8 @@ function buildPortableMcpServer(name: string, server: McpServer): Record<string,
 
   if (server.transport === 'stdio') {
     const command = server.command.replace(/^\$\{PLUGIN_ROOT\}\//, './')
-    if (!command || /\s/.test(command)) {
-      throw new Error(`MCP server "${name}" command must be one executable token.`)
+    if (!command || (!command.startsWith('./') && /\s/.test(command))) {
+      throw new Error(`MCP server "${name}" command must be a bare executable token or a contained ./ path.`)
     }
     if (command.includes('\\') || command.startsWith('/') || command.startsWith('../')) {
       throw new Error(`MCP server "${name}" command must be a bare executable or a contained ./ plugin path.`)
@@ -343,8 +344,8 @@ function validatePortableMcpServer(packageRoot: string, name: string, value: unk
     const allowed = new Set(['type', 'command', 'args', 'env', 'cwd'])
     const unknown = Object.keys(server).filter(key => !allowed.has(key))
     if (unknown.length > 0) throw new Error(`Agent Plugins MCP server "${name}" contains unknown field(s): ${unknown.sort().join(', ')}.`)
-    if (typeof server.command !== 'string' || !server.command || /\s/.test(server.command) || server.command.includes('${')) {
-      throw new Error(`Agent Plugins MCP server "${name}" command must be one non-interpolated executable token.`)
+    if (typeof server.command !== 'string' || !server.command || (!server.command.startsWith('./') && /\s/.test(server.command)) || server.command.includes('${')) {
+      throw new Error(`Agent Plugins MCP server "${name}" command must be a bare executable token or one non-interpolated contained ./ path.`)
     }
     if (server.command.includes('\\') || server.command.startsWith('/') || server.command.startsWith('../') || (server.command.includes('/') && !server.command.startsWith('./'))) {
       throw new Error(`Agent Plugins MCP server "${name}" command must be a bare executable or a contained ./ plugin path.`)
@@ -384,8 +385,12 @@ function validatePortableMcpServer(packageRoot: string, name: string, value: unk
     if (server.headers && typeof server.headers === 'object' && !Array.isArray(server.headers)) {
       const seen = new Set<string>()
       for (const [headerName, headerValue] of Object.entries(server.headers as Record<string, string>)) {
-        if (!/^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/.test(headerName)) throw new Error(`Agent Plugins MCP server "${name}" has invalid HTTP header name "${headerName}".`)
-        if (/[\u0000-\u0008\u000A-\u001F\u007F]/.test(headerValue)) throw new Error(`Agent Plugins MCP server "${name}" header "${headerName}" contains a control character.`)
+        try {
+          validateHeaderName(headerName)
+          validateHeaderValue(headerName, headerValue)
+        } catch {
+          throw new Error(`Agent Plugins MCP server "${name}" has an invalid HTTP header name or value for "${headerName}".`)
+        }
         const normalized = headerName.toLowerCase()
         if (seen.has(normalized)) throw new Error(`Agent Plugins MCP server "${name}" contains duplicate case-insensitive header name "${headerName}".`)
         seen.add(normalized)
