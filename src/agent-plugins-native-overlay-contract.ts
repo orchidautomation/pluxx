@@ -53,6 +53,7 @@ export type OverlayNamespaceOwner =
  */
 export type OverlayCapability =
   | 'skills'
+  | 'mcp'
   | 'hooks'
   | 'agents'
   | 'commands'
@@ -466,6 +467,7 @@ const OWNER_LABELS: Record<OverlayNamespaceOwner, string> = {
 /** Capability label used by the matrix renderer. */
 const CAPABILITY_LABELS: Record<OverlayCapability, string> = {
   skills: 'Skills',
+  mcp: 'MCP',
   hooks: 'Hooks',
   agents: 'Agents / subagents',
   commands: 'Commands',
@@ -491,8 +493,7 @@ export const AGENT_PLUGINS_NATIVE_OVERLAY_CONTRACT_MATRIX: OverlayContractEntry[
     directory: 'skills',
     capability: 'skills',
     disposition: 'portable',
-    firstPartyCitation:
-      'https://github.com/vercel-labs/open-plugin-spec/blob/main/spec/1.0.0.md',
+    firstPartyCitation: 'https://agent-plugins.org/specification',
     retrievedAt: '2026-08-30',
     documentedPaths: ['skills/<name>/SKILL.md'],
     evidenceFixture: {
@@ -506,10 +507,9 @@ export const AGENT_PLUGINS_NATIVE_OVERLAY_CONTRACT_MATRIX: OverlayContractEntry[
     id: 'agent-plugins.mcp',
     namespaceOwner: 'agent-plugins',
     directory: 'mcp.json',
-    capability: 'install',
+    capability: 'mcp',
     disposition: 'portable',
-    firstPartyCitation:
-      'https://github.com/vercel-labs/open-plugin-spec/blob/main/spec/1.0.0.md',
+    firstPartyCitation: 'https://agent-plugins.org/specification',
     retrievedAt: '2026-08-30',
     documentedPaths: ['mcp.json'],
     evidenceFixture: {

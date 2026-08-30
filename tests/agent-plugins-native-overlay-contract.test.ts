@@ -266,6 +266,16 @@ describe('agent-plugins native overlay contract matrix', () => {
     }
   })
 
+  it('uses the published specification and classifies portable MCP separately from install mechanics', () => {
+    const matrix = getAgentPluginsNativeOverlayContractMatrix()
+    const skills = matrix.find((entry) => entry.id === 'agent-plugins.skills')
+    const mcp = matrix.find((entry) => entry.id === 'agent-plugins.mcp')
+    expect(skills?.firstPartyCitation).toBe('https://agent-plugins.org/specification')
+    expect(mcp?.firstPartyCitation).toBe('https://agent-plugins.org/specification')
+    expect(mcp?.capability).toBe('mcp')
+    expect(renderAgentPluginsNativeOverlayContractMarkdown()).toContain('| MCP |')
+  })
+
   it('renders an authoritative matrix that distinguishes portable, native, extension-proven, degraded, and unsupported', () => {
     const matrix = getAgentPluginsNativeOverlayContractMatrix()
     const rendered = renderAgentPluginsNativeOverlayContractMarkdown()
