@@ -20,6 +20,7 @@ Last updated: 2026-08-31
   - [docs/runtime-contract.md](./runtime-contract.md)
   - [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md)
   - [docs/core-four-provider-docs-audit.md](./core-four-provider-docs-audit.md)
+  - [docs/new-host-support-gate.md](./new-host-support-gate.md)
   - [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md)
   - [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](./pluxx-self-hosted-core-four-proof.md)
@@ -121,14 +122,14 @@ This is important strategically, but it should not drive the near-term roadmap.
 
 ## Current Next Ship
 
-The active product slice is the strict Agent Plugins v1 portable-core target reviewed in `PLUXX-346`, followed by the explicit `PLUXX-348` release gate. Portable output must contain only documented portable skills and supported MCP declarations, reject undocumented client-extension paths, report native-only degradation, and preserve all four native targets and their hook behavior.
+The active product slice is `PLUXX-289`: turn the completed Agent Plugins/MDP evidence into one reusable, evidence-tiered [new-host support gate](./new-host-support-gate.md). Generated package presence must not be treated as discovery or behavioral support, and portable Agent Plugins claims must stay separate from native host enhancements.
 
 The execution boundary is intentionally explicit:
 
 1. `PLUXX-346` implemented and proved the portable target in merged PR #486, then stopped before version bump, publication, release, or active-home installation; isolated clean-fixture discovery remains implementation validation.
 2. `PLUXX-348` completed the separate `0.1.42` release gate. Immutable tag `v0.1.42` resolves to trusted merge `0f6621a39c02aa69ad3363ad22ada429175779b7`, and Release run [33405498774](https://github.com/orchidautomation/pluxx/actions/runs/33405498774) published byte-identical npm and GitHub artifacts.
-3. `MDP-221` is now the active downstream lane: consume the exact published npm release in Message Decision Packs and prove portable discovery separately from native hook parity.
-4. `MDP-222` updates downstream distribution guidance, and `MDP-218` records the measured keep / narrow / switch decision.
+3. `MDP-221`, `MDP-222`, and the `MDP-218` **further narrow — keep Pluxx** decision are complete in public MDP `0.1.101` and merged documentation.
+4. `PLUXX-289` defines the reusable proof ladder and support matrix; `PLUXX-309` remains the downstream provider-doc translation refresh.
 
 The Codex companion apply/verify workflow from the earlier next-ship decision is now implemented. The historical decision note remains at [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisions/2026-06-26-pluxx-next-ship-review.md).
 

@@ -1,12 +1,13 @@
 # Core-Four Provider Docs Audit
 
-Last updated: 2026-07-11
+Last updated: 2026-08-31
 
 ## Doc Links
 
 - Role: official-doc-backed host capability audit
 - Related:
   - [docs/core-four-primitive-matrix.md](./core-four-primitive-matrix.md)
+  - [docs/new-host-support-gate.md](./new-host-support-gate.md)
   - [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md)
   - [docs/compatibility.md](./compatibility.md)
   - [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md)
@@ -15,12 +16,13 @@ Last updated: 2026-07-11
   - [docs/roadmap.md](./roadmap.md)
 - Update together:
   - [docs/core-four-primitive-matrix.md](./core-four-primitive-matrix.md)
+  - [docs/new-host-support-gate.md](./new-host-support-gate.md)
   - [docs/compatibility.md](./compatibility.md)
   - [src/validation/platform-rules.ts](../src/validation/platform-rules.ts)
   - [docs/todo/queue.md](./todo/queue.md)
   - [docs/roadmap.md](./roadmap.md)
 
-This doc records the May 2026 first-party provider-doc audit refresh, the June 24, 2026 Firecrawl spot refresh, and the July 11, 2026 agent-discovery refresh across:
+This doc records the May 2026 first-party provider-doc audit refresh, the June 24, 2026 Firecrawl spot refresh, the July 11, 2026 agent-discovery refresh, and the August 31, 2026 PLUXX-289 support-gate refresh across:
 
 - Claude Code
 - Cursor
@@ -40,6 +42,18 @@ Method:
 - one Firecrawl-backed official-doc research pass per host
 - official provider docs only
 - compare documented host surfaces against Pluxx's current machine-readable rules and public docs
+
+August 31, 2026 action-time source receipts:
+
+| Host | Official source receipts | Support-gate conclusion |
+|---|---|---|
+| Claude Code | `https://code.claude.com/docs/en/plugins`, `https://code.claude.com/docs/en/hooks`, `https://code.claude.com/docs/en/sub-agents`, `https://code.claude.com/docs/en/mcp`, `https://code.claude.com/docs/en/permissions`, `https://code.claude.com/docs/en/plugin-marketplaces` | Native plugin surfaces remain documented. No generic Agent Plugins package import is claimed. |
+| Cursor | `https://cursor.com/docs/plugins`, `https://cursor.com/docs/hooks`, `https://cursor.com/docs/subagents`, `https://cursor.com/docs/mcp`, `https://cursor.com/docs/cli/reference/permissions` | Cursor now explicitly documents Agent Plugins as a skills-and-MCP portable format and gives a local load path. Real portable discovery for the Pluxx 0.1.42 artifact remains unrecorded. |
+| Codex | `https://developers.openai.com/codex/plugins`, `https://developers.openai.com/codex/hooks`, `https://developers.openai.com/codex/skills`, `https://developers.openai.com/codex/subagents`, `https://developers.openai.com/codex/mcp`, `https://developers.openai.com/codex/agent-approvals-security` | Native plugins, skills, hooks, agents, MCP, approvals, and sandboxing are documented. No generic Agent Plugins root import path is documented; Codex stays native-only. |
+| OpenCode | `https://opencode.ai/docs/plugins/`, `https://opencode.ai/docs/skills/`, `https://opencode.ai/docs/commands/`, `https://opencode.ai/docs/agents/`, `https://opencode.ai/docs/mcp-servers/`, `https://opencode.ai/docs/permissions/` | Native code/config surfaces remain documented. Compatible skill directories do not establish a generic Agent Plugins package import contract. |
+| Agent Plugins v1 | `https://agent-plugins.org/specification` | The portable contract remains limited to skills and declared MCP. Hooks, agents, commands, permissions, scripts, background behavior, and host install mechanics require separate native proof. |
+
+The reusable evidence ladder and current row-level claims now live in [New-host support gate](./new-host-support-gate.md). Generated-file presence is not discovery or behavioral proof.
 
 June 24, 2026 Firecrawl source receipts:
 

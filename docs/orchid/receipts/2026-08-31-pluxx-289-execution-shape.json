@@ -1,0 +1,45 @@
+{
+  "schema": "orchid.work.execution-shape/v1",
+  "issue": "PLUXX-289",
+  "repository": "orchidautomation/pluxx",
+  "shape": "sol-implementation-exception",
+  "reason": "canonical-dispatcher-unavailable",
+  "justification": "The installed Orchid Relay bundle exposes lifecycle tools but does not ship the required orchid-work dispatcher, worktree helper, or receipt validator. Native task creation cannot provide the required Luna/Fast dispatcher evidence, so the Sol orchestrator executed only the bounded pinned-plan files rather than fabricating delegation proof.",
+  "plan": {
+    "path": "docs/orchid/plans/2026-08-31-pluxx-289-host-support-gate.md",
+    "sha256": "1eb48ea58aeb0af9f14f6846bdbbc218a3ee303bfab9b4b51b3dc1852d815916",
+    "sourceRef": "codex/pluxx-289-host-support-gate",
+    "sourceCommit": "80c4bf20e9f325343479276b9bca449b425e6e9e"
+  },
+  "owned": [
+    "src/compatibility/host-support-gate.ts",
+    "src/compatibility/matrix.ts",
+    "scripts/generate-host-support-gate.ts",
+    "tests/host-support-gate.test.ts",
+    "test-fixtures/host-support-gate/",
+    "docs/new-host-support-gate.md",
+    "docs/core-four-provider-docs-audit.md",
+    "docs/core-four-primitive-matrix.md",
+    "docs/compatibility.md",
+    "site/how-it-works/compatibility-limits.mdx",
+    "docs/start-here.md",
+    "docs/todo/queue.md",
+    "docs/todo/master-backlog.md",
+    "docs/roadmap.md",
+    "package.json"
+  ],
+  "forbidden": [
+    "src/generators/",
+    "src/schema.ts",
+    "src/cli/publish.ts",
+    ".github/workflows/",
+    "docs/orchid/receipts/2026-08-31-pluxx-0.1.42-release.json"
+  ],
+  "validation": {
+    "focusedTests": "38 passed",
+    "fullSuite": "66 files / 878 tests passed",
+    "typecheck": "passed",
+    "build": "passed",
+    "activeHomeMutation": false
+  }
+}

@@ -22,6 +22,7 @@ Last updated: 2026-08-31
   - [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](./pluxx-self-hosted-core-four-proof.md)
   - [docs/core-four-provider-docs-audit.md](./core-four-provider-docs-audit.md)
+  - [docs/new-host-support-gate.md](./new-host-support-gate.md)
   - [docs/core-four-reliability-register.md](./core-four-reliability-register.md)
   - [docs/core-four-translation-hit-list.md](./core-four-translation-hit-list.md)
   - [docs/core-four-maintenance-routine.md](./core-four-maintenance-routine.md)
@@ -95,6 +96,8 @@ PLUXX-345 shipped in the independently verified public `0.1.41` release through 
 PLUXX-346 is merged through PR #486 and shipped in the independently verified public `0.1.42` release. It adds a strict Agent Plugins v1 portable-core output without replacing the native core four. PLUXX-348 completed the separate release gate at trusted merge `0f6621a39c02aa69ad3363ad22ada429175779b7`: immutable `v0.1.42`, successful Release run [33405498774](https://github.com/orchidautomation/pluxx/actions/runs/33405498774), byte-identical npm/GitHub artifacts, and an isolated published-CLI portable smoke. These fixture proofs are not installed-host proof. Message Decision Packs now adopts the published package in `MDP-221`, updates distribution guidance in `MDP-222`, and records the measured keep / further narrow / switch decision in `MDP-218`.
 
 Portable discovery and native behavior are different proof tiers. The portable package may contain documented skills and explicitly supported MCP only; native hooks remain validated through the native targets, and undocumented reverse-domain overlays remain rejected.
+
+PLUXX-289 is the active policy lane. It turns that evidence into the reusable [new-host support gate](./new-host-support-gate.md), with schema, generated-fixture, isolated-installed, discovered, and behavioral tiers plus first-class unsupported/degraded/unproven outcomes. PLUXX-309 follows it and must use the gate for the next provider-doc translation refresh.
 
 ### 1. Product clarity and source-of-truth coherence
 
