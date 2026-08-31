@@ -64,6 +64,14 @@ interface HostDetectionContext {
   platform: NodeJS.Platform
 }
 
+/** Stable machine-level inventory shared by native detection and release installers. */
+export const CORE_HOST_DETECTION_INVENTORY = Object.freeze({
+  'claude-code': ['claude', '$HOME/.claude.json', '$HOME/.claude/settings.json', '$HOME/.claude/plugins/cache', '$HOME/.claude/plugins'],
+  cursor: ['cursor', 'cursor-agent', '$HOME/.cursor/mcp.json', '$HOME/.cursor/settings.json', '$HOME/.cursor/plugins/local'],
+  codex: ['codex', '$HOME/.codex/config.toml', '$HOME/.codex/plugins', '$HOME/.agents/plugins/marketplace.json'],
+  opencode: ['opencode', '$HOME/.config/opencode/opencode.json', '$HOME/.config/opencode/plugins', '$HOME/.config/opencode/skills'],
+} as const)
+
 const HOST_EVIDENCE: Record<CoreFourPlatform, HostEvidenceCandidate[]> = {
   'claude-code': [
     { type: 'cli', label: 'Claude Code CLI', command: 'claude' },
