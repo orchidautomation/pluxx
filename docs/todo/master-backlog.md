@@ -35,6 +35,7 @@ This is not the same thing as the short queue.
   - [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](../pluxx-self-hosted-core-four-proof.md)
   - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
+  - [docs/new-host-support-gate.md](../new-host-support-gate.md)
   - [docs/core-four-reliability-register.md](../core-four-reliability-register.md)
   - [docs/core-four-translation-hit-list.md](../core-four-translation-hit-list.md)
   - [author-once-hardening.md](./author-once-hardening.md)
@@ -658,12 +659,10 @@ It is:
 
 If someone needs the next concrete path without reopening strategy debates:
 
-1. Finish and review `PLUXX-346` without duplicating its active implementation lane.
-2. Run `PLUXX-348` from merged exact-main truth and publish the provisional `0.1.42` only after explicit authorization.
-3. Prove the public artifacts, an isolated installed portable-target smoke, and clean Cursor/Codex fixture discovery.
-4. Complete `MDP-221` against that exact published package while preserving native hook proof.
-5. Complete `MDP-222`, then record the measured `MDP-218` keep / further narrow / switch decision.
-6. Route the remaining host-acceptance and provider-refresh work through `PLUXX-289` and `PLUXX-309` from the resulting evidence.
+1. Treat `PLUXX-346`, `PLUXX-348`, `MDP-221`, `MDP-222`, and the `MDP-218` further-narrow decision as completed evidence, not active implementation.
+2. Complete `PLUXX-289` by landing the reusable evidence ladder and [new-host support gate](../new-host-support-gate.md).
+3. Run `PLUXX-309` against that gate to refresh Claude, Cursor, and OpenCode translation without promoting unproven runtime claims.
+4. Keep Codex on the native path until a first-party generic Agent Plugins root-import contract and clean-host discovery proof exist.
 
 ## Linear Note
 

@@ -22,6 +22,7 @@ Last updated: 2026-08-31
   - [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](../pluxx-self-hosted-core-four-proof.md)
   - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
+  - [docs/new-host-support-gate.md](../new-host-support-gate.md)
   - [docs/core-four-reliability-register.md](../core-four-reliability-register.md)
   - [docs/core-four-translation-hit-list.md](../core-four-translation-hit-list.md)
   - [author-once-hardening.md](./author-once-hardening.md)
@@ -54,6 +55,8 @@ For broader context, use:
 - [Linear workspace](https://linear.app/orchid-automation)
 
 ## Current Truth
+
+The current execution lane is `PLUXX-289`: encode a reusable host-support gate that separates schema, generated fixture, isolated install, discovery, and behavioral proof. Its maintained matrix is [docs/new-host-support-gate.md](../new-host-support-gate.md). `PLUXX-309` remains downstream and must consume this gate rather than restating host quirks.
 
 All nine PLUXX-313 through PLUXX-321 audit remediations are merged, and previous releases are historical baseline evidence. PLUXX-334 is implemented through PR #446; PR #447 owns the active 0.1.34 shared-runtime release cut.
 

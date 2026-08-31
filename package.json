@@ -20,6 +20,7 @@
     "dev": "tsx watch src/cli/index.ts",
     "eval:docs-ingestion": "tsx scripts/evaluate-docs-ingestion.ts",
     "generate:compatibility": "tsx scripts/generate-compatibility-matrix.ts",
+    "generate:host-support-gate": "tsx scripts/generate-host-support-gate.ts",
     "pack:check": "node scripts/run-npm-pack.mjs --dry-run",
     "proof:check": "node --import tsx scripts/check-proof-freshness.ts",
     "proof:receipt": "node --import tsx scripts/generate-proof-receipt.ts",

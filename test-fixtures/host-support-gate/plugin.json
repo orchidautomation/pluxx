@@ -1,0 +1,9 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "pluxx-host-support-proof",
+  "description": "Isolated fixture for the Pluxx host-support evidence gate.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Orchid Labs"
+  }
+}

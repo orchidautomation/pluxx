@@ -3,6 +3,8 @@
 
 This matrix is generated from the repo-owned platform rules and verification surface.
 
+Use the [new-host support gate](https://github.com/orchidautomation/pluxx/blob/main/docs/new-host-support-gate.md) before turning any generated target or fixture into a support claim.
+
 Verification labels:
 - `Release smoke`: exercised end to end by the real CLI against the real example plugins on the core four.
 - `Generator fixture`: covered by the repo build/test fixture layer.
