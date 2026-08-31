@@ -157,8 +157,8 @@ export function getDefaultCodexMcpProbeScenarios(): CodexMcpProbeScenario[] {
       configScope: 'agent-inline',
       requestCustomAgent: true,
       prompt: AGENT_MCP_PROMPT,
-      expectedLastMessage: MCP_MARKER_MISSING,
-      expectedMcpCall: false,
+      expectedLastMessage: MCP_MARKER_ALLOWED,
+      expectedMcpCall: true,
       extraServerTomlLines: APPROVE_MCP_TOOL_TOML_LINES,
     },
     {

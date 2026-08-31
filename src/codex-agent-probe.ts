@@ -550,6 +550,11 @@ function classifyAgentProbeStatus(
   if (parsed.sawSpawnAgentCall && parsed.sawWaitCall && parsed.spawnedThreadIds.length > 0) {
     return 'custom-agent-invoked'
   }
+  // Codex 0.148 may omit the spawn item and child thread id from JSONL while
+  // still exposing the delegated wait and the proof-prefixed child response.
+  if (parsed.sawWaitCall && parsed.childAgentMessages.length > 0) {
+    return 'custom-agent-invoked'
+  }
   return 'no-custom-agent-invocation'
 }
 

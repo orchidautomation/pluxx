@@ -90,6 +90,11 @@ elif [ "$MODE" = "explicit-negative" ]; then
   printf 'OK\\n' > "$OUT"
   printf '{"type":"item.completed","item":{"type":"agent_message","text":"OK"}}\\n'
   printf '{"type":"turn.completed"}\\n'
+elif [ "$MODE" = "stream-only-delegated-proof" ]; then
+  printf '{"type":"item.started","item":{"type":"collab_tool_call","tool":"wait"}}\\n'
+  printf '{"type":"item.completed","item":{"type":"collab_tool_call","tool":"wait","output":{"agents_states":[{"last_message":"CUSTOM_AGENT_PROOF delegated answer"}]}}}\\n'
+  printf '{"type":"item.completed","item":{"type":"agent_message","text":"CUSTOM_AGENT_PROOF delegated answer"}}\\n'
+  printf '{"type":"turn.completed"}\\n'
 elif [ "$MODE" = "explorer-override" ]; then
   printf '{"type":"item.started","item":{"type":"collab_tool_call","tool":"spawn_agent"}}\\n'
   printf '{"type":"item.completed","item":{"type":"collab_tool_call","tool":"spawn_agent","output":{"receiver_thread_ids":["child-thread-override"]}}}\\n'
@@ -236,6 +241,24 @@ describe('codex agent probe', () => {
     expect(result.childAgentMessages).toHaveLength(0)
     expect(result.finalMessageHasProofPrefix).toBe(false)
     expect(result.lastMessage).toBe('OK')
+  })
+
+  it('recovers a delegated proof from JSONL when Codex omits spawn metadata and the last-message file', async () => {
+    process.env.PLUXX_FAKE_CODEX_AGENT_MODE = 'stream-only-delegated-proof'
+    const result = await runScenario({
+      name: 'stream-only-delegated-proof',
+      requestCustomAgent: true,
+      prompt: 'Use the proof agent to answer this request.',
+      expectedLastMessage: 'CUSTOM_AGENT_PROOF delegated answer',
+    })
+
+    expect(result.status).toBe('custom-agent-invoked')
+    expect(result.sawSpawnAgentCall).toBe(false)
+    expect(result.sawWaitCall).toBe(true)
+    expect(result.spawnedThreadIds).toEqual([])
+    expect(result.childAgentMessages).toContain('CUSTOM_AGENT_PROOF delegated answer')
+    expect(result.lastMessage).toBe('CUSTOM_AGENT_PROOF delegated answer')
+    expect(result.messageExpectationStatus).toBe('matched')
   })
 
   it('reports custom-agent-invoked when a project-local explorer.toml overrides the built-in explorer agent', async () => {

@@ -1,0 +1,37 @@
+{
+  "schema": "orchid.work.execution-shape/v1",
+  "issue": "PLUXX-309",
+  "repository": "orchidautomation/pluxx",
+  "shape": "sol-implementation-exception",
+  "reason": "user-directed-live-codex-proof",
+  "justification": "The user explicitly requested immediate closeout through current Codex CLI proof. The bounded implementation repairs only the probe compatibility defects exposed by that proof and synchronizes the maintained evidence surfaces; no delegated implementation claim is fabricated.",
+  "source": {
+    "branch": "codex/pluxx-309-proof",
+    "baseCommit": "0c7aede7178e722f2255e65d727ecf9048fd53b4"
+  },
+  "owned": [
+    "src/codex-exec-runner.ts",
+    "src/codex-agent-probe.ts",
+    "src/codex-mcp-probe.ts",
+    "tests/codex-agent-probe.test.ts",
+    "tests/codex-mcp-probe.test.ts",
+    "src/agent-translation-registry.ts",
+    "src/validation/platform-rules.ts",
+    "docs/core-four-*",
+    "docs/start-here.md",
+    "docs/todo/queue.md",
+    "docs/todo/master-backlog.md",
+    "docs/roadmap.md",
+    "site/overview/core-four-primitive-matrix.mdx",
+    "docs/orchid/qa/2026-08-31-pluxx-309-codex-cli-proof.md"
+  ],
+  "validation": {
+    "codexCli": "0.148.0",
+    "liveScenarios": 13,
+    "focusedTests": "50 passed plus 4 compatibility-matrix tests",
+    "typecheck": "passed",
+    "build": "passed",
+    "proofFreshness": "30 claims / 30 receipts",
+    "activeHomeMutation": false
+  }
+}
