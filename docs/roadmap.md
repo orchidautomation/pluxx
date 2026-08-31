@@ -65,12 +65,12 @@ That means Pluxx should become excellent at:
 
 before it spends serious energy on an operated control plane.
 
-The current next ship decision is to make Codex companion apply and verify first-class:
+The earlier next-ship decision made Codex companion apply and verify first-class; it is now a shipped core surface with remaining narrow runtime gaps:
 
-- apply generated Codex companion config safely, with reviewable diffs or backups
-- verify active project/user config, plugin cache state, generated companion artifacts, and known Codex caveats
-- cover idempotency, stale config, malformed companion artifacts, and absent companion files
-- align execution with `PLUXX-226`, `PLUXX-264`, and `PLUXX-248`
+- generated Codex companion config applies conservatively with reviewable state and ownership-aware recovery
+- active project/user config, plugin cache state, generated companion artifacts, and known Codex caveats are verifiable
+- idempotency, stale config, malformed companion artifacts, and absent companion files have maintained coverage
+- remaining runtime caveats stay aligned with `PLUXX-226`, `PLUXX-264`, and `PLUXX-248`
 
 See [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisions/2026-06-26-pluxx-next-ship-review.md).
 
@@ -91,6 +91,10 @@ PLUXX-341/PLUXX-342 shipped in the independently verified public `0.1.39` releas
 PLUXX-344 shipped in the independently verified public `0.1.40` release through PR #473. It preserves explicit hook roots, prefers payload workspace context over stale ambient variables, and retains legacy fallback behavior when the payload omits workspace context.
 
 PLUXX-345 shipped in the independently verified public `0.1.41` release through PR #480. It repairs generated Codex hook-root resolution when `CODEX_PLUGIN_ROOT` is unset while preserving explicit-root precedence and legacy fallback behavior.
+
+The active lane is now `PLUXX-346` followed by `PLUXX-348`. `PLUXX-346` adds a strict Agent Plugins v1 portable-core output without replacing the native core four. `PLUXX-348` is the separate provisional `0.1.42` release gate and must prove exact public artifacts, an isolated installed portable-target smoke, and clean Cursor/Codex fixture discovery before downstream consumers treat the target as shipped. Message Decision Packs then adopts the published package in `MDP-221`, updates distribution guidance in `MDP-222`, and records the measured keep / further narrow / switch decision in `MDP-218`.
+
+Portable discovery and native behavior are different proof tiers. The portable package may contain documented skills and explicitly supported MCP only; native hooks remain validated through the native targets, and undocumented reverse-domain overlays remain rejected.
 
 ### 1. Product clarity and source-of-truth coherence
 
@@ -124,9 +128,9 @@ The closure plan is now narrower than it was before:
 - the next reliability pass should now run from [docs/core-four-reliability-register.md](./core-four-reliability-register.md):
   - Claude Code and Codex stay the priority hosts
   - the immediate focus is agents, hooks, settings/discovery, and distribution-edge proof rather than broad compiler rewrites
-- the next concrete OSS-authoring robustness slice is Codex companion apply/verify:
-  - make generated readiness, hook, MCP approval, and companion config artifacts operational and verifiable instead of advisory only
-  - keep the work aligned with `PLUXX-226`, `PLUXX-264`, `PLUXX-248`, and [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
+- the shipped Codex companion apply/verify slice remains a maintained OSS-authoring surface:
+  - keep generated readiness, hook, MCP approval, and companion config artifacts operational and verifiable instead of advisory only
+  - keep remaining caveats aligned with `PLUXX-226`, `PLUXX-264`, `PLUXX-248`, and [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](./orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
   - transactional install ownership now covers conservative reinstall/uninstall, rollback, content drift, and trusted pre-ownership adoption across the core four
 - local stdio import quality is now stronger for the common "I already have an MCP" path:
   - `init --from-mcp` auto-recovers `passthrough` for project-relative runtimes such as `./build/index.js`
