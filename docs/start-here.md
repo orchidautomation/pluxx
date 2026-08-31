@@ -1,6 +1,6 @@
 # Start Here
 
-Last updated: 2026-08-30
+Last updated: 2026-08-31
 
 ## Doc Links
 
@@ -39,7 +39,7 @@ If you want the shortest public proof and install path after this file, use [doc
 
 If you want the current release, distribution, and proof boundary, use [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md).
 
-If you need to know whether a proof claim is current, historical, repository-only, installed, or real-host evidence, use [docs/proof-freshness.md](./proof-freshness.md) and [docs/proof-manifest.json](./proof-manifest.json). Canonical repository and independently verified public release truth is `@orchid-labs/pluxx@0.1.41` for the PLUXX-345 Codex hook-root repair.
+If you need to know whether a proof claim is current, historical, repository-only, installed, or real-host evidence, use [docs/proof-freshness.md](./proof-freshness.md) and [docs/proof-manifest.json](./proof-manifest.json). The canonical repository release candidate is `@orchid-labs/pluxx@0.1.42` for PLUXX-348; the independently verified historical public release remains `0.1.41`.
 
 If you want the primitive-by-host proof ledger behind the core-four native shipping claim, use [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md).
 
@@ -121,12 +121,12 @@ This is important strategically, but it should not drive the near-term roadmap.
 
 ## Current Next Ship
 
-The active product slice is the strict Agent Plugins v1 portable-core target tracked by `PLUXX-346`, followed by the explicit `PLUXX-348` release gate. Portable output must contain only documented portable skills and supported MCP declarations, reject undocumented client-extension paths, report native-only degradation, and preserve all four native targets and their hook behavior.
+The active product slice is the strict Agent Plugins v1 portable-core target reviewed in `PLUXX-346`, followed by the explicit `PLUXX-348` release gate. Portable output must contain only documented portable skills and supported MCP declarations, reject undocumented client-extension paths, report native-only degradation, and preserve all four native targets and their hook behavior.
 
 The execution boundary is intentionally explicit:
 
-1. `PLUXX-346` implements and proves the portable target, then stops before version bump, publication, release, or active-home installation; isolated clean-fixture discovery remains implementation validation.
-2. `PLUXX-348` owns the separate release gate only after the implementation is merged and exact-main validation is green. Its intended package version is `0.1.42`, pending the action-time semver check.
+1. `PLUXX-346` implemented and proved the portable target in merged PR #486, then stopped before version bump, publication, release, or active-home installation; isolated clean-fixture discovery remains implementation validation.
+2. `PLUXX-348` owns the separate `0.1.42` release gate. The semver check retains a patch because the target is additive and opt-in, existing defaults remain compatible, and the project continues its pre-1.0 `0.1.x` compatible-release convention. Its release preparation is reconstructed from exact trusted `main` containing merged PRs #485 and #486.
 3. `MDP-221` consumes the published npm release in Message Decision Packs and proves portable discovery separately from native hook parity.
 4. `MDP-222` updates downstream distribution guidance, and `MDP-218` records the measured keep / narrow / switch decision.
 
@@ -366,8 +366,9 @@ The repo already proves a lot.
 - historical release-gate evidence from 2026-05-19 remains available but is not current proof:
   - `npm test` passed
   - `npm run release:check` passed
-- the canonical and verified public release is `@orchid-labs/pluxx@0.1.41` / `v0.1.41`; npm and GitHub serve the same tarball at SHA-256 `25e0039ad63f10a79970d8028c56461f9813cbfb522088be93beba18bde6508e`
-- `0.1.41` contains only the merged PLUXX-345 Codex hook-root repair
+- the canonical repository release candidate is `@orchid-labs/pluxx@0.1.42` / intended `v0.1.42`; it is not yet tagged or public
+- the independently verified historical public release is `@orchid-labs/pluxx@0.1.41` / `v0.1.41`; npm and GitHub serve the same tarball at SHA-256 `25e0039ad63f10a79970d8028c56461f9813cbfb522088be93beba18bde6508e`
+- historical `0.1.41` contains only the merged PLUXX-345 Codex hook-root repair
 - immutable tag `v0.1.38` records only the follow-up PLUXX-340 correction for duplicate release-manifest archive identities discovered after the historical shipped 0.1.37 release
 - marketplace submission APIs, a managed trust/distribution control plane, automatic rollback/unpublish orchestration, and real authenticated publish plus rollback proof remain explicit release gaps, not hidden shipped capabilities:
   - `docs/release-distribution-proof-map.md`
@@ -538,7 +539,7 @@ Run two lanes in parallel:
 
 ### 6. Release State
 
-The canonical repository and verified public release is `@orchid-labs/pluxx@0.1.41`; immutable tag `v0.1.41` remains at trusted merge `0379d2c646ad9b83fb31016d9d553ba5dea96e76`.
+The canonical repository release candidate is `@orchid-labs/pluxx@0.1.42` and is not yet tagged or public. The independently verified historical public release remains `@orchid-labs/pluxx@0.1.41`; immutable tag `v0.1.41` remains at trusted merge `0379d2c646ad9b83fb31016d9d553ba5dea96e76`.
 
 For v0.1.37, PLUXX-339 is the tagged security focus: lint, doctor, install, and packaged-runtime verification fail closed when bundled runtime scripts source workspace `.env` files through direct or statically evaluable shell forms. The patch preserves valid safe shell forms and uses a bounded explicit scanner rather than an expanding regex.
 
@@ -549,6 +550,8 @@ For v0.1.39, PLUXX-341/PLUXX-342 is the only release focus: OpenCode hooks keep 
 For v0.1.40, PLUXX-344 is the only release focus: explicit hook roots remain authoritative, hook payload workspace context wins over stale ambient variables, and legacy fallback behavior remains available when payload workspace context is absent.
 
 For v0.1.41, PLUXX-345 is the only release focus: generated Codex hooks resolve the installed plugin root even when `CODEX_PLUGIN_ROOT` is unset, without weakening explicit-root precedence or legacy fallbacks. Installed Codex Desktop verification remains separate from repository, fake-home, and isolated CLI proof.
+
+For the 0.1.42 release candidate, PLUXX-348 combines the PLUXX-346 strict Agent Plugins portable target, PLUXX-347 fail-closed native-overlay policy, and PR #483 installer rollback repair. Portable Cursor/Codex fixture discovery is fake-home contract evidence only; no current claim treats it as real-host installation or execution.
 
 ## Working Rules
 

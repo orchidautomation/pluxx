@@ -1,6 +1,6 @@
 # Release Distribution Proof Map
 
-Last updated: 2026-08-08
+Last updated: 2026-08-31
 
 ## Doc Links
 
@@ -26,7 +26,7 @@ Last updated: 2026-08-08
 
 This is the short release/distribution map for what Pluxx can ship today, what is locally proven, and what still belongs to later marketplace or trust-layer work.
 
-Proof state is governed by [proof-freshness.md](./proof-freshness.md) and the machine-readable [proof manifest](./proof-manifest.json). The canonical and independently verified public release is `@orchid-labs/pluxx@0.1.41`, focused on the PLUXX-345 Codex hook-root repair. Immutable tag `v0.1.41` is fixed at trusted merge `0379d2c646ad9b83fb31016d9d553ba5dea96e76`; tag-triggered Release run [33254601754](https://github.com/orchidautomation/pluxx/actions/runs/33254601754) published byte-identical npm and GitHub artifacts at SHA-256 `25e0039ad63f10a79970d8028c56461f9813cbfb522088be93beba18bde6508e`.
+Proof state is governed by [proof-freshness.md](./proof-freshness.md) and the machine-readable [proof manifest](./proof-manifest.json). The canonical repository release candidate is `@orchid-labs/pluxx@0.1.42` for PLUXX-348 and is not yet tagged or public. The independently verified historical public release remains `@orchid-labs/pluxx@0.1.41`; immutable tag `v0.1.41` is fixed at trusted merge `0379d2c646ad9b83fb31016d9d553ba5dea96e76`, and Release run [33254601754](https://github.com/orchidautomation/pluxx/actions/runs/33254601754) published byte-identical npm and GitHub artifacts at SHA-256 `25e0039ad63f10a79970d8028c56461f9813cbfb522088be93beba18bde6508e`.
 
 ## Current Primary Fronts
 

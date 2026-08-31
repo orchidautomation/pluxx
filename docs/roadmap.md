@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-08-08
+Last updated: 2026-08-31
 
 ## Doc Links
 
@@ -92,7 +92,7 @@ PLUXX-344 shipped in the independently verified public `0.1.40` release through 
 
 PLUXX-345 shipped in the independently verified public `0.1.41` release through PR #480. It repairs generated Codex hook-root resolution when `CODEX_PLUGIN_ROOT` is unset while preserving explicit-root precedence and legacy fallback behavior.
 
-The active lane is now `PLUXX-346` followed by `PLUXX-348`. `PLUXX-346` adds a strict Agent Plugins v1 portable-core output without replacing the native core four. `PLUXX-348` is the separate provisional `0.1.42` release gate and must prove exact public artifacts, an isolated installed portable-target smoke, and clean Cursor/Codex fixture discovery before downstream consumers treat the target as shipped. Message Decision Packs then adopts the published package in `MDP-221`, updates distribution guidance in `MDP-222`, and records the measured keep / further narrow / switch decision in `MDP-218`.
+PLUXX-346 is merged through PR #486, and the active lane is now `PLUXX-348`. `PLUXX-346` adds a strict Agent Plugins v1 portable-core output without replacing the native core four. `PLUXX-348` retains `0.1.42` after the action-time semver check and owns the separate release gate; its preparation was reconstructed from exact trusted `main` after PRs #485/#486 merged. Before downstream consumers treat the target as shipped, the release must prove exact public artifacts, an isolated portable fake-home smoke, and clean Cursor/Codex contract-fixture discovery without relabeling those fixtures as installed-host proof. Message Decision Packs then adopts the published package in `MDP-221`, updates distribution guidance in `MDP-222`, and records the measured keep / further narrow / switch decision in `MDP-218`.
 
 Portable discovery and native behavior are different proof tiers. The portable package may contain documented skills and explicitly supported MCP only; native hooks remain validated through the native targets, and undocumented reverse-domain overlays remain rejected.
 
@@ -240,8 +240,9 @@ The closure plan is now narrower than it was before:
 - historical release-gate evidence from 2026-05-19 remains available but is not current proof:
   - `npm test` passed
   - `npm run release:check` passed
-- the canonical and verified public release is `@orchid-labs/pluxx@0.1.41` / `v0.1.41`; npm and GitHub serve the same tarball at SHA-256 `25e0039ad63f10a79970d8028c56461f9813cbfb522088be93beba18bde6508e`
-- 0.1.41 is only the PLUXX-345 Codex hook-root repair
+- the canonical repository release candidate is `@orchid-labs/pluxx@0.1.42` / intended `v0.1.42`; it is not yet tagged or public
+- the independently verified historical public release remains `@orchid-labs/pluxx@0.1.41` / `v0.1.41`; npm and GitHub serve the same tarball at SHA-256 `25e0039ad63f10a79970d8028c56461f9813cbfb522088be93beba18bde6508e`
+- historical 0.1.41 is only the PLUXX-345 Codex hook-root repair
 - 0.1.38 is only the PLUXX-340 manifest-identity follow-up discovered after shipped and independently verified 0.1.37
 - the release/distribution/proof boundary is now explicit:
   - [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md)
@@ -402,7 +403,7 @@ This is for learning and proof, not for prematurely building the full trust laye
 
 ### 6. Next release
 
-The canonical repository and verified public release is `@orchid-labs/pluxx@0.1.41` for PLUXX-345 at immutable trusted merge `0379d2c646ad9b83fb31016d9d553ba5dea96e76`.
+The canonical repository release candidate is `@orchid-labs/pluxx@0.1.42` for PLUXX-348 and is not yet tagged or public. The independently verified historical public release remains `@orchid-labs/pluxx@0.1.41` for PLUXX-345 at immutable trusted merge `0379d2c646ad9b83fb31016d9d553ba5dea96e76`.
 
 The next npm cut should stay primarily an operations step rather than a code-confidence rescue step.
 
@@ -412,7 +413,7 @@ The next npm cut should stay primarily an operations step rather than a code-con
 - preserve completed 0.1.41 evidence: tag and trusted merge `0379d2c646ad9b83fb31016d9d553ba5dea96e76`, Release run `33254601754`, and byte-identical npm/GitHub tarball SHA-256 `25e0039ad63f10a79970d8028c56461f9813cbfb522088be93beba18bde6508e`
 - preserve the completed 0.1.37 immutable-tag recovery evidence: tag commit `d5184752cd4898306390f20455619c34a42099dd`, tree `e63eea0f89995a44b7536b5403af57792e994cb9`, trusted main `044673f947115bcf6117dd7c0139918bdd248a99`, and tarball SHA-256 `7c996da682887ceedecc006307c207c5a834e5dedabaab17611cd586ef85b237`
 - refresh installed-runtime or real-host receipts separately before making broader current host claims
-- use future focused release PRs and trusted tag workflows for the next package cut
+- finish the focused PLUXX-348 release-prep PR from exact trusted main, then use the trusted tag workflow only after explicit action-time authorization
 
 ## What This Roadmap Is Optimizing For
 

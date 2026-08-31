@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "canonicalVersion": "0.1.41",
-  "expectedTag": "v0.1.41",
-  "releaseState": "released",
+  "canonicalVersion": "0.1.42",
+  "expectedTag": "v0.1.42",
+  "releaseState": "release-prep",
   "policy": {
     "environmentReceiptMaxAgeDays": 30
   },
@@ -203,7 +203,7 @@
       "id": "v0.1.41-repository-validation",
       "summary": "The exact v0.1.41 release-prep commit passes the complete repository release gate for the PLUXX-345 Codex hook-root repair.",
       "tier": "bundle-contract",
-      "freshness": "current",
+      "freshness": "historical",
       "evidencePath": "tests/proof-freshness.test.ts",
       "receiptId": "v0.1.41-repository-validation"
     },
@@ -211,9 +211,33 @@
       "id": "v0.1.41-fake-home-install",
       "summary": "The exact v0.1.41 release-prep commit passes maintained core-four isolated install coverage for the PLUXX-345 Codex hook-root repair.",
       "tier": "fake-home-install",
-      "freshness": "current",
+      "freshness": "historical",
       "evidencePath": "tests/release-smoke.test.ts",
       "receiptId": "v0.1.41-fake-home-install"
+    },
+    {
+      "id": "v0.1.42-repository-validation",
+      "summary": "The exact v0.1.42 release-prep commit passes the complete repository release gate for PLUXX-348.",
+      "tier": "bundle-contract",
+      "freshness": "current",
+      "evidencePath": "tests/proof-freshness.test.ts",
+      "receiptId": "v0.1.42-repository-validation"
+    },
+    {
+      "id": "v0.1.42-fake-home-install",
+      "summary": "The exact v0.1.42 release-prep commit passes maintained native core-four isolated fake-home install coverage.",
+      "tier": "fake-home-install",
+      "freshness": "current",
+      "evidencePath": "tests/release-smoke.test.ts",
+      "receiptId": "v0.1.42-fake-home-install"
+    },
+    {
+      "id": "v0.1.42-portable-compatible-client-fixtures",
+      "summary": "The exact v0.1.42 portable artifact is copied into isolated Cursor and Codex compatible-client fixture homes, where skills and declared MCP are discovered with the same artifact hash; this is not real-host installed proof.",
+      "tier": "fake-home-install",
+      "freshness": "current",
+      "evidencePath": "tests/release-agent-plugins-smoke.test.ts",
+      "receiptId": "v0.1.42-portable-compatible-client-fixtures"
     }
   ],
   "receipts": [
@@ -810,7 +834,7 @@
     {
       "id": "v0.1.41-repository-validation",
       "tier": "bundle-contract",
-      "freshness": "current",
+      "freshness": "historical",
       "commitSha": "e3d9cd3389673dfa6ff8f22939c287dee20866db",
       "packageVersion": "0.1.41",
       "timestamp": "2026-08-29T12:53:34.450Z",
@@ -833,7 +857,7 @@
     {
       "id": "v0.1.41-fake-home-install",
       "tier": "fake-home-install",
-      "freshness": "current",
+      "freshness": "historical",
       "commands": [
         {
           "command": "npm run release:check",
@@ -852,6 +876,80 @@
       "commitSha": "e3d9cd3389673dfa6ff8f22939c287dee20866db",
       "packageVersion": "0.1.41",
       "timestamp": "2026-08-29T12:53:34.450Z"
+    },
+    {
+      "id": "v0.1.42-repository-validation",
+      "tier": "bundle-contract",
+      "freshness": "current",
+      "commitSha": "aa13f53f938eeba67d38b22de7070dcbff57eb44",
+      "packageVersion": "0.1.42",
+      "timestamp": "2026-08-31T03:53:48.093Z",
+      "commands": [
+        {
+          "command": "npm run release:check",
+          "outcome": "passed"
+        }
+      ],
+      "targets": [
+        {
+          "target": "repository",
+          "hostVersion": null,
+          "installedPath": null,
+          "sha256": null,
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "v0.1.42-fake-home-install",
+      "tier": "fake-home-install",
+      "freshness": "current",
+      "commitSha": "aa13f53f938eeba67d38b22de7070dcbff57eb44",
+      "packageVersion": "0.1.42",
+      "timestamp": "2026-08-31T03:53:48.093Z",
+      "commands": [
+        {
+          "command": "npm run release:check",
+          "outcome": "passed"
+        }
+      ],
+      "targets": [
+        {
+          "target": "claude-code,cursor,codex,opencode",
+          "hostVersion": null,
+          "installedPath": null,
+          "sha256": null,
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "v0.1.42-portable-compatible-client-fixtures",
+      "tier": "fake-home-install",
+      "freshness": "current",
+      "commitSha": "aa13f53f938eeba67d38b22de7070dcbff57eb44",
+      "packageVersion": "0.1.42",
+      "timestamp": "2026-08-31T03:53:48.093Z",
+      "commands": [
+        {
+          "command": "npm run release:check",
+          "outcome": "passed"
+        },
+        {
+          "command": "npx vitest run tests/release-agent-plugins-smoke.test.ts",
+          "outcome": "passed"
+        }
+      ],
+      "targets": [
+        {
+          "target": "cursor-fixture,codex-fixture",
+          "hostVersion": "release-fixture-contract-1.0.0",
+          "installedPath": null,
+          "sha256": "dee9383c71a53222f00f6dc72bbcee19cf451e5dde59a7c2b56c64b5cfae89fb",
+          "outcome": "passed",
+          "unavailableReason": "The fixtures use isolated ephemeral fake-home paths; they are not active host installations."
+        }
+      ]
     }
   ]
 }

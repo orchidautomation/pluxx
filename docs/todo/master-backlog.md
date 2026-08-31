@@ -1,6 +1,6 @@
 # Master Backlog
 
-Last updated: 2026-08-29
+Last updated: 2026-08-31
 
 This is the most complete repo-native backlog for Pluxx.
 
@@ -133,18 +133,20 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
 
 ### 0. Active portable-core and v0.1.42 release lane
 
-- [ ] `PLUXX-346`: implement the strict Agent Plugins v1 portable-core target while preserving the native core four; stop before version bump, publication, release, or active-home installation while retaining isolated clean-fixture discovery as implementation validation
+- [x] `PLUXX-346`: PR #486 merged the reviewed strict Agent Plugins v1 portable-core target while preserving the native core four; isolated clean-fixture discovery is not installed-host proof
 - [x] `PLUXX-347`: merge the fail-closed native-enhancement overlay policy through PR #482
 - [x] Merge the Codex installer failure-path rollback repair through PR #483; publication remains pending
-- [ ] `PLUXX-348`: after `PLUXX-346` merges, run the separate release gate, bind receipts to the exact release-prep commit, pass `npm run release:check`, and stop for explicit tag/publication authorization; the intended package version is `0.1.42`, pending the action-time semver check
-- [ ] Verify the public npm package, GitHub release asset, checksum equality, isolated CLI, an isolated installed portable-target smoke, and clean Cursor/Codex fixture discovery before declaring the target shipped
+- [~] `PLUXX-348`: release preparation reconstructed from exact trusted `main` retains semver `0.1.42`, bumps package/proof/recovery truth, and adds bounded fake-home compatible-client proof
+- [x] Bind final local repository, native fake-home, and portable compatible-client fixture receipts to exact release-prep commit `aa13f53f938eeba67d38b22de7070dcbff57eb44`; pass `npm run release:check` with 65 files / 868 tests plus packaged-runtime and dry-pack verification
+- [ ] Open/review and human-merge the release-prep PR, then obtain separate action-time tag/publication authorization
+- [ ] Verify the public npm package, GitHub release asset, checksum equality, isolated CLI, an isolated portable-target fake-home smoke, and clean Cursor/Codex contract-fixture discovery before declaring the target shipped; do not relabel fixtures as installed-host proof
 - [ ] `MDP-221`: consume the exact published release and validate portable-core discovery separately from native hook parity
 - [ ] `MDP-222` and `MDP-218`: update downstream guidance and record the measured keep / further narrow / switch decision
 
 ### 0. v0.1.41 Codex hook-root release
 
 - [x] PLUXX-345 source fix merged through PR #479 at trusted merge `fc16e218ede1f49ae2a9993983875b67613a24b5`
-- [x] Prepare synchronized 0.1.41 package, proof, planning, recovery-default, and release truth
+- [x] Historical: prepare synchronized 0.1.41 package, proof, planning, recovery-default, and release truth
 - [x] Bind fresh repository-validation and fake-home-install receipts to exact release-prep commit `e3d9cd3389673dfa6ff8f22939c287dee20866db`
 - [x] Pass the complete release gate and merge PR #480 exact head `ad829457f49ee8846625ffdc3651ac11e439945c` with trusted merge `0379d2c646ad9b83fb31016d9d553ba5dea96e76`
 - [x] Push immutable tag `v0.1.41` and verify Release run `33254601754`, npm, GitHub release asset, byte-identical tarballs at SHA-256 `25e0039ad63f10a79970d8028c56461f9813cbfb522088be93beba18bde6508e`, tag provenance, and isolated CLI `0.1.41`
