@@ -114,6 +114,7 @@ No test may inspect or mutate Brandon's active host homes.
 ## Owned files
 
 - `src/compatibility/host-support-gate.ts`
+- `src/compatibility/matrix.ts`
 - `scripts/generate-host-support-gate.ts`
 - `tests/host-support-gate.test.ts`
 - `test-fixtures/host-support-gate/`
