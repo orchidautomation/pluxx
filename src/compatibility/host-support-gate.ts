@@ -254,7 +254,7 @@ export function inspectIsolatedHostSupportFixture(root: string): HostSupportFixt
     client: 'cursor',
     pluginName: manifest.name,
     skills: receipt.skills,
-    mcpDeclared: receipt.mcpServers.length > 0,
+    mcpDeclared: existsSync(resolve(root, 'mcp.json')),
     artifactSha256: receipt.artifactSha256,
   }
 }

@@ -98,6 +98,14 @@ describe('isolated maintained fixture', () => {
     expect(result.artifactSha256).toMatch(/^[a-f0-9]{64}$/)
   })
 
+  it('reports a valid empty MCP configuration as declared', () => {
+    const installed = isolatedFixture()
+    writeFileSync(resolve(installed, 'mcp.json'), '{"$schema":"https://agent-plugins.org/schemas/1.0.0/mcp.schema.json","mcpServers":{}}\n')
+    expect(inspectIsolatedHostSupportFixture(installed)).toMatchObject({
+      mcpDeclared: true,
+    })
+  })
+
   it('rejects native-only portable payloads', () => {
     const installed = isolatedFixture()
     writeFileSync(resolve(installed, 'hooks.json'), '{}\n')
