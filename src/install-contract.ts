@@ -58,15 +58,24 @@ export function validateInstallResultsEnvelope(value: unknown): value is Install
   if (envelope.schema !== INSTALL_RESULT_SCHEMA || !envelope.plugin || typeof envelope.plugin.name !== 'string' || typeof envelope.plugin.version !== 'string') return false
   if (envelope.selectionMode !== 'aggregate' && envelope.selectionMode !== 'explicit') return false
   if (!Array.isArray(envelope.plan) || !Array.isArray(envelope.results)) return false
-  const targets = new Set(envelope.plan.map((entry) => entry && typeof entry.target === 'string' ? entry.target : ''))
+  const coreTargets = new Set<CoreFourPlatform>(['claude-code', 'cursor', 'codex', 'opencode'])
+  if (!envelope.plan.every((entry) => entry
+    && coreTargets.has(entry.target)
+    && typeof entry.detected === 'boolean'
+    && typeof entry.selected === 'boolean')) return false
+  const targets = new Set(envelope.plan.map((entry) => entry.target))
   if (targets.size !== envelope.plan.length || envelope.results.length !== envelope.plan.length) return false
-  return envelope.results.every((result) => {
+  const resultTargets = new Set<CoreFourPlatform>()
+  const valid = envelope.results.every((result) => {
     if (!result || typeof result.target !== 'string' || !targets.has(result.target)) return false
+    if (resultTargets.has(result.target)) return false
+    resultTargets.add(result.target)
     if (!INSTALL_RESULT_STATES.includes(result.state as InstallResultState)) return false
-    if (result.state === 'skipped' && result.reason === undefined) return false
+    if (result.state === 'skipped' && !result.reason?.trim()) return false
     if (result.state === 'failed' && (!result.error || !result.action)) return false
     return true
   })
+  return valid && resultTargets.size === targets.size
 }
 
 export function renderInstallResultsHuman(envelope: InstallResultsEnvelope): string[] {

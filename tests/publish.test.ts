@@ -1205,6 +1205,8 @@ describe('runPublish', () => {
     expect(installerContent).toContain('PLUXX_OPENCODE_BUNDLE_URL="${PLUXX_OPENCODE_BUNDLE_URL:-$base_url/publish-plugin-opencode-latest.tar.gz}"')
     expect(installerContent).toContain('Skipping Claude Code bundle because the claude CLI is not available on PATH.')
     expect(installerContent).toContain('--connect-timeout 10 --max-time 120 --retry 3 --retry-all-errors')
+    expect(installerContent).toContain('--plan')
+    expect(installerContent).toContain('pluxx.install-results.v1')
 
     const manifest = JSON.parse(manifestContent)
     expect(manifest.assets.archives).toHaveLength(4)
@@ -1235,6 +1237,31 @@ describe('runPublish', () => {
     expect(run.status).toBe(1)
     expect(run.stderr).toContain('Checksum mismatch for publish-plugin-cursor-latest.tar.gz')
     expect(run.installedUserConfig?.values?.marker).toBe('previous-install')
+  })
+
+  it('returns a structured unchanged result without replacing a current owned host install', () => {
+    const config = { ...makeConfig(), targets: ['cursor'] as TargetPlatform[], userConfig: undefined }
+    const first = runGeneratedInstaller('cursor', { config })
+    expect(first.status).toBe(0)
+    const manifestPath = resolve(first.pluginInstallDir, '.cursor-plugin/plugin.json')
+    const before = lstatSync(manifestPath).mtimeMs
+    const installerPath = resolve(first.rootDir, 'install-cursor-unchanged.sh')
+    writeFileSync(installerPath, first.installerContent)
+    chmodSync(installerPath, 0o755)
+    const paths = getGeneratedInstallerPaths('cursor', first.rootDir)
+    const rerun = spawnSync('bash', [installerPath, '--json'], {
+      encoding: 'utf-8',
+      env: {
+        ...isolatedInstallerEnvironment(process.env),
+        HOME: resolve(first.rootDir, 'home'),
+        TMPDIR: resolve(first.rootDir, 'tmp'),
+        ...paths.env,
+        PLUXX_CURSOR_BUNDLE_PATH: first.archivePath,
+      },
+    })
+    expect(rerun.status).toBe(0)
+    expect(JSON.parse(rerun.stdout)).toMatchObject({ target: 'cursor', state: 'unchanged', reason: 'already-current' })
+    expect(lstatSync(manifestPath).mtimeMs).toBe(before)
   })
 
   it('rejects a tampered per-host installer before the top-level installer executes it', () => {
@@ -1364,7 +1391,6 @@ cp "$TEST_RELEASE_DIR/$(basename "$url")" "$out"
       },
       env: { SENDLENS_INSTANTLY_API_KEY: 'fresh-key' },
     })
-
     expect(run.status).toBe(42)
     expect(run.installedUserConfig?.values?.marker).toBe('previous-install')
     expect(run.stdout).toContain('Preparing local plugin runtime dependencies...')

@@ -9,6 +9,7 @@ import { getPublishReloadInstruction } from '../distribution-lifecycle'
 import { collectNativeMcpAuthUserConfigEntries } from '../mcp-native-overrides'
 import { buildOpenCodeEntryFile, toOpenCodeExportName } from '../opencode-entry'
 import { INSTALL_RESULT_SCHEMA } from '../install-contract'
+import { CORE_HOST_DETECTION_INVENTORY } from '../host-detection'
 
 type PublishChannel = 'npm' | 'github-release'
 type PublishAssetKind = 'archive' | 'installer' | 'manifest' | 'checksum'
@@ -581,7 +582,21 @@ function renderTopLevelInstallScript(installerTargets: Array<typeof INSTALLER_TA
       shift
       ;;`).join('\n')
   const targetList = installerTargets.map((platform) => `"${platform}"`).join(' ')
+  const targetNames = installerTargets.join(' ')
   const defaultTarget = installerTargets.includes('codex') ? 'codex' : installerTargets[0]
+  const detectionCases = installerTargets.map((target) => {
+    const checks = CORE_HOST_DETECTION_INVENTORY[target].map((candidate) => {
+      if (!candidate.includes('/') && !candidate.startsWith('$HOME')) {
+        return `command -v ${candidate} >/dev/null 2>&1`
+      }
+      const path = candidate.replace('$HOME', '"$HOME"')
+      return `[[ -e ${path} ]]`
+    })
+    return `    ${target}) ${checks.join(' || ')} ;;`
+  }).join('\n')
+  const detectionInventory = JSON.stringify(Object.fromEntries(
+    installerTargets.map((target) => [target, CORE_HOST_DETECTION_INVENTORY[target]]),
+  ))
 
   return `#!/usr/bin/env bash
 set -euo pipefail
@@ -701,10 +716,7 @@ fi
 
 host_detected() {
   case "$1" in
-    claude-code) command -v claude >/dev/null 2>&1 || [[ -e "$HOME/.claude.json" || -e "$HOME/.claude/settings.json" || -e "$HOME/.claude/plugins/cache" || -e "$HOME/.claude/plugins" ]] ;;
-    cursor) command -v cursor >/dev/null 2>&1 || command -v cursor-agent >/dev/null 2>&1 || [[ -e "$HOME/.cursor/mcp.json" || -e "$HOME/.cursor/settings.json" || -e "$HOME/.cursor/plugins/local" ]] ;;
-    codex) command -v codex >/dev/null 2>&1 || [[ -e "$HOME/.codex/config.toml" || -e "$HOME/.codex/plugins" || -e "$HOME/.agents/plugins/marketplace.json" ]] ;;
-    opencode) command -v opencode >/dev/null 2>&1 || [[ -e "$HOME/.config/opencode/opencode.json" || -e "$HOME/.config/opencode/plugins" || -e "$HOME/.config/opencode/skills" ]] ;;
+${detectionCases}
     *) return 1 ;;
   esac
 }
@@ -716,23 +728,18 @@ elif [ "\${#targets[@]}" -eq 0 ]; then
 fi
 
 if [ "$plan_only" = "1" ]; then
-  PLUXX_PLAN_MODE="$( [ "$explicit_targets" = "1" ] && echo explicit || echo aggregate )" PLUXX_PLAN_TARGETS="\${targets[*]}" PLUXX_PLAN_ALL="${targetList}" PLUXX_PLAN_HOME="$HOME" PLUXX_PLAN_PATH="$PATH" node <<'NODE'
+  PLUXX_PLAN_MODE="$( [ "$explicit_targets" = "1" ] && echo explicit || echo aggregate )" PLUXX_PLAN_TARGETS="\${targets[*]}" PLUXX_PLAN_ALL="${targetNames}" PLUXX_PLAN_HOME="$HOME" PLUXX_PLAN_PATH="$PATH" node <<'NODE'
 const fs = require('fs'), path = require('path')
 const mode = process.env.PLUXX_PLAN_MODE
-const selected = (process.env.PLUXX_PLAN_TARGETS || '').split(/\s+/).filter(Boolean)
-const all = process.env.PLUXX_PLAN_ALL.match(/"[^"]+"/g)?.map((value) => value.slice(1, -1)) || []
+const selected = (process.env.PLUXX_PLAN_TARGETS || '').split(/\\s+/).filter(Boolean)
+const all = (process.env.PLUXX_PLAN_ALL || '').split(/\\s+/).filter(Boolean)
 const home = process.env.PLUXX_PLAN_HOME
 const pathEntries = (process.env.PLUXX_PLAN_PATH || '').split(path.delimiter)
 const commandPath = (names) => names.map((name) => pathEntries.map((dir) => path.join(dir, name)).find((candidate) => { try { return fs.statSync(candidate).isFile() } catch { return false } })).find(Boolean)
-const candidates = {
-  'claude-code': [['claude'], [['.claude.json','user-config'], ['.claude/settings.json','user-config'], ['.claude/plugins/cache','installed-plugin'], ['.claude/plugins','installed-plugin']]],
-  cursor: [['cursor','cursor-agent'], [['.cursor/mcp.json','user-config'], ['.cursor/settings.json','user-config'], ['.cursor/plugins/local','installed-plugin']]],
-  codex: [['codex'], [['.codex/config.toml','user-config'], ['.codex/plugins','installed-plugin'], ['.agents/plugins/marketplace.json','installed-plugin']]],
-  opencode: [['opencode'], [['.config/opencode/opencode.json','user-config'], ['.config/opencode/plugins','installed-plugin'], ['.config/opencode/skills','installed-plugin']]],
-}
+const candidates = ${detectionInventory}
 const targets = mode === 'explicit' ? selected : all
-const plan = targets.map((target) => { const [commands, files] = candidates[target]; const evidence = []; const executable = commandPath(commands); if (executable) evidence.push({ type: 'cli', path: executable }); for (const [relative, type] of files) { const value = path.join(home, relative); try { if (fs.existsSync(value)) evidence.push({ type, path: value }) } catch {} } return { target, detected: evidence.length > 0, selected: true, evidence, ...(!evidence.length && mode === 'aggregate' ? { reason: 'host-not-detected' } : {}) } })
-process.stdout.write(JSON.stringify({ schema: '${INSTALL_RESULT_SCHEMA}', selectionMode: mode, targets: plan }) + '\n')
+const plan = targets.map((target) => { const evidence = []; for (const candidate of candidates[target] || []) { if (!candidate.includes('/') && !candidate.startsWith('$HOME')) { const executable = commandPath([candidate]); if (executable) evidence.push({ type: 'cli', command: candidate, path: executable }); continue } const value = candidate.replace('$HOME', home); try { if (fs.existsSync(value)) evidence.push({ type: candidate.includes('.app') ? 'app' : candidate.includes('plugins') || candidate.includes('skills') ? 'installed-plugin' : 'user-config', path: value }) } catch {} } return { target, detected: evidence.length > 0, selected: true, evidence, ...(!evidence.length && mode === 'aggregate' ? { reason: 'host-not-detected' } : {}) } })
+process.stdout.write(JSON.stringify({ schema: '${INSTALL_RESULT_SCHEMA}', selectionMode: mode, targets: plan }) + '\\n')
 NODE
   exit 0
 fi
@@ -818,8 +825,6 @@ run_installer() {
   esac
 
   [ "$quiet" = "1" ] || [ "$json" = "1" ] || echo "Installing DISPLAY_PLACEHOLDER for $target..."
-  export PLUXX_INSTALL_RESULT_MODE=1
-  export PLUXX_INSTALL_UNCHANGED_MODE="$( [ "$json" = "1" ] || [ "$quiet" = "1" ] && echo 1 || echo 0 )"
   export PLUXX_INSTALL_RESULT_FILE="$tmp_dir/$target.result.json"
   curl -fsSL --connect-timeout 10 --max-time 120 --retry 3 --retry-all-errors --retry-delay 1 "$url" -o "$installer"
   verify_release_asset "$installer" "install-$target.sh"
@@ -851,7 +856,7 @@ done
 if [ "$json" = "1" ]; then
   PLUXX_RESULT_PLUGIN="PLUGIN_PLACEHOLDER" PLUXX_RESULT_VERSION="VERSION_PLACEHOLDER" PLUXX_RESULT_MODE="$( [ "$explicit_targets" = "1" ] && echo explicit || echo aggregate )" PLUXX_RESULT_ITEMS="$(printf '%s\n' "\${results[@]}")" node <<'NODE'
 const results = (process.env.PLUXX_RESULT_ITEMS || '').split(/\n/).filter(Boolean).map((line) => { const [target, state, reason, error] = line.split('|'); return { target, state, ...(reason ? { reason } : {}), ...(error ? { error, action: 'inspect stderr and rerun the target installer' } : {}) } })
-process.stdout.write(JSON.stringify({ schema: '${INSTALL_RESULT_SCHEMA}', plugin: { name: process.env.PLUXX_RESULT_PLUGIN, version: process.env.PLUXX_RESULT_VERSION }, selectionMode: process.env.PLUXX_RESULT_MODE, plan: results.map(({ target }) => ({ target, selected: true })), results }) + '\n')
+process.stdout.write(JSON.stringify({ schema: '${INSTALL_RESULT_SCHEMA}', plugin: { name: process.env.PLUXX_RESULT_PLUGIN, version: process.env.PLUXX_RESULT_VERSION }, selectionMode: process.env.PLUXX_RESULT_MODE, plan: results.map(({ target }) => ({ target, selected: true })), results }) + '\\n')
 NODE
 else
   echo "DISPLAY_PLACEHOLDER install complete."
@@ -2126,14 +2131,14 @@ const fs = require('fs')
 const result = { target: process.env.PLUXX_RESULT_TARGET, state: process.env.PLUXX_RESULT_STATE }
 if (process.env.PLUXX_RESULT_REASON) result.reason = process.env.PLUXX_RESULT_REASON
 if (process.env.PLUXX_RESULT_ERROR) { result.error = process.env.PLUXX_RESULT_ERROR; result.action = 'inspect stderr and rerun the target installer' }
-fs.writeFileSync(process.env.PLUXX_RESULT_FILE, JSON.stringify(result) + '\n')
+fs.writeFileSync(process.env.PLUXX_RESULT_FILE, JSON.stringify(result) + '\\n')
 NODE
+  if [[ "\${PLUXX_INSTALL_JSON:-0}" == "1" ]]; then cat "$PLUXX_INSTALL_RESULT_FILE" >&3; fi
 }
 
 # A no-op is valid only for a complete, owned, byte-identical install.  This
 # deliberately shares the ownership ledger rules with the transaction gate.
 pluxx_current_install_unchanged() {
-  [[ "\${PLUXX_INSTALL_UNCHANGED_MODE:-0}" == "1" ]] || return 1
   export INSTALL_DIR PLUGIN_NAME PLUXX_TX_PLATFORM PLUXX_BUNDLE_DIR="$1"
   node <<'NODE'
 const crypto = require('crypto'), fs = require('fs'), path = require('path')
@@ -2588,6 +2593,37 @@ trap 'exit 143' TERM
 `
 }
 
+function renderInstallerResultCliSnippet(): string {
+  return `
+PLUXX_INSTALL_JSON=0
+PLUXX_INSTALL_QUIET=0
+while [[ "$#" -gt 0 ]]; do
+  case "$1" in
+    --json) PLUXX_INSTALL_JSON=1; shift ;;
+    --quiet) PLUXX_INSTALL_QUIET=1; shift ;;
+    --result-file)
+      [[ "$#" -ge 2 ]] || { echo "--result-file requires a path" >&2; exit 2; }
+      PLUXX_INSTALL_RESULT_FILE="$2"; shift 2 ;;
+    --result-file=*) PLUXX_INSTALL_RESULT_FILE="\${1#*=}"; shift ;;
+    -y|--yes) shift ;;
+    *) echo "Unknown option: $1" >&2; exit 2 ;;
+  esac
+done
+export PLUXX_INSTALL_JSON PLUXX_INSTALL_QUIET PLUXX_INSTALL_RESULT_FILE
+if [[ "$PLUXX_INSTALL_JSON" == "1" || "$PLUXX_INSTALL_QUIET" == "1" ]]; then
+  exec 3>&1
+  exec 1>/dev/null
+fi
+
+pluxx_prepare_install_result_output() {
+  if [[ "$PLUXX_INSTALL_JSON" == "1" && -z "\${PLUXX_INSTALL_RESULT_FILE:-}" ]]; then
+    PLUXX_INSTALL_RESULT_FILE="$TMP_DIR/install-result.json"
+    export PLUXX_INSTALL_RESULT_FILE
+  fi
+}
+`
+}
+
 function renderInstallClaudeCodeScript(config: PluginConfig): string {
   return `#!/usr/bin/env bash
 set -Eeuo pipefail
@@ -2604,6 +2640,7 @@ AUTHOR_NAME="\${PLUXX_PLUGIN_AUTHOR:-AUTHOR_PLACEHOLDER}"
 HOMEPAGE_URL="\${PLUXX_PLUGIN_HOMEPAGE:-HOMEPAGE_PLACEHOLDER}"
 DESCRIPTION_FALLBACK="\${PLUXX_PLUGIN_DESCRIPTION:-DESCRIPTION_PLACEHOLDER}"
 ${renderInstallerTransactionHelpers('claude-code')}
+${renderInstallerResultCliSnippet()}
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -2624,6 +2661,7 @@ if [[ "$SKIP_INSTALL" != "1" ]]; then
 fi
 
 TMP_DIR="$(mktemp -d)"
+pluxx_prepare_install_result_output
 cleanup() {
   local status=$?
   if [[ "$status" != "0" ]]; then pluxx_emit_install_result failed installer-failed "installer exited with status $status" || true; fi
@@ -2657,14 +2695,15 @@ DESCRIPTION="$(grep -E '"description"' "$PLUGIN_MANIFEST" | head -n1 | sed -E 's
 
 mkdir -p "$INSTALL_ROOT/.claude-plugin" "$INSTALL_ROOT/plugins"
 ${renderInstallerSavedUserConfigCaptureSnippet(config, 'claude-code', '$INSTALL_DIR')}
-if [[ ! -f "$BUNDLE_DIR/.pluxx-runtime.json" && ! -f "$BUNDLE_DIR/scripts/bootstrap-runtime.sh" ]] && pluxx_current_install_unchanged "$BUNDLE_DIR"; then
-  echo "Install is already current for $PLUGIN_NAME (unchanged)."
-  exit 0
-fi
 pluxx_begin_install_transaction "$BUNDLE_DIR"
 ${renderInstallerUserConfigSnippet(config, 'claude-code', '$PLUXX_TX_STAGE')}
 ${renderInstallerMcpPathMaterializationSnippet('claude-code', '$PLUXX_TX_STAGE', '$INSTALL_DIR')}
 ${renderInstallerRuntimeBootstrapSnippet('$PLUXX_TX_STAGE')}
+if [[ -f "$INSTALL_ROOT/.claude-plugin/marketplace.json" ]] && pluxx_current_install_unchanged "$PLUXX_TX_STAGE"; then
+  pluxx_emit_install_result unchanged already-current
+  echo "Install is already current for $PLUGIN_NAME (unchanged)."
+  exit 0
+fi
 pluxx_tx_backup_owned_path "$INSTALL_ROOT/.claude-plugin/marketplace.json"
 pluxx_tx_backup_owned_path "$HOME/.claude/plugins/cache/$MARKETPLACE_NAME/$PLUGIN_NAME"
 pluxx_swap_install_transaction
@@ -2726,6 +2765,7 @@ BUNDLE_URL="\${PLUXX_CURSOR_BUNDLE_URL:-https://github.com/\${REPO}/releases/dow
 INSTALL_DIR="\${PLUXX_CURSOR_INSTALL_DIR:-$HOME/.cursor/plugins/local/$PLUGIN_NAME}"
 BUNDLE_PATH="\${PLUXX_CURSOR_BUNDLE_PATH:-}"
 ${renderInstallerTransactionHelpers('cursor')}
+${renderInstallerResultCliSnippet()}
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -2740,6 +2780,7 @@ need_cmd curl
 need_cmd node
 
 TMP_DIR="$(mktemp -d)"
+pluxx_prepare_install_result_output
 cleanup() {
   local status=$?
   if [[ "$status" != "0" ]]; then pluxx_emit_install_result failed installer-failed "installer exited with status $status" || true; fi
@@ -2770,14 +2811,15 @@ fi
 
 mkdir -p "$(dirname "$INSTALL_DIR")"
 ${renderInstallerSavedUserConfigCaptureSnippet(config, 'cursor', '$INSTALL_DIR')}
-if [[ ! -f "$BUNDLE_DIR/.pluxx-runtime.json" && ! -f "$BUNDLE_DIR/scripts/bootstrap-runtime.sh" ]] && pluxx_current_install_unchanged "$BUNDLE_DIR"; then
-  echo "Install is already current for $PLUGIN_NAME (unchanged)."
-  exit 0
-fi
 pluxx_begin_install_transaction "$BUNDLE_DIR"
 ${renderInstallerUserConfigSnippet(config, 'cursor', '$PLUXX_TX_STAGE')}
 ${renderInstallerMcpPathMaterializationSnippet('cursor', '$PLUXX_TX_STAGE', '$INSTALL_DIR')}
 ${renderInstallerRuntimeBootstrapSnippet('$PLUXX_TX_STAGE')}
+if pluxx_current_install_unchanged "$PLUXX_TX_STAGE"; then
+  pluxx_emit_install_result unchanged already-current
+  echo "Install is already current for $PLUGIN_NAME (unchanged)."
+  exit 0
+fi
 pluxx_swap_install_transaction
 pluxx_finalize_install_transaction
 pluxx_emit_install_result "$PLUXX_TX_RESULT_STATE"
@@ -2800,6 +2842,7 @@ BUNDLE_PATH="\${PLUXX_CODEX_BUNDLE_PATH:-}"
 MARKETPLACE_NAME="\${PLUXX_CODEX_MARKETPLACE_NAME:-$PLUGIN_NAME-local}"
 MARKETPLACE_DISPLAY_NAME="\${PLUXX_CODEX_MARKETPLACE_DISPLAY_NAME:-DISPLAY_PLACEHOLDER Local}"
 ${renderInstallerTransactionHelpers('codex')}
+${renderInstallerResultCliSnippet()}
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -2811,8 +2854,10 @@ need_cmd() {
 need_cmd tar
 need_cmd mktemp
 need_cmd node
+need_cmd grep
 
 TMP_DIR="$(mktemp -d)"
+pluxx_prepare_install_result_output
 cleanup() {
   local status=$?
   if [[ "$status" != "0" ]]; then pluxx_emit_install_result failed installer-failed "installer exited with status $status" || true; fi
@@ -2844,16 +2889,20 @@ fi
 
 mkdir -p "$(dirname "$INSTALL_DIR")"
 ${renderInstallerSavedUserConfigCaptureSnippet(config, 'codex', '$INSTALL_DIR')}
-if [[ ! -f "$BUNDLE_DIR/.pluxx-runtime.json" && ! -f "$BUNDLE_DIR/scripts/bootstrap-runtime.sh" ]] && pluxx_current_install_unchanged "$BUNDLE_DIR"; then
-  echo "Install is already current for $PLUGIN_NAME (unchanged)."
-  exit 0
-fi
 pluxx_begin_install_transaction "$BUNDLE_DIR"
 ${renderInstallerUserConfigSnippet(config, 'codex', '$PLUXX_TX_STAGE')}
 ${renderInstallerMcpPathMaterializationSnippet('codex', '$PLUXX_TX_STAGE', '$INSTALL_DIR')}
 ${renderInstallerRuntimeBootstrapSnippet('$PLUXX_TX_STAGE')}
 CODEX_HOME_DIR="\${CODEX_HOME:-$HOME/.codex}"
 CODEX_CONFIG_PATH="\${PLUXX_CODEX_CONFIG_PATH:-$CODEX_HOME_DIR/config.toml}"
+CODEX_COMPANIONS_CURRENT=1
+[[ -f "$MARKETPLACE_PATH" ]] && grep -q "\"name\"[[:space:]]*:[[:space:]]*\"$PLUGIN_NAME\"" "$MARKETPLACE_PATH" || CODEX_COMPANIONS_CURRENT=0
+if [[ -d "$PLUXX_TX_STAGE/.codex/agents" && ! -d "$CODEX_HOME_DIR/agents/$PLUGIN_NAME" ]]; then CODEX_COMPANIONS_CURRENT=0; fi
+if [[ "$CODEX_COMPANIONS_CURRENT" == "1" ]] && pluxx_current_install_unchanged "$PLUXX_TX_STAGE"; then
+  pluxx_emit_install_result unchanged already-current
+  echo "Install is already current for $PLUGIN_NAME (unchanged)."
+  exit 0
+fi
 pluxx_tx_backup_owned_path "$CODEX_HOME_DIR/agents/$PLUGIN_NAME"
 pluxx_tx_backup_owned_path "$CODEX_HOME_DIR/pluxx/agent-installs/$PLUGIN_NAME.json"
 pluxx_tx_backup_owned_path "$CODEX_HOME_DIR/plugins/cache/local-plugins/$PLUGIN_NAME"
@@ -2944,6 +2993,7 @@ ENTRY_PATH="\${PLUXX_OPENCODE_ENTRY_PATH:-$PLUGIN_ROOT_DIR/$PLUGIN_NAME.ts}"
 SKILLS_ROOT="\${PLUXX_OPENCODE_SKILLS_ROOT:-$HOME/.config/opencode/skills}"
 BUNDLE_PATH="\${PLUXX_OPENCODE_BUNDLE_PATH:-}"
 ${renderInstallerTransactionHelpers('opencode')}
+${renderInstallerResultCliSnippet()}
 PLUXX_OPENCODE_COMPANION_STAGE=""
 PLUXX_OPENCODE_COMPANION_JOURNAL=""
 
@@ -3216,6 +3266,7 @@ need_cmd mktemp
 need_cmd node
 
 TMP_DIR="$(mktemp -d)"
+pluxx_prepare_install_result_output
 cleanup() {
   local status=$?
   if [[ "$status" != "0" ]]; then pluxx_emit_install_result failed installer-failed "installer exited with status $status" || true; fi
@@ -3248,14 +3299,23 @@ fi
 
 mkdir -p "$(dirname "$INSTALL_DIR")" "$SKILLS_ROOT"
 ${renderInstallerSavedUserConfigCaptureSnippet(config, 'opencode', '$INSTALL_DIR')}
-if [[ ! -f "$BUNDLE_DIR/.pluxx-runtime.json" && ! -f "$BUNDLE_DIR/scripts/bootstrap-runtime.sh" ]] && pluxx_current_install_unchanged "$BUNDLE_DIR"; then
-  echo "Install is already current for $PLUGIN_NAME (unchanged)."
-  exit 0
-fi
 pluxx_begin_install_transaction "$BUNDLE_DIR"
 ${renderInstallerUserConfigSnippet(config, 'opencode', '$PLUXX_TX_STAGE')}
 ${renderInstallerMcpPathMaterializationSnippet('opencode', '$PLUXX_TX_STAGE', '$INSTALL_DIR')}
 ${renderInstallerRuntimeBootstrapSnippet('$PLUXX_TX_STAGE')}
+OPENCODE_COMPANIONS_CURRENT=1
+[[ -f "$ENTRY_PATH" ]] || OPENCODE_COMPANIONS_CURRENT=0
+if [[ -d "$PLUXX_TX_STAGE/skills" ]]; then
+  for skill_dir in "$PLUXX_TX_STAGE"/skills/*; do
+    [[ -d "$skill_dir" ]] || continue
+    [[ -d "$SKILLS_ROOT/$PLUGIN_NAME-$(basename "$skill_dir")" ]] || OPENCODE_COMPANIONS_CURRENT=0
+  done
+fi
+if [[ "$OPENCODE_COMPANIONS_CURRENT" == "1" ]] && pluxx_current_install_unchanged "$PLUXX_TX_STAGE"; then
+  pluxx_emit_install_result unchanged already-current
+  echo "Install is already current for $PLUGIN_NAME (unchanged)."
+  exit 0
+fi
 PLUXX_OPENCODE_COMPANION_STAGE="$TMP_DIR/opencode-companions"
 PLUXX_OPENCODE_COMPANION_JOURNAL="$TMP_DIR/opencode-companions-journal.json"
 mkdir -p "$PLUXX_OPENCODE_COMPANION_STAGE/skills"
