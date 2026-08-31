@@ -618,7 +618,7 @@ pluxx catches platform-specific gotchas before you ship:
 - Plugin directories must be at root, not inside `.claude-plugin/`
 - Runtime shell scripts must not `source` workspace `.env` files
 - Pluxx also applies conservative compatibility heuristics for some host-specific metadata where official docs are thinner than the real product surface
-- And 40 more checks across all 11 platforms
+- And 40 more checks across the native targets plus the strict Agent Plugins portable floor
 
 ## The Next Product Delta
 

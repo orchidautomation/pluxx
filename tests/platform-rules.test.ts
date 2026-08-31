@@ -136,11 +136,12 @@ describe('CORE_FOUR_PRIMITIVE_CAPABILITIES', () => {
 })
 
 describe('PLATFORM_LIMITS', () => {
-  it('has entries for all 11 target platforms', () => {
+  it('has entries for all 12 target platforms', () => {
     const platforms = Object.keys(PLATFORM_LIMITS)
-    expect(platforms.length).toBe(11)
+    expect(platforms.length).toBe(12)
     expect(platforms).toContain('claude-code')
     expect(platforms).toContain('codex')
+    expect(platforms).toContain('agent-plugins')
     expect(platforms).toContain('cursor')
     expect(platforms).toContain('opencode')
   })

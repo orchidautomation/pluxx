@@ -1494,8 +1494,7 @@ export function planInstallPlugin(
   const filtered = platforms
     ? targets.filter(t => platforms.includes(t.platform))
     : targets
-
-  return filtered.map((target) => {
+  const planned = filtered.map((target) => {
     const sourceDir = resolve(distDir, target.platform)
     return {
       ...target,
@@ -1504,6 +1503,18 @@ export function planInstallPlugin(
       existing: existsSync(target.pluginDir),
     }
   })
+  if (platforms?.includes('agent-plugins')) {
+    const sourceDir = resolve(distDir, 'agent-plugins')
+    planned.push({
+      platform: 'agent-plugins',
+      sourceDir,
+      pluginDir: sourceDir,
+      description: 'client-managed/manual Agent Plugins 1.0.0 package import (Pluxx does not invent a native install path)',
+      built: existsSync(sourceDir),
+      existing: false,
+    })
+  }
+  return planned
 }
 
 export async function installPlugin(
@@ -1518,6 +1529,9 @@ export async function installPlugin(
     resolvedUserConfig?: ResolvedUserConfigEntry[]
   } = {},
 ): Promise<void> {
+  if (platforms?.includes('agent-plugins')) {
+    throw new Error('Agent Plugins installation is client-managed. Use `pluxx install --dry-run --target agent-plugins` to inspect the built package; Pluxx does not write an unproven native install path.')
+  }
   const filtered = planInstallPlugin(distDir, pluginName, platforms)
   const runCommand = options.runCommand ?? runCommandDefault
   const useNativeClaudeInstall = options.useNativeClaudeInstall ?? true

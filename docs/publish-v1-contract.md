@@ -13,9 +13,10 @@ For the broader ship-today vs release-gap map, use [Release Distribution Proof M
 
 The command is orchestration-only. It does not replace `pluxx build`, and it does not deploy MCP backends.
 
-The current implemented release lane is intentionally narrow:
+The current implemented release lane separates archives from native installers:
 
 - GitHub Release assets and generated installers are for the primary fronts: Claude Code, Cursor, Codex, and OpenCode.
+- The opt-in Agent Plugins 1.0.0 target is eligible for versioned/latest GitHub Release archives, release-manifest entries, and checksums, but not a generated installer. Compatible clients own import/installation.
 - The npm channel is currently for the npm-backed OpenCode wrapper package path.
 - Gemini CLI and the other beta targets may be generated and fixture-tested, but they are not part of the primary release-smoked installer lane yet.
 
@@ -56,8 +57,10 @@ v1 artifact contract:
 - source of truth: current repository commit + built `dist/`
 - GitHub Release assets:
   - one compressed artifact per built platform folder (`dist/<platform>/`)
+    - archive-eligible targets are the native core four plus opt-in `agent-plugins`
   - a generated `install.sh` front door with `--agents`, `--claude-code`, `--cursor`, `--codex`, `--opencode`, and `-y` support for the primary installer lane
   - generated per-host installer scripts and the compatibility `install-all.sh` script
+    - installer targets remain exactly Claude Code, Cursor, Codex, and OpenCode; there is no `install-agent-plugins.sh`
   - required release manifest and SHA-256 inventory used before installer execution or archive extraction
 - npm package source:
   - OpenCode package contents prepared from the generated wrapper target

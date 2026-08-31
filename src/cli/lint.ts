@@ -52,6 +52,7 @@ import {
   getUnsafeShellEnvSourceMessage,
   referencesInstallerOwnedCheckEnv,
 } from '../runtime-script-contract'
+import { getAgentPluginsMcpPortabilityErrors, getAgentPluginsPortabilityDecisions } from '../agent-plugins'
 const AGENT_SKILLS_RULES = { name: { pattern: /^[a-z0-9-]+$/, maxLength: 64 }, description: { maxLength: 1024 } }
 const CLAUDE_CODE_RULES = { description: { maxDisplayLength: 250 } }
 const CODEX_RULES = {
@@ -1809,6 +1810,31 @@ function lintPrimitiveTranslations(config: PluginConfig, issues: LintIssue[]): v
   }
 }
 
+function lintAgentPluginsPortability(config: PluginConfig, issues: LintIssue[]): void {
+  if (!config.targets.includes('agent-plugins')) return
+
+  for (const decision of getAgentPluginsPortabilityDecisions(config)) {
+    if (decision.mode === 'preserve') continue
+    pushIssue(issues, {
+      level: 'warning',
+      code: `agent-plugins-${decision.mode}-${decision.bucket}`,
+      message: decision.detail,
+      file: 'pluxx.config.ts',
+      platform: 'agent-plugins',
+    })
+  }
+
+  for (const message of getAgentPluginsMcpPortabilityErrors(config)) {
+    pushIssue(issues, {
+      level: 'error',
+      code: 'agent-plugins-mcp-unrepresentable',
+      message,
+      file: 'pluxx.config.ts',
+      platform: 'agent-plugins',
+    })
+  }
+}
+
 function sortIssues(issues: LintIssue[]): LintIssue[] {
   return [...issues].sort((a, b) => {
     if (a.level === b.level) {
@@ -1879,6 +1905,7 @@ export async function lintProject(
   lintPermissions(lintConfig, issues)
   lintCodexAgentMcpInheritance(lintConfig, issues)
   lintPrimitiveTranslations(lintConfig, issues)
+  lintAgentPluginsPortability(lintConfig, issues)
   lintHookFieldTranslations(lintConfig, issues)
   lintHookTypeTranslations(lintConfig, issues)
   lintCodexCommandGuidance(lintConfig, issues)

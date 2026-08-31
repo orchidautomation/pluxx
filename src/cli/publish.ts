@@ -100,6 +100,7 @@ interface PreparedNpmArtifact {
 }
 
 const INSTALLER_TARGETS = ['claude-code', 'cursor', 'codex', 'opencode'] as const satisfies readonly TargetPlatform[]
+const ARCHIVE_TARGETS = [...INSTALLER_TARGETS, 'agent-plugins'] as const satisfies readonly TargetPlatform[]
 
 function runCommandDefault(command: string, args: string[], options?: { cwd?: string }): CommandResult {
   const result = spawnSync(command, args, {
@@ -151,7 +152,7 @@ function getBuiltTargets(rootDir: string, config: PluginConfig): TargetPlatform[
 }
 
 function getPublishableBuiltTargets(rootDir: string, config: PluginConfig): TargetPlatform[] {
-  return getBuiltTargets(rootDir, config).filter(isInstallerTarget)
+  return getBuiltTargets(rootDir, config).filter((platform) => ARCHIVE_TARGETS.includes(platform as typeof ARCHIVE_TARGETS[number]))
 }
 
 function getArchiveAssetName(pluginName: string, platform: TargetPlatform, version: string, variant: ReleaseArchiveVariant): string {
@@ -252,6 +253,8 @@ function readBuiltTargetVersion(rootDir: string, config: PluginConfig, platform:
         ? '.codex-plugin/plugin.json'
         : platform === 'opencode'
           ? 'package.json'
+          : platform === 'agent-plugins'
+            ? 'plugin.json'
           : undefined
   if (!relativePath) return undefined
 
