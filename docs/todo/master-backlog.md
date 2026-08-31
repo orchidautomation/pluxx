@@ -131,15 +131,15 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
 - [x] Merge recovery PR #463 exact head `4024ca07fe9cc78b98e93bb0931b8d91ddc36f0f` as trusted main `a67803184890795457d095da52f4a243d61daf2a`, then dispatch run `30154432818` without moving or recreating `v0.1.38`
 - [x] Verify npm, GitHub release assets and recovery receipt, byte-identical tarballs at SHA-256 `34af5bd24a441f13094b651658d6728509771a8cb9295f82b1bc66a985cb2c24`, immutable tag provenance, and isolated installed CLI `0.1.38`
 
-### 0. Active portable-core and v0.1.42 release lane
+### 0. Active portable-core adoption lane after v0.1.42
 
 - [x] `PLUXX-346`: PR #486 merged the reviewed strict Agent Plugins v1 portable-core target while preserving the native core four; isolated clean-fixture discovery is not installed-host proof
 - [x] `PLUXX-347`: merge the fail-closed native-enhancement overlay policy through PR #482
-- [x] Merge the Codex installer failure-path rollback repair through PR #483; publication remains pending
-- [~] `PLUXX-348`: release preparation reconstructed from exact trusted `main` retains semver `0.1.42`, bumps package/proof/recovery truth, and adds bounded fake-home compatible-client proof
+- [x] Merge the Codex installer failure-path rollback repair through PR #483 and carry it into public 0.1.42
+- [x] `PLUXX-348`: release preparation reconstructed from exact trusted `main` retained semver `0.1.42`, bumped package/proof/recovery truth, and added bounded fake-home compatible-client proof
 - [x] Bind final local repository, native fake-home, and portable compatible-client fixture receipts to exact release-prep commit `aa13f53f938eeba67d38b22de7070dcbff57eb44`; pass `npm run release:check` with 65 files / 868 tests plus packaged-runtime and dry-pack verification
-- [ ] Open/review and human-merge the release-prep PR, then obtain separate action-time tag/publication authorization
-- [ ] Verify the public npm package, GitHub release asset, checksum equality, isolated CLI, an isolated portable-target fake-home smoke, and clean Cursor/Codex contract-fixture discovery before declaring the target shipped; do not relabel fixtures as installed-host proof
+- [x] Human-merge release-prep PR #487 at trusted commit `0f6621a39c02aa69ad3363ad22ada429175779b7`, obtain action-time authorization, and publish through successful Release run `33405498774`
+- [x] Verify the public npm package, GitHub release asset, byte-identical SHA-256 `c4e97ed5eb23703e445ed60a7e5e14f5d096cbd56a291222abf85f94731aadf3`, isolated CLI `0.1.42`, isolated published portable-target smoke, and clean Cursor/Codex contract-fixture discovery; no active-home or real-host proof is implied
 - [ ] `MDP-221`: consume the exact published release and validate portable-core discovery separately from native hook parity
 - [ ] `MDP-222` and `MDP-218`: update downstream guidance and record the measured keep / further narrow / switch decision
 

@@ -190,20 +190,20 @@ The initial author-once hardening tranche is also materially done.
 The next cohesive execution path is deliberately split between implementation, release, and downstream proof:
 
 1. `PLUXX-346` — merged through PR #486 with the strict Agent Plugins v1 portable-core output without weakening or replacing the native core-four outputs; isolated clean-fixture discovery remains implementation validation, not installed-host proof.
-2. `PLUXX-348` — run the separately reconstructed release gate from exact trusted `main`, containing the portable target, the merged native-overlay policy from `PLUXX-347`, and the merged Codex installer rollback repair from PR #483. The semver check retains `0.1.42` under the project's compatible pre-1.0 patch convention.
-3. `MDP-221` — consume the exact verified published Pluxx version, emit an Agent Plugins archive, preserve native hook behavior, and validate portable discovery under a separate portable-core contract.
+2. `PLUXX-348` — completed: trusted merge `0f6621a39c02aa69ad3363ad22ada429175779b7`, immutable `v0.1.42`, successful Release run [33405498774](https://github.com/orchidautomation/pluxx/actions/runs/33405498774), and independently verified public artifacts.
+3. `MDP-221` — active next: consume exact verified `@orchid-labs/pluxx@0.1.42`, emit an Agent Plugins archive, preserve native hook behavior, and validate portable discovery under a separate portable-core contract.
 4. `MDP-222` — update downstream docs from installed evidence rather than planned behavior.
 5. `MDP-218` — compare the measured native and portable artifacts and record the keep / further narrow / switch decision.
 
-Do not treat a merged `PLUXX-346` PR as a shipped target. `MDP-221` remains blocked until `PLUXX-348` proves the public npm and GitHub artifacts plus an isolated portable fake-home smoke and clean Cursor/Codex contract-fixture discovery. Those fixtures are not real-host installed proof. Do not claim portable MCP output unless the source project explicitly declares a supported portable MCP configuration.
+Do not treat a merged implementation PR alone as a shipped target. PLUXX-348 has now satisfied the MDP-221 release precondition with public npm/GitHub identity, an isolated published-CLI portable smoke, and clean Cursor/Codex contract-fixture discovery. Those fixtures are not real-host installed proof. Do not claim portable MCP output unless the source project explicitly declares a supported portable MCP configuration.
 
-Final local PLUXX-348 preparation proof is now bound to exact commit `aa13f53f938eeba67d38b22de7070dcbff57eb44`: the complete release gate passed with 65 files / 868 tests, native release smoke passed, and the portable Cursor/Codex fixture copies share artifact SHA-256 `dee9383c71a53222f00f6dc72bbcee19cf451e5dde59a7c2b56c64b5cfae89fb`. The branch was reconstructed from exact merged trusted `main`; the remaining gates are review, human merge, separate action-time tag/publication authorization, and post-publication proof. No release, tag, publication, or active-home install has occurred.
+Final local PLUXX-348 preparation proof remains bound to exact ancestor `aa13f53f938eeba67d38b22de7070dcbff57eb44`: the complete release gate passed with 65 files / 868 tests, native release smoke passed, and the portable Cursor/Codex fixture copies share artifact SHA-256 `dee9383c71a53222f00f6dc72bbcee19cf451e5dde59a7c2b56c64b5cfae89fb`. Public 0.1.42 proof binds `v0.1.42` to trusted merge `0f6621a39c02aa69ad3363ad22ada429175779b7`; npm and GitHub tarballs are byte-identical at SHA-256 `c4e97ed5eb23703e445ed60a7e5e14f5d096cbd56a291222abf85f94731aadf3`, and the published CLI portable fixture passed with tree digest `7f1264d055421f8b7570f9ca9764a2232a2d6dc9046fd90984fb5a43203e1efa`. No active-home or real-host installation is claimed.
 
 The public baseline is also real.
 
 - npm package is live as `@orchid-labs/pluxx`
-- the canonical repository release candidate is `@orchid-labs/pluxx@0.1.42` / intended `v0.1.42`; it is not yet tagged or public
-- the independently verified historical public release remains `@orchid-labs/pluxx@0.1.41` / `v0.1.41` for PLUXX-345; npm and GitHub serve the same tarball at SHA-256 `25e0039ad63f10a79970d8028c56461f9813cbfb522088be93beba18bde6508e`
+- the canonical independently verified public release is `@orchid-labs/pluxx@0.1.42` / `v0.1.42`; npm and GitHub serve the same tarball at SHA-256 `c4e97ed5eb23703e445ed60a7e5e14f5d096cbd56a291222abf85f94731aadf3`
+- 0.1.41 is now historical PLUXX-345 Codex hook-root proof
 - 0.1.40 is now the historical PLUXX-344 hook workspace-precedence release
 - 0.1.39 is now the historical PLUXX-341/PLUXX-342 quiet OpenCode hook-scope release
 - 0.1.38 is only the PLUXX-340 manifest-identity correction discovered after the shipped and independently verified 0.1.37 release

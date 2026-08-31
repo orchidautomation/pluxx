@@ -14,7 +14,7 @@ Raw MCP access is usually not enough. Most products still need workflow grouping
 
 ## Current Proof
 
-Proof claims are tiered and freshness-checked. See [Proof freshness and evidence tiers](./docs/proof-freshness.md) and the machine-readable [proof manifest](./docs/proof-manifest.json); April/May host runs remain available as explicitly historical evidence.
+Proof claims are tiered and freshness-checked. The canonical independently verified public release is `@orchid-labs/pluxx@0.1.42` / `v0.1.42`; its public npm and GitHub tarballs are byte-identical, while Agent Plugins discovery remains isolated fixture proof rather than a generic installed-host claim. See [Proof freshness and evidence tiers](./docs/proof-freshness.md) and the machine-readable [proof manifest](./docs/proof-manifest.json); April/May host runs remain available as explicitly historical evidence.
 
 If you want the fastest way to see what is already real, start with these:
 
