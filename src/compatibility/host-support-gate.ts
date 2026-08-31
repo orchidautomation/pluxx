@@ -1,5 +1,6 @@
-import { existsSync, lstatSync, readFileSync, readdirSync } from 'fs'
+import { existsSync, lstatSync, readFileSync } from 'fs'
 import { resolve } from 'path'
+import { inspectAgentPluginsDiscovery } from '../agent-plugins'
 
 export const HOST_SUPPORT_RETRIEVED_AT = '2026-08-31' as const
 
@@ -99,15 +100,15 @@ export const HOST_SUPPORT_CLAIMS: readonly HostSupportClaim[] = [
   claim({ host: 'agent-plugins', maintenanceTier: 'portable', dimension: 'declared-mcp', layer: 'portable-core', outcome: 'portable', minimumProof: 'generated-fixture', currentProof: 'isolated-installed', evidence: portableEvidence, sources: [SOURCE.agentPlugins] }),
   ...(['startup-context-delivery', 'native-commands', 'specialist-agents', 'structured-mcp-content', 'background-processes', 'local-file-script-permissions', 'package-install-update-uninstall'] as const).map(dimension => claim({ host: 'agent-plugins', maintenanceTier: 'portable', dimension, layer: 'native-overlay', outcome: 'unsupported', minimumProof: 'behavioral', currentProof: 'schema', evidence: 'docs/agent-plugins-native-overlay-contract.md', limitation: 'Agent Plugins v1 does not define this native-host capability; it requires a separately proven native overlay.', sources: [SOURCE.agentPlugins] })),
 
-  claim({ host: 'claude-code', maintenanceTier: 'primary', dimension: 'portable-skills', layer: 'portable-core', outcome: 'unsupported', minimumProof: 'discovered', currentProof: 'schema', evidence: 'docs/new-host-support-gate.md', limitation: 'Claude documents Agent Skills and Claude plugins, not a generic Agent Plugins package import contract.', sources: [SOURCE.claudePlugins, SOURCE.agentPlugins] }),
-  claim({ host: 'claude-code', maintenanceTier: 'primary', dimension: 'declared-mcp', layer: 'portable-core', outcome: 'unsupported', minimumProof: 'discovered', currentProof: 'schema', evidence: 'docs/new-host-support-gate.md', limitation: 'Claude documents native MCP configuration but not generic Agent Plugins mcp.json package loading.', sources: [SOURCE.claudeMcp, SOURCE.agentPlugins] }),
+  claim({ host: 'claude-code', maintenanceTier: 'primary', dimension: 'portable-skills', layer: 'portable-core', outcome: 'unsupported', minimumProof: 'discovered', currentProof: 'schema', evidence: 'docs/core-four-provider-docs-audit.md', limitation: 'Claude documents Agent Skills and Claude plugins, not a generic Agent Plugins package import contract.', sources: [SOURCE.claudePlugins, SOURCE.agentPlugins] }),
+  claim({ host: 'claude-code', maintenanceTier: 'primary', dimension: 'declared-mcp', layer: 'portable-core', outcome: 'unsupported', minimumProof: 'discovered', currentProof: 'schema', evidence: 'docs/core-four-provider-docs-audit.md', limitation: 'Claude documents native MCP configuration but not generic Agent Plugins mcp.json package loading.', sources: [SOURCE.claudeMcp, SOURCE.agentPlugins] }),
   claim({ host: 'claude-code', maintenanceTier: 'primary', dimension: 'startup-context-delivery', layer: 'native-overlay', outcome: 'native-preserved', minimumProof: 'behavioral', currentProof: 'behavioral', evidence: nativeProof, sources: [SOURCE.claudeHooks] }),
   claim({ host: 'claude-code', maintenanceTier: 'primary', dimension: 'native-commands', layer: 'native-overlay', outcome: 'native-preserved', minimumProof: 'discovered', currentProof: 'discovered', evidence: nativeProof, sources: [SOURCE.claudePlugins] }),
   claim({ host: 'claude-code', maintenanceTier: 'primary', dimension: 'specialist-agents', layer: 'native-overlay', outcome: 'native-preserved', minimumProof: 'discovered', currentProof: 'behavioral', evidence: nativeProof, sources: [SOURCE.claudeAgents] }),
   claim({ host: 'claude-code', maintenanceTier: 'primary', dimension: 'structured-mcp-content', layer: 'native-overlay', outcome: 'not-yet-behaviorally-proven', minimumProof: 'behavioral', currentProof: 'isolated-installed', evidence: runtimeGaps, limitation: 'MCP wiring and tool execution are proven, but no maintained receipt isolates structured content-block fidelity.', sources: [SOURCE.claudeMcp] }),
   claim({ host: 'claude-code', maintenanceTier: 'primary', dimension: 'background-processes', layer: 'native-overlay', outcome: 'not-yet-behaviorally-proven', minimumProof: 'behavioral', currentProof: 'generated-fixture', evidence: runtimeGaps, limitation: 'Background agent fields are documented, but this exact generated behavior lacks a current maintained runtime receipt.', sources: [SOURCE.claudeAgents] }),
   claim({ host: 'claude-code', maintenanceTier: 'primary', dimension: 'local-file-script-permissions', layer: 'native-overlay', outcome: 'not-yet-behaviorally-proven', minimumProof: 'behavioral', currentProof: 'isolated-installed', evidence: runtimeGaps, limitation: 'Generated permission hooks execute in verifier fixtures; end-to-end host enforcement is not isolated as a current behavioral receipt.', sources: [SOURCE.claudePermissions, SOURCE.claudeHooks] }),
-  claim({ host: 'claude-code', maintenanceTier: 'primary', dimension: 'package-install-update-uninstall', layer: 'native-overlay', outcome: 'native-preserved', minimumProof: 'isolated-installed', currentProof: 'isolated-installed', evidence: portableEvidence, sources: [SOURCE.claudeMarketplaces, SOURCE.claudePlugins] }),
+  claim({ host: 'claude-code', maintenanceTier: 'primary', dimension: 'package-install-update-uninstall', layer: 'native-overlay', outcome: 'native-preserved', minimumProof: 'isolated-installed', currentProof: 'isolated-installed', evidence: nativeProof, sources: [SOURCE.claudeMarketplaces, SOURCE.claudePlugins] }),
 
   claim({ host: 'cursor', maintenanceTier: 'primary', dimension: 'portable-skills', layer: 'portable-core', outcome: 'not-yet-behaviorally-proven', minimumProof: 'behavioral', currentProof: 'isolated-installed', evidence: portableEvidence, limitation: 'Cursor documents Agent Plugins loading, but this VPS has no real Cursor binary discovery receipt for the 0.1.42 artifact.', sources: [SOURCE.cursorPlugins, SOURCE.agentPlugins] }),
   claim({ host: 'cursor', maintenanceTier: 'primary', dimension: 'declared-mcp', layer: 'portable-core', outcome: 'not-yet-behaviorally-proven', minimumProof: 'behavioral', currentProof: 'isolated-installed', evidence: portableEvidence, limitation: 'The package contract and local path are proven in fixtures; real Cursor MCP discovery/execution remains unrecorded.', sources: [SOURCE.cursorPlugins, SOURCE.cursorMcp, SOURCE.agentPlugins] }),
@@ -119,8 +120,8 @@ export const HOST_SUPPORT_CLAIMS: readonly HostSupportClaim[] = [
   claim({ host: 'cursor', maintenanceTier: 'primary', dimension: 'local-file-script-permissions', layer: 'native-overlay', outcome: 'not-yet-behaviorally-proven', minimumProof: 'behavioral', currentProof: 'isolated-installed', evidence: runtimeGaps, limitation: 'Generated permission-hook decisions are verifier-tested; current host-side enforcement behavior is not separately receipted.', sources: [SOURCE.cursorPermissions, SOURCE.cursorHooks] }),
   claim({ host: 'cursor', maintenanceTier: 'primary', dimension: 'package-install-update-uninstall', layer: 'native-overlay', outcome: 'native-preserved', minimumProof: 'isolated-installed', currentProof: 'discovered', evidence: nativeProof, sources: [SOURCE.cursorPlugins] }),
 
-  claim({ host: 'codex', maintenanceTier: 'primary', dimension: 'portable-skills', layer: 'portable-core', outcome: 'unsupported', minimumProof: 'discovered', currentProof: 'schema', evidence: 'docs/new-host-support-gate.md', limitation: 'No first-party Codex documentation defines a generic root Agent Plugins import path; Codex stays on its native plugin/skills path.', sources: [SOURCE.codexPlugins, SOURCE.codexSkills, SOURCE.agentPlugins] }),
-  claim({ host: 'codex', maintenanceTier: 'primary', dimension: 'declared-mcp', layer: 'portable-core', outcome: 'unsupported', minimumProof: 'discovered', currentProof: 'schema', evidence: 'docs/new-host-support-gate.md', limitation: 'Codex documents native MCP configuration but not importing Agent Plugins mcp.json as a generic package root.', sources: [SOURCE.codexMcp, SOURCE.agentPlugins] }),
+  claim({ host: 'codex', maintenanceTier: 'primary', dimension: 'portable-skills', layer: 'portable-core', outcome: 'unsupported', minimumProof: 'discovered', currentProof: 'schema', evidence: 'docs/core-four-provider-docs-audit.md', limitation: 'No first-party Codex documentation defines a generic root Agent Plugins import path; Codex stays on its native plugin/skills path.', sources: [SOURCE.codexPlugins, SOURCE.codexSkills, SOURCE.agentPlugins] }),
+  claim({ host: 'codex', maintenanceTier: 'primary', dimension: 'declared-mcp', layer: 'portable-core', outcome: 'unsupported', minimumProof: 'discovered', currentProof: 'schema', evidence: 'docs/core-four-provider-docs-audit.md', limitation: 'Codex documents native MCP configuration but not importing Agent Plugins mcp.json as a generic package root.', sources: [SOURCE.codexMcp, SOURCE.agentPlugins] }),
   claim({ host: 'codex', maintenanceTier: 'primary', dimension: 'startup-context-delivery', layer: 'native-overlay', outcome: 'not-yet-behaviorally-proven', minimumProof: 'behavioral', currentProof: 'isolated-installed', evidence: runtimeGaps, limitation: 'Generated and installed hook shape is proven, but maintained headless and interactive probes still do not prove hook execution.', sources: [SOURCE.codexHooks, SOURCE.codexPlugins] }),
   claim({ host: 'codex', maintenanceTier: 'primary', dimension: 'native-commands', layer: 'native-overlay', outcome: 'degraded', minimumProof: 'discovered', currentProof: 'discovered', evidence: nativeProof, limitation: 'Codex has no documented plugin-packaged custom command directory equivalent; Pluxx routes through skills, AGENTS.md, and companion metadata.', sources: [SOURCE.codexPlugins, SOURCE.codexSkills] }),
   claim({ host: 'codex', maintenanceTier: 'primary', dimension: 'specialist-agents', layer: 'native-overlay', outcome: 'translated', minimumProof: 'behavioral', currentProof: 'behavioral', evidence: nativeProof, sources: [SOURCE.codexAgents] }),
@@ -129,8 +130,8 @@ export const HOST_SUPPORT_CLAIMS: readonly HostSupportClaim[] = [
   claim({ host: 'codex', maintenanceTier: 'primary', dimension: 'local-file-script-permissions', layer: 'native-overlay', outcome: 'translated', minimumProof: 'behavioral', currentProof: 'behavioral', evidence: runtimeGaps, limitation: 'Approvals and sandbox controls are native, but current custom-agent read-only sandbox probes show a runtime mismatch that remains explicitly bounded.', sources: [SOURCE.codexSecurity, SOURCE.codexAgents] }),
   claim({ host: 'codex', maintenanceTier: 'primary', dimension: 'package-install-update-uninstall', layer: 'native-overlay', outcome: 'native-preserved', minimumProof: 'isolated-installed', currentProof: 'behavioral', evidence: nativeProof, sources: [SOURCE.codexPlugins] }),
 
-  claim({ host: 'opencode', maintenanceTier: 'primary', dimension: 'portable-skills', layer: 'portable-core', outcome: 'unsupported', minimumProof: 'discovered', currentProof: 'schema', evidence: 'docs/new-host-support-gate.md', limitation: 'OpenCode documents compatible skill directories but not a generic Agent Plugins package import contract.', sources: [SOURCE.openCodeSkills, SOURCE.agentPlugins] }),
-  claim({ host: 'opencode', maintenanceTier: 'primary', dimension: 'declared-mcp', layer: 'portable-core', outcome: 'unsupported', minimumProof: 'discovered', currentProof: 'schema', evidence: 'docs/new-host-support-gate.md', limitation: 'OpenCode documents config-native MCP, not generic Agent Plugins mcp.json package loading.', sources: [SOURCE.openCodeMcp, SOURCE.agentPlugins] }),
+  claim({ host: 'opencode', maintenanceTier: 'primary', dimension: 'portable-skills', layer: 'portable-core', outcome: 'unsupported', minimumProof: 'discovered', currentProof: 'schema', evidence: 'docs/core-four-provider-docs-audit.md', limitation: 'OpenCode documents compatible skill directories but not a generic Agent Plugins package import contract.', sources: [SOURCE.openCodeSkills, SOURCE.agentPlugins] }),
+  claim({ host: 'opencode', maintenanceTier: 'primary', dimension: 'declared-mcp', layer: 'portable-core', outcome: 'unsupported', minimumProof: 'discovered', currentProof: 'schema', evidence: 'docs/core-four-provider-docs-audit.md', limitation: 'OpenCode documents config-native MCP, not generic Agent Plugins mcp.json package loading.', sources: [SOURCE.openCodeMcp, SOURCE.agentPlugins] }),
   claim({ host: 'opencode', maintenanceTier: 'primary', dimension: 'startup-context-delivery', layer: 'native-overlay', outcome: 'translated', minimumProof: 'behavioral', currentProof: 'behavioral', evidence: nativeProof, sources: [SOURCE.openCodePlugins] }),
   claim({ host: 'opencode', maintenanceTier: 'primary', dimension: 'native-commands', layer: 'native-overlay', outcome: 'native-preserved', minimumProof: 'discovered', currentProof: 'behavioral', evidence: nativeProof, sources: [SOURCE.openCodeCommands] }),
   claim({ host: 'opencode', maintenanceTier: 'primary', dimension: 'specialist-agents', layer: 'native-overlay', outcome: 'translated', minimumProof: 'behavioral', currentProof: 'behavioral', evidence: nativeProof, sources: [SOURCE.openCodeAgents] }),
@@ -148,6 +149,24 @@ const FIRST_PARTY_HOSTS: Record<HostSupportHost, readonly string[]> = {
   opencode: ['opencode.ai', 'agent-plugins.org'],
 }
 
+interface HostSupportEvidenceArtifact {
+  kind: 'release-receipt' | 'proof-ledger' | 'reliability-register' | 'provider-audit' | 'overlay-policy'
+  hosts: readonly HostSupportHost[]
+  dimensions: readonly HostSupportDimension[]
+}
+
+const CORE_HOSTS = ['claude-code', 'cursor', 'codex', 'opencode'] as const
+const PORTABLE_DIMENSIONS = ['portable-skills', 'declared-mcp'] as const
+const NATIVE_DIMENSIONS = HOST_SUPPORT_DIMENSIONS.filter(dimension => !PORTABLE_DIMENSIONS.includes(dimension as typeof PORTABLE_DIMENSIONS[number]))
+
+const HOST_SUPPORT_EVIDENCE_ARTIFACTS: Readonly<Record<string, HostSupportEvidenceArtifact>> = {
+  [portableEvidence]: { kind: 'release-receipt', hosts: ['agent-plugins', 'cursor'], dimensions: PORTABLE_DIMENSIONS },
+  [nativeProof]: { kind: 'proof-ledger', hosts: CORE_HOSTS, dimensions: NATIVE_DIMENSIONS },
+  [runtimeGaps]: { kind: 'reliability-register', hosts: CORE_HOSTS, dimensions: NATIVE_DIMENSIONS },
+  'docs/core-four-provider-docs-audit.md': { kind: 'provider-audit', hosts: CORE_HOSTS, dimensions: PORTABLE_DIMENSIONS },
+  'docs/agent-plugins-native-overlay-contract.md': { kind: 'overlay-policy', hosts: ['agent-plugins'], dimensions: NATIVE_DIMENSIONS },
+}
+
 const proofRank = (tier: HostSupportProofTier): number => HOST_SUPPORT_PROOF_TIERS.indexOf(tier)
 
 export function validateHostSupportClaims(claims: readonly HostSupportClaim[] = HOST_SUPPORT_CLAIMS): string[] {
@@ -162,6 +181,28 @@ export function validateHostSupportClaims(claims: readonly HostSupportClaim[] = 
     if (item.retrievedAt !== HOST_SUPPORT_RETRIEVED_AT) errors.push(`${key}: stale retrieval date`)
     if (!item.evidence.trim()) errors.push(`${key}: missing evidence or limitation reference`)
     if (item.sources.length === 0) errors.push(`${key}: missing first-party source`)
+
+    const artifact = HOST_SUPPORT_EVIDENCE_ARTIFACTS[item.evidence]
+    const evidencePath = resolve(process.cwd(), item.evidence)
+    if (!artifact) {
+      errors.push(`${key}: unrecognized evidence artifact ${item.evidence}`)
+    } else {
+      if (!artifact.hosts.includes(item.host)) errors.push(`${key}: evidence artifact ${item.evidence} does not cover host`)
+      if (!artifact.dimensions.includes(item.dimension)) errors.push(`${key}: evidence artifact ${item.evidence} does not cover capability`)
+      if (!existsSync(evidencePath) || !lstatSync(evidencePath).isFile() || lstatSync(evidencePath).isSymbolicLink()) {
+        errors.push(`${key}: evidence artifact is missing or not a regular file: ${item.evidence}`)
+      } else if (artifact.kind === 'release-receipt') {
+        try {
+          const receipt = JSON.parse(readFileSync(evidencePath, 'utf8')) as { schema?: unknown; states?: Array<{ name?: unknown; evidence?: unknown }> }
+          const receiptEvidence = receipt.states?.map(state => state.evidence).filter((value): value is string => typeof value === 'string').join('\n') ?? ''
+          if (receipt.schema !== 'orchid.release.receipt/v1' || !/compatible-client fixture/i.test(receiptEvidence) || !/strict agent-plugins target/i.test(receiptEvidence)) {
+            errors.push(`${key}: release receipt lacks compatible-client fixture proof`)
+          }
+        } catch {
+          errors.push(`${key}: release receipt is not valid JSON`)
+        }
+      }
+    }
 
     for (const source of item.sources) {
       let hostname = ''
@@ -198,35 +239,24 @@ export function validateHostSupportClaims(claims: readonly HostSupportClaim[] = 
 
 export interface HostSupportFixtureResult {
   proofTier: 'isolated-installed'
+  client: 'cursor'
   pluginName: string
   skills: string[]
   mcpDeclared: boolean
+  artifactSha256: string
 }
 
 export function inspectIsolatedHostSupportFixture(root: string): HostSupportFixtureResult {
-  const resolvedRoot = resolve(root)
-  const manifestPath = resolve(resolvedRoot, 'plugin.json')
-  const skillsPath = resolve(resolvedRoot, 'skills')
-  if (!existsSync(manifestPath) || !lstatSync(manifestPath).isFile()) throw new Error('fixture requires regular plugin.json')
-  if (!existsSync(skillsPath) || !lstatSync(skillsPath).isDirectory()) throw new Error('fixture requires skills directory')
-
-  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<string, unknown>
-  if (manifest.$schema !== 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json') throw new Error('fixture requires Agent Plugins 1.0.0 schema')
-  if (typeof manifest.name !== 'string' || manifest.name.length === 0) throw new Error('fixture requires plugin name')
-
-  const allowedRoot = new Set(['plugin.json', 'skills', 'mcp.json'])
-  for (const entry of readdirSync(resolvedRoot)) {
-    if (!allowedRoot.has(entry)) throw new Error(`fixture contains non-portable root entry: ${entry}`)
+  const receipt = inspectAgentPluginsDiscovery(root, 'cursor', 'fixture-contract-only')
+  const manifest = JSON.parse(readFileSync(resolve(root, 'plugin.json'), 'utf8')) as { name: string }
+  return {
+    proofTier: 'isolated-installed',
+    client: 'cursor',
+    pluginName: manifest.name,
+    skills: receipt.skills,
+    mcpDeclared: receipt.mcpServers.length > 0,
+    artifactSha256: receipt.artifactSha256,
   }
-
-  const skills = readdirSync(skillsPath).sort()
-  if (skills.length === 0) throw new Error('fixture requires at least one skill')
-  for (const skill of skills) {
-    const skillRoot = resolve(skillsPath, skill)
-    if (!lstatSync(skillRoot).isDirectory() || !existsSync(resolve(skillRoot, 'SKILL.md'))) throw new Error(`fixture skill ${skill} is invalid`)
-  }
-
-  return { proofTier: 'isolated-installed', pluginName: manifest.name, skills, mcpDeclared: existsSync(resolve(resolvedRoot, 'mcp.json')) }
 }
 
 const HOST_LABEL: Record<HostSupportHost, string> = {

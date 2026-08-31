@@ -1,4 +1,4 @@
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs'
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { resolve } from 'path'
 import { afterEach, describe, expect, it } from 'bun:test'
@@ -22,7 +22,7 @@ afterEach(() => {
 function isolatedFixture(): string {
   const home = mkdtempSync(resolve(tmpdir(), 'pluxx-host-support-'))
   temporaryRoots.push(home)
-  const installed = resolve(home, '.compatible-client/plugins/pluxx-host-support-proof')
+  const installed = resolve(home, '.cursor/plugins/local/pluxx-host-support-proof')
   cpSync(fixtureRoot, installed, { recursive: true })
   return installed
 }
@@ -72,23 +72,69 @@ describe('host support claim registry', () => {
     expect(validateHostSupportClaims(HOST_SUPPORT_CLAIMS.map(item => item === target ? invalid : item)))
       .toContain('codex:portable-skills: unsupported requires an explicit limitation')
   })
+
+  it('rejects missing, unrecognized, and capability-irrelevant evidence artifacts', () => {
+    const target = HOST_SUPPORT_CLAIMS.find(item => item.host === 'claude-code' && item.dimension === 'native-commands')!
+    const missing = { ...target, evidence: 'docs/fake-proof.md' }
+    expect(validateHostSupportClaims(HOST_SUPPORT_CLAIMS.map(item => item === target ? missing : item)))
+      .toContain('claude-code:native-commands: unrecognized evidence artifact docs/fake-proof.md')
+
+    const irrelevant = { ...target, evidence: 'docs/orchid/receipts/2026-08-31-pluxx-0.1.42-release.json' }
+    expect(validateHostSupportClaims(HOST_SUPPORT_CLAIMS.map(item => item === target ? irrelevant : item)))
+      .toContain('claude-code:native-commands: evidence artifact docs/orchid/receipts/2026-08-31-pluxx-0.1.42-release.json does not cover host')
+  })
 })
 
 describe('isolated maintained fixture', () => {
   it('proves only an isolated install inventory, never real-host behavior', () => {
     const result = inspectIsolatedHostSupportFixture(isolatedFixture())
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       proofTier: 'isolated-installed',
+      client: 'cursor',
       pluginName: 'pluxx-host-support-proof',
       skills: ['support-proof'],
       mcpDeclared: false,
     })
+    expect(result.artifactSha256).toMatch(/^[a-f0-9]{64}$/)
   })
 
   it('rejects native-only portable payloads', () => {
     const installed = isolatedFixture()
     writeFileSync(resolve(installed, 'hooks.json'), '{}\n')
-    expect(() => inspectIsolatedHostSupportFixture(installed)).toThrow('non-portable root entry: hooks.json')
+    expect(() => inspectIsolatedHostSupportFixture(installed)).toThrow('undocumented top-level entry: hooks.json')
+  })
+
+  it('rejects invalid manifest, skill frontmatter, and MCP schema', () => {
+    const invalidManifest = isolatedFixture()
+    const manifest = JSON.parse(readFileSync(resolve(invalidManifest, 'plugin.json'), 'utf8'))
+    writeFileSync(resolve(invalidManifest, 'plugin.json'), `${JSON.stringify({ ...manifest, invented: true }, null, 2)}\n`)
+    expect(() => inspectIsolatedHostSupportFixture(invalidManifest)).toThrow('unknown field(s): invented')
+
+    const invalidSkill = isolatedFixture()
+    writeFileSync(resolve(invalidSkill, 'skills/support-proof/SKILL.md'), '# Missing frontmatter\n')
+    expect(() => inspectIsolatedHostSupportFixture(invalidSkill)).toThrow('requires valid YAML frontmatter')
+
+    const invalidMcp = isolatedFixture()
+    writeFileSync(resolve(invalidMcp, 'mcp.json'), '{"mcpServers":{}}\n')
+    expect(() => inspectIsolatedHostSupportFixture(invalidMcp)).toThrow('must contain the 1.0.0 $schema')
+  })
+
+  it('rejects external symlinks for portable files', () => {
+    const installed = isolatedFixture()
+    const external = resolve(temporaryRoots[temporaryRoots.length - 1], 'outside.md')
+    writeFileSync(external, '---\nname: support-proof\ndescription: outside\n---\n')
+    rmSync(resolve(installed, 'skills/support-proof/SKILL.md'))
+    symlinkSync(external, resolve(installed, 'skills/support-proof/SKILL.md'))
+    expect(() => inspectIsolatedHostSupportFixture(installed)).toThrow('refuses symlink')
+
+    const mcpInstalled = isolatedFixture()
+    const externalMcpDir = mkdtempSync(resolve(tmpdir(), 'pluxx-host-support-mcp-'))
+    temporaryRoots.push(externalMcpDir)
+    const externalMcp = resolve(externalMcpDir, 'mcp.json')
+    writeFileSync(externalMcp, '{"$schema":"https://agent-plugins.org/schemas/1.0.0/mcp.schema.json","mcpServers":{}}\n')
+    mkdirSync(resolve(mcpInstalled), { recursive: true })
+    symlinkSync(externalMcp, resolve(mcpInstalled, 'mcp.json'))
+    expect(() => inspectIsolatedHostSupportFixture(mcpInstalled)).toThrow('refuses symlink')
   })
 })
 
