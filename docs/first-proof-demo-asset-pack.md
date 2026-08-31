@@ -1,8 +1,8 @@
 # Proof And Demo Asset Pack
 
-Last updated: 2026-07-12
+Last updated: 2026-08-31
 
-Freshness note: this inventory mixes current repository/bundle evidence with explicitly historical host runs. Use [proof freshness](./proof-freshness.md) and [proof manifest](./proof-manifest.json) before presenting any item as current.
+Freshness note: this inventory mixes current repository/bundle evidence with explicitly historical host runs. The independently verified public package baseline is `@orchid-labs/pluxx@0.1.42`; its Agent Plugins evidence is an isolated fixture contract, not active-home or real-host proof. Use [proof freshness](./proof-freshness.md) and [proof manifest](./proof-manifest.json) before presenting any item as current.
 
 This doc is the public-proof map for Pluxx.
 

@@ -9,6 +9,7 @@ This repo is prepared for the Orchid Agent Stack.
 - `decisions/` stores ADRs and durable product/architecture decisions.
 - `solutions/` stores reusable solved-problem writeups and compound learning.
 - `reviews/` stores document/code review summaries.
+- `receipts/` stores validated, immutable Orchid release/deployment receipts; receipts record evidence and never grant mutation authority.
 - `history/` stores curated Entire-backed work history, provenance summaries, and "what happened" writeups.
 - `pulse-reports/` stores product pulse reports.
 - `visual-plans/` stores BuilderIO/Agent-Native visual plan MDX artifacts.
