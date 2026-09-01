@@ -1,6 +1,6 @@
 # Start Here
 
-Last updated: 2026-08-31
+Last updated: 2026-09-01
 
 ## Doc Links
 
@@ -40,7 +40,7 @@ If you want the shortest public proof and install path after this file, use [doc
 
 If you want the current release, distribution, and proof boundary, use [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md).
 
-If you need to know whether a proof claim is current, historical, repository-only, installed, or real-host evidence, use [docs/proof-freshness.md](./proof-freshness.md) and [docs/proof-manifest.json](./proof-manifest.json). The canonical independently verified public release is `@orchid-labs/pluxx@0.1.42` / `v0.1.42` for PLUXX-348.
+If you need to know whether a proof claim is current, historical, repository-only, installed, or real-host evidence, use [docs/proof-freshness.md](./proof-freshness.md) and [docs/proof-manifest.json](./proof-manifest.json). The independently verified public release remains `@orchid-labs/pluxx@0.1.42` / `v0.1.42`; PLUXX-350 is preparing 0.1.43 so MDP-306 can consume the merged PLUXX-349 installer-result contract.
 
 If you want the primitive-by-host proof ledger behind the core-four native shipping claim, use [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md).
 
@@ -539,7 +539,7 @@ Run two lanes in parallel:
 
 ### 6. Release State
 
-The canonical independently verified public release is `@orchid-labs/pluxx@0.1.42`; immutable tag `v0.1.42` resolves to trusted merge `0f6621a39c02aa69ad3363ad22ada429175779b7`. Release run [33405498774](https://github.com/orchidautomation/pluxx/actions/runs/33405498774) published the byte-identical npm and GitHub tarballs at SHA-256 `c4e97ed5eb23703e445ed60a7e5e14f5d096cbd56a291222abf85f94731aadf3`.
+The independently verified public release remains `@orchid-labs/pluxx@0.1.42`; immutable tag `v0.1.42` resolves to trusted merge `0f6621a39c02aa69ad3363ad22ada429175779b7`. PLUXX-350 is the active 0.1.43 release-preparation lane for the merged PLUXX-349 installer-result contract; no public 0.1.43 artifact exists yet.
 
 For v0.1.37, PLUXX-339 is the tagged security focus: lint, doctor, install, and packaged-runtime verification fail closed when bundled runtime scripts source workspace `.env` files through direct or statically evaluable shell forms. The patch preserves valid safe shell forms and uses a bounded explicit scanner rather than an expanding regex.
 
@@ -551,7 +551,7 @@ For v0.1.40, PLUXX-344 is the only release focus: explicit hook roots remain aut
 
 For v0.1.41, PLUXX-345 is the only release focus: generated Codex hooks resolve the installed plugin root even when `CODEX_PLUGIN_ROOT` is unset, without weakening explicit-root precedence or legacy fallbacks. Installed Codex Desktop verification remains separate from repository, fake-home, and isolated CLI proof.
 
-The public 0.1.42 release combines the PLUXX-346 strict Agent Plugins portable target, PLUXX-347 fail-closed native-overlay policy, and PR #483 installer rollback repair. Its published CLI independently emitted and tested the strict portable artifact in an isolated fixture. Portable Cursor/Codex fixture discovery remains fake-home contract evidence only; no current claim treats it as real-host installation or execution.
+The historical public 0.1.42 release combines the PLUXX-346 strict Agent Plugins portable target, PLUXX-347 fail-closed native-overlay policy, and PR #483 installer rollback repair. Its published CLI independently emitted and tested the strict portable artifact in an isolated fixture. Portable Cursor/Codex fixture discovery remains fake-home contract evidence only; no current claim treats it as real-host installation or execution.
 
 ## Working Rules
 

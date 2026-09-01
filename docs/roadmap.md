@@ -405,7 +405,9 @@ This is for learning and proof, not for prematurely building the full trust laye
 
 ### 6. Current release baseline
 
-The canonical independently verified public release is `@orchid-labs/pluxx@0.1.42` / `v0.1.42` for PLUXX-348 at immutable trusted merge `0f6621a39c02aa69ad3363ad22ada429175779b7`.
+The independently verified public release remains `@orchid-labs/pluxx@0.1.42` / `v0.1.42` for PLUXX-348 at immutable trusted merge `0f6621a39c02aa69ad3363ad22ada429175779b7`.
+
+PLUXX-350 is the active release-preparation lane for 0.1.43. It carries PLUXX-349's merged `pluxx.install-results.v1` contract and deterministic core-four planning so MDP-306 can adopt a published dependency. This is release-prep truth only until npm and GitHub artifacts are independently verified.
 
 The completed npm cut stayed primarily an operations step rather than a code-confidence rescue step.
 
