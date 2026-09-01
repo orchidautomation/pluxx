@@ -854,8 +854,8 @@ for target in "\${targets[@]}"; do
 done
 
 if [ "$json" = "1" ]; then
-  PLUXX_RESULT_PLUGIN="PLUGIN_PLACEHOLDER" PLUXX_RESULT_VERSION="VERSION_PLACEHOLDER" PLUXX_RESULT_MODE="$( [ "$explicit_targets" = "1" ] && echo explicit || echo aggregate )" PLUXX_RESULT_ITEMS="$(printf '%s\n' "\${results[@]}")" node <<'NODE'
-const results = (process.env.PLUXX_RESULT_ITEMS || '').split(/\n/).filter(Boolean).map((line) => { const [target, state, reason, error] = line.split('|'); return { target, state, ...(reason ? { reason } : {}), ...(error ? { error, action: 'inspect stderr and rerun the target installer' } : {}) } })
+  PLUXX_RESULT_PLUGIN="PLUGIN_PLACEHOLDER" PLUXX_RESULT_VERSION="VERSION_PLACEHOLDER" PLUXX_RESULT_MODE="$( [ "$explicit_targets" = "1" ] && echo explicit || echo aggregate )" PLUXX_RESULT_ITEMS="$(printf '%s\\n' "\${results[@]}")" node <<'NODE'
+const results = (process.env.PLUXX_RESULT_ITEMS || '').split(/\\n/).filter(Boolean).map((line) => { const [target, state, reason, error] = line.split('|'); return { target, state, ...(reason ? { reason } : {}), ...(error ? { error, action: 'inspect stderr and rerun the target installer' } : {}) } })
 process.stdout.write(JSON.stringify({ schema: '${INSTALL_RESULT_SCHEMA}', plugin: { name: process.env.PLUXX_RESULT_PLUGIN, version: process.env.PLUXX_RESULT_VERSION }, selectionMode: process.env.PLUXX_RESULT_MODE, plan: results.map(({ target }) => ({ target, selected: true })), results }) + '\\n')
 NODE
 else
