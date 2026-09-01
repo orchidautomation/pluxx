@@ -130,6 +130,21 @@ If the installed Codex bundle also declares plugin-bundled hooks, `doctor --cons
 
 Generated `pluxx publish --github-release` Codex curl installers also handle this prerequisite for hook-bearing bundles. The generated `install-codex.sh` detects `.codex-plugin/plugin.json` `hooks` or `hooks/hooks.json`, checks `$CODEX_HOME/config.toml` or `~/.codex/config.toml` by default, prompts interactive users to enable `[features].hooks = true`, supports `PLUXX_CODEX_ENABLE_PLUGIN_HOOKS=1` or `0` for lower-level automation, and prints the exact TOML plus restart/refresh guidance when the user skips the edit. The generated top-level `install.sh -y` front door sets that Pluxx automation approval for Codex while keeping downstream plugin docs free of Codex-specific env flags.
 
+### Composable release-install results
+
+Generated release installers also expose the versioned `pluxx.install-results.v1`
+contract. `install.sh --plan` prints the deterministic core-four selection plan;
+`--agents` is aggregate mode and records undetected hosts as
+`skipped`/`host-not-detected`, while explicit `--claude-code`, `--cursor`,
+`--codex`, or `--opencode` selections remain authoritative and report
+prerequisite errors as `failed`. `--json` reserves stdout for one terminal
+result per selected target (`installed`, `updated`, `unchanged`, `skipped`, or
+`failed`); `--quiet` suppresses decorative progress without hiding stderr
+errors or corrective action. Consumers should validate the envelope rather than
+scrape human output. A fully owned, byte-identical bundle may complete as
+`unchanged` before the transaction swap; checksum, ownership, companion,
+verification, and rollback gates remain unchanged.
+
 Those consumer checks now also warn when the checked project is not trusted in the user Codex config, because Codex can keep project-local hooks disabled until that trust entry exists. `verify-install` now carries those `doctor --consumer` issue details through directly, so operators see the specific warning code, explanation, and fix instead of only a warning count.
 
 Generated command-hook wrappers are now Node launchers at `hooks/pluxx-hook-command-*.mjs`, not shell-invoked wrapper scripts. They quote plugin-root paths, preserve LF line endings, and discover Bash before running Bash-style hook bodies. On Windows, Git Bash or another `bash` on `PATH` is still required for Bash command hooks; when it is missing, the wrapper prints an explicit Pluxx diagnostic that names the missing Bash requirement and the hook command.
