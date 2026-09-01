@@ -202,18 +202,19 @@ Do not treat a merged implementation PR alone as a shipped target. PLUXX-348 has
 
 Final local PLUXX-348 preparation proof remains bound to exact ancestor `aa13f53f938eeba67d38b22de7070dcbff57eb44`: the complete release gate passed with 65 files / 868 tests, native release smoke passed, and the portable Cursor/Codex fixture copies share artifact SHA-256 `dee9383c71a53222f00f6dc72bbcee19cf451e5dde59a7c2b56c64b5cfae89fb`. Public 0.1.42 proof binds `v0.1.42` to trusted merge `0f6621a39c02aa69ad3363ad22ada429175779b7`; npm and GitHub tarballs are byte-identical at SHA-256 `c4e97ed5eb23703e445ed60a7e5e14f5d096cbd56a291222abf85f94731aadf3`, and the published CLI portable fixture passed with tree digest `7f1264d055421f8b7570f9ca9764a2232a2d6dc9046fd90984fb5a43203e1efa`. No active-home or real-host installation is claimed.
 
-## Active 0.1.43 Installer-Contract Release Lane
+## Completed 0.1.43 Release / Active MDP Consumer Lane
 
 1. `PLUXX-349` — merged through PR #491 at trusted main `e95dfab686170bcddcd309ac11c045692033943a`; source includes deterministic core-four planning and `pluxx.install-results.v1`.
-2. `PLUXX-350` — in progress: prepare, release, and independently verify `0.1.43` through the trusted tag workflow.
-3. `MDP-306` — blocked until a verified public Pluxx version contains the contract; then consume structured results and implement the MDP-owned aggregate experience.
+2. `PLUXX-350` — completed: PR #494 merged at trusted main `87e759d76c7cdaefd1bff81969b4cb1ba10091d3`; Release run [33532188948](https://github.com/orchidautomation/pluxx/actions/runs/33532188948) published and verified `0.1.43`.
+3. `MDP-306` — active next: consume exact verified `@orchid-labs/pluxx@0.1.43`, use the structured per-target results, and implement the MDP-owned aggregate experience.
 
-Do not treat the merged source as a published dependency. The latest published package remains historical 0.1.42 release evidence until PLUXX-350 completes npm and GitHub artifact verification.
+The contract is now a published dependency. npm and GitHub serve byte-identical 0.1.43 tarballs at SHA-256 `2851a386dc415fd37e124fa132d70af516fee062a8ac355310ea157fa8d2dfc3`; this is package and fake-home proof, not active-home or real-host evidence.
 
 The public baseline is also real.
 
 - npm package is live as `@orchid-labs/pluxx`
-- historical public 0.1.42 evidence remains independently verified: npm and GitHub serve the same tarball at SHA-256 `c4e97ed5eb23703e445ed60a7e5e14f5d096cbd56a291222abf85f94731aadf3`
+- current public 0.1.43 evidence is independently verified: npm and GitHub serve the same tarball at SHA-256 `2851a386dc415fd37e124fa132d70af516fee062a8ac355310ea157fa8d2dfc3`
+- public 0.1.42 evidence remains historical
 - 0.1.41 is now historical PLUXX-345 Codex hook-root proof
 - 0.1.40 is now the historical PLUXX-344 hook workspace-precedence release
 - 0.1.39 is now the historical PLUXX-341/PLUXX-342 quiet OpenCode hook-scope release

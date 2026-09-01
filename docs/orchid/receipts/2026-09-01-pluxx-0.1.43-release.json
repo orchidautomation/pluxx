@@ -1,0 +1,53 @@
+{
+  "schema": "orchid.release.receipt/v1",
+  "repository": "orchidautomation/pluxx",
+  "sourceCommit": "87e759d76c7cdaefd1bff81969b4cb1ba10091d3",
+  "target": "@orchid-labs/pluxx@0.1.43 and GitHub Release v0.1.43",
+  "mode": "apply",
+  "states": [
+    {
+      "name": "merged",
+      "status": "passed",
+      "evidence": "PR #494 passed current-head checks and merged at trusted main commit 87e759d76c7cdaefd1bff81969b4cb1ba10091d3."
+    },
+    {
+      "name": "packaged",
+      "status": "passed",
+      "evidence": "Trusted Release run 33532188948 passed the complete release gate, package-runtime verification, and packed orchid-labs-pluxx-0.1.43.tgz (772941 bytes)."
+    },
+    {
+      "name": "released",
+      "status": "passed",
+      "evidence": "Immutable tag v0.1.43 resolves to source commit 87e759d76c7cdaefd1bff81969b4cb1ba10091d3; trusted Release run 33532188948 published npm 0.1.43 and GitHub Release v0.1.43 successfully."
+    },
+    {
+      "name": "deployed",
+      "status": "not-applicable",
+      "evidence": "Pluxx 0.1.43 is a package and release-asset distribution; no application deployment belongs to this release target."
+    },
+    {
+      "name": "installed",
+      "status": "not-applicable",
+      "evidence": "Verification used an isolated temporary npm prefix; no active user home or real host installation was changed or claimed."
+    },
+    {
+      "name": "health-checked",
+      "status": "passed",
+      "evidence": "An isolated npm install of @orchid-labs/pluxx@0.1.43 reported CLI version 0.1.43."
+    },
+    {
+      "name": "target-verified",
+      "status": "passed",
+      "evidence": "npm integrity is sha512-r5SqLhnApGzkiALPNUhtpCfQELdrFMQgzsGgVxvJbfIQETDY3x4kQYub4J88/bZhSKmVqb2u0fB7c6dNspQdiQ== (SHA-1 610631a8b040d3b93209432f8e8aca113f0b479c); npm and GitHub tarballs are byte-identical at SHA-256 2851a386dc415fd37e124fa132d70af516fee062a8ac355310ea157fa8d2dfc3. The packaged declarations include the structured installer contract."
+    }
+  ],
+  "authorization": "explicit-action-time",
+  "rollback": "npm versions and the immutable tag are not rewritten or unpublished. If a defect is found, deprecate 0.1.43 where warranted, document the failure, and publish a corrected higher patch from a newly reviewed trusted-main commit.",
+  "providers": [
+    "github-actions",
+    "github-releases",
+    "npm"
+  ],
+  "verdict": "target-verified",
+  "observedAt": "2026-09-01T16:43:38Z"
+}

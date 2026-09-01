@@ -30,9 +30,9 @@ This is the shortest current repo-native path to:
 
 For the fuller release/distribution boundary, including publish commands and deferred marketplace/trust-layer work, use [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md).
 
-Proof labels and freshness come from [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json). The May self-hosted run, April Firecrawl connector run, and shipped 0.1.37 through 0.1.41 evidence are historical relative to the canonical public 0.1.42 release.
+Proof labels and freshness come from [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json). The May self-hosted run, April Firecrawl connector run, and shipped 0.1.37 through 0.1.42 evidence are historical relative to the canonical public 0.1.43 release.
 
-The public 0.1.42 release carries the strict Agent Plugins portable target, its fail-closed native-overlay policy, and the generated Codex installer rollback repair. Tag `v0.1.42` binds to trusted merge `0f6621a39c02aa69ad3363ad22ada429175779b7`; npm and GitHub tarballs are byte-identical at SHA-256 `c4e97ed5eb23703e445ed60a7e5e14f5d096cbd56a291222abf85f94731aadf3`. Fresh repository, native fake-home, and portable compatible-client fixture receipts bind to exact release-prep ancestor `aa13f53f938eeba67d38b22de7070dcbff57eb44`, where the complete release gate passed with 65 test files and 868 tests. The public CLI separately emitted and tested the strict portable artifact in an isolated fixture with tree digest `7f1264d055421f8b7570f9ca9764a2232a2d6dc9046fd90984fb5a43203e1efa`. These fixtures are not real Cursor or Codex host executions, and Codex does not have a documented Agent Plugins local-import path in this proof lane. Source, fixture, and isolated CLI proof must not be relabeled as installed-host proof.
+The public 0.1.43 release carries deterministic core-four install planning and the `pluxx.install-results.v1` structured result contract. Tag `v0.1.43` binds to trusted merge `87e759d76c7cdaefd1bff81969b4cb1ba10091d3`; npm and GitHub tarballs are byte-identical at SHA-256 `2851a386dc415fd37e124fa132d70af516fee062a8ac355310ea157fa8d2dfc3`. Fresh repository and native core-four fake-home receipts bind to the exact tag commit, where trusted Release run `33532188948` passed the complete gate. These fixtures are not real host executions. Source, fixture, and isolated CLI proof must not be relabeled as installed-host proof.
 
 ## The Story In One Screen
 
@@ -210,7 +210,7 @@ curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example
 
 Current release note:
 
-- the canonical and verified public release is `@orchid-labs/pluxx@0.1.42` / `v0.1.42`; npm and GitHub serve the same verified tarball at SHA-256 `c4e97ed5eb23703e445ed60a7e5e14f5d096cbd56a291222abf85f94731aadf3`
+- the canonical and verified public release is `@orchid-labs/pluxx@0.1.43` / `v0.1.43`; npm and GitHub serve the same verified tarball at SHA-256 `2851a386dc415fd37e124fa132d70af516fee062a8ac355310ea157fa8d2dfc3`
 - 0.1.38 remains the shipped and independently verified historical PLUXX-340 duplicate archive-identity correction
 - 0.1.37 remains the shipped and independently verified historical PLUXX-339 runtime env-sourcing security release
 - the published CLI runtime is Node `>=18`; see [runtime contract](./runtime-contract.md)
