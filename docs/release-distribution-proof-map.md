@@ -26,7 +26,7 @@ Last updated: 2026-08-31
 
 This is the short release/distribution map for what Pluxx can ship today, what is locally proven, and what still belongs to later marketplace or trust-layer work.
 
-Proof state is governed by [proof-freshness.md](./proof-freshness.md) and the machine-readable [proof manifest](./proof-manifest.json). The canonical independently verified public release is `@orchid-labs/pluxx@0.1.42` / `v0.1.42` for PLUXX-348 at trusted merge `0f6621a39c02aa69ad3363ad22ada429175779b7`. Release run [33405498774](https://github.com/orchidautomation/pluxx/actions/runs/33405498774) published byte-identical npm and GitHub artifacts at SHA-256 `c4e97ed5eb23703e445ed60a7e5e14f5d096cbd56a291222abf85f94731aadf3`. The public CLI's isolated Agent Plugins fixture is bundle-contract evidence, not active-home or real-host proof.
+Proof state is governed by [proof-freshness.md](./proof-freshness.md) and the machine-readable [proof manifest](./proof-manifest.json). The canonical independently verified public release is `@orchid-labs/pluxx@0.1.43` / `v0.1.43` for PLUXX-350 at trusted merge `87e759d76c7cdaefd1bff81969b4cb1ba10091d3`. Release run [33532188948](https://github.com/orchidautomation/pluxx/actions/runs/33532188948) published byte-identical npm and GitHub artifacts at SHA-256 `2851a386dc415fd37e124fa132d70af516fee062a8ac355310ea157fa8d2dfc3`. Maintained core-four verification is isolated fake-home evidence, not active-home or real-host proof.
 
 ## Current Primary Fronts
 
