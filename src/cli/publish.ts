@@ -841,7 +841,7 @@ failed=0
 for target in "\${targets[@]}"; do
   if host_detected "$target" || [ "$explicit_targets" = "1" ]; then
     set +e
-    run_installer "$target"
+    ( set -e; run_installer "$target" )
     status=$?
     set -e
     if [ "$status" -eq 0 ] && [ -f "$tmp_dir/$target.result.json" ]; then results+=("$target|$(node -e 'const fs=require("fs"); const r=JSON.parse(fs.readFileSync(process.argv[1])); process.stdout.write([r.state,r.reason||"",r.error||""].join("|"))' "$tmp_dir/$target.result.json")")
