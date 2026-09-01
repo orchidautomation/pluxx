@@ -213,7 +213,7 @@ The contract is now a published dependency. npm and GitHub serve byte-identical 
 The public baseline is also real.
 
 - npm package is live as `@orchid-labs/pluxx`
-- current public 0.1.43 evidence is independently verified: npm and GitHub serve the same tarball at SHA-256 `2851a386dc415fd37e124fa132d70af516fee062a8ac355310ea157fa8d2dfc3`
+- historical public 0.1.43 evidence is independently verified: npm and GitHub serve the same tarball at SHA-256 `2851a386dc415fd37e124fa132d70af516fee062a8ac355310ea157fa8d2dfc3`
 - public 0.1.42 evidence remains historical
 - 0.1.41 is now historical PLUXX-345 Codex hook-root proof
 - 0.1.40 is now the historical PLUXX-344 hook workspace-precedence release
