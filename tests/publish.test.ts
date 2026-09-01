@@ -1162,6 +1162,7 @@ describe('runPublish', () => {
 
     let installerContent = ''
     let manifestContent = ''
+    let checksumsContent = ''
     const result = runPublish(config, {
       rootDir: ROOT,
       requestedChannels: ['github-release'],
@@ -1183,8 +1184,10 @@ describe('runPublish', () => {
         if (command === 'gh' && args[0] === 'release' && args[1] === 'create') {
           const installerPath = args.find((value) => typeof value === 'string' && value.endsWith('/install.sh'))
           const manifestPath = args.find((value) => typeof value === 'string' && value.endsWith('/release-manifest.json'))
+          const checksumsPath = args.find((value) => typeof value === 'string' && value.endsWith('/SHA256SUMS.txt'))
           installerContent = readFileSync(installerPath!, 'utf-8')
           manifestContent = readFileSync(manifestPath!, 'utf-8')
+          checksumsContent = readFileSync(checksumsPath!, 'utf-8')
           return { status: 0, stdout: 'created', stderr: '' }
         }
         return { status: 0, stdout: '', stderr: '' }
@@ -1207,6 +1210,9 @@ describe('runPublish', () => {
     expect(installerContent).toContain('--connect-timeout 10 --max-time 120 --retry 3 --retry-all-errors')
     expect(installerContent).toContain('--plan')
     expect(installerContent).toContain('pluxx.install-results.v1')
+    expect(installerContent).toContain("printf '%s\\n'")
+    expect(installerContent).toContain('.split(/\\n/)')
+    expect(installerContent).not.toContain('.split(/\n/)')
 
     const manifest = JSON.parse(manifestContent)
     expect(manifest.assets.archives).toHaveLength(4)
@@ -1222,6 +1228,62 @@ describe('runPublish', () => {
       url: 'https://github.com/orchidautomation/publish-plugin/releases/latest/download/install.sh',
       command: 'bash <(curl -fsSL --connect-timeout 10 --max-time 120 --retry 3 --retry-all-errors --retry-delay 1 https://github.com/orchidautomation/publish-plugin/releases/latest/download/install.sh) --agents -y',
     })
+
+    const aggregateRoot = resolve(ROOT, 'aggregate-json-install')
+    const aggregateBin = resolve(aggregateRoot, 'bin')
+    const aggregateHome = resolve(aggregateRoot, 'home')
+    const aggregateTmp = resolve(aggregateRoot, 'tmp')
+    mkdirSync(aggregateBin, { recursive: true })
+    mkdirSync(aggregateHome, { recursive: true })
+    mkdirSync(aggregateTmp, { recursive: true })
+    const installerPath = resolve(aggregateRoot, 'install.sh')
+    writeFileSync(installerPath, installerContent)
+    writeFileSync(resolve(aggregateRoot, 'release-manifest.json'), manifestContent)
+    writeFileSync(resolve(aggregateRoot, 'SHA256SUMS.txt'), checksumsContent)
+    chmodSync(installerPath, 0o755)
+
+    symlinkSync(process.execPath, resolve(aggregateBin, 'node'))
+    for (const command of ['bash', 'curl', 'mktemp', 'rm']) {
+      const lookup = spawnSync('sh', ['-c', `command -v ${command}`], { encoding: 'utf-8' })
+      expect(lookup.status).toBe(0)
+      symlinkSync(lookup.stdout.trim(), resolve(aggregateBin, command))
+    }
+
+    const aggregateRun = spawnSync('bash', [
+      installerPath,
+      '--agents',
+      '--json',
+      '--quiet',
+      '--yes',
+      '--version',
+      '1.2.3',
+      '--base-url',
+      `file://${aggregateRoot}`,
+    ], {
+      encoding: 'utf-8',
+      env: {
+        ...isolatedInstallerEnvironment(process.env),
+        HOME: aggregateHome,
+        TMPDIR: aggregateTmp,
+        PATH: aggregateBin,
+      },
+    })
+
+    expect(aggregateRun.status, aggregateRun.stderr).toBe(0)
+    expect(aggregateRun.stderr).toBe('')
+    const aggregateResult = JSON.parse(aggregateRun.stdout)
+    expect(aggregateResult).toMatchObject({
+      schema: 'pluxx.install-results.v1',
+      plugin: { name: 'publish-plugin', version: '1.2.3' },
+      selectionMode: 'aggregate',
+    })
+    const aggregateTargets = ['claude-code', 'cursor', 'codex', 'opencode']
+    expect(aggregateResult.plan.map((entry: { target: string }) => entry.target)).toEqual(aggregateTargets)
+    expect(aggregateResult.results).toEqual(aggregateTargets.map((target) => ({
+      target,
+      state: 'skipped',
+      reason: 'host-not-detected',
+    })))
   })
 
   it('rejects a tampered release archive before replacing the installed bundle', () => {
