@@ -131,7 +131,9 @@ export async function executeCodexExecCommand(
         const stderr = Buffer.concat(stderrChunks).toString('utf-8')
         // Codex 0.148 can complete delegated runs without populating
         // --output-last-message. Preserve that file as the primary contract,
-        // but recover the final completed agent message from the JSONL stream.
+        // but recover response content from the final JSONL agent message.
+        // An agent_message is not a terminal signal: turn.completed or the
+        // process exit remains authoritative.
         const lastMessage = readCodexLastMessage(lastMessagePath) || readLastAgentMessage(stdout)
         const timeoutMessage = exceededDeadline && !killedAfterFinalMessage && !sawTurnCompleted
           ? `behavioral runner timed out after ${options.timeoutMs}ms`

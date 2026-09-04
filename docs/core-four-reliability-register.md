@@ -45,7 +45,7 @@ The core-four presentation order in this register is:
 
 ## Current Baseline
 
-As of 2026-06-24:
+As of 2026-08-31 (with historical evidence dates preserved below):
 
 - a clean isolated `npm test` run passed on the current worktree state
 - `npm run release:check` also passed end to end

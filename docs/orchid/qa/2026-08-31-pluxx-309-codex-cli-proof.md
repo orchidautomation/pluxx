@@ -26,7 +26,7 @@ This is isolated, authenticated Codex CLI proof in temporary `CODEX_HOME` and pr
 
 ## Codex 0.148 event-stream delta
 
-Delegated runs completed with a `wait` collaboration item and a proof-bearing final `agent_message`, but the JSON stream omitted the earlier `spawn_agent` item and child thread id. `--output-last-message` also remained empty for these completed runs. The probe runner now keeps the last-message file as primary and falls back to the final completed JSONL `agent_message`; custom-agent classification accepts the honest `wait` plus proof-bearing delegated message without inventing spawn metadata.
+Delegated runs completed with a `wait` collaboration item and a proof-bearing final `agent_message`, but the JSON stream omitted the earlier `spawn_agent` item and child thread id. `--output-last-message` also remained empty for these completed runs. The probe runner now keeps the last-message file as primary and falls back to the final completed JSONL `agent_message` for response content. Invocation is classified as verified only when the stream contains explicit spawn/thread evidence or a proof-bearing message inside the structured `wait` result. A proof-bearing parent `agent_message` after an unattributed wait is reported as `delegation-unverified`, and an `agent_message` without `turn.completed` or normal process exit still times out.
 
 ## Product delta
 
