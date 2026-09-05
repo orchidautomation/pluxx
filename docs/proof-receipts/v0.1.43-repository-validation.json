@@ -1,0 +1,23 @@
+{
+  "id": "v0.1.43-repository-validation",
+  "tier": "bundle-contract",
+  "freshness": "current",
+  "commitSha": "87e759d76c7cdaefd1bff81969b4cb1ba10091d3",
+  "packageVersion": "0.1.43",
+  "timestamp": "2026-09-01T16:43:38.000Z",
+  "commands": [
+    {
+      "command": "GitHub Actions Release run 33532188948: npm run release:check",
+      "outcome": "passed"
+    }
+  ],
+  "targets": [
+    {
+      "target": "repository",
+      "hostVersion": "Node 24",
+      "installedPath": null,
+      "sha256": null,
+      "outcome": "passed"
+    }
+  ]
+}

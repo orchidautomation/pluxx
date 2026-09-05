@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "canonicalVersion": "0.1.42",
-  "expectedTag": "v0.1.42",
-  "releaseState": "released",
+  "canonicalVersion": "0.1.44",
+  "expectedTag": "v0.1.44",
+  "releaseState": "release-prep",
   "policy": {
     "environmentReceiptMaxAgeDays": 30
   },
@@ -219,7 +219,7 @@
       "id": "v0.1.42-repository-validation",
       "summary": "The exact v0.1.42 release-prep commit passes the complete repository release gate for PLUXX-348.",
       "tier": "bundle-contract",
-      "freshness": "current",
+      "freshness": "historical",
       "evidencePath": "tests/proof-freshness.test.ts",
       "receiptId": "v0.1.42-repository-validation"
     },
@@ -227,7 +227,7 @@
       "id": "v0.1.42-fake-home-install",
       "summary": "The exact v0.1.42 release-prep commit passes maintained native core-four isolated fake-home install coverage.",
       "tier": "fake-home-install",
-      "freshness": "current",
+      "freshness": "historical",
       "evidencePath": "tests/release-smoke.test.ts",
       "receiptId": "v0.1.42-fake-home-install"
     },
@@ -235,7 +235,7 @@
       "id": "v0.1.42-portable-compatible-client-fixtures",
       "summary": "The exact v0.1.42 portable artifact is copied into isolated Cursor and Codex compatible-client fixture homes, where skills and declared MCP are discovered with the same artifact hash; this is not real-host installed proof.",
       "tier": "fake-home-install",
-      "freshness": "current",
+      "freshness": "historical",
       "evidencePath": "tests/release-agent-plugins-smoke.test.ts",
       "receiptId": "v0.1.42-portable-compatible-client-fixtures"
     },
@@ -243,9 +243,33 @@
       "id": "v0.1.42-published-package",
       "summary": "The independently verified public Pluxx 0.1.42 npm package and GitHub Release are byte-identical, and the published CLI emits and tests the strict Agent Plugins artifact in an isolated fixture.",
       "tier": "bundle-contract",
-      "freshness": "current",
+      "freshness": "historical",
       "evidencePath": "docs/proof-receipts/v0.1.42-published-package.json",
       "receiptId": "v0.1.42-published-package"
+    },
+    {
+      "id": "v0.1.43-repository-validation",
+      "summary": "Trusted Release run 33532188948 passes the complete repository release gate for the PLUXX-349 structured installer-result contract at the exact v0.1.43 tag commit.",
+      "tier": "bundle-contract",
+      "freshness": "historical",
+      "evidencePath": "tests/proof-freshness.test.ts",
+      "receiptId": "v0.1.43-repository-validation"
+    },
+    {
+      "id": "v0.1.43-fake-home-install",
+      "summary": "The v0.1.43 trusted release gate passes maintained core-four isolated fake-home coverage, including structured installed and unchanged outcomes.",
+      "tier": "fake-home-install",
+      "freshness": "historical",
+      "evidencePath": "tests/release-smoke.test.ts",
+      "receiptId": "v0.1.43-fake-home-install"
+    },
+    {
+      "id": "v0.1.43-published-package",
+      "summary": "The independently verified public Pluxx 0.1.43 npm package and GitHub Release are byte-identical, and the isolated published CLI reports version 0.1.43.",
+      "tier": "bundle-contract",
+      "freshness": "historical",
+      "evidencePath": "docs/proof-receipts/v0.1.43-published-package.json",
+      "receiptId": "v0.1.43-published-package"
     }
   ],
   "receipts": [
@@ -888,7 +912,7 @@
     {
       "id": "v0.1.42-repository-validation",
       "tier": "bundle-contract",
-      "freshness": "current",
+      "freshness": "historical",
       "commitSha": "aa13f53f938eeba67d38b22de7070dcbff57eb44",
       "packageVersion": "0.1.42",
       "timestamp": "2026-08-31T03:53:48.093Z",
@@ -911,7 +935,7 @@
     {
       "id": "v0.1.42-fake-home-install",
       "tier": "fake-home-install",
-      "freshness": "current",
+      "freshness": "historical",
       "commitSha": "aa13f53f938eeba67d38b22de7070dcbff57eb44",
       "packageVersion": "0.1.42",
       "timestamp": "2026-08-31T03:53:48.093Z",
@@ -934,7 +958,7 @@
     {
       "id": "v0.1.42-portable-compatible-client-fixtures",
       "tier": "fake-home-install",
-      "freshness": "current",
+      "freshness": "historical",
       "commitSha": "aa13f53f938eeba67d38b22de7070dcbff57eb44",
       "packageVersion": "0.1.42",
       "timestamp": "2026-08-31T03:53:48.093Z",
@@ -962,7 +986,7 @@
     {
       "id": "v0.1.42-published-package",
       "tier": "bundle-contract",
-      "freshness": "current",
+      "freshness": "historical",
       "commitSha": "0f6621a39c02aa69ad3363ad22ada429175779b7",
       "packageVersion": "0.1.42",
       "timestamp": "2026-08-31T15:18:36.000Z",
@@ -992,6 +1016,85 @@
           "sha256": "c4e97ed5eb23703e445ed60a7e5e14f5d096cbd56a291222abf85f94731aadf3",
           "outcome": "passed",
           "unavailableReason": "The registry CLI ran in an isolated fixture. This receipt does not claim an active-home installation, real compatible-client discovery, or a generic Codex Agent Plugins import path."
+        }
+      ]
+    },
+    {
+      "id": "v0.1.43-repository-validation",
+      "tier": "bundle-contract",
+      "freshness": "historical",
+      "commitSha": "87e759d76c7cdaefd1bff81969b4cb1ba10091d3",
+      "packageVersion": "0.1.43",
+      "timestamp": "2026-09-01T16:43:38.000Z",
+      "commands": [
+        {
+          "command": "GitHub Actions Release run 33532188948: npm run release:check",
+          "outcome": "passed"
+        }
+      ],
+      "targets": [
+        {
+          "target": "repository",
+          "hostVersion": "Node 24",
+          "installedPath": null,
+          "sha256": null,
+          "outcome": "passed"
+        }
+      ]
+    },
+    {
+      "id": "v0.1.43-fake-home-install",
+      "tier": "fake-home-install",
+      "freshness": "historical",
+      "commitSha": "87e759d76c7cdaefd1bff81969b4cb1ba10091d3",
+      "packageVersion": "0.1.43",
+      "timestamp": "2026-09-01T16:43:38.000Z",
+      "commands": [
+        {
+          "command": "GitHub Actions Release run 33532188948: npm run release:check",
+          "outcome": "passed"
+        }
+      ],
+      "targets": [
+        {
+          "target": "claude-code,cursor,codex,opencode",
+          "hostVersion": null,
+          "installedPath": null,
+          "sha256": null,
+          "outcome": "passed",
+          "unavailableReason": "The release smoke uses isolated fake-home paths; this receipt does not claim an active user home or real-host execution."
+        }
+      ]
+    },
+    {
+      "id": "v0.1.43-published-package",
+      "tier": "bundle-contract",
+      "freshness": "historical",
+      "commitSha": "87e759d76c7cdaefd1bff81969b4cb1ba10091d3",
+      "packageVersion": "0.1.43",
+      "timestamp": "2026-09-01T16:43:38.000Z",
+      "commands": [
+        {
+          "command": "GitHub Actions Release run 33532188948",
+          "outcome": "passed"
+        },
+        {
+          "command": "isolated npm install @orchid-labs/pluxx@0.1.43 and pluxx --version",
+          "outcome": "passed"
+        },
+        {
+          "command": "compare npm registry tarball with GitHub Release orchid-labs-pluxx-0.1.43.tgz",
+          "outcome": "passed"
+        }
+      ],
+      "targets": [
+        {
+          "target": "npm-package,github-release,published-cli",
+          "hostVersion": "Node 24.15.0",
+          "installedPath": null,
+          "sha256": "2851a386dc415fd37e124fa132d70af516fee062a8ac355310ea157fa8d2dfc3",
+          "outcome": "passed",
+          "unavailableReason": "The public CLI ran from an isolated temporary npm installation. This receipt does not claim an active-home installation or real-host behavior."
         }
       ]
     }

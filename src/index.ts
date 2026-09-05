@@ -127,6 +127,7 @@ export {
   type TeamInstallReference,
 } from './install-reference'
 export {
+  CORE_HOST_DETECTION_INVENTORY,
   CORE_HOST_FAMILIES,
   buildHostTargetSelection,
   detectHostFamilies,
@@ -137,6 +138,20 @@ export {
   type HostDetectionResult,
   type HostTargetSelection,
 } from './host-detection'
+export {
+  INSTALL_RESULT_SCHEMA,
+  INSTALL_RESULT_STATES,
+  INSTALL_SELECTION_MODES,
+  buildInstallPlan,
+  renderInstallResultsHuman,
+  validateInstallResultsEnvelope,
+  type InstallPlan,
+  type InstallPlanTarget,
+  type InstallResultsEnvelope,
+  type InstallResultState,
+  type InstallSelectionMode,
+  type InstallTargetResult,
+} from './install-contract'
 export {
   printVerifyInstallResult,
   verifyInstall,

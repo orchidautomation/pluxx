@@ -243,7 +243,7 @@ The closure plan is now narrower than it was before:
 - historical release-gate evidence from 2026-05-19 remains available but is not current proof:
   - `npm test` passed
   - `npm run release:check` passed
-- the canonical independently verified public release is `@orchid-labs/pluxx@0.1.42` / `v0.1.42`; npm and GitHub serve the same tarball at SHA-256 `c4e97ed5eb23703e445ed60a7e5e14f5d096cbd56a291222abf85f94731aadf3`
+- the canonical independently verified public release is `@orchid-labs/pluxx@0.1.43` / `v0.1.43`; npm and GitHub serve the same tarball at SHA-256 `2851a386dc415fd37e124fa132d70af516fee062a8ac355310ea157fa8d2dfc3`
 - historical 0.1.41 is only the PLUXX-345 Codex hook-root repair
 - 0.1.38 is only the PLUXX-340 manifest-identity follow-up discovered after shipped and independently verified 0.1.37
 - the release/distribution/proof boundary is now explicit:
@@ -405,7 +405,9 @@ This is for learning and proof, not for prematurely building the full trust laye
 
 ### 6. Current release baseline
 
-The canonical independently verified public release is `@orchid-labs/pluxx@0.1.42` / `v0.1.42` for PLUXX-348 at immutable trusted merge `0f6621a39c02aa69ad3363ad22ada429175779b7`.
+The independently verified public release is `@orchid-labs/pluxx@0.1.43` / `v0.1.43` for PLUXX-350 at immutable trusted merge `87e759d76c7cdaefd1bff81969b4cb1ba10091d3`.
+
+PLUXX-350 is complete. Release run [33532188948](https://github.com/orchidautomation/pluxx/actions/runs/33532188948) published PLUXX-349's `pluxx.install-results.v1` contract and deterministic core-four planning; npm and GitHub artifacts are byte-identical at SHA-256 `2851a386dc415fd37e124fa132d70af516fee062a8ac355310ea157fa8d2dfc3`. MDP-306 now owns consumer adoption and aggregate UX.
 
 The completed npm cut stayed primarily an operations step rather than a code-confidence rescue step.
 
@@ -416,6 +418,7 @@ The completed npm cut stayed primarily an operations step rather than a code-con
 - preserve the completed 0.1.37 immutable-tag recovery evidence: tag commit `d5184752cd4898306390f20455619c34a42099dd`, tree `e63eea0f89995a44b7536b5403af57792e994cb9`, trusted main `044673f947115bcf6117dd7c0139918bdd248a99`, and tarball SHA-256 `7c996da682887ceedecc006307c207c5a834e5dedabaab17611cd586ef85b237`
 - refresh installed-runtime or real-host receipts separately before making broader current host claims
 - preserve completed 0.1.42 evidence: tag and trusted merge `0f6621a39c02aa69ad3363ad22ada429175779b7`, Release run `33405498774`, byte-identical npm/GitHub tarball SHA-256 `c4e97ed5eb23703e445ed60a7e5e14f5d096cbd56a291222abf85f94731aadf3`, and isolated published-CLI portable tree digest `7f1264d055421f8b7570f9ca9764a2232a2d6dc9046fd90984fb5a43203e1efa`
+- preserve completed 0.1.43 evidence: tag and trusted merge `87e759d76c7cdaefd1bff81969b4cb1ba10091d3`, Release run `33532188948`, and byte-identical npm/GitHub tarball SHA-256 `2851a386dc415fd37e124fa132d70af516fee062a8ac355310ea157fa8d2dfc3`
 
 ## What This Roadmap Is Optimizing For
 

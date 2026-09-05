@@ -10,7 +10,7 @@ import { build } from '../src/generators'
 import type { PluginConfig } from '../src/schema'
 
 const PACKAGE_VERSION = JSON.parse(readFileSync(resolve(import.meta.dir, '../package.json'), 'utf-8')).version as string
-const EXPECTED_ARTIFACT_SHA256 = 'dee9383c71a53222f00f6dc72bbcee19cf451e5dde59a7c2b56c64b5cfae89fb'
+const EXPECTED_ARTIFACT_SHA256 = '02d7437b7c3a144a18ff55e8cb8f824f277b6ce72bc6686e481e880e10c6ae77'
 const roots: string[] = []
 
 function temporaryRoot(): string {

@@ -144,6 +144,14 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
 - [ ] `MDP-221`: consume the exact published release and validate portable-core discovery separately from native hook parity
 - [ ] `MDP-222` and `MDP-218`: update downstream guidance and record the measured keep / further narrow / switch decision
 
+### 0. Historical completed v0.1.43 composable-installer release
+
+- [x] `PLUXX-349`: merge deterministic core-four planning, structured per-target terminal results, true unchanged no-ops, and checksum fail-fast repair through PR #491
+- [x] Historical: `PLUXX-350` prepared synchronized 0.1.43 package, proof, and release-plan truth through PR #494
+- [x] Bind fresh repository-validation and maintained core-four fake-home receipts to exact trusted tag commit `87e759d76c7cdaefd1bff81969b4cb1ba10091d3`
+- [x] Merge the release-prep PR, push immutable `v0.1.43`, and publish only through successful trusted Release run `33532188948`
+- [x] Independently verify npm/GitHub identity at byte-identical SHA-256 `2851a386dc415fd37e124fa132d70af516fee062a8ac355310ea157fa8d2dfc3` and hand the published version to `MDP-306`
+
 ### 0. v0.1.41 Codex hook-root release
 
 - [x] PLUXX-345 source fix merged through PR #479 at trusted merge `fc16e218ede1f49ae2a9993983875b67613a24b5`
