@@ -351,7 +351,7 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
   - add live environment proof for delegated agents, reload/discovery quirks, and publish/recovery flows beyond deterministic failure/reconciliation fixtures
   - continue simplifying the plugin-guided average-user path so the proof state is easier to use without maintainer-level CLI literacy
 - [ ] Close the highest-value open rows from the new reliability register:
-  - deeper Codex custom-agent config-depth proof beyond the now-pinned headless-plus-interactive `sandbox_mode = "read-only"` mismatch, the newly pinned headless `skills.config` disable/preload caveats, the newly pinned `mcp_servers = {}` inheritance ceiling, the newly pinned invalid agent-local model failure path, and the now-pinned same-name user-local model precedence cases, including installed-plugin skill preload, whether canonical authoring should preserve agent-local MCP config instead of only warning during migrate, how far generated `.codex/config.generated.toml` approval stanzas should go now that project-root, user-root, inherited delegated, and explicit empty-agent-MCP override paths are live-proven while agent-local inline approval no longer activates in the latest probe, and whether other approval or sandbox combinations behave differently
+  - deeper Codex custom-agent config-depth proof beyond the now-pinned headless-plus-interactive `sandbox_mode = "read-only"` mismatch, the newly pinned headless `skills.config` disable/preload caveats, the newly pinned `mcp_servers = {}` inheritance ceiling, the newly pinned invalid agent-local model failure path, and the now-pinned same-name user-local model precedence cases, including installed-plugin skill preload, whether canonical authoring should preserve agent-local MCP config instead of only warning during migrate, how far generated `.codex/config.generated.toml` approval stanzas should go now that project-root, user-root, inherited delegated, and explicit empty-agent-MCP override paths are live-proven while agent-local inline MCP now requires explicit per-tool approval in the August 31 Codex CLI 0.148.0 probe, and whether other approval or sandbox combinations behave differently
   - live Codex interactive-vs-headless hook execution proof across canonical `[features].hooks = true` and the deprecated `codex_hooks` alias
   - Claude managed-settings behavior beyond the current file-based verifier still requires a real managed-settings surface; the maintained probe now has shadow-scenario coverage for managed `disableAllHooks` and `allowManagedHooksOnly`, but registry, plist/MDM, server-managed policy, managed-scope plugin precedence, and broader hook-event proof are not closable from the current local environment alone
   - broader Codex and Claude adjunct distribution-surface proof
@@ -668,8 +668,8 @@ It is:
 If someone needs the next concrete path without reopening strategy debates:
 
 1. Treat `PLUXX-346`, `PLUXX-348`, `MDP-221`, `MDP-222`, and the `MDP-218` further-narrow decision as completed evidence, not active implementation.
-2. Complete `PLUXX-289` by landing the reusable evidence ladder and [new-host support gate](../new-host-support-gate.md).
-3. Run `PLUXX-309` against that gate to refresh Claude, Cursor, and OpenCode translation without promoting unproven runtime claims.
+2. Keep the merged `PLUXX-289` evidence ladder and [new-host support gate](../new-host-support-gate.md) as the support-claim boundary.
+3. Close `PLUXX-309` against that gate with current Codex CLI proof, without promoting unproven Cursor runtime claims.
 4. Keep Codex on the native path until a first-party generic Agent Plugins root-import contract and clean-host discovery proof exist.
 
 ## Linear Note

@@ -90,6 +90,19 @@ elif [ "$MODE" = "explicit-negative" ]; then
   printf 'OK\\n' > "$OUT"
   printf '{"type":"item.completed","item":{"type":"agent_message","text":"OK"}}\\n'
   printf '{"type":"turn.completed"}\\n'
+elif [ "$MODE" = "stream-only-delegated-proof" ]; then
+  printf '{"type":"item.started","item":{"type":"collab_tool_call","tool":"wait"}}\\n'
+  printf '{"type":"item.completed","item":{"type":"collab_tool_call","tool":"wait","output":{"agents_states":[{"last_message":"CUSTOM_AGENT_PROOF delegated answer"}]}}}\\n'
+  printf '{"type":"item.completed","item":{"type":"agent_message","text":"CUSTOM_AGENT_PROOF delegated answer"}}\\n'
+  printf '{"type":"turn.completed"}\\n'
+elif [ "$MODE" = "unattributed-stream-proof" ]; then
+  printf '{"type":"item.started","item":{"type":"collab_tool_call","tool":"wait"}}\\n'
+  printf '{"type":"item.completed","item":{"type":"collab_tool_call","tool":"wait","receiver_thread_ids":[],"output":{"agents_states":[]}}}\\n'
+  printf '{"type":"item.completed","item":{"type":"agent_message","text":"CUSTOM_AGENT_PROOF parent answer"}}\\n'
+  printf '{"type":"turn.completed"}\\n'
+elif [ "$MODE" = "stream-message-linger" ]; then
+  printf '{"type":"item.completed","item":{"type":"agent_message","text":"CUSTOM_AGENT_PROOF parent answer"}}\\n'
+  sleep 10
 elif [ "$MODE" = "explorer-override" ]; then
   printf '{"type":"item.started","item":{"type":"collab_tool_call","tool":"spawn_agent"}}\\n'
   printf '{"type":"item.completed","item":{"type":"collab_tool_call","tool":"spawn_agent","output":{"receiver_thread_ids":["child-thread-override"]}}}\\n'
@@ -236,6 +249,59 @@ describe('codex agent probe', () => {
     expect(result.childAgentMessages).toHaveLength(0)
     expect(result.finalMessageHasProofPrefix).toBe(false)
     expect(result.lastMessage).toBe('OK')
+  })
+
+  it('recovers a delegated proof from JSONL when Codex omits spawn metadata and the last-message file', async () => {
+    process.env.PLUXX_FAKE_CODEX_AGENT_MODE = 'stream-only-delegated-proof'
+    const result = await runScenario({
+      name: 'stream-only-delegated-proof',
+      requestCustomAgent: true,
+      prompt: 'Use the proof agent to answer this request.',
+      expectedLastMessage: 'CUSTOM_AGENT_PROOF delegated answer',
+    })
+
+    expect(result.status).toBe('custom-agent-invoked')
+    expect(result.sawSpawnAgentCall).toBe(false)
+    expect(result.sawWaitCall).toBe(true)
+    expect(result.spawnedThreadIds).toEqual([])
+    expect(result.childAgentMessages).toContain('CUSTOM_AGENT_PROOF delegated answer')
+    expect(result.lastMessage).toBe('CUSTOM_AGENT_PROOF delegated answer')
+    expect(result.messageExpectationStatus).toBe('matched')
+  })
+
+  it('does not attribute a proof-bearing parent message to a child after an empty wait', async () => {
+    process.env.PLUXX_FAKE_CODEX_AGENT_MODE = 'unattributed-stream-proof'
+    const result = await runScenario({
+      name: 'unattributed-stream-proof',
+      requestCustomAgent: true,
+      prompt: 'Use the proof agent to answer this request.',
+      expectedLastMessage: 'CUSTOM_AGENT_PROOF parent answer',
+    })
+
+    expect(result.status).toBe('delegation-unverified')
+    expect(result.sawSpawnAgentCall).toBe(false)
+    expect(result.sawWaitCall).toBe(true)
+    expect(result.spawnedThreadIds).toEqual([])
+    expect(result.childAgentMessages).toEqual([])
+    expect(result.finalMessageHasProofPrefix).toBe(true)
+    expect(result.messageExpectationStatus).toBe('matched')
+  })
+
+  it('recovers an agent message but times out when no terminal signal or process exit follows', async () => {
+    process.env.PLUXX_FAKE_CODEX_AGENT_MODE = 'stream-message-linger'
+    const result = await runScenario({
+      name: 'stream-message-linger',
+      requestCustomAgent: true,
+      prompt: 'Use the proof agent to answer this request.',
+      expectedLastMessage: 'CUSTOM_AGENT_PROOF parent answer',
+    })
+
+    expect(result.status).toBe('runner-timed-out')
+    expect(result.timedOut).toBe(true)
+    expect(result.exitCode).toBe(124)
+    expect(result.sawTurnCompleted).toBe(false)
+    expect(result.lastMessage).toBe('CUSTOM_AGENT_PROOF parent answer')
+    expect(result.messageExpectationStatus).toBe('matched')
   })
 
   it('reports custom-agent-invoked when a project-local explorer.toml overrides the built-in explorer agent', async () => {
