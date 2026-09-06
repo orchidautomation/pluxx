@@ -1,3 +1,4 @@
+import { inspectCodexPluginCollisions, codexRequestedIdentity, CodexPluginCollisionError } from '../codex-plugin-collisions'
 import { resolve, dirname, basename, relative } from 'path'
 import { existsSync, symlinkSync, mkdirSync, rmSync, readFileSync, writeFileSync, cpSync, readdirSync, statSync } from 'fs'
 import { spawnSync } from 'child_process'
@@ -1547,6 +1548,10 @@ export async function installPlugin(
     }
 
     if (target.platform === 'codex') {
+      const manifestFile = resolve(target.sourceDir, '.codex-plugin/plugin.json')
+      const manifest = existsSync(manifestFile) ? JSON.parse(readFileSync(manifestFile, 'utf8')) : { name: pluginName }
+      const diagnostic = inspectCodexPluginCollisions(codexRequestedIdentity(manifest.name, manifest.version ?? null, target.pluginDir))
+      if (diagnostic) throw new CodexPluginCollisionError(diagnostic)
       syncCodexAgentRegistration({
         consumerRoot: target.sourceDir,
         pluginName,
@@ -1599,6 +1604,8 @@ export async function installPlugin(
       ensureCodexMarketplace(pluginName)
       clearCodexLocalCache(pluginName)
       syncCodexAgentRegistration({ consumerRoot: target.pluginDir, pluginName })
+      const diagnostic = inspectCodexPluginCollisions(codexRequestedIdentity(pluginName, options.config?.version ?? null, target.pluginDir))
+      if (diagnostic) throw new CodexPluginCollisionError(diagnostic)
     }
     if (!options.quiet) {
       console.log(`  ${target.platform} -> ${target.description}`)

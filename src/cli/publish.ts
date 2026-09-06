@@ -8,7 +8,8 @@ import { collectRuntimeInheritedStdioEnvVars, collectUserConfigEntries, defaultU
 import { getPublishReloadInstruction } from '../distribution-lifecycle'
 import { collectNativeMcpAuthUserConfigEntries } from '../mcp-native-overrides'
 import { buildOpenCodeEntryFile, toOpenCodeExportName } from '../opencode-entry'
-import { INSTALL_RESULT_SCHEMA } from '../install-contract'
+import { INSTALL_RESULT_SCHEMA, validateCodexDiagnostic } from '../install-contract'
+import { detectCodexPluginCollisions, renderCodexPluginDiagnostic } from '../codex-plugin-collisions'
 import { CORE_HOST_DETECTION_INVENTORY } from '../host-detection'
 
 type PublishChannel = 'npm' | 'github-release'
@@ -837,31 +838,54 @@ run_installer() {
 }
 
 results=()
-failed=0
 for target in "\${targets[@]}"; do
-  if host_detected "$target" || [ "$explicit_targets" = "1" ]; then
+  detected=0
+  if host_detected "$target"; then detected=1; fi
+  if [ "$detected" = "1" ] || [ "$explicit_targets" = "1" ]; then
     set +e
     ( set -e; run_installer "$target" )
     status=$?
     set -e
-    if [ "$status" -eq 0 ] && [ -f "$tmp_dir/$target.result.json" ]; then results+=("$target|$(node -e 'const fs=require("fs"); const r=JSON.parse(fs.readFileSync(process.argv[1])); process.stdout.write([r.state,r.reason||"",r.error||""].join("|"))' "$tmp_dir/$target.result.json")")
-    elif [ "$status" -eq 0 ]; then results+=("$target|installed||")
-    else results+=("$target|failed|installer-failed|installer exited with status $status"); failed=1
-    fi
+    results+=("$target|$status|$detected")
   else
-    results+=("$target|skipped|host-not-detected|")
+    results+=("$target|skipped|0")
   fi
 done
 
-if [ "$json" = "1" ]; then
-  PLUXX_RESULT_PLUGIN="PLUGIN_PLACEHOLDER" PLUXX_RESULT_VERSION="VERSION_PLACEHOLDER" PLUXX_RESULT_MODE="$( [ "$explicit_targets" = "1" ] && echo explicit || echo aggregate )" PLUXX_RESULT_ITEMS="$(printf '%s\\n' "\${results[@]}")" node <<'NODE'
-const results = (process.env.PLUXX_RESULT_ITEMS || '').split(/\\n/).filter(Boolean).map((line) => { const [target, state, reason, error] = line.split('|'); return { target, state, ...(reason ? { reason } : {}), ...(error ? { error, action: 'inspect stderr and rerun the target installer' } : {}) } })
-process.stdout.write(JSON.stringify({ schema: '${INSTALL_RESULT_SCHEMA}', plugin: { name: process.env.PLUXX_RESULT_PLUGIN, version: process.env.PLUXX_RESULT_VERSION }, selectionMode: process.env.PLUXX_RESULT_MODE, plan: results.map(({ target }) => ({ target, selected: true })), results }) + '\\n')
+PLUXX_RESULT_PLUGIN="PLUGIN_PLACEHOLDER" PLUXX_RESULT_VERSION="VERSION_PLACEHOLDER" PLUXX_RESULT_MODE="$( [ "$explicit_targets" = "1" ] && echo explicit || echo aggregate )" PLUXX_RESULT_ITEMS="$(printf '%s\\n' "\${results[@]}")" PLUXX_RESULT_DIR="$tmp_dir" PLUXX_RESULT_JSON="$json" node <<'NODE'
+const fs = require('fs'), path = require('path')
+const validateDiagnostic = ${validateCodexDiagnostic.toString()}
+const renderDiagnostic = ${renderCodexPluginDiagnostic.toString()}
+const plan = []
+const results = (process.env.PLUXX_RESULT_ITEMS || '').split(/\\n/).filter(Boolean).map((line) => {
+  const [target, status, detected] = line.split('|')
+  plan.push({ target, detected: detected === '1', selected: true })
+  if (status === 'skipped') return { target, state: 'skipped', reason: 'host-not-detected' }
+  const generic = { target, state: 'failed', reason: 'installer-failed', error: 'Installer failed or returned an invalid terminal result.', action: 'Inspect stderr and rerun the target installer.' }
+  try {
+    const file = path.join(process.env.PLUXX_RESULT_DIR, target + '.result.json')
+    if (!fs.existsSync(file) || fs.statSync(file).size > 32768) return generic
+    const result = JSON.parse(fs.readFileSync(file, 'utf8'))
+    if (result.target !== target || !['installed', 'updated', 'unchanged', 'skipped', 'failed'].includes(result.state)) return generic
+    if ((status === '0') !== (result.state !== 'failed')) return generic
+    if (result.state === 'skipped' && !result.reason) return generic
+    if (result.state === 'failed' && (!result.error || !result.action)) return generic
+    if (result.diagnostics !== undefined && (target !== 'codex' || result.state !== 'failed' || !Array.isArray(result.diagnostics) || result.diagnostics.length !== 1 || !result.diagnostics.every(validateDiagnostic))) return generic
+    return result
+  } catch { return generic }
+})
+const envelope = { schema: '${INSTALL_RESULT_SCHEMA}', plugin: { name: process.env.PLUXX_RESULT_PLUGIN, version: process.env.PLUXX_RESULT_VERSION }, selectionMode: process.env.PLUXX_RESULT_MODE, plan, results }
+if (process.env.PLUXX_RESULT_JSON === '1') process.stdout.write(JSON.stringify(envelope) + '\\n')
+else {
+  for (const result of results) {
+    console.log(result.target + ': ' + result.state + (result.reason ? ' (' + result.reason + ')' : ''))
+    for (const diagnostic of result.diagnostics || []) console.log(renderDiagnostic(diagnostic))
+    if (result.state === 'failed' && !result.diagnostics) console.log(result.error + ' ' + result.action)
+  }
+  console.log(results.some(result => result.state === 'failed') ? 'Installation has unresolved failures.' : 'DISPLAY_PLACEHOLDER install complete.')
+}
+if (results.some(result => result.state === 'failed')) process.exitCode = 1
 NODE
-else
-  echo "DISPLAY_PLACEHOLDER install complete."
-fi
-[ "$failed" -eq 0 ]
 `
 }
 
@@ -2829,6 +2853,44 @@ echo "${getPublishReloadInstruction('cursor')}"
 `
 }
 
+/** Native inventory is read-only; this helper never registers or removes plugins. */
+function renderCodexCollisionCheck(): string {
+  return `
+pluxx_check_codex_collisions() {
+  PLUXX_COLLISION_MANIFEST="$1" PLUXX_COLLISION_INSTALL="$INSTALL_DIR" PLUXX_COLLISION_CATALOG="$MARKETPLACE_PATH" PLUXX_COLLISION_MARKET="$MARKETPLACE_NAME" PLUXX_COLLISION_RESULT="$TMP_DIR/collision-result.json" node <<'NODE'
+const fs = require('fs'), crypto = require('crypto'), cp = require('child_process')
+const classify = ${detectCodexPluginCollisions.toString()}
+const render = ${renderCodexPluginDiagnostic.toString()}
+let inventory, requested = { name: '' }
+try {
+  const manifest = JSON.parse(fs.readFileSync(process.env.PLUXX_COLLISION_MANIFEST, 'utf8'))
+  const catalog = process.env.PLUXX_COLLISION_CATALOG
+  const marketplace = fs.existsSync(catalog) ? JSON.parse(fs.readFileSync(catalog, 'utf8')).name : process.env.PLUXX_COLLISION_MARKET
+  requested = { name: manifest.name, version: manifest.version ?? null, marketplace: marketplace ?? '', sourcePath: process.env.PLUXX_COLLISION_INSTALL }
+  const result = cp.spawnSync('codex', ['plugin', 'list', '--json'], { encoding: 'utf8', timeout: 15000, maxBuffer: 2097152, env: process.env })
+  if (result.status === 0 && !result.error) inventory = JSON.parse(result.stdout)
+} catch {}
+const diagnostic = classify(inventory, requested, text => crypto.createHash('sha256').update(text).digest('hex'))
+if (diagnostic) {
+  const result = { target: 'codex', state: 'failed', reason: diagnostic.code, error: diagnostic.error, action: diagnostic.action, diagnostics: [diagnostic] }
+  fs.writeFileSync(process.env.PLUXX_COLLISION_RESULT, JSON.stringify(result) + '\\n')
+  console.error(render(diagnostic))
+  process.exitCode = 1
+}
+NODE
+  local status=$?
+  if [[ "$status" != "0" ]]; then
+    if [[ -f "$TMP_DIR/collision-result.json" ]]; then
+      if [[ -n "\${PLUXX_INSTALL_RESULT_FILE:-}" ]]; then cp "$TMP_DIR/collision-result.json" "$PLUXX_INSTALL_RESULT_FILE"; fi
+      if [[ "$PLUXX_INSTALL_JSON" == "1" ]]; then cat "$TMP_DIR/collision-result.json" >&3; fi
+      PLUXX_COLLISION_REPORTED=1
+    fi
+    return 1
+  fi
+}
+`
+}
+
 function renderInstallCodexScript(config: PluginConfig): string {
   return `#!/usr/bin/env bash
 set -Eeuo pipefail
@@ -2843,6 +2905,7 @@ MARKETPLACE_NAME="\${PLUXX_CODEX_MARKETPLACE_NAME:-$PLUGIN_NAME-local}"
 MARKETPLACE_DISPLAY_NAME="\${PLUXX_CODEX_MARKETPLACE_DISPLAY_NAME:-DISPLAY_PLACEHOLDER Local}"
 ${renderInstallerTransactionHelpers('codex')}
 ${renderInstallerResultCliSnippet()}
+${renderCodexCollisionCheck()}
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -2860,7 +2923,7 @@ TMP_DIR="$(mktemp -d)"
 pluxx_prepare_install_result_output
 cleanup() {
   local status=$?
-  if [[ "$status" != "0" ]]; then pluxx_emit_install_result failed installer-failed "installer exited with status $status" || true; fi
+  if [[ "$status" != "0" && "\${PLUXX_COLLISION_REPORTED:-0}" != "1" ]]; then pluxx_emit_install_result failed installer-failed "installer exited with status $status" || true; fi
   pluxx_tx_cleanup
   rm -rf "$TMP_DIR"
   return "$status"
@@ -2887,6 +2950,7 @@ if [[ ! -f "$PLUGIN_MANIFEST" ]]; then
   exit 1
 fi
 
+if ! pluxx_check_codex_collisions "$PLUGIN_MANIFEST"; then exit 1; fi
 mkdir -p "$(dirname "$INSTALL_DIR")"
 ${renderInstallerSavedUserConfigCaptureSnippet(config, 'codex', '$INSTALL_DIR')}
 pluxx_begin_install_transaction "$BUNDLE_DIR"
@@ -2967,6 +3031,7 @@ fs.writeFileSync(
   ) + '\\n',
 )
 NODE
+if ! pluxx_check_codex_collisions "$INSTALL_DIR/.codex-plugin/plugin.json"; then exit 1; fi
 pluxx_finalize_install_transaction
 pluxx_emit_install_result "$PLUXX_TX_RESULT_STATE"
 

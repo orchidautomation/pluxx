@@ -107,6 +107,49 @@ That means:
 
 ## Codex Note
 
+### Same-name plugins in different marketplaces
+
+The PLUXX-352 source change adds an enabled-plugin collision check to local and
+generated Codex installs, consumer doctor, and `verify-install`. This is source
+behavior pending a separate release; existing published installer scripts do
+not gain the check automatically.
+
+Installing `example@personal` does not supersede `example@another-marketplace`.
+If another installed, enabled selector exposes the same plugin name, verification
+returns `same-name-cross-marketplace` with the requested and conflicting
+selectors, versions, and hashed source identities. Equal versions still collide.
+Explicitly disabled plugins and different plugin names are ignored. This reports
+potential discovery ambiguity, not proof that every bundled skill or tool overlaps.
+
+An explicit install fails with a nonzero exit. Generated aggregate installers
+preserve the Codex `failed` record and its additive `diagnostics` array under
+`pluxx.install-results.v1`, continue other targets, and return nonzero overall.
+The unchanged shortcut must pass the check too. A generated post-write collision
+rolls back the requested transaction; pre-existing conflicting plugins are never
+disabled, uninstalled, or deleted by this diagnostic. Local install errors may
+leave requested-target writes already committed by existing transaction boundaries.
+
+Review the exact selectors in Codex's native plugin manager, choose which to keep
+enabled, disable or remove only the chosen conflicting selector, refresh/restart,
+and rerun verification. Intentional parallel installations still report the
+ambiguity; the installer does not choose a preferred marketplace.
+
+The reader uses `codex plugin list --json` with a timeout and output limit. Its
+schema was verified against CLI 0.149.1 in an isolated synthetic home; this does
+not prove active-session discovery or compatibility with every CLI version.
+Missing CLI support, malformed inventory, or ambiguous requested identity returns
+`codex-plugin-inventory-unavailable`, not clean success. Native cache paths and
+matching catalog entries establish the requested marketplace; library callers
+checking built bundles or nonstandard locations can supply
+`DoctorConsumerOptions.codexMarketplace` explicitly. Cache presence alone is
+never evidence that a selector is enabled.
+
+Diagnostics retain at most 20 sorted conflicts, with total and omitted counts.
+Source locations are hashed, and raw config, credential-bearing URLs, and provider
+stderr are excluded. Inspection is a snapshot; later operator changes require
+another verification. Catalog materialization remains separate from native plugin
+activation.
+
 The official Codex plugin docs audited in April 2026 still describe plugin updates in restart-oriented terms.
 
 Separately, the current Codex desktop UI observed on 2026-04-23 also exposes a plugin refresh action in the Plugins view.

@@ -1690,3 +1690,23 @@ describe('verifyInstall', () => {
     expect(result.checks[0].errors).toBeGreaterThan(0)
   })
 })
+
+
+it('preserves native collisions through doctor and verify and blocks local reinstall', async () => {
+  mkdirSync(resolve(DIST_DIR, 'codex/.codex-plugin'), { recursive: true })
+  writeFileSync(resolve(DIST_DIR, 'codex/.codex-plugin/plugin.json'), JSON.stringify({ name: 'verify-plugin', version: '0.1.0' }))
+  await installPlugin(DIST_DIR, 'verify-plugin', ['codex'])
+  const inventory = resolve(ROOT, 'inventory.json')
+  writeFileSync(inventory, JSON.stringify({ installed: [{ pluginId: 'verify-plugin@other', name: 'verify-plugin', marketplaceName: 'other',
+    version: '0.1.0', enabled: true, installed: true, source: { source: 'local', path: '/synthetic/private-sentinel' } }] }))
+  process.env.PLUXX_TEST_CODEX_INVENTORY = inventory
+  try {
+    const result = await verifyInstall(makeConfig(), { rootDir: ROOT, targets: ['codex'] })
+    expect(result.ok).toBe(false)
+    const issue = result.checks[0].issues.find(issue => issue.code === 'same-name-cross-marketplace')!
+    expect(issue.diagnostic?.conflicts[0].selector).toBe('verify-plugin@other')
+    expect(issue.diagnostic?.requested?.selector).toBe('verify-plugin@pluxx-local')
+    expect(JSON.stringify(issue)).not.toContain('private-sentinel')
+    await expect(installPlugin(DIST_DIR, 'verify-plugin', ['codex'])).rejects.toMatchObject({ result: { reason: 'same-name-cross-marketplace' } })
+  } finally { delete process.env.PLUXX_TEST_CODEX_INVENTORY }
+})
