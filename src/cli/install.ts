@@ -1,3 +1,4 @@
+import { readClaudePluginInventory, selectClaudePlugin, verifyClaudePlugin } from '../claude-plugin-inventory'
 import { resolve, dirname, basename, relative } from 'path'
 import { existsSync, symlinkSync, mkdirSync, rmSync, readFileSync, writeFileSync, cpSync, readdirSync, statSync } from 'fs'
 import { spawnSync } from 'child_process'
@@ -460,7 +461,8 @@ export function getInstallFollowupNotes(platforms: TargetPlatform[]): string[] {
 }
 
 function runCommandDefault(command: string, args: string[]): CommandResult {
-  const result = spawnSync(command, args, { encoding: 'utf-8' })
+  const inventory = command === 'claude' && args.join(' ') === 'plugin list --json'
+  const result = spawnSync(command, args, { encoding: 'utf-8', ...(inventory ? { timeout: 15_000, maxBuffer: 2 * 1024 * 1024 } : {}) })
   return {
     status: result.status,
     stdout: result.stdout ?? '',
@@ -888,7 +890,7 @@ function getClaudeMarketplaceName(pluginName: string): string {
 
 function getClaudeMarketplaceRoot(pluginName: string): string {
   const home = process.env.HOME ?? '~'
-  return resolve(home, '.claude/plugins/data', getClaudeMarketplaceName(pluginName))
+  return resolve(process.env.CLAUDE_CONFIG_DIR || resolve(home, '.claude'), 'plugins/data', getClaudeMarketplaceName(pluginName))
 }
 
 function readBundleManifestVersion(rootDir: string, platform: TargetPlatform): string | undefined {
@@ -910,7 +912,7 @@ function resolveClaudeInstalledCachePath(pluginName: string, version: string | u
   if (!version) return undefined
 
   const home = process.env.HOME ?? '~'
-  const cacheRoot = resolve(home, '.claude/plugins/cache')
+  const cacheRoot = resolve(process.env.CLAUDE_CONFIG_DIR || resolve(home, '.claude'), 'plugins/cache')
   const expectedPath = resolve(cacheRoot, getClaudeMarketplaceName(pluginName), pluginName, version)
   if (existsSync(expectedPath)) return expectedPath
   if (!existsSync(cacheRoot)) return expectedPath
@@ -1437,6 +1439,9 @@ function installClaudePlugin(
     entries: ResolvedUserConfigEntry[]
   },
 ): void {
+  const expectedSelector = `${pluginName}@${getClaudeMarketplaceName(pluginName)}`
+  const preflight = selectClaudePlugin(readClaudePluginInventory({ runCommand }), { name: pluginName, selector: expectedSelector, scope: 'user' })
+  if (!preflight.ok && preflight.code !== 'claude-plugin-source-missing') throw new Error(`${preflight.code}: ${preflight.detail} ${preflight.action}`)
   const marketplaceName = ensureClaudeMarketplaceRegistered(pluginName, target.sourceDir, runCommand, materialized)
 
   if (existsSync(target.pluginDir)) {
@@ -1450,11 +1455,9 @@ function installClaudePlugin(
     throw new Error(`Failed to install Claude plugin: ${install.stderr || install.stdout}`)
   }
 
-  assertInstalledBundleIntegrity(
-    resolveExpectedInstalledConsumerPath(target, pluginName),
-    'claude-code',
-    'Installed Claude plugin bundle',
-  )
+  const verified = verifyClaudePlugin({ name: pluginName, selector: expectedSelector, scope: 'user', version: readBundleManifestVersion(target.sourceDir, 'claude-code') }, { runCommand })
+  if (!verified.ok || !verified.observation) throw new Error(`${verified.code}: ${verified.detail} Native install commands already ran; requested-target changes may remain. ${verified.action}`)
+  assertInstalledBundleIntegrity(verified.observation.installPath, 'claude-code', 'Installed Claude plugin bundle')
 }
 
 function uninstallClaudePlugin(

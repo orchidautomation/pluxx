@@ -52,6 +52,19 @@ describe('host detection', () => {
     expect(validateInstallResultsEnvelope({ ...envelope, results: [{ target: 'codex', state: 'skipped' }] })).toBe(false)
   })
 
+  it('validates additive Claude native source status without accepting failed verification as success', () => {
+    const envelope = {
+      schema: INSTALL_RESULT_SCHEMA, plugin: { name: 'demo', version: '1.0.0' }, selectionMode: 'explicit',
+      plan: [{ target: 'claude-code', detected: true, selected: true }],
+      results: [{ target: 'claude-code', state: 'installed', nativeVerification: { status: 'registered-source-verified' } }],
+    }
+    expect(validateInstallResultsEnvelope(envelope)).toBe(true)
+    for (const status of ['failed', 'unknown']) {
+      expect(validateInstallResultsEnvelope({ ...envelope, results: [{ ...envelope.results[0], nativeVerification: { status } }] })).toBe(false)
+    }
+    expect(validateInstallResultsEnvelope({ ...envelope, results: [{ ...envelope.results[0], nativeVerification: { status: 'unverified' } }] })).toBe(true)
+  })
+
   it('detects core-four host families from CLI, app, config, project config, and installed plugin evidence', () => {
     writeExecutable('claude')
     writeExecutable('cursor-agent')

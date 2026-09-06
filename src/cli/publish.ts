@@ -1,3 +1,4 @@
+import { renderClaudeInventoryScript } from '../claude-plugin-inventory'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { createHash } from 'crypto'
 import { resolve } from 'path'
@@ -836,30 +837,50 @@ run_installer() {
   fi
 }
 
-results=()
+result_items="$tmp_dir/results.jsonl"
+plan_items="$tmp_dir/plan.jsonl"
+: > "$result_items"
+: > "$plan_items"
 failed=0
 for target in "\${targets[@]}"; do
-  if host_detected "$target" || [ "$explicit_targets" = "1" ]; then
+  detected=0
+  if host_detected "$target"; then detected=1; fi
+  node -e 'require("fs").appendFileSync(process.argv[3], JSON.stringify({target:process.argv[1],detected:process.argv[2]==="1",selected:true})+"\\n")' "$target" "$detected" "$plan_items"
+  if [ "$detected" = "1" ] || [ "$explicit_targets" = "1" ]; then
     set +e
     ( set -e; run_installer "$target" )
     status=$?
     set -e
-    if [ "$status" -eq 0 ] && [ -f "$tmp_dir/$target.result.json" ]; then results+=("$target|$(node -e 'const fs=require("fs"); const r=JSON.parse(fs.readFileSync(process.argv[1])); process.stdout.write([r.state,r.reason||"",r.error||""].join("|"))' "$tmp_dir/$target.result.json")")
-    elif [ "$status" -eq 0 ]; then results+=("$target|installed||")
-    else results+=("$target|failed|installer-failed|installer exited with status $status"); failed=1
-    fi
+    if ! node - "$tmp_dir/$target.result.json" "$target" "$status" "$result_items" <<'NODE'
+const fs = require('fs')
+const [file, target, statusText, output] = process.argv.slice(2)
+const status = Number(statusText)
+let result
+try {
+  if (fs.statSync(file).size > 1024 * 1024) throw Error()
+  result = JSON.parse(fs.readFileSync(file, 'utf8'))
+  if (result.target !== target || !['installed','updated','unchanged','skipped','failed'].includes(result.state)) throw Error()
+  if ((status !== 0) !== (result.state === 'failed')) throw Error()
+  if (result.state === 'failed' && (typeof result.error !== 'string' || !result.error || typeof result.action !== 'string' || !result.action)) throw Error()
+  if (result.state === 'skipped' && (typeof result.reason !== 'string' || !result.reason)) throw Error()
+} catch { result = { target, state: 'failed', reason: 'installer-result-unavailable', error: 'Installer did not return a valid terminal result (exit ' + status + ').', action: 'Inspect the target installer output and rerun verification.' } }
+fs.appendFileSync(output, JSON.stringify(result) + '\\n')
+process.exitCode = result.state === 'failed' ? 1 : 0
+NODE
+    then failed=1; fi
   else
-    results+=("$target|skipped|host-not-detected|")
+    node -e 'require("fs").appendFileSync(process.argv[2], JSON.stringify({target:process.argv[1],state:"skipped",reason:"host-not-detected"})+"\\n")' "$target" "$result_items"
   fi
 done
 
 if [ "$json" = "1" ]; then
-  PLUXX_RESULT_PLUGIN="PLUGIN_PLACEHOLDER" PLUXX_RESULT_VERSION="VERSION_PLACEHOLDER" PLUXX_RESULT_MODE="$( [ "$explicit_targets" = "1" ] && echo explicit || echo aggregate )" PLUXX_RESULT_ITEMS="$(printf '%s\\n' "\${results[@]}")" node <<'NODE'
-const results = (process.env.PLUXX_RESULT_ITEMS || '').split(/\\n/).filter(Boolean).map((line) => { const [target, state, reason, error] = line.split('|'); return { target, state, ...(reason ? { reason } : {}), ...(error ? { error, action: 'inspect stderr and rerun the target installer' } : {}) } })
-process.stdout.write(JSON.stringify({ schema: '${INSTALL_RESULT_SCHEMA}', plugin: { name: process.env.PLUXX_RESULT_PLUGIN, version: process.env.PLUXX_RESULT_VERSION }, selectionMode: process.env.PLUXX_RESULT_MODE, plan: results.map(({ target }) => ({ target, selected: true })), results }) + '\\n')
+  PLUXX_RESULT_PLUGIN="PLUGIN_PLACEHOLDER" PLUXX_RESULT_VERSION="VERSION_PLACEHOLDER" PLUXX_RESULT_MODE="$( [ "$explicit_targets" = "1" ] && echo explicit || echo aggregate )" PLUXX_RESULT_ITEMS="$result_items" PLUXX_PLAN_ITEMS="$plan_items" node <<'NODE'
+const fs = require('fs')
+const results = fs.readFileSync(process.env.PLUXX_RESULT_ITEMS, 'utf8').trim().split(/\\n/).filter(Boolean).map(line => JSON.parse(line))
+process.stdout.write(JSON.stringify({ schema: '${INSTALL_RESULT_SCHEMA}', plugin: { name: process.env.PLUXX_RESULT_PLUGIN, version: process.env.PLUXX_RESULT_VERSION }, selectionMode: process.env.PLUXX_RESULT_MODE, plan: fs.readFileSync(process.env.PLUXX_PLAN_ITEMS, 'utf8').trim().split(/\\n/).filter(Boolean).map(line => JSON.parse(line)), results }) + '\\n')
 NODE
 else
-  echo "DISPLAY_PLACEHOLDER install complete."
+  if [ "$failed" -eq 0 ]; then echo "DISPLAY_PLACEHOLDER install complete."; else echo "DISPLAY_PLACEHOLDER installation has failures; inspect target diagnostics." >&2; fi
 fi
 [ "$failed" -eq 0 ]
 `
@@ -2124,13 +2145,14 @@ PLUXX_TX_OWNED_EXISTED=()
 PLUXX_TX_RESULT_STATE="installed"
 
 pluxx_emit_install_result() {
-  local state="$1" reason="\${2:-}" error="\${3:-}"
+  local state="$1" reason="\${2:-}" error="\${3:-}" action="\${4:-inspect stderr and rerun the target installer}"
   if [[ -z "\${PLUXX_INSTALL_RESULT_FILE:-}" ]]; then return 0; fi
-  PLUXX_RESULT_TARGET="$PLUXX_TX_PLATFORM" PLUXX_RESULT_STATE="$state" PLUXX_RESULT_REASON="$reason" PLUXX_RESULT_ERROR="$error" PLUXX_RESULT_FILE="$PLUXX_INSTALL_RESULT_FILE" node <<'NODE'
+  PLUXX_RESULT_TARGET="$PLUXX_TX_PLATFORM" PLUXX_RESULT_STATE="$state" PLUXX_RESULT_REASON="$reason" PLUXX_RESULT_ERROR="$error" PLUXX_RESULT_ACTION="$action" PLUXX_RESULT_FILE="$PLUXX_INSTALL_RESULT_FILE" PLUXX_RESULT_NATIVE="\${PLUXX_CLAUDE_NATIVE_STATE:-unverified}" node <<'NODE'
 const fs = require('fs')
 const result = { target: process.env.PLUXX_RESULT_TARGET, state: process.env.PLUXX_RESULT_STATE }
+if (result.target === 'claude-code') result.nativeVerification = { status: process.env.PLUXX_RESULT_NATIVE }
 if (process.env.PLUXX_RESULT_REASON) result.reason = process.env.PLUXX_RESULT_REASON
-if (process.env.PLUXX_RESULT_ERROR) { result.error = process.env.PLUXX_RESULT_ERROR; result.action = 'inspect stderr and rerun the target installer' }
+if (process.env.PLUXX_RESULT_ERROR) { result.error = process.env.PLUXX_RESULT_ERROR; result.action = process.env.PLUXX_RESULT_ACTION }
 fs.writeFileSync(process.env.PLUXX_RESULT_FILE, JSON.stringify(result) + '\\n')
 NODE
   if [[ "\${PLUXX_INSTALL_JSON:-0}" == "1" ]]; then cat "$PLUXX_INSTALL_RESULT_FILE" >&3; fi
@@ -2632,7 +2654,7 @@ REPO="\${PLUXX_PLUGIN_REPO:-REPO_PLACEHOLDER}"
 PLUGIN_NAME="\${PLUXX_PLUGIN_NAME:-PLUGIN_PLACEHOLDER}"
 MARKETPLACE_NAME="\${PLUXX_CLAUDE_MARKETPLACE_NAME:-PLUGIN_PLACEHOLDER-releases}"
 BUNDLE_URL="\${PLUXX_CLAUDE_BUNDLE_URL:-https://github.com/\${REPO}/releases/download/vVERSION_PLACEHOLDER/CLAUDE_BUNDLE_PLACEHOLDER}"
-INSTALL_ROOT="\${PLUXX_CLAUDE_MARKETPLACE_DIR:-$HOME/.claude/plugins/data/$MARKETPLACE_NAME}"
+INSTALL_ROOT="\${PLUXX_CLAUDE_MARKETPLACE_DIR:-\${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/$MARKETPLACE_NAME}"
 INSTALL_DIR="$INSTALL_ROOT/plugins/$PLUGIN_NAME"
 SKIP_INSTALL="\${PLUXX_CLAUDE_SKIP_INSTALL:-0}"
 BUNDLE_PATH="\${PLUXX_CLAUDE_BUNDLE_PATH:-}"
@@ -2664,12 +2686,32 @@ TMP_DIR="$(mktemp -d)"
 pluxx_prepare_install_result_output
 cleanup() {
   local status=$?
-  if [[ "$status" != "0" ]]; then pluxx_emit_install_result failed installer-failed "installer exited with status $status" || true; fi
+  if [[ "$status" != "0" && "\${PLUXX_CLAUDE_NATIVE_FAILED:-0}" != "1" ]]; then pluxx_emit_install_result failed installer-failed "installer exited with status $status" || true; fi
   pluxx_tx_cleanup
   rm -rf "$TMP_DIR"
   return "$status"
 }
 trap cleanup EXIT
+
+cat > "$TMP_DIR/claude-native.cjs" <<'CLAUDE_NATIVE'
+${renderClaudeInventoryScript()}
+CLAUDE_NATIVE
+pluxx_check_claude_native() {
+  local output code detail action
+  if output="$(node "$TMP_DIR/claude-native.cjs" "$1" "$PLUGIN_NAME" "$MARKETPLACE_NAME" "\${VERSION:-}")"; then
+    if [[ "$1" == "postflight" ]]; then PLUXX_CLAUDE_NATIVE_STATE=registered-source-verified; fi
+    return 0
+  fi
+  PLUXX_CLAUDE_NATIVE_FAILED=1
+  PLUXX_CLAUDE_NATIVE_STATE=failed
+  code="$(printf '%s' "$output" | node -e 'let s=""; process.stdin.on("data", d=>s+=d).on("end",()=>console.log(JSON.parse(s).code))')"
+  detail="$(printf '%s' "$output" | node -e 'let s=""; process.stdin.on("data", d=>s+=d).on("end",()=>{const r=JSON.parse(s); console.log(r.detail + " " + r.action)})')"
+  action="$(printf '%s' "$output" | node -e 'let s=""; process.stdin.on("data", d=>s+=d).on("end",()=>console.log(JSON.parse(s).action))')"
+  echo "$code: $detail" >&2
+  pluxx_emit_install_result failed "$code" "$detail" "$action"
+  return 1
+}
+if [[ "$SKIP_INSTALL" != "1" ]]; then pluxx_check_claude_native preflight; fi
 
 BUNDLE_ARCHIVE="$TMP_DIR/${config.name}-claude-code.tar.gz"
 
@@ -2700,12 +2742,13 @@ ${renderInstallerUserConfigSnippet(config, 'claude-code', '$PLUXX_TX_STAGE')}
 ${renderInstallerMcpPathMaterializationSnippet('claude-code', '$PLUXX_TX_STAGE', '$INSTALL_DIR')}
 ${renderInstallerRuntimeBootstrapSnippet('$PLUXX_TX_STAGE')}
 if [[ -f "$INSTALL_ROOT/.claude-plugin/marketplace.json" ]] && pluxx_current_install_unchanged "$PLUXX_TX_STAGE"; then
+  if [[ "$SKIP_INSTALL" != "1" ]]; then pluxx_check_claude_native postflight; else echo "Claude activation unverified: file-only staging."; fi
   pluxx_emit_install_result unchanged already-current
   echo "Install is already current for $PLUGIN_NAME (unchanged)."
   exit 0
 fi
 pluxx_tx_backup_owned_path "$INSTALL_ROOT/.claude-plugin/marketplace.json"
-pluxx_tx_backup_owned_path "$HOME/.claude/plugins/cache/$MARKETPLACE_NAME/$PLUGIN_NAME"
+pluxx_tx_backup_owned_path "\${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/cache/$MARKETPLACE_NAME/$PLUGIN_NAME"
 pluxx_swap_install_transaction
 
 cat > "$INSTALL_ROOT/.claude-plugin/marketplace.json" <<JSON
@@ -2733,7 +2776,7 @@ JSON
 if [[ "$SKIP_INSTALL" == "1" ]]; then
   pluxx_finalize_install_transaction
   pluxx_emit_install_result "$PLUXX_TX_RESULT_STATE"
-  echo "Prepared Claude marketplace at: $INSTALL_ROOT"
+  echo "Prepared Claude marketplace at: $INSTALL_ROOT (activation unverified; file-only staging)"
   echo "Plugin bundle is at: $INSTALL_ROOT/plugins/$PLUGIN_NAME"
   exit 0
 fi
@@ -2746,6 +2789,7 @@ fi
 
 claude plugin uninstall "\${PLUGIN_NAME}@\${MARKETPLACE_NAME}" --scope user >/dev/null 2>&1 || true
 claude plugin install "\${PLUGIN_NAME}@\${MARKETPLACE_NAME}" --scope user
+pluxx_check_claude_native postflight
 pluxx_finalize_install_transaction
 pluxx_emit_install_result "$PLUXX_TX_RESULT_STATE"
 

@@ -1,3 +1,4 @@
+import { verifyClaudePlugin, type ClaudeInventoryRunner, type ClaudePluginVerification } from '../claude-plugin-inventory'
 import { createHash } from 'crypto'
 import { existsSync, lstatSync, readdirSync, readFileSync, readlinkSync, realpathSync, statSync } from 'fs'
 import { resolve } from 'path'
@@ -26,6 +27,7 @@ export interface VerifyInstallCheck {
   errors: number
   warnings: number
   infos: number
+  nativeVerification?: ClaudePluginVerification
   issues: VerifyInstallIssue[]
 }
 
@@ -40,8 +42,9 @@ function buildCheckFromReport(
   target: PlannedInstallTarget,
   pluginName: string,
   report: Awaited<ReturnType<typeof doctorConsumer>>,
+  resolvedPath?: string,
 ): VerifyInstallCheck {
-  const consumerPath = resolveInstalledConsumerPath(target, pluginName)
+  const consumerPath = resolvedPath ?? resolveInstalledConsumerPath(target, pluginName)
   const staleReason = target.built && existsSync(consumerPath)
     ? detectStaleInstall(target, pluginName, consumerPath)
     : undefined
@@ -280,6 +283,9 @@ export async function verifyInstall(
     rootDir?: string
     targets?: TargetPlatform[]
     builtOnly?: boolean
+    fileOnly?: boolean
+    claudeSelector?: string
+    runCommand?: ClaudeInventoryRunner
   } = {},
 ): Promise<VerifyInstallResult> {
   const rootDir = options.rootDir ?? process.cwd()
@@ -294,9 +300,23 @@ export async function verifyInstall(
     : installPlan
   const checks = await Promise.all(
     filteredPlan.map(async (target) => {
-      const consumerPath = resolveInstalledConsumerPath(target, config.name)
+      const native = target.platform === 'claude-code' && !options.fileOnly
+        ? verifyClaudePlugin({ name: config.name, version: config.version, selector: options.claudeSelector, requireEnabled: true }, { cwd: rootDir, runCommand: options.runCommand })
+        : undefined
+      const consumerPath = native?.ok && native.observation
+        ? native.observation.installPath
+        : native ? target.pluginDir : resolveInstalledConsumerPath(target, config.name)
       const report = await doctorConsumer(consumerPath, { projectRoot: rootDir })
-      return buildCheckFromReport(target, config.name, report)
+      const check = buildCheckFromReport(target, config.name, report, consumerPath)
+      if (native) {
+        check.nativeVerification = native
+        if (!native.ok) {
+          check.ok = false
+          check.errors++
+          check.issues.push({ level: 'error', code: native.code, title: 'Claude native source verification failed', detail: native.detail, fix: native.action })
+        }
+      }
+      return check
     }),
   )
 

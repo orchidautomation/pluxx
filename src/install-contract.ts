@@ -25,6 +25,7 @@ export interface InstallTargetResult {
   reason?: string
   action?: string
   error?: string
+  nativeVerification?: { status: 'unverified' | 'registered-source-verified' | 'failed' }
 }
 
 export interface InstallResultsEnvelope {
@@ -71,6 +72,11 @@ export function validateInstallResultsEnvelope(value: unknown): value is Install
     if (resultTargets.has(result.target)) return false
     resultTargets.add(result.target)
     if (!INSTALL_RESULT_STATES.includes(result.state as InstallResultState)) return false
+    if (result.nativeVerification !== undefined) {
+      if (result.target !== 'claude-code' || !result.nativeVerification
+        || !['unverified', 'registered-source-verified', 'failed'].includes(result.nativeVerification.status)) return false
+      if (result.nativeVerification.status === 'failed' && result.state !== 'failed') return false
+    }
     if (result.state === 'skipped' && !result.reason?.trim()) return false
     if (result.state === 'failed' && (!result.error || !result.action)) return false
     return true

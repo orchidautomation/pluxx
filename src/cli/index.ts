@@ -3879,9 +3879,12 @@ async function runVerifyInstall() {
     return
   }
 
+  const selectorIndex = args.indexOf('--claude-selector')
+  const claudeSelector = selectorIndex >= 0 ? args[selectorIndex + 1] : undefined
+  if (selectorIndex >= 0 && (!claudeSelector || claudeSelector.startsWith('--'))) throw new Error('--claude-selector requires plugin@marketplace')
   const result = await verifyInstall(config, {
-    rootDir: process.cwd(),
-    targets,
+    rootDir: process.cwd(), targets,
+    fileOnly: args.includes('--file-only'), claudeSelector,
   })
 
   if (runtime.jsonOutput) {
@@ -4036,7 +4039,7 @@ Usage:
   pluxx test [--target <platforms...>] [--install] [--behavioral]    Run config, lint, eval, build, and smoke checks
   pluxx eval                              Evaluate scaffold and prompt-pack quality
   pluxx install [--target <platforms>] [--trust]  Install built plugins for local testing
-  pluxx verify-install [--target <platforms>]    Inspect installed host-visible plugin state
+  pluxx verify-install [--target <platforms>] [--claude-selector name@marketplace] [--file-only]    Verify installed state
   pluxx publish [--npm] [--github-release] [--allow-dirty] [--dry-run] [--json] [--tag latest] [--version x.y.z]
   pluxx uninstall [--target <platforms>]  Remove symlinked plugins
   pluxx help                              Show this help

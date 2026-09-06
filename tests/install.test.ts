@@ -389,6 +389,10 @@ describe('install', () => {
     const calls: Array<{ command: string; args: string[] }> = []
     const runCommand = (command: string, args: string[]) => {
       calls.push({ command, args })
+      if (args.join(' ') === 'plugin list --json') {
+        const installPath = resolve(HOME_DIR, '.claude/plugins/cache/pluxx-local-megamind/megamind/1.2.3')
+        return { status: 0, stdout: JSON.stringify(existsSync(installPath) ? [{ id: 'megamind@pluxx-local-megamind', version: '1.2.3', scope: 'user', enabled: true, installPath }] : []), stderr: '' }
+      }
       if (args.join(' ') === 'plugin marketplace list --json') {
         return { status: 0, stdout: '[]', stderr: '' }
       }
@@ -420,10 +424,12 @@ describe('install', () => {
     expect(installedManifest.hooks).toBeUndefined()
 
     expect(calls).toEqual([
+      { command: 'claude', args: ['plugin', 'list', '--json'] },
       { command: 'claude', args: ['plugin', 'marketplace', 'list', '--json'] },
       { command: 'claude', args: ['plugin', 'marketplace', 'add', marketplaceRoot] },
       { command: 'claude', args: ['plugin', 'uninstall', 'megamind@pluxx-local-megamind'] },
       { command: 'claude', args: ['plugin', 'install', 'megamind@pluxx-local-megamind', '--scope', 'user'] },
+      { command: 'claude', args: ['plugin', 'list', '--json'] },
     ])
   })
 
@@ -438,6 +444,10 @@ describe('install', () => {
     )
 
     const runCommand = (_command: string, args: string[]) => {
+      if (args.join(' ') === 'plugin list --json') {
+        const installPath = resolve(HOME_DIR, '.claude/plugins/cache/pluxx-local-megamind/megamind/1.2.3')
+        return { status: 0, stdout: JSON.stringify(existsSync(installPath) ? [{ id: 'megamind@pluxx-local-megamind', version: '1.2.3', scope: 'user', enabled: true, installPath }] : []), stderr: '' }
+      }
       if (args.join(' ') === 'plugin marketplace list --json') {
         return { status: 0, stdout: '[]', stderr: '' }
       }
@@ -445,7 +455,7 @@ describe('install', () => {
     }
 
     await expect(installPlugin(DIST_DIR, 'megamind', ['claude-code'], { runCommand }))
-      .rejects.toThrow('Installed Claude plugin bundle is incomplete: missing plugin manifest at .claude-plugin/plugin.json')
+      .rejects.toThrow('claude-plugin-source-missing')
   })
 
   it('fails Claude native install when the host writes an unreadable installed manifest', async () => {
@@ -459,6 +469,10 @@ describe('install', () => {
     )
 
     const runCommand = (_command: string, args: string[]) => {
+      if (args.join(' ') === 'plugin list --json') {
+        const installPath = resolve(HOME_DIR, '.claude/plugins/cache/pluxx-local-megamind/megamind/1.2.3')
+        return { status: 0, stdout: JSON.stringify(existsSync(installPath) ? [{ id: 'megamind@pluxx-local-megamind', version: '1.2.3', scope: 'user', enabled: true, installPath }] : []), stderr: '' }
+      }
       if (args.join(' ') === 'plugin marketplace list --json') {
         return { status: 0, stdout: '[]', stderr: '' }
       }
@@ -470,7 +484,7 @@ describe('install', () => {
     }
 
     await expect(installPlugin(DIST_DIR, 'megamind', ['claude-code'], { runCommand }))
-      .rejects.toThrow('Installed Claude plugin bundle is incomplete: plugin manifest at .claude-plugin/plugin.json is not parseable')
+      .rejects.toThrow('claude-plugin-inventory-unavailable')
   })
 
   it('uninstalls Claude native installs and removes the generated local marketplace', async () => {
@@ -489,6 +503,10 @@ describe('install', () => {
     const installCalls: Array<{ command: string; args: string[] }> = []
     const installRunner = (command: string, args: string[]) => {
       installCalls.push({ command, args })
+      if (args.join(' ') === 'plugin list --json') {
+        const installPath = resolve(HOME_DIR, '.claude/plugins/cache/pluxx-local-megamind/megamind/1.2.3')
+        return { status: 0, stdout: JSON.stringify(existsSync(installPath) ? [{ id: 'megamind@pluxx-local-megamind', version: '1.2.3', scope: 'user', enabled: true, installPath }] : []), stderr: '' }
+      }
       if (args.join(' ') === 'plugin marketplace list --json') {
         return { status: 0, stdout: '[]', stderr: '' }
       }
