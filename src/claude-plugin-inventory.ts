@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { isAbsolute, resolve } from 'node:path'
+import { isAbsolute, resolve, sep } from 'node:path'
 import { realpathSync, readFileSync } from 'node:fs'
 
 export interface ClaudePluginRequest {
@@ -80,7 +80,7 @@ export function verifyClaudePlugin(request: ClaudePluginRequest, options: { cwd?
       if (!isAbsolute(configRoot) || !process.env.HOME) throw new Error('unbound config')
       const cacheRoot = realpathSync(resolve(configRoot, 'plugins/cache'))
       const actual = realpathSync(result.observation.installPath)
-      if (!actual.startsWith(cacheRoot + '/') && !actual.startsWith(cacheRoot + '\\')) throw new Error('unsupported external install path')
+      if (!actual.startsWith(cacheRoot + sep)) throw new Error('unsupported external install path')
       const manifest = JSON.parse(readFileSync(resolve(actual, '.claude-plugin/plugin.json'), 'utf8'))
       if (manifest.name !== request.name || (request.version && manifest.version !== request.version)) throw new Error('manifest identity mismatch')
     }
