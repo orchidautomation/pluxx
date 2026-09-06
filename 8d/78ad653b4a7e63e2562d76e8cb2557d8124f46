@@ -1,0 +1,19 @@
+docs/proof-manifest.json
+  s_6d9594e431d8f3::t_9097cfa4350a07 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "8d78ad653b4a7e63e2562d76e8cb2557d8124f46",
+  "prompts": {},
+  "sessions": {
+    "s_6d9594e431d8f3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07884-4c31-75a2-bda1-dba3a8b13366",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Brandon Guerrero <brandon@orchidautomation.com>"
+    }
+  }
+}
