@@ -19,20 +19,21 @@ If you want the primitive-by-host proof ledger behind the current core-four clai
 
 ## Compiler Buckets
 
-These are the eight buckets Pluxx should compile from:
+These are the nine canonical buckets Pluxx should compile from. The first eight are implemented in the current compiler; `orchestration` is accepted direction and remains unshipped:
 
 | Bucket | Includes |
 |---|---|
 | `instructions` | shared host guidance and routing rules |
 | `skills` | reusable workflows plus taxonomy-derived workflow metadata |
 | `commands` | explicit slash-command style entrypoints |
-| `agents` | specialist or delegated execution surfaces |
+| `agents` | standalone/custom executable identities and their scoped configuration |
+| `orchestration` | lifecycle activation/re-injection, workflow graphs, reachable-role dispatch, child-environment inheritance, artifact/state flow, control policy, and workflow proof |
 | `hooks` | deterministic lifecycle automation |
 | `permissions` | portable `allow` / `ask` / `deny` intent |
 | `runtime` | MCP, runtime auth, runtime readiness, local runtimes, passthrough dirs, helper scripts |
 | `distribution` | user config, brand, packaging, install, publish, and install-surface metadata |
 
-`taxonomy` remains an internal compiler input. It drives how skills, commands, instructions, and agents are rendered, but it is not itself a host-facing extension primitive.
+`taxonomy` remains an internal compiler input. It drives how skills, commands, instructions, agents, and orchestration are rendered, but it is not itself a host-facing extension primitive.
 
 ## Canonical Shape
 
@@ -42,6 +43,7 @@ interface PluxxPrimitiveModel {
   skills?: SkillSpec[]
   commands?: CommandSpec[]
   agents?: AgentSpec[]
+  orchestration?: OrchestrationSpec[]
   hooks?: HookSpec[]
   permissions?: PermissionSpec[]
   runtime?: {
@@ -79,6 +81,8 @@ The important compiler nuance is that two of these public buckets already need f
 
 - `runtime` should be reasoned about as MCP/auth, readiness, and generic bundled payload support
 - `distribution` should be reasoned about as identity/branding, install-time config surface, and build/output surface
+
+The generated mapping block below still contains the eight implemented buckets. `orchestration` must not be added to generated compatibility output until the shared schema and host capability registry exist. See the [accepted decision](./orchid/decisions/2026-07-14-orchestration-primitive.md).
 
 ## Mapping Rules
 
@@ -284,7 +288,7 @@ This is intentionally closure-oriented:
 | Claude argument UX: `argument-hint`, `arguments` | `preserve -> SKILL.md` frontmatter | `degrade -> compatibility metadata only` | `degrade -> compatibility metadata only` | `degrade -> compatibility metadata only` | Argument-aware autocomplete and named argument UX is Claude-first today. |
 | Claude visibility control: `user-invocable` | `preserve -> SKILL.md` frontmatter | `degrade -> compatibility metadata only` | `degrade -> compatibility metadata only` | `degrade -> compatibility metadata only` | Menu visibility is currently strongest in Claude; other hosts should not be assumed to honor the same field directly even when Pluxx preserves the hint for round-tripping. |
 | Tool/model tuning inside a skill: `allowed-tools`, `model`, `effort` | `preserve -> SKILL.md` frontmatter | `translate -> move intent to permissions, hooks, or subagent surfaces; raw field itself is not Cursor-native` | `translate -> move intent to permissions companion, approvals, sandboxing, or `.codex/agents/*.toml`; raw field itself is not Codex-native` | `translate -> move intent to permission maps or agent/config surfaces; raw field itself is not OpenCode-native` | The intent survives best when Pluxx promotes it out of the skill file into the host's real control plane. |
-| Delegation from a skill: `context`, `agent` | `preserve -> SKILL.md` frontmatter | `translate -> agents/subagents` | `translate -> custom agents and subagent workflows` | `translate -> agents/config-driven specialists` | Delegated workflow intent is portable, but it usually belongs in the host's native agent system rather than raw skill frontmatter. |
+| Delegation from a skill: `context`, `agent` | `preserve -> SKILL.md` frontmatter | `translate -> orchestration adapter targeting agents/subagents` | `translate -> orchestration adapter targeting custom agents or generic subagents` | `translate -> orchestration adapter targeting config-driven specialists` | The agent identity belongs in `agents`; the skill-to-agent relationship, dispatch packet, and lifecycle belong in the accepted `orchestration` bucket. Current implementation still flattens this distinction. |
 | Skill-scoped hook intent: `hooks` | `preserve -> skill frontmatter hooks` | `degrade -> move to hooks/hooks.json; skill-local hook scoping is lost` | `degrade -> move to bundled hooks/hooks.json; skill-local hook scoping is lost` | `translate -> runtime event handlers in plugin code; skill-local scoping becomes runtime logic` | Hook behavior can survive, but not always at the same attachment point. |
 | Path/shell activation hints: `paths`, `shell` | `preserve -> SKILL.md` frontmatter | `degrade -> compatibility metadata only` | `degrade -> compatibility metadata only` | `degrade -> compatibility metadata only` | Path-conditioned activation and shell selection are currently Claude-first in the shared skill format. |
 

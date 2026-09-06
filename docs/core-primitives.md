@@ -3,7 +3,7 @@
 This document defines the tightened product scope for Pluxx after reviewing:
 
 - the cross-host extension-system research in [research/extension-systems](../research/extension-systems)
-- real open-source plugins and skill packs such as [obra/superpowers](https://github.com/obra/superpowers)
+- real open-source systems including [Compound Engineering](https://github.com/EveryInc/compound-engineering-plugin), [Hyperframes](https://github.com/heygen-com/hyperframes), and [Superpowers](https://github.com/obra/superpowers)
 
 The point is simple:
 
@@ -22,6 +22,7 @@ Pluxx should treat these as the canonical authoring model:
 - `userConfig`
 - `commands`
 - `agents`
+- `orchestration`
 - `hooks`
 - `permissions`
 - `brand`
@@ -34,7 +35,7 @@ Everything else is secondary until this layer is strong.
 
 The list above is the detailed authoring model.
 
-For cross-host compilation, Pluxx should reason about that model through eight larger buckets:
+For cross-host compilation, Pluxx should reason about that model through nine larger buckets. Eight are implemented in the current compiler. `orchestration` is the accepted ninth bucket and remains implementation-pending.
 
 | Compiler bucket | Includes | Why it exists |
 |---|---|---|
@@ -42,12 +43,13 @@ For cross-host compilation, Pluxx should reason about that model through eight l
 | `skills` | `skills` plus taxonomy-derived workflow metadata | Skills remain the semantic center of the system. |
 | `commands` | `commands` | Explicit entrypoints exist on some hosts and need their own compilation path. |
 | `agents` | `agents` | Specialist execution surfaces differ too much to collapse into skills. |
+| `orchestration` | workflow activation, routing, role graphs, dispatch, artifact/state flow, control policy, and workflow proof | This is the control plane that connects skills and executable identities without turning `agents` into a workflow catch-all. |
 | `hooks` | `hooks` | Event vocabularies differ per host, but deterministic automation is still core. |
 | `permissions` | `permissions` | `allow` / `ask` / `deny` intent needs a portable home even when hosts enforce it differently. |
 | `runtime` | `mcp`, runtime auth, runtime readiness, local runtimes, passthrough dirs, helper scripts | This is the execution and integration layer. |
 | `distribution` | `userConfig`, `brand`, packaging metadata, install/publish metadata, supporting assets | This is the install surface users actually touch. |
 
-`taxonomy` stays internal. It is the compiler's semantic source of truth for how workflows should be grouped and routed, but it is not a host-facing primitive on its own.
+`taxonomy` stays internal. It is the compiler's semantic source of truth for how workflows should be grouped and routed into skills, agents, and orchestration, but it is not a host-facing primitive on its own.
 
 Conceptually, Pluxx should compile from a shape closer to this:
 
@@ -57,6 +59,7 @@ interface PluxxPrimitiveModel {
   skills?: SkillSpec[]
   commands?: CommandSpec[]
   agents?: AgentSpec[]
+  orchestration?: OrchestrationSpec[]
   hooks?: HookSpec[]
   permissions?: PermissionSpec[]
   runtime?: {
@@ -153,15 +156,35 @@ Commands are first-class, but not universal.
 
 ### 6. Agents
 
-This is the delegated execution layer.
+This is the executable-identity layer.
 
-- subagents
-- worker/reviewer/planner surfaces
+- standalone/custom worker, reviewer, planner, or specialist definitions
+- identity-scoped prompt, permissions, isolation, and tuning hints
 - background and isolation hints where available
 
-Pluxx should support agents as a portable concept, even if the formats differ.
+Pluxx should support agents as a portable concept, even if the formats differ. A host's generic subagent dispatch capability is consumed by `orchestration`; it is not, by itself, a standalone `AgentSpec`.
 
-### 7. Hooks
+### 7. Orchestration
+
+This is the workflow control plane.
+
+- activation and routing into a workflow
+- lifecycle events, ordering, re-injection guarantees, and idempotency
+- staged and dependency-aware workflow graphs
+- skill-owned role prompts, graph reachability, orphan reporting, and dispatch packets
+- sequential, parallel, and bounded fan-out
+- per-dispatch child-environment inheritance and override intent
+- typed artifact and state handoffs
+- wait, completion, retry, repair, cancellation, and fallback policy
+- resume and compaction-recovery state
+- synthesis and final-tail ownership
+- per-stage validation and behavioral proof
+
+`agents` still owns standalone/custom executable identities. `skills` still owns workflow bodies and domain guidance. Hooks, instructions, runtime files, and distribution surfaces remain separate mechanisms. `orchestration` owns the relationships and control policy across those primitives.
+
+This bucket was accepted on 2026-07-14 after comparison of Compound Engineering, Hyperframes, and Superpowers. It is canonical product direction, not a claim that the current schema, generators, migration path, or runtime proof already implement it. See [Orchestration Primitive Decision](./orchid/decisions/2026-07-14-orchestration-primitive.md).
+
+### 8. Hooks
 
 This is the automation and policy-enforcement layer.
 
@@ -172,7 +195,7 @@ This is the automation and policy-enforcement layer.
 
 Hooks matter, but they are not portable 1:1. Pluxx should compile them per target rather than pretend the event vocabularies are the same.
 
-### 8. Permissions
+### 9. Permissions
 
 This is the canonical access-control layer.
 
@@ -184,7 +207,7 @@ See [Canonical Permissions Model](./permissions-canonical-model.md) for the reco
 
 The host-specific mechanisms differ, but plugin authors should not have to rediscover that separately for every target.
 
-### 9. Brand / interface metadata
+### 10. Brand / interface metadata
 
 This is the presentation layer.
 
@@ -199,7 +222,7 @@ This stays core because it affects real plugin packaging across primary targets.
 
 Current support is target-graded, not uniform. See [Core-Four Branding Metadata Audit](./core-four-branding-metadata-audit.md) for verified field-by-field behavior across Claude Code, Cursor, Codex, and OpenCode.
 
-### 10. Assets / scripts
+### 11. Assets / scripts
 
 This is the support-file layer.
 
@@ -210,7 +233,7 @@ This is the support-file layer.
 
 These are not glamorous, but real plugins need them.
 
-### 11. Taxonomy
+### 12. Taxonomy
 
 This is the internal semantic source of truth.
 
@@ -252,12 +275,12 @@ Pluxx should document these and revisit them later, but they should not drive th
 
 After the current core-authoring work, the next extension-system priorities should be:
 
-1. `userConfig`
-2. `permissions`
-3. build-time target cap validation
-4. publish / marketplace generation
+1. specify the accepted `orchestration` IR and capability registry
+2. restore trustworthy intake for mature multi-host plugins
+3. prove orchestration on the core four, starting with the working Codex baseline
+4. emit honest best-effort orchestration degradation for every current target
 5. deeper MCP protocol support beyond `tools/list`
-6. portable agent / subagent delegation
+6. publish / marketplace generation
 
 ## Why This Scope Is Tight
 
@@ -266,6 +289,7 @@ The best open-source examples are not winning because they use every exotic host
 They are winning because they combine:
 
 - good skills
+- reliable orchestration
 - clear instructions
 - practical MCP wiring
 - useful hooks

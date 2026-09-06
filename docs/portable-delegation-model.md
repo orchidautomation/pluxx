@@ -11,7 +11,9 @@ The goal is not to invent a universal multi-agent runtime.
 
 The goal is to preserve the author's specialist intent and re-express it in the strongest native surface each host supports.
 
-## Canonical Delegation Fields
+This document covers identity-level delegation configuration for standalone/custom agents. It does not cover skill-owned dispatch graphs, context packets, artifact flow, wait/retry, synthesis, or lifecycle activation. Those relationships belong to the accepted [`orchestration` bucket](./orchid/decisions/2026-07-14-orchestration-primitive.md).
+
+## Canonical Agent-Identity Fields
 
 These fields are the portable subset Pluxx should understand canonically:
 
@@ -61,7 +63,7 @@ Pluxx should not:
 
 ## Practical Compiler Rule
 
-When a host lacks a direct delegation field, Pluxx should:
+When a host lacks a direct agent-identity field, Pluxx should:
 
 1. preserve the specialist itself
 2. keep the specialist discoverable in the host's native surface

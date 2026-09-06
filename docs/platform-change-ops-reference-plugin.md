@@ -1,6 +1,6 @@
 # Platform Change Ops Reference Plugin
 
-Last updated: 2026-05-02
+Last updated: 2026-07-14
 
 ## Doc Links
 
@@ -28,7 +28,7 @@ It lives in:
 
 Unlike `docs-ops` or `exa-plugin`, this example is not primarily about one product workflow.
 
-It exists to pressure all eight compiler buckets in one source project:
+It currently pressures all eight implemented compiler buckets in one source project:
 
 - instructions
 - skills
@@ -38,6 +38,8 @@ It exists to pressure all eight compiler buckets in one source project:
 - permissions
 - runtime
 - distribution
+
+The accepted ninth `orchestration` bucket is not yet implemented or proven by this example. When the canonical IR ships, this example should add an explicit change-intake → research/review → release-gate → rollout/rollback workflow graph and become one of its maintained core-four fixtures.
 
 ## Example Shape
 
