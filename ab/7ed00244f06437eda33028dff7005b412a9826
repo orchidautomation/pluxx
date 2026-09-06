@@ -1,0 +1,71 @@
+tests/install-contract.test.ts
+  s_6d9594e431d8f3::t_c55ed4c419e3c3 1-25
+test-fixtures/codex-plugin-inventory/isolation.ts
+  s_6d9594e431d8f3::t_1c3f7295c113c3 1-15
+tests/verify-install.test.ts
+  ai_agent 1693-1712
+test-fixtures/codex-plugin-inventory/cli-0.149.1.json
+  s_6d9594e431d8f3::t_17c56c0e1981f7 1-41
+src/index.ts
+  s_6d9594e431d8f3::t_32b0c83a7ccd99 176-177
+src/cli/doctor.ts
+  s_6d9594e431d8f3::t_1ec8b426fcd81d 113-114,2916-2918
+  s_6d9594e431d8f3::t_32b0c83a7ccd99 1,49,2913-2915,2919-2921
+test-fixtures/codex-plugin-inventory/README.md
+  s_6d9594e431d8f3::t_0eee27d8786c5a 1-11
+src/codex-plugin-collisions.ts
+  s_6d9594e431d8f3::t_b4288cb6ed27ea 62,117
+  s_6d9594e431d8f3::t_ab77c443cf82b1 1-2,5-39,41-61,67-109,111-113,131-142
+  s_6d9594e431d8f3::t_2d78abe7845b71 3-4,110,118-130
+  s_6d9594e431d8f3::t_9af309ed450d94 40
+  s_6d9594e431d8f3::t_ee1051dceb73f3 63-66
+  s_6d9594e431d8f3::t_8be72d5c93cca9 114-116
+src/cli/index.ts
+  s_6d9594e431d8f3::t_bfd3d4ac73959b 2
+  s_6d9594e431d8f3::t_32b0c83a7ccd99 368-373,3789
+src/cli/install.ts
+  s_6d9594e431d8f3::t_32b0c83a7ccd99 1,1551-1554,1607-1608
+tests/publish.test.ts
+  s_6d9594e431d8f3::t_f59e556f1bf56a 3245-3247,3256-3273,3275-3276,3278-3312
+  s_6d9594e431d8f3::t_1c3f7295c113c3 3248-3255
+  s_6d9594e431d8f3::t_9af309ed450d94 3274,3277
+  s_6d9594e431d8f3::t_b114e80c7da529 486,1735
+  s_6d9594e431d8f3::t_983e54c9b2a505 2-3,484-485,500
+tests/setup/bin/codex
+  s_6d9594e431d8f3::t_c35cf4af75fb29 1-2,4,11
+  s_6d9594e431d8f3::t_f59e556f1bf56a 5-10
+  s_6d9594e431d8f3::t_ab80607754b0ab 3
+src/cli/publish.ts
+  s_6d9594e431d8f3::t_dedb847d7fad63 11-12
+  s_6d9594e431d8f3::t_6a659147eab3c1 2856-2868,2870-2893,2908,2926,2953,3034
+  s_6d9594e431d8f3::t_b4288cb6ed27ea 2869
+  s_6d9594e431d8f3::t_ff389d20b32594 842-844,849,851,855-887
+src/cli/verify-install.ts
+  s_6d9594e431d8f3::t_282a455e2d28e7 106
+docs/core-four-install-update-lifecycle.md
+  s_6d9594e431d8f3::t_e2ba02d3c041ea 110-152
+tests/codex-plugin-collisions.test.ts
+  s_6d9594e431d8f3::t_ee1051dceb73f3 37-38,40-41
+  s_6d9594e431d8f3::t_f022ff2a096122 1-2,4-14,21-36,42-63
+  s_6d9594e431d8f3::t_b4288cb6ed27ea 39
+  s_6d9594e431d8f3::t_0eee27d8786c5a 3,15-20
+src/install-contract.ts
+  s_6d9594e431d8f3::t_282a455e2d28e7 2,24,78-80,89,92-93,95-96,98-107
+  s_6d9594e431d8f3::t_9af309ed450d94 94,97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "ab7ed00244f06437eda33028dff7005b412a9826",
+  "prompts": {},
+  "sessions": {
+    "s_6d9594e431d8f3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07884-4c31-75a2-bda1-dba3a8b13366",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Brandon Guerrero <brandon@orchidautomation.com>"
+    }
+  }
+}
