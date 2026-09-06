@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "canonicalVersion": "0.1.44",
-  "expectedTag": "v0.1.44",
-  "releaseState": "released",
+  "canonicalVersion": "0.1.45",
+  "expectedTag": "v0.1.45",
+  "releaseState": "release-prep",
   "policy": {
     "environmentReceiptMaxAgeDays": 30
   },

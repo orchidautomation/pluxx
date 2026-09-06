@@ -591,8 +591,7 @@ function renderTopLevelInstallScript(installerTargets: Array<typeof INSTALLER_TA
       if (!candidate.includes('/') && !candidate.startsWith('$HOME')) {
         return `command -v ${candidate} >/dev/null 2>&1`
       }
-      const path = candidate.replace('$HOME', '"$HOME"')
-      return `[[ -e ${path} ]]`
+      return `[[ -e "${candidate}" ]]`
     })
     return `    ${target}) ${checks.join(' || ')} ;;`
   }).join('\n')
