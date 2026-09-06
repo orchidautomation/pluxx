@@ -2867,6 +2867,10 @@ export async function doctorConsumer(
 
   checkConsumerBundlePath(checks, rootDir)
   const layout = detectConsumerLayout(rootDir)
+  if (layout.kind === 'installed-platform' && layout.platform === 'claude-code') {
+    addCheck(checks, { level: 'info', code: 'claude-native-activation-unverified', title: 'File-only Claude bundle inspection', detail: 'Consumer doctor inspects this bundle; it does not establish native registration or activation.', fix: 'Run pluxx verify-install --target claude-code in the source project for registered-source verification.' })
+  }
+
 
   if (layout.kind === 'source-project') {
     addCheck(checks, {

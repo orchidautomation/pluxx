@@ -64,3 +64,7 @@ Edit the canonical files, not the shims.
 Keep public repo docs focused on product, proof, and execution.
 
 Do not store account-specific GTM notes, named prospect research, or private outreach planning in the public repo.
+
+## Orchid Routing
+
+- Linear team: PLUXX

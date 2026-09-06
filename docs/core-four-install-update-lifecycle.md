@@ -334,3 +334,21 @@ When verification fails, `pluxx verify-install` should print a concrete recovery
 - unknown consumer failure: run `pluxx doctor --consumer <installed-path>`
 
 When verification passes with warnings, `pluxx verify-install` should still print the concrete issue code, explanation, and fix for those warnings instead of hiding them behind a count.
+
+## Claude exact-source verification (PLUXX-354)
+
+The implementation branch adds native source attribution to `pluxx verify-install --target claude-code`. This is not yet a published release claim. Claude's installed JSON inventory supplies the registered selector, version, scope, enabled state and cache path; a same-name cache directory alone is insufficient.
+
+When several registered sources match, select one explicitly:
+
+```bash
+pluxx verify-install --target claude-code --claude-selector my-plugin@my-marketplace
+```
+
+Native verification reports missing, ambiguous, disabled, wrong-version and unavailable inventory separately. It accepts a legitimate release marketplace when inventory identifies it. It does not select the newest cache by modification time or claim that enabled inventory proves runtime execution. Conflicting scope records and external/link-mode cache paths currently require manual verification. The provider schema was probed with Claude Code 2.1.233 in isolated roots; other schemas fail closed when required fields are unavailable.
+
+Use `pluxx verify-install --target claude-code --file-only` for offline bundle inspection. This retains the existing cache-location heuristic strictly as a file lookup and reports activation unverified. `doctor --consumer <path>` likewise checks files, not native registration. Do not use these file-only checks as proof of which marketplace Claude loads.
+
+Native local and generated installs verify the exact requested user-scope selector after registration; generated unchanged installs recheck inventory. Generated `PLUXX_CLAUDE_SKIP_INSTALL=1` stages files and explicitly leaves activation unverified. `CLAUDE_CONFIG_DIR` selects the native configuration/cache root. No unrelated plugin is automatically disabled or removed. After a failed post-install check, requested native changes may remain; inspect the native manager before retrying.
+
+Aggregate installers preserve validated failed child results, including their reason and action, and exit nonzero while still attempting other selected targets. Missing or contradictory child results fail closed.

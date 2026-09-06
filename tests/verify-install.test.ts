@@ -89,12 +89,22 @@ describe('verifyInstall', () => {
     cpSync(resolve(DIST_DIR, 'claude-code'), releaseBundle, { recursive: true })
 
     const result = await verifyInstall(makeClaudeConfig(), {
+      runCommand: () => ({ status: 0, stdout: JSON.stringify([{ id: 'verify-plugin@verify-plugin-releases', version: '0.1.0', scope: 'user', enabled: true, installPath: releaseBundle }]) }),
       rootDir: ROOT,
       targets: ['claude-code'],
     })
 
     expect(result.ok).toBe(true)
     expect(result.checks[0]?.consumerPath).toBe(releaseBundle)
+  })
+
+  it('refuses a foreign registered source even with an identical version', async () => {
+    const result = await verifyInstall(makeClaudeConfig(), {
+      rootDir: ROOT, claudeSelector: 'verify-plugin@requested',
+      runCommand: () => ({ status: 0, stdout: JSON.stringify([{ id: 'verify-plugin@foreign', version: '0.1.0', scope: 'user', enabled: true, installPath: resolve(HOME_DIR, '.claude/plugins/cache/foreign/verify-plugin/0.1.0') }]) }),
+    })
+    expect(result.ok).toBe(false)
+    expect(result.checks[0]?.nativeVerification?.code).toBe('claude-plugin-source-missing')
   })
 
   it('passes for an installed codex bundle in its native local path', async () => {
@@ -1397,6 +1407,7 @@ describe('verifyInstall', () => {
     rmSync(resolve(installedBundle, 'commands'), { recursive: true, force: true })
 
     const result = await verifyInstall(makeClaudeConfig(), {
+      fileOnly: true,
       rootDir: ROOT,
       targets: ['claude-code'],
     })
@@ -1454,6 +1465,7 @@ describe('verifyInstall', () => {
     cpSync(resolve(DIST_DIR, 'claude-code'), installedBundle, { recursive: true })
 
     const result = await verifyInstall(makeClaudeConfig(), {
+      fileOnly: true,
       rootDir: ROOT,
       targets: ['claude-code'],
     })
@@ -1505,6 +1517,7 @@ describe('verifyInstall', () => {
     cpSync(resolve(DIST_DIR, 'claude-code'), installedBundle, { recursive: true })
 
     const result = await verifyInstall(makeClaudeConfig(), {
+      fileOnly: true,
       rootDir: ROOT,
       targets: ['claude-code'],
     })
@@ -1560,6 +1573,7 @@ describe('verifyInstall', () => {
     cpSync(resolve(DIST_DIR, 'claude-code'), installedBundle, { recursive: true })
 
     const result = await verifyInstall(makeClaudeConfig(), {
+      fileOnly: true,
       rootDir: ROOT,
       targets: ['claude-code'],
     })
@@ -1620,6 +1634,7 @@ describe('verifyInstall', () => {
     cpSync(resolve(DIST_DIR, 'claude-code'), installedBundle, { recursive: true })
 
     const result = await verifyInstall(makeClaudeConfig(), {
+      fileOnly: true,
       rootDir: ROOT,
       targets: ['claude-code'],
     })
@@ -1676,6 +1691,7 @@ describe('verifyInstall', () => {
     cpSync(resolve(DIST_DIR, 'claude-code'), installedBundle, { recursive: true })
 
     const result = await verifyInstall(makeClaudeConfig(), {
+      fileOnly: true,
       rootDir: ROOT,
       targets: ['claude-code'],
     })

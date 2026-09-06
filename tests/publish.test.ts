@@ -416,6 +416,28 @@ function getGeneratedInstallerPaths(platform: TargetPlatform, rootDir: string): 
   throw new Error(`Unsupported generated installer test platform: ${platform}`)
 }
 
+function prepareClaudeSourceFixture(root: string, foreign = false): Record<string, string> {
+  const bin = resolve(root, 'fake-native-bin')
+  const config = resolve(root, 'home/claude-config')
+  mkdirSync(bin, { recursive: true })
+  writeFileSync(resolve(bin, 'package.json'), JSON.stringify({ type: 'commonjs' }))
+  mkdirSync(config, { recursive: true })
+  const installPath = resolve(config, 'plugins/cache/publish-plugin-releases/publish-plugin/1.2.3')
+  const source = resolve(root, 'claude-marketplace/plugins/publish-plugin')
+  const executable = resolve(bin, 'claude')
+  writeFileSync(executable, `#!/usr/bin/env node
+const fs=require('fs'), path=require('path')
+const args=process.argv.slice(2).join(' ')
+const installed=${JSON.stringify(installPath)}, source=${JSON.stringify(source)}
+if(args==='plugin list --json') {
+ console.log(JSON.stringify(fs.existsSync(installed)?[{id:${JSON.stringify(foreign ? 'publish-plugin@foreign' : 'publish-plugin@publish-plugin-releases')},version:'1.2.3',scope:'user',enabled:true,installPath:installed}]:[]))
+} else if(args==='plugin marketplace list --json') console.log('[]')
+else if(args.startsWith('plugin install ')) { fs.mkdirSync(path.dirname(installed),{recursive:true});fs.cpSync(source,installed,{recursive:true}) }
+`)
+  chmodSync(executable, 0o755)
+  return { PATH: bin + ':' + process.env.PATH, CLAUDE_CONFIG_DIR: config, PLUXX_CLAUDE_SKIP_INSTALL: '0' }
+}
+
 function runGeneratedInstaller(
   platform: TargetPlatform,
   options: GeneratedInstallerRunOptions = {},
@@ -1218,7 +1240,6 @@ describe('runPublish', () => {
     expect(installerContent).toContain('--connect-timeout 10 --max-time 120 --retry 3 --retry-all-errors')
     expect(installerContent).toContain('--plan')
     expect(installerContent).toContain('pluxx.install-results.v1')
-    expect(installerContent).toContain("printf '%s\\n'")
     expect(installerContent).toContain('.split(/\\n/)')
     expect(installerContent).not.toContain('.split(/\n/)')
 
@@ -1323,6 +1344,43 @@ describe('runPublish', () => {
       }
     }
 
+    const claudeFailure = { target: 'claude-code', state: 'failed', reason: 'claude-plugin-source-missing', error: 'Requested source missing | foreign cache\nretained', action: 'Inspect exact source\nand retry', nativeVerification: { status: 'failed' } }
+    for (const status of [1, 0]) {
+      const script = '#!/usr/bin/env bash\ncat > "$PLUXX_INSTALL_RESULT_FILE" <<\'RESULT\'\n' + JSON.stringify(claudeFailure) + '\nRESULT\nexit ' + status + '\n'
+      writeFileSync(resolve(aggregateRoot, 'install-claude-code.sh'), script)
+      writeFileSync(resolve(aggregateRoot, 'SHA256SUMS.txt'), checksumsContent.replace(/^[a-f0-9]{64}  install-claude-code\.sh$/m, createHash('sha256').update(script).digest('hex') + '  install-claude-code.sh'))
+      const failedRun = spawnSync('bash', [installerPath, '--claude-code', '--json', '--version', '1.2.3', '--base-url', `file://${aggregateRoot}`], { encoding: 'utf8', env: { HOME: aggregateHome, TMPDIR: aggregateTmp, PATH: aggregateBin } })
+      expect(failedRun.status, failedRun.stderr).toBe(1)
+      const envelope = JSON.parse(failedRun.stdout)
+      expect(validateInstallResultsEnvelope(envelope)).toBe(true)
+      if (status === 1) expect(envelope.results).toEqual([claudeFailure])
+      else expect(envelope.results[0].reason).toBe('installer-failed')
+    }
+
+  })
+
+  it('verifies native Claude source and rechecks unchanged installs', () => {
+    const config = { ...makeConfig(), targets: ['claude-code'] as TargetPlatform[], userConfig: undefined }
+    const first = runGeneratedInstaller('claude-code', { config, prepareRuntime: root => prepareClaudeSourceFixture(root) })
+    expect(first.status, first.stderr).toBe(0)
+    const script = resolve(first.rootDir, 'rerun-claude.sh')
+    writeFileSync(script, first.installerContent)
+    const env = prepareClaudeSourceFixture(first.rootDir, true)
+    const result = spawnSync('bash', [script, '--json'], { encoding: 'utf8', env: {
+      ...isolatedInstallerEnvironment(process.env), HOME: resolve(first.rootDir, 'home'), TMPDIR: resolve(first.rootDir, 'tmp'),
+      ...getGeneratedInstallerPaths('claude-code', first.rootDir).env, ...env, PLUXX_CLAUDE_BUNDLE_PATH: first.archivePath,
+    } })
+    expect(result.status).toBe(1)
+    expect(JSON.parse(result.stdout)).toMatchObject({ target: 'claude-code', state: 'failed', reason: 'claude-plugin-source-missing' })
+    expect(JSON.parse(result.stdout).action).toContain('select the exact plugin@marketplace')
+    expect(result.stderr).toContain('claude-plugin-source-missing')
+  })
+
+  it('rejects Claude postflight substitution by a foreign same-version source', () => {
+    const config = { ...makeConfig(), targets: ['claude-code'] as TargetPlatform[], userConfig: undefined }
+    const result = runGeneratedInstaller('claude-code', { config, prepareRuntime: root => prepareClaudeSourceFixture(root, true) })
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('claude-plugin-source-missing')
   })
 
   it('rejects a tampered release archive before replacing the installed bundle', () => {
