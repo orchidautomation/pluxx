@@ -1,4 +1,4 @@
-import { basename, dirname, relative, resolve } from 'path'
+import { basename, dirname, posix, relative, resolve } from 'path'
 import { existsSync, readdirSync, mkdirSync, mkdtempSync, cpSync, readFileSync, readlinkSync, rmSync, statSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import {
@@ -17,6 +17,8 @@ import { getCanonicalSkillMetadata, parseSkillMarkdown, readCanonicalSkillFiles,
 import { buildNativeMcpPlatformOverrides } from '../mcp-native-overrides'
 import { parseTomlValue, stripTomlComment } from '../toml-lite'
 import { writeTextFile } from '../text-files'
+import { loadConfig } from '../config/load'
+import { withWorkspaceMutationLock } from './mutation-lock'
 import {
   applyFileMutations,
   copyProjectForStaging,
@@ -34,6 +36,18 @@ interface DetectionResult {
   manifestPath?: string
 }
 
+interface ManifestSource {
+  platform: DetectedPlatform
+  path: string
+}
+
+interface ManifestReconciliation {
+  manifest: ParsedManifest
+  sources: ManifestSource[]
+  fieldSources: Record<string, string[]>
+  fieldCandidates: Record<string, string[]>
+}
+
 interface ParsedManifest {
   name?: string
   version?: string
@@ -45,6 +59,8 @@ interface ParsedManifest {
   brand?: Record<string, unknown>
   platforms?: Record<string, Record<string, unknown>>
 }
+
+type ManifestIdentityField = 'name' | 'version' | 'description' | 'repository' | 'license'
 
 interface ParsedMcp {
   [serverName: string]: {
@@ -95,21 +111,26 @@ interface MigrateResult {
   compilerIntent?: CompilerIntentFile
   warnings: string[]
   extraCopyPaths: string[]
+  manifestSources: ManifestSource[]
+  manifestFieldSources: Record<string, string[]>
+  manifestFieldCandidates: Record<string, string[]>
 }
 
 // ── Platform Detection ──────────────────────────────────────────
 
-function detectPlatform(pluginDir: string): DetectionResult | null {
+function detectPlatforms(pluginDir: string): DetectionResult[] {
   const checks: Array<{ dir: string; platform: DetectedPlatform }> = [
     { dir: '.claude-plugin', platform: 'claude-code' },
     { dir: '.cursor-plugin', platform: 'cursor' },
     { dir: '.codex-plugin', platform: 'codex' },
   ]
 
+  const detections: DetectionResult[] = []
+
   for (const check of checks) {
     const manifestPath = resolve(pluginDir, check.dir, 'plugin.json')
     if (existsSync(manifestPath)) {
-      return { platform: check.platform, manifestPath }
+      detections.push({ platform: check.platform, manifestPath })
     }
   }
 
@@ -124,18 +145,18 @@ function detectPlatform(pluginDir: string): DetectionResult | null {
         ...pkg.peerDependencies,
       }
       if (deps && '@opencode-ai/plugin' in deps) {
-        return { platform: 'opencode', manifestPath: pkgPath }
+        detections.push({ platform: 'opencode', manifestPath: pkgPath })
       }
     } catch {
       // not valid JSON, skip
     }
   }
 
-  if (existsSync(resolve(pluginDir, 'CLAUDE.md'))) {
-    return { platform: 'claude-code' }
+  if (detections.length === 0 && existsSync(resolve(pluginDir, 'CLAUDE.md'))) {
+    detections.push({ platform: 'claude-code' })
   }
 
-  return null
+  return detections
 }
 
 // ── Manifest Parsing ────────────────────────────────────────────
@@ -155,7 +176,12 @@ function parseManifest(detection: DetectionResult): ParsedManifest {
   if (raw.version) result.version = raw.version
   if (raw.description) result.description = raw.description
   if (raw.license) result.license = raw.license
-  if (raw.keywords) result.keywords = raw.keywords
+  if (raw.keywords !== undefined) {
+    if (!Array.isArray(raw.keywords) || !raw.keywords.every((value: unknown) => typeof value === 'string')) {
+      throw new Error('keywords must be an array of strings')
+    }
+    result.keywords = raw.keywords
+  }
   if (raw.repository) {
     result.repository = typeof raw.repository === 'string'
       ? raw.repository
@@ -176,6 +202,7 @@ function parseManifest(detection: DetectionResult): ParsedManifest {
 
   const homepage = typeof raw.homepage === 'string' ? raw.homepage : undefined
   if (homepage) brand.websiteURL = homepage
+  if (typeof raw.displayName === 'string') brand.displayName = raw.displayName
   if (typeof raw.icon === 'string') brand.icon = raw.icon
   if (typeof raw.logo === 'string') {
     brand.logo = raw.logo
@@ -278,6 +305,133 @@ function parseManifest(detection: DetectionResult): ParsedManifest {
 }
 
 // ── MCP Parsing ─────────────────────────────────────────────────
+
+const MANIFEST_PRECEDENCE: Record<DetectedPlatform, number> = {
+  opencode: 1,
+  'claude-code': 2,
+  cursor: 3,
+  codex: 4,
+}
+const MANIFEST_PRECEDENCE_ORDER: DetectedPlatform[] = ['opencode', 'claude-code', 'cursor', 'codex']
+
+function addManifestFieldSource(
+  fieldSources: Record<string, string[]>,
+  field: string,
+  sourcePath: string,
+): void {
+  fieldSources[field] = [...new Set([...(fieldSources[field] ?? []), sourcePath])]
+}
+
+function reconcileManifests(
+  pluginDir: string,
+  detections: DetectionResult[],
+): ManifestReconciliation {
+  const manifest: ParsedManifest = {}
+  const fieldSources: Record<string, string[]> = {}
+  const fieldCandidates: Record<string, string[]> = {}
+  const sources: ManifestSource[] = detections.flatMap((detection) => detection.manifestPath
+    ? [{ platform: detection.platform, path: relative(pluginDir, detection.manifestPath) }]
+    : [])
+  const selectedBrandRanks: Record<string, number> = {}
+  const mergeIdentityScalar = <Field extends ManifestIdentityField>(
+    field: Field,
+    value: ParsedManifest[Field],
+    sourcePath: string,
+  ) => {
+    if (value === undefined) return
+    const existing = manifest[field]
+    addManifestFieldSource(fieldCandidates, field, sourcePath)
+    addManifestFieldSource(fieldSources, field, sourcePath)
+    if (existing !== undefined && existing !== value) {
+      throw new Error(
+        `Ambiguous manifest field "${field}" from ${fieldSources[field].join(', ')}. `
+        + 'Make the source manifests agree before migration.',
+      )
+    }
+    manifest[field] = value
+  }
+
+  for (const detection of detections) {
+    const sourcePath = detection.manifestPath
+      ? relative(pluginDir, detection.manifestPath)
+      : '(manifest-less source)'
+    let parsed: ParsedManifest
+    try {
+      parsed = parseManifest(detection)
+    } catch (error) {
+      throw new Error(
+        `Failed to parse source manifest "${sourcePath}": ${error instanceof Error ? error.message : String(error)}`,
+      )
+    }
+
+    for (const field of ['name', 'version', 'description', 'repository', 'license'] as const) {
+      mergeIdentityScalar(field, parsed[field], sourcePath)
+    }
+
+    if (parsed.author) {
+      const author = manifest.author ?? { name: '' }
+      for (const field of ['name', 'url', 'email'] as const) {
+        const value = parsed.author[field]
+        if (value === undefined) continue
+        const fieldName = `author.${field}`
+        const existing = author[field]
+        addManifestFieldSource(fieldCandidates, fieldName, sourcePath)
+        addManifestFieldSource(fieldSources, fieldName, sourcePath)
+        if (existing && existing !== value) {
+          throw new Error(
+            `Ambiguous manifest field "${fieldName}" from ${fieldSources[fieldName].join(', ')}. `
+            + 'Make the source manifests agree before migration.',
+          )
+        }
+        author[field] = value
+      }
+      manifest.author = author
+    }
+
+    if (parsed.keywords) {
+      addManifestFieldSource(fieldCandidates, 'keywords', sourcePath)
+      addManifestFieldSource(fieldSources, 'keywords', sourcePath)
+      manifest.keywords = [...new Set([...(manifest.keywords ?? []), ...parsed.keywords])]
+    }
+
+    if (parsed.brand) {
+      const brand = manifest.brand ?? {}
+      for (const [field, value] of Object.entries(parsed.brand)) {
+        const fieldName = `brand.${field}`
+        addManifestFieldSource(fieldCandidates, fieldName, sourcePath)
+        if (Array.isArray(value)) {
+          addManifestFieldSource(fieldSources, fieldName, sourcePath)
+          const existing = Array.isArray(brand[field]) ? brand[field] as unknown[] : []
+          brand[field] = [...new Set([...existing, ...value])]
+          continue
+        }
+        const rank = MANIFEST_PRECEDENCE[detection.platform]
+        if (brand[field] === undefined || rank >= (selectedBrandRanks[field] ?? -1)) {
+          brand[field] = value
+          selectedBrandRanks[field] = rank
+          fieldSources[fieldName] = [sourcePath]
+        }
+      }
+      manifest.brand = brand
+    }
+
+    if (parsed.platforms) {
+      for (const platform of Object.keys(parsed.platforms)) {
+        addManifestFieldSource(fieldCandidates, `platforms.${platform}`, sourcePath)
+        addManifestFieldSource(fieldSources, `platforms.${platform}`, sourcePath)
+      }
+      manifest.platforms = mergePlatformOverrideMaps(manifest.platforms, parsed.platforms)
+    }
+  }
+
+  if (manifest.brand && !manifest.brand.displayName && manifest.name) {
+    manifest.brand.displayName = titleCaseFromDirName(manifest.name)
+    fieldSources['brand.displayName'] = [...(fieldSources.name ?? [])]
+    fieldCandidates['brand.displayName'] = [...(fieldCandidates.name ?? [])]
+  }
+
+  return { manifest, sources, fieldSources, fieldCandidates }
+}
 
 function parseMcp(pluginDir: string, detection: DetectionResult): {
   servers: ParsedMcp
@@ -2067,6 +2221,40 @@ export interface MigrateSummary {
   warnings: string[]
   dryRun: boolean
   mutation: MutationManifest
+  provenance?: MigrationProvenance
+}
+
+export interface MigrationProvenance {
+  version: 1
+  primaryPlatform: DetectedPlatform
+  manifests: ManifestSource[]
+  resolutionPolicy: {
+    identityScalars: 'agreement-or-refusal'
+    arrays: 'stable-union'
+    brandScalars: 'host-precedence'
+    manifestPrecedence: DetectedPlatform[]
+  }
+  fieldSources: Record<string, string[]>
+  fieldCandidates: Record<string, string[]>
+}
+
+function buildMigrationProvenance(result: MigrateResult): MigrationProvenance {
+  const sortFields = (fields: Record<string, string[]>) => Object.fromEntries(
+    Object.entries(fields).sort(([left], [right]) => left.localeCompare(right)),
+  )
+  return {
+    version: 1,
+    primaryPlatform: result.platform,
+    manifests: result.manifestSources,
+    resolutionPolicy: {
+      identityScalars: 'agreement-or-refusal',
+      arrays: 'stable-union',
+      brandScalars: 'host-precedence',
+      manifestPrecedence: [...MANIFEST_PRECEDENCE_ORDER],
+    },
+    fieldSources: sortFields(result.manifestFieldSources),
+    fieldCandidates: sortFields(result.manifestFieldCandidates),
+  }
 }
 
 const MIGRATE_SNAPSHOT_IGNORES = new Set(['.git', 'node_modules', 'dist'])
@@ -2117,8 +2305,45 @@ function planStagedFileMutations(rootDir: string, stagedRoot: string): FileMutat
   })
 }
 
+function formatStagedConfigError(error: unknown): string {
+  if (error && typeof error === 'object' && 'issues' in error) {
+    const issues = (error as { issues?: unknown }).issues
+    if (Array.isArray(issues)) {
+      return issues.map((issue) => {
+        if (!issue || typeof issue !== 'object') return String(issue)
+        const candidate = issue as { path?: unknown; message?: unknown }
+        const path = Array.isArray(candidate.path) ? candidate.path.join('.') : '(config)'
+        const message = typeof candidate.message === 'string' ? candidate.message : 'Invalid value'
+        return `${path}: ${message}`
+      }).join('\n')
+    }
+  }
+  return error instanceof Error ? error.message : String(error)
+}
+
 export async function migrate(inputPath: string, options: MigrateOptions = {}): Promise<MigrateSummary> {
   const outputDir = process.cwd()
+  if (options.dryRun) return migrateUnlocked(inputPath, options, outputDir)
+
+  const metadataDir = resolve(outputDir, dirname(MCP_TAXONOMY_PATH))
+  const metadataDirExisted = existsSync(metadataDir)
+  try {
+    return await withWorkspaceMutationLock(
+      outputDir,
+      () => migrateUnlocked(inputPath, options, outputDir),
+    )
+  } finally {
+    if (!metadataDirExisted && existsSync(metadataDir) && readdirSync(metadataDir).length === 0) {
+      rmSync(metadataDir, { recursive: true, force: true })
+    }
+  }
+}
+
+async function migrateUnlocked(
+  inputPath: string,
+  options: MigrateOptions,
+  outputDir: string,
+): Promise<MigrateSummary> {
   const configPath = resolve(outputDir, 'pluxx.config.ts')
   if (existsSync(configPath)) {
     const conflict = { path: 'pluxx.config.ts', reason: 'destination-exists' }
@@ -2143,9 +2368,16 @@ export async function migrate(inputPath: string, options: MigrateOptions = {}): 
     const messages: string[] = []
     const log = (message: string) => {
       messages.push(message)
-      if (!options.quiet) console.log(message)
     }
     const result = await migrateInPlace(inputPath, stagedRoot, log)
+    try {
+      await loadConfig(stagedRoot)
+    } catch (error) {
+      const manifests = result.manifestSources.map((source) => source.path).join(', ') || '(manifest-less source)'
+      throw new Error(
+        `Staged migration validation failed for pluxx.config.ts from ${manifests}:\n${formatStagedConfigError(error)}`,
+      )
+    }
     const mutations = planStagedFileMutations(outputDir, stagedRoot)
     const destinationConflicts = messages.flatMap((message) => {
       const match = message.match(/^\s*skip \.\/(.+?)(?:\/)? \(already exists\)$/)
@@ -2166,11 +2398,25 @@ export async function migrate(inputPath: string, options: MigrateOptions = {}): 
     if (!options.dryRun) {
       applyFileMutations(outputDir, mutations, options.mutationHooks)
     }
+    log('')
+    if (options.dryRun) {
+      log('Migration dry run complete. The staged project is schema-valid; no destination files were published.')
+    } else {
+      log('Migration complete! Next steps:')
+      log('  1. Review pluxx.config.ts and fill in any TODOs')
+      log('  2. Run: pluxx doctor')
+      log('  3. Run: pluxx eval')
+      log('  4. Run: pluxx build')
+    }
+    if (!options.quiet) {
+      for (const message of messages) console.log(message)
+    }
     return {
       platform: result.platform,
       warnings: result.warnings,
       dryRun: options.dryRun ?? false,
       mutation,
+      provenance: buildMigrationProvenance(result),
     }
   } finally {
     rmSync(tempRoot, { recursive: true, force: true })
@@ -2191,15 +2437,20 @@ async function migrateInPlace(
   log(`Scanning ${pluginDir} ...`)
 
   // 1. Detect platform
-  const detection = detectPlatform(pluginDir)
+  const detections = detectPlatforms(pluginDir)
+  const detection = detections[0]
   if (!detection) {
     throw new Error('Could not detect plugin platform. Expected .claude-plugin/plugin.json, CLAUDE.md, .cursor-plugin/plugin.json, .codex-plugin/plugin.json, or package.json with @opencode-ai/plugin.')
   }
 
   log(`Detected: ${detection.platform} plugin`)
+  if (detections.length > 1) {
+    log(`  manifests: ${detections.flatMap((candidate) => candidate.manifestPath ? [relative(pluginDir, candidate.manifestPath)] : []).join(', ')}`)
+  }
 
   // 2. Parse manifest
-  const manifest = parseManifest(detection)
+  const reconciledManifest = reconcileManifests(pluginDir, detections)
+  const manifest = reconciledManifest.manifest
   log(`  name: ${manifest.name ?? '(none)'}`)
   log(`  version: ${manifest.version ?? '(none)'}`)
 
@@ -2290,6 +2541,9 @@ async function migrateInPlace(
       ...instructionSources.extraPaths,
       ...openCodeDistributionSources.extraPaths,
     ])].sort(),
+    manifestSources: reconciledManifest.sources,
+    manifestFieldSources: reconciledManifest.fieldSources,
+    manifestFieldCandidates: reconciledManifest.fieldCandidates,
     ...(inferredPermissions.skillPolicies.length > 0
       ? {
           compilerIntent: {
@@ -2346,6 +2600,7 @@ async function migrateInPlace(
   // 11. Create synthetic migration metadata/taxonomy so Agent Mode and evals work.
   const taxonomyPath = resolve(outputDir, MCP_TAXONOMY_PATH)
   const metadataPath = resolve(outputDir, MCP_SCAFFOLD_METADATA_PATH)
+  const migrationReceiptPath = posix.join(posix.dirname(MCP_TAXONOMY_PATH), 'migration.json')
   mkdirSync(resolve(outputDir, '.pluxx'), { recursive: true })
   await writeTextFile(taxonomyPath, `${JSON.stringify(result.persistedSkills, null, 2)}\n`)
   if (result.compilerIntent) {
@@ -2354,10 +2609,15 @@ async function migrateInPlace(
       `${JSON.stringify(result.compilerIntent, null, 2)}\n`,
     )
   }
+  await writeTextFile(
+    resolve(outputDir, migrationReceiptPath),
+    `${JSON.stringify(buildMigrationProvenance(result), null, 2)}\n`,
+  )
   await writeTextFile(metadataPath, `${JSON.stringify(buildMigratedScaffoldMetadata(result, outputDir), null, 2)}\n`)
   const generatedPluxxFiles = [
     MCP_TAXONOMY_PATH,
     ...(result.compilerIntent ? [PLUXX_COMPILER_INTENT_PATH] : []),
+    migrationReceiptPath,
     MCP_SCAFFOLD_METADATA_PATH,
   ]
   log(`Generated: ${generatedPluxxFiles.join(', ')}`)
@@ -2370,11 +2630,5 @@ async function migrateInPlace(
     }
   }
 
-  log('')
-  log('Migration complete! Next steps:')
-  log('  1. Review pluxx.config.ts and fill in any TODOs')
-  log('  2. Run: pluxx doctor')
-  log('  3. Run: pluxx eval')
-  log('  4. Run: pluxx build')
   return result
 }
