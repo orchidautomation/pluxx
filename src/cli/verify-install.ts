@@ -103,6 +103,7 @@ function listVerifyInstallIssues(checks: DoctorCheck[]): VerifyInstallIssue[] {
       title: check.title,
       detail: check.detail,
       fix: check.fix,
+      ...(check.diagnostic ? { diagnostic: check.diagnostic } : {}),
       ...(check.path ? { path: check.path } : {}),
     }))
 }

@@ -173,3 +173,5 @@ export {
   type OverlayCapability,
   type OverlayNamespaceOwner,
 } from './agent-plugins-native-overlay-contract'
+
+export { detectCodexPluginCollisions, inspectCodexPluginCollisions, renderCodexPluginDiagnostic, codexRequestedIdentity, CodexPluginCollisionError, type CodexPluginIdentity, type CodexPluginDiagnostic, type CodexCollisionRequest } from './codex-plugin-collisions'

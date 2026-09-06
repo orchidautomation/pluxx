@@ -1,3 +1,4 @@
+import { inspectCodexPluginCollisions, codexRequestedIdentity, renderCodexPluginDiagnostic, type CodexPluginDiagnostic } from '../codex-plugin-collisions'
 import { spawn, spawnSync } from 'child_process'
 import { accessSync, constants, existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from 'fs'
 import { homedir } from 'os'
@@ -45,6 +46,7 @@ import { isCurrentOpenCodeEntryFile } from '../opencode-entry'
 export type DoctorLevel = 'error' | 'warning' | 'info' | 'success'
 
 export interface DoctorCheck {
+  diagnostic?: CodexPluginDiagnostic
   level: DoctorLevel
   code: string
   title: string
@@ -108,6 +110,8 @@ interface ConsumerBundleLayout {
 
 export interface DoctorConsumerOptions {
   projectRoot?: string
+  /** Explicit intended marketplace for built bundles or nonstandard install locations. */
+  codexMarketplace?: string
 }
 
 interface InstalledStdioLaunchResult {
@@ -2906,6 +2910,15 @@ export async function doctorConsumer(
     path: layout.manifestPath,
   })
 
+  if (layout.platform === 'codex') {
+    let manifest: { name?: string; version?: string } = {}
+    try { manifest = JSON.parse(readFileSync(resolve(rootDir, layout.manifestPath), 'utf8')) } catch {}
+    const requested = codexRequestedIdentity(manifest.name ?? '', manifest.version ?? null, rootDir, undefined, true)
+    if (options.codexMarketplace !== undefined) requested.marketplace = options.codexMarketplace
+    const diagnostic = inspectCodexPluginCollisions(requested)
+    if (diagnostic) addCheck(checks, { level: 'error', code: diagnostic.code, title: 'Codex plugin inventory requires attention',
+      detail: renderCodexPluginDiagnostic(diagnostic), fix: diagnostic.action, diagnostic })
+  }
   checkConsumerManifest(checks, rootDir, layout)
   checkInstalledBundleIntegrity(checks, rootDir, layout)
   checkInstalledClaudeHookSettings(checks, rootDir, layout, options)

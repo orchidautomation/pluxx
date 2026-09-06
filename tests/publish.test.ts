@@ -1,3 +1,6 @@
+import { detectCodexPluginCollisions } from '../src/codex-plugin-collisions'
+import { assertIsolatedCodexTestEnvironment } from '../test-fixtures/codex-plugin-inventory/isolation'
+import { validateInstallResultsEnvelope } from '../src/install-contract'
 import { afterEach, describe, expect, it } from 'bun:test'
 import { createHash } from 'crypto'
 import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'fs'
@@ -478,6 +481,9 @@ function runGeneratedInstaller(
         const env: Record<string, string> = {
           ...isolatedInstallerEnvironment(process.env),
           HOME: homeDir,
+          CODEX_HOME: resolve(homeDir, '.codex'),
+          XDG_CONFIG_HOME: resolve(homeDir, '.config'),
+          PLUXX_INSTALL_LOCK_ROOT: resolve(homeDir, '.pluxx/install-locks'),
           TMPDIR: tempDir,
           TMP: tempDir,
           TEMP: tempDir,
@@ -490,6 +496,8 @@ function runGeneratedInstaller(
         if (platform === 'cursor') env.PLUXX_CURSOR_BUNDLE_PATH = archivePath!
         if (platform === 'codex') env.PLUXX_CODEX_BUNDLE_PATH = archivePath!
         if (platform === 'opencode') env.PLUXX_OPENCODE_BUNDLE_PATH = archivePath!
+
+        if (platform === 'codex') assertIsolatedCodexTestEnvironment(rootDir, env)
 
         const proc = spawnSync('bash', [installerPath!], {
           encoding: 'utf-8',
@@ -1237,7 +1245,7 @@ describe('runPublish', () => {
     mkdirSync(aggregateHome, { recursive: true })
     mkdirSync(aggregateTmp, { recursive: true })
     const installerPath = resolve(aggregateRoot, 'install.sh')
-    writeFileSync(installerPath, installerContent)
+    writeFileSync(installerPath, installerContent.replaceAll('/Applications/', `${aggregateHome}/Applications/`))
     writeFileSync(resolve(aggregateRoot, 'release-manifest.json'), manifestContent)
     writeFileSync(resolve(aggregateRoot, 'SHA256SUMS.txt'), checksumsContent)
     chmodSync(installerPath, 0o755)
@@ -1284,6 +1292,37 @@ describe('runPublish', () => {
       state: 'skipped',
       reason: 'host-not-detected',
     })))
+    expect(validateInstallResultsEnvelope(aggregateResult)).toBe(true)
+    const diagnostic = detectCodexPluginCollisions({ installed: [{
+      pluginId: 'publish-plugin@other', name: 'publish-plugin', marketplaceName: 'other', version: '1.0.0', installed: true, enabled: true,
+      source: { source: 'local', path: '/synthetic/other' },
+    }] }, { name: 'publish-plugin', marketplace: 'requested', version: '1.2.3' }, value => createHash('sha256').update(value).digest('hex'))!
+    const childResult = { target: 'codex', state: 'failed', reason: diagnostic.code, error: diagnostic.error, action: diagnostic.action, diagnostics: [diagnostic] }
+    const child = '#!/usr/bin/env bash\ncat > "$PLUXX_INSTALL_RESULT_FILE" <<\'RESULT\'\n' + JSON.stringify(childResult) + '\nRESULT\nexit 1\n'
+    writeFileSync(resolve(aggregateRoot, 'install-codex.sh'), child)
+    const checksums = checksumsContent.replace(/^[a-f0-9]{64}  install-codex\.sh$/m, createHash('sha256').update(child).digest('hex') + '  install-codex.sh')
+    writeFileSync(resolve(aggregateRoot, 'SHA256SUMS.txt'), checksums)
+    // The synthetic child only writes its result; all commands stay on the fixture PATH.
+    for (const command of ['chmod', 'cat']) {
+      const lookup = spawnSync('sh', ['-c', `command -v ${command}`], { encoding: 'utf8' })
+      symlinkSync(lookup.stdout.trim(), resolve(aggregateBin, command))
+    }
+    for (const json of [true, false]) {
+      const failedRun = spawnSync('bash', [installerPath, '--codex', ...(json ? ['--json'] : []), '--version', '1.2.3', '--base-url', `file://${aggregateRoot}`], {
+        encoding: 'utf8', env: { HOME: aggregateHome, TMPDIR: aggregateTmp, PATH: aggregateBin },
+      })
+      expect(failedRun.status, failedRun.stderr).toBe(1)
+      if (json) {
+        const envelope = JSON.parse(failedRun.stdout)
+        expect(validateInstallResultsEnvelope(envelope)).toBe(true)
+        expect(envelope.results).toEqual([childResult])
+      } else {
+        expect(failedRun.stdout).toContain('publish-plugin@other')
+        expect(failedRun.stdout).toContain('unresolved failures')
+        expect(failedRun.stdout).not.toContain('install complete')
+      }
+    }
+
   })
 
   it('rejects a tampered release archive before replacing the installed bundle', () => {
@@ -1693,7 +1732,7 @@ cp "$TEST_RELEASE_DIR/$(basename "$url")" "$out"
     })
 
     const cursor = install('cursor', {})
-    const codex = install('codex', { PLUXX_CODEX_CONFIG_PATH: resolve(ROOT, 'cross-host-codex-config.toml') })
+    const codex = install('codex', {})
 
     expect(cursor.status, cursor.stdout + '\n' + cursor.stderr).toBe(0)
     expect(codex.status, codex.stdout + '\n' + codex.stderr).toBe(0)
@@ -3201,5 +3240,73 @@ with tarfile.open(archive, 'w:gz') as tf:
     expect(run.stdout).toContain('removed 1 stale owned registration(s)')
     expect(existsSync(oldAgentPath)).toBe(false)
     expect(existsSync(resolve(ROOT, 'codex-home/agents/publish-plugin/nested/reviewer.toml'))).toBe(true)
+  })
+})
+
+
+describe('generated Codex marketplace collision contract', () => {
+  it('rejects an external Codex home before spawning the installer', () => {
+    const external = resolve(ROOT, 'external-host')
+    mkdirSync(external, { recursive: true })
+    const sentinel = resolve(external, 'config.toml')
+    writeFileSync(sentinel, '# external sentinel\n')
+    expect(() => runGeneratedInstaller('codex', { env: { CODEX_HOME: external } })).toThrow('Codex test isolation rejected CODEX_HOME')
+    expect(readFileSync(sentinel, 'utf8')).toBe('# external sentinel\n')
+  })
+  const nativeRow = (marketplace: string, version = '1.2.3', enabled = true, name = 'publish-plugin') => ({
+    pluginId: `${name}@${marketplace}`, name, marketplaceName: marketplace, version, installed: true, enabled,
+    source: { source: 'local', path: `/synthetic/${marketplace}/private-source-sentinel` },
+  })
+  function runCollision(installed: unknown[], postWrite = false) {
+    return runGeneratedInstaller('codex', {
+      config: { ...makeConfig(), targets: ['codex'] },
+      prepareRuntime(root) {
+        const inventory = resolve(root, 'native-inventory.json')
+        const next = resolve(root, 'native-next.json')
+        writeFileSync(inventory, JSON.stringify({ installed: postWrite ? [] : installed }))
+        writeFileSync(next, JSON.stringify({ installed }))
+        return { PLUXX_TEST_CODEX_INVENTORY: inventory, ...(postWrite ? { PLUXX_TEST_CODEX_NEXT_INVENTORY: next } : {}),
+          PLUXX_INSTALL_RESULT_FILE: resolve(root, 'terminal.json') }
+      },
+    })
+  }
+  it.each(['1.2.3', '1.0.0'])('fails without mutating the conflicting inventory at version %s', version => {
+    const run = runCollision([nativeRow('publish-plugin-local'), nativeRow('other', version)])
+    expect(run.status, run.stderr).toBe(1)
+    const result = JSON.parse(readFileSync(resolve(run.rootDir, 'terminal.json'), 'utf8'))
+    expect(result).toMatchObject({ state: 'failed', reason: 'same-name-cross-marketplace', diagnostics: [{ totalConflicts: 1 }] })
+    expect(result.diagnostics[0].requested.selector).toBe('publish-plugin@publish-plugin-local')
+    expect(run.stderr).toContain(`publish-plugin@other (${version};`)
+    expect(run.stderr).not.toContain('private-source-sentinel')
+    expect(existsSync(run.pluginInstallDir)).toBe(false)
+    expect(JSON.parse(readFileSync(resolve(run.rootDir, 'native-inventory.json'), 'utf8')).installed).toHaveLength(2)
+  })
+  it('keeps clean, disabled and unrelated selectors successful', () => {
+    const run = runCollision([nativeRow('publish-plugin-local'), nativeRow('disabled', '1.0.0', false), nativeRow('other', '1.0.0', true, 'unrelated')])
+    expect(run.status, run.stderr).toBe(0)
+    expect(JSON.parse(readFileSync(resolve(run.rootDir, 'terminal.json'), 'utf8')).state).toBe('installed')
+  })
+  it('rolls back a post-write collision without losing the terminal diagnostic', () => {
+    const run = runCollision([nativeRow('other')], true)
+    expect(run.status, run.stderr).toBe(1)
+    expect(JSON.parse(readFileSync(resolve(run.rootDir, 'terminal.json'), 'utf8')).reason).toBe('same-name-cross-marketplace')
+    expect(existsSync(run.pluginInstallDir)).toBe(false)
+  })
+  it('checks unchanged installs and emits exactly one JSON failure', () => {
+    const run = runCollision([])
+    expect(run.status, run.stderr).toBe(0)
+    const script = resolve(run.rootDir, 'rerun.sh')
+    writeFileSync(script, run.installerContent)
+    const inventory = resolve(run.rootDir, 'native-inventory.json')
+    writeFileSync(inventory, JSON.stringify({ installed: [nativeRow('other')] }))
+    const before = readFileSync(resolve(run.pluginInstallDir, '.codex-plugin/plugin.json'), 'utf8')
+    const result = spawnSync('bash', [script, '--json'], { encoding: 'utf8', env: {
+      ...isolatedInstallerEnvironment(process.env), HOME: resolve(run.rootDir, 'home'), CODEX_HOME: resolve(run.rootDir, 'home/.codex'),
+      ...getGeneratedInstallerPaths('codex', run.rootDir).env, PLUXX_CODEX_BUNDLE_PATH: run.archivePath,
+      PLUXX_TEST_CODEX_INVENTORY: inventory,
+    } })
+    expect(result.status, result.stderr).toBe(1)
+    expect(JSON.parse(result.stdout)).toMatchObject({ state: 'failed', reason: 'same-name-cross-marketplace' })
+    expect(readFileSync(resolve(run.pluginInstallDir, '.codex-plugin/plugin.json'), 'utf8')).toBe(before)
   })
 })
