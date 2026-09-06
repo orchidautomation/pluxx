@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { CodexPluginCollisionError } from '../codex-plugin-collisions'
 
 import { existsSync, readFileSync } from 'fs'
 import { loadConfig } from '../config/load'
@@ -364,7 +365,12 @@ export async function main() {
       await runInit()
       break
     case 'install':
-      await runInstall()
+      try { await runInstall() } catch (error) {
+        if (!(error instanceof CodexPluginCollisionError)) throw error
+        if (runtime.jsonOutput) printJson(error.result)
+        else console.error(error.message)
+        process.exitCode = 1
+      }
       break
     case 'verify-install':
       await runVerifyInstall()
@@ -3780,7 +3786,7 @@ async function runInstall() {
   })
   await installPlugin(distDir, config.name, platforms, {
     config,
-    quiet: runtime.quiet,
+    quiet: runtime.quiet || runtime.jsonOutput,
     resolvedUserConfig,
   })
 }

@@ -1,0 +1,11 @@
+#!/usr/bin/env node
+// Test-only native inventory stub. Never falls through to an operator's Codex.
+import fs from 'node:fs'
+if (process.argv.slice(2).join(' ') !== 'plugin list --json') process.exit(2)
+let file = process.env.PLUXX_TEST_CODEX_INVENTORY
+if (process.env.PLUXX_TEST_CODEX_NEXT_INVENTORY && file) {
+  const counter = file + '.calls'
+  if (fs.existsSync(counter)) file = process.env.PLUXX_TEST_CODEX_NEXT_INVENTORY
+  else fs.writeFileSync(counter, '1')
+}
+process.stdout.write(file ? fs.readFileSync(file, 'utf8') : '{"installed":[],"available":[]}\n')

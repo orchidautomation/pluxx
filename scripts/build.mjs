@@ -16,7 +16,7 @@ await build({
   entryPoints: ['src/index.ts'],
   outdir: 'dist',
   bundle: true,
-  external: ['yaml'],
+  external: ['jiti', 'yaml'],
   format: 'esm',
   platform: 'node',
   target: 'node18',

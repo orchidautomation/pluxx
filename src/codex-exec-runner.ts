@@ -129,7 +129,12 @@ export async function executeCodexExecCommand(
         const exceededDeadline = timedOut || elapsedMs > options.timeoutMs
         const stdout = Buffer.concat(stdoutChunks).toString('utf-8')
         const stderr = Buffer.concat(stderrChunks).toString('utf-8')
-        const lastMessage = readCodexLastMessage(lastMessagePath)
+        // Codex 0.148 can complete delegated runs without populating
+        // --output-last-message. Preserve that file as the primary contract,
+        // but recover response content from the final JSONL agent message.
+        // An agent_message is not a terminal signal: turn.completed or the
+        // process exit remains authoritative.
+        const lastMessage = readCodexLastMessage(lastMessagePath) || readLastAgentMessage(stdout)
         const timeoutMessage = exceededDeadline && !killedAfterFinalMessage && !sawTurnCompleted
           ? `behavioral runner timed out after ${options.timeoutMs}ms`
           : ''
@@ -163,6 +168,30 @@ export async function executeCodexExecCommand(
 function readCodexLastMessage(path: string): string {
   if (!existsSync(path)) return ''
   return readFileSync(path, 'utf-8').trim()
+}
+
+function readLastAgentMessage(stdout: string): string {
+  let lastMessage = ''
+  for (const line of stdout.split('\n')) {
+    const trimmed = line.trim()
+    if (!trimmed) continue
+    try {
+      const event = JSON.parse(trimmed) as {
+        type?: string
+        item?: { type?: string; text?: string }
+      }
+      if (
+        event.type === 'item.completed'
+        && event.item?.type === 'agent_message'
+        && typeof event.item.text === 'string'
+      ) {
+        lastMessage = event.item.text.trim()
+      }
+    } catch {
+      // Ignore non-JSON output; the runner already preserves it in stdout.
+    }
+  }
+  return lastMessage
 }
 
 function signalSpawnedProcess(
