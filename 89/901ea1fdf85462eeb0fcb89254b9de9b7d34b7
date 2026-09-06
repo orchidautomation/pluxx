@@ -1,0 +1,95 @@
+docs/start-here.md
+  s_3a87cfcb2d86bb::t_b6e9639d906629 125,132,342
+src/validation/platform-rules.ts
+  s_3a87cfcb2d86bb::t_b6e9639d906629 937
+test-fixtures/codex-plugin-inventory/isolation.ts
+  s_3a87cfcb2d86bb::t_b6e9639d906629 1-15
+docs/todo/master-backlog.md
+  s_3a87cfcb2d86bb::t_b6e9639d906629 354,671-672
+src/install-contract.ts
+  s_3a87cfcb2d86bb::t_b6e9639d906629 2,24,84-86,95,98-113
+docs/orchid/plans/2026-09-06-pluxx-352-codex-marketplace-collisions.md
+  s_3a87cfcb2d86bb::t_b6e9639d906629 1-128
+docs/orchid/receipts/2026-08-31-pluxx-309-execution-shape.json
+  s_3a87cfcb2d86bb::t_b6e9639d906629 1-37
+scripts/verify-node-package-runtime.mjs
+  s_3a87cfcb2d86bb::t_b6e9639d906629 100-106
+tests/publish.test.ts
+  ai_agent 1-3,506-508,522-523,1269,1316-1359,1375,1793,3303-3368
+docs/core-four-provider-docs-audit.md
+  s_3a87cfcb2d86bb::t_b6e9639d906629 239
+docs/roadmap.md
+  s_3a87cfcb2d86bb::t_b6e9639d906629 100,231,237
+docs/core-four-install-update-lifecycle.md
+  s_3a87cfcb2d86bb::t_b6e9639d906629 110-152
+docs/proof-manifest.json
+  s_3a87cfcb2d86bb::t_b6e9639d906629 5
+docs/core-four-primitive-matrix.md
+  s_3a87cfcb2d86bb::t_b6e9639d906629 122,141,235
+src/agent-translation-registry.ts
+  s_3a87cfcb2d86bb::t_b6e9639d906629 28
+src/cli/doctor.ts
+  s_3a87cfcb2d86bb::t_b6e9639d906629 1,49,113-114,2917-2925
+src/codex-plugin-collisions.ts
+  s_3a87cfcb2d86bb::t_b6e9639d906629 1-142
+tests/codex-agent-probe.test.ts
+  s_3a87cfcb2d86bb::t_b6e9639d906629 93-105,254-304
+src/cli/install.ts
+  ai_agent 2,1554-1557,1610-1611
+src/codex-agent-probe.ts
+  s_3a87cfcb2d86bb::t_b6e9639d906629 68,390,522-529,552,559-567
+src/codex-exec-runner.ts
+  s_3a87cfcb2d86bb::t_b6e9639d906629 132-137,173-194
+docs/core-four-primitive-proof-ledger.md
+  s_3a87cfcb2d86bb::t_b6e9639d906629 49,52
+src/index.ts
+  s_3a87cfcb2d86bb::t_b6e9639d906629 176-177
+tests/verify-install.test.ts
+  s_3a87cfcb2d86bb::t_b6e9639d906629 1709-1728
+docs/todo/queue.md
+  s_3a87cfcb2d86bb::t_b6e9639d906629 59,167,175
+scripts/build.mjs
+  s_3a87cfcb2d86bb::t_b6e9639d906629 19
+tests/codex-mcp-probe.test.ts
+  s_3a87cfcb2d86bb::t_b6e9639d906629 163,168-181,300-301,306-307,316,320-325,327
+test-fixtures/codex-plugin-inventory/cli-0.149.1.json
+  s_3a87cfcb2d86bb::t_b6e9639d906629 1-41
+tests/install-contract.test.ts
+  s_3a87cfcb2d86bb::t_b6e9639d906629 1-25
+docs/core-four-reliability-register.md
+  s_3a87cfcb2d86bb::t_b6e9639d906629 3,48,74,166,179,319
+tests/codex-plugin-collisions.test.ts
+  s_3a87cfcb2d86bb::t_b6e9639d906629 1-63
+test-fixtures/codex-plugin-inventory/README.md
+  s_3a87cfcb2d86bb::t_b6e9639d906629 1-11
+src/cli/publish.ts
+  ai_agent 12-13,841,850,852,856-889,2881-2918,2933,2951,2978,3059
+src/cli/verify-install.ts
+  s_3a87cfcb2d86bb::t_b6e9639d906629 109
+site/overview/core-four-primitive-matrix.mdx
+  s_3a87cfcb2d86bb::t_b6e9639d906629 118,137
+src/cli/index.ts
+  s_3a87cfcb2d86bb::t_b6e9639d906629 2,368-373,3789
+src/codex-mcp-probe.ts
+  s_3a87cfcb2d86bb::t_b6e9639d906629 160-161
+tests/setup/bin/codex
+  s_3a87cfcb2d86bb::t_b6e9639d906629 1-11
+docs/orchid/qa/2026-08-31-pluxx-309-codex-cli-proof.md
+  s_3a87cfcb2d86bb::t_b6e9639d906629 1-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "89901ea1fdf85462eeb0fcb89254b9de9b7d34b7",
+  "prompts": {},
+  "sessions": {
+    "s_3a87cfcb2d86bb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0789c-0fc9-7562-a55c-8f1be212ffd2",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Brandon Guerrero <brandon@orchidautomation.com>"
+    }
+  }
+}
