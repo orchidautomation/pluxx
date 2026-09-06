@@ -8,6 +8,7 @@ import {
   type HostDetectionEvidenceType,
   type HostDetectionReport,
 } from '../src/host-detection'
+import { buildInstallPlan, INSTALL_RESULT_SCHEMA, validateInstallResultsEnvelope } from '../src/install-contract'
 import type { TargetPlatform } from '../src/schema'
 
 let rootDir = ''
@@ -30,6 +31,27 @@ afterEach(() => {
 })
 
 describe('host detection', () => {
+  it('keeps aggregate installer planning explicit about absent hosts', () => {
+    expect(buildInstallPlan(['codex'], undefined).targets.map(({ target, detected, reason }) => ({ target, detected, reason }))).toEqual([
+      { target: 'claude-code', detected: false, reason: 'host-not-detected' },
+      { target: 'cursor', detected: false, reason: 'host-not-detected' },
+      { target: 'codex', detected: true, reason: undefined },
+      { target: 'opencode', detected: false, reason: 'host-not-detected' },
+    ])
+  })
+
+  it('validates terminal installer results and required failure actions', () => {
+    const envelope = {
+      schema: INSTALL_RESULT_SCHEMA,
+      plugin: { name: 'demo', version: '1.0.0' },
+      selectionMode: 'explicit' as const,
+      plan: [{ target: 'codex' as const, detected: false, selected: true }],
+      results: [{ target: 'codex' as const, state: 'failed' as const, error: 'missing', action: 'rerun' }],
+    }
+    expect(validateInstallResultsEnvelope(envelope)).toBe(true)
+    expect(validateInstallResultsEnvelope({ ...envelope, results: [{ target: 'codex', state: 'skipped' }] })).toBe(false)
+  })
+
   it('detects core-four host families from CLI, app, config, project config, and installed plugin evidence', () => {
     writeExecutable('claude')
     writeExecutable('cursor-agent')

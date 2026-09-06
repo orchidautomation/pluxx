@@ -1,6 +1,6 @@
 # Core-Four Install And Update Lifecycle
 
-Last updated: 2026-07-11
+Last updated: 2026-07-16
 
 This doc explains the practical install, update, and reload behavior for the four primary Pluxx targets:
 
@@ -81,6 +81,14 @@ pluxx install --target codex --dry-run --json
 
 then `targetSelection.selectedTargets` stays `["codex"]` even if Pluxx also detects Cursor or OpenCode locally. Detection can suggest install targets for planning and generated installer UX, but it does not override `--target` or rewrite host configs just because a host exists.
 
+## Legacy Pre-Ownership Upgrade Rule
+
+Generated release installers are conservative when upgrading installs that predate `pluxx.install-ownership.v1`. They may adopt and replace a legacy install once only when the installed host manifest parses and its plugin/package identity matches the trusted candidate bundle for that same host. The installer still preserves `.pluxx-user.json`, keeps install-scoped locking/staging/rollback behavior, and writes the normal ownership ledger only after a successful commit.
+
+For OpenCode, the same adoption path recognizes Pluxx-generated wrapper files and namespaced skill companions, then migrates them into owned companion ledgers. Unrecognized wrapper or skill collisions still fail closed instead of being overwritten.
+
+Missing, malformed, or mismatched legacy manifests, arbitrary directories, and modified/missing/extra content in already ownership-managed installs remain refusal cases.
+
 ## Important Distinction
 
 There are two different update cases:
@@ -98,6 +106,49 @@ That means:
 - OpenCode: tell the user to restart or reload
 
 ## Codex Note
+
+### Same-name plugins in different marketplaces
+
+The PLUXX-352 source change adds an enabled-plugin collision check to local and
+generated Codex installs, consumer doctor, and `verify-install`. This is source
+behavior pending a separate release; existing published installer scripts do
+not gain the check automatically.
+
+Installing `example@personal` does not supersede `example@another-marketplace`.
+If another installed, enabled selector exposes the same plugin name, verification
+returns `same-name-cross-marketplace` with the requested and conflicting
+selectors, versions, and hashed source identities. Equal versions still collide.
+Explicitly disabled plugins and different plugin names are ignored. This reports
+potential discovery ambiguity, not proof that every bundled skill or tool overlaps.
+
+An explicit install fails with a nonzero exit. Generated aggregate installers
+preserve the Codex `failed` record and its additive `diagnostics` array under
+`pluxx.install-results.v1`, continue other targets, and return nonzero overall.
+The unchanged shortcut must pass the check too. A generated post-write collision
+rolls back the requested transaction; pre-existing conflicting plugins are never
+disabled, uninstalled, or deleted by this diagnostic. Local install errors may
+leave requested-target writes already committed by existing transaction boundaries.
+
+Review the exact selectors in Codex's native plugin manager, choose which to keep
+enabled, disable or remove only the chosen conflicting selector, refresh/restart,
+and rerun verification. Intentional parallel installations still report the
+ambiguity; the installer does not choose a preferred marketplace.
+
+The reader uses `codex plugin list --json` with a timeout and output limit. Its
+schema was verified against CLI 0.149.1 in an isolated synthetic home; this does
+not prove active-session discovery or compatibility with every CLI version.
+Missing CLI support, malformed inventory, or ambiguous requested identity returns
+`codex-plugin-inventory-unavailable`, not clean success. Native cache paths and
+matching catalog entries establish the requested marketplace; library callers
+checking built bundles or nonstandard locations can supply
+`DoctorConsumerOptions.codexMarketplace` explicitly. Cache presence alone is
+never evidence that a selector is enabled.
+
+Diagnostics retain at most 20 sorted conflicts, with total and omitted counts.
+Source locations are hashed, and raw config, credential-bearing URLs, and provider
+stderr are excluded. Inspection is a snapshot; later operator changes require
+another verification. Catalog materialization remains separate from native plugin
+activation.
 
 The official Codex plugin docs audited in April 2026 still describe plugin updates in restart-oriented terms.
 
@@ -121,6 +172,21 @@ When a Pluxx-generated Codex plugin includes `.mcp.json`, Codex may display that
 If the installed Codex bundle also declares plugin-bundled hooks, `doctor --consumer` and `verify-install` now warn when the checked project and user Codex config layers do not enable the canonical `[features].hooks = true` hook flag. These warnings do not mean the bundle is malformed. They mean hook activation is missing a known prerequisite, not that activation is guaranteed once that prerequisite exists. `codex_hooks` is deprecated and should not be treated as the current hook feature key.
 
 Generated `pluxx publish --github-release` Codex curl installers also handle this prerequisite for hook-bearing bundles. The generated `install-codex.sh` detects `.codex-plugin/plugin.json` `hooks` or `hooks/hooks.json`, checks `$CODEX_HOME/config.toml` or `~/.codex/config.toml` by default, prompts interactive users to enable `[features].hooks = true`, supports `PLUXX_CODEX_ENABLE_PLUGIN_HOOKS=1` or `0` for lower-level automation, and prints the exact TOML plus restart/refresh guidance when the user skips the edit. The generated top-level `install.sh -y` front door sets that Pluxx automation approval for Codex while keeping downstream plugin docs free of Codex-specific env flags.
+
+### Composable release-install results
+
+Generated release installers also expose the versioned `pluxx.install-results.v1`
+contract. `install.sh --plan` prints the deterministic core-four selection plan;
+`--agents` is aggregate mode and records undetected hosts as
+`skipped`/`host-not-detected`, while explicit `--claude-code`, `--cursor`,
+`--codex`, or `--opencode` selections remain authoritative and report
+prerequisite errors as `failed`. `--json` reserves stdout for one terminal
+result per selected target (`installed`, `updated`, `unchanged`, `skipped`, or
+`failed`); `--quiet` suppresses decorative progress without hiding stderr
+errors or corrective action. Consumers should validate the envelope rather than
+scrape human output. A fully owned, byte-identical bundle may complete as
+`unchanged` before the transaction swap; checksum, ownership, companion,
+verification, and rollback gates remain unchanged.
 
 Those consumer checks now also warn when the checked project is not trusted in the user Codex config, because Codex can keep project-local hooks disabled until that trust entry exists. `verify-install` now carries those `doctor --consumer` issue details through directly, so operators see the specific warning code, explanation, and fix instead of only a warning count.
 
@@ -209,7 +275,7 @@ If a plugin needs native Node dependencies such as `@duckdb/node-api`, do not as
 
 The safer pattern is:
 
-- `load-env.sh` for runtime env loading
+- `load-env.sh` for runtime env loading, implemented with a dotenv text parser rather than shell `source`
 - `bootstrap-runtime.sh` for first-run local native dependency install
 - `start-mcp.sh` as the MCP entrypoint
 - no runtime dependence on installer-mutated `check-env.sh`
@@ -217,7 +283,12 @@ The safer pattern is:
 This is now also a compiler-owned contract, not only doc guidance:
 
 - `lint` and `doctor` read from one shared runtime-script contract for the installer-owned `check-env.sh` rule
+- `lint`, `doctor`, `build`, installed-bundle doctor checks, and verify/install integrity checks reject bundled shell scripts that use `source` or `.` to load workspace `.env` files, because that would execute command substitutions after the Pluxx-generated dotenv parser already preserved them as literal text
 - the recommended portable runtime role split is centralized alongside that rule so follow-on runtime validation work can reuse it instead of restating it
+- generated release installers use that split to prepare one content-addressed native Node runtime under `~/.pluxx/runtimes/` when the explicit contract declares deterministic inputs including a lockfile, then link each compatible staged host bundle to the same immutable runtime output
+- the shared runtime key comes from the compiler-emitted `.pluxx-runtime.json`, every declared input, bootstrap content, plugin namespace, OS, architecture, Node ABI, and the Pluxx runtime-store contract version
+- cache generations are read-only, stale locks recover by owner PID, corruption repair switches a stable `current` symlink atomically, and post-commit references drive grace-period cleanup
+- if safe shared-runtime reuse is unavailable, including when dependency metadata has no supported lockfile, generated installers log the fallback and run `bootstrap-runtime.sh` in the staged host bundle as before
 - Codex local installs now rewrite plugin-owned stdio MCP command/arg paths to absolute installed plugin paths so installed MCP launch does not depend on the active workspace cwd
 - source-project runtime payload checks now treat bundled `scripts/`, `assets/`, and `passthrough` payload as one runtime surface when validating local stdio MCP startup paths
 - `doctor --consumer` now also reports which known runtime script-role files are actually present in an installed bundle

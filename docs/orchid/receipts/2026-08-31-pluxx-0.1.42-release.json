@@ -1,0 +1,53 @@
+{
+  "schema": "orchid.release.receipt/v1",
+  "repository": "orchidautomation/pluxx",
+  "sourceCommit": "0f6621a39c02aa69ad3363ad22ada429175779b7",
+  "target": "@orchid-labs/pluxx@0.1.42 and GitHub Release v0.1.42",
+  "mode": "apply",
+  "states": [
+    {
+      "name": "merged",
+      "status": "passed",
+      "evidence": "Human-merged PR #487 produced trusted main commit 0f6621a39c02aa69ad3363ad22ada429175779b7; tested release-prep commit aa13f53f938eeba67d38b22de7070dcbff57eb44 is its ancestor."
+    },
+    {
+      "name": "packaged",
+      "status": "passed",
+      "evidence": "Trusted Release run 33405498774 passed package-runtime verification and packed orchid-labs-pluxx-0.1.42.tgz (764229 bytes)."
+    },
+    {
+      "name": "released",
+      "status": "passed",
+      "evidence": "Immutable tag v0.1.42 resolves to source commit 0f6621a39c02aa69ad3363ad22ada429175779b7; trusted Release run 33405498774 published npm 0.1.42 and GitHub Release v0.1.42 successfully."
+    },
+    {
+      "name": "deployed",
+      "status": "not-applicable",
+      "evidence": "Pluxx 0.1.42 is a package and release-asset distribution; no application deployment belongs to this release target."
+    },
+    {
+      "name": "installed",
+      "status": "not-applicable",
+      "evidence": "Verification used isolated registry CLI and compatible-client fixture paths only; no active user home or real Codex Agent Plugins installation was changed or claimed."
+    },
+    {
+      "name": "health-checked",
+      "status": "passed",
+      "evidence": "Isolated `npx --yes @orchid-labs/pluxx@0.1.42 --version` reported 0.1.42; the published CLI built and tested the strict agent-plugins target successfully in an isolated fixture."
+    },
+    {
+      "name": "target-verified",
+      "status": "passed",
+      "evidence": "npm integrity is sha512-Mw63WOao0GXFVcqNw3w4Axs1+5nQhb+wtNWJWwOy8SYwuKvlF3r4G+NSjgGd+ZEoqfS1V1gKm3nXsNPjbOtKaw== (SHA-1 75897201dab8fdbd753c6fceaa9ac23e4c4846c9); npm and GitHub tarballs are byte-identical at SHA-256 c4e97ed5eb23703e445ed60a7e5e14f5d096cbd56a291222abf85f94731aadf3. The public CLI fixture emitted only mcp.json, plugin.json, and skills/release-portable/SKILL.md with tree digest 7f1264d055421f8b7570f9ca9764a2232a2d6dc9046fd90984fb5a43203e1efa, dropping hooks with the expected native-only warning."
+    }
+  ],
+  "authorization": "explicit-action-time",
+  "rollback": "npm versions and the immutable tag are not rewritten or unpublished. If a defect is found, deprecate 0.1.42 where warranted, document the failure, and publish a corrected higher patch from a newly reviewed trusted-main commit.",
+  "providers": [
+    "github-actions",
+    "github-releases",
+    "npm"
+  ],
+  "verdict": "target-verified",
+  "observedAt": "2026-08-31T15:18:36Z"
+}

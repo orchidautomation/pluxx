@@ -1,10 +1,10 @@
 # Proof Freshness And Evidence Tiers
 
-Last updated: 2026-07-12
+Last updated: 2026-08-31
 
 This document defines how Pluxx distinguishes repeatable repository checks from installed and real-host evidence. The machine-readable source is [proof-manifest.json](./proof-manifest.json), validated by `npm run proof:check`.
 
-Current reviewed receipts for v0.1.32 are `v0.1.32-repository-validation` (`bundle-contract`, `current`) and `v0.1.32-fake-home-install` (`fake-home-install`, `current`). They cite committed release-prep state only after `npm run release:check` passed. The v0.1.31 receipts remain historical. Neither current tier is installed-runtime or real-host behavior evidence.
+The canonical independently verified public release is `@orchid-labs/pluxx@0.1.43` / `v0.1.43` for PLUXX-350, carrying the PLUXX-349 deterministic core-four install plan and `pluxx.install-results.v1` structured result contract. Immutable tag `v0.1.43` resolves to trusted merge `87e759d76c7cdaefd1bff81969b4cb1ba10091d3`; Release run [33532188948](https://github.com/orchidautomation/pluxx/actions/runs/33532188948) published byte-identical npm and GitHub tarballs at SHA-256 `2851a386dc415fd37e124fa132d70af516fee062a8ac355310ea157fa8d2dfc3`. npm reports integrity `sha512-r5SqLhnApGzkiALPNUhtpCfQELdrFMQgzsGgVxvJbfIQETDY3x4kQYub4J88/bZhSKmVqb2u0fB7c6dNspQdiQ==`, and the isolated registry CLI reports `0.1.43`. Trusted release CI supplies fresh repository and native core-four fake-home proof. The 0.1.42 receipts are historical. No current receipt claims active-home installation or real-host behavior.
 
 ## Version And Freshness Policy
 
@@ -32,6 +32,14 @@ Current reviewed receipts for v0.1.32 are `v0.1.32-repository-validation` (`bund
 Each receipt records commit SHA, package version, timestamp, proof tier, commands, target and host versions, installed paths, hashes, and outcomes. Older evidence may provide a reason when an environment field was not captured.
 
 Current claims in `docs/proof-manifest.json` must resolve to a receipt whose tier and freshness match the claim. CI also rejects obsolete release-prep/current-version language in canonical planning and proof docs.
+
+## Immutable-Tag Recovery Contract
+
+An existing immutable tag may be recovered only after a reviewed workflow change lands on the exact current trusted `main` commit. The workflow must prove that the tag commit belongs to current `main`, that the checked-out tag, package version, and artifact identity match, and that the tagged checkout has no tracked changes.
+
+The recovery reruns build, typecheck, the full test suite, packaged-runtime verification, and dry-run packaging against the exact tag tree. It may then create an ephemeral proof-manifest overlay that binds only the existing current receipt set to that exact tag and the newly passed commands. The normal `proof:check` command must pass against the overlay. The workflow must restore the committed manifest and re-prove a clean tag checkout before packing the publish candidate.
+
+The recovery receipt records the exact tag commit and tree, trusted-main workflow commit, validation outcomes, proof baseline and overlay hashes, and package artifact hashes. The final npm tarball and downloaded GitHub release asset must match the independently validated candidate hashes. Recovery does not move the tag, weaken the normal proof checker, or claim installed-runtime or real-host evidence.
 
 ## Real-Host Refresh Guidance
 

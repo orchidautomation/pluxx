@@ -1,6 +1,6 @@
 # Master Backlog
 
-Last updated: 2026-07-14
+Last updated: 2026-08-31
 
 This is the most complete repo-native backlog for Pluxx.
 
@@ -35,6 +35,7 @@ This is not the same thing as the short queue.
   - [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
   - [docs/pluxx-self-hosted-core-four-proof.md](../pluxx-self-hosted-core-four-proof.md)
   - [docs/core-four-provider-docs-audit.md](../core-four-provider-docs-audit.md)
+  - [docs/new-host-support-gate.md](../new-host-support-gate.md)
   - [docs/core-four-reliability-register.md](../core-four-reliability-register.md)
   - [docs/core-four-translation-hit-list.md](../core-four-translation-hit-list.md)
   - [Compound Engineering primitive audit](../orchid/requirements/2026-07-13-compound-engineering-primitive-audit.md)
@@ -86,15 +87,102 @@ Any person or agent should be able to enter the repo and answer:
 
 Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) defines the five evidence tiers and freshness rules, while [proof-manifest.json](../proof-manifest.json) keeps machine-readable receipts and current/historical claim state aligned with `package.json`.
 
-### 0. v0.1.32 release recovery
+### 0. Historical v0.1.34 shared-runtime release
 
 - [x] Merge all nine PLUXX-313 through PLUXX-321 audit-remediation PRs into main at `f92e3cc`
-- [x] Prepare 0.1.32 in PLUXX-322 with synchronized package, proof, planning, and release truth
-- [x] Generate fresh repository-validation and fake-home-install receipts from committed 0.1.32 state
-- [x] Pass the official 751/751 serial suite and complete release gate
-- [x] Merge the release PR and push immutable tag `v0.1.32` at `188527e`
-- [ ] Merge the focused workflow-recovery PR after substantive checks and review are green
-- [ ] Coordinator: dispatch the existing tag through the trusted main workflow, verify npm/GitHub/tarball/CLI, then archive the completed batch
+- [x] Historical: prepare 0.1.34 with synchronized package, proof, planning, and release truth
+- [x] Historical: generate fresh repository-validation and fake-home-install receipts for 0.1.34 release-prep state
+- [x] Pass the official serial suite and complete release gate
+- [ ] Merge the release PR and push immutable tag `v0.1.34` from main
+- [ ] Merge the focused 0.1.34 shared-runtime release PR after substantive checks and review are green
+- [ ] Coordinator: dispatch the trusted tag workflow for `v0.1.34`, verify npm/GitHub/tarball/CLI, then archive the completed batch
+
+### 0. Historical v0.1.35 OpenCode plugin-root patch release
+
+- [x] Merge PLUXX-335 OpenCode plugin-root/workspace-root fix
+- [x] Historical: prepare 0.1.35 with synchronized package, proof, planning, and release truth
+- [x] Pass `npm run release:check`
+- [x] Push immutable tag `v0.1.35` from main
+- [x] Verify `@orchid-labs/pluxx@0.1.35`, GitHub release assets, tarball contents, and CLI behavior
+- [x] Complete PLUXX-337: generated local and release OpenCode top-level wrappers preserve `context.directory` exactly while the inner bundle continues to derive plugin root from its installed module URL.
+- [x] Cut and verify v0.1.36 after PLUXX-337 merged.
+
+### 0. Historical v0.1.36 OpenCode installed-wrapper workspace patch release
+
+- [x] Historical: prepare 0.1.36 through PLUXX-337 with synchronized package, proof, planning, generated release, local install, doctor, verify-install, legacy-adoption, and example fixture truth.
+- [x] Pass `npm run release:check`
+- [x] Push immutable tag `v0.1.36` from main
+- [x] Verify `@orchid-labs/pluxx@0.1.36`, GitHub release assets, tarball contents, and CLI behavior
+
+### 0. Historical v0.1.37 runtime env-sourcing security patch release
+
+- [x] Merge PLUXX-339 through PR #456 at exact reviewed head `b888c62dc7905fd66c9fdf50c4e752984fee5b48`
+- [x] Historical: prepare synchronized 0.1.37 package, proof, planning, and release truth
+- [x] Bind current receipts to commands observed directly against immutable tag commit `d5184752cd4898306390f20455619c34a42099dd`; preserve the distinct pre-squash `f7ee0bd5d6cf5f8b75dec7df6dcda85dcf5a7af8` receipts as historical
+- [x] Pass `npm run release:check`
+- [x] Merge the focused release PR and push immutable tag `v0.1.37`
+- [x] Confirm the first release run failed closed at proof freshness before pack or publication
+- [x] Merge recovery PR #458 at exact reviewed head `5f8a0d58786a7aae4e495bf7dbc484cbc12b348f` and dispatch the fail-closed immutable-tag recovery from trusted-main commit `044673f947115bcf6117dd7c0139918bdd248a99`
+- [x] Verify `@orchid-labs/pluxx@0.1.37`, GitHub release assets and recovery receipt, byte-identical npm/GitHub tarballs, immutable tag/tree identity, and installed CLI behavior
+
+### 0. Historical v0.1.38 PLUXX-340 manifest-identity correction
+
+- [x] Merge PR #461 exact reviewed head `b839f6d93ec1174c4da5dcfb1554c7c6f8f294d5` as trusted main commit `b979bc6e02bb9801fa623f80302000553a0693c7`
+- [x] Historical: prepare synchronized 0.1.38 package, proof, planning, recovery-default, and release truth
+- [x] Bind fresh repository-validation and fake-home-install receipts to exact immutable release-prep commit `361958f6b16b1acc2bb901c97fc2c6d5a77ba880`
+- [x] Pass focused and full release gates plus independent review; review record: [2026-07-25-pluxx-340-release-0.1.38-review.md](../orchid/reviews/2026-07-25-pluxx-340-release-0.1.38-review.md)
+- [x] Merge PR #462 exact reviewed head `cbc14e007626328a8d25340419a455f40701426c` with true merge commit `e24d4db3f57fa0942376237fb212cb49368d7704`, prove PR-head and receipt ancestry, and push immutable tag `v0.1.38`
+- [x] Confirm tag-triggered Release run `30152484521` failed closed during the full test gate before pack or publication
+- [x] Merge recovery PR #463 exact head `4024ca07fe9cc78b98e93bb0931b8d91ddc36f0f` as trusted main `a67803184890795457d095da52f4a243d61daf2a`, then dispatch run `30154432818` without moving or recreating `v0.1.38`
+- [x] Verify npm, GitHub release assets and recovery receipt, byte-identical tarballs at SHA-256 `34af5bd24a441f13094b651658d6728509771a8cb9295f82b1bc66a985cb2c24`, immutable tag provenance, and isolated installed CLI `0.1.38`
+
+### 0. Active portable-core adoption lane after v0.1.42
+
+- [x] `PLUXX-346`: PR #486 merged the reviewed strict Agent Plugins v1 portable-core target while preserving the native core four; isolated clean-fixture discovery is not installed-host proof
+- [x] `PLUXX-347`: merge the fail-closed native-enhancement overlay policy through PR #482
+- [x] Merge the Codex installer failure-path rollback repair through PR #483 and carry it into public 0.1.42
+- [x] `PLUXX-348`: release preparation reconstructed from exact trusted `main` retained semver `0.1.42`, bumped package/proof/recovery truth, and added bounded fake-home compatible-client proof
+- [x] Bind final local repository, native fake-home, and portable compatible-client fixture receipts to exact release-prep commit `aa13f53f938eeba67d38b22de7070dcbff57eb44`; pass `npm run release:check` with 65 files / 868 tests plus packaged-runtime and dry-pack verification
+- [x] Human-merge release-prep PR #487 at trusted commit `0f6621a39c02aa69ad3363ad22ada429175779b7`, obtain action-time authorization, and publish through successful Release run `33405498774`
+- [x] Verify the public npm package, GitHub release asset, byte-identical SHA-256 `c4e97ed5eb23703e445ed60a7e5e14f5d096cbd56a291222abf85f94731aadf3`, isolated CLI `0.1.42`, isolated published portable-target smoke, and clean Cursor/Codex contract-fixture discovery; no active-home or real-host proof is implied
+- [ ] `MDP-221`: consume the exact published release and validate portable-core discovery separately from native hook parity
+- [ ] `MDP-222` and `MDP-218`: update downstream guidance and record the measured keep / further narrow / switch decision
+
+### 0. Historical completed v0.1.43 composable-installer release
+
+- [x] `PLUXX-349`: merge deterministic core-four planning, structured per-target terminal results, true unchanged no-ops, and checksum fail-fast repair through PR #491
+- [x] Historical: `PLUXX-350` prepared synchronized 0.1.43 package, proof, and release-plan truth through PR #494
+- [x] Bind fresh repository-validation and maintained core-four fake-home receipts to exact trusted tag commit `87e759d76c7cdaefd1bff81969b4cb1ba10091d3`
+- [x] Merge the release-prep PR, push immutable `v0.1.43`, and publish only through successful trusted Release run `33532188948`
+- [x] Independently verify npm/GitHub identity at byte-identical SHA-256 `2851a386dc415fd37e124fa132d70af516fee062a8ac355310ea157fa8d2dfc3` and hand the published version to `MDP-306`
+
+### 0. v0.1.41 Codex hook-root release
+
+- [x] PLUXX-345 source fix merged through PR #479 at trusted merge `fc16e218ede1f49ae2a9993983875b67613a24b5`
+- [x] Historical: prepare synchronized 0.1.41 package, proof, planning, recovery-default, and release truth
+- [x] Bind fresh repository-validation and fake-home-install receipts to exact release-prep commit `e3d9cd3389673dfa6ff8f22939c287dee20866db`
+- [x] Pass the complete release gate and merge PR #480 exact head `ad829457f49ee8846625ffdc3651ac11e439945c` with trusted merge `0379d2c646ad9b83fb31016d9d553ba5dea96e76`
+- [x] Push immutable tag `v0.1.41` and verify Release run `33254601754`, npm, GitHub release asset, byte-identical tarballs at SHA-256 `25e0039ad63f10a79970d8028c56461f9813cbfb522088be93beba18bde6508e`, tag provenance, and isolated CLI `0.1.41`
+- [ ] Capture installed Codex Desktop proof separately; package, fake-home, and isolated CLI evidence do not satisfy this host-proof tier
+- [ ] Execute the already-pushed MDP-211 and SENDOSS-174 rebuild plans after Relay can canonically bootstrap valid legacy issues from the unlabeled lifecycle state; do not bypass the failed `delegation.ready` transition with manual managed labels
+
+### 1. Historical v0.1.40 hook workspace precedence
+
+- [x] Merge PR #473 exact reviewed head `80e12d6cc50efb14749d8cb1968d3ec8170abdb7` as true merge commit `d893bb3d6aba5235481c51f8fb5b2d1c5e4065bb`
+- [x] Historical: prepare synchronized 0.1.40 package, proof, planning, recovery-default, and release truth
+- [x] Bind fresh repository-validation and fake-home-install receipts to exact release-prep commit `32019d73f046ce7b69a55bff0019e0afa948b0c0`
+- [x] Pass the full release gate and merge PR #474 exact head `220f249ed1bf0bc3a73b11d5dfdb71c4101b7692` with true merge commit `8a7152a0433a930608caca73283040c068762071`
+- [x] Push immutable tag `v0.1.40` and verify Release run `31283794540`, npm, GitHub release asset, byte-identical tarballs at SHA-256 `5e9b39c5ad0a2a2b99bf8335ae7b8e51552d7679744a2beafbd323e6b89e3ab3`, tag provenance, and isolated CLI `0.1.40`
+- [x] Historical downstream installed-artifact proof: rebuild Message Decision Packs against released Pluxx `0.1.40`, publish MDP `v0.1.61` from trusted merge `b7d28223f05e4bcc6b7ef9b5837ba3392faaf0f8`, and verify the documented all-agent installer plus an idempotent Codex reinstall on an installed host
+
+### 2. Historical v0.1.39 quiet OpenCode hook scope
+
+- [x] Merge PR #468 exact reviewed head `e4c11db` as true merge commit `a750c593f1fb694a71aa60365ae6f8792e51a246`
+- [x] Historical: prepare synchronized 0.1.39 package, proof, planning, recovery-default, and release truth
+- [x] Bind fresh repository-validation and fake-home-install receipts to exact release-prep commit `6ffb6337b351c5a87b985394f0c011d2c271a940`
+- [x] Pass focused and full release gates plus independent review; review record: [2026-08-05-pluxx-343-release-0.1.39-review.md](../orchid/reviews/2026-08-05-pluxx-343-release-0.1.39-review.md)
+- [x] Merge PR #470 exact reviewed head `4d0465930ead185d462f3e11c47281576098bcec` with true merge commit `9e404537e8f3b007cfadf67d90487efdad160f20` and push immutable tag `v0.1.39`
+- [x] Verify tag-triggered Release run `31023227838`, npm, GitHub release asset, byte-identical tarballs at SHA-256 `79a75caa36f636e34e03dbadc36376ca513c279cbae03fecab9c9da1235e2fe5`, immutable tag provenance, and isolated installed CLI `0.1.39`
 
 ### 1. Product clarity and front-door coherence
 
@@ -110,7 +198,7 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
   - marketplace submission APIs, managed trust/distribution, automatic remote rollback/unpublish, and live credentialed publish/rollback proof remain open
 - [~] Keep [docs/core-four-primitive-proof-ledger.md](../core-four-primitive-proof-ledger.md) current as the primitive-by-host proof ledger for the core-four native shipping claim
 - [~] Close the remaining ticket-state drift where shipped work can still appear as backlog in Linear
-- [~] Make Codex companion apply/verify the next concrete robustness slice so generated readiness, hook, MCP approval, and companion config artifacts become operational and verifiable instead of advisory only:
+- [~] Maintain the shipped Codex companion apply/verify surface and close only its remaining narrow runtime gaps:
   - `PLUXX-226`
   - `PLUXX-264`
   - `PLUXX-248`
@@ -122,7 +210,7 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
 - [ ] Decide which docs are public product docs vs strategy docs vs internal-only GTM docs
 - [ ] Move account-specific GTM and customer notes out of the public repo
 - [ ] Define a simple rule for when repo docs should be updated alongside Linear
-- [ ] Ship the first-class Codex companion apply and verify workflow as the next concrete product slice:
+- [x] Ship the first-class Codex companion apply and verify workflow; keep the remaining runtime caveats explicit:
   - register plugin-generated custom agents under the active `CODEX_HOME/agents/<plugin>/` through install and `codex apply`
   - verify missing, stale, conflicting, and unowned agent registrations
   - apply generated Codex companion config safely with reviewable diffs/backups
@@ -131,6 +219,7 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
   - keep execution aligned with `PLUXX-226`, `PLUXX-264`, and `PLUXX-248`
   - see [docs/orchid/decisions/2026-06-26-pluxx-next-ship-review.md](../orchid/decisions/2026-06-26-pluxx-next-ship-review.md)
 - [x] Add transactional install ownership so reinstall, uninstall, and "what did Pluxx touch?" diagnostics stay conservative:
+- [x] Add trusted pre-ownership adoption so generated release installers can upgrade legacy installs only when host manifest identity matches the candidate bundle:
   - shared core-four ownership records hash installed files and validate paths before mutation
   - copied installs and generated release installers use stage, backup, atomic swap, and rollback
   - modified and unowned files block replacement and survive uninstall
@@ -277,7 +366,7 @@ Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) de
   - add live environment proof for delegated agents, reload/discovery quirks, and publish/recovery flows beyond deterministic failure/reconciliation fixtures
   - continue simplifying the plugin-guided average-user path so the proof state is easier to use without maintainer-level CLI literacy
 - [ ] Close the highest-value open rows from the new reliability register:
-  - deeper Codex custom-agent config-depth proof beyond the now-pinned headless-plus-interactive `sandbox_mode = "read-only"` mismatch, the newly pinned headless `skills.config` disable/preload caveats, the newly pinned `mcp_servers = {}` inheritance ceiling, the newly pinned invalid agent-local model failure path, and the now-pinned same-name user-local model precedence cases, including installed-plugin skill preload, whether canonical authoring should preserve agent-local MCP config instead of only warning during migrate, how far generated `.codex/config.generated.toml` approval stanzas should go now that project-root, user-root, inherited delegated, and explicit empty-agent-MCP override paths are live-proven while agent-local inline approval no longer activates in the latest probe, and whether other approval or sandbox combinations behave differently
+  - deeper Codex custom-agent config-depth proof beyond the now-pinned headless-plus-interactive `sandbox_mode = "read-only"` mismatch, the newly pinned headless `skills.config` disable/preload caveats, the newly pinned `mcp_servers = {}` inheritance ceiling, the newly pinned invalid agent-local model failure path, and the now-pinned same-name user-local model precedence cases, including installed-plugin skill preload, whether canonical authoring should preserve agent-local MCP config instead of only warning during migrate, how far generated `.codex/config.generated.toml` approval stanzas should go now that project-root, user-root, inherited delegated, and explicit empty-agent-MCP override paths are live-proven while agent-local inline MCP now requires explicit per-tool approval in the August 31 Codex CLI 0.148.0 probe, and whether other approval or sandbox combinations behave differently
   - live Codex interactive-vs-headless hook execution proof across canonical `[features].hooks = true` and the deprecated `codex_hooks` alias
   - Claude managed-settings behavior beyond the current file-based verifier still requires a real managed-settings surface; the maintained probe now has shadow-scenario coverage for managed `disableAllHooks` and `allowManagedHooksOnly`, but registry, plist/MDM, server-managed policy, managed-scope plugin precedence, and broader hook-event proof are not closable from the current local environment alone
   - broader Codex and Claude adjunct distribution-surface proof
@@ -464,12 +553,17 @@ Open work:
 ### 7. Next release readiness
 
 - [x] Merge the nine v0.1.31 audit-remediation PRs
-- [x] Prepare and merge the focused v0.1.32 release PR under PLUXX-322
-- [x] Refresh current repository/fake-home receipts from committed 0.1.32 state
-- [x] Pass targeted checks, official serial 751/751 `npm test`, and `npm run release:check`
+- [x] Prepare and merge the historical focused v0.1.32 release PR under PLUXX-322
+- [x] Historical: prepare and merge the focused v0.1.33 legacy installer adoption PR under PLUXX-333
+- [x] Preserve historical repository/fake-home receipts from committed 0.1.32 state
+- [x] Historical: refresh repository/fake-home receipts from 0.1.33 tagged state
+- [x] Pass targeted checks, official serial 758/758 `npm test`, and `npm run release:check`
 - [x] Merge the release-prep PR and push `v0.1.32` at `188527e`
-- [ ] Merge the workflow-recovery PR, then dispatch the existing tag through the trusted main workflow
-- [ ] Verify `@orchid-labs/pluxx@0.1.32`, GitHub release assets, tarball contents, and CLI behavior
+- [x] Merge the PLUXX-333 release PR and push `v0.1.33` from main
+- [ ] Merge the 0.1.34 shared-runtime release PR, then dispatch the trusted tag workflow
+- [x] Verify `@orchid-labs/pluxx@0.1.32`, GitHub release assets, tarball contents, and CLI behavior
+- [x] Historical: verify `@orchid-labs/pluxx@0.1.33`, GitHub release assets, tarball contents, and CLI behavior
+- [ ] Verify `@orchid-labs/pluxx@0.1.34`, GitHub release assets, tarball contents, and CLI behavior
 
 ## Next
 
@@ -588,12 +682,10 @@ It is:
 
 If someone needs the next concrete path without reopening strategy debates:
 
-1. Finish any remaining clarity drift between repo docs and Linear.
-2. Build the flagship reference plugin.
-3. Capture the live docs-ingestion proof.
-4. Polish the self-hosted Pluxx plugin.
-5. Run customer discovery in the two explicit lanes.
-6. Cut the next release once those surfaces feel coherent together.
+1. Treat `PLUXX-346`, `PLUXX-348`, `MDP-221`, `MDP-222`, and the `MDP-218` further-narrow decision as completed evidence, not active implementation.
+2. Keep the merged `PLUXX-289` evidence ladder and [new-host support gate](../new-host-support-gate.md) as the support-claim boundary.
+3. Close `PLUXX-309` against that gate with current Codex CLI proof, without promoting unproven Cursor runtime claims.
+4. Keep Codex on the native path until a first-party generic Agent Plugins root-import contract and clean-host discovery proof exist.
 
 ## Linear Note
 

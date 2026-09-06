@@ -415,6 +415,59 @@ describe('verifyInstall', () => {
     expect(result.checks[0].errors).toBeGreaterThan(0)
   })
 
+  it('fails OpenCode verification when the host-visible entry rewrites the workspace directory', async () => {
+    mkdirSync(resolve(DIST_DIR, 'opencode/skills/client-intel'), { recursive: true })
+    writeFileSync(
+      resolve(DIST_DIR, 'opencode/package.json'),
+      JSON.stringify({
+        name: 'opencode-verify-plugin',
+        version: '0.1.0',
+        keywords: ['opencode-plugin'],
+        peerDependencies: {
+          '@opencode-ai/plugin': '*',
+        },
+      }),
+    )
+    writeFileSync(resolve(DIST_DIR, 'opencode/index.ts'), 'export const VerifyPlugin = async () => ({});\n')
+    writeFileSync(
+      resolve(DIST_DIR, 'opencode/skills/client-intel/SKILL.md'),
+      '---\nname: client-intel\ndescription: Client intel\n---\n\n# Client Intel\n',
+    )
+
+    await installPlugin(DIST_DIR, 'verify-plugin', ['opencode'], { quiet: true, useNativeClaudeInstall: false })
+    writeFileSync(
+      resolve(HOME_DIR, OPENCODE_ENTRY_PATH),
+      [
+        'import type { Plugin } from "@opencode-ai/plugin"',
+        'import { resolve } from "path"',
+        '',
+        'import * as PluginModule from "./verify-plugin/index.ts"',
+        '',
+        '// pluginFactory(context)',
+        'const pluginFactory = Object.values(PluginModule).find((value): value is Plugin => typeof value === "function")',
+        '',
+        'if (!pluginFactory) {',
+        '  throw new Error("OpenCode plugin bundle for verify-plugin did not export a plugin function.")',
+        '}',
+        '',
+        'export const VerifyPlugin: Plugin = async (context) =>',
+        '  pluginFactory({',
+        '    ...context,',
+        '    directory: resolve(context.directory, "verify-plugin"),',
+        '  })',
+        '',
+      ].join('\n'),
+    )
+
+    const result = await verifyInstall(makeConfig(), {
+      rootDir: ROOT,
+      targets: ['opencode'],
+    })
+
+    expect(result.ok).toBe(false)
+    expect(result.checks[0].issues.some((issue) => issue.code === 'consumer-opencode-entry-invalid')).toBe(true)
+  })
+
   it('fails OpenCode verification when exported skills are not synced globally', async () => {
     mkdirSync(resolve(DIST_DIR, 'opencode/skills/client-intel'), { recursive: true })
     writeFileSync(
@@ -492,7 +545,6 @@ describe('verifyInstall', () => {
       resolve(HOME_DIR, OPENCODE_ENTRY_PATH),
       [
         'import type { Plugin } from "@opencode-ai/plugin"',
-        'import { join } from "path"',
         '',
         'import * as PluginModule from "./verify-plugin/index.ts"',
         '',
@@ -503,10 +555,7 @@ describe('verifyInstall', () => {
         '}',
         '',
         'export const VerifyPlugin: Plugin = async (context) =>',
-        '  pluginFactory({',
-        '    ...context,',
-        '    directory: join(context.directory, "verify-plugin"),',
-        '  })',
+        '  pluginFactory(context)',
         '',
       ].join('\n'),
     )
@@ -1640,4 +1689,24 @@ describe('verifyInstall', () => {
     })
     expect(result.checks[0].errors).toBeGreaterThan(0)
   })
+})
+
+
+it('preserves native collisions through doctor and verify and blocks local reinstall', async () => {
+  mkdirSync(resolve(DIST_DIR, 'codex/.codex-plugin'), { recursive: true })
+  writeFileSync(resolve(DIST_DIR, 'codex/.codex-plugin/plugin.json'), JSON.stringify({ name: 'verify-plugin', version: '0.1.0' }))
+  await installPlugin(DIST_DIR, 'verify-plugin', ['codex'])
+  const inventory = resolve(ROOT, 'inventory.json')
+  writeFileSync(inventory, JSON.stringify({ installed: [{ pluginId: 'verify-plugin@other', name: 'verify-plugin', marketplaceName: 'other',
+    version: '0.1.0', enabled: true, installed: true, source: { source: 'local', path: '/synthetic/private-sentinel' } }] }))
+  process.env.PLUXX_TEST_CODEX_INVENTORY = inventory
+  try {
+    const result = await verifyInstall(makeConfig(), { rootDir: ROOT, targets: ['codex'] })
+    expect(result.ok).toBe(false)
+    const issue = result.checks[0].issues.find(issue => issue.code === 'same-name-cross-marketplace')!
+    expect(issue.diagnostic?.conflicts[0].selector).toBe('verify-plugin@other')
+    expect(issue.diagnostic?.requested?.selector).toBe('verify-plugin@pluxx-local')
+    expect(JSON.stringify(issue)).not.toContain('private-sentinel')
+    await expect(installPlugin(DIST_DIR, 'verify-plugin', ['codex'])).rejects.toMatchObject({ result: { reason: 'same-name-cross-marketplace' } })
+  } finally { delete process.env.PLUXX_TEST_CODEX_INVENTORY }
 })

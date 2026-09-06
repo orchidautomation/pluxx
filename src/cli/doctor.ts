@@ -1,3 +1,4 @@
+import { inspectCodexPluginCollisions, codexRequestedIdentity, renderCodexPluginDiagnostic, type CodexPluginDiagnostic } from '../codex-plugin-collisions'
 import { spawn, spawnSync } from 'child_process'
 import { accessSync, constants, existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from 'fs'
 import { homedir } from 'os'
@@ -14,10 +15,12 @@ import { getBrandingCompletenessWarnings } from '../branding-completeness'
 import { findLeakedPluginRootVars } from '../mcp-stdio-paths'
 import { getRuntimeReadinessPlan } from '../readiness'
 import {
+  findUnsafeShellEnvSources,
   getConsumerEnvScriptActiveDetail,
   getConsumerEnvScriptMissingDetail,
   getConsumerRuntimeScriptRolesDetail,
   getRuntimeScriptRoleForPath,
+  getUnsafeShellEnvSourceMessage,
   INSTALLER_OWNED_CHECK_ENV_PATH,
   type RuntimeScriptRole,
 } from '../runtime-script-contract'
@@ -38,10 +41,12 @@ import {
 } from '../codex-permissions-companion'
 import type { ParsedPermissionRule } from '../permissions'
 import { parseTomlValue, stripTomlComment } from '../toml-lite'
+import { isCurrentOpenCodeEntryFile } from '../opencode-entry'
 
 export type DoctorLevel = 'error' | 'warning' | 'info' | 'success'
 
 export interface DoctorCheck {
+  diagnostic?: CodexPluginDiagnostic
   level: DoctorLevel
   code: string
   title: string
@@ -105,6 +110,8 @@ interface ConsumerBundleLayout {
 
 export interface DoctorConsumerOptions {
   projectRoot?: string
+  /** Explicit intended marketplace for built bundles or nonstandard install locations. */
+  codexMarketplace?: string
 }
 
 interface InstalledStdioLaunchResult {
@@ -644,6 +651,45 @@ function checkRuntimeReadiness(checks: DoctorCheck[], config: PluginConfig): voi
       fix: `Keep ${codexReadinessCapability.companionArtifacts.join(' and ')} available when verifying the installed Codex bundle, and enable \`${RECOMMENDED_CODEX_HOOKS_FEATURE_FLAG} = true\` under \`[features]\` if bundled readiness does not activate.`,
       path: 'pluxx.config.ts',
     })
+  }
+}
+
+function collectRuntimeScriptFiles(rootDir: string, relativeDir: string | undefined): string[] {
+  if (!relativeDir) return []
+  const scriptsRoot = resolve(rootDir, relativeDir)
+  if (!existsSync(scriptsRoot)) return []
+
+  const files: string[] = []
+  const visit = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const absolutePath = resolve(dir, entry.name)
+      if (entry.isDirectory()) {
+        visit(absolutePath)
+        continue
+      }
+      if (!entry.isFile()) continue
+      files.push(absolutePath)
+    }
+  }
+
+  visit(scriptsRoot)
+  return files.sort()
+}
+
+function checkUnsafeShellEnvSources(checks: DoctorCheck[], rootDir: string, relativeDir: string | undefined): void {
+  for (const scriptPath of collectRuntimeScriptFiles(rootDir, relativeDir)) {
+    const relativePath = relative(rootDir, scriptPath).replace(/\\/g, '/')
+    const content = readFileSync(scriptPath, 'utf-8')
+    for (const finding of findUnsafeShellEnvSources(content)) {
+      addCheck(checks, {
+        level: 'error',
+        code: 'unsafe-shell-env-source',
+        title: 'Runtime script shell-sources workspace env files',
+        detail: getUnsafeShellEnvSourceMessage(relativePath, finding),
+        fix: 'Replace shell source/dot execution with a dotenv text parser, or let runtime/pluxx-mcp-env.mjs load runtime-inherited MCP env vars.',
+        path: relativePath,
+      })
+    }
   }
 }
 
@@ -2425,6 +2471,259 @@ function isLikelyOpenCodeInstallPath(rootDir: string): boolean {
   return basename(parent) === 'plugins' && basename(grandparent) === 'opencode'
 }
 
+function extractOpenCodeHandlerBody(source: string, event: string): string | null {
+  const escapedEvent = event.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const declaration = new RegExp(`["']${escapedEvent}["']\\s*:\\s*async\\s*\\([^)]*\\)\\s*=>\\s*\\{`, 'm').exec(source)
+  if (!declaration || declaration.index === undefined) return null
+
+  const bodyStart = declaration.index + declaration[0].lastIndexOf('{')
+  let depth = 0
+  let quote: '"' | "'" | '`' | null = null
+  let escaped = false
+  let lineComment = false
+  let blockComment = false
+
+  for (let index = bodyStart; index < source.length; index += 1) {
+    const character = source[index]
+    const next = source[index + 1]
+
+    if (lineComment) {
+      if (character === '\n') lineComment = false
+      continue
+    }
+    if (blockComment) {
+      if (character === '*' && next === '/') {
+        blockComment = false
+        index += 1
+      }
+      continue
+    }
+    if (quote) {
+      if (escaped) {
+        escaped = false
+      } else if (character === '\\') {
+        escaped = true
+      } else if (character === quote) {
+        quote = null
+      }
+      continue
+    }
+    if (character === '/' && next === '/') {
+      lineComment = true
+      index += 1
+      continue
+    }
+    if (character === '/' && next === '*') {
+      blockComment = true
+      index += 1
+      continue
+    }
+    if (character === '"' || character === "'" || character === '`') {
+      quote = character
+      continue
+    }
+    if (character === '{') {
+      depth += 1
+    } else if (character === '}') {
+      depth -= 1
+      if (depth === 0) return source.slice(bodyStart + 1, index)
+    }
+  }
+
+  return null
+}
+
+function checkInstalledOpenCodeHookScope(checks: DoctorCheck[], rootDir: string): void {
+  const pluginPath = resolve(rootDir, 'index.ts')
+  if (!existsSync(pluginPath)) return
+
+  const source = readFileSync(pluginPath, 'utf-8')
+  const readHookPlan = (constantName: string): Record<string, unknown> | null | undefined => {
+    const match = source.match(new RegExp(`const ${constantName} = ([\\s\\S]*?)\\n\\nconst `))
+    if (!match?.[1]) return undefined
+    try {
+      const value = JSON.parse(match[1])
+      return value && typeof value === 'object' && !Array.isArray(value)
+        ? value as Record<string, unknown>
+        : null
+    } catch {
+      return null
+    }
+  }
+
+  const before = readHookPlan('TOOL_BEFORE_HOOKS')
+  const after = readHookPlan('TOOL_AFTER_HOOKS')
+  if (before === undefined && after === undefined) {
+    addCheck(checks, {
+      level: 'info',
+      code: 'consumer-opencode-hook-scope-not-applicable',
+      title: 'No generated OpenCode hook plan found',
+      detail: 'This OpenCode bundle does not expose Pluxx generated tool-hook buckets, so matcher-scope verification is not applicable.',
+      fix: 'No action needed.',
+      path: 'index.ts',
+    })
+    return
+  }
+
+  if (!before || !after) {
+    addCheck(checks, {
+      level: 'error',
+      code: 'consumer-opencode-hook-scope-malformed',
+      title: 'OpenCode hook scope metadata is malformed',
+      detail: 'The generated TOOL_BEFORE_HOOKS or TOOL_AFTER_HOOKS constant is not valid object-shaped JSON.',
+      fix: 'Rebuild and reinstall this consumer with a current Pluxx release.',
+      path: 'index.ts',
+    })
+    return
+  }
+
+  const expectedBuckets = [
+    ['TOOL_BEFORE_HOOKS.all', before.all],
+    ['TOOL_BEFORE_HOOKS.matched', before.matched],
+    ['TOOL_BEFORE_HOOKS.read', before.read],
+    ['TOOL_BEFORE_HOOKS.mcp', before.mcp],
+    ['TOOL_AFTER_HOOKS.all', after.all],
+    ['TOOL_AFTER_HOOKS.matched', after.matched],
+    ['TOOL_AFTER_HOOKS.edit', after.edit],
+    ['TOOL_AFTER_HOOKS.mcp', after.mcp],
+  ] as const
+  const malformedBuckets = expectedBuckets
+    .filter(([, hooks]) => !Array.isArray(hooks))
+    .map(([name]) => name)
+  if (malformedBuckets.length > 0) {
+    addCheck(checks, {
+      level: 'error',
+      code: 'consumer-opencode-hook-scope-malformed',
+      title: 'OpenCode hook scope metadata is malformed',
+      detail: `Expected array-shaped hook buckets: ${malformedBuckets.join(', ')}.`,
+      fix: 'Rebuild and reinstall this consumer with a current Pluxx release.',
+      path: 'index.ts',
+    })
+    return
+  }
+
+  const malformedEntries = expectedBuckets.flatMap(([name, hooks]) => (
+    (hooks as unknown[]).flatMap((hook, index) => {
+      if (!hook || typeof hook !== 'object' || Array.isArray(hook)) return [`${name}[${index}]`]
+      const command = (hook as Record<string, unknown>).command
+      return typeof command !== 'string' || command.trim().length === 0
+        ? [`${name}[${index}]`]
+        : []
+    })
+  ))
+  if (malformedEntries.length > 0) {
+    addCheck(checks, {
+      level: 'error',
+      code: 'consumer-opencode-hook-scope-malformed',
+      title: 'OpenCode hook scope metadata is malformed',
+      detail: `Expected object-shaped hook entries with non-empty string commands: ${malformedEntries.join(', ')}.`,
+      fix: 'Rebuild and reinstall this consumer with a current Pluxx release.',
+      path: 'index.ts',
+    })
+    return
+  }
+
+  const hasSupportedMatcher = (hook: unknown): boolean => {
+    if (!hook || typeof hook !== 'object' || Array.isArray(hook)) return false
+    const matcher = (hook as Record<string, unknown>).matcher
+    if (typeof matcher === 'string') return matcher.trim().length > 0
+    if (!matcher || typeof matcher !== 'object' || Array.isArray(matcher)) return false
+    const tool = (matcher as Record<string, unknown>).tool
+    return typeof tool === 'string' && tool.trim().length > 0
+  }
+  const unsupportedMatchedEntries = [
+    ['TOOL_BEFORE_HOOKS.matched', before.matched as unknown[]],
+    ['TOOL_AFTER_HOOKS.matched', after.matched as unknown[]],
+  ].flatMap(([name, hooks]) => (hooks as unknown[]).flatMap((hook, index) => (
+    hasSupportedMatcher(hook) ? [] : [`${name}[${index}]`]
+  )))
+  if (unsupportedMatchedEntries.length > 0) {
+    addCheck(checks, {
+      level: 'error',
+      code: 'consumer-opencode-hook-scope-malformed',
+      title: 'OpenCode hook scope metadata is malformed',
+      detail: `Expected matcher-scoped hook entries with a non-empty string matcher or matcher.tool: ${unsupportedMatchedEntries.join(', ')}.`,
+      fix: 'Rebuild and reinstall this consumer with a current Pluxx release.',
+      path: 'index.ts',
+    })
+    return
+  }
+
+  const beforeBody = extractOpenCodeHandlerBody(source, 'tool.execute.before')
+  const afterBody = extractOpenCodeHandlerBody(source, 'tool.execute.after')
+  if (beforeBody === null || afterBody === null) {
+    const missingHandlers = [
+      beforeBody === null ? 'tool.execute.before' : undefined,
+      afterBody === null ? 'tool.execute.after' : undefined,
+    ].filter(Boolean).join(', ')
+    addCheck(checks, {
+      level: 'error',
+      code: 'consumer-opencode-hook-scope-malformed',
+      title: 'OpenCode hook scope runtime is malformed',
+      detail: `Could not validate generated OpenCode handler structure for: ${missingHandlers}.`,
+      fix: 'Rebuild and reinstall this consumer with a current Pluxx release.',
+      path: 'index.ts',
+    })
+    return
+  }
+  const hasMatcher = (hooks: unknown): boolean => Array.isArray(hooks) && hooks.some(hook => (
+    !!hook && typeof hook === 'object' && !Array.isArray(hook) && 'matcher' in hook
+  ))
+
+  const matcherBearingAllBuckets = [
+    ['TOOL_BEFORE_HOOKS.all', before.all],
+    ['TOOL_AFTER_HOOKS.all', after.all],
+  ].filter((entry): entry is [string, unknown[]] => Array.isArray(entry[1]))
+    .filter(([, hooks]) => hooks.some(hook => (
+      !!hook && typeof hook === 'object' && !Array.isArray(hook) && 'matcher' in hook
+    )))
+    .map(([name]) => name)
+
+  const editHooks = after.edit as unknown[]
+  const missingApplyPatch = editHooks.length > 0
+    && !afterBody.includes('input.tool === "edit" || input.tool === "write" || input.tool === "apply_patch"')
+  const missingMatcherDispatches = [
+    [before.matched, beforeBody, 'runMatchingHooks(TOOL_BEFORE_HOOKS.matched, input.tool'],
+    [before.read, beforeBody, 'runMatchingHooks(TOOL_BEFORE_HOOKS.read, input.tool'],
+    [before.mcp, beforeBody, 'runMatchingHooks(TOOL_BEFORE_HOOKS.mcp, input.tool'],
+    [after.matched, afterBody, 'runMatchingHooks(TOOL_AFTER_HOOKS.matched, input.tool'],
+    [after.edit, afterBody, 'runMatchingHooks(TOOL_AFTER_HOOKS.edit, input.tool'],
+    [after.mcp, afterBody, 'runMatchingHooks(TOOL_AFTER_HOOKS.mcp, input.tool'],
+  ].filter(([hooks, body, dispatch]) => hasMatcher(hooks) && !(body as string).includes(dispatch as string))
+
+  if (matcherBearingAllBuckets.length > 0 || missingApplyPatch || missingMatcherDispatches.length > 0) {
+    const detail = [
+      matcherBearingAllBuckets.length > 0
+        ? `matcher-bearing hooks are present in all-tool buckets: ${matcherBearingAllBuckets.join(', ')}`
+        : undefined,
+      missingApplyPatch
+        ? 'the edit hook bucket does not include OpenCode apply_patch dispatch'
+        : undefined,
+      missingMatcherDispatches.length > 0
+        ? 'matcher-scoped buckets are present without runtime matcher dispatch'
+        : undefined,
+    ].filter(Boolean).join('; ')
+    addCheck(checks, {
+      level: 'error',
+      code: 'consumer-opencode-hook-scope-widened',
+      title: 'OpenCode hook scope is wider than authored intent',
+      detail,
+      fix: 'Rebuild and reinstall this consumer with a Pluxx release that preserves OpenCode hook matcher scope.',
+      path: 'index.ts',
+    })
+    return
+  }
+
+  addCheck(checks, {
+    level: 'success',
+    code: 'consumer-opencode-hook-scope-valid',
+    title: 'OpenCode hook matcher scope is preserved',
+    detail: 'Explicit all-tool hooks are separated from matcher-scoped hooks, and edit hooks include apply_patch.',
+    fix: 'No action needed.',
+    path: 'index.ts',
+  })
+}
+
 function checkInstalledOpenCodeHostBridge(checks: DoctorCheck[], rootDir: string): void {
   if (!isLikelyOpenCodeInstallPath(rootDir)) {
     addCheck(checks, {
@@ -2454,15 +2753,13 @@ function checkInstalledOpenCodeHostBridge(checks: DoctorCheck[], rootDir: string
   }
 
   const entryContent = readFileSync(entryPath, 'utf-8')
-  const expectedImport = `import * as PluginModule from "./${pluginName}/index.ts"`
-  const expectedBridge = `directory: join(context.directory, "${pluginName}")`
 
-  if (!entryContent.includes(expectedImport) || !entryContent.includes(expectedBridge)) {
+  if (!isCurrentOpenCodeEntryFile(entryContent, pluginName)) {
     addCheck(checks, {
       level: 'error',
       code: 'consumer-opencode-entry-invalid',
       title: 'OpenCode host entry file does not match the installed bundle',
-      detail: `${entryPath} exists, but it does not proxy into ./${pluginName}/index.ts with the expected plugin-root bridge.`,
+      detail: `${entryPath} exists, but it does not proxy into ./${pluginName}/index.ts while passing the OpenCode workspace context through unchanged.`,
       fix: 'Reinstall the plugin so Pluxx can rewrite the OpenCode entry wrapper.',
       path: entryRelativePath,
     })
@@ -2613,6 +2910,15 @@ export async function doctorConsumer(
     path: layout.manifestPath,
   })
 
+  if (layout.platform === 'codex') {
+    let manifest: { name?: string; version?: string } = {}
+    try { manifest = JSON.parse(readFileSync(resolve(rootDir, layout.manifestPath), 'utf8')) } catch {}
+    const requested = codexRequestedIdentity(manifest.name ?? '', manifest.version ?? null, rootDir, undefined, true)
+    if (options.codexMarketplace !== undefined) requested.marketplace = options.codexMarketplace
+    const diagnostic = inspectCodexPluginCollisions(requested)
+    if (diagnostic) addCheck(checks, { level: 'error', code: diagnostic.code, title: 'Codex plugin inventory requires attention',
+      detail: renderCodexPluginDiagnostic(diagnostic), fix: diagnostic.action, diagnostic })
+  }
   checkConsumerManifest(checks, rootDir, layout)
   checkInstalledBundleIntegrity(checks, rootDir, layout)
   checkInstalledClaudeHookSettings(checks, rootDir, layout, options)
@@ -2625,8 +2931,10 @@ export async function doctorConsumer(
   checkInstalledCodexCachePlaintextSecrets(checks, rootDir, layout)
   checkInstalledEnvValidation(checks, rootDir)
   checkInstalledRuntimeScriptRoles(checks, rootDir)
+  checkUnsafeShellEnvSources(checks, rootDir, 'scripts')
   await checkInstalledMcpConfig(checks, rootDir, layout)
   if (layout.platform === 'opencode') {
+    checkInstalledOpenCodeHookScope(checks, rootDir)
     checkInstalledOpenCodeHostBridge(checks, rootDir)
     checkInstalledOpenCodeSkills(checks, rootDir)
   }
@@ -2691,6 +2999,7 @@ export async function doctorProject(rootDir: string = process.cwd()): Promise<Do
   checkTargetPlatforms(checks, config)
   checkPrimitiveTranslations(checks, config)
   checkRuntimeReadiness(checks, config)
+  checkUnsafeShellEnvSources(checks, rootDir, config.scripts)
   checkMcpConfig(checks, config)
   checkUserConfig(checks, config)
   checkScaffoldMetadata(checks, rootDir, config)

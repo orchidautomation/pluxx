@@ -7,6 +7,10 @@ import type { PluginConfig, TargetPlatform } from '../schema'
 import { collectRuntimeInheritedStdioEnvVars, collectUserConfigEntries, defaultUserConfigEnvVar } from '../user-config'
 import { getPublishReloadInstruction } from '../distribution-lifecycle'
 import { collectNativeMcpAuthUserConfigEntries } from '../mcp-native-overrides'
+import { buildOpenCodeEntryFile, toOpenCodeExportName } from '../opencode-entry'
+import { INSTALL_RESULT_SCHEMA, validateCodexDiagnostic } from '../install-contract'
+import { detectCodexPluginCollisions, renderCodexPluginDiagnostic } from '../codex-plugin-collisions'
+import { CORE_HOST_DETECTION_INVENTORY } from '../host-detection'
 
 type PublishChannel = 'npm' | 'github-release'
 type PublishAssetKind = 'archive' | 'installer' | 'manifest' | 'checksum'
@@ -99,6 +103,7 @@ interface PreparedNpmArtifact {
 }
 
 const INSTALLER_TARGETS = ['claude-code', 'cursor', 'codex', 'opencode'] as const satisfies readonly TargetPlatform[]
+const ARCHIVE_TARGETS = [...INSTALLER_TARGETS, 'agent-plugins'] as const satisfies readonly TargetPlatform[]
 
 function runCommandDefault(command: string, args: string[], options?: { cwd?: string }): CommandResult {
   const result = spawnSync(command, args, {
@@ -150,7 +155,7 @@ function getBuiltTargets(rootDir: string, config: PluginConfig): TargetPlatform[
 }
 
 function getPublishableBuiltTargets(rootDir: string, config: PluginConfig): TargetPlatform[] {
-  return getBuiltTargets(rootDir, config).filter(isInstallerTarget)
+  return getBuiltTargets(rootDir, config).filter((platform) => ARCHIVE_TARGETS.includes(platform as typeof ARCHIVE_TARGETS[number]))
 }
 
 function getArchiveAssetName(pluginName: string, platform: TargetPlatform, version: string, variant: ReleaseArchiveVariant): string {
@@ -251,6 +256,8 @@ function readBuiltTargetVersion(rootDir: string, config: PluginConfig, platform:
         ? '.codex-plugin/plugin.json'
         : platform === 'opencode'
           ? 'package.json'
+          : platform === 'agent-plugins'
+            ? 'plugin.json'
           : undefined
   if (!relativePath) return undefined
 
@@ -572,10 +579,25 @@ bash "$TMP_DIR/install.sh" --agents "$@"
 function renderTopLevelInstallScript(installerTargets: Array<typeof INSTALLER_TARGETS[number]>): string {
   const targetCases = installerTargets.map((platform) => `    --${platform})
       targets+=("${platform}")
+      explicit_targets=1
       shift
       ;;`).join('\n')
   const targetList = installerTargets.map((platform) => `"${platform}"`).join(' ')
+  const targetNames = installerTargets.join(' ')
   const defaultTarget = installerTargets.includes('codex') ? 'codex' : installerTargets[0]
+  const detectionCases = installerTargets.map((target) => {
+    const checks = CORE_HOST_DETECTION_INVENTORY[target].map((candidate) => {
+      if (!candidate.includes('/') && !candidate.startsWith('$HOME')) {
+        return `command -v ${candidate} >/dev/null 2>&1`
+      }
+      const path = candidate.replace('$HOME', '"$HOME"')
+      return `[[ -e ${path} ]]`
+    })
+    return `    ${target}) ${checks.join(' || ')} ;;`
+  }).join('\n')
+  const detectionInventory = JSON.stringify(Object.fromEntries(
+    installerTargets.map((target) => [target, CORE_HOST_DETECTION_INVENTORY[target]]),
+  ))
 
   return `#!/usr/bin/env bash
 set -euo pipefail
@@ -594,6 +616,9 @@ ${installerTargets.map((platform) => `  --${platform.padEnd(18)} Install only th
   --repo OWNER/REPO     Override the GitHub repository.
   --version VERSION     Install a specific release version or tag.
   --base-url URL        Override the release asset base URL.
+  --plan                Print the deterministic host plan as JSON and exit.
+  --json                Print one machine-readable terminal result per selected target.
+  --quiet               Suppress decorative progress output.
   -h, --help            Show this help.
 
 Environment:
@@ -616,7 +641,11 @@ version="\${PLUXX_PLUGIN_VERSION:-latest}"
 base_url="\${PLUXX_RELEASE_BASE_URL:-}"
 yes=0
 agents=0
+json=0
+quiet=0
+plan_only=0
 targets=()
+explicit_targets=0
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -629,6 +658,9 @@ ${targetCases}
       yes=1
       shift
       ;;
+    --json) json=1; shift ;;
+    --quiet) quiet=1; shift ;;
+    --plan) plan_only=1; shift ;;
     --repo)
       repo="$2"
       shift 2
@@ -683,10 +715,34 @@ if [ -z "$base_url" ]; then
   fi
 fi
 
+host_detected() {
+  case "$1" in
+${detectionCases}
+    *) return 1 ;;
+  esac
+}
+
 if [ "$agents" = "1" ]; then
   targets=(${targetList})
 elif [ "\${#targets[@]}" -eq 0 ]; then
   targets=("${defaultTarget}")
+fi
+
+if [ "$plan_only" = "1" ]; then
+  PLUXX_PLAN_MODE="$( [ "$explicit_targets" = "1" ] && echo explicit || echo aggregate )" PLUXX_PLAN_TARGETS="\${targets[*]}" PLUXX_PLAN_ALL="${targetNames}" PLUXX_PLAN_HOME="$HOME" PLUXX_PLAN_PATH="$PATH" node <<'NODE'
+const fs = require('fs'), path = require('path')
+const mode = process.env.PLUXX_PLAN_MODE
+const selected = (process.env.PLUXX_PLAN_TARGETS || '').split(/\\s+/).filter(Boolean)
+const all = (process.env.PLUXX_PLAN_ALL || '').split(/\\s+/).filter(Boolean)
+const home = process.env.PLUXX_PLAN_HOME
+const pathEntries = (process.env.PLUXX_PLAN_PATH || '').split(path.delimiter)
+const commandPath = (names) => names.map((name) => pathEntries.map((dir) => path.join(dir, name)).find((candidate) => { try { return fs.statSync(candidate).isFile() } catch { return false } })).find(Boolean)
+const candidates = ${detectionInventory}
+const targets = mode === 'explicit' ? selected : all
+const plan = targets.map((target) => { const evidence = []; for (const candidate of candidates[target] || []) { if (!candidate.includes('/') && !candidate.startsWith('$HOME')) { const executable = commandPath([candidate]); if (executable) evidence.push({ type: 'cli', command: candidate, path: executable }); continue } const value = candidate.replace('$HOME', home); try { if (fs.existsSync(value)) evidence.push({ type: candidate.includes('.app') ? 'app' : candidate.includes('plugins') || candidate.includes('skills') ? 'installed-plugin' : 'user-config', path: value }) } catch {} } return { target, detected: evidence.length > 0, selected: true, evidence, ...(!evidence.length && mode === 'aggregate' ? { reason: 'host-not-detected' } : {}) } })
+process.stdout.write(JSON.stringify({ schema: '${INSTALL_RESULT_SCHEMA}', selectionMode: mode, targets: plan }) + '\\n')
+NODE
+  exit 0
 fi
 
 if [ "$yes" = "1" ]; then
@@ -743,9 +799,11 @@ run_installer() {
   local url="$base_url/install-$target.sh"
 
   if [ "$agents" = "1" ] && [ "$target" = "claude-code" ] && ! command -v claude >/dev/null 2>&1; then
-    echo "Skipping Claude Code bundle because the claude CLI is not available on PATH." >&2
-    echo "Run with --claude-code to require Claude Code installation and fail if prerequisites are missing." >&2
-    return 0
+    if [ "$json" = "0" ]; then
+      echo "Skipping Claude Code bundle because the claude CLI is not available on PATH." >&2
+      echo "Run with --claude-code to require Claude Code installation and fail if prerequisites are missing." >&2
+    fi
+    return 2
   fi
 
   case "$target" in
@@ -767,22 +825,67 @@ run_installer() {
       ;;
   esac
 
-  echo "Installing DISPLAY_PLACEHOLDER for $target..."
+  [ "$quiet" = "1" ] || [ "$json" = "1" ] || echo "Installing DISPLAY_PLACEHOLDER for $target..."
+  export PLUXX_INSTALL_RESULT_FILE="$tmp_dir/$target.result.json"
   curl -fsSL --connect-timeout 10 --max-time 120 --retry 3 --retry-all-errors --retry-delay 1 "$url" -o "$installer"
   verify_release_asset "$installer" "install-$target.sh"
   chmod +x "$installer"
   if [ "$yes" = "1" ]; then
-    bash "$installer" --yes
+    if [ "$json" = "1" ] || [ "$quiet" = "1" ]; then bash "$installer" --yes >"$tmp_dir/$target.stdout"; else bash "$installer" --yes; fi
   else
-    bash "$installer"
+    if [ "$json" = "1" ] || [ "$quiet" = "1" ]; then bash "$installer" >"$tmp_dir/$target.stdout"; else bash "$installer"; fi
   fi
 }
 
+results=()
 for target in "\${targets[@]}"; do
-  run_installer "$target"
+  detected=0
+  if host_detected "$target"; then detected=1; fi
+  if [ "$detected" = "1" ] || [ "$explicit_targets" = "1" ]; then
+    set +e
+    ( set -e; run_installer "$target" )
+    status=$?
+    set -e
+    results+=("$target|$status|$detected")
+  else
+    results+=("$target|skipped|0")
+  fi
 done
 
-echo "DISPLAY_PLACEHOLDER install complete."
+PLUXX_RESULT_PLUGIN="PLUGIN_PLACEHOLDER" PLUXX_RESULT_VERSION="VERSION_PLACEHOLDER" PLUXX_RESULT_MODE="$( [ "$explicit_targets" = "1" ] && echo explicit || echo aggregate )" PLUXX_RESULT_ITEMS="$(printf '%s\\n' "\${results[@]}")" PLUXX_RESULT_DIR="$tmp_dir" PLUXX_RESULT_JSON="$json" node <<'NODE'
+const fs = require('fs'), path = require('path')
+const validateDiagnostic = ${validateCodexDiagnostic.toString()}
+const renderDiagnostic = ${renderCodexPluginDiagnostic.toString()}
+const plan = []
+const results = (process.env.PLUXX_RESULT_ITEMS || '').split(/\\n/).filter(Boolean).map((line) => {
+  const [target, status, detected] = line.split('|')
+  plan.push({ target, detected: detected === '1', selected: true })
+  if (status === 'skipped') return { target, state: 'skipped', reason: 'host-not-detected' }
+  const generic = { target, state: 'failed', reason: 'installer-failed', error: 'Installer failed or returned an invalid terminal result.', action: 'Inspect stderr and rerun the target installer.' }
+  try {
+    const file = path.join(process.env.PLUXX_RESULT_DIR, target + '.result.json')
+    if (!fs.existsSync(file) || fs.statSync(file).size > 32768) return generic
+    const result = JSON.parse(fs.readFileSync(file, 'utf8'))
+    if (result.target !== target || !['installed', 'updated', 'unchanged', 'skipped', 'failed'].includes(result.state)) return generic
+    if ((status === '0') !== (result.state !== 'failed')) return generic
+    if (result.state === 'skipped' && !result.reason) return generic
+    if (result.state === 'failed' && (!result.error || !result.action)) return generic
+    if (result.diagnostics !== undefined && (target !== 'codex' || result.state !== 'failed' || !Array.isArray(result.diagnostics) || result.diagnostics.length !== 1 || !result.diagnostics.every(validateDiagnostic))) return generic
+    return result
+  } catch { return generic }
+})
+const envelope = { schema: '${INSTALL_RESULT_SCHEMA}', plugin: { name: process.env.PLUXX_RESULT_PLUGIN, version: process.env.PLUXX_RESULT_VERSION }, selectionMode: process.env.PLUXX_RESULT_MODE, plan, results }
+if (process.env.PLUXX_RESULT_JSON === '1') process.stdout.write(JSON.stringify(envelope) + '\\n')
+else {
+  for (const result of results) {
+    console.log(result.target + ': ' + result.state + (result.reason ? ' (' + result.reason + ')' : ''))
+    for (const diagnostic of result.diagnostics || []) console.log(renderDiagnostic(diagnostic))
+    if (result.state === 'failed' && !result.diagnostics) console.log(result.error + ' ' + result.action)
+  }
+  console.log(results.some(result => result.state === 'failed') ? 'Installation has unresolved failures.' : 'DISPLAY_PLACEHOLDER install complete.')
+}
+if (results.some(result => result.state === 'failed')) process.exitCode = 1
+NODE
 `
 }
 
@@ -1207,9 +1310,334 @@ NODE
 
 function renderInstallerRuntimeBootstrapSnippet(installDirVariable: string): string {
   return `
-if [[ -f "${installDirVariable}/scripts/bootstrap-runtime.sh" ]]; then
-  echo "Preparing local plugin runtime dependencies..."
-  bash "${installDirVariable}/scripts/bootstrap-runtime.sh"
+if [[ -f "${installDirVariable}/.pluxx-runtime.json" || -f "${installDirVariable}/scripts/bootstrap-runtime.sh" ]]; then
+  export PLUXX_RUNTIME_CANDIDATE_ROOT="${installDirVariable}"
+  export PLUXX_RUNTIME_STORE_ROOT="\${PLUXX_RUNTIME_STORE_ROOT:-$HOME/.pluxx/runtimes}"
+  export PLUGIN_NAME PLUXX_TX_PLATFORM
+
+  node <<'NODE'
+const crypto = require('crypto')
+const childProcess = require('child_process')
+const fs = require('fs')
+const path = require('path')
+
+const candidateRoot = process.env.PLUXX_RUNTIME_CANDIDATE_ROOT
+const pluginName = process.env.PLUGIN_NAME || 'unknown-plugin'
+const installerPlatform = process.env.PLUXX_TX_PLATFORM || 'unknown-platform'
+const contractVersion = 'pluxx.shared-native-runtime.v1'
+if (!candidateRoot || !process.env.PLUXX_RUNTIME_STORE_ROOT) process.exit(2)
+
+const configPath = path.join(candidateRoot, '.pluxx-runtime.json')
+let bootstrapRelativePath = 'scripts/bootstrap-runtime.sh'
+const bootstrapFailure = (status) => {
+  const error = new Error('Runtime bootstrap failed with exit status ' + status + '.')
+  error.exitStatus = status || 1
+  return error
+}
+process.on('uncaughtException', (error) => {
+  console.error(error && error.stack ? error.stack : String(error))
+  process.exitCode = Number.isInteger(error && error.exitStatus) ? error.exitStatus : 1
+})
+const bootstrapLocal = () => {
+  console.log('Preparing local plugin runtime dependencies...')
+  const result = childProcess.spawnSync('bash', [path.join(candidateRoot, bootstrapRelativePath)], {
+    cwd: candidateRoot,
+    env: process.env,
+    stdio: 'inherit',
+  })
+  if (result.error) throw result.error
+  if (result.status !== 0) throw bootstrapFailure(result.status)
+}
+
+if (!fs.existsSync(configPath)) {
+  bootstrapLocal()
+  process.exit(0)
+}
+
+const config = JSON.parse(fs.readFileSync(configPath, 'utf8'))
+const isSafeRelativePath = (value) => typeof value === 'string'
+  && value.length > 0
+  && !path.isAbsolute(value)
+  && !value.replace(/\\\\/g, '/').split('/').includes('..')
+if (config.schema !== 'pluxx.shared-runtime-config.v1'
+  || config.namespace !== pluginName
+  || !isSafeRelativePath(config.bootstrap)
+  || !isSafeRelativePath(config.output)
+  || path.normalize(config.output) === '.'
+  || !Array.isArray(config.inputs)
+  || config.inputs.length === 0
+  || !config.inputs.every(isSafeRelativePath)) {
+  throw new Error('Invalid .pluxx-runtime.json shared runtime contract.')
+}
+const hasDeclaredLockfile = config.inputs.some((relativePath) => {
+  const basename = path.basename(relativePath).toLowerCase()
+  return basename === 'bun.lockb' || /(?:^|[-_.])(lock|lockfile|shrinkwrap)(?:[-_.]|$)/.test(basename)
+})
+if (!hasDeclaredLockfile) {
+  console.error('Shared runtime inputs do not declare a deterministic lockfile; preparing runtime in the host bundle instead.')
+  bootstrapRelativePath = config.bootstrap
+  bootstrapLocal()
+  process.exit(0)
+}
+const resolvedOutput = path.resolve(candidateRoot, config.output)
+for (const runtimeInput of [config.bootstrap, ...config.inputs]) {
+  const resolvedInput = path.resolve(candidateRoot, runtimeInput)
+  const relativeToOutput = path.relative(resolvedOutput, resolvedInput)
+  if (relativeToOutput === '' || (!relativeToOutput.startsWith('..') && !path.isAbsolute(relativeToOutput))) {
+    throw new Error('Shared runtime output must not contain its bootstrap or declared inputs.')
+  }
+}
+bootstrapRelativePath = config.bootstrap
+
+const inputPaths = [...new Set([config.bootstrap, ...config.inputs])].sort()
+const digest = crypto.createHash('sha256')
+digest.update(contractVersion + '\\0' + process.platform + '\\0' + process.arch + '\\0' + (process.versions.modules || 'unknown-node-abi') + '\\0')
+digest.update(JSON.stringify(config) + '\\0')
+for (const relativePath of inputPaths) {
+  const filepath = path.resolve(candidateRoot, relativePath)
+  const relative = path.relative(candidateRoot, filepath)
+  const stats = fs.lstatSync(filepath)
+  if (relative.startsWith('..') || !stats.isFile() || stats.isSymbolicLink()) {
+    throw new Error('Shared runtime input must be a regular file inside the bundle: ' + relativePath)
+  }
+  digest.update(relativePath + '\\0')
+  digest.update(fs.readFileSync(filepath))
+  digest.update('\\0')
+}
+
+const fingerprint = digest.digest('hex')
+fs.mkdirSync(process.env.PLUXX_RUNTIME_STORE_ROOT, { recursive: true, mode: 0o700 })
+fs.chmodSync(process.env.PLUXX_RUNTIME_STORE_ROOT, 0o700)
+const storeRoot = fs.realpathSync(process.env.PLUXX_RUNTIME_STORE_ROOT)
+const entryRoot = path.join(storeRoot, 'entries', fingerprint)
+const generationsRoot = path.join(entryRoot, 'generations')
+const currentPath = path.join(entryRoot, 'current')
+const lockPath = path.join(storeRoot, 'locks', fingerprint + '.lock')
+const stageRoot = path.join(storeRoot, 'staging', fingerprint + '-' + process.pid + '-' + crypto.randomBytes(6).toString('hex'))
+const makeTreeWritable = (filepath) => {
+  if (!fs.existsSync(filepath)) return
+  const stats = fs.lstatSync(filepath)
+  if (stats.isSymbolicLink()) return
+  fs.chmodSync(filepath, stats.isDirectory() ? 0o700 : (stats.mode | 0o600))
+  if (stats.isDirectory()) for (const entry of fs.readdirSync(filepath)) makeTreeWritable(path.join(filepath, entry))
+}
+const removeTree = (filepath) => {
+  makeTreeWritable(filepath)
+  fs.rmSync(filepath, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 })
+}
+for (const directory of [path.dirname(entryRoot), generationsRoot, path.dirname(lockPath), path.dirname(stageRoot)]) {
+  fs.mkdirSync(directory, { recursive: true, mode: 0o700 })
+}
+
+const sleep = (milliseconds) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds)
+const processAlive = (pid) => {
+  try { process.kill(pid, 0); return true } catch (error) { return error && error.code === 'EPERM' }
+}
+let ownedLockNonce
+const releaseLock = () => {
+  if (!ownedLockNonce) return
+  try {
+    const owner = JSON.parse(fs.readFileSync(path.join(lockPath, 'owner.json'), 'utf8'))
+    if (owner.nonce === ownedLockNonce) removeTree(lockPath)
+  } catch {}
+  ownedLockNonce = undefined
+}
+const acquireLock = () => {
+  const timeoutMs = Math.max(0, Number(process.env.PLUXX_RUNTIME_LOCK_TIMEOUT_SECONDS || 120) * 1000)
+  const started = Date.now()
+  while (true) {
+    const candidateLock = lockPath + '.candidate-' + process.pid + '-' + crypto.randomBytes(4).toString('hex')
+    try {
+      const nonce = crypto.randomBytes(16).toString('hex')
+      fs.mkdirSync(candidateLock, { mode: 0o700 })
+      fs.writeFileSync(path.join(candidateLock, 'owner.json'), JSON.stringify({ pid: process.pid, nonce, startedAt: new Date().toISOString() }) + '\\n', { mode: 0o600 })
+      fs.renameSync(candidateLock, lockPath)
+      ownedLockNonce = nonce
+      return true
+    } catch (error) {
+      removeTree(candidateLock)
+      if (!error || !['EEXIST', 'ENOTEMPTY'].includes(error.code)) throw error
+      let stale = false
+      try {
+        const owner = JSON.parse(fs.readFileSync(path.join(lockPath, 'owner.json'), 'utf8'))
+        stale = !Number.isInteger(owner.pid) || owner.pid <= 0 || !processAlive(owner.pid)
+      } catch {
+        try { stale = Date.now() - fs.statSync(lockPath).mtimeMs > 2000 } catch { stale = true }
+      }
+      if (stale) {
+        const recoveryLock = lockPath + '.recovery'
+        let recoveryAcquired = false
+        let staleLockRemoved = false
+        try {
+          fs.mkdirSync(recoveryLock, { mode: 0o700 })
+          recoveryAcquired = true
+          let stillStale = false
+          try {
+            const owner = JSON.parse(fs.readFileSync(path.join(lockPath, 'owner.json'), 'utf8'))
+            stillStale = !Number.isInteger(owner.pid) || owner.pid <= 0 || !processAlive(owner.pid)
+          } catch {
+            try { stillStale = Date.now() - fs.statSync(lockPath).mtimeMs > 2000 } catch { stillStale = false }
+          }
+          if (stillStale) {
+            removeTree(lockPath)
+            staleLockRemoved = true
+          }
+        } catch (recoveryError) {
+          if (!recoveryError || recoveryError.code !== 'EEXIST') throw recoveryError
+        } finally {
+          if (recoveryAcquired) try { fs.rmdirSync(recoveryLock) } catch {}
+        }
+        if (staleLockRemoved) continue
+      }
+      if (Date.now() - started >= timeoutMs) return false
+      sleep(250)
+    }
+  }
+}
+
+const outputWithin = (root, filepath) => {
+  const relative = path.relative(root, filepath)
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative))
+}
+const collectMetadata = (root) => {
+  const entries = []
+  const visit = (directory) => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const filepath = path.join(directory, entry.name)
+      const relativePath = path.relative(root, filepath).replace(/\\\\/g, '/')
+      const stats = fs.lstatSync(filepath)
+      if (stats.isSymbolicLink()) {
+        const resolved = fs.realpathSync(filepath)
+        if (!outputWithin(root, resolved)) throw new Error('Shared runtime symlink escapes its output: ' + relativePath)
+        entries.push({ path: relativePath, kind: 'symlink', target: fs.readlinkSync(filepath) })
+      } else if (stats.isDirectory()) {
+        visit(filepath)
+      } else if (stats.isFile()) {
+        entries.push({ path: relativePath, kind: 'file', size: stats.size, mtimeMs: stats.mtimeMs, mode: stats.mode & 0o777 })
+      } else {
+        throw new Error('Unsupported shared runtime entry: ' + relativePath)
+      }
+    }
+  }
+  visit(root)
+  return entries
+}
+const harden = (root) => {
+  const visit = (directory) => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const filepath = path.join(directory, entry.name)
+      const stats = fs.lstatSync(filepath)
+      if (stats.isSymbolicLink()) continue
+      if (stats.isDirectory()) { visit(filepath); fs.chmodSync(filepath, stats.mode & ~0o222) }
+      else if (stats.isFile()) fs.chmodSync(filepath, stats.mode & ~0o222)
+    }
+  }
+  visit(root)
+  fs.chmodSync(root, fs.statSync(root).mode & ~0o222)
+}
+const readCurrentGeneration = () => {
+  try {
+    if (!fs.lstatSync(currentPath).isSymbolicLink()) return undefined
+    const target = fs.readlinkSync(currentPath)
+    const generation = path.resolve(entryRoot, target)
+    if (!outputWithin(generationsRoot, generation) || generation === generationsRoot) return undefined
+    const manifest = JSON.parse(fs.readFileSync(path.join(generation, 'manifest.json'), 'utf8'))
+    const outputRoot = path.join(generation, config.output)
+    const outputStats = fs.lstatSync(outputRoot)
+    if (!outputStats.isDirectory() || outputStats.isSymbolicLink()) return undefined
+    if (manifest.schema !== contractVersion
+      || manifest.fingerprint !== fingerprint
+      || manifest.namespace !== pluginName
+      || manifest.platform !== process.platform
+      || manifest.arch !== process.arch
+      || manifest.nodeAbi !== (process.versions.modules || 'unknown-node-abi')
+      || JSON.stringify(collectMetadata(outputRoot)) !== JSON.stringify(manifest.entries)) return undefined
+    return generation
+  } catch { return undefined }
+}
+const buildGeneration = (repairing) => {
+  console.log((repairing ? 'Repairing incomplete Pluxx native runtime ' : 'Preparing shared Pluxx native runtime ') + fingerprint + '.')
+  removeTree(stageRoot)
+  fs.cpSync(candidateRoot, stageRoot, { recursive: true })
+  const stageOutput = path.join(stageRoot, config.output)
+  fs.rmSync(stageOutput, { recursive: true, force: true })
+  const bootstrapPath = path.join(stageRoot, config.bootstrap)
+  const result = childProcess.spawnSync('bash', [bootstrapPath], { cwd: stageRoot, env: process.env, stdio: 'inherit' })
+  if (result.error) throw result.error
+  if (result.status !== 0) throw bootstrapFailure(result.status)
+  const outputStats = fs.lstatSync(stageOutput)
+  if (!outputStats.isDirectory() || outputStats.isSymbolicLink()) throw new Error('Shared runtime bootstrap did not create the configured output directory.')
+  collectMetadata(stageOutput)
+  const generation = path.join(generationsRoot, Date.now() + '-' + process.pid + '-' + crypto.randomBytes(5).toString('hex'))
+  fs.mkdirSync(generation, { recursive: true, mode: 0o700 })
+  const generationOutput = path.join(generation, config.output)
+  fs.mkdirSync(path.dirname(generationOutput), { recursive: true })
+  fs.renameSync(stageOutput, generationOutput)
+  harden(generationOutput)
+  const manifest = {
+    schema: contractVersion,
+    fingerprint,
+    namespace: pluginName,
+    platform: process.platform,
+    arch: process.arch,
+    nodeAbi: process.versions.modules || 'unknown-node-abi',
+    preparedBy: installerPlatform,
+    entries: collectMetadata(generationOutput),
+    createdAt: new Date().toISOString(),
+  }
+  fs.writeFileSync(path.join(generation, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\\n', { mode: 0o444 })
+  const nextCurrent = path.join(entryRoot, '.current-' + process.pid + '-' + crypto.randomBytes(5).toString('hex'))
+  fs.symlinkSync(path.relative(entryRoot, generation), nextCurrent, 'dir')
+  fs.renameSync(nextCurrent, currentPath)
+  removeTree(stageRoot)
+  return generation
+}
+
+if (!acquireLock()) {
+  console.error('Could not acquire shared runtime lock for ' + fingerprint + '; preparing runtime in the host bundle instead.')
+  bootstrapLocal()
+  process.exit(0)
+}
+
+try {
+  let generation = readCurrentGeneration()
+  if (generation) console.log('Reusing prepared Pluxx native runtime ' + fingerprint + '.')
+  else generation = buildGeneration(fs.existsSync(currentPath))
+
+  const candidateOutput = path.join(candidateRoot, config.output)
+  fs.rmSync(candidateOutput, { recursive: true, force: true })
+  let leasePath
+  try {
+    if (process.env.PLUXX_RUNTIME_DISABLE_LINK === '1') throw new Error('shared runtime linking is disabled')
+    fs.mkdirSync(path.dirname(candidateOutput), { recursive: true })
+    fs.symlinkSync(path.join(entryRoot, 'current', config.output), candidateOutput, 'dir')
+    const leaseRoot = path.join(storeRoot, 'leases', fingerprint)
+    fs.mkdirSync(leaseRoot, { recursive: true, mode: 0o700 })
+    leasePath = path.join(leaseRoot, process.ppid + '-' + crypto.randomBytes(6).toString('hex') + '.json')
+    fs.writeFileSync(leasePath, JSON.stringify({
+      schema: 'pluxx.shared-native-runtime-lease.v1',
+      fingerprint,
+      ownerPid: process.ppid,
+      createdAt: new Date().toISOString(),
+    }) + '\\n', { mode: 0o600, flag: 'wx' })
+    fs.writeFileSync(path.join(candidateRoot, '.pluxx-runtime-ref.json'), JSON.stringify({
+      schema: 'pluxx.shared-native-runtime-ref-candidate.v1',
+      storeRoot,
+      fingerprint,
+      runtimeEntry: path.join(entryRoot, 'current'),
+      leasePath,
+    }, null, 2) + '\\n', { mode: 0o600 })
+  } catch (error) {
+    console.error('Could not link the shared runtime; preparing runtime in the host bundle instead: ' + error.message)
+    if (leasePath) fs.rmSync(leasePath, { force: true })
+    fs.rmSync(candidateOutput, { recursive: true, force: true })
+    bootstrapLocal()
+  }
+} finally {
+  removeTree(stageRoot)
+  releaseLock()
+}
+NODE
 fi
 `
 }
@@ -1401,7 +1829,6 @@ process.exit(hasPluginHooks ? 0 : 2)
 NODE
 PLUXX_CODEX_BUNDLE_HAS_HOOKS="$?"
 set -e
-trap rollback_install ERR
 
 if [[ "$PLUXX_CODEX_BUNDLE_HAS_HOOKS" == "0" ]]; then
   CODEX_HOME_DIR="\${CODEX_HOME:-$HOME/.codex}"
@@ -1718,6 +2145,42 @@ PLUXX_TX_OWNED_ROOT=""
 PLUXX_TX_OWNED_PATHS=()
 PLUXX_TX_OWNED_BACKUPS=()
 PLUXX_TX_OWNED_EXISTED=()
+PLUXX_TX_RESULT_STATE="installed"
+
+pluxx_emit_install_result() {
+  local state="$1" reason="\${2:-}" error="\${3:-}"
+  if [[ -z "\${PLUXX_INSTALL_RESULT_FILE:-}" ]]; then return 0; fi
+  PLUXX_RESULT_TARGET="$PLUXX_TX_PLATFORM" PLUXX_RESULT_STATE="$state" PLUXX_RESULT_REASON="$reason" PLUXX_RESULT_ERROR="$error" PLUXX_RESULT_FILE="$PLUXX_INSTALL_RESULT_FILE" node <<'NODE'
+const fs = require('fs')
+const result = { target: process.env.PLUXX_RESULT_TARGET, state: process.env.PLUXX_RESULT_STATE }
+if (process.env.PLUXX_RESULT_REASON) result.reason = process.env.PLUXX_RESULT_REASON
+if (process.env.PLUXX_RESULT_ERROR) { result.error = process.env.PLUXX_RESULT_ERROR; result.action = 'inspect stderr and rerun the target installer' }
+fs.writeFileSync(process.env.PLUXX_RESULT_FILE, JSON.stringify(result) + '\\n')
+NODE
+  if [[ "\${PLUXX_INSTALL_JSON:-0}" == "1" ]]; then cat "$PLUXX_INSTALL_RESULT_FILE" >&3; fi
+}
+
+# A no-op is valid only for a complete, owned, byte-identical install.  This
+# deliberately shares the ownership ledger rules with the transaction gate.
+pluxx_current_install_unchanged() {
+  export INSTALL_DIR PLUGIN_NAME PLUXX_TX_PLATFORM PLUXX_BUNDLE_DIR="$1"
+  node <<'NODE'
+const crypto = require('crypto'), fs = require('fs'), path = require('path')
+const root = path.resolve(process.env.INSTALL_DIR), candidate = path.resolve(process.env.PLUXX_BUNDLE_DIR)
+const home = path.resolve(process.env.HOME)
+const roots = ['.claude/plugins', '.cursor/plugins', '.codex/plugins', '.config/opencode'].map((value) => path.join(home, value))
+const ownershipRoot = roots.some((value) => root === value || root.startsWith(value + path.sep)) ? path.join(home, '.pluxx/install-ownership') : path.join(path.dirname(root), '.pluxx-install-ownership')
+const ledger = path.join(ownershipRoot, process.env.PLUGIN_NAME, process.env.PLUXX_TX_PLATFORM + '.json')
+const hash = (value) => crypto.createHash('sha256').update(value).digest('hex')
+const walk = (base) => { const out = []; const visit = (dir) => { for (const entry of fs.readdirSync(dir, { withFileTypes: true }).sort((a,b) => a.name.localeCompare(b.name))) { const file = path.join(dir, entry.name), rel = path.relative(base, file).replace(/\\\\/g, '/'), stat = fs.lstatSync(file); if (stat.isDirectory()) visit(file); else if (stat.isSymbolicLink()) out.push({ path: rel, kind: 'symlink', sha256: hash(fs.readlinkSync(file)) }); else if (stat.isFile()) out.push({ path: rel, kind: 'file', sha256: hash(fs.readFileSync(file)) }) } }; visit(base); return out }
+if (!fs.existsSync(root) || !fs.existsSync(candidate) || !fs.existsSync(ledger)) process.exit(1)
+let record; try { record = JSON.parse(fs.readFileSync(ledger, 'utf8')) } catch { process.exit(1) }
+if (record.schema !== 'pluxx.install-ownership.v1' || record.pluginName !== process.env.PLUGIN_NAME || record.platform !== process.env.PLUXX_TX_PLATFORM || path.resolve(record.installPath) !== root || !Array.isArray(record.entries)) process.exit(1)
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b)
+if (!same(record.entries, walk(root)) || !same(walk(root), walk(candidate))) process.exit(1)
+process.exit(0)
+NODE
+}
 
 pluxx_tx_backup_owned_path() {
   local owned_path="$1"
@@ -1831,11 +2294,43 @@ const walk = (root) => {
   visit(root)
   return result
 }
+const refuseUnownedInstall = (reason) => {
+  throw new Error('Refusing to replace unowned install at ' + installDir + ': ' + reason + '. Move it aside or uninstall it manually, then retry.')
+}
+const manifestRelativePathByPlatform = {
+  'claude-code': '.claude-plugin/plugin.json',
+  cursor: '.cursor-plugin/plugin.json',
+  codex: '.codex-plugin/plugin.json',
+  opencode: 'package.json',
+}
+const readJson = (filepath, label) => {
+  if (!fs.existsSync(filepath)) refuseUnownedInstall('missing ' + label)
+  try {
+    return JSON.parse(fs.readFileSync(filepath, 'utf8'))
+  } catch {
+    refuseUnownedInstall('malformed ' + label)
+  }
+}
+const identityName = (manifest) => {
+  if (!manifest || typeof manifest !== 'object') return undefined
+  return typeof manifest.name === 'string' && manifest.name.trim() !== '' ? manifest.name.trim() : undefined
+}
+const assertTrustedLegacyInstall = () => {
+  const manifestRelativePath = manifestRelativePathByPlatform[platform]
+  if (!manifestRelativePath) refuseUnownedInstall('unsupported platform ' + platform)
+  const installedManifest = readJson(path.join(installDir, manifestRelativePath), 'installed host manifest')
+  const candidateManifest = readJson(path.join(process.env.PLUXX_BUNDLE_DIR, manifestRelativePath), 'candidate host manifest')
+  const installedName = identityName(installedManifest)
+  const candidateName = identityName(candidateManifest)
+  if (!installedName || !candidateName || installedName !== candidateName) {
+    refuseUnownedInstall('installed host manifest identity does not match candidate bundle')
+  }
+}
 if (fs.existsSync(installDir)) {
   if (!fs.existsSync(ownershipPath)) {
     const legacy = walk(installDir)
     if (!legacy.every((entry) => entry.path === '.pluxx-user.json')) {
-      throw new Error('Refusing to replace unowned install at ' + installDir + '. Move it aside or uninstall it manually, then retry.')
+      assertTrustedLegacyInstall()
     }
   } else {
     const record = JSON.parse(fs.readFileSync(ownershipPath, 'utf8'))
@@ -1855,6 +2350,7 @@ fs.cpSync(process.env.PLUXX_BUNDLE_DIR, stage, { recursive: true })
 fs.writeFileSync(process.env.PLUXX_TX_OWNERSHIP_PATH_FILE, ownershipPath)
 NODE
   PLUXX_TX_OWNERSHIP_PATH="$(<"$ownership_path_file")"
+  if [[ -e "$INSTALL_DIR" || -L "$INSTALL_DIR" ]]; then PLUXX_TX_RESULT_STATE="updated"; else PLUXX_TX_RESULT_STATE="installed"; fi
   pluxx_tx_backup_owned_path "$PLUXX_TX_OWNERSHIP_PATH"
 }
 
@@ -1873,6 +2369,12 @@ const crypto = require('crypto')
 const fs = require('fs')
 const path = require('path')
 const root = path.resolve(process.env.INSTALL_DIR)
+const runtimeCandidatePath = path.join(root, '.pluxx-runtime-ref.json')
+let runtimeCandidate
+if (fs.existsSync(runtimeCandidatePath)) {
+  runtimeCandidate = JSON.parse(fs.readFileSync(runtimeCandidatePath, 'utf8'))
+  fs.rmSync(runtimeCandidatePath, { force: true })
+}
 const hash = (value) => crypto.createHash('sha256').update(value).digest('hex')
 const entries = []
 const visit = (dir) => {
@@ -1903,6 +2405,192 @@ fs.writeFileSync(temporary, JSON.stringify({
   entries,
 }, null, 2) + '\\n', { mode: 0o600 })
 fs.renameSync(temporary, ownershipPath)
+
+const commitRuntimeReference = () => {
+  const runtimeRefPath = (storeRoot) => path.join(
+    storeRoot,
+    'refs',
+    process.env.PLUGIN_NAME,
+    process.env.PLUXX_TX_PLATFORM + '-' + hash(root).slice(0, 16) + '.json',
+  )
+  if (!runtimeCandidate) {
+    const configuredStoreRoot = process.env.PLUXX_RUNTIME_STORE_ROOT || path.join(path.resolve(process.env.HOME), '.pluxx/runtimes')
+    if (!fs.existsSync(configuredStoreRoot)) return
+    const storeRoot = fs.realpathSync(configuredStoreRoot)
+    const staleRef = runtimeRefPath(storeRoot)
+    fs.rmSync(staleRef, { force: true })
+    return
+  }
+  if (runtimeCandidate.schema !== 'pluxx.shared-native-runtime-ref-candidate.v1'
+    || typeof runtimeCandidate.storeRoot !== 'string'
+    || !/^[a-f0-9]{64}$/.test(runtimeCandidate.fingerprint)
+    || typeof runtimeCandidate.runtimeEntry !== 'string'
+    || typeof runtimeCandidate.leasePath !== 'string') {
+    throw new Error('Invalid committed shared runtime reference candidate.')
+  }
+  const storeRoot = fs.realpathSync(runtimeCandidate.storeRoot)
+  const expectedEntry = path.join(storeRoot, 'entries', runtimeCandidate.fingerprint, 'current')
+  if (path.resolve(runtimeCandidate.runtimeEntry) !== expectedEntry) {
+    throw new Error('Shared runtime reference points outside its fingerprint entry.')
+  }
+  const expectedLeaseRoot = path.join(storeRoot, 'leases', runtimeCandidate.fingerprint)
+  const resolvedLeasePath = path.resolve(runtimeCandidate.leasePath)
+  if (!resolvedLeasePath.startsWith(expectedLeaseRoot + path.sep)) {
+    throw new Error('Shared runtime lease points outside its fingerprint lease root.')
+  }
+  const refRoot = path.join(storeRoot, 'refs')
+  const refPath = runtimeRefPath(storeRoot)
+  fs.mkdirSync(path.dirname(refPath), { recursive: true, mode: 0o700 })
+  const ref = {
+    schema: 'pluxx.shared-native-runtime-ref.v1',
+    pluginName: process.env.PLUGIN_NAME,
+    platform: process.env.PLUXX_TX_PLATFORM,
+    installPath: root,
+    runtimeEntry: expectedEntry,
+    fingerprint: runtimeCandidate.fingerprint,
+    updatedAt: new Date().toISOString(),
+  }
+  const temporaryRef = refPath + '.tmp-' + process.pid + '-' + crypto.randomBytes(5).toString('hex')
+  fs.writeFileSync(temporaryRef, JSON.stringify(ref, null, 2) + '\\n', { mode: 0o600 })
+  fs.renameSync(temporaryRef, refPath)
+  try { fs.rmSync(resolvedLeasePath, { force: true }) } catch (error) {
+    console.error('Warning: could not remove committed shared runtime lease: ' + error.message)
+  }
+
+  try {
+  const liveFingerprints = new Set()
+  const graceMs = Math.max(0, Number(process.env.PLUXX_RUNTIME_GC_GRACE_SECONDS || 604800) * 1000)
+  const makeWritable = (filepath) => {
+    if (!fs.existsSync(filepath)) return
+    const stats = fs.lstatSync(filepath)
+    if (stats.isSymbolicLink()) return
+    fs.chmodSync(filepath, stats.isDirectory() ? 0o700 : (stats.mode | 0o600))
+    if (stats.isDirectory()) for (const entry of fs.readdirSync(filepath)) makeWritable(path.join(filepath, entry))
+  }
+  const removeTree = (filepath) => {
+    makeWritable(filepath)
+    fs.rmSync(filepath, { recursive: true, force: true, maxRetries: 5, retryDelay: 50 })
+  }
+  const visitRefs = (directory) => {
+    if (!fs.existsSync(directory)) return
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const filepath = path.join(directory, entry.name)
+      if (entry.isDirectory()) visitRefs(filepath)
+      else if (entry.isFile() && entry.name.endsWith('.json')) {
+        try {
+          const candidate = JSON.parse(fs.readFileSync(filepath, 'utf8'))
+          if (candidate.schema !== 'pluxx.shared-native-runtime-ref.v1'
+            || typeof candidate.installPath !== 'string') {
+            fs.rmSync(filepath, { force: true })
+          } else if (!fs.existsSync(candidate.installPath)) {
+            const updatedAt = Date.parse(candidate.updatedAt || '')
+            if (Number.isFinite(updatedAt) && Date.now() - updatedAt < graceMs && /^[a-f0-9]{64}$/.test(candidate.fingerprint)) {
+              liveFingerprints.add(candidate.fingerprint)
+            } else {
+              fs.rmSync(filepath, { force: true })
+            }
+          } else if (/^[a-f0-9]{64}$/.test(candidate.fingerprint)) {
+            liveFingerprints.add(candidate.fingerprint)
+          }
+        } catch { fs.rmSync(filepath, { force: true }) }
+      }
+    }
+  }
+  visitRefs(refRoot)
+
+  const leasesRoot = path.join(storeRoot, 'leases')
+  if (fs.existsSync(leasesRoot)) {
+    for (const fingerprintEntry of fs.readdirSync(leasesRoot, { withFileTypes: true })) {
+      if (!fingerprintEntry.isDirectory() || !/^[a-f0-9]{64}$/.test(fingerprintEntry.name)) continue
+      const fingerprintLeaseRoot = path.join(leasesRoot, fingerprintEntry.name)
+      for (const leaseEntry of fs.readdirSync(fingerprintLeaseRoot, { withFileTypes: true })) {
+        if (!leaseEntry.isFile() || !leaseEntry.name.endsWith('.json')) continue
+        const leaseFile = path.join(fingerprintLeaseRoot, leaseEntry.name)
+        try {
+          const lease = JSON.parse(fs.readFileSync(leaseFile, 'utf8'))
+          if (lease.schema === 'pluxx.shared-native-runtime-lease.v1'
+            && lease.fingerprint === fingerprintEntry.name
+            && Number.isInteger(lease.ownerPid)
+            && lease.ownerPid > 0) {
+            try { process.kill(lease.ownerPid, 0); liveFingerprints.add(fingerprintEntry.name); continue } catch (error) {
+              if (error && error.code === 'EPERM') { liveFingerprints.add(fingerprintEntry.name); continue }
+            }
+          }
+        } catch {}
+        fs.rmSync(leaseFile, { force: true })
+      }
+    }
+  }
+
+  const fingerprintHasLiveLease = (fingerprint) => {
+    const leaseRoot = path.join(leasesRoot, fingerprint)
+    if (!fs.existsSync(leaseRoot)) return false
+    for (const leaseEntry of fs.readdirSync(leaseRoot, { withFileTypes: true })) {
+      if (!leaseEntry.isFile() || !leaseEntry.name.endsWith('.json')) continue
+      try {
+        const lease = JSON.parse(fs.readFileSync(path.join(leaseRoot, leaseEntry.name), 'utf8'))
+        if (lease.schema !== 'pluxx.shared-native-runtime-lease.v1'
+          || lease.fingerprint !== fingerprint
+          || !Number.isInteger(lease.ownerPid)
+          || lease.ownerPid <= 0) continue
+        try { process.kill(lease.ownerPid, 0); return true } catch (error) {
+          if (error && error.code === 'EPERM') return true
+        }
+      } catch {}
+    }
+    return false
+  }
+  const fingerprintHasLiveRef = (directory, fingerprint) => {
+    if (!fs.existsSync(directory)) return false
+    for (const refEntry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const refFile = path.join(directory, refEntry.name)
+      if (refEntry.isDirectory()) {
+        if (fingerprintHasLiveRef(refFile, fingerprint)) return true
+        continue
+      }
+      if (!refEntry.isFile() || !refEntry.name.endsWith('.json')) continue
+      try {
+        const candidate = JSON.parse(fs.readFileSync(refFile, 'utf8'))
+        if (candidate.schema !== 'pluxx.shared-native-runtime-ref.v1'
+          || candidate.fingerprint !== fingerprint
+          || typeof candidate.installPath !== 'string') continue
+        if (fs.existsSync(candidate.installPath)) return true
+        const updatedAt = Date.parse(candidate.updatedAt || '')
+        if (Number.isFinite(updatedAt) && Date.now() - updatedAt < graceMs) return true
+      } catch {}
+    }
+    return false
+  }
+
+  const entriesRoot = path.join(storeRoot, 'entries')
+  if (fs.existsSync(entriesRoot)) {
+    for (const entry of fs.readdirSync(entriesRoot, { withFileTypes: true })) {
+      const filepath = path.join(entriesRoot, entry.name)
+      if (!entry.isDirectory()) continue
+      if (!liveFingerprints.has(entry.name)) {
+        if (fs.existsSync(path.join(storeRoot, 'locks', entry.name + '.lock'))) continue
+        // Check the handoff in lease-then-ref order: ref publication precedes lease removal.
+        if (fingerprintHasLiveLease(entry.name) || fingerprintHasLiveRef(refRoot, entry.name)) continue
+        if (Date.now() - fs.statSync(filepath).mtimeMs >= graceMs) removeTree(filepath)
+        continue
+      }
+      const generationsRoot = path.join(filepath, 'generations')
+      let currentGeneration
+      try { currentGeneration = path.resolve(filepath, fs.readlinkSync(path.join(filepath, 'current'))) } catch {}
+      if (!fs.existsSync(generationsRoot)) continue
+      for (const generation of fs.readdirSync(generationsRoot, { withFileTypes: true })) {
+        const generationPath = path.join(generationsRoot, generation.name)
+        if (!generation.isDirectory() || generationPath === currentGeneration) continue
+        if (Date.now() - fs.statSync(generationPath).mtimeMs >= graceMs) removeTree(generationPath)
+      }
+    }
+  }
+  } catch (error) {
+    console.error('Warning: could not prune shared runtime store: ' + error.message)
+  }
+}
+
+commitRuntimeReference()
 NODE
 }
 
@@ -1929,6 +2617,37 @@ trap 'exit 143' TERM
 `
 }
 
+function renderInstallerResultCliSnippet(): string {
+  return `
+PLUXX_INSTALL_JSON=0
+PLUXX_INSTALL_QUIET=0
+while [[ "$#" -gt 0 ]]; do
+  case "$1" in
+    --json) PLUXX_INSTALL_JSON=1; shift ;;
+    --quiet) PLUXX_INSTALL_QUIET=1; shift ;;
+    --result-file)
+      [[ "$#" -ge 2 ]] || { echo "--result-file requires a path" >&2; exit 2; }
+      PLUXX_INSTALL_RESULT_FILE="$2"; shift 2 ;;
+    --result-file=*) PLUXX_INSTALL_RESULT_FILE="\${1#*=}"; shift ;;
+    -y|--yes) shift ;;
+    *) echo "Unknown option: $1" >&2; exit 2 ;;
+  esac
+done
+export PLUXX_INSTALL_JSON PLUXX_INSTALL_QUIET PLUXX_INSTALL_RESULT_FILE
+if [[ "$PLUXX_INSTALL_JSON" == "1" || "$PLUXX_INSTALL_QUIET" == "1" ]]; then
+  exec 3>&1
+  exec 1>/dev/null
+fi
+
+pluxx_prepare_install_result_output() {
+  if [[ "$PLUXX_INSTALL_JSON" == "1" && -z "\${PLUXX_INSTALL_RESULT_FILE:-}" ]]; then
+    PLUXX_INSTALL_RESULT_FILE="$TMP_DIR/install-result.json"
+    export PLUXX_INSTALL_RESULT_FILE
+  fi
+}
+`
+}
+
 function renderInstallClaudeCodeScript(config: PluginConfig): string {
   return `#!/usr/bin/env bash
 set -Eeuo pipefail
@@ -1945,6 +2664,7 @@ AUTHOR_NAME="\${PLUXX_PLUGIN_AUTHOR:-AUTHOR_PLACEHOLDER}"
 HOMEPAGE_URL="\${PLUXX_PLUGIN_HOMEPAGE:-HOMEPAGE_PLACEHOLDER}"
 DESCRIPTION_FALLBACK="\${PLUXX_PLUGIN_DESCRIPTION:-DESCRIPTION_PLACEHOLDER}"
 ${renderInstallerTransactionHelpers('claude-code')}
+${renderInstallerResultCliSnippet()}
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -1965,9 +2685,13 @@ if [[ "$SKIP_INSTALL" != "1" ]]; then
 fi
 
 TMP_DIR="$(mktemp -d)"
+pluxx_prepare_install_result_output
 cleanup() {
+  local status=$?
+  if [[ "$status" != "0" ]]; then pluxx_emit_install_result failed installer-failed "installer exited with status $status" || true; fi
   pluxx_tx_cleanup
   rm -rf "$TMP_DIR"
+  return "$status"
 }
 trap cleanup EXIT
 
@@ -1999,6 +2723,11 @@ pluxx_begin_install_transaction "$BUNDLE_DIR"
 ${renderInstallerUserConfigSnippet(config, 'claude-code', '$PLUXX_TX_STAGE')}
 ${renderInstallerMcpPathMaterializationSnippet('claude-code', '$PLUXX_TX_STAGE', '$INSTALL_DIR')}
 ${renderInstallerRuntimeBootstrapSnippet('$PLUXX_TX_STAGE')}
+if [[ -f "$INSTALL_ROOT/.claude-plugin/marketplace.json" ]] && pluxx_current_install_unchanged "$PLUXX_TX_STAGE"; then
+  pluxx_emit_install_result unchanged already-current
+  echo "Install is already current for $PLUGIN_NAME (unchanged)."
+  exit 0
+fi
 pluxx_tx_backup_owned_path "$INSTALL_ROOT/.claude-plugin/marketplace.json"
 pluxx_tx_backup_owned_path "$HOME/.claude/plugins/cache/$MARKETPLACE_NAME/$PLUGIN_NAME"
 pluxx_swap_install_transaction
@@ -2027,6 +2756,7 @@ JSON
 
 if [[ "$SKIP_INSTALL" == "1" ]]; then
   pluxx_finalize_install_transaction
+  pluxx_emit_install_result "$PLUXX_TX_RESULT_STATE"
   echo "Prepared Claude marketplace at: $INSTALL_ROOT"
   echo "Plugin bundle is at: $INSTALL_ROOT/plugins/$PLUGIN_NAME"
   exit 0
@@ -2041,6 +2771,7 @@ fi
 claude plugin uninstall "\${PLUGIN_NAME}@\${MARKETPLACE_NAME}" --scope user >/dev/null 2>&1 || true
 claude plugin install "\${PLUGIN_NAME}@\${MARKETPLACE_NAME}" --scope user
 pluxx_finalize_install_transaction
+pluxx_emit_install_result "$PLUXX_TX_RESULT_STATE"
 
 echo
 echo "Installed \${PLUGIN_NAME}@\${MARKETPLACE_NAME} into Claude Code user scope."
@@ -2058,6 +2789,7 @@ BUNDLE_URL="\${PLUXX_CURSOR_BUNDLE_URL:-https://github.com/\${REPO}/releases/dow
 INSTALL_DIR="\${PLUXX_CURSOR_INSTALL_DIR:-$HOME/.cursor/plugins/local/$PLUGIN_NAME}"
 BUNDLE_PATH="\${PLUXX_CURSOR_BUNDLE_PATH:-}"
 ${renderInstallerTransactionHelpers('cursor')}
+${renderInstallerResultCliSnippet()}
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -2072,9 +2804,13 @@ need_cmd curl
 need_cmd node
 
 TMP_DIR="$(mktemp -d)"
+pluxx_prepare_install_result_output
 cleanup() {
+  local status=$?
+  if [[ "$status" != "0" ]]; then pluxx_emit_install_result failed installer-failed "installer exited with status $status" || true; fi
   pluxx_tx_cleanup
   rm -rf "$TMP_DIR"
+  return "$status"
 }
 trap cleanup EXIT
 
@@ -2103,11 +2839,55 @@ pluxx_begin_install_transaction "$BUNDLE_DIR"
 ${renderInstallerUserConfigSnippet(config, 'cursor', '$PLUXX_TX_STAGE')}
 ${renderInstallerMcpPathMaterializationSnippet('cursor', '$PLUXX_TX_STAGE', '$INSTALL_DIR')}
 ${renderInstallerRuntimeBootstrapSnippet('$PLUXX_TX_STAGE')}
+if pluxx_current_install_unchanged "$PLUXX_TX_STAGE"; then
+  pluxx_emit_install_result unchanged already-current
+  echo "Install is already current for $PLUGIN_NAME (unchanged)."
+  exit 0
+fi
 pluxx_swap_install_transaction
 pluxx_finalize_install_transaction
+pluxx_emit_install_result "$PLUXX_TX_RESULT_STATE"
 
 echo "Installed $PLUGIN_NAME to $INSTALL_DIR"
 echo "${getPublishReloadInstruction('cursor')}"
+`
+}
+
+/** Native inventory is read-only; this helper never registers or removes plugins. */
+function renderCodexCollisionCheck(): string {
+  return `
+pluxx_check_codex_collisions() {
+  PLUXX_COLLISION_MANIFEST="$1" PLUXX_COLLISION_INSTALL="$INSTALL_DIR" PLUXX_COLLISION_CATALOG="$MARKETPLACE_PATH" PLUXX_COLLISION_MARKET="$MARKETPLACE_NAME" PLUXX_COLLISION_RESULT="$TMP_DIR/collision-result.json" node <<'NODE'
+const fs = require('fs'), crypto = require('crypto'), cp = require('child_process')
+const classify = ${detectCodexPluginCollisions.toString()}
+const render = ${renderCodexPluginDiagnostic.toString()}
+let inventory, requested = { name: '' }
+try {
+  const manifest = JSON.parse(fs.readFileSync(process.env.PLUXX_COLLISION_MANIFEST, 'utf8'))
+  const catalog = process.env.PLUXX_COLLISION_CATALOG
+  const marketplace = fs.existsSync(catalog) ? JSON.parse(fs.readFileSync(catalog, 'utf8')).name : process.env.PLUXX_COLLISION_MARKET
+  requested = { name: manifest.name, version: manifest.version ?? null, marketplace: marketplace ?? '', sourcePath: process.env.PLUXX_COLLISION_INSTALL }
+  const result = cp.spawnSync('codex', ['plugin', 'list', '--json'], { encoding: 'utf8', timeout: 15000, maxBuffer: 2097152, env: process.env })
+  if (result.status === 0 && !result.error) inventory = JSON.parse(result.stdout)
+} catch {}
+const diagnostic = classify(inventory, requested, text => crypto.createHash('sha256').update(text).digest('hex'))
+if (diagnostic) {
+  const result = { target: 'codex', state: 'failed', reason: diagnostic.code, error: diagnostic.error, action: diagnostic.action, diagnostics: [diagnostic] }
+  fs.writeFileSync(process.env.PLUXX_COLLISION_RESULT, JSON.stringify(result) + '\\n')
+  console.error(render(diagnostic))
+  process.exitCode = 1
+}
+NODE
+  local status=$?
+  if [[ "$status" != "0" ]]; then
+    if [[ -f "$TMP_DIR/collision-result.json" ]]; then
+      if [[ -n "\${PLUXX_INSTALL_RESULT_FILE:-}" ]]; then cp "$TMP_DIR/collision-result.json" "$PLUXX_INSTALL_RESULT_FILE"; fi
+      if [[ "$PLUXX_INSTALL_JSON" == "1" ]]; then cat "$TMP_DIR/collision-result.json" >&3; fi
+      PLUXX_COLLISION_REPORTED=1
+    fi
+    return 1
+  fi
+}
 `
 }
 
@@ -2124,6 +2904,8 @@ BUNDLE_PATH="\${PLUXX_CODEX_BUNDLE_PATH:-}"
 MARKETPLACE_NAME="\${PLUXX_CODEX_MARKETPLACE_NAME:-$PLUGIN_NAME-local}"
 MARKETPLACE_DISPLAY_NAME="\${PLUXX_CODEX_MARKETPLACE_DISPLAY_NAME:-DISPLAY_PLACEHOLDER Local}"
 ${renderInstallerTransactionHelpers('codex')}
+${renderInstallerResultCliSnippet()}
+${renderCodexCollisionCheck()}
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -2135,11 +2917,16 @@ need_cmd() {
 need_cmd tar
 need_cmd mktemp
 need_cmd node
+need_cmd grep
 
 TMP_DIR="$(mktemp -d)"
+pluxx_prepare_install_result_output
 cleanup() {
+  local status=$?
+  if [[ "$status" != "0" && "\${PLUXX_COLLISION_REPORTED:-0}" != "1" ]]; then pluxx_emit_install_result failed installer-failed "installer exited with status $status" || true; fi
   pluxx_tx_cleanup
   rm -rf "$TMP_DIR"
+  return "$status"
 }
 trap cleanup EXIT
 
@@ -2163,6 +2950,7 @@ if [[ ! -f "$PLUGIN_MANIFEST" ]]; then
   exit 1
 fi
 
+if ! pluxx_check_codex_collisions "$PLUGIN_MANIFEST"; then exit 1; fi
 mkdir -p "$(dirname "$INSTALL_DIR")"
 ${renderInstallerSavedUserConfigCaptureSnippet(config, 'codex', '$INSTALL_DIR')}
 pluxx_begin_install_transaction "$BUNDLE_DIR"
@@ -2171,6 +2959,14 @@ ${renderInstallerMcpPathMaterializationSnippet('codex', '$PLUXX_TX_STAGE', '$INS
 ${renderInstallerRuntimeBootstrapSnippet('$PLUXX_TX_STAGE')}
 CODEX_HOME_DIR="\${CODEX_HOME:-$HOME/.codex}"
 CODEX_CONFIG_PATH="\${PLUXX_CODEX_CONFIG_PATH:-$CODEX_HOME_DIR/config.toml}"
+CODEX_COMPANIONS_CURRENT=1
+[[ -f "$MARKETPLACE_PATH" ]] && grep -q "\"name\"[[:space:]]*:[[:space:]]*\"$PLUGIN_NAME\"" "$MARKETPLACE_PATH" || CODEX_COMPANIONS_CURRENT=0
+if [[ -d "$PLUXX_TX_STAGE/.codex/agents" && ! -d "$CODEX_HOME_DIR/agents/$PLUGIN_NAME" ]]; then CODEX_COMPANIONS_CURRENT=0; fi
+if [[ "$CODEX_COMPANIONS_CURRENT" == "1" ]] && pluxx_current_install_unchanged "$PLUXX_TX_STAGE"; then
+  pluxx_emit_install_result unchanged already-current
+  echo "Install is already current for $PLUGIN_NAME (unchanged)."
+  exit 0
+fi
 pluxx_tx_backup_owned_path "$CODEX_HOME_DIR/agents/$PLUGIN_NAME"
 pluxx_tx_backup_owned_path "$CODEX_HOME_DIR/pluxx/agent-installs/$PLUGIN_NAME.json"
 pluxx_tx_backup_owned_path "$CODEX_HOME_DIR/plugins/cache/local-plugins/$PLUGIN_NAME"
@@ -2235,7 +3031,9 @@ fs.writeFileSync(
   ) + '\\n',
 )
 NODE
+if ! pluxx_check_codex_collisions "$INSTALL_DIR/.codex-plugin/plugin.json"; then exit 1; fi
 pluxx_finalize_install_transaction
+pluxx_emit_install_result "$PLUXX_TX_RESULT_STATE"
 
 echo "Installed $PLUGIN_NAME to $INSTALL_DIR"
 echo "Updated Codex marketplace catalog at $MARKETPLACE_PATH"
@@ -2244,6 +3042,10 @@ echo "${getPublishReloadInstruction('codex')}"
 }
 
 function renderInstallOpenCodeScript(config: PluginConfig): string {
+  const pluginNameToken = '__PLUXX_RUNTIME_PLUGIN_NAME__'
+  const exportNameToken = toOpenCodeExportName(pluginNameToken)
+  const entryFileTemplate = buildOpenCodeEntryFile(pluginNameToken)
+
   return `#!/usr/bin/env bash
 set -Eeuo pipefail
 
@@ -2256,6 +3058,7 @@ ENTRY_PATH="\${PLUXX_OPENCODE_ENTRY_PATH:-$PLUGIN_ROOT_DIR/$PLUGIN_NAME.ts}"
 SKILLS_ROOT="\${PLUXX_OPENCODE_SKILLS_ROOT:-$HOME/.config/opencode/skills}"
 BUNDLE_PATH="\${PLUXX_OPENCODE_BUNDLE_PATH:-}"
 ${renderInstallerTransactionHelpers('opencode')}
+${renderInstallerResultCliSnippet()}
 PLUXX_OPENCODE_COMPANION_STAGE=""
 PLUXX_OPENCODE_COMPANION_JOURNAL=""
 
@@ -2362,6 +3165,71 @@ const movePath = (source, destination) => {
   else fs.copyFileSync(source, destination)
   fs.rmSync(source, { recursive: true, force: true })
 }
+const frontmatterName = (content) => {
+  const match = content.match(/^---\\n([\\s\\S]*?)\\n---\\n?/)
+  if (!match) return undefined
+  const nameMatch = match[1].match(/^name:\\s*(.+)$/m)
+  return nameMatch ? nameMatch[1].trim().replace(/^['"]|['"]$/g, '') : undefined
+}
+const toOpenCodeExportName = (name) => name
+  .split(/[^A-Za-z0-9]+/)
+  .filter(Boolean)
+  .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+  .join('')
+const normalizeOpenCodeEntryContent = (content) => content.replace(/\\r\\n/g, '\\n').trim()
+const currentOpenCodeWrapperContent = () => ${JSON.stringify(entryFileTemplate)}
+  .replaceAll(${JSON.stringify(pluginNameToken)}, pluginName)
+  .replaceAll(${JSON.stringify(exportNameToken)}, toOpenCodeExportName(pluginName))
+fs.mkdirSync(stageRoot, { recursive: true })
+fs.writeFileSync(path.join(stageRoot, 'entry.ts'), currentOpenCodeWrapperContent())
+const legacyOpenCodeWrapperContent = () => {
+  const exportName = toOpenCodeExportName(pluginName)
+  return [
+    'import type { Plugin } from "@opencode-ai/plugin"',
+    'import { join } from "path"',
+    '',
+    'import * as PluginModule from "./' + pluginName + '/index.ts"',
+    '',
+    '// OpenCode auto-loads plugin files placed directly in ~/.config/opencode/plugins.',
+    '// Proxy into the installed plugin bundle while preserving its expected root.',
+    'const pluginFactory = Object.values(PluginModule).find((value): value is Plugin => typeof value === "function")',
+    '',
+    'if (!pluginFactory) {',
+    '  throw new Error("OpenCode plugin bundle for ' + pluginName + ' did not export a plugin function.")',
+    '}',
+    '',
+    'export const ' + exportName + ': Plugin = async (context) =>',
+    '  pluginFactory({',
+    '    ...context,',
+    '    directory: join(context.directory, "' + pluginName + '"),',
+    '  })',
+    '',
+  ].join('\\n')
+}
+const isRecognizedOpenCodeWrapper = (content) => {
+  const normalized = normalizeOpenCodeEntryContent(content)
+  return normalized === normalizeOpenCodeEntryContent(currentOpenCodeWrapperContent())
+    || normalized === normalizeOpenCodeEntryContent(legacyOpenCodeWrapperContent())
+}
+const isTrustedLegacyOpenCodeCompanion = (candidate) => {
+  if (candidate.remove || !fs.existsSync(candidate.destination)) return false
+  if (candidate.kind === 'file') {
+    if (!fs.lstatSync(candidate.destination).isFile() || fs.lstatSync(candidate.destination).isSymbolicLink()) return false
+    const content = fs.readFileSync(candidate.destination, 'utf8')
+    return isRecognizedOpenCodeWrapper(content)
+  }
+  if (candidate.kind === 'copy' && candidate.surface.startsWith('skill-')) {
+    if (!fs.lstatSync(candidate.destination).isDirectory() || fs.lstatSync(candidate.destination).isSymbolicLink()) return false
+    const skillPath = path.join(candidate.destination, 'SKILL.md')
+    const candidateSkillPath = path.join(candidate.source, 'SKILL.md')
+    if (!fs.existsSync(skillPath) || !fs.lstatSync(skillPath).isFile()) return false
+    if (!fs.existsSync(candidateSkillPath) || !fs.lstatSync(candidateSkillPath).isFile()) return false
+    const name = frontmatterName(fs.readFileSync(skillPath, 'utf8'))
+    const candidateName = frontmatterName(fs.readFileSync(candidateSkillPath, 'utf8'))
+    return typeof name === 'string' && name === candidateName && name.startsWith(pluginName + '/')
+  }
+  return false
+}
 for (const candidate of candidates) {
   const ledgerPath = path.join(ledgerRoot, 'opencode--' + candidate.surface + '.json')
   candidate.ledgerPath = ledgerPath
@@ -2369,7 +3237,10 @@ for (const candidate of candidates) {
     if (fs.existsSync(ledgerPath)) throw new Error('Refusing to replace missing owned OpenCode companion: ' + candidate.destination)
     continue
   }
-  if (!fs.existsSync(ledgerPath)) throw new Error('Refusing to replace unowned OpenCode companion: ' + candidate.destination)
+  if (!fs.existsSync(ledgerPath)) {
+    if (isTrustedLegacyOpenCodeCompanion(candidate)) continue
+    throw new Error('Refusing to replace unowned OpenCode companion: ' + candidate.destination)
+  }
   const record = JSON.parse(fs.readFileSync(ledgerPath, 'utf8'))
   if (record.schema !== 'pluxx.install-ownership.v1' || record.pluginName !== pluginName || record.platform !== 'opencode' || record.surface !== candidate.surface || path.resolve(record.installPath || '') !== candidate.destination || record.kind !== candidate.kind) {
     throw new Error('Invalid OpenCode companion ownership record: ' + ledgerPath)
@@ -2460,10 +3331,14 @@ need_cmd mktemp
 need_cmd node
 
 TMP_DIR="$(mktemp -d)"
+pluxx_prepare_install_result_output
 cleanup() {
+  local status=$?
+  if [[ "$status" != "0" ]]; then pluxx_emit_install_result failed installer-failed "installer exited with status $status" || true; fi
   pluxx_opencode_companion_cleanup
   pluxx_tx_cleanup
   rm -rf "$TMP_DIR"
+  return "$status"
 }
 trap cleanup EXIT
 
@@ -2493,46 +3368,23 @@ pluxx_begin_install_transaction "$BUNDLE_DIR"
 ${renderInstallerUserConfigSnippet(config, 'opencode', '$PLUXX_TX_STAGE')}
 ${renderInstallerMcpPathMaterializationSnippet('opencode', '$PLUXX_TX_STAGE', '$INSTALL_DIR')}
 ${renderInstallerRuntimeBootstrapSnippet('$PLUXX_TX_STAGE')}
+OPENCODE_COMPANIONS_CURRENT=1
+[[ -f "$ENTRY_PATH" ]] || OPENCODE_COMPANIONS_CURRENT=0
+if [[ -d "$PLUXX_TX_STAGE/skills" ]]; then
+  for skill_dir in "$PLUXX_TX_STAGE"/skills/*; do
+    [[ -d "$skill_dir" ]] || continue
+    [[ -d "$SKILLS_ROOT/$PLUGIN_NAME-$(basename "$skill_dir")" ]] || OPENCODE_COMPANIONS_CURRENT=0
+  done
+fi
+if [[ "$OPENCODE_COMPANIONS_CURRENT" == "1" ]] && pluxx_current_install_unchanged "$PLUXX_TX_STAGE"; then
+  pluxx_emit_install_result unchanged already-current
+  echo "Install is already current for $PLUGIN_NAME (unchanged)."
+  exit 0
+fi
 PLUXX_OPENCODE_COMPANION_STAGE="$TMP_DIR/opencode-companions"
 PLUXX_OPENCODE_COMPANION_JOURNAL="$TMP_DIR/opencode-companions-journal.json"
 mkdir -p "$PLUXX_OPENCODE_COMPANION_STAGE/skills"
 export ENTRY_PATH PLUGIN_NAME PLUXX_OPENCODE_COMPANION_STAGE
-
-node <<'NODE'
-const fs = require('fs')
-
-const entryPath = process.env.PLUXX_OPENCODE_COMPANION_STAGE + '/entry.ts'
-const pluginName = process.env.PLUGIN_NAME
-const exportName = pluginName
-  .split(/[^A-Za-z0-9]+/)
-  .filter(Boolean)
-  .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-  .join('')
-
-const content = [
-  'import type { Plugin } from "@opencode-ai/plugin"',
-  'import { join } from "path"',
-  '',
-  'import * as PluginModule from "./' + pluginName + '/index.ts"',
-  '',
-  '// OpenCode auto-loads plugin files placed directly in ~/.config/opencode/plugins.',
-  '// Proxy into the installed plugin bundle while preserving its expected root.',
-  'const pluginFactory = Object.values(PluginModule).find((value): value is Plugin => typeof value === "function")',
-  '',
-  'if (!pluginFactory) {',
-  '  throw new Error("OpenCode plugin bundle for ' + pluginName + ' did not export a plugin function.")',
-  '}',
-  '',
-  'export const ' + exportName + ': Plugin = async (context) =>',
-  '  pluginFactory({',
-  '    ...context,',
-  '    directory: join(context.directory, "' + pluginName + '"),',
-  '  })',
-  '',
-].join('\\n')
-
-fs.writeFileSync(entryPath, content)
-NODE
 
 if [[ -d "$PLUXX_TX_STAGE/skills" ]]; then
   for skill_dir in "$PLUXX_TX_STAGE"/skills/*; do
@@ -2583,6 +3435,7 @@ pluxx_commit_opencode_companions
 pluxx_commit_install_transaction
 PLUXX_TX_COMMITTED=1
 pluxx_finalize_opencode_companions
+pluxx_emit_install_result "$PLUXX_TX_RESULT_STATE"
 pluxx_discard_install_transaction
 
 echo "Installed $PLUGIN_NAME plugin code to $INSTALL_DIR"
@@ -2689,9 +3542,11 @@ function createReleaseArtifacts(
     repo: githubRelease.repo,
     version: plan.version,
     releaseTag: githubRelease.releaseTag,
-    builtTargets: githubRelease.assets
-      .filter((asset): asset is PublishAssetPlan & { platform: TargetPlatform } => asset.kind === 'archive' && asset.platform !== undefined)
-      .map((asset) => asset.platform),
+    builtTargets: Array.from(new Set(
+      githubRelease.assets
+        .filter((asset): asset is PublishAssetPlan & { platform: TargetPlatform } => asset.kind === 'archive' && asset.platform !== undefined)
+        .map((asset) => asset.platform),
+    )),
     installerTargets: githubRelease.assets
       .filter(
         (asset): asset is PublishAssetPlan & { platform: typeof INSTALLER_TARGETS[number] } =>

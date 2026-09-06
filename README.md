@@ -14,7 +14,7 @@ Raw MCP access is usually not enough. Most products still need workflow grouping
 
 ## Current Proof
 
-Proof claims are tiered and freshness-checked. See [Proof freshness and evidence tiers](./docs/proof-freshness.md) and the machine-readable [proof manifest](./docs/proof-manifest.json); April/May host runs remain available as explicitly historical evidence.
+Proof claims are tiered and freshness-checked. The canonical independently verified public release is `@orchid-labs/pluxx@0.1.43` / `v0.1.43`; its public npm and GitHub tarballs are byte-identical, while maintained core-four install proof remains isolated fake-home evidence rather than a generic installed-host claim. See [Proof freshness and evidence tiers](./docs/proof-freshness.md) and the machine-readable [proof manifest](./docs/proof-manifest.json); earlier host runs remain available as explicitly historical evidence.
 
 If you want the fastest way to see what is already real, start with these:
 
@@ -94,6 +94,8 @@ Pluxx is currently centered on the core four:
 
 Other targets still exist as generated secondary/beta outputs, but the product and docs are intentionally optimized around the core four. Gemini CLI is one of those beta generator targets today: it is fixture-tested, but it is not in the current release-smoked core-four installer lane.
 
+Pluxx also provides an opt-in `agent-plugins` portable floor for a strict Agent Plugins 1.0.0 package (`plugin.json`, immediate-child Agent Skills, and optional representable `mcp.json`). It is not a fifth native host: native-only capabilities degrade explicitly, GitHub Release planning can archive the package, and Pluxx does not invent a generic native installer path. See [docs/agent-plugins-portable-target.md](./docs/agent-plugins-portable-target.md).
+
 For the detailed compatibility and verification matrix, see [docs/compatibility.md](./docs/compatibility.md).
 For the release/distribution/proof lane, see [docs/release-distribution-proof-map.md](./docs/release-distribution-proof-map.md).
 
@@ -145,6 +147,20 @@ npx @orchid-labs/pluxx init --from-installed-mcp codex:acme --yes
 Discovery reads Claude Code, Cursor, Codex, and OpenCode config locations and avoids copying literal secret values into the generated project.
 
 For core-four stdio MCPs, Pluxx owns the runtime variable launcher. Pure placeholder values in MCP stdio config stay runtime-inherited, so a globally installed plugin can be reused from different workspaces without baking one workspace's local config into Claude Code, Cursor, Codex, or OpenCode bundles.
+
+Workspace `.env` files are parsed as dotenv text by the generated launcher. Bundled shell scripts must not `source` workspace env files; `lint`, `doctor`, `build`, and installed-bundle checks reject that pattern because shell sourcing can execute command substitutions from user-controlled env values.
+
+Plugins with expensive platform-native dependencies can opt into one content-addressed runtime shared by their generated core-four installers:
+
+```ts
+sharedRuntime: {
+  bootstrap: 'scripts/bootstrap-runtime.sh',
+  inputs: ['scripts/runtime-dependencies.lock.json'],
+  output: 'node_modules',
+}
+```
+
+The bootstrap must be deterministic from the declared files plus the current OS, architecture, and Node ABI. Pluxx reuses a compatible prepared runtime from `~/.pluxx/runtimes`; lock contention or unavailable linking falls back to the existing host-local bootstrap path.
 
 ## Command Cheat Sheet
 

@@ -1,3 +1,4 @@
+import { inspectCodexPluginCollisions, codexRequestedIdentity, CodexPluginCollisionError } from '../codex-plugin-collisions'
 import { resolve, dirname, basename, relative } from 'path'
 import { existsSync, symlinkSync, mkdirSync, rmSync, readFileSync, writeFileSync, cpSync, readdirSync, statSync } from 'fs'
 import { spawnSync } from 'child_process'
@@ -41,6 +42,8 @@ import {
   transactionalInstall,
   transactionalInstallGroup,
 } from '../install-ownership'
+import { buildOpenCodeEntryFile, isCurrentOpenCodeEntryFile } from '../opencode-entry'
+import { findUnsafeShellEnvSources, getUnsafeShellEnvSourceMessage } from '../runtime-script-contract'
 
 interface InstallTarget {
   platform: TargetPlatform
@@ -370,39 +373,6 @@ function getOpenCodeEntryPath(pluginDir: string): string {
   return `${pluginDir}.ts`
 }
 
-function toPascalCase(value: string): string {
-  return value
-    .split(/[^A-Za-z0-9]+/)
-    .filter(Boolean)
-    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-    .join('')
-}
-
-function buildOpenCodeEntryFile(pluginName: string): string {
-  const exportName = toPascalCase(pluginName)
-  return [
-      'import type { Plugin } from "@opencode-ai/plugin"',
-      'import { join } from "path"',
-      '',
-      `import * as PluginModule from "./${pluginName}/index.ts"`,
-      '',
-      '// OpenCode auto-loads plugin files placed directly in ~/.config/opencode/plugins.',
-      '// Proxy into the installed Pluxx bundle while preserving its expected root.',
-      `const pluginFactory = Object.values(PluginModule).find((value): value is Plugin => typeof value === "function")`,
-      '',
-      'if (!pluginFactory) {',
-      `  throw new Error("OpenCode plugin bundle for ${pluginName} did not export a plugin function.")`,
-      '}',
-      '',
-      `export const ${exportName}: Plugin = async (context) =>`,
-      `  pluginFactory({`,
-      '    ...context,',
-      `    directory: join(context.directory, "${pluginName}"),`,
-      '  })',
-      '',
-    ].join('\n')
-}
-
 function getOpenCodeSkillRoot(): string {
   const home = process.env.HOME ?? '~'
   return resolve(home, '.config/opencode/skills')
@@ -461,9 +431,8 @@ function verifyOpenCodeInstall(pluginDir: string, pluginName: string): void {
     throw new Error(`OpenCode install is incomplete: ${entryPath} does not import ./${pluginName}/index.ts`)
   }
 
-  const expectedDirectoryBridge = `directory: join(context.directory, "${pluginName}")`
-  if (!entryContent.includes(expectedDirectoryBridge)) {
-    throw new Error(`OpenCode install is incomplete: ${entryPath} does not preserve the plugin root bridge`)
+  if (!isCurrentOpenCodeEntryFile(entryContent, pluginName)) {
+    throw new Error(`OpenCode install is incomplete: ${entryPath} does not pass the host workspace context through unchanged`)
   }
 
   const sourceSkillsDir = resolve(pluginDir, 'skills')
@@ -1279,44 +1248,71 @@ export function findInstalledBundleIntegrityIssues(rootDir: string, platform: Ta
 }
 
 function findInstalledRuntimeScriptIssues(rootDir: string, manifest: Record<string, unknown>): string[] {
+  const issues = new Set<string>()
   const mcpReference = typeof manifest.mcpServers === 'string' ? manifest.mcpServers : undefined
-  if (!mcpReference) return []
+  const mcpPath = mcpReference ? resolveBundleReference(rootDir, mcpReference) : null
 
-  const mcpPath = resolveBundleReference(rootDir, mcpReference)
-  if (!mcpPath || !existsSync(mcpPath)) return []
+  if (mcpPath && existsSync(mcpPath)) {
+    try {
+      const parsed = JSON.parse(readFileSync(mcpPath, 'utf-8')) as { mcpServers?: Record<string, unknown> }
 
-  try {
-    const parsed = JSON.parse(readFileSync(mcpPath, 'utf-8')) as { mcpServers?: Record<string, unknown> }
-    const issues = new Set<string>()
+      for (const [serverName, server] of Object.entries(parsed.mcpServers ?? {})) {
+        if (!server || typeof server !== 'object') continue
+        const serverRecord = server as Record<string, unknown>
+        const args = Array.isArray(serverRecord.args)
+          ? serverRecord.args.filter((value): value is string => typeof value === 'string')
+          : []
 
-    for (const [serverName, server] of Object.entries(parsed.mcpServers ?? {})) {
-      if (!server || typeof server !== 'object') continue
-      const serverRecord = server as Record<string, unknown>
-      const args = Array.isArray(serverRecord.args)
-        ? serverRecord.args.filter((value): value is string => typeof value === 'string')
-        : []
+        const commandTargets = [
+          typeof serverRecord.command === 'string' ? serverRecord.command : '',
+          ...args,
+        ].flatMap(extractBundleCommandTargets)
 
-      const commandTargets = [
-        typeof serverRecord.command === 'string' ? serverRecord.command : '',
-        ...args,
-      ].flatMap(extractBundleCommandTargets)
+        for (const target of commandTargets) {
+          const resolved = resolveBundleReference(rootDir, target)
+          if (!resolved || !existsSync(resolved) || !statSync(resolved).isFile()) continue
 
-      for (const target of commandTargets) {
-        const resolved = resolveBundleReference(rootDir, target)
-        if (!resolved || !existsSync(resolved) || !resolved.endsWith('.sh')) continue
+          const content = readFileSync(resolved, 'utf-8')
+          if (!content.includes('check-env.sh')) continue
 
-        const content = readFileSync(resolved, 'utf-8')
-        if (!content.includes('check-env.sh')) continue
-
-        const relativePath = resolved.startsWith(`${rootDir}/`) ? resolved.slice(rootDir.length + 1) : resolved
-        issues.add(`runtime script ${relativePath} for MCP server "${serverName}" still references installer-owned scripts/check-env.sh`)
+          const relativePath = resolved.startsWith(`${rootDir}/`) ? resolved.slice(rootDir.length + 1) : resolved
+          issues.add(`runtime script ${relativePath} for MCP server "${serverName}" still references installer-owned scripts/check-env.sh`)
+        }
       }
+    } catch {
+      // Malformed MCP configs are reported by the caller's broader bundle checks.
     }
-
-    return [...issues].sort()
-  } catch {
-    return []
   }
+
+  for (const relativePath of findInstalledRuntimeScriptFiles(rootDir, 'scripts')) {
+    const content = readFileSync(resolve(rootDir, relativePath), 'utf-8')
+    for (const finding of findUnsafeShellEnvSources(content)) {
+      issues.add(getUnsafeShellEnvSourceMessage(relativePath, finding))
+    }
+  }
+
+  return [...issues].sort()
+}
+
+function findInstalledRuntimeScriptFiles(rootDir: string, relativeDir: string): string[] {
+  const scriptsRoot = resolve(rootDir, relativeDir)
+  if (!existsSync(scriptsRoot)) return []
+
+  const files: string[] = []
+  const visit = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const absolutePath = resolve(dir, entry.name)
+      if (entry.isDirectory()) {
+        visit(absolutePath)
+        continue
+      }
+      if (!entry.isFile()) continue
+      files.push(relative(rootDir, absolutePath).replace(/\\/g, '/'))
+    }
+  }
+
+  visit(scriptsRoot)
+  return files.sort()
 }
 
 function assertInstalledBundleIntegrity(rootDir: string, platform: TargetPlatform, label: string): void {
@@ -1499,8 +1495,7 @@ export function planInstallPlugin(
   const filtered = platforms
     ? targets.filter(t => platforms.includes(t.platform))
     : targets
-
-  return filtered.map((target) => {
+  const planned = filtered.map((target) => {
     const sourceDir = resolve(distDir, target.platform)
     return {
       ...target,
@@ -1509,6 +1504,18 @@ export function planInstallPlugin(
       existing: existsSync(target.pluginDir),
     }
   })
+  if (platforms?.includes('agent-plugins')) {
+    const sourceDir = resolve(distDir, 'agent-plugins')
+    planned.push({
+      platform: 'agent-plugins',
+      sourceDir,
+      pluginDir: sourceDir,
+      description: 'client-managed/manual Agent Plugins 1.0.0 package import (Pluxx does not invent a native install path)',
+      built: existsSync(sourceDir),
+      existing: false,
+    })
+  }
+  return planned
 }
 
 export async function installPlugin(
@@ -1523,6 +1530,9 @@ export async function installPlugin(
     resolvedUserConfig?: ResolvedUserConfigEntry[]
   } = {},
 ): Promise<void> {
+  if (platforms?.includes('agent-plugins')) {
+    throw new Error('Agent Plugins installation is client-managed. Use `pluxx install --dry-run --target agent-plugins` to inspect the built package; Pluxx does not write an unproven native install path.')
+  }
   const filtered = planInstallPlugin(distDir, pluginName, platforms)
   const runCommand = options.runCommand ?? runCommandDefault
   const useNativeClaudeInstall = options.useNativeClaudeInstall ?? true
@@ -1538,6 +1548,10 @@ export async function installPlugin(
     }
 
     if (target.platform === 'codex') {
+      const manifestFile = resolve(target.sourceDir, '.codex-plugin/plugin.json')
+      const manifest = existsSync(manifestFile) ? JSON.parse(readFileSync(manifestFile, 'utf8')) : { name: pluginName }
+      const diagnostic = inspectCodexPluginCollisions(codexRequestedIdentity(manifest.name, manifest.version ?? null, target.pluginDir))
+      if (diagnostic) throw new CodexPluginCollisionError(diagnostic)
       syncCodexAgentRegistration({
         consumerRoot: target.sourceDir,
         pluginName,
@@ -1590,6 +1604,8 @@ export async function installPlugin(
       ensureCodexMarketplace(pluginName)
       clearCodexLocalCache(pluginName)
       syncCodexAgentRegistration({ consumerRoot: target.pluginDir, pluginName })
+      const diagnostic = inspectCodexPluginCollisions(codexRequestedIdentity(pluginName, options.config?.version ?? null, target.pluginDir))
+      if (diagnostic) throw new CodexPluginCollisionError(diagnostic)
     }
     if (!options.quiet) {
       console.log(`  ${target.platform} -> ${target.description}`)

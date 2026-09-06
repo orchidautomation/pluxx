@@ -1,6 +1,6 @@
 # Proof And Install
 
-Last updated: 2026-07-13
+Last updated: 2026-08-31
 
 ## Doc Links
 
@@ -30,9 +30,9 @@ This is the shortest current repo-native path to:
 
 For the fuller release/distribution boundary, including publish commands and deferred marketplace/trust-layer work, use [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md).
 
-Proof labels and freshness come from [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json). The May self-hosted run and April Firecrawl connector run are preserved as historical environment evidence; they are not current host receipts for `0.1.32`.
+Proof labels and freshness come from [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json). The May self-hosted run, April Firecrawl connector run, and shipped 0.1.37 through 0.1.42 evidence are historical relative to the canonical public 0.1.43 release.
 
-The current v0.1.32 receipts prove the `bundle-contract` and `fake-home-install` tiers from committed release-prep state after `npm run release:check` passed. No current receipt claims installed-runtime or real-host behavior.
+The public 0.1.43 release carries deterministic core-four install planning and the `pluxx.install-results.v1` structured result contract. Tag `v0.1.43` binds to trusted merge `87e759d76c7cdaefd1bff81969b4cb1ba10091d3`; npm and GitHub tarballs are byte-identical at SHA-256 `2851a386dc415fd37e124fa132d70af516fee062a8ac355310ea157fa8d2dfc3`. Fresh repository and native core-four fake-home receipts bind to the exact tag commit, where trusted Release run `33532188948` passed the complete gate. These fixtures are not real host executions. Source, fixture, and isolated CLI proof must not be relabeled as installed-host proof.
 
 ## The Story In One Screen
 
@@ -100,8 +100,10 @@ Today, Pluxx ships the OSS authoring and local/self-hosted distribution lane:
 - install those bundles locally with `pluxx install`
 - verify host-visible state with `pluxx verify-install`
 - package GitHub Release assets and installer scripts with `pluxx publish --github-release`, including a generated `install.sh --agents` front door for the core-four hosts
+- let opted-in generated core-four installers reuse one content-addressed platform-native runtime, with safe host-local fallback when reuse is unavailable
 - publish the npm-backed OpenCode wrapper path with `pluxx publish --npm`
 - keep core-four stdio MCP runtime variables launch-context aware without baking one workspace's values into global installs
+- reject bundled shell scripts that `source` workspace `.env` files, while allowing generated dotenv-text parsing for runtime-inherited MCP env vars
 
 It does not yet ship marketplace submission APIs, a managed trust/distribution control plane, automatic rollback/unpublish orchestration, or a real authenticated publish plus rollback proof against a private authoring target.
 
@@ -208,7 +210,9 @@ curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example
 
 Current release note:
 
-- the canonical repository version is `@orchid-labs/pluxx@0.1.32`, tagged as `v0.1.32` at `188527e`; the first release run did not publish npm or create a GitHub release, so the historical published baseline remains 0.1.31 until recovery completes
+- the canonical and verified public release is `@orchid-labs/pluxx@0.1.43` / `v0.1.43`; npm and GitHub serve the same verified tarball at SHA-256 `2851a386dc415fd37e124fa132d70af516fee062a8ac355310ea157fa8d2dfc3`
+- 0.1.38 remains the shipped and independently verified historical PLUXX-340 duplicate archive-identity correction
+- 0.1.37 remains the shipped and independently verified historical PLUXX-339 runtime env-sourcing security release
 - the published CLI runtime is Node `>=18`; see [runtime contract](./runtime-contract.md)
 - the published package includes the Claude plugin-agent manifest fix and packaged Node runtime verification
 - the public `pluxx test --install --trust --behavioral` path now matches the repo-local Exa proof state

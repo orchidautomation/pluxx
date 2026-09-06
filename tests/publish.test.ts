@@ -1,10 +1,16 @@
+import { detectCodexPluginCollisions } from '../src/codex-plugin-collisions'
+import { assertIsolatedCodexTestEnvironment } from '../test-fixtures/codex-plugin-inventory/isolation'
+import { validateInstallResultsEnvelope } from '../src/install-contract'
 import { afterEach, describe, expect, it } from 'bun:test'
 import { createHash } from 'crypto'
-import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'fs'
-import { spawnSync } from 'child_process'
-import { resolve } from 'path'
+import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'fs'
+import { spawn, spawnSync } from 'child_process'
+import { dirname, resolve } from 'path'
+import { pathToFileURL } from 'url'
 import type { PluginConfig, TargetPlatform } from '../src/schema'
 import { planPublish, runPublish } from '../src/cli/publish'
+import { doctorConsumer } from '../src/cli/doctor'
+import { buildOpenCodeEntryFile } from '../src/opencode-entry'
 import {
   makeSecretReferenceFixtureConfig,
   SECRET_REFERENCE_ENV_VAR,
@@ -14,6 +20,11 @@ import {
 } from '../test-fixtures/secret-reference-fixture'
 
 const ROOT = resolve(import.meta.dir, '.publish-fixture')
+
+function runtimeRefPath(storeRoot: string, platform: TargetPlatform, installPath: string): string {
+  const installHash = createHash('sha256').update(resolve(installPath)).digest('hex').slice(0, 16)
+  return resolve(storeRoot, `refs/publish-plugin/${platform}-${installHash}.json`)
+}
 
 function makeConfig(): PluginConfig {
   return {
@@ -264,6 +275,7 @@ interface GeneratedInstallerRunResult {
   status: number | null
   stdout: string
   stderr: string
+  archivePath: string
   installerContent: string
   pluginInstallDir: string
   installedUserConfig?: {
@@ -275,6 +287,78 @@ interface GeneratedInstallerRunResult {
 
 function isolatedInstallerEnvironment(source: Record<string, string | undefined>): Record<string, string> {
   return { PATH: source.PATH ?? '/usr/bin:/bin' }
+}
+
+function legacyManifestPathForPlatform(platform: TargetPlatform, installDir: string): string {
+  if (platform === 'claude-code') return resolve(installDir, '.claude-plugin/plugin.json')
+  if (platform === 'cursor') return resolve(installDir, '.cursor-plugin/plugin.json')
+  if (platform === 'codex') return resolve(installDir, '.codex-plugin/plugin.json')
+  if (platform === 'opencode') return resolve(installDir, 'package.json')
+  throw new Error(`Unsupported legacy manifest test platform: ${platform}`)
+}
+
+function matchingLegacyManifestForPlatform(platform: TargetPlatform): Record<string, unknown> {
+  if (platform === 'opencode') {
+    return { name: '@orchid/publish-plugin-opencode', version: '1.2.2', type: 'module' }
+  }
+
+  return {
+    name: 'publish-plugin',
+    version: '1.2.2',
+    description: `Legacy ${platform} install`,
+  }
+}
+
+function writeLegacyInstalledManifest(platform: TargetPlatform, installDir: string, manifest: Record<string, unknown> | string): void {
+  const manifestPath = legacyManifestPathForPlatform(platform, installDir)
+  mkdirSync(resolve(manifestPath, '..'), { recursive: true })
+  writeFileSync(
+    manifestPath,
+    typeof manifest === 'string' ? manifest : JSON.stringify(manifest, null, 2) + '\n',
+  )
+}
+
+function generatedInstallerOwnershipPath(platform: TargetPlatform, rootDir: string, installDir: string): string {
+  const home = resolve(rootDir, 'home')
+  const resolvedInstallDir = resolve(installDir)
+  const conventionalRoots = [
+    resolve(home, '.claude/plugins'),
+    resolve(home, '.cursor/plugins'),
+    resolve(home, '.codex/plugins'),
+    resolve(home, '.config/opencode'),
+  ]
+  const ownershipRoot = conventionalRoots.some((root) => resolvedInstallDir === root || resolvedInstallDir.startsWith(root + '/'))
+    ? resolve(home, '.pluxx/install-ownership')
+    : resolve(dirname(resolvedInstallDir), '.pluxx-install-ownership')
+  return resolve(ownershipRoot, 'publish-plugin', `${platform}.json`)
+}
+
+function legacyOpenCodeWrapper(): string {
+  return [
+    'import type { Plugin } from "@opencode-ai/plugin"',
+    'import { join } from "path"',
+    '',
+    'import * as PluginModule from "./publish-plugin/index.ts"',
+    '',
+    '// OpenCode auto-loads plugin files placed directly in ~/.config/opencode/plugins.',
+    '// Proxy into the installed plugin bundle while preserving its expected root.',
+    'const pluginFactory = Object.values(PluginModule).find((value): value is Plugin => typeof value === "function")',
+    '',
+    'if (!pluginFactory) {',
+    '  throw new Error("OpenCode plugin bundle for publish-plugin did not export a plugin function.")',
+    '}',
+    '',
+    'export const PublishPlugin: Plugin = async (context) =>',
+    '  pluginFactory({',
+    '    ...context,',
+    '    directory: join(context.directory, "publish-plugin"),',
+    '  })',
+    '',
+  ].join('\n')
+}
+
+function currentOpenCodeWrapper(): string {
+  return buildOpenCodeEntryFile('publish-plugin')
 }
 
 function getGeneratedInstallerPaths(platform: TargetPlatform, rootDir: string): {
@@ -397,6 +481,9 @@ function runGeneratedInstaller(
         const env: Record<string, string> = {
           ...isolatedInstallerEnvironment(process.env),
           HOME: homeDir,
+          CODEX_HOME: resolve(homeDir, '.codex'),
+          XDG_CONFIG_HOME: resolve(homeDir, '.config'),
+          PLUXX_INSTALL_LOCK_ROOT: resolve(homeDir, '.pluxx/install-locks'),
           TMPDIR: tempDir,
           TMP: tempDir,
           TEMP: tempDir,
@@ -410,16 +497,25 @@ function runGeneratedInstaller(
         if (platform === 'codex') env.PLUXX_CODEX_BUNDLE_PATH = archivePath!
         if (platform === 'opencode') env.PLUXX_OPENCODE_BUNDLE_PATH = archivePath!
 
+        if (platform === 'codex') assertIsolatedCodexTestEnvironment(rootDir, env)
+
         const proc = spawnSync('bash', [installerPath!], {
           encoding: 'utf-8',
           env,
         })
         const userConfigPath = resolve(paths.pluginInstallDir, '.pluxx-user.json')
+        const preservedArchivePath = resolve(rootDir, archivePath!.split('/').pop()!)
+        writeFileSync(preservedArchivePath, readFileSync(archivePath!))
+        for (const name of ['release-manifest.json', 'SHA256SUMS.txt']) {
+          const content = publishedAssets.get(name)
+          if (content) writeFileSync(resolve(rootDir, name), content)
+        }
         installerRun = {
           rootDir,
           status: proc.status,
           stdout: proc.stdout ?? '',
           stderr: proc.stderr ?? '',
+          archivePath: preservedArchivePath,
           installerContent: readFileSync(installerPath!, 'utf-8'),
           pluginInstallDir: paths.pluginInstallDir,
           installedUserConfig: existsSync(userConfigPath)
@@ -525,6 +621,14 @@ function runGeneratedCodexInstaller(
 }
 
 afterEach(() => {
+  const makeWritable = (filepath: string): void => {
+    if (!existsSync(filepath)) return
+    const stats = lstatSync(filepath)
+    if (stats.isSymbolicLink()) return
+    chmodSync(filepath, stats.isDirectory() ? 0o700 : (stats.mode | 0o600))
+    if (stats.isDirectory()) for (const entry of readdirSync(filepath)) makeWritable(resolve(filepath, entry))
+  }
+  makeWritable(ROOT)
   rmSync(ROOT, { recursive: true, force: true })
 })
 
@@ -1002,6 +1106,58 @@ describe('runPublish', () => {
     expect(installAllContent).toContain('bash "$TMP_DIR/install.sh" --agents "$@"')
   })
 
+  it('emits one canonical manifest archive identity for a single host while checksumming both asset names', () => {
+    const config: PluginConfig = {
+      ...makeConfig(),
+      targets: ['codex'],
+    }
+    prepareBuiltTarget('codex', GENERATED_INSTALLER_FIXTURE_FILES.codex)
+
+    let manifestContent = ''
+    let checksumsContent = ''
+    const result = runPublish(config, {
+      rootDir: ROOT,
+      requestedChannels: ['github-release'],
+      runCommand: withGithubReleaseVerification((command, args, options) => {
+        if (command === 'tar') {
+          const proc = spawnSync(command, args, {
+            cwd: options?.cwd,
+            encoding: 'utf-8',
+          })
+          return {
+            status: proc.status,
+            stdout: proc.stdout ?? '',
+            stderr: proc.stderr ?? '',
+          }
+        }
+
+        if (command === 'git') return { status: 0, stdout: '', stderr: '' }
+        if (command === 'gh' && args[0] === 'release' && args[1] === 'view') return { status: 1, stdout: '', stderr: 'missing' }
+        if (command === 'gh' && args[0] === 'release' && args[1] === 'create') {
+          const manifestPath = args.find((value) => value.endsWith('/release-manifest.json'))
+          const checksumsPath = args.find((value) => value.endsWith('/SHA256SUMS.txt'))
+          manifestContent = readFileSync(manifestPath!, 'utf-8')
+          checksumsContent = readFileSync(checksumsPath!, 'utf-8')
+          return { status: 0, stdout: 'created', stderr: '' }
+        }
+        return { status: 0, stdout: '', stderr: '' }
+      }),
+    })
+
+    expect(result.ok).toBe(true)
+    const manifest = JSON.parse(manifestContent)
+    expect(manifest.assets.archives).toEqual([
+      {
+        platform: 'codex',
+        versionedAsset: 'publish-plugin-codex-v1.2.3.tar.gz',
+        latestAsset: 'publish-plugin-codex-latest.tar.gz',
+        latestUrl: 'https://github.com/orchidautomation/publish-plugin/releases/latest/download/publish-plugin-codex-latest.tar.gz',
+      },
+    ])
+    expect(checksumsContent).toContain('  publish-plugin-codex-v1.2.3.tar.gz')
+    expect(checksumsContent).toContain('  publish-plugin-codex-latest.tar.gz')
+  })
+
   it('generates a top-level installer that routes supported agent hosts', () => {
     const config: PluginConfig = {
       ...makeConfig(),
@@ -1014,6 +1170,7 @@ describe('runPublish', () => {
 
     let installerContent = ''
     let manifestContent = ''
+    let checksumsContent = ''
     const result = runPublish(config, {
       rootDir: ROOT,
       requestedChannels: ['github-release'],
@@ -1035,8 +1192,10 @@ describe('runPublish', () => {
         if (command === 'gh' && args[0] === 'release' && args[1] === 'create') {
           const installerPath = args.find((value) => typeof value === 'string' && value.endsWith('/install.sh'))
           const manifestPath = args.find((value) => typeof value === 'string' && value.endsWith('/release-manifest.json'))
+          const checksumsPath = args.find((value) => typeof value === 'string' && value.endsWith('/SHA256SUMS.txt'))
           installerContent = readFileSync(installerPath!, 'utf-8')
           manifestContent = readFileSync(manifestPath!, 'utf-8')
+          checksumsContent = readFileSync(checksumsPath!, 'utf-8')
           return { status: 0, stdout: 'created', stderr: '' }
         }
         return { status: 0, stdout: '', stderr: '' }
@@ -1057,13 +1216,113 @@ describe('runPublish', () => {
     expect(installerContent).toContain('PLUXX_OPENCODE_BUNDLE_URL="${PLUXX_OPENCODE_BUNDLE_URL:-$base_url/publish-plugin-opencode-latest.tar.gz}"')
     expect(installerContent).toContain('Skipping Claude Code bundle because the claude CLI is not available on PATH.')
     expect(installerContent).toContain('--connect-timeout 10 --max-time 120 --retry 3 --retry-all-errors')
+    expect(installerContent).toContain('--plan')
+    expect(installerContent).toContain('pluxx.install-results.v1')
+    expect(installerContent).toContain("printf '%s\\n'")
+    expect(installerContent).toContain('.split(/\\n/)')
+    expect(installerContent).not.toContain('.split(/\n/)')
 
     const manifest = JSON.parse(manifestContent)
+    expect(manifest.assets.archives).toHaveLength(4)
+    expect(manifest.assets.archives.map((archive: { platform: TargetPlatform }) => archive.platform)).toEqual([
+      'claude-code',
+      'cursor',
+      'codex',
+      'opencode',
+    ])
+    expect(new Set(manifest.assets.archives.map((archive: { platform: TargetPlatform }) => archive.platform)).size).toBe(4)
     expect(manifest.assets.install).toEqual({
       script: 'install.sh',
       url: 'https://github.com/orchidautomation/publish-plugin/releases/latest/download/install.sh',
       command: 'bash <(curl -fsSL --connect-timeout 10 --max-time 120 --retry 3 --retry-all-errors --retry-delay 1 https://github.com/orchidautomation/publish-plugin/releases/latest/download/install.sh) --agents -y',
     })
+
+    const aggregateRoot = resolve(ROOT, 'aggregate-json-install')
+    const aggregateBin = resolve(aggregateRoot, 'bin')
+    const aggregateHome = resolve(aggregateRoot, 'home')
+    const aggregateTmp = resolve(aggregateRoot, 'tmp')
+    mkdirSync(aggregateBin, { recursive: true })
+    mkdirSync(aggregateHome, { recursive: true })
+    mkdirSync(aggregateTmp, { recursive: true })
+    const installerPath = resolve(aggregateRoot, 'install.sh')
+    writeFileSync(installerPath, installerContent.replaceAll('/Applications/', `${aggregateHome}/Applications/`))
+    writeFileSync(resolve(aggregateRoot, 'release-manifest.json'), manifestContent)
+    writeFileSync(resolve(aggregateRoot, 'SHA256SUMS.txt'), checksumsContent)
+    chmodSync(installerPath, 0o755)
+
+    symlinkSync(process.execPath, resolve(aggregateBin, 'node'))
+    for (const command of ['bash', 'curl', 'mktemp', 'rm']) {
+      const lookup = spawnSync('sh', ['-c', `command -v ${command}`], { encoding: 'utf-8' })
+      expect(lookup.status).toBe(0)
+      symlinkSync(lookup.stdout.trim(), resolve(aggregateBin, command))
+    }
+
+    const aggregateRun = spawnSync('bash', [
+      installerPath,
+      '--agents',
+      '--json',
+      '--quiet',
+      '--yes',
+      '--version',
+      '1.2.3',
+      '--base-url',
+      `file://${aggregateRoot}`,
+    ], {
+      encoding: 'utf-8',
+      env: {
+        ...isolatedInstallerEnvironment(process.env),
+        HOME: aggregateHome,
+        TMPDIR: aggregateTmp,
+        PATH: aggregateBin,
+      },
+    })
+
+    expect(aggregateRun.status, aggregateRun.stderr).toBe(0)
+    expect(aggregateRun.stderr).toBe('')
+    const aggregateResult = JSON.parse(aggregateRun.stdout)
+    expect(aggregateResult).toMatchObject({
+      schema: 'pluxx.install-results.v1',
+      plugin: { name: 'publish-plugin', version: '1.2.3' },
+      selectionMode: 'aggregate',
+    })
+    const aggregateTargets = ['claude-code', 'cursor', 'codex', 'opencode']
+    expect(aggregateResult.plan.map((entry: { target: string }) => entry.target)).toEqual(aggregateTargets)
+    expect(aggregateResult.results).toEqual(aggregateTargets.map((target) => ({
+      target,
+      state: 'skipped',
+      reason: 'host-not-detected',
+    })))
+    expect(validateInstallResultsEnvelope(aggregateResult)).toBe(true)
+    const diagnostic = detectCodexPluginCollisions({ installed: [{
+      pluginId: 'publish-plugin@other', name: 'publish-plugin', marketplaceName: 'other', version: '1.0.0', installed: true, enabled: true,
+      source: { source: 'local', path: '/synthetic/other' },
+    }] }, { name: 'publish-plugin', marketplace: 'requested', version: '1.2.3' }, value => createHash('sha256').update(value).digest('hex'))!
+    const childResult = { target: 'codex', state: 'failed', reason: diagnostic.code, error: diagnostic.error, action: diagnostic.action, diagnostics: [diagnostic] }
+    const child = '#!/usr/bin/env bash\ncat > "$PLUXX_INSTALL_RESULT_FILE" <<\'RESULT\'\n' + JSON.stringify(childResult) + '\nRESULT\nexit 1\n'
+    writeFileSync(resolve(aggregateRoot, 'install-codex.sh'), child)
+    const checksums = checksumsContent.replace(/^[a-f0-9]{64}  install-codex\.sh$/m, createHash('sha256').update(child).digest('hex') + '  install-codex.sh')
+    writeFileSync(resolve(aggregateRoot, 'SHA256SUMS.txt'), checksums)
+    // The synthetic child only writes its result; all commands stay on the fixture PATH.
+    for (const command of ['chmod', 'cat']) {
+      const lookup = spawnSync('sh', ['-c', `command -v ${command}`], { encoding: 'utf8' })
+      symlinkSync(lookup.stdout.trim(), resolve(aggregateBin, command))
+    }
+    for (const json of [true, false]) {
+      const failedRun = spawnSync('bash', [installerPath, '--codex', ...(json ? ['--json'] : []), '--version', '1.2.3', '--base-url', `file://${aggregateRoot}`], {
+        encoding: 'utf8', env: { HOME: aggregateHome, TMPDIR: aggregateTmp, PATH: aggregateBin },
+      })
+      expect(failedRun.status, failedRun.stderr).toBe(1)
+      if (json) {
+        const envelope = JSON.parse(failedRun.stdout)
+        expect(validateInstallResultsEnvelope(envelope)).toBe(true)
+        expect(envelope.results).toEqual([childResult])
+      } else {
+        expect(failedRun.stdout).toContain('publish-plugin@other')
+        expect(failedRun.stdout).toContain('unresolved failures')
+        expect(failedRun.stdout).not.toContain('install complete')
+      }
+    }
+
   })
 
   it('rejects a tampered release archive before replacing the installed bundle', () => {
@@ -1079,6 +1338,31 @@ describe('runPublish', () => {
     expect(run.status).toBe(1)
     expect(run.stderr).toContain('Checksum mismatch for publish-plugin-cursor-latest.tar.gz')
     expect(run.installedUserConfig?.values?.marker).toBe('previous-install')
+  })
+
+  it('returns a structured unchanged result without replacing a current owned host install', () => {
+    const config = { ...makeConfig(), targets: ['cursor'] as TargetPlatform[], userConfig: undefined }
+    const first = runGeneratedInstaller('cursor', { config })
+    expect(first.status).toBe(0)
+    const manifestPath = resolve(first.pluginInstallDir, '.cursor-plugin/plugin.json')
+    const before = lstatSync(manifestPath).mtimeMs
+    const installerPath = resolve(first.rootDir, 'install-cursor-unchanged.sh')
+    writeFileSync(installerPath, first.installerContent)
+    chmodSync(installerPath, 0o755)
+    const paths = getGeneratedInstallerPaths('cursor', first.rootDir)
+    const rerun = spawnSync('bash', [installerPath, '--json'], {
+      encoding: 'utf-8',
+      env: {
+        ...isolatedInstallerEnvironment(process.env),
+        HOME: resolve(first.rootDir, 'home'),
+        TMPDIR: resolve(first.rootDir, 'tmp'),
+        ...paths.env,
+        PLUXX_CURSOR_BUNDLE_PATH: first.archivePath,
+      },
+    })
+    expect(rerun.status).toBe(0)
+    expect(JSON.parse(rerun.stdout)).toMatchObject({ target: 'cursor', state: 'unchanged', reason: 'already-current' })
+    expect(lstatSync(manifestPath).mtimeMs).toBe(before)
   })
 
   it('rejects a tampered per-host installer before the top-level installer executes it', () => {
@@ -1208,10 +1492,815 @@ cp "$TEST_RELEASE_DIR/$(basename "$url")" "$out"
       },
       env: { SENDLENS_INSTANTLY_API_KEY: 'fresh-key' },
     })
-
     expect(run.status).toBe(42)
     expect(run.installedUserConfig?.values?.marker).toBe('previous-install')
     expect(run.stdout).toContain('Preparing local plugin runtime dependencies...')
+  })
+
+  it('reuses a content-addressed native runtime on warm generated installer runs', () => {
+    const countFile = resolve(ROOT, 'shared-runtime-bootstrap-count.txt')
+    const run = runGeneratedInstaller('cursor', {
+      extraFiles: {
+        '.pluxx-runtime.json': JSON.stringify({
+          schema: 'pluxx.shared-runtime-config.v1',
+          namespace: 'publish-plugin',
+          bootstrap: 'scripts/bootstrap-runtime.sh',
+          inputs: ['runtime-dependencies.lock.json'],
+          output: 'node_modules',
+        }),
+        'runtime-dependencies.lock.json': JSON.stringify({ '@native/fixture': '1.0.0' }),
+        'scripts/bootstrap-runtime.sh': [
+          '#!/usr/bin/env bash',
+          'set -euo pipefail',
+          'count=0',
+          'if [[ -f "$PLUXX_BOOTSTRAP_COUNT_FILE" ]]; then count="$(cat "$PLUXX_BOOTSTRAP_COUNT_FILE")"; fi',
+          'echo "$((count + 1))" > "$PLUXX_BOOTSTRAP_COUNT_FILE"',
+          'mkdir -p node_modules/@native/fixture',
+          'printf "native-runtime\\n" > node_modules/@native/fixture/index.node',
+          '',
+        ].join('\n'),
+      },
+      env: {
+        SENDLENS_INSTANTLY_API_KEY: 'fresh-key',
+        PLUXX_BOOTSTRAP_COUNT_FILE: countFile,
+      },
+    })
+
+    expect(run.status, `${run.stdout}\n${run.stderr}`).toBe(0)
+    expect(readFileSync(countFile, 'utf-8').trim()).toBe('1')
+    expect(run.stdout).toContain('Preparing shared Pluxx native runtime')
+    expect(existsSync(resolve(run.pluginInstallDir, 'node_modules'))).toBe(true)
+    const refPath = runtimeRefPath(resolve(run.rootDir, 'home/.pluxx/runtimes'), 'cursor', run.pluginInstallDir)
+    const runtimeRef = JSON.parse(readFileSync(refPath, 'utf-8')) as { runtimeEntry: string }
+    expect(existsSync(resolve(runtimeRef.runtimeEntry, 'node_modules/@native/fixture/index.node'))).toBe(true)
+    expect(existsSync(resolve(runtimeRef.runtimeEntry, '.cursor-plugin/plugin.json'))).toBe(false)
+    expect(existsSync(resolve(run.pluginInstallDir, '.pluxx-runtime-cache.env'))).toBe(false)
+
+    const installerPath = resolve(run.rootDir, 'install-cursor-rerun.sh')
+    writeFileSync(installerPath, run.installerContent)
+    chmodSync(installerPath, 0o755)
+
+    const rerun = spawnSync('bash', [installerPath], {
+      encoding: 'utf-8',
+      env: {
+        ...isolatedInstallerEnvironment(process.env),
+        HOME: resolve(run.rootDir, 'home'),
+        TMPDIR: resolve(run.rootDir, 'tmp'),
+        TMP: resolve(run.rootDir, 'tmp'),
+        TEMP: resolve(run.rootDir, 'tmp'),
+        PLUXX_CURSOR_INSTALL_DIR: run.pluginInstallDir,
+        PLUXX_CURSOR_BUNDLE_PATH: run.archivePath,
+        SENDLENS_INSTANTLY_API_KEY: 'fresh-key',
+        PLUXX_BOOTSTRAP_COUNT_FILE: countFile,
+      },
+    })
+
+    expect(rerun.status, `${rerun.stdout}\n${rerun.stderr}`).toBe(0)
+    expect(rerun.stdout).toContain('Reusing prepared Pluxx native runtime')
+    expect(readFileSync(countFile, 'utf-8').trim()).toBe('1')
+  })
+
+  it('falls back to local bootstrap when declared runtime inputs have no lockfile', () => {
+    const countFile = resolve(ROOT, 'runtime-no-lockfile-bootstrap-count.txt')
+    const run = runGeneratedInstaller('cursor', {
+      extraFiles: {
+        '.pluxx-runtime.json': JSON.stringify({
+          schema: 'pluxx.shared-runtime-config.v1',
+          namespace: 'publish-plugin',
+          bootstrap: 'scripts/bootstrap-runtime.sh',
+          inputs: ['runtime-dependencies.json'],
+          output: 'node_modules',
+        }),
+        'runtime-dependencies.json': JSON.stringify({ '@native/fixture': '^1.0.0' }),
+        'scripts/bootstrap-runtime.sh': '#!/usr/bin/env bash\nset -euo pipefail\necho 1 > "$PLUXX_BOOTSTRAP_COUNT_FILE"\nmkdir -p node_modules/@native/fixture\nprintf "native-runtime\\n" > node_modules/@native/fixture/index.node\n',
+      },
+      env: {
+        SENDLENS_INSTANTLY_API_KEY: 'fresh-key',
+        PLUXX_BOOTSTRAP_COUNT_FILE: countFile,
+      },
+    })
+
+    expect(run.status, run.stdout + '\n' + run.stderr).toBe(0)
+    expect(run.stderr).toContain('do not declare a deterministic lockfile')
+    expect(run.stdout).toContain('Preparing local plugin runtime dependencies...')
+    expect(run.stdout).not.toContain('Preparing shared Pluxx native runtime')
+    expect(lstatSync(resolve(run.pluginInstallDir, 'node_modules')).isDirectory()).toBe(true)
+    expect(readFileSync(countFile, 'utf-8').trim()).toBe('1')
+  })
+
+  it('prepares a distinct shared runtime when a declared runtime input changes', () => {
+    const countFile = resolve(ROOT, 'shared-runtime-lifecycle-script-count.txt')
+    const storeRoot = resolve(ROOT, 'shared-runtime-lifecycle-script-store')
+    const bootstrap = [
+      '#!/usr/bin/env bash',
+      'set -euo pipefail',
+      'count=0',
+      'if [[ -f "$PLUXX_BOOTSTRAP_COUNT_FILE" ]]; then count="$(cat "$PLUXX_BOOTSTRAP_COUNT_FILE")"; fi',
+      'echo "$((count + 1))" > "$PLUXX_BOOTSTRAP_COUNT_FILE"',
+      'mkdir -p node_modules/@native/fixture',
+      'printf "native-runtime\\n" > node_modules/@native/fixture/index.node',
+      '',
+    ].join('\n')
+    const install = (dependencyVersion: string) => runGeneratedInstaller('cursor', {
+      extraFiles: {
+        '.pluxx-runtime.json': JSON.stringify({
+          schema: 'pluxx.shared-runtime-config.v1',
+          namespace: 'publish-plugin',
+          bootstrap: 'scripts/bootstrap-runtime.sh',
+          inputs: ['runtime-dependencies.lock.json'],
+          output: 'node_modules',
+        }),
+        'runtime-dependencies.lock.json': JSON.stringify({ '@native/fixture': dependencyVersion }),
+        'scripts/bootstrap-runtime.sh': bootstrap,
+      },
+      env: {
+        SENDLENS_INSTANTLY_API_KEY: 'fresh-key',
+        PLUXX_BOOTSTRAP_COUNT_FILE: countFile,
+        PLUXX_RUNTIME_STORE_ROOT: storeRoot,
+      },
+    })
+
+    const first = install('1.0.0')
+    const second = install('2.0.0')
+
+    expect(first.status, first.stdout + '\n' + first.stderr).toBe(0)
+    expect(second.status, second.stdout + '\n' + second.stderr).toBe(0)
+    expect(second.stdout).toContain('Preparing shared Pluxx native runtime')
+    expect(readFileSync(countFile, 'utf-8').trim()).toBe('2')
+  })
+
+  it('prepares a distinct shared runtime when an unchanged lifecycle command reads a changed bundled file', () => {
+    const countFile = resolve(ROOT, 'shared-runtime-lifecycle-input-count.txt')
+    const storeRoot = resolve(ROOT, 'shared-runtime-lifecycle-input-store')
+    const bootstrap = [
+      '#!/usr/bin/env bash',
+      'set -euo pipefail',
+      'count=0',
+      'if [[ -f "$PLUXX_BOOTSTRAP_COUNT_FILE" ]]; then count="$(cat "$PLUXX_BOOTSTRAP_COUNT_FILE")"; fi',
+      'echo "$((count + 1))" > "$PLUXX_BOOTSTRAP_COUNT_FILE"',
+      'mkdir -p node_modules/@native/fixture',
+      'cat scripts/install-a.mjs > node_modules/@native/fixture/index.node',
+      '',
+    ].join('\n')
+    const packageJson = JSON.stringify({
+      name: 'publish-plugin-runtime',
+      version: '1.2.3',
+      scripts: { postinstall: 'node scripts/install-a.mjs' },
+      dependencies: { '@native/fixture': '1.0.0' },
+    })
+    const packageLock = JSON.stringify({
+      lockfileVersion: 3,
+      packages: {
+        '': { dependencies: { '@native/fixture': '1.0.0' } },
+      },
+    })
+    const install = (scriptContent: string) => runGeneratedInstaller('cursor', {
+      extraFiles: {
+        '.pluxx-runtime.json': JSON.stringify({
+          schema: 'pluxx.shared-runtime-config.v1',
+          namespace: 'publish-plugin',
+          bootstrap: 'scripts/bootstrap-runtime.sh',
+          inputs: ['package.json', 'package-lock.json', 'scripts/install-a.mjs'],
+          output: 'node_modules',
+        }),
+        'package.json': packageJson,
+        'package-lock.json': packageLock,
+        'scripts/bootstrap-runtime.sh': bootstrap,
+        'scripts/install-a.mjs': scriptContent,
+      },
+      env: {
+        SENDLENS_INSTANTLY_API_KEY: 'fresh-key',
+        PLUXX_BOOTSTRAP_COUNT_FILE: countFile,
+        PLUXX_RUNTIME_STORE_ROOT: storeRoot,
+      },
+    })
+
+    const first = install('first runtime input\n')
+    const second = install('second runtime input\n')
+
+    expect(first.status, first.stdout + '\n' + first.stderr).toBe(0)
+    expect(second.status, second.stdout + '\n' + second.stderr).toBe(0)
+    expect(second.stdout).toContain('Preparing shared Pluxx native runtime')
+    expect(readFileSync(countFile, 'utf-8').trim()).toBe('2')
+  })
+
+  it('reuses one shared runtime across compatible core host bundles', () => {
+    const countFile = resolve(ROOT, 'shared-runtime-cross-host-count.txt')
+    const storeRoot = resolve(ROOT, 'shared-runtime-cross-host-store')
+    const bootstrap = [
+      '#!/usr/bin/env bash',
+      'set -euo pipefail',
+      'count=0',
+      'if [[ -f "$PLUXX_BOOTSTRAP_COUNT_FILE" ]]; then count="$(cat "$PLUXX_BOOTSTRAP_COUNT_FILE")"; fi',
+      'echo "$((count + 1))" > "$PLUXX_BOOTSTRAP_COUNT_FILE"',
+      'mkdir -p node_modules/@native/fixture',
+      'printf "native-runtime\\n" > node_modules/@native/fixture/index.node',
+      '',
+    ].join('\n')
+    const runtimeFiles = {
+      '.pluxx-runtime.json': JSON.stringify({
+        schema: 'pluxx.shared-runtime-config.v1',
+        namespace: 'publish-plugin',
+        bootstrap: 'scripts/bootstrap-runtime.sh',
+        inputs: ['package.json', 'package-lock.json', '.npmrc', 'patches/native-fixture.patch', 'scripts/install-a.mjs'],
+        output: 'node_modules',
+      }),
+      'package.json': JSON.stringify({
+        name: 'publish-plugin-runtime',
+        version: '1.2.3',
+        dependencies: { '@native/fixture': '1.0.0' },
+      }),
+      'package-lock.json': JSON.stringify({
+        lockfileVersion: 3,
+        packages: {
+          '': { dependencies: { '@native/fixture': '1.0.0' } },
+        },
+      }),
+      '.npmrc': 'fund=false\n',
+      'patches/native-fixture.patch': 'runtime patch\n',
+      'scripts/bootstrap-runtime.sh': bootstrap,
+      'scripts/install-a.mjs': 'runtime helper\n',
+    }
+    const install = (platform: 'cursor' | 'codex', env: Record<string, string>) => runGeneratedInstaller(platform, {
+      extraFiles: runtimeFiles,
+      env: {
+        SENDLENS_INSTANTLY_API_KEY: 'fresh-key',
+        PLUXX_BOOTSTRAP_COUNT_FILE: countFile,
+        PLUXX_RUNTIME_STORE_ROOT: storeRoot,
+        ...env,
+      },
+    })
+
+    const cursor = install('cursor', {})
+    const codex = install('codex', {})
+
+    expect(cursor.status, cursor.stdout + '\n' + cursor.stderr).toBe(0)
+    expect(codex.status, codex.stdout + '\n' + codex.stderr).toBe(0)
+    expect(cursor.stdout).toContain('Preparing shared Pluxx native runtime')
+    expect(codex.stdout).toContain('Reusing prepared Pluxx native runtime')
+    expect(readFileSync(countFile, 'utf-8').trim()).toBe('1')
+
+    const cursorRef = JSON.parse(readFileSync(runtimeRefPath(storeRoot, 'cursor', cursor.pluginInstallDir), 'utf-8')) as { runtimeEntry: string; fingerprint: string }
+    const codexRef = JSON.parse(readFileSync(runtimeRefPath(storeRoot, 'codex', codex.pluginInstallDir), 'utf-8')) as { runtimeEntry: string; fingerprint: string }
+    expect(codexRef.fingerprint).toBe(cursorRef.fingerprint)
+    expect(codexRef.runtimeEntry).toBe(cursorRef.runtimeEntry)
+    expect(existsSync(resolve(cursorRef.runtimeEntry, 'node_modules/@native/fixture/index.node'))).toBe(true)
+  })
+
+  it('repairs a corrupted matching shared runtime before relinking it', () => {
+    const countFile = resolve(ROOT, 'shared-runtime-repair-count.txt')
+    const runtimeFiles = {
+      '.pluxx-runtime.json': JSON.stringify({
+        schema: 'pluxx.shared-runtime-config.v1',
+        namespace: 'publish-plugin',
+        bootstrap: 'scripts/bootstrap-runtime.sh',
+        inputs: ['runtime-dependencies.lock.json'],
+        output: 'node_modules',
+      }),
+      'runtime-dependencies.lock.json': JSON.stringify({ '@native/fixture': '1.0.0' }),
+      'scripts/bootstrap-runtime.sh': [
+        '#!/usr/bin/env bash',
+        'set -euo pipefail',
+        'count=0',
+        'if [[ -f "$PLUXX_BOOTSTRAP_COUNT_FILE" ]]; then count="$(cat "$PLUXX_BOOTSTRAP_COUNT_FILE")"; fi',
+        'echo "$((count + 1))" > "$PLUXX_BOOTSTRAP_COUNT_FILE"',
+        'mkdir -p node_modules/@native/fixture',
+        'printf "native-runtime\\n" > node_modules/@native/fixture/index.node',
+        '',
+      ].join('\n'),
+    }
+    const run = runGeneratedInstaller('cursor', {
+      extraFiles: runtimeFiles,
+      env: {
+        SENDLENS_INSTANTLY_API_KEY: 'fresh-key',
+        PLUXX_BOOTSTRAP_COUNT_FILE: countFile,
+      },
+    })
+
+    expect(run.status, `${run.stdout}\n${run.stderr}`).toBe(0)
+    const refPath = runtimeRefPath(resolve(run.rootDir, 'home/.pluxx/runtimes'), 'cursor', run.pluginInstallDir)
+    const runtimeRef = JSON.parse(readFileSync(refPath, 'utf-8')) as { runtimeEntry: string }
+    const nativeFixturePath = resolve(runtimeRef.runtimeEntry, 'node_modules/@native/fixture/index.node')
+    chmodSync(nativeFixturePath, 0o644)
+    writeFileSync(nativeFixturePath, 'corrupted\n')
+
+    const installerPath = resolve(run.rootDir, 'install-cursor-repair.sh')
+    writeFileSync(installerPath, run.installerContent)
+    chmodSync(installerPath, 0o755)
+
+    const rerun = spawnSync('bash', [installerPath], {
+      encoding: 'utf-8',
+      env: {
+        ...isolatedInstallerEnvironment(process.env),
+        HOME: resolve(run.rootDir, 'home'),
+        TMPDIR: resolve(run.rootDir, 'tmp'),
+        TMP: resolve(run.rootDir, 'tmp'),
+        TEMP: resolve(run.rootDir, 'tmp'),
+        PLUXX_CURSOR_INSTALL_DIR: run.pluginInstallDir,
+        PLUXX_CURSOR_BUNDLE_PATH: run.archivePath,
+        SENDLENS_INSTANTLY_API_KEY: 'fresh-key',
+        PLUXX_BOOTSTRAP_COUNT_FILE: countFile,
+      },
+    })
+
+    expect(rerun.status, `${rerun.stdout}\n${rerun.stderr}`).toBe(0)
+    expect(rerun.stdout).toContain('Repairing incomplete Pluxx native runtime')
+    expect(readFileSync(countFile, 'utf-8').trim()).toBe('2')
+  })
+
+  it('reuses one declared native runtime across the generated core-four installers', () => {
+    const countFile = resolve(ROOT, 'core-four-runtime-bootstrap-count.txt')
+    const storeRoot = resolve(ROOT, 'core-four-runtime-store')
+    const runtimeFiles = {
+      '.pluxx-runtime.json': JSON.stringify({
+        schema: 'pluxx.shared-runtime-config.v1',
+        namespace: 'publish-plugin',
+        bootstrap: 'scripts/bootstrap-runtime.sh',
+        inputs: ['scripts/runtime-dependencies.lock.json'],
+        output: 'node_modules',
+      }),
+      'scripts/runtime-dependencies.lock.json': JSON.stringify({ '@native/fixture': '1.0.0' }),
+      'scripts/bootstrap-runtime.sh': [
+        '#!/usr/bin/env bash',
+        'set -euo pipefail',
+        'count=0',
+        'if [[ -f "$PLUXX_BOOTSTRAP_COUNT_FILE" ]]; then count="$(cat "$PLUXX_BOOTSTRAP_COUNT_FILE")"; fi',
+        'echo "$((count + 1))" > "$PLUXX_BOOTSTRAP_COUNT_FILE"',
+        'mkdir -p node_modules/@native/fixture',
+        'printf "native-runtime\\n" > node_modules/@native/fixture/index.node',
+        '',
+      ].join('\n'),
+    }
+    const fingerprints = new Set<string>()
+
+    for (const platform of ['claude-code', 'cursor', 'codex', 'opencode'] as TargetPlatform[]) {
+      const run = runGeneratedInstaller(platform, {
+        extraFiles: runtimeFiles,
+        env: {
+          SENDLENS_INSTANTLY_API_KEY: 'fresh-key',
+          PLUXX_BOOTSTRAP_COUNT_FILE: countFile,
+          PLUXX_RUNTIME_STORE_ROOT: storeRoot,
+        },
+      })
+      expect(run.status, `${platform}\n${run.stdout}\n${run.stderr}`).toBe(0)
+      expect(lstatSync(resolve(run.pluginInstallDir, 'node_modules')).isSymbolicLink()).toBe(true)
+      const ref = JSON.parse(readFileSync(runtimeRefPath(storeRoot, platform, run.pluginInstallDir), 'utf-8')) as { fingerprint: string; installPath: string }
+      fingerprints.add(ref.fingerprint)
+      expect(ref.installPath).toBe(resolve(run.pluginInstallDir))
+    }
+
+    expect(readFileSync(countFile, 'utf-8').trim()).toBe('1')
+    expect(fingerprints.size).toBe(1)
+  })
+
+  it('keeps independent runtime references for multiple installs of the same host', () => {
+    const storeRoot = resolve(ROOT, 'multi-install-runtime-store')
+    const runtimeFiles = {
+      '.pluxx-runtime.json': JSON.stringify({
+        schema: 'pluxx.shared-runtime-config.v1',
+        namespace: 'publish-plugin',
+        bootstrap: 'scripts/bootstrap-runtime.sh',
+        inputs: ['runtime-dependencies.lock.json'],
+        output: 'node_modules',
+      }),
+      'runtime-dependencies.lock.json': JSON.stringify({ '@native/fixture': '1.0.0' }),
+      'scripts/bootstrap-runtime.sh': '#!/usr/bin/env bash\nset -euo pipefail\nmkdir -p node_modules/@native/fixture\nprintf "native-runtime\\n" > node_modules/@native/fixture/index.node\n',
+    }
+    const first = runGeneratedInstaller('cursor', {
+      extraFiles: runtimeFiles,
+      env: { SENDLENS_INSTANTLY_API_KEY: 'fresh-key', PLUXX_RUNTIME_STORE_ROOT: storeRoot },
+    })
+    expect(first.status, first.stdout + '\n' + first.stderr).toBe(0)
+
+    const secondInstallDir = resolve(first.rootDir, 'installed-cursor-second')
+    const installerPath = resolve(first.rootDir, 'install-cursor-second.sh')
+    writeFileSync(installerPath, first.installerContent)
+    chmodSync(installerPath, 0o755)
+    const second = spawnSync('bash', [installerPath], {
+      encoding: 'utf-8',
+      env: {
+        ...isolatedInstallerEnvironment(process.env),
+        HOME: resolve(first.rootDir, 'home'),
+        TMPDIR: resolve(first.rootDir, 'tmp'),
+        PLUXX_CURSOR_INSTALL_DIR: secondInstallDir,
+        PLUXX_CURSOR_BUNDLE_PATH: first.archivePath,
+        PLUXX_RUNTIME_STORE_ROOT: storeRoot,
+        SENDLENS_INSTANTLY_API_KEY: 'fresh-key',
+      },
+    })
+    expect(second.status, second.stdout + '\n' + second.stderr).toBe(0)
+
+    const firstRef = JSON.parse(readFileSync(runtimeRefPath(storeRoot, 'cursor', first.pluginInstallDir), 'utf-8')) as { fingerprint: string }
+    const secondRef = JSON.parse(readFileSync(runtimeRefPath(storeRoot, 'cursor', secondInstallDir), 'utf-8')) as { fingerprint: string }
+    expect(firstRef.fingerprint).toBe(secondRef.fingerprint)
+    expect(readdirSync(resolve(storeRoot, 'refs/publish-plugin')).filter((name) => name.startsWith('cursor-'))).toHaveLength(2)
+  })
+
+  it('recovers a stale shared-runtime lock without waiting for the full timeout', () => {
+    const countFile = resolve(ROOT, 'stale-lock-bootstrap-count.txt')
+    const storeRoot = resolve(ROOT, 'stale-lock-runtime-store')
+    const runtimeFiles = {
+      '.pluxx-runtime.json': JSON.stringify({
+        schema: 'pluxx.shared-runtime-config.v1',
+        namespace: 'publish-plugin',
+        bootstrap: 'scripts/bootstrap-runtime.sh',
+        inputs: ['runtime-dependencies.lock.json'],
+        output: 'node_modules',
+      }),
+      'runtime-dependencies.lock.json': JSON.stringify({ '@native/fixture': '1.0.0' }),
+      'scripts/bootstrap-runtime.sh': '#!/usr/bin/env bash\nset -euo pipefail\ncount=0\n[[ ! -f "$PLUXX_BOOTSTRAP_COUNT_FILE" ]] || count="$(cat "$PLUXX_BOOTSTRAP_COUNT_FILE")"\necho "$((count + 1))" > "$PLUXX_BOOTSTRAP_COUNT_FILE"\nmkdir -p node_modules/@native/fixture\nprintf "native-runtime\\n" > node_modules/@native/fixture/index.node\n',
+    }
+    const run = runGeneratedInstaller('cursor', {
+      extraFiles: runtimeFiles,
+      env: { SENDLENS_INSTANTLY_API_KEY: 'fresh-key', PLUXX_BOOTSTRAP_COUNT_FILE: countFile, PLUXX_RUNTIME_STORE_ROOT: storeRoot },
+    })
+    expect(run.status, run.stdout + '\n' + run.stderr).toBe(0)
+    const ref = JSON.parse(readFileSync(runtimeRefPath(storeRoot, 'cursor', run.pluginInstallDir), 'utf-8')) as { fingerprint: string }
+    const staleLock = resolve(storeRoot, `locks/${ref.fingerprint}.lock`)
+    mkdirSync(staleLock, { recursive: true })
+    writeFileSync(resolve(staleLock, 'owner.json'), JSON.stringify({ pid: 2147483647, startedAt: '2000-01-01T00:00:00.000Z' }))
+
+    const installerPath = resolve(run.rootDir, 'install-cursor-stale-lock.sh')
+    writeFileSync(installerPath, run.installerContent)
+    chmodSync(installerPath, 0o755)
+    const started = Date.now()
+    const rerun = spawnSync('bash', [installerPath], {
+      encoding: 'utf-8',
+      env: {
+        ...isolatedInstallerEnvironment(process.env),
+        HOME: resolve(run.rootDir, 'home'),
+        TMPDIR: resolve(run.rootDir, 'tmp'),
+        PLUXX_CURSOR_INSTALL_DIR: run.pluginInstallDir,
+        PLUXX_CURSOR_BUNDLE_PATH: run.archivePath,
+        SENDLENS_INSTANTLY_API_KEY: 'fresh-key',
+        PLUXX_BOOTSTRAP_COUNT_FILE: countFile,
+        PLUXX_RUNTIME_STORE_ROOT: storeRoot,
+      },
+    })
+
+    expect(rerun.status, rerun.stdout + '\n' + rerun.stderr).toBe(0)
+    expect(Date.now() - started).toBeLessThan(2000)
+    expect(readFileSync(countFile, 'utf-8').trim()).toBe('1')
+    expect(existsSync(staleLock)).toBe(false)
+  })
+
+  it('falls back locally when an orphaned recovery lock blocks stale-lock recovery', () => {
+    const countFile = resolve(ROOT, 'orphaned-recovery-lock-bootstrap-count.txt')
+    const storeRoot = resolve(ROOT, 'orphaned-recovery-lock-store')
+    const runtimeFiles = {
+      '.pluxx-runtime.json': JSON.stringify({
+        schema: 'pluxx.shared-runtime-config.v1',
+        namespace: 'publish-plugin',
+        bootstrap: 'scripts/bootstrap-runtime.sh',
+        inputs: ['runtime-dependencies.lock.json'],
+        output: 'node_modules',
+      }),
+      'runtime-dependencies.lock.json': JSON.stringify({ '@native/fixture': '1.0.0' }),
+      'scripts/bootstrap-runtime.sh': '#!/usr/bin/env bash\nset -euo pipefail\ncount=0\n[[ ! -f "$PLUXX_BOOTSTRAP_COUNT_FILE" ]] || count="$(cat "$PLUXX_BOOTSTRAP_COUNT_FILE")"\necho "$((count + 1))" > "$PLUXX_BOOTSTRAP_COUNT_FILE"\nmkdir -p node_modules/@native/fixture\nprintf "native-runtime\\n" > node_modules/@native/fixture/index.node\n',
+    }
+    const run = runGeneratedInstaller('cursor', {
+      extraFiles: runtimeFiles,
+      env: { SENDLENS_INSTANTLY_API_KEY: 'fresh-key', PLUXX_BOOTSTRAP_COUNT_FILE: countFile, PLUXX_RUNTIME_STORE_ROOT: storeRoot },
+    })
+    expect(run.status, run.stdout + '\n' + run.stderr).toBe(0)
+    const ref = JSON.parse(readFileSync(runtimeRefPath(storeRoot, 'cursor', run.pluginInstallDir), 'utf-8')) as { fingerprint: string }
+    const staleLock = resolve(storeRoot, `locks/${ref.fingerprint}.lock`)
+    mkdirSync(staleLock, { recursive: true })
+    writeFileSync(resolve(staleLock, 'owner.json'), JSON.stringify({ pid: 2147483647, startedAt: '2000-01-01T00:00:00.000Z' }))
+    mkdirSync(staleLock + '.recovery')
+
+    const installerPath = resolve(run.rootDir, 'install-cursor-orphaned-recovery-lock.sh')
+    writeFileSync(installerPath, run.installerContent)
+    chmodSync(installerPath, 0o755)
+    const rerun = spawnSync('bash', [installerPath], {
+      encoding: 'utf-8',
+      env: {
+        ...isolatedInstallerEnvironment(process.env),
+        HOME: resolve(run.rootDir, 'home'),
+        TMPDIR: resolve(run.rootDir, 'tmp'),
+        PLUXX_CURSOR_INSTALL_DIR: run.pluginInstallDir,
+        PLUXX_CURSOR_BUNDLE_PATH: run.archivePath,
+        SENDLENS_INSTANTLY_API_KEY: 'fresh-key',
+        PLUXX_BOOTSTRAP_COUNT_FILE: countFile,
+        PLUXX_RUNTIME_STORE_ROOT: storeRoot,
+        PLUXX_RUNTIME_LOCK_TIMEOUT_SECONDS: '0',
+      },
+    })
+
+    expect(rerun.status, rerun.stdout + '\n' + rerun.stderr).toBe(0)
+    expect(rerun.stderr).toContain('Could not acquire shared runtime lock')
+    expect(lstatSync(resolve(run.pluginInstallDir, 'node_modules')).isDirectory()).toBe(true)
+    expect(readFileSync(countFile, 'utf-8').trim()).toBe('2')
+  })
+
+  it('falls back to a host-local runtime when shared linking is unavailable', () => {
+    const countFile = resolve(ROOT, 'link-fallback-bootstrap-count.txt')
+    const run = runGeneratedInstaller('cursor', {
+      extraFiles: {
+        '.pluxx-runtime.json': JSON.stringify({
+          schema: 'pluxx.shared-runtime-config.v1',
+          namespace: 'publish-plugin',
+          bootstrap: 'scripts/bootstrap-runtime.sh',
+          inputs: ['runtime-dependencies.lock.json'],
+          output: 'node_modules',
+        }),
+        'runtime-dependencies.lock.json': JSON.stringify({ '@native/fixture': '1.0.0' }),
+        'scripts/bootstrap-runtime.sh': '#!/usr/bin/env bash\nset -euo pipefail\ncount=0\n[[ ! -f "$PLUXX_BOOTSTRAP_COUNT_FILE" ]] || count="$(cat "$PLUXX_BOOTSTRAP_COUNT_FILE")"\necho "$((count + 1))" > "$PLUXX_BOOTSTRAP_COUNT_FILE"\nmkdir -p node_modules/@native/fixture\nprintf "native-runtime\\n" > node_modules/@native/fixture/index.node\n',
+      },
+      env: {
+        SENDLENS_INSTANTLY_API_KEY: 'fresh-key',
+        PLUXX_BOOTSTRAP_COUNT_FILE: countFile,
+        PLUXX_RUNTIME_DISABLE_LINK: '1',
+      },
+    })
+
+    expect(run.status, run.stdout + '\n' + run.stderr).toBe(0)
+    expect(run.stderr).toContain('Could not link the shared runtime')
+    expect(lstatSync(resolve(run.pluginInstallDir, 'node_modules')).isDirectory()).toBe(true)
+    expect(readFileSync(countFile, 'utf-8').trim()).toBe('2')
+  })
+
+  it('uses a declared non-default bootstrap path without requiring the legacy script', () => {
+    const run = runGeneratedInstaller('cursor', {
+      extraFiles: {
+        '.pluxx-runtime.json': JSON.stringify({
+          schema: 'pluxx.shared-runtime-config.v1',
+          namespace: 'publish-plugin',
+          bootstrap: 'runtime/install-native.sh',
+          inputs: ['runtime/dependencies.lock.json'],
+          output: 'node_modules',
+        }),
+        'runtime/dependencies.lock.json': JSON.stringify({ '@native/fixture': '1.0.0' }),
+        'runtime/install-native.sh': '#!/usr/bin/env bash\nset -euo pipefail\nmkdir -p node_modules/@native/fixture\nprintf "native-runtime\\n" > node_modules/@native/fixture/index.node\n',
+      },
+      env: { SENDLENS_INSTANTLY_API_KEY: 'fresh-key' },
+    })
+
+    expect(run.status, run.stdout + '\n' + run.stderr).toBe(0)
+    expect(run.stdout).toContain('Preparing shared Pluxx native runtime')
+    expect(existsSync(resolve(run.pluginInstallDir, 'node_modules/@native/fixture/index.node'))).toBe(true)
+  })
+
+  it('releases the shared lock and preserves bootstrap exit status on failure', () => {
+    const storeRoot = resolve(ROOT, 'failed-shared-runtime-store')
+    const run = runGeneratedInstaller('cursor', {
+      extraFiles: {
+        '.pluxx-runtime.json': JSON.stringify({
+          schema: 'pluxx.shared-runtime-config.v1',
+          namespace: 'publish-plugin',
+          bootstrap: 'scripts/bootstrap-runtime.sh',
+          inputs: ['runtime-dependencies.lock.json'],
+          output: 'node_modules',
+        }),
+        'runtime-dependencies.lock.json': JSON.stringify({ '@native/fixture': '1.0.0' }),
+        'scripts/bootstrap-runtime.sh': '#!/usr/bin/env bash\nexit 42\n',
+      },
+      env: {
+        SENDLENS_INSTANTLY_API_KEY: 'fresh-key',
+        PLUXX_RUNTIME_STORE_ROOT: storeRoot,
+      },
+    })
+
+    expect(run.status).toBe(42)
+    expect(readdirSync(resolve(storeRoot, 'locks'))).toEqual([])
+  })
+
+  it('does not release a shared lock whose ownership changed', () => {
+    const storeRoot = resolve(ROOT, 'replaced-runtime-lock-store')
+    const run = runGeneratedInstaller('cursor', {
+      extraFiles: {
+        '.pluxx-runtime.json': JSON.stringify({
+          schema: 'pluxx.shared-runtime-config.v1',
+          namespace: 'publish-plugin',
+          bootstrap: 'scripts/bootstrap-runtime.sh',
+          inputs: ['runtime-dependencies.lock.json'],
+          output: 'node_modules',
+        }),
+        'runtime-dependencies.lock.json': JSON.stringify({ '@native/fixture': '1.0.0' }),
+        'scripts/bootstrap-runtime.sh': '#!/usr/bin/env bash\nset -euo pipefail\nowner="$(find "$PLUXX_RUNTIME_STORE_ROOT/locks" -name owner.json -print -quit)"\nprintf \'{"pid":%s,"nonce":"replacement"}\\n\' "$$" > "$owner"\nmkdir -p node_modules/@native/fixture\nprintf "native-runtime\\n" > node_modules/@native/fixture/index.node\n',
+      },
+      env: {
+        SENDLENS_INSTANTLY_API_KEY: 'fresh-key',
+        PLUXX_RUNTIME_STORE_ROOT: storeRoot,
+      },
+    })
+
+    expect(run.status, run.stdout + '\n' + run.stderr).toBe(0)
+    const remainingLocks = readdirSync(resolve(storeRoot, 'locks'))
+    expect(remainingLocks).toHaveLength(1)
+    const owner = JSON.parse(readFileSync(resolve(storeRoot, 'locks', remainingLocks[0]!, 'owner.json'), 'utf-8')) as { nonce: string }
+    expect(owner.nonce).toBe('replacement')
+  })
+
+  it('rolls back the install when the post-swap runtime reference cannot commit', () => {
+    const storeRoot = resolve(ROOT, 'failed-runtime-ref-store')
+    mkdirSync(storeRoot, { recursive: true })
+    writeFileSync(resolve(storeRoot, 'refs'), 'blocks reference directory\n')
+    const run = runGeneratedInstaller('cursor', {
+      existingUserConfig: { values: { marker: 'previous-install' } },
+      extraFiles: {
+        '.pluxx-runtime.json': JSON.stringify({
+          schema: 'pluxx.shared-runtime-config.v1',
+          namespace: 'publish-plugin',
+          bootstrap: 'scripts/bootstrap-runtime.sh',
+          inputs: ['runtime-dependencies.lock.json'],
+          output: 'node_modules',
+        }),
+        'runtime-dependencies.lock.json': JSON.stringify({ '@native/fixture': '1.0.0' }),
+        'scripts/bootstrap-runtime.sh': '#!/usr/bin/env bash\nset -euo pipefail\nmkdir -p node_modules/@native/fixture\nprintf "native-runtime\\n" > node_modules/@native/fixture/index.node\n',
+      },
+      env: {
+        SENDLENS_INSTANTLY_API_KEY: 'fresh-key',
+        PLUXX_RUNTIME_STORE_ROOT: storeRoot,
+      },
+    })
+
+    expect(run.status).not.toBe(0)
+    expect(run.installedUserConfig?.values?.marker).toBe('previous-install')
+  })
+
+  it('falls back locally when a live shared-runtime lock exceeds the configured wait', () => {
+    const countFile = resolve(ROOT, 'active-lock-bootstrap-count.txt')
+    const storeRoot = resolve(ROOT, 'active-lock-runtime-store')
+    const runtimeFiles = {
+      '.pluxx-runtime.json': JSON.stringify({
+        schema: 'pluxx.shared-runtime-config.v1',
+        namespace: 'publish-plugin',
+        bootstrap: 'scripts/bootstrap-runtime.sh',
+        inputs: ['runtime-dependencies.lock.json'],
+        output: 'node_modules',
+      }),
+      'runtime-dependencies.lock.json': JSON.stringify({ '@native/fixture': '1.0.0' }),
+      'scripts/bootstrap-runtime.sh': '#!/usr/bin/env bash\nset -euo pipefail\ncount=0\n[[ ! -f "$PLUXX_BOOTSTRAP_COUNT_FILE" ]] || count="$(cat "$PLUXX_BOOTSTRAP_COUNT_FILE")"\necho "$((count + 1))" > "$PLUXX_BOOTSTRAP_COUNT_FILE"\nmkdir -p node_modules/@native/fixture\nprintf "native-runtime\\n" > node_modules/@native/fixture/index.node\n',
+    }
+    const run = runGeneratedInstaller('cursor', {
+      extraFiles: runtimeFiles,
+      env: { SENDLENS_INSTANTLY_API_KEY: 'fresh-key', PLUXX_BOOTSTRAP_COUNT_FILE: countFile, PLUXX_RUNTIME_STORE_ROOT: storeRoot },
+    })
+    expect(run.status, run.stdout + '\n' + run.stderr).toBe(0)
+    const ref = JSON.parse(readFileSync(runtimeRefPath(storeRoot, 'cursor', run.pluginInstallDir), 'utf-8')) as { fingerprint: string }
+    const liveLock = resolve(storeRoot, `locks/${ref.fingerprint}.lock`)
+    mkdirSync(liveLock, { recursive: true })
+    writeFileSync(resolve(liveLock, 'owner.json'), JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString() }))
+    const installerPath = resolve(run.rootDir, 'install-cursor-active-lock.sh')
+    writeFileSync(installerPath, run.installerContent)
+    chmodSync(installerPath, 0o755)
+
+    const rerun = spawnSync('bash', [installerPath], {
+      encoding: 'utf-8',
+      env: {
+        ...isolatedInstallerEnvironment(process.env),
+        HOME: resolve(run.rootDir, 'home'),
+        TMPDIR: resolve(run.rootDir, 'tmp'),
+        PLUXX_CURSOR_INSTALL_DIR: run.pluginInstallDir,
+        PLUXX_CURSOR_BUNDLE_PATH: run.archivePath,
+        SENDLENS_INSTANTLY_API_KEY: 'fresh-key',
+        PLUXX_BOOTSTRAP_COUNT_FILE: countFile,
+        PLUXX_RUNTIME_STORE_ROOT: storeRoot,
+        PLUXX_RUNTIME_LOCK_TIMEOUT_SECONDS: '0',
+      },
+    })
+
+    expect(rerun.status, rerun.stdout + '\n' + rerun.stderr).toBe(0)
+    expect(rerun.stderr).toContain('Could not acquire shared runtime lock')
+    expect(lstatSync(resolve(run.pluginInstallDir, 'node_modules')).isDirectory()).toBe(true)
+    expect(readFileSync(countFile, 'utf-8').trim()).toBe('2')
+    expect(existsSync(liveLock)).toBe(true)
+  })
+
+  it('removes the old shared-runtime reference after a host-local update', () => {
+    const storeRoot = resolve(ROOT, 'host-local-update-runtime-store')
+    const shared = runGeneratedInstaller('cursor', {
+      extraFiles: {
+        '.pluxx-runtime.json': JSON.stringify({
+          schema: 'pluxx.shared-runtime-config.v1',
+          namespace: 'publish-plugin',
+          bootstrap: 'scripts/bootstrap-runtime.sh',
+          inputs: ['runtime-dependencies.lock.json'],
+          output: 'node_modules',
+        }),
+        'runtime-dependencies.lock.json': JSON.stringify({ '@native/fixture': '1.0.0' }),
+        'scripts/bootstrap-runtime.sh': '#!/usr/bin/env bash\nset -euo pipefail\nmkdir -p node_modules/@native/fixture\nprintf "native-runtime\\n" > node_modules/@native/fixture/index.node\n',
+      },
+      env: { SENDLENS_INSTANTLY_API_KEY: 'fresh-key', PLUXX_RUNTIME_STORE_ROOT: storeRoot },
+    })
+    const refPath = runtimeRefPath(storeRoot, 'cursor', shared.pluginInstallDir)
+    expect(shared.status, shared.stdout + '\n' + shared.stderr).toBe(0)
+    expect(existsSync(refPath)).toBe(true)
+
+    const local = runGeneratedInstaller('cursor', {
+      env: { SENDLENS_INSTANTLY_API_KEY: 'fresh-key', PLUXX_RUNTIME_STORE_ROOT: storeRoot },
+    })
+    const installerPath = resolve(local.rootDir, 'install-cursor-host-local-update.sh')
+    writeFileSync(installerPath, local.installerContent)
+    chmodSync(installerPath, 0o755)
+    const update = spawnSync('bash', [installerPath], {
+      encoding: 'utf-8',
+      env: {
+        ...isolatedInstallerEnvironment(process.env),
+        HOME: resolve(local.rootDir, 'home'),
+        TMPDIR: resolve(local.rootDir, 'tmp'),
+        PLUXX_CURSOR_INSTALL_DIR: shared.pluginInstallDir,
+        PLUXX_CURSOR_BUNDLE_PATH: local.archivePath,
+        SENDLENS_INSTANTLY_API_KEY: 'fresh-key',
+        PLUXX_RUNTIME_STORE_ROOT: storeRoot,
+      },
+    })
+
+    expect(update.status, update.stdout + '\n' + update.stderr).toBe(0)
+    expect(existsSync(refPath)).toBe(false)
+  })
+
+  it('keeps an unreferenced warm entry alive while another installer holds a lease', async () => {
+    const storeRoot = resolve(ROOT, 'runtime-lease-gc-store')
+    const runtimeFiles = {
+      '.pluxx-runtime.json': JSON.stringify({
+        schema: 'pluxx.shared-runtime-config.v1',
+        namespace: 'publish-plugin',
+        bootstrap: 'scripts/bootstrap-runtime.sh',
+        inputs: ['runtime-dependencies.lock.json'],
+        output: 'node_modules',
+      }),
+      'runtime-dependencies.lock.json': JSON.stringify({ '@native/fixture': '1.0.0' }),
+      'scripts/bootstrap-runtime.sh': '#!/usr/bin/env bash\nset -euo pipefail\nmkdir -p node_modules/@native/fixture\nprintf "native-runtime\\n" > node_modules/@native/fixture/index.node\n',
+    }
+    const cursor = runGeneratedInstaller('cursor', {
+      extraFiles: runtimeFiles,
+      env: { SENDLENS_INSTANTLY_API_KEY: 'fresh-key', PLUXX_RUNTIME_STORE_ROOT: storeRoot },
+    })
+    const codex = runGeneratedInstaller('codex', {
+      extraFiles: runtimeFiles,
+      env: { SENDLENS_INSTANTLY_API_KEY: 'fresh-key', PLUXX_RUNTIME_STORE_ROOT: storeRoot },
+    })
+    expect(cursor.status, cursor.stdout + '\n' + cursor.stderr).toBe(0)
+    expect(codex.status, codex.stdout + '\n' + codex.stderr).toBe(0)
+    const cursorRefPath = runtimeRefPath(storeRoot, 'cursor', cursor.pluginInstallDir)
+    const codexRefPath = runtimeRefPath(storeRoot, 'codex', codex.pluginInstallDir)
+    const runtimeRef = JSON.parse(readFileSync(cursorRefPath, 'utf-8')) as { fingerprint: string }
+    rmSync(cursorRefPath)
+    rmSync(codexRefPath)
+    const entryRoot = resolve(storeRoot, `entries/${runtimeRef.fingerprint}`)
+    const oldDate = new Date('2000-01-01T00:00:00.000Z')
+    utimesSync(entryRoot, oldDate, oldDate)
+
+    const fakeBin = resolve(ROOT, 'runtime-lease-fake-bin')
+    const pauseMarker = resolve(ROOT, 'runtime-lease-paused')
+    mkdirSync(fakeBin, { recursive: true })
+    writeFileSync(resolve(fakeBin, 'mv'), '#!/usr/bin/env bash\nset -euo pipefail\nif [[ ! -f "$PLUXX_PAUSE_MARKER" ]]; then touch "$PLUXX_PAUSE_MARKER"; sleep 2; fi\nexec /bin/mv "$@"\n')
+    chmodSync(resolve(fakeBin, 'mv'), 0o755)
+    const cursorInstaller = resolve(cursor.rootDir, 'install-cursor-lease-pause.sh')
+    writeFileSync(cursorInstaller, cursor.installerContent)
+    chmodSync(cursorInstaller, 0o755)
+    const paused = spawn('bash', [cursorInstaller], {
+      env: {
+        ...isolatedInstallerEnvironment(process.env),
+        PATH: `${fakeBin}:${process.env.PATH}`,
+        HOME: resolve(cursor.rootDir, 'home'),
+        TMPDIR: resolve(cursor.rootDir, 'tmp'),
+        PLUXX_CURSOR_INSTALL_DIR: cursor.pluginInstallDir,
+        PLUXX_CURSOR_BUNDLE_PATH: cursor.archivePath,
+        PLUXX_RUNTIME_STORE_ROOT: storeRoot,
+        PLUXX_RUNTIME_GC_GRACE_SECONDS: '0',
+        PLUXX_PAUSE_MARKER: pauseMarker,
+        SENDLENS_INSTANTLY_API_KEY: 'fresh-key',
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+    let pausedStdout = ''
+    let pausedStderr = ''
+    paused.stdout.on('data', (chunk) => { pausedStdout += chunk.toString() })
+    paused.stderr.on('data', (chunk) => { pausedStderr += chunk.toString() })
+    const pausedResult = new Promise<number | null>((resolveResult) => paused.on('close', resolveResult))
+    for (let attempt = 0; attempt < 100 && !existsSync(pauseMarker); attempt += 1) {
+      await new Promise((resolveSleep) => setTimeout(resolveSleep, 25))
+    }
+    expect(existsSync(pauseMarker)).toBe(true)
+
+    const codexInstaller = resolve(codex.rootDir, 'install-codex-lease-gc.sh')
+    writeFileSync(codexInstaller, codex.installerContent)
+    chmodSync(codexInstaller, 0o755)
+    const gcRun = spawnSync('bash', [codexInstaller], {
+      encoding: 'utf-8',
+      env: {
+        ...isolatedInstallerEnvironment(process.env),
+        HOME: resolve(codex.rootDir, 'home'),
+        TMPDIR: resolve(codex.rootDir, 'tmp'),
+        PLUXX_CODEX_INSTALL_DIR: codex.pluginInstallDir,
+        PLUXX_CODEX_BUNDLE_PATH: codex.archivePath,
+        PLUXX_CODEX_MARKETPLACE_PATH: resolve(codex.rootDir, 'codex-marketplace.json'),
+        PLUXX_CODEX_CONFIG_PATH: resolve(codex.rootDir, 'codex-config.toml'),
+        PLUXX_CODEX_ENABLE_PLUGIN_HOOKS: '0',
+        PLUXX_RUNTIME_STORE_ROOT: storeRoot,
+        PLUXX_RUNTIME_GC_GRACE_SECONDS: '0',
+        SENDLENS_INSTANTLY_API_KEY: 'fresh-key',
+      },
+    })
+
+    expect(gcRun.status, gcRun.stdout + '\n' + gcRun.stderr).toBe(0)
+    expect(existsSync(entryRoot)).toBe(true)
+    expect(await pausedResult, pausedStdout + '\n' + pausedStderr).toBe(0)
+    expect(existsSync(cursorRefPath)).toBe(true)
+    expect(existsSync(codexRefPath)).toBe(true)
   })
 
   it('restores the previous install when TERM arrives after the backup move', () => {
@@ -1269,7 +2358,9 @@ esac
     })
 
     expect(run.status).toBe(1)
+    expect(run.installerContent).not.toContain('rollback_install')
     expect(run.stderr).toContain('Codex agent name collision')
+    expect(run.stderr).not.toContain('rollback_install: command not found')
     expect(run.installedUserConfig?.values?.marker).toBe('previous-install')
     expect(readFileSync(resolve(run.rootDir, 'codex-marketplace.json'), 'utf-8')).toBe(originalMarketplace)
   })
@@ -1287,6 +2378,7 @@ esac
     })
 
     expect(run.status).toBe(1)
+    expect(run.stderr).not.toContain('rollback_install: command not found')
     expect(run.installedUserConfig?.values?.marker).toBe('previous-install')
     expect(existsSync(resolve(run.rootDir, 'home/.codex/agents/publish-plugin/reviewer.toml'))).toBe(false)
     expect(existsSync(resolve(run.rootDir, 'home/.codex/pluxx/agent-installs/publish-plugin.json'))).toBe(false)
@@ -1427,7 +2519,9 @@ with tarfile.open(archive, 'w:gz') as tf:
     expect(installerContent).toContain('server.http_headers')
     expect(installerContent).toContain('preserveSecretReferences = true')
     expect(installerContent).toContain('Preparing local plugin runtime dependencies...')
-    expect(installerContent).toContain('bash "$PLUXX_TX_STAGE/scripts/bootstrap-runtime.sh"')
+    expect(installerContent).toContain("childProcess.spawnSync('bash'")
+    expect(installerContent).toContain('path.join(candidateRoot, bootstrapRelativePath)')
+    expect(installerContent).toContain('fingerprintHasLiveLease(entry.name) || fingerprintHasLiveRef(refRoot, entry.name)')
     expect(installerContent).toContain('PLUXX_CODEX_ENABLE_PLUGIN_HOOKS')
     expect(installerContent).toContain('Codex requires [features].hooks = true')
     expect(installerContent).toContain('hooks = true')
@@ -1467,6 +2561,255 @@ with tarfile.open(archive, 'w:gz') as tf:
     expect(readFileSync(resolve(run.rootDir, 'publish-plugin.ts'), 'utf-8')).toBe('// private wrapper\n')
     expect(readFileSync(resolve(run.pluginInstallDir, '.pluxx-user.json'), 'utf-8')).toBe('{}\n')
     expect(existsSync(resolve(run.pluginInstallDir, 'package.json'))).toBe(false)
+  })
+
+
+  it('adopts trusted pre-ownership generated installs across core hosts', () => {
+    const platforms: TargetPlatform[] = ['claude-code', 'cursor', 'codex', 'opencode']
+
+    for (const platform of platforms) {
+      const run = runGeneratedInstaller(platform, {
+        config: { ...makeUserConfigInstallerConfig(platform), targets: [platform] },
+        existingUserConfig: {
+          values: { 'instantly-api-key': 'saved-instantly-key' },
+          env: { SENDLENS_INSTANTLY_API_KEY: 'saved-instantly-key' },
+        },
+        extraFiles: platform === 'opencode'
+          ? { 'skills/client-intel/SKILL.md': '# Client Intel\n' }
+          : {},
+        setupPaths: (paths) => {
+          writeLegacyInstalledManifest(platform, paths.pluginInstallDir, matchingLegacyManifestForPlatform(platform))
+          writeFileSync(resolve(paths.pluginInstallDir, 'legacy-pre-ownership.txt'), 'legacy bundle marker\n')
+
+          if (platform === 'opencode') {
+            const entryPath = paths.env.PLUXX_OPENCODE_ENTRY_PATH
+            mkdirSync(resolve(entryPath, '..'), { recursive: true })
+            writeFileSync(entryPath, legacyOpenCodeWrapper())
+
+            const skillDir = resolve(paths.env.PLUXX_OPENCODE_SKILLS_ROOT, 'publish-plugin-client-intel')
+            mkdirSync(skillDir, { recursive: true })
+            writeFileSync(resolve(skillDir, 'SKILL.md'), '---\nname: publish-plugin/client-intel\n---\n\n# Client Intel\n')
+          }
+        },
+      })
+
+      expect(run.status, `${platform} installer failed:\n${run.stderr}\n${run.stdout}`).toBe(0)
+      expect(run.stderr).toBe('')
+      expect(existsSync(resolve(run.pluginInstallDir, 'legacy-pre-ownership.txt'))).toBe(false)
+      expect(existsSync(generatedInstallerOwnershipPath(platform, run.rootDir, run.pluginInstallDir))).toBe(true)
+      expect(run.stdout).toContain('Found existing publish-plugin config; reusing saved install values.')
+
+      if (platform === 'codex') {
+        expect(run.installedUserConfig?.envRefs?.SENDLENS_INSTANTLY_API_KEY).toBe('SENDLENS_INSTANTLY_API_KEY')
+      } else {
+        expect(run.installedUserConfig?.values?.['instantly-api-key']).toBe('saved-instantly-key')
+        expect(run.installedUserConfig?.env?.SENDLENS_INSTANTLY_API_KEY).toBe('saved-instantly-key')
+      }
+
+      if (platform === 'opencode') {
+        expect(readFileSync(resolve(run.rootDir, 'publish-plugin.ts'), 'utf-8')).toContain('OpenCode auto-loads plugin files')
+        expect(readFileSync(resolve(run.rootDir, 'publish-plugin.ts'), 'utf-8')).toContain('pluginFactory(context)')
+        expect(readFileSync(resolve(run.rootDir, 'publish-plugin.ts'), 'utf-8')).not.toContain('directory: join(context.directory, "publish-plugin")')
+        expect(readFileSync(resolve(run.rootDir, 'opencode-skills/publish-plugin-client-intel/SKILL.md'), 'utf-8')).toContain('name: publish-plugin/client-intel')
+      }
+    }
+  })
+
+  it('adopts trusted pre-ownership OpenCode wrappers generated with the current workspace passthrough shape', () => {
+    const run = runGeneratedInstaller('opencode', {
+      config: { ...makeUserConfigInstallerConfig('opencode'), targets: ['opencode'] },
+      existingUserConfig: {
+        values: { 'instantly-api-key': 'saved-instantly-key' },
+        env: { SENDLENS_INSTANTLY_API_KEY: 'saved-instantly-key' },
+      },
+      extraFiles: { 'skills/client-intel/SKILL.md': '# Client Intel\n' },
+      setupPaths: (paths) => {
+        writeLegacyInstalledManifest('opencode', paths.pluginInstallDir, matchingLegacyManifestForPlatform('opencode'))
+        const entryPath = paths.env.PLUXX_OPENCODE_ENTRY_PATH
+        mkdirSync(resolve(entryPath, '..'), { recursive: true })
+        writeFileSync(entryPath, currentOpenCodeWrapper())
+
+        const skillDir = resolve(paths.env.PLUXX_OPENCODE_SKILLS_ROOT, 'publish-plugin-client-intel')
+        mkdirSync(skillDir, { recursive: true })
+        writeFileSync(resolve(skillDir, 'SKILL.md'), '---\nname: publish-plugin/client-intel\n---\n\n# Client Intel\n')
+      },
+    })
+
+    expect(run.status, `installer failed:\n${run.stderr}\n${run.stdout}`).toBe(0)
+    expect(readFileSync(resolve(run.rootDir, 'publish-plugin.ts'), 'utf-8')).toContain('pluginFactory(context)')
+    expect(existsSync(generatedInstallerOwnershipPath('opencode', run.rootDir, run.pluginInstallDir))).toBe(true)
+  })
+
+  it('passes the selected workspace unchanged through a generated release OpenCode wrapper', async () => {
+    const config = { ...makeConfig(), targets: ['opencode'] as TargetPlatform[] }
+    let installedBundle = ''
+    let installedEntry = ''
+    const run = runGeneratedInstaller('opencode', {
+      config,
+      prepareRuntime: (rootDir) => {
+        installedBundle = resolve(rootDir, 'home/.config/opencode/plugins/publish-plugin')
+        installedEntry = `${installedBundle}.ts`
+        return {
+          PLUXX_OPENCODE_INSTALL_DIR: installedBundle,
+          PLUXX_OPENCODE_ENTRY_PATH: installedEntry,
+          PLUXX_OPENCODE_SKILLS_ROOT: resolve(rootDir, 'home/.config/opencode/skills'),
+        }
+      },
+      extraFiles: {
+        'package.json': JSON.stringify({
+          name: '@orchid/publish-plugin-opencode',
+          version: '1.2.3',
+          type: 'module',
+          peerDependencies: { '@opencode-ai/plugin': '^1.0.0' },
+          keywords: ['opencode-plugin'],
+        }),
+        'index.ts': [
+          'import { existsSync } from "fs"',
+          'import { join } from "path"',
+          '',
+          'export const PublishPlugin = async (context: { directory: string, config?: { command?: string } }) => ({',
+          '  workspaceRoot: context.directory,',
+          '  nestedWorkspaceExists: existsSync(join(context.directory, "publish-plugin")),',
+          '  command: context.config?.command,',
+          '})',
+          '',
+        ].join('\n'),
+      },
+    })
+    const workspaceRoot = resolve(run.rootDir, 'selected workspace')
+    mkdirSync(workspaceRoot, { recursive: true })
+
+    expect(readFileSync(installedEntry, 'utf-8')).toBe(buildOpenCodeEntryFile('publish-plugin'))
+
+    const doctorReport = await doctorConsumer(installedBundle, { projectRoot: run.rootDir })
+    expect(doctorReport.checks).toContainEqual(expect.objectContaining({
+      level: 'success',
+      code: 'consumer-opencode-entry-valid',
+    }))
+
+    const entryModule = await import(pathToFileURL(installedEntry).href)
+    const result = await entryModule.PublishPlugin({
+      directory: workspaceRoot,
+      config: { command: 'pluxx-release-wrapper-proof' },
+    })
+
+    expect(result).toEqual({
+      workspaceRoot,
+      nestedWorkspaceExists: false,
+      command: 'pluxx-release-wrapper-proof',
+    })
+  })
+
+  it('rejects unowned OpenCode wrappers that only contain generated-wrapper marker strings', () => {
+    const run = runGeneratedInstaller('opencode', {
+      config: { ...makeUserConfigInstallerConfig('opencode'), targets: ['opencode'] },
+      existingUserConfig: {
+        values: { 'instantly-api-key': 'saved-instantly-key' },
+        env: { SENDLENS_INSTANTLY_API_KEY: 'saved-instantly-key' },
+      },
+      setupPaths: (paths) => {
+        writeLegacyInstalledManifest('opencode', paths.pluginInstallDir, matchingLegacyManifestForPlatform('opencode'))
+        const entryPath = paths.env.PLUXX_OPENCODE_ENTRY_PATH
+        mkdirSync(resolve(entryPath, '..'), { recursive: true })
+        writeFileSync(
+          entryPath,
+          [
+            'import type { Plugin } from "@opencode-ai/plugin"',
+            'import { join } from "path"',
+            '',
+            'import * as PluginModule from "./publish-plugin/index.ts"',
+            '',
+            '// Object.values(PluginModule).find',
+            '// pluginFactory(context)',
+            '// directory: join(context.directory, "publish-plugin")',
+            'export const PublishPlugin: Plugin = async (context) => ({',
+            '  ...context,',
+            '  directory: join(context.directory, "custom-location"),',
+            '})',
+            '',
+          ].join('\n'),
+        )
+      },
+    })
+
+    expect(run.status).toBe(1)
+    expect(run.stderr).toContain('Refusing to replace unowned OpenCode companion')
+  })
+
+  it('rejects unowned legacy installs with missing, malformed, or mismatched manifests', () => {
+    const cases: Array<{ name: string; writeManifest?: (installDir: string) => void }> = [
+      { name: 'missing manifest' },
+      {
+        name: 'malformed manifest',
+        writeManifest: (installDir) => writeLegacyInstalledManifest('cursor', installDir, '{not-json\n'),
+      },
+      {
+        name: 'mismatched manifest',
+        writeManifest: (installDir) => writeLegacyInstalledManifest('cursor', installDir, { name: 'other-plugin', version: '9.9.9' }),
+      },
+    ]
+
+    for (const testCase of cases) {
+      const run = runGeneratedInstaller('cursor', {
+        existingUserConfig: { values: { marker: testCase.name } },
+        setupPaths: (paths) => {
+          writeFileSync(resolve(paths.pluginInstallDir, 'untrusted.txt'), 'do not replace\n')
+          testCase.writeManifest?.(paths.pluginInstallDir)
+        },
+      })
+
+      expect(run.status, testCase.name).toBe(1)
+      expect(run.stderr, testCase.name).toContain('Refusing to replace unowned install')
+      expect(readFileSync(resolve(run.pluginInstallDir, 'untrusted.txt'), 'utf-8')).toBe('do not replace\n')
+      expect(run.installedUserConfig?.values?.marker).toBe(testCase.name)
+    }
+  })
+
+  it('rejects mismatched pre-ownership generated install identity across core hosts', () => {
+    const platforms: TargetPlatform[] = ['claude-code', 'cursor', 'codex', 'opencode']
+
+    for (const platform of platforms) {
+      const run = runGeneratedInstaller(platform, {
+        existingUserConfig: { values: { marker: 'legacy' } },
+        setupPaths: (paths) => {
+          const manifest = platform === 'opencode'
+            ? { name: '@orchid/other-plugin-opencode', version: '1.2.2' }
+            : { name: 'other-plugin', version: '1.2.2' }
+          writeLegacyInstalledManifest(platform, paths.pluginInstallDir, manifest)
+          writeFileSync(resolve(paths.pluginInstallDir, 'legacy-pre-ownership.txt'), 'do not replace\n')
+        },
+      })
+
+      expect(run.status, `${platform} should fail closed`).toBe(1)
+      expect(run.stderr).toContain('Refusing to replace unowned install')
+      expect(readFileSync(resolve(run.pluginInstallDir, 'legacy-pre-ownership.txt'), 'utf-8')).toBe('do not replace\n')
+    }
+  })
+
+  it('rejects unrecognized legacy OpenCode skill companion collisions', () => {
+    const cases = [
+      { name: 'no legacy frontmatter', content: '# Private unrelated skill\n' },
+      { name: 'wrong legacy namespace identity', content: '---\nname: publish-plugin/other-skill\n---\n\n# Private unrelated skill\n' },
+    ]
+
+    for (const testCase of cases) {
+      const run = runGeneratedInstaller('opencode', {
+        config: { ...makeConfig(), targets: ['opencode'] },
+        existingUserConfig: { values: { marker: testCase.name } },
+        extraFiles: { 'skills/client-intel/SKILL.md': '# Client Intel\n' },
+        setupPaths: (paths) => {
+          writeLegacyInstalledManifest('opencode', paths.pluginInstallDir, matchingLegacyManifestForPlatform('opencode'))
+          const skillDir = resolve(paths.env.PLUXX_OPENCODE_SKILLS_ROOT, 'publish-plugin-client-intel')
+          mkdirSync(skillDir, { recursive: true })
+          writeFileSync(resolve(skillDir, 'SKILL.md'), testCase.content)
+        },
+      })
+
+      expect(run.status, testCase.name).toBe(1)
+      expect(run.stderr, testCase.name).toContain('Refusing to replace unowned OpenCode companion')
+      expect(readFileSync(resolve(run.rootDir, 'opencode-skills/publish-plugin-client-intel/SKILL.md'), 'utf-8')).toBe(testCase.content)
+      expect(run.installedUserConfig?.values?.marker).toBe(testCase.name)
+    }
   })
 
   it('reuses saved generated-installer user config across core host updates', () => {
@@ -1897,5 +3240,73 @@ with tarfile.open(archive, 'w:gz') as tf:
     expect(run.stdout).toContain('removed 1 stale owned registration(s)')
     expect(existsSync(oldAgentPath)).toBe(false)
     expect(existsSync(resolve(ROOT, 'codex-home/agents/publish-plugin/nested/reviewer.toml'))).toBe(true)
+  })
+})
+
+
+describe('generated Codex marketplace collision contract', () => {
+  it('rejects an external Codex home before spawning the installer', () => {
+    const external = resolve(ROOT, 'external-host')
+    mkdirSync(external, { recursive: true })
+    const sentinel = resolve(external, 'config.toml')
+    writeFileSync(sentinel, '# external sentinel\n')
+    expect(() => runGeneratedInstaller('codex', { env: { CODEX_HOME: external } })).toThrow('Codex test isolation rejected CODEX_HOME')
+    expect(readFileSync(sentinel, 'utf8')).toBe('# external sentinel\n')
+  })
+  const nativeRow = (marketplace: string, version = '1.2.3', enabled = true, name = 'publish-plugin') => ({
+    pluginId: `${name}@${marketplace}`, name, marketplaceName: marketplace, version, installed: true, enabled,
+    source: { source: 'local', path: `/synthetic/${marketplace}/private-source-sentinel` },
+  })
+  function runCollision(installed: unknown[], postWrite = false) {
+    return runGeneratedInstaller('codex', {
+      config: { ...makeConfig(), targets: ['codex'] },
+      prepareRuntime(root) {
+        const inventory = resolve(root, 'native-inventory.json')
+        const next = resolve(root, 'native-next.json')
+        writeFileSync(inventory, JSON.stringify({ installed: postWrite ? [] : installed }))
+        writeFileSync(next, JSON.stringify({ installed }))
+        return { PLUXX_TEST_CODEX_INVENTORY: inventory, ...(postWrite ? { PLUXX_TEST_CODEX_NEXT_INVENTORY: next } : {}),
+          PLUXX_INSTALL_RESULT_FILE: resolve(root, 'terminal.json') }
+      },
+    })
+  }
+  it.each(['1.2.3', '1.0.0'])('fails without mutating the conflicting inventory at version %s', version => {
+    const run = runCollision([nativeRow('publish-plugin-local'), nativeRow('other', version)])
+    expect(run.status, run.stderr).toBe(1)
+    const result = JSON.parse(readFileSync(resolve(run.rootDir, 'terminal.json'), 'utf8'))
+    expect(result).toMatchObject({ state: 'failed', reason: 'same-name-cross-marketplace', diagnostics: [{ totalConflicts: 1 }] })
+    expect(result.diagnostics[0].requested.selector).toBe('publish-plugin@publish-plugin-local')
+    expect(run.stderr).toContain(`publish-plugin@other (${version};`)
+    expect(run.stderr).not.toContain('private-source-sentinel')
+    expect(existsSync(run.pluginInstallDir)).toBe(false)
+    expect(JSON.parse(readFileSync(resolve(run.rootDir, 'native-inventory.json'), 'utf8')).installed).toHaveLength(2)
+  })
+  it('keeps clean, disabled and unrelated selectors successful', () => {
+    const run = runCollision([nativeRow('publish-plugin-local'), nativeRow('disabled', '1.0.0', false), nativeRow('other', '1.0.0', true, 'unrelated')])
+    expect(run.status, run.stderr).toBe(0)
+    expect(JSON.parse(readFileSync(resolve(run.rootDir, 'terminal.json'), 'utf8')).state).toBe('installed')
+  })
+  it('rolls back a post-write collision without losing the terminal diagnostic', () => {
+    const run = runCollision([nativeRow('other')], true)
+    expect(run.status, run.stderr).toBe(1)
+    expect(JSON.parse(readFileSync(resolve(run.rootDir, 'terminal.json'), 'utf8')).reason).toBe('same-name-cross-marketplace')
+    expect(existsSync(run.pluginInstallDir)).toBe(false)
+  })
+  it('checks unchanged installs and emits exactly one JSON failure', () => {
+    const run = runCollision([])
+    expect(run.status, run.stderr).toBe(0)
+    const script = resolve(run.rootDir, 'rerun.sh')
+    writeFileSync(script, run.installerContent)
+    const inventory = resolve(run.rootDir, 'native-inventory.json')
+    writeFileSync(inventory, JSON.stringify({ installed: [nativeRow('other')] }))
+    const before = readFileSync(resolve(run.pluginInstallDir, '.codex-plugin/plugin.json'), 'utf8')
+    const result = spawnSync('bash', [script, '--json'], { encoding: 'utf8', env: {
+      ...isolatedInstallerEnvironment(process.env), HOME: resolve(run.rootDir, 'home'), CODEX_HOME: resolve(run.rootDir, 'home/.codex'),
+      ...getGeneratedInstallerPaths('codex', run.rootDir).env, PLUXX_CODEX_BUNDLE_PATH: run.archivePath,
+      PLUXX_TEST_CODEX_INVENTORY: inventory,
+    } })
+    expect(result.status, result.stderr).toBe(1)
+    expect(JSON.parse(result.stdout)).toMatchObject({ state: 'failed', reason: 'same-name-cross-marketplace' })
+    expect(readFileSync(resolve(run.pluginInstallDir, '.codex-plugin/plugin.json'), 'utf8')).toBe(before)
   })
 })

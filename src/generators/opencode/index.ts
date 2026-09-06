@@ -42,11 +42,13 @@ interface OpenCodeHookPlan {
   event: Record<string, GeneratedHook[]>
   toolBefore: {
     all: GeneratedHook[]
+    matched: GeneratedHook[]
     read: GeneratedHook[]
     mcp: GeneratedHook[]
   }
   toolAfter: {
     all: GeneratedHook[]
+    matched: GeneratedHook[]
     edit: GeneratedHook[]
     mcp: GeneratedHook[]
   }
@@ -115,12 +117,13 @@ export class OpenCodeGenerator extends Generator {
     const lines: string[] = [
       `import type { Config, Plugin } from "@opencode-ai/plugin"`,
       `import { existsSync, readFileSync } from "fs"`,
-      `import { resolve } from "path"`,
+      `import { dirname, resolve } from "path"`,
+      `import { fileURLToPath } from "url"`,
       '',
       `type GeneratedHook = {`,
       `  command: string`,
       `  timeout?: number`,
-      `  matcher?: string`,
+      `  matcher?: string | Record<string, unknown>`,
       `  failClosed?: boolean`,
       `}`,
       '',
@@ -155,8 +158,47 @@ export class OpenCodeGenerator extends Generator {
       `const isMcpTool = (tool: string): boolean =>`,
       `  tool === "mcp" || tool.startsWith("mcp.") || tool.startsWith("mcp_")`,
       '',
-      `const loadUserConfig = (directory: string): { values?: Record<string, string | number | boolean>; env?: Record<string, string>; envRefs?: Record<string, string> } => {`,
-      `  const filepath = resolve(directory, ".pluxx-user.json")`,
+      `const TOOL_MATCHER_ALIASES: Record<string, string[]> = {`,
+      `    apply_patch: ["ApplyPatch", "Edit", "Write"],`,
+      `    bash: ["Bash", "Shell"],`,
+      `    edit: ["Edit"],`,
+      `    glob: ["Glob", "List"],`,
+      `    grep: ["Grep", "Search"],`,
+      `    read: ["Read"],`,
+      `    write: ["Write"],`,
+      `  }`,
+      '',
+      `const getToolMatcherCandidates = (tool: string): string[] =>`,
+      `  [tool, ...(TOOL_MATCHER_ALIASES[tool] ?? []), ...(isMcpTool(tool) ? ["MCP"] : [])]`,
+      '',
+      `const getToolMatcherPattern = (matcher: GeneratedHook["matcher"]): string | undefined => {`,
+      `  const pattern = typeof matcher === "string"`,
+      `    ? matcher`,
+      `    : matcher && typeof matcher.tool === "string"`,
+      `      ? matcher.tool`,
+      `      : undefined`,
+      `  if (pattern === undefined) return undefined`,
+      `  const alternatives = pattern.split("|").map(value => value.trim())`,
+      `  if (alternatives.some(value => value.length === 0)) return undefined`,
+      `  return alternatives.join("|")`,
+      `}`,
+      '',
+      `const hookMatchesTool = (hook: GeneratedHook, tool: string): boolean => {`,
+      `  if (hook.matcher === undefined) return true`,
+      `  const pattern = getToolMatcherPattern(hook.matcher)`,
+      `  if (!pattern) return false`,
+      `  if (pattern === "*") return true`,
+      `  const candidates = getToolMatcherCandidates(tool)`,
+      `  try {`,
+      `    const matcher = new RegExp(\`^(?:\${pattern})$\`, "i")`,
+      `    return candidates.some(candidate => matcher.test(candidate))`,
+      `  } catch {`,
+      `    return candidates.some(candidate => candidate.toLowerCase() === pattern.toLowerCase())`,
+      `  }`,
+      `}`,
+      '',
+      `const loadUserConfig = (pluginRoot: string): { values?: Record<string, string | number | boolean>; env?: Record<string, string>; envRefs?: Record<string, string> } => {`,
+      `  const filepath = resolve(pluginRoot, ".pluxx-user.json")`,
       `  if (!existsSync(filepath)) return {}`,
       `  try {`,
       `    return JSON.parse(readFileSync(filepath, "utf-8"))`,
@@ -188,9 +230,9 @@ export class OpenCodeGenerator extends Generator {
       `  return Object.keys(output).length > 0 ? output : undefined`,
       `}`,
       '',
-      `const buildMcpConfig = (directory: string): NonNullable<Config["mcp"]> => {`,
+      `const buildMcpConfig = (pluginRoot: string, workspaceRoot: string): NonNullable<Config["mcp"]> => {`,
       `  const config: NonNullable<Config["mcp"]> = {}`,
-      `  const userConfig = loadUserConfig(directory)`,
+      `  const userConfig = loadUserConfig(pluginRoot)`,
       `  const userEnv = userConfig.env ?? {}`,
       `  const userEnvRefs = userConfig.envRefs ?? {}`,
       '',
@@ -198,13 +240,20 @@ export class OpenCodeGenerator extends Generator {
       `    if (definition.transport === "stdio" && definition.command) {`,
       `      const runtimeEnvVars = new Set(MCP_RUNTIME_ENV_VARS[name] ?? [])`,
       `      const command = runtimeEnvVars.size > 0`,
-      `        ? ["node", resolve(directory, MCP_RUNTIME_ENV_SCRIPT), JSON.stringify([...runtimeEnvVars].sort()), "--", definition.command, ...(definition.args ?? [])]`,
+      `        ? ["node", resolve(pluginRoot, MCP_RUNTIME_ENV_SCRIPT), JSON.stringify([...runtimeEnvVars].sort()), "--", definition.command, ...(definition.args ?? [])]`,
       `        : [definition.command, ...(definition.args ?? [])]`,
-      `      const environment = materializeStdioEnv(definition.env, userEnv, userEnvRefs, runtimeEnvVars)`,
+      `      const environment = {`,
+      `        ...(materializeStdioEnv(definition.env, userEnv, userEnvRefs, runtimeEnvVars) ?? {}),`,
+      `        PLUXX_PLUGIN_ROOT: pluginRoot,`,
+      `        OPENCODE_PLUGIN_ROOT: pluginRoot,`,
+      `        PLUXX_WORKSPACE_ROOT: workspaceRoot,`,
+      `        PLUXX_MCP_WORKSPACE_ROOT: workspaceRoot,`,
+      `        OPENCODE_WORKSPACE_ROOT: workspaceRoot,`,
+      `      }`,
       `      config[name] = {`,
       `        type: "local",`,
       `        command,`,
-      `        ...(environment ? { environment } : {}),`,
+      `        environment,`,
       `      }`,
       `      continue`,
       `    }`,
@@ -253,20 +302,30 @@ export class OpenCodeGenerator extends Generator {
       ` * Generated by pluxx — do not edit manually.`,
       ` */`,
       `export const ${pluginName}: Plugin = async ({ project, client, $, directory }) => {`,
+      `  const pluginRoot = dirname(fileURLToPath(import.meta.url))`,
+      `  const workspaceRoot = directory`,
       `  const shellSingleQuote = (input: string): string => \`'\${String(input ?? "").replace(/'/g, \`'"'"'\`)}'\``,
       '',
       `  const buildHookShellCommand = (rawCommand: string): string => {`,
-      `    const userConfig = loadUserConfig(directory)`,
+      `    const userConfig = loadUserConfig(pluginRoot)`,
       `    const userEnv = userConfig.env ?? {}`,
       `    const userEnvRefs = userConfig.envRefs ?? {}`,
-      `    const exports = Object.entries(userEnv)`,
+      `    const rootEnv = {`,
+      `      PLUXX_PLUGIN_ROOT: pluginRoot,`,
+      `      PLUGIN_ROOT: pluginRoot,`,
+      `      OPENCODE_PLUGIN_ROOT: pluginRoot,`,
+      `      PLUXX_HOOK_WORKSPACE_ROOT: workspaceRoot,`,
+      `      PLUXX_WORKSPACE_ROOT: workspaceRoot,`,
+      `      OPENCODE_WORKSPACE_ROOT: workspaceRoot,`,
+      `    }`,
+      `    const exports = Object.entries({ ...userEnv, ...rootEnv })`,
       `      .filter(([key]) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(key))`,
       `      .map(([key, value]) => \`export \${key}=\${shellSingleQuote(String(value))}\`)`,
       `      .concat(Object.entries(userEnvRefs)`,
-      `        .filter(([key, envVar]) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(key) && typeof envVar === "string" && envVar in process.env)`,
+      `        .filter(([key, envVar]) => !(key in rootEnv) && /^[A-Za-z_][A-Za-z0-9_]*$/.test(key) && typeof envVar === "string" && envVar in process.env)`,
       `        .map(([key, envVar]) => \`export \${key}=\${shellSingleQuote(String(process.env[envVar]))}\`))`,
       `      .join("; ")`,
-      `    const command = rawCommand.replaceAll("\${PLUGIN_ROOT}", directory)`,
+      `    const command = rawCommand.replaceAll("\${PLUGIN_ROOT}", pluginRoot)`,
       `    return exports ? \`\${exports}; \${command}\` : command`,
       `  }`,
       '',
@@ -307,12 +366,21 @@ export class OpenCodeGenerator extends Generator {
       `    }`,
       `  }`,
       '',
+      `  const runMatchingHooks = async (hooks: GeneratedHook[], tool: string, context: Record<string, string>): Promise<void> => {`,
+      `    await runHooks(hooks.filter(hook => hookMatchesTool(hook, tool)), context)`,
+      `  }`,
+      '',
       `  const runReadiness = async (mode: string, event: Record<string, unknown>): Promise<void> => {`,
       `    if (!READINESS_SCRIPT) return`,
       `    const payload = Buffer.from(JSON.stringify(event ?? {}), "utf-8").toString("base64")`,
-      `    const scriptPath = resolve(directory, READINESS_SCRIPT)`,
+      `    const scriptPath = resolve(pluginRoot, READINESS_SCRIPT)`,
       `    const command = [`,
-      `      \`PLUXX_PLUGIN_ROOT=\${shellSingleQuote(directory)}\`,`,
+      `      \`PLUXX_PLUGIN_ROOT=\${shellSingleQuote(pluginRoot)}\`,`,
+      `      \`PLUGIN_ROOT=\${shellSingleQuote(pluginRoot)}\`,`,
+      `      \`OPENCODE_PLUGIN_ROOT=\${shellSingleQuote(pluginRoot)}\`,`,
+      `      \`PLUXX_WORKSPACE_ROOT=\${shellSingleQuote(workspaceRoot)}\`,`,
+      `      \`PLUXX_HOOK_WORKSPACE_ROOT=\${shellSingleQuote(workspaceRoot)}\`,`,
+      `      \`OPENCODE_WORKSPACE_ROOT=\${shellSingleQuote(workspaceRoot)}\`,`,
       `      \`PLUXX_READINESS_PAYLOAD=\${shellSingleQuote(payload)}\`,`,
       `      \`node \${shellSingleQuote(scriptPath)} \${shellSingleQuote(mode)}\`,`,
       `    ].join(" ")`,
@@ -324,7 +392,7 @@ export class OpenCodeGenerator extends Generator {
       `      if (Object.keys(MCP_DEFINITIONS).length > 0) {`,
       `        config.mcp = {`,
       `          ...(config.mcp ?? {}),`,
-      `          ...buildMcpConfig(directory),`,
+      `          ...buildMcpConfig(pluginRoot, workspaceRoot),`,
       `        }`,
       `      }`,
       '',
@@ -355,21 +423,23 @@ export class OpenCodeGenerator extends Generator {
       `        await runReadiness("mcp-gate", { ...input, tool_name: input.tool })`,
       `      }`,
       `      await runHooks(TOOL_BEFORE_HOOKS.all, { hookType: "tool.execute.before", tool: input.tool })`,
+      `      await runMatchingHooks(TOOL_BEFORE_HOOKS.matched, input.tool, { hookType: "tool.execute.before", tool: input.tool })`,
       `      if (input.tool === "read") {`,
-      `        await runHooks(TOOL_BEFORE_HOOKS.read, { hookType: "tool.execute.before", tool: input.tool })`,
+      `        await runMatchingHooks(TOOL_BEFORE_HOOKS.read, input.tool, { hookType: "tool.execute.before", tool: input.tool })`,
       `      }`,
       `      if (isMcpTool(input.tool)) {`,
-      `        await runHooks(TOOL_BEFORE_HOOKS.mcp, { hookType: "tool.execute.before", tool: input.tool })`,
+      `        await runMatchingHooks(TOOL_BEFORE_HOOKS.mcp, input.tool, { hookType: "tool.execute.before", tool: input.tool })`,
       `      }`,
       `    },`,
       '',
       `    "tool.execute.after": async (input, output) => {`,
       `      await runHooks(TOOL_AFTER_HOOKS.all, { hookType: "tool.execute.after", tool: input.tool })`,
-      `      if (input.tool === "edit" || input.tool === "write") {`,
-      `        await runHooks(TOOL_AFTER_HOOKS.edit, { hookType: "tool.execute.after", tool: input.tool })`,
+      `      await runMatchingHooks(TOOL_AFTER_HOOKS.matched, input.tool, { hookType: "tool.execute.after", tool: input.tool })`,
+      `      if (input.tool === "edit" || input.tool === "write" || input.tool === "apply_patch") {`,
+      `        await runMatchingHooks(TOOL_AFTER_HOOKS.edit, input.tool, { hookType: "tool.execute.after", tool: input.tool })`,
       `      }`,
       `      if (isMcpTool(input.tool)) {`,
-      `        await runHooks(TOOL_AFTER_HOOKS.mcp, { hookType: "tool.execute.after", tool: input.tool })`,
+      `        await runMatchingHooks(TOOL_AFTER_HOOKS.mcp, input.tool, { hookType: "tool.execute.after", tool: input.tool })`,
       `      }`,
       `    },`,
       '',
@@ -640,8 +710,8 @@ export class OpenCodeGenerator extends Generator {
   private getOpenCodeHookPlan(): OpenCodeHookPlan {
     const plan: OpenCodeHookPlan = {
       event: {},
-      toolBefore: { all: [], read: [], mcp: [] },
-      toolAfter: { all: [], edit: [], mcp: [] },
+      toolBefore: { all: [], matched: [], read: [], mcp: [] },
+      toolAfter: { all: [], matched: [], edit: [], mcp: [] },
       shellEnv: [],
       chatMessage: [],
     }
@@ -656,25 +726,33 @@ export class OpenCodeGenerator extends Generator {
         .map(entry => ({
           command: entry.command!,
           ...(entry.timeout ? { timeout: entry.timeout } : {}),
-          ...(entry.matcher ? { matcher: entry.matcher } : {}),
+          ...(entry.matcher !== undefined ? { matcher: entry.matcher } : {}),
           ...(entry.failClosed !== undefined ? { failClosed: entry.failClosed } : {}),
         }))
 
       if (hooks.length === 0) continue
 
       switch (event) {
-        case 'preToolUse':
-          plan.toolBefore.all.push(...hooks)
+        case 'preToolUse': {
+          appendScopedToolHooks(plan.toolBefore, hooks)
           break
+        }
         case 'beforeReadFile':
           plan.toolBefore.read.push(...hooks)
           break
         case 'beforeMCPExecution':
           plan.toolBefore.mcp.push(...hooks)
           break
-        case 'postToolUse':
-          plan.toolAfter.all.push(...hooks)
+        case 'postToolUse': {
+          for (const hook of hooks) {
+            if (isOpenCodeEditOnlyMatcher(hook.matcher)) {
+              plan.toolAfter.edit.push(hook)
+            } else {
+              appendScopedToolHooks(plan.toolAfter, [hook])
+            }
+          }
           break
+        }
         case 'afterFileEdit':
           plan.toolAfter.edit.push(...hooks)
           break
@@ -743,6 +821,48 @@ export class OpenCodeGenerator extends Generator {
       }
     }
   }
+}
+
+function appendScopedToolHooks(
+  buckets: Pick<OpenCodeHookPlan['toolBefore'], 'all' | 'matched'>,
+  hooks: GeneratedHook[],
+): void {
+  for (const hook of hooks) {
+    buckets[hook.matcher === undefined ? 'all' : 'matched'].push(hook)
+  }
+}
+
+const OPENCODE_EDIT_MATCHER_NAMES = new Set([
+  'ApplyPatch',
+  'Create',
+  'Edit',
+  'MultiEdit',
+  'Write',
+  'apply_patch',
+  'edit',
+  'write',
+])
+
+function isOpenCodeEditOnlyMatcher(matcher: GeneratedHook['matcher']): boolean {
+  const pattern = normalizeOpenCodeToolMatcherPattern(matcher)
+  if (!pattern) return false
+  const alternatives = pattern.split('|')
+  return alternatives.length > 0
+    && alternatives.every(value => OPENCODE_EDIT_MATCHER_NAMES.has(value))
+}
+
+function normalizeOpenCodeToolMatcherPattern(
+  matcher: GeneratedHook['matcher'],
+): string | undefined {
+  const pattern = typeof matcher === 'string'
+    ? matcher
+    : matcher && typeof matcher.tool === 'string'
+      ? matcher.tool
+      : undefined
+  if (pattern === undefined) return undefined
+  const alternatives = pattern.split('|').map(value => value.trim())
+  if (alternatives.some(value => value.length === 0)) return undefined
+  return alternatives.join('|')
 }
 
 function asOpenCodeMap(value: unknown): AgentFrontmatterMap | undefined {

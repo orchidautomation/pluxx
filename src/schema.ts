@@ -294,6 +294,7 @@ export const TargetPlatform = z.enum([
   'roo-code',
   'cline',
   'amp',
+  'agent-plugins',
 ])
 export type TargetPlatform = z.infer<typeof TargetPlatform>
 
@@ -444,6 +445,14 @@ export const PluginConfigSchema = z.object({
 
   // Extra runtime directories copied to each target root as-is
   passthrough: z.array(z.string()).optional(),
+
+  // Optional content-addressed native runtime shared by generated host installers.
+  // Paths are bundle-relative and must be present in every configured target.
+  sharedRuntime: z.object({
+    bootstrap: z.string().default('scripts/bootstrap-runtime.sh'),
+    inputs: z.array(z.string()).min(1),
+    output: z.string().default('node_modules'),
+  }).optional(),
 
   // Platform-specific overrides
   platforms: PlatformOverridesSchema.optional(),

@@ -81,12 +81,15 @@ export {
 export {
   INSTALLER_OWNED_CHECK_ENV_PATH,
   PORTABLE_RUNTIME_SCRIPT_ROLES,
+  findUnsafeShellEnvSources,
   getConsumerEnvScriptActiveDetail,
   getConsumerEnvScriptMissingDetail,
   getInstallerOwnedCheckEnvHookMessage,
   getInstallerOwnedCheckEnvRuntimeMessage,
   getPortableRuntimeScriptRoleGuidance,
+  getUnsafeShellEnvSourceMessage,
   referencesInstallerOwnedCheckEnv,
+  type UnsafeShellEnvSourceFinding,
 } from './runtime-script-contract'
 export {
   buildGeneratedPermissionHookScript,
@@ -124,6 +127,7 @@ export {
   type TeamInstallReference,
 } from './install-reference'
 export {
+  CORE_HOST_DETECTION_INVENTORY,
   CORE_HOST_FAMILIES,
   buildHostTargetSelection,
   detectHostFamilies,
@@ -135,8 +139,39 @@ export {
   type HostTargetSelection,
 } from './host-detection'
 export {
+  INSTALL_RESULT_SCHEMA,
+  INSTALL_RESULT_STATES,
+  INSTALL_SELECTION_MODES,
+  buildInstallPlan,
+  renderInstallResultsHuman,
+  validateInstallResultsEnvelope,
+  type InstallPlan,
+  type InstallPlanTarget,
+  type InstallResultsEnvelope,
+  type InstallResultState,
+  type InstallSelectionMode,
+  type InstallTargetResult,
+} from './install-contract'
+export {
   printVerifyInstallResult,
   verifyInstall,
   type VerifyInstallCheck,
   type VerifyInstallResult,
 } from './cli/verify-install'
+export {
+  AGENT_PLUGINS_NATIVE_OVERLAY_CONTRACT_DOCUMENT_PATH,
+  getAgentPluginsNativeOverlayContractAllowlist,
+  getAgentPluginsNativeOverlayContractMatrix,
+  renderAgentPluginsNativeOverlayContractMarkdown,
+  validateAgentPluginsNativeOverlayContract,
+  lintUndocumentedAgentPluginsExtensionEmission,
+  detectAgentPluginsEmissionNamespaceOwner,
+  type OverlayContractEntry,
+  type OverlayContractDiagnostic,
+  type OverlayDisposition,
+  type OverlayEmissionCandidate,
+  type OverlayCapability,
+  type OverlayNamespaceOwner,
+} from './agent-plugins-native-overlay-contract'
+
+export { detectCodexPluginCollisions, inspectCodexPluginCollisions, renderCodexPluginDiagnostic, codexRequestedIdentity, CodexPluginCollisionError, type CodexPluginIdentity, type CodexPluginDiagnostic, type CodexCollisionRequest } from './codex-plugin-collisions'

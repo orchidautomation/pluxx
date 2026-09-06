@@ -3,6 +3,8 @@
 
 This matrix is generated from the repo-owned platform rules and verification surface.
 
+Use the [new-host support gate](https://github.com/orchidautomation/pluxx/blob/main/docs/new-host-support-gate.md) before turning any generated target or fixture into a support claim.
+
 Verification labels:
 - `Release smoke`: exercised end to end by the real CLI against the real example plugins on the core four.
 - `Generator fixture`: covered by the repo build/test fixture layer.
@@ -20,10 +22,12 @@ Verification labels:
 | Roo Code | Beta | Official docs audited | No dedicated manifest | No documented standalone hook surface | .roo/mcp.json, mcp_settings.json | .roo/rules/, .roo/rules-{modeSlug}/, .roorules, .roorules-{modeSlug} | Generator fixture |
 | Cline | Beta | Official docs audited | No dedicated manifest | .clinerules/hooks/ | .cline/mcp.json | .clinerules/, AGENTS.md | Generator fixture |
 | AMP | Beta | Official docs audited | No dedicated manifest | .amp/settings.json | .amp/settings.json, ~/.config/amp/settings.json | AGENTS.md, AGENT.md | Generator fixture |
+| Agent Plugins v1 | Portable | Official docs audited | plugin.json | No documented standalone hook surface | mcp.json | None documented | Generator fixture |
 
 ## Notes
 
 - The prime-time launch path remains Claude Code, Cursor, Codex, and OpenCode.
+- Agent Plugins v1 is an opt-in portable package floor for skills and representable MCP; it is not a fifth native host and receives no invented installer.
 - GitHub Copilot currently inherits the Claude Code packaging model in Pluxx rather than using its own separately audited plugin surface.
 - Beta platforms are generated and fixture-tested, but they do not yet have the same release-smoke coverage as the core four.
 

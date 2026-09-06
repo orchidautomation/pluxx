@@ -1,0 +1,23 @@
+{
+  "id": "v0.1.40-fake-home-install",
+  "tier": "fake-home-install",
+  "freshness": "current",
+  "commands": [
+    {
+      "command": "npm run release:check",
+      "outcome": "passed"
+    }
+  ],
+  "targets": [
+    {
+      "target": "claude-code,cursor,codex,opencode",
+      "hostVersion": null,
+      "installedPath": null,
+      "sha256": null,
+      "outcome": "passed"
+    }
+  ],
+  "commitSha": "32019d73f046ce7b69a55bff0019e0afa948b0c0",
+  "packageVersion": "0.1.40",
+  "timestamp": "2026-08-08T22:49:53.927Z"
+}

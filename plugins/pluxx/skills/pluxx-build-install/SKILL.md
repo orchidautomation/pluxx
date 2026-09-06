@@ -22,7 +22,12 @@ Use this skill when the user is ready to turn the current Pluxx source project i
    - add `--trust` when the plugin defines hook commands and the user has opted in
 5. If a host still looks wrong after install, use:
    - `pluxx doctor --consumer <installed-path>`
-6. Tell the user what was built and what was installed.
+6. For release installers with expensive platform-native dependencies, consider the source-config primitive:
+   - `sharedRuntime.bootstrap`: the bundle-relative deterministic bootstrap script
+   - `sharedRuntime.inputs`: every bundle-relative file that can change the runtime output
+   - `sharedRuntime.output`: the generated directory, commonly `node_modules`
+   - use it only when output is deterministic from those inputs plus OS, architecture, and Node ABI
+7. Tell the user what was built and what was installed.
 
 ## Rules
 
@@ -30,6 +35,7 @@ Use this skill when the user is ready to turn the current Pluxx source project i
 - Do not hide trust requirements for hook-enabled installs.
 - Remind the user about host-specific reload steps when they matter.
 - Never hand-edit `dist/`; rebuild instead.
+- A shared-runtime lock timeout or unavailable symlink deliberately falls back to host-local bootstrap; report that fallback, but do not classify a successful install as failed.
 
 ## Output
 

@@ -1,6 +1,6 @@
 # Release Distribution Proof Map
 
-Last updated: 2026-07-12
+Last updated: 2026-08-31
 
 ## Doc Links
 
@@ -26,7 +26,7 @@ Last updated: 2026-07-12
 
 This is the short release/distribution map for what Pluxx can ship today, what is locally proven, and what still belongs to later marketplace or trust-layer work.
 
-Proof state is governed by [proof-freshness.md](./proof-freshness.md) and the machine-readable [proof manifest](./proof-manifest.json). The canonical repository version is `0.1.32`, tagged as `v0.1.32` at `188527e`; the first release run failed before npm publication or GitHub release creation, so the historical published baseline remains 0.1.31 until recovery completes. Older host runs linked below are historical unless a current receipt says otherwise.
+Proof state is governed by [proof-freshness.md](./proof-freshness.md) and the machine-readable [proof manifest](./proof-manifest.json). The canonical independently verified public release is `@orchid-labs/pluxx@0.1.43` / `v0.1.43` for PLUXX-350 at trusted merge `87e759d76c7cdaefd1bff81969b4cb1ba10091d3`. Release run [33532188948](https://github.com/orchidautomation/pluxx/actions/runs/33532188948) published byte-identical npm and GitHub artifacts at SHA-256 `2851a386dc415fd37e124fa132d70af516fee062a8ac355310ea157fa8d2dfc3`. Maintained core-four verification is isolated fake-home evidence, not active-home or real-host proof.
 
 ## Current Primary Fronts
 
@@ -49,7 +49,7 @@ Pluxx can ship the OSS authoring substrate today:
 - `pluxx install` can install built bundles locally for the primary fronts
 - `pluxx verify-install` checks the host-visible installed bundle, not only generated files in `dist/`
 - `pluxx test --install` runs source checks, build smoke, local install, and installed verification together
-- `pluxx publish --github-release` packages built bundles and generates primary-front installers that pin the tagged release, use bounded download retries/timeouts, verify release checksums, reject unsafe archives, enforce install-scoped locking and ownership before replacement, stage setup, and restore the prior bundle plus owned companion state when post-swap work fails or is interrupted; post-publish verification downloads remote assets and compares their bytes with the generated local files
+- `pluxx publish --github-release` packages built bundles and generates primary-front installers that pin the tagged release, use bounded download retries/timeouts, verify release checksums, reject unsafe archives, enforce install-scoped locking and ownership before replacement, stage setup, and restore the prior bundle plus owned companion state when post-swap work fails or is interrupted. Starting in the `0.1.33` tagged release lane, generated installers can also perform a one-time adoption of pre-ownership installs only when the existing host manifest identity matches the trusted candidate bundle for that exact host; post-publish verification downloads remote assets and compares their bytes with the generated local files
 - `pluxx publish --npm` covers the npm-backed OpenCode wrapper package path; publish validates source/built/package version identity, compares exact packed-tarball SRI before reconciling immutable npm versions, and reconciles existing GitHub releases to the exact asset set
 - `pluxx upgrade` reports invocation source and version direction, verifies the active PATH binary/version, and prints an exact rollback command
 - `pluxx discover-mcp` and `pluxx init --from-installed-mcp` can import already configured MCP servers from Claude Code, Cursor, Codex, and OpenCode without copying literal secret values

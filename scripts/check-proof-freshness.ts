@@ -50,6 +50,14 @@ const problems = validateProofManifest(manifest, {
       return false
     }
   },
+  readPackageVersionAtCommit: (sha) => {
+    try {
+      const committedPackage = JSON.parse(git('show', `${sha}:package.json`)) as { version?: unknown }
+      return typeof committedPackage.version === 'string' ? committedPackage.version : null
+    } catch {
+      return null
+    }
+  },
 })
 
 const documents: Record<string, string> = {}

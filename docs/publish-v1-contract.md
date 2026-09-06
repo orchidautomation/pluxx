@@ -13,9 +13,10 @@ For the broader ship-today vs release-gap map, use [Release Distribution Proof M
 
 The command is orchestration-only. It does not replace `pluxx build`, and it does not deploy MCP backends.
 
-The current implemented release lane is intentionally narrow:
+The current implemented release lane separates archives from native installers:
 
 - GitHub Release assets and generated installers are for the primary fronts: Claude Code, Cursor, Codex, and OpenCode.
+- The opt-in Agent Plugins 1.0.0 target is eligible for versioned/latest GitHub Release archives, release-manifest entries, and checksums, but not a generated installer. Compatible clients own import/installation.
 - The npm channel is currently for the npm-backed OpenCode wrapper package path.
 - Gemini CLI and the other beta targets may be generated and fixture-tested, but they are not part of the primary release-smoked installer lane yet.
 
@@ -56,8 +57,10 @@ v1 artifact contract:
 - source of truth: current repository commit + built `dist/`
 - GitHub Release assets:
   - one compressed artifact per built platform folder (`dist/<platform>/`)
+    - archive-eligible targets are the native core four plus opt-in `agent-plugins`
   - a generated `install.sh` front door with `--agents`, `--claude-code`, `--cursor`, `--codex`, `--opencode`, and `-y` support for the primary installer lane
   - generated per-host installer scripts and the compatibility `install-all.sh` script
+    - installer targets remain exactly Claude Code, Cursor, Codex, and OpenCode; there is no `install-agent-plugins.sh`
   - required release manifest and SHA-256 inventory used before installer execution or archive extraction
 - npm package source:
   - OpenCode package contents prepared from the generated wrapper target
@@ -146,6 +149,12 @@ When both channels are enabled, failure handling should report per-channel outco
 - generated per-host installers pin their tagged release, use bounded retries/timeouts, verify manifest identity and archive checksum, reject absolute/traversal paths and link archive members, and only then extract
 - generated installers take an install-scoped lock, recover the prior bundle and ownership/companion state across signal interruption or post-swap failure, and refuse concurrent swaps
 - config and runtime bootstrap run against a staged candidate; the previous install remains live until staging succeeds and is restored when commit-time work fails
+- plugins opt into native runtime reuse with `sharedRuntime`, whose bundle-relative bootstrap, declared inputs (including a deterministic lockfile), and output are compiled into the same `.pluxx-runtime.json` contract for every target
+- generated installers key the Pluxx-managed store by the complete runtime contract, every declared input, bootstrap content, plugin namespace, OS, architecture, Node ABI, and runtime contract version
+- compatible host installs link their staged runtime output to a read-only generation, validate warm generations with file metadata instead of rehashing dependency bytes, and atomically switch the stable `current` link when corruption requires a rebuilt generation
+- stale locks owned by dead processes are recovered; an active lock timeout or unavailable symlink falls back to the previous host-local staged bootstrap behavior
+- runtime references are written only after the install transaction swaps to its final path; stale references and unreferenced entries are removed after a grace period
+- bundles without an explicit `.pluxx-runtime.json` contract keep the previous per-host staged bootstrap behavior
 - npm publication compares the exact packed tarball SRI with the registry's `dist.integrity`; it skips an immutable version only when those bytes match
 - GitHub publication creates a missing release or reconciles an existing release to the exact asset set, removing stale extras
 - enabled channels are always queried after mutation; incomplete or byte-mismatched verification makes the command fail, and transport/auth lookup errors never count as a missing remote version or release

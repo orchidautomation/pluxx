@@ -1,0 +1,36 @@
+{
+  "id": "v0.1.42-published-package",
+  "tier": "bundle-contract",
+  "freshness": "current",
+  "commitSha": "0f6621a39c02aa69ad3363ad22ada429175779b7",
+  "packageVersion": "0.1.42",
+  "timestamp": "2026-08-31T15:18:36.000Z",
+  "commands": [
+    {
+      "command": "GitHub Actions Release run 33405498774",
+      "outcome": "passed"
+    },
+    {
+      "command": "npx --yes @orchid-labs/pluxx@0.1.42 --version",
+      "outcome": "passed"
+    },
+    {
+      "command": "npx --yes @orchid-labs/pluxx@0.1.42 build --target agent-plugins && npx --yes @orchid-labs/pluxx@0.1.42 test --target agent-plugins",
+      "outcome": "passed"
+    },
+    {
+      "command": "compare npm registry tarball with GitHub Release orchid-labs-pluxx-0.1.42.tgz",
+      "outcome": "passed"
+    }
+  ],
+  "targets": [
+    {
+      "target": "npm-package,github-release,agent-plugins-isolated-fixture",
+      "hostVersion": "Node 24.15.0",
+      "installedPath": null,
+      "sha256": "c4e97ed5eb23703e445ed60a7e5e14f5d096cbd56a291222abf85f94731aadf3",
+      "outcome": "passed",
+      "unavailableReason": "The registry CLI ran in an isolated fixture. This receipt does not claim an active-home installation, real compatible-client discovery, or a generic Codex Agent Plugins import path."
+    }
+  ]
+}

@@ -50,6 +50,7 @@ const SMOKE_PATHS: Record<TargetPlatform, string> = {
   'roo-code': '.roo/mcp.json',
   cline: '.cline/mcp.json',
   amp: '.amp/settings.json',
+  'agent-plugins': 'plugin.json',
 }
 
 export async function runTestSuite(options: TestRunOptions = {}): Promise<TestRunResult> {

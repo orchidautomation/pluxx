@@ -1,0 +1,32 @@
+{
+  "id": "v0.1.43-published-package",
+  "tier": "bundle-contract",
+  "freshness": "current",
+  "commitSha": "87e759d76c7cdaefd1bff81969b4cb1ba10091d3",
+  "packageVersion": "0.1.43",
+  "timestamp": "2026-09-01T16:43:38.000Z",
+  "commands": [
+    {
+      "command": "GitHub Actions Release run 33532188948",
+      "outcome": "passed"
+    },
+    {
+      "command": "isolated npm install @orchid-labs/pluxx@0.1.43 and pluxx --version",
+      "outcome": "passed"
+    },
+    {
+      "command": "compare npm registry tarball with GitHub Release orchid-labs-pluxx-0.1.43.tgz",
+      "outcome": "passed"
+    }
+  ],
+  "targets": [
+    {
+      "target": "npm-package,github-release,published-cli",
+      "hostVersion": "Node 24.15.0",
+      "installedPath": null,
+      "sha256": "2851a386dc415fd37e124fa132d70af516fee062a8ac355310ea157fa8d2dfc3",
+      "outcome": "passed",
+      "unavailableReason": "The public CLI ran from an isolated temporary npm installation. This receipt does not claim an active-home installation or real-host behavior."
+    }
+  ]
+}

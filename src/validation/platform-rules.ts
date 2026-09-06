@@ -194,6 +194,11 @@ export const PLATFORM_LIMITS: Record<TargetPlatform, PlatformLimits> = {
   'amp': {
     ...NULL_LIMITS,
   },
+  'agent-plugins': {
+    ...NULL_LIMITS,
+    skillDescriptionMax: 1024,
+    skillNameMustMatchDir: true,
+  },
 }
 
 export const PLATFORM_LIMIT_POLICIES: Record<TargetPlatform, PlatformLimitPolicies> = {
@@ -278,6 +283,11 @@ export const PLATFORM_LIMIT_POLICIES: Record<TargetPlatform, PlatformLimitPolici
   'amp': {
     ...NULL_LIMIT_POLICIES,
   },
+  'agent-plugins': {
+    ...NULL_LIMIT_POLICIES,
+    skillDescriptionMax: { kind: 'hard', notes: 'Agent Plugins skills conform to the Agent Skills portable contract.' },
+    skillNameMustMatchDir: { kind: 'hard' },
+  },
 }
 
 type ResearchTarget = Extract<
@@ -292,6 +302,7 @@ type ResearchTarget = Extract<
   | 'roo-code'
   | 'cline'
   | 'amp'
+  | 'agent-plugins'
 >
 
 export const PLATFORM_VALIDATION_RULES: Record<ResearchTarget, PlatformRules> = {
@@ -782,6 +793,45 @@ export const PLATFORM_VALIDATION_RULES: Record<ResearchTarget, PlatformRules> = 
       { label: 'AMP manual', url: 'https://ampcode.com/manual' },
     ],
   },
+  'agent-plugins': {
+    platform: 'agent-plugins',
+    summary: 'Agent Plugins 1.0.0 is a strict portable package floor with a root plugin.json, immediate-child Agent Skills, and optional root mcp.json.',
+    limits: PLATFORM_LIMITS['agent-plugins'],
+    limitPolicies: PLATFORM_LIMIT_POLICIES['agent-plugins'],
+    skillDiscoveryDirs: [{ path: 'skills/', level: 'required', notes: 'Only immediate child directories containing a regular SKILL.md are discovered.' }],
+    frontmatter: {
+      standard: [...STANDARD_SKILL_FRONTMATTER],
+      additional: [],
+      notes: 'Skills must conform to the Agent Skills specification; host-native frontmatter remains non-portable.',
+    },
+    manifest: {
+      files: ['plugin.json'],
+      required: true,
+      notes: 'The closed 1.0.0 manifest requires $schema and name; Pluxx emits representable canonical metadata only.',
+    },
+    mcp: {
+      files: ['mcp.json'],
+      rootKey: 'mcpServers',
+      transports: ['stdio', 'streamable-http', 'sse'],
+      auth: ['client-managed only'],
+      notes: 'Portable MCP has no OAuth or credential-reference fields; unsupported auth and unsafe paths fail closed.',
+    },
+    hooks: {
+      supported: false,
+      files: [],
+      eventNames: [],
+      notes: 'Agent Plugins 1.0.0 defines no portable hooks. Unproven client extensions are rejected.',
+    },
+    instructions: {
+      files: [],
+      format: 'none',
+      notes: 'Instructions, agents, commands, permissions, and runtime overlays remain native-only.',
+    },
+    sources: [
+      { label: 'Agent Plugins 1.0.0 specification', url: 'https://agent-plugins.org/specification' },
+      { label: 'Agent Plugins schemas', url: 'https://agent-plugins.org/schemas' },
+    ],
+  },
 }
 
 export const CORE_FOUR_PRIMITIVE_CAPABILITIES: Record<CoreFourPlatform, CoreFourPrimitiveCapabilities> = {
@@ -884,7 +934,7 @@ export const CORE_FOUR_PRIMITIVE_CAPABILITIES: Record<CoreFourPlatform, CoreFour
       runtime: {
         mode: 'preserve',
         nativeSurfaces: ['.mcp.json', '.app.json', '.codex/config.toml', 'scripts/', 'assets/'],
-        notes: `Bundle-local MCP config exists, but active MCP state also lives in config.toml. Local June 24, 2026 headless Codex MCP probes reached startup plus \`tools/list\` for project-scoped and user-scoped root config. Default root MCP emitted a real \`mcp_tool_call\` item but failed with \`user cancelled MCP tool call\` before server-side \`tools/call\`. Explicit per-tool \`approval_mode = "approve"\` now proves four concrete root/inheritance paths: project-scoped root MCP, user-scoped root MCP, a custom agent inheriting an approved project-scoped root MCP server, and a custom agent inheriting an approved user-scoped root MCP server. The same run also proves that an explicit child-agent \`mcp_servers = {}\` does not opt out of those approved inherited root MCP servers. Agent-local inline MCP and agent-local inline approval did not activate in the June 24 run, so least-privilege delegated MCP still belongs in the gap column. Project-scoped servers still do not appear in \`codex mcp list\`, while user-scoped servers do. ${getRuntimeReadinessExternalConfigNote()}`,
+        notes: `Bundle-local MCP config exists, but active MCP state also lives in config.toml. Local June 24, 2026 headless Codex MCP probes reached startup plus \`tools/list\` for project-scoped and user-scoped root config. Default root MCP emitted a real \`mcp_tool_call\` item but failed with \`user cancelled MCP tool call\` before server-side \`tools/call\`. Explicit per-tool \`approval_mode = "approve"\` now proves four concrete root/inheritance paths: project-scoped root MCP, user-scoped root MCP, a custom agent inheriting an approved project-scoped root MCP server, and a custom agent inheriting an approved user-scoped root MCP server. The same run also proves that an explicit child-agent \`mcp_servers = {}\` does not opt out of those approved inherited root MCP servers. An August 31 refresh on Codex CLI 0.148.0 showed agent-local inline MCP remaining unavailable without approval but reaching server-side \`tools/call\` with explicit per-tool \`approval_mode = "approve"\`; least-privilege delegated MCP therefore requires an explicit allow-path rather than remaining wholly unproven. Project-scoped servers still do not appear in \`codex mcp list\`, while user-scoped servers do. ${getRuntimeReadinessExternalConfigNote()}`,
       },
       distribution: {
         mode: 'preserve',

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
 import { mkdirSync, rmSync, existsSync, lstatSync, readlinkSync, readFileSync, writeFileSync, cpSync } from 'fs'
 import { dirname, resolve } from 'path'
+import { pathToFileURL } from 'url'
 import { ensureHookTrust, getInstallFollowupNotes, installPlugin, listHookCommands, planInstallUserConfig, resolveInstallUserConfig, uninstallPlugin } from '../src/cli/install'
 import type { PluginConfig, TargetPlatform } from '../src/schema'
 
@@ -123,10 +124,48 @@ describe('install', () => {
     expect(lstatSync(opencodeInstall).isSymbolicLink()).toBe(true)
     expect(readlinkSync(opencodeInstall)).toBe(resolve(DIST_DIR, 'opencode'))
     expect(existsSync(opencodeEntry)).toBe(true)
-    expect(readFileSync(opencodeEntry, 'utf-8')).toContain('import * as PluginModule from "./megamind/index.ts"')
-    expect(readFileSync(opencodeEntry, 'utf-8')).toContain('directory: join(context.directory, "megamind")')
+    const entryContent = readFileSync(opencodeEntry, 'utf-8')
+    expect(entryContent).toContain('import * as PluginModule from "./megamind/index.ts"')
+    expect(entryContent).toContain('pluginFactory(context)')
+    expect(entryContent).not.toContain('directory: join(context.directory, "megamind")')
+    expect(entryContent).not.toContain('import { join } from "path"')
     expect(lstatSync(opencodeSkill).isSymbolicLink()).toBe(false)
     expect(readFileSync(resolve(opencodeSkill, 'SKILL.md'), 'utf-8')).toContain('name: megamind/client-intel')
+  })
+
+  it('passes the selected OpenCode workspace unchanged through the generated root entry', async () => {
+    const workspaceRoot = resolve(TEST_DIR, 'selected workspace')
+    mkdirSync(resolve(DIST_DIR, 'opencode'), { recursive: true })
+    mkdirSync(workspaceRoot, { recursive: true })
+    await Bun.write(
+      resolve(DIST_DIR, 'opencode/index.ts'),
+      [
+        'import { existsSync } from "fs"',
+        'import { join } from "path"',
+        '',
+        'export const MegamindPlugin = async (context: { directory: string, config?: { command?: string } }) => ({',
+        '  workspaceRoot: context.directory,',
+        '  nestedWorkspaceExists: existsSync(join(context.directory, "megamind")),',
+        '  command: context.config?.command,',
+        '})',
+        '',
+      ].join('\n'),
+    )
+
+    await installPlugin(DIST_DIR, 'megamind', ['opencode'], { useNativeClaudeInstall: false })
+
+    const opencodeEntry = resolve(HOME_DIR, OPENCODE_ENTRY_PATH)
+    const entryModule = await import(pathToFileURL(opencodeEntry).href)
+    const result = await entryModule.Megamind({
+      directory: workspaceRoot,
+      config: { command: 'pluxx-opencode-proof' },
+    })
+
+    expect(result).toEqual({
+      workspaceRoot,
+      nestedWorkspaceExists: false,
+      command: 'pluxx-opencode-proof',
+    })
   })
 
   it('refuses to overwrite an unowned OpenCode companion and leaves the bundle untouched', async () => {
@@ -713,7 +752,7 @@ describe('install', () => {
     expect(codexUserConfig.envRefs?.TEST_API_KEY).toBe('TEST_API_KEY')
     expect(JSON.stringify(codexUserConfig)).not.toContain('shh-secret')
     expect(opencodeUserConfig.env.TEST_API_KEY).toBe('shh-secret')
-    expect(readFileSync(opencodeEntry, 'utf-8')).toContain('directory: join(context.directory, "megamind")')
+    expect(readFileSync(opencodeEntry, 'utf-8')).toContain('pluginFactory(context)')
     expect(lstatSync(opencodeSkill).isSymbolicLink()).toBe(false)
     expect(readFileSync(resolve(opencodeSkill, 'SKILL.md'), 'utf-8')).toContain('name: megamind/client-intel')
     expect(readFileSync(resolve(cursorInstall, 'scripts/check-env.sh'), 'utf-8')).toContain('materialized required config')

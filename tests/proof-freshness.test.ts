@@ -176,6 +176,18 @@ describe('proof freshness manifest', () => {
     })).toContain('Current receipt v0.1.31-repo-baseline uses package 0.1.28; expected 0.1.31.')
   })
 
+  it('rejects current receipts whose commit contains another package version', () => {
+    expect(validateProofManifest(currentManifest(), {
+      packageVersion: '0.1.31',
+      expectedTagExists: true,
+      now: new Date('2026-07-12T13:00:00.000Z'),
+      isCommitReachable: () => true,
+      readPackageVersionAtCommit: () => '0.1.30',
+    })).toContain(
+      `Current receipt v0.1.31-repo-baseline commit ${CURRENT_SHA} contains package 0.1.30; expected 0.1.31.`,
+    )
+  })
+
   it('expires installed-runtime and real-host receipts after 30 days', () => {
     const manifest = currentManifest()
     manifest.claims[0]!.tier = 'installed-runtime'

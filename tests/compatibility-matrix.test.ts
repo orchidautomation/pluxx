@@ -9,15 +9,16 @@ import { getPlatformCompatibilityMatrix, renderCompatibilityMatrixMarkdown, rend
 const ROOT = resolve(import.meta.dir, '..')
 
 describe('compatibility matrix', () => {
-  it('covers all 11 target platforms', () => {
+  it('covers all 12 target platforms', () => {
     const rows = getPlatformCompatibilityMatrix()
 
-    expect(rows).toHaveLength(11)
+    expect(rows).toHaveLength(12)
     expect(rows.find((row) => row.platform === 'claude-code')?.verification).toContain('Release smoke')
     expect(rows.find((row) => row.platform === 'cursor')?.verification).toContain('Release smoke')
     expect(rows.find((row) => row.platform === 'codex')?.verification).toContain('Release smoke')
     expect(rows.find((row) => row.platform === 'opencode')?.verification).toContain('Release smoke')
     expect(rows.find((row) => row.platform === 'github-copilot')?.verification).not.toContain('Release smoke')
+    expect(rows.find((row) => row.platform === 'agent-plugins')?.status).toBe('Portable')
   })
 
   it('keeps docs/compatibility.md in sync with the renderer', () => {

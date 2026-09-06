@@ -160,17 +160,25 @@ async function runScenario(
 }
 
 describe('codex mcp probe', () => {
-  it('treats inline custom-agent MCP as an expected default gap even with per-tool approval', () => {
+  it('distinguishes unapproved inline MCP from the approved inline MCP path', () => {
     const inlineScenarios = getDefaultCodexMcpProbeScenarios()
       .filter((scenario) => scenario.name === 'agent-inline' || scenario.name === 'agent-inline-approve')
 
     expect(inlineScenarios).toHaveLength(2)
-    for (const scenario of inlineScenarios) {
-      expect(scenario.configScope).toBe('agent-inline')
-      expect(scenario.requestCustomAgent).toBe(true)
-      expect(scenario.expectedLastMessage).toBe('MCP_PROOF_MARKER_MISSING')
-      expect(scenario.expectedMcpCall).toBe(false)
-    }
+    expect(inlineScenarios[0]).toMatchObject({
+      name: 'agent-inline',
+      configScope: 'agent-inline',
+      requestCustomAgent: true,
+      expectedLastMessage: 'MCP_PROOF_MARKER_MISSING',
+      expectedMcpCall: false,
+    })
+    expect(inlineScenarios[1]).toMatchObject({
+      name: 'agent-inline-approve',
+      configScope: 'agent-inline',
+      requestCustomAgent: true,
+      expectedLastMessage: 'MCP_PROOF_MARKER_ALLOWED',
+      expectedMcpCall: true,
+    })
   })
 
   it('records a matched MCP observation when user-configured MCP is listed and called successfully', async () => {
@@ -289,14 +297,14 @@ describe('codex mcp probe', () => {
     expect(readFileSync(result.agentFilePath!, 'utf-8')).toContain('[mcp_servers.probe]')
   })
 
-  it('records the inline custom-agent MCP approval case as a gap when agent-local MCP does not activate', async () => {
-    process.env.PLUXX_FAKE_CODEX_MCP_MODE = 'agent-inline-missing'
+  it('records approved inline custom-agent MCP when agent-local MCP activates', async () => {
+    process.env.PLUXX_FAKE_CODEX_MCP_MODE = 'agent-approved'
     const result = await runScenario({
       name: 'agent-inline-approve',
       configScope: 'agent-inline',
       requestCustomAgent: true,
-      expectedLastMessage: 'MCP_PROOF_MARKER_MISSING',
-      expectedMcpCall: false,
+      expectedLastMessage: 'MCP_PROOF_MARKER_ALLOWED',
+      expectedMcpCall: true,
       extraServerTomlLines: [
         '[mcp_servers.probe.tools.get_allowed_marker]',
         'approval_mode = "approve"',
@@ -305,18 +313,18 @@ describe('codex mcp probe', () => {
     trackTempPath(result.codexHome)
     trackTempPath(result.workDir)
 
-    expect(result.status).toBe('mcp-unavailable')
+    expect(result.status).toBe('mcp-observed')
     expect(result.sawSpawnAgentCall).toBe(true)
     expect(result.sawWaitCall).toBe(true)
     expect(result.childAgentStatuses).toEqual(['pending_init', 'completed'])
-    expect(result.childAgentMessages).toContain('MCP_PROOF_MARKER_MISSING')
-    expect(result.mcpCallObserved).toBe(false)
-    expect(result.mcpMethodsObserved).toEqual([])
-    expect(result.sawMcpToolCallItem).toBe(false)
-    expect(result.mcpToolCallTools).toEqual([])
-    expect(result.mcpToolCallStatuses).toEqual([])
+    expect(result.childAgentMessages).toContain('MCP_PROOF_MARKER_ALLOWED')
+    expect(result.mcpCallObserved).toBe(true)
+    expect(result.mcpMethodsObserved).toEqual(['initialize', 'notifications/initialized', 'tools/list'])
+    expect(result.sawMcpToolCallItem).toBe(true)
+    expect(result.mcpToolCallTools).toEqual(['get_allowed_marker'])
+    expect(result.mcpToolCallStatuses).toEqual(['in_progress', 'completed'])
     expect(result.mcpToolCallErrorMessages).toEqual([])
-    expect(result.lastMessage).toBe('MCP_PROOF_MARKER_MISSING')
+    expect(result.lastMessage).toBe('MCP_PROOF_MARKER_ALLOWED')
     expect(result.messageExpectationStatus).toBe('matched')
     expect(result.mcpExpectationStatus).toBe('matched')
     expect(readFileSync(result.agentFilePath!, 'utf-8')).toContain('[mcp_servers.probe.tools.get_allowed_marker]')

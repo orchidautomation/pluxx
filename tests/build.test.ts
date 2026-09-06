@@ -1,10 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll } from 'bun:test'
 import { mkdirSync, rmSync, existsSync, readFileSync, writeFileSync } from 'fs'
 import { resolve } from 'path'
+import { pathToFileURL } from 'url'
 import { spawnSync } from 'child_process'
 import { build } from '../src/generators'
 import { checkGeneratedBundles } from '../src/bundle-check'
-import type { PluginConfig } from '../src/schema'
+import type { HookEntry, PluginConfig } from '../src/schema'
 import {
   makeSecretReferenceFixtureConfig,
   readTextTree,
@@ -283,6 +284,8 @@ beforeAll(async () => {
   mkdirSync(resolve(TEST_DIR, 'scripts/'), { recursive: true })
   await Bun.write(resolve(TEST_DIR, 'scripts/validate.sh'), '#!/usr/bin/env bash\n')
   await Bun.write(resolve(TEST_DIR, 'scripts/confirm-mutation.sh'), '#!/usr/bin/env bash\n')
+  await Bun.write(resolve(TEST_DIR, 'scripts/bootstrap-runtime.sh'), '#!/usr/bin/env bash\nmkdir -p node_modules\n')
+  await Bun.write(resolve(TEST_DIR, 'scripts/runtime-dependencies.lock.json'), '{"fixture":"1.0.0"}\n')
   mkdirSync(resolve(TEST_DIR, 'assets/'), { recursive: true })
   await Bun.write(resolve(TEST_DIR, 'assets/icon.svg'), '<svg />\n')
   mkdirSync(resolve(TEST_DIR, 'assets/screenshots'), { recursive: true })
@@ -363,6 +366,52 @@ describe('build', () => {
     // AMP
     expect(existsSync(resolve(OUT_DIR, 'amp/AGENT.md'))).toBe(true)
     expect(existsSync(resolve(OUT_DIR, 'amp/.amp/settings.json'))).toBe(true)
+  })
+
+  it('emits one identical declared runtime contract across the core four', async () => {
+    await build({
+      ...testConfig,
+      targets: ['claude-code', 'cursor', 'codex', 'opencode'],
+      sharedRuntime: {
+        bootstrap: 'scripts/bootstrap-runtime.sh',
+        inputs: ['scripts/runtime-dependencies.lock.json'],
+        output: 'node_modules',
+      },
+    }, TEST_DIR)
+
+    const runtimeContracts = ['claude-code', 'cursor', 'codex', 'opencode'].map((platform) => (
+      readFileSync(resolve(OUT_DIR, platform, '.pluxx-runtime.json'), 'utf-8')
+    ))
+    expect(new Set(runtimeContracts).size).toBe(1)
+    expect(JSON.parse(runtimeContracts[0]!)).toEqual({
+      schema: 'pluxx.shared-runtime-config.v1',
+      namespace: 'test-plugin',
+      bootstrap: 'scripts/bootstrap-runtime.sh',
+      inputs: ['scripts/runtime-dependencies.lock.json'],
+      output: 'node_modules',
+    })
+  })
+
+  it('rejects shared runtime outputs that contain their bootstrap or inputs', async () => {
+    await expect(build({
+      ...testConfig,
+      targets: ['cursor'],
+      sharedRuntime: {
+        bootstrap: 'scripts/bootstrap-runtime.sh',
+        inputs: ['scripts/runtime-dependencies.lock.json'],
+        output: './scripts',
+      },
+    }, TEST_DIR)).rejects.toThrow('must not contain runtime input')
+
+    await expect(build({
+      ...testConfig,
+      targets: ['cursor'],
+      sharedRuntime: {
+        bootstrap: 'scripts/bootstrap-runtime.sh',
+        inputs: ['scripts/runtime-dependencies.lock.json'],
+        output: './',
+      },
+    }, TEST_DIR)).rejects.toThrow('must not resolve to the bundle root')
   })
 
   it('checks generated manifest identity and bundle references', async () => {
@@ -675,9 +724,9 @@ describe('build', () => {
     )
     expect(cursorHooks.hooks.sessionStart[0].command).toBe('node ./hooks/pluxx-hook-command-1.mjs')
     expect(codexHooks.hooks.SessionStart[0].hooks[0].type).toBe('command')
-    expect(codexHooks.hooks.SessionStart[0].hooks[0].command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
+    expect(codexHooks.hooks.SessionStart[0].hooks[0].command).toBe('node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
     expect(opencodeIndex).toContain('const buildHookShellCommand = (rawCommand: string): string => {')
-    expect(opencodeIndex).toContain('const userConfig = loadUserConfig(directory)')
+    expect(opencodeIndex).toContain('const userConfig = loadUserConfig(pluginRoot)')
     expect(opencodeIndex).toContain('const userEnvRefs = userConfig.envRefs ?? {}')
     expect(opencodeIndex).toContain('Object.entries(userEnvRefs)')
 
@@ -762,13 +811,167 @@ describe('build', () => {
           ...process.env,
           ...(platform === 'cursor'
             ? { CURSOR_PLUGIN_ROOT: resolve(TEST_DIR, `hook-env-dist/${platform}`) }
-            : { CODEX_PLUGIN_ROOT: resolve(TEST_DIR, `hook-env-dist/${platform}`) }),
+            : { PLUGIN_ROOT: resolve(TEST_DIR, `hook-env-dist/${platform}`) }),
         },
       })
 
       expect(runWrappedHook.status).toBe(0)
       expect(runWrappedHook.stdout).toBe(JSON.stringify(multilineSecret))
     }
+  })
+
+  it('runs generated OpenCode hooks from the installed plugin root while preserving workspace root', async () => {
+    const rootDir = resolve(TEST_DIR, 'opencode root regression source')
+    const outDir = resolve(rootDir, 'dist')
+    const pluginRoot = resolve(outDir, 'opencode')
+    const workspaceRoot = resolve(TEST_DIR, 'opencode active workspace with spaces')
+    const staleProjectRoot = resolve(TEST_DIR, 'deleted opencode project')
+
+    rmSync(rootDir, { recursive: true, force: true })
+    rmSync(workspaceRoot, { recursive: true, force: true })
+    rmSync(staleProjectRoot, { recursive: true, force: true })
+    mkdirSync(resolve(rootDir, 'skills/basic'), { recursive: true })
+    mkdirSync(resolve(rootDir, 'scripts'), { recursive: true })
+    mkdirSync(workspaceRoot, { recursive: true })
+
+    writeFileSync(resolve(rootDir, 'skills/basic/SKILL.md'), '---\nname: basic\ndescription: Basic skill\n---\n\nBasic skill body.\n')
+    writeFileSync(
+      resolve(rootDir, 'scripts/proof.mjs'),
+      [
+        'import { writeFileSync } from "node:fs"',
+        'import { resolve } from "node:path"',
+        'const pluginRoot = process.env.PLUXX_PLUGIN_ROOT',
+        'if (!pluginRoot) throw new Error("missing PLUXX_PLUGIN_ROOT")',
+        'writeFileSync(resolve(pluginRoot, "opencode-root-proof.json"), JSON.stringify({',
+        '  pluginRoot: process.env.PLUXX_PLUGIN_ROOT,',
+        '  legacyPluginRoot: process.env.PLUGIN_ROOT,',
+        '  opencodePluginRoot: process.env.OPENCODE_PLUGIN_ROOT,',
+        '  workspaceRoot: process.env.PLUXX_HOOK_WORKSPACE_ROOT,',
+        '  opencodeWorkspaceRoot: process.env.OPENCODE_WORKSPACE_ROOT,',
+        '  token: process.env.OPENCODE_ROOT_TOKEN,',
+        '  cwd: process.cwd(),',
+        '}))',
+      ].join('\n'),
+    )
+
+    const config: PluginConfig = {
+      ...testConfig,
+      name: 'opencode-root-plugin',
+      skills: './skills/',
+      hooks: {
+        sessionStart: [{ command: 'node "${PLUGIN_ROOT}/scripts/proof.mjs"' }],
+      },
+      mcp: {
+        local: {
+          transport: 'stdio',
+          command: 'node',
+          args: ['${PLUGIN_ROOT}/scripts/proof.mjs'],
+          env: {
+            OPENCODE_ROOT_TOKEN: '${OPENCODE_ROOT_TOKEN}',
+          },
+        },
+      },
+      userConfig: [{
+        key: 'opencode-root-token',
+        title: 'OpenCode Root Token',
+        type: 'secret',
+        envVar: 'OPENCODE_ROOT_TOKEN',
+      }],
+      commands: undefined,
+      agents: undefined,
+      brand: undefined,
+      scripts: './scripts/',
+      assets: undefined,
+      passthrough: undefined,
+      instructions: undefined,
+      targets: ['opencode'],
+      outDir: './dist',
+    }
+
+    await build(config, rootDir)
+
+    writeFileSync(
+      resolve(pluginRoot, '.pluxx-user.json'),
+      JSON.stringify({
+        env: {
+          OPENCODE_ROOT_TOKEN: 'from-installed-plugin',
+          PLUXX_PLUGIN_ROOT: staleProjectRoot,
+        },
+        envRefs: {
+          PLUGIN_ROOT: 'STALE_OPENCODE_PLUGIN_ROOT',
+          OPENCODE_PLUGIN_ROOT: 'STALE_OPENCODE_PLUGIN_ROOT',
+        },
+      }, null, 2),
+    )
+    writeFileSync(
+      resolve(workspaceRoot, '.pluxx-user.json'),
+      JSON.stringify({
+        env: {
+          OPENCODE_ROOT_TOKEN: 'from-active-workspace',
+        },
+      }, null, 2),
+    )
+
+    const generatedSource = readFileSync(resolve(pluginRoot, 'index.ts'), 'utf-8')
+    expect(generatedSource).toContain('const pluginRoot = dirname(fileURLToPath(import.meta.url))')
+    expect(generatedSource).toContain('const workspaceRoot = directory')
+    expect(generatedSource).toContain('loadUserConfig(pluginRoot)')
+    expect(generatedSource).toContain('resolve(pluginRoot, MCP_RUNTIME_ENV_SCRIPT)')
+    expect(generatedSource).toContain('resolve(pluginRoot, READINESS_SCRIPT)')
+    expect(generatedSource).not.toContain('loadUserConfig(directory)')
+    expect(generatedSource).not.toContain(staleProjectRoot)
+
+    const generatedModule = await import(`${pathToFileURL(resolve(pluginRoot, 'index.ts')).href}?case=${Date.now()}`)
+    const pluginFactory = Object.values(generatedModule).find((value) => typeof value === 'function') as (
+      input: {
+        project: Record<string, unknown>
+        client: { app: { log: (entry: unknown) => Promise<void> } }
+        $: (strings: TemplateStringsArray, ...values: unknown[]) => Promise<void>
+        directory: string
+      }
+    ) => Promise<Record<string, (...args: any[]) => Promise<void>>>
+
+    const logs: unknown[] = []
+    const shell = async (_strings: TemplateStringsArray, command: unknown): Promise<void> => {
+      const result = spawnSync('bash', ['-lc', String(command)], {
+        cwd: workspaceRoot,
+        encoding: 'utf-8',
+        env: { ...process.env, STALE_OPENCODE_PLUGIN_ROOT: staleProjectRoot },
+      })
+      if (result.status !== 0) {
+        throw new Error(result.stderr || `command failed with ${result.status}`)
+      }
+    }
+
+    const plugin = await pluginFactory({
+      project: {},
+      client: { app: { log: async (entry) => { logs.push(entry) } } },
+      $: shell,
+      directory: workspaceRoot,
+    })
+
+    const configOutput: Record<string, any> = {}
+    await plugin.config(configOutput)
+
+    expect(configOutput.mcp.local.command[1]).toBe(resolve(pluginRoot, 'runtime/pluxx-mcp-env.mjs'))
+    expect(configOutput.mcp.local.environment.PLUXX_PLUGIN_ROOT).toBe(pluginRoot)
+    expect(configOutput.mcp.local.environment.OPENCODE_PLUGIN_ROOT).toBe(pluginRoot)
+    expect(configOutput.mcp.local.environment.PLUXX_MCP_WORKSPACE_ROOT).toBe(workspaceRoot)
+    expect(configOutput.mcp.local.environment.OPENCODE_WORKSPACE_ROOT).toBe(workspaceRoot)
+    expect(configOutput.mcp.local.environment.OPENCODE_ROOT_TOKEN).toBeUndefined()
+
+    await plugin.event({ event: { type: 'session.created' } })
+
+    expect(logs).toEqual([])
+    const proof = JSON.parse(readFileSync(resolve(pluginRoot, 'opencode-root-proof.json'), 'utf-8'))
+    expect(proof.pluginRoot).toBe(pluginRoot)
+    expect(proof.legacyPluginRoot).toBe(pluginRoot)
+    expect(proof.opencodePluginRoot).toBe(pluginRoot)
+    expect(proof.workspaceRoot).toBe(workspaceRoot)
+    expect(proof.opencodeWorkspaceRoot).toBe(workspaceRoot)
+    expect(proof.token).toBe('from-installed-plugin')
+    expect(proof.cwd).toBe(workspaceRoot)
+    expect(existsSync(resolve(workspaceRoot, 'opencode-root-proof.json'))).toBe(false)
   })
 
   it('quotes generated hook commands so plugin roots with spaces still execute', async () => {
@@ -808,7 +1011,7 @@ describe('build', () => {
     const codexHooks = JSON.parse(readFileSync(resolve(outDir, 'codex/hooks/hooks.json'), 'utf-8'))
     expect(claudeHooks.hooks.PreToolUse?.[0]?.hooks?.[0]?.command).toBe('node "${CLAUDE_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
     expect(cursorHooks.hooks.preToolUse?.[0]?.command).toBe('node ./hooks/pluxx-hook-command-1.mjs')
-    expect(codexHooks.hooks.PreToolUse?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
+    expect(codexHooks.hooks.PreToolUse?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
     expect(codexHooks).not.toHaveProperty('version')
 
     const claudeWrapperPath = resolve(outDir, 'claude-code/hooks/pluxx-hook-command-1.mjs')
@@ -1236,16 +1439,87 @@ describe('build', () => {
     })
     expect(codexManifest.hooks).toBe('./hooks/hooks.json')
     expect(codexBundledHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.type).toBe('command')
-    expect(codexBundledHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
+    expect(codexBundledHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
     expect(codexHooks.pluginBundleFeatureFlag).toBe('hooks')
     expect(codexHooks.generalFeatureFlag).toBe('hooks')
     expect(codexHooks.deprecatedGeneralFeatureFlag).toBe('codex_hooks')
-    expect(codexHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
+    expect(codexHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
     expect(readFileSync(resolve(OUT_DIR, 'codex/hooks/pluxx-hook-command-1.mjs'), 'utf-8')).toContain('${PLUXX_PLUGIN_ROOT}/scripts/validate.sh')
     expect(codexCommands.commands[0]?.id).toBe('pulse')
     expect(codexAgent).toContain('name = "escalation"')
     expect(codexAgent).toContain('description = "Escalation specialist."')
     expect(codexAgentsMd).toContain('## Command Routing')
+  })
+
+  it('executes exact generated Codex hook commands from an unrelated workspace', async () => {
+    const rootDir = resolve(TEST_DIR, 'codex-manifest-command-execution')
+    const outDir = resolve(rootDir, 'dist')
+    const codexRoot = resolve(outDir, 'codex')
+    const unrelatedWorkspace = resolve(TEST_DIR, 'unrelated-codex-hook-workspace')
+
+    rmSync(rootDir, { recursive: true, force: true })
+    rmSync(unrelatedWorkspace, { recursive: true, force: true })
+    mkdirSync(resolve(rootDir, 'skills/basic'), { recursive: true })
+    mkdirSync(resolve(rootDir, 'scripts'), { recursive: true })
+    mkdirSync(unrelatedWorkspace, { recursive: true })
+    await Bun.write(
+      resolve(rootDir, 'skills/basic/SKILL.md'),
+      '---\nname: basic\ndescription: Basic skill\n---\n\nBasic skill body.\n',
+    )
+    for (const scriptName of ['session-start', 'user-prompt-submit']) {
+      await Bun.write(
+        resolve(rootDir, `scripts/${scriptName}.sh`),
+        `#!/usr/bin/env bash\nprintf '%s' "$PLUGIN_ROOT" > "$PLUGIN_ROOT/${scriptName}-proof.txt"\n`,
+      )
+    }
+
+    try {
+      await build({
+        ...testConfig,
+        name: 'codex-manifest-command-plugin',
+        skills: './skills/',
+        scripts: './scripts/',
+        brand: undefined,
+        assets: undefined,
+        hooks: {
+          sessionStart: [{ command: 'bash "${PLUGIN_ROOT}/scripts/session-start.sh"' }],
+          beforeSubmitPrompt: [{ command: 'bash "${PLUGIN_ROOT}/scripts/user-prompt-submit.sh"' }],
+        },
+        targets: ['codex'],
+        outDir: './dist',
+      }, rootDir)
+
+      const generatedHooks = JSON.parse(
+        readFileSync(resolve(codexRoot, 'hooks/hooks.json'), 'utf-8'),
+      ) as { hooks: Record<string, Array<{ hooks: Array<{ command: string }> }>> }
+      const commands = [
+        generatedHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command,
+        generatedHooks.hooks.UserPromptSubmit?.[0]?.hooks?.[0]?.command,
+      ]
+      expect(commands.every(Boolean)).toBe(true)
+
+      for (const [index, command] of commands.entries()) {
+        expect(command).not.toContain('CODEX_PLUGIN_ROOT')
+        expect(command).toContain('${PLUGIN_ROOT}/hooks/')
+        const env = { ...process.env, PLUGIN_ROOT: codexRoot }
+        delete env.CODEX_PLUGIN_ROOT
+        const result = spawnSync('sh', ['-c', command!], {
+          cwd: unrelatedWorkspace,
+          encoding: 'utf-8',
+          env,
+        })
+
+        expect(result.status, `hook command ${index + 1} failed: ${result.stderr}`).toBe(0)
+        expect(result.stderr).not.toContain("Cannot find module '/hooks")
+        expect(result.stderr).not.toContain("Cannot find module '/.codex")
+      }
+
+      expect(readFileSync(resolve(codexRoot, 'session-start-proof.txt'), 'utf-8')).toBe(codexRoot)
+      expect(readFileSync(resolve(codexRoot, 'user-prompt-submit-proof.txt'), 'utf-8')).toBe(codexRoot)
+    } finally {
+      rmSync(rootDir, { recursive: true, force: true })
+      rmSync(unrelatedWorkspace, { recursive: true, force: true })
+    }
   })
 
   it('generates OpenCode plugin wrapper with env var check', async () => {
@@ -1542,18 +1816,18 @@ describe('build', () => {
 
     expect(existsSync(resolve(TEST_DIR, 'readiness-dist/codex/.codex/pluxx-readiness.mjs'))).toBe(true)
     expect(codexBundledHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.type).toBe('command')
-    expect(codexBundledHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/.codex/pluxx-readiness.mjs" session-start')
+    expect(codexBundledHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/.codex/pluxx-readiness.mjs" session-start')
     expect(codexBundledHooks.hooks.PreToolUse?.[0]?.matcher).toBe('MCP')
-    expect(codexBundledHooks.hooks.PreToolUse?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/.codex/pluxx-readiness.mjs" mcp-gate')
+    expect(codexBundledHooks.hooks.PreToolUse?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/.codex/pluxx-readiness.mjs" mcp-gate')
     expect(codexHooks.pluginBundleFeatureFlag).toBe('hooks')
     expect(codexHooks.generalFeatureFlag).toBe('hooks')
     expect(codexHooks.deprecatedGeneralFeatureFlag).toBe('codex_hooks')
-    expect(codexHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/.codex/pluxx-readiness.mjs" session-start')
+    expect(codexHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/.codex/pluxx-readiness.mjs" session-start')
     expect(codexHooks.hooks.PreToolUse?.[0]?.matcher).toBe('MCP')
-    expect(codexHooks.hooks.PreToolUse?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/.codex/pluxx-readiness.mjs" mcp-gate')
-    expect(codexHooks.hooks.UserPromptSubmit?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/.codex/pluxx-readiness.mjs" prompt-gate')
+    expect(codexHooks.hooks.PreToolUse?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/.codex/pluxx-readiness.mjs" mcp-gate')
+    expect(codexHooks.hooks.UserPromptSubmit?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/.codex/pluxx-readiness.mjs" prompt-gate')
     expect(codexReadiness.model).toBe('pluxx.readiness.v1')
-    expect(codexReadiness.translatedHooks.mcpGate).toBe('node "${CODEX_PLUGIN_ROOT}/.codex/pluxx-readiness.mjs" mcp-gate')
+    expect(codexReadiness.translatedHooks.mcpGate).toBe('node "${PLUGIN_ROOT}/.codex/pluxx-readiness.mjs" mcp-gate')
 
     expect(existsSync(resolve(TEST_DIR, 'readiness-dist/opencode/runtime/pluxx-readiness.mjs'))).toBe(true)
     expect(opencodeIndex).toContain('const READINESS_SCRIPT = "runtime/pluxx-readiness.mjs"')
@@ -1580,19 +1854,19 @@ describe('build', () => {
 
     expect(codexBundledHooks.hooks.SessionStart?.[0]?.hooks?.[0]).toEqual({
       type: 'command',
-      command: 'node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"',
+      command: 'node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"',
     })
     expect(codexBundledHooks.hooks.UserPromptSubmit?.[0]?.hooks?.[0]).toEqual({
       type: 'command',
-      command: 'node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-2.mjs"',
+      command: 'node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-2.mjs"',
     })
     expect(codexHooks.model).toBe('pluxx.codex-hooks.v1')
     expect(codexHooks.pluginBundleFeatureFlag).toBe('hooks')
     expect(codexHooks.generalFeatureFlag).toBe('hooks')
     expect(codexHooks.deprecatedGeneralFeatureFlag).toBe('codex_hooks')
     expect(codexBundledHooks).not.toHaveProperty('version')
-    expect(codexHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
-    expect(codexHooks.hooks.UserPromptSubmit?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-2.mjs"')
+    expect(codexHooks.hooks.SessionStart?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
+    expect(codexHooks.hooks.UserPromptSubmit?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-2.mjs"')
     expect(readFileSync(resolve(OUT_DIR, 'codex/hooks/pluxx-hook-command-1.mjs'), 'utf-8')).toContain('${PLUXX_PLUGIN_ROOT}/scripts/validate.sh')
     expect(readFileSync(resolve(OUT_DIR, 'codex/hooks/pluxx-hook-command-2.mjs'), 'utf-8')).toContain('${PLUXX_PLUGIN_ROOT}/scripts/check-prompt.sh')
   })
@@ -1625,15 +1899,15 @@ describe('build', () => {
       unsupported?: unknown[]
     }
 
-    expect(codexBundledHooks.hooks.SubagentStart?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
-    expect(codexBundledHooks.hooks.PreCompact?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-2.mjs"')
-    expect(codexBundledHooks.hooks.PostCompact?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-3.mjs"')
-    expect(codexBundledHooks.hooks.SubagentStop?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-4.mjs"')
+    expect(codexBundledHooks.hooks.SubagentStart?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
+    expect(codexBundledHooks.hooks.PreCompact?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-2.mjs"')
+    expect(codexBundledHooks.hooks.PostCompact?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-3.mjs"')
+    expect(codexBundledHooks.hooks.SubagentStop?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-4.mjs"')
     expect(codexBundledHooks).not.toHaveProperty('version')
-    expect(codexHooks.hooks.SubagentStart?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
-    expect(codexHooks.hooks.PreCompact?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-2.mjs"')
-    expect(codexHooks.hooks.PostCompact?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-3.mjs"')
-    expect(codexHooks.hooks.SubagentStop?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-4.mjs"')
+    expect(codexHooks.hooks.SubagentStart?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
+    expect(codexHooks.hooks.PreCompact?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-2.mjs"')
+    expect(codexHooks.hooks.PostCompact?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-3.mjs"')
+    expect(codexHooks.hooks.SubagentStop?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-4.mjs"')
     expect(codexHooks.unsupported).toBeUndefined()
   })
 
@@ -1705,18 +1979,18 @@ describe('build', () => {
     expect(codexBundledHooks.hooks.PreToolUse?.[0]?.matcher).toBe('Bash')
     expect(codexBundledHooks.hooks.PreToolUse?.[0]?.hooks?.[0]).toEqual({
       type: 'command',
-      command: 'node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"',
+      command: 'node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"',
     })
     expect(codexBundledHooks.hooks.PermissionRequest?.[0]?.matcher).toBe('Edit')
     expect(codexBundledHooks.hooks.PermissionRequest?.[0]?.hooks?.[0]).toEqual({
       type: 'command',
-      command: 'node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-2.mjs"',
+      command: 'node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-2.mjs"',
     })
     expect(codexBundledHooks.hooks.UserPromptSubmit).toBeUndefined()
     expect(codexHooks.hooks.PreToolUse?.[0]?.matcher).toBe('Bash')
-    expect(codexHooks.hooks.PreToolUse?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
+    expect(codexHooks.hooks.PreToolUse?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-1.mjs"')
     expect(codexHooks.hooks.PermissionRequest?.[0]?.matcher).toBe('Edit')
-    expect(codexHooks.hooks.PermissionRequest?.[0]?.hooks?.[0]?.command).toBe('node "${CODEX_PLUGIN_ROOT}/hooks/pluxx-hook-command-2.mjs"')
+    expect(codexHooks.hooks.PermissionRequest?.[0]?.hooks?.[0]?.command).toBe('node "${PLUGIN_ROOT}/hooks/pluxx-hook-command-2.mjs"')
     expect(codexHooks.hooks.PreToolUse?.[0]?.hooks?.[0]?.timeout).toBeUndefined()
     expect(codexHooks.hooks.UserPromptSubmit).toBeUndefined()
     expect(codexHooks.unsupported).toEqual(
@@ -1734,6 +2008,167 @@ describe('build', () => {
     expect(opencodeIndex).not.toContain('Confirm before sending the prompt.')
     expect(opencodeIndex).not.toContain('https://example.com/hooks/notify')
     expect(opencodeIndex).not.toContain('"loop_limit": 3')
+  })
+
+  it('keeps matcher-scoped OpenCode hooks quiet for unrelated tools', async () => {
+    const hookConfig: PluginConfig = {
+      ...testConfig,
+      name: 'opencode-hook-matcher',
+      hooks: {
+        preToolUse: [
+          {
+            command: 'echo before-all',
+          },
+          {
+            command: 'echo before-edit',
+            matcher: 'Edit|Write',
+          },
+          {
+            command: 'echo before-object-edit',
+            matcher: { tool: 'Edit|Write' },
+          },
+          {
+            command: 'echo before-padded-edit',
+            matcher: ' Edit | Write ',
+          },
+          {
+            command: 'echo before-padded-object-edit',
+            matcher: { tool: ' Edit | Write ' },
+          },
+          {
+            command: 'echo never-run-unsupported-matcher',
+            matcher: { unsupported: true },
+          },
+          {
+            command: 'echo never-run-empty-matcher',
+            matcher: '',
+          },
+          {
+            command: 'echo never-run-empty-object-alternatives',
+            matcher: { tool: ' Edit | ' },
+          },
+          {
+            command: 'echo before-mcp',
+            matcher: 'MCP',
+          },
+        ],
+        postToolUse: [
+          {
+            command: 'echo after-all',
+          },
+          {
+            command: 'echo after-edit',
+            matcher: 'Edit|Write',
+          },
+          {
+            command: 'echo after-padded-object-edit',
+            matcher: { tool: ' Edit | Write ' },
+          },
+        ],
+        afterFileEdit: [
+          {
+            command: 'echo file-edited',
+          },
+        ],
+      },
+      targets: ['opencode'],
+      outDir: './opencode-hook-matcher-dist',
+    }
+
+    await build(hookConfig, TEST_DIR)
+
+    const generatedSource = readFileSync(
+      resolve(TEST_DIR, 'opencode-hook-matcher-dist/opencode/index.ts'),
+      'utf-8',
+    )
+    const toolBeforeHooks = extractGeneratedJson<{
+      all: Array<{ command: string }>
+      matched: Array<{ command: string; matcher: HookEntry['matcher'] }>
+    }>(generatedSource, 'TOOL_BEFORE_HOOKS')
+    expect(toolBeforeHooks.all.map(hook => hook.command)).toEqual(['echo before-all'])
+    expect(toolBeforeHooks.matched.map(hook => hook.command)).toEqual([
+      'echo before-edit',
+      'echo before-object-edit',
+      'echo before-padded-edit',
+      'echo before-padded-object-edit',
+      'echo never-run-unsupported-matcher',
+      'echo never-run-empty-matcher',
+      'echo never-run-empty-object-alternatives',
+      'echo before-mcp',
+    ])
+    const toolAfterHooks = extractGeneratedJson<{
+      all: Array<{ command: string }>
+      matched: Array<{ command: string }>
+      edit: Array<{ command: string }>
+    }>(generatedSource, 'TOOL_AFTER_HOOKS')
+    expect(toolAfterHooks.all.map(hook => hook.command)).toEqual(['echo after-all'])
+    expect(toolAfterHooks.matched).toEqual([])
+    expect(toolAfterHooks.edit.map(hook => hook.command)).toEqual([
+      'echo after-edit',
+      'echo after-padded-object-edit',
+      'echo file-edited',
+    ])
+
+    const generatedModule = await import(
+      pathToFileURL(resolve(TEST_DIR, 'opencode-hook-matcher-dist/opencode/index.ts')).href
+    ) as {
+      OpencodeHookMatcherPlugin: (context: Record<string, unknown>) => Promise<Record<string, (...args: unknown[]) => Promise<void>>>
+    }
+    const commands: string[] = []
+    const logs: unknown[] = []
+    const plugin = await generatedModule.OpencodeHookMatcherPlugin({
+      project: {},
+      directory: TEST_DIR,
+      client: {
+        app: {
+          log: async (entry: unknown) => {
+            logs.push(entry)
+          },
+        },
+      },
+      $: (_strings: TemplateStringsArray, command: string) => {
+        commands.push(command)
+        return Promise.resolve()
+      },
+    })
+
+    const runTool = async (tool: string): Promise<string[]> => {
+      const commandOffset = commands.length
+      await plugin['tool.execute.before']?.({ tool }, {})
+      await plugin['tool.execute.after']?.({ tool }, {})
+      return commands.slice(commandOffset)
+    }
+
+    for (const tool of ['read', 'grep', 'glob', 'bash']) {
+      expect(await runTool(tool)).toEqual([
+        expect.stringContaining('before-all'),
+        expect.stringContaining('after-all'),
+      ])
+    }
+
+    for (const tool of ['edit', 'write', 'apply_patch']) {
+      expect(await runTool(tool)).toEqual([
+        expect.stringContaining('before-all'),
+        expect.stringContaining('before-edit'),
+        expect.stringContaining('before-object-edit'),
+        expect.stringContaining('before-padded-edit'),
+        expect.stringContaining('before-padded-object-edit'),
+        expect.stringContaining('after-all'),
+        expect.stringContaining('after-edit'),
+        expect.stringContaining('after-padded-object-edit'),
+        expect.stringContaining('file-edited'),
+      ])
+    }
+
+    for (const tool of ['mcp', 'mcp.example', 'mcp_example']) {
+      expect(await runTool(tool)).toEqual([
+        expect.stringContaining('before-all'),
+        expect.stringContaining('before-mcp'),
+        expect.stringContaining('after-all'),
+      ])
+    }
+
+    expect(logs).toEqual([])
   })
 
   it('preserves richer Claude-native hook handler types', async () => {
@@ -1804,56 +2239,61 @@ describe('build', () => {
     }
 
     mkdirSync(resolve(TEST_DIR, 'agents'), { recursive: true })
-    await Bun.write(
-      resolve(TEST_DIR, 'agents/alias-agent.md'),
-      [
-        '---',
-        'name: alias-agent',
-        'description: "Alias normalization specialist."',
-        'model: "gpt-5.4"',
-        'effort: "high"',
-        'maxSteps: 7',
-        'top_p: 0.35',
-        '---',
-        '',
-        '# Alias Agent',
-        '',
-        'Validate that shared agent metadata aliases normalize cleanly.',
-        '',
-      ].join('\n'),
-    )
+    const aliasAgentPath = resolve(TEST_DIR, 'agents/alias-agent.md')
+    try {
+      await Bun.write(
+        aliasAgentPath,
+        [
+          '---',
+          'name: alias-agent',
+          'description: "Alias normalization specialist."',
+          'model: "gpt-5.4"',
+          'effort: "high"',
+          'maxSteps: 7',
+          'top_p: 0.35',
+          '---',
+          '',
+          '# Alias Agent',
+          '',
+          'Validate that shared agent metadata aliases normalize cleanly.',
+          '',
+        ].join('\n'),
+      )
 
-    await build(agentConfig, TEST_DIR)
+      await build(agentConfig, TEST_DIR)
 
-    const claudeAgent = readFileSync(
-      resolve(TEST_DIR, 'agent-metadata-aliases-dist/claude-code/agents/alias-agent.md'),
-      'utf-8',
-    )
-    const cursorAgent = readFileSync(
-      resolve(TEST_DIR, 'agent-metadata-aliases-dist/cursor/agents/alias-agent.md'),
-      'utf-8',
-    )
-    const codexAgent = readFileSync(
-      resolve(TEST_DIR, 'agent-metadata-aliases-dist/codex/.codex/agents/alias-agent.toml'),
-      'utf-8',
-    )
-    const opencodeIndex = readFileSync(
-      resolve(TEST_DIR, 'agent-metadata-aliases-dist/opencode/index.ts'),
-      'utf-8',
-    )
+      const claudeAgent = readFileSync(
+        resolve(TEST_DIR, 'agent-metadata-aliases-dist/claude-code/agents/alias-agent.md'),
+        'utf-8',
+      )
+      const cursorAgent = readFileSync(
+        resolve(TEST_DIR, 'agent-metadata-aliases-dist/cursor/agents/alias-agent.md'),
+        'utf-8',
+      )
+      const codexAgent = readFileSync(
+        resolve(TEST_DIR, 'agent-metadata-aliases-dist/codex/.codex/agents/alias-agent.toml'),
+        'utf-8',
+      )
+      const opencodeIndex = readFileSync(
+        resolve(TEST_DIR, 'agent-metadata-aliases-dist/opencode/index.ts'),
+        'utf-8',
+      )
 
-    expect(claudeAgent).toContain('effort: "high"')
-    expect(claudeAgent).toContain('maxTurns: 7')
-    expect(cursorAgent).toContain('Cursor translation note:')
-    expect(cursorAgent).toContain('"steps"')
-    expect(cursorAgent).toContain('"topP"')
-    expect(codexAgent).toContain('model_reasoning_effort = "high"')
-    expect(codexAgent).toContain('Host translation note:')
-    expect(codexAgent).toContain('"steps"')
-    expect(opencodeIndex).toContain('"alias-agent"')
-    expect(opencodeIndex).toContain('"steps": 7')
-    expect(opencodeIndex).toContain('"top_p": 0.35')
-    expect(opencodeIndex).not.toContain('"topP": 0.35')
+      expect(claudeAgent).toContain('effort: "high"')
+      expect(claudeAgent).toContain('maxTurns: 7')
+      expect(cursorAgent).toContain('Cursor translation note:')
+      expect(cursorAgent).toContain('"steps"')
+      expect(cursorAgent).toContain('"topP"')
+      expect(codexAgent).toContain('model_reasoning_effort = "high"')
+      expect(codexAgent).toContain('Host translation note:')
+      expect(codexAgent).toContain('"steps"')
+      expect(opencodeIndex).toContain('"alias-agent"')
+      expect(opencodeIndex).toContain('"steps": 7')
+      expect(opencodeIndex).toContain('"top_p": 0.35')
+      expect(opencodeIndex).not.toContain('"topP": 0.35')
+    } finally {
+      rmSync(aliasAgentPath, { force: true })
+    }
   })
 
   it('carries compiler-intent skill policies into the Codex permissions companion when present', async () => {

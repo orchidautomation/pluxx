@@ -1,0 +1,41 @@
+{
+  "installed": [
+    {
+      "pluginId": "collision-proof@other",
+      "name": "collision-proof",
+      "marketplaceName": "other",
+      "version": "1.0.0",
+      "installed": true,
+      "enabled": true,
+      "source": {
+        "source": "local",
+        "path": "/synthetic/other/plugin"
+      },
+      "marketplaceSource": {
+        "sourceType": "local",
+        "source": "/synthetic/other"
+      },
+      "installPolicy": "AVAILABLE",
+      "authPolicy": "ON_INSTALL"
+    },
+    {
+      "pluginId": "collision-proof@requested",
+      "name": "collision-proof",
+      "marketplaceName": "requested",
+      "version": "1.0.0",
+      "installed": true,
+      "enabled": true,
+      "source": {
+        "source": "local",
+        "path": "/synthetic/requested/plugin"
+      },
+      "marketplaceSource": {
+        "sourceType": "local",
+        "source": "/synthetic/requested"
+      },
+      "installPolicy": "AVAILABLE",
+      "authPolicy": "ON_INSTALL"
+    }
+  ],
+  "available": []
+}
