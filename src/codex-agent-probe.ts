@@ -65,6 +65,7 @@ export interface CodexAgentProbeSkillConfigEntry {
 
 export type CodexAgentProbeStatus =
   | 'custom-agent-invoked'
+  | 'delegation-unverified'
   | 'no-custom-agent-invocation'
   | 'runner-failed'
   | 'runner-timed-out'
@@ -386,7 +387,7 @@ async function runCodexAgentProbeScenario(
       scenarioName: scenario.name,
       requestCustomAgent: scenario.requestCustomAgent,
       prompt,
-      status: classifyAgentProbeStatus(execution, parsed),
+      status: classifyAgentProbeStatus(execution, parsed, finalMessageHasProofPrefix),
       sandboxMode,
       workDir,
       realWorkDir,
@@ -518,7 +519,14 @@ function parseAgentInvocation(stdout: string, proofPrefix: string): ParsedAgentI
     if (itemType === 'collab_tool_call') {
       const toolName = findToolName(item)
       if (toolName === 'spawn_agent') sawSpawnAgentCall = true
-      if (toolName === 'wait') sawWaitCall = true
+      if (toolName === 'wait') {
+        sawWaitCall = true
+        // Only a structured wait result can attribute a proof-bearing message
+        // to a child. A parent agent_message may repeat the same proof text.
+        for (const message of collectStringsWithPrefix(item, proofPrefix)) {
+          childAgentMessages.add(message)
+        }
+      }
       if (!sawSpawnAgentCall && toolName) preSpawnActivityTypes.add(toolName)
     } else if (!sawSpawnAgentCall && itemType) {
       preSpawnActivityTypes.add(itemType)
@@ -526,9 +534,6 @@ function parseAgentInvocation(stdout: string, proofPrefix: string): ParsedAgentI
 
     for (const threadId of collectStringArrayByKey(item, 'receiver_thread_ids')) {
       if (threadId.trim()) spawnedThreadIds.add(threadId)
-    }
-    for (const message of collectStringsWithPrefix(item, proofPrefix)) {
-      childAgentMessages.add(message)
     }
   }
 
@@ -544,11 +549,22 @@ function parseAgentInvocation(stdout: string, proofPrefix: string): ParsedAgentI
 function classifyAgentProbeStatus(
   execution: CodexExecRunResult,
   parsed: ParsedAgentInvocation,
+  finalMessageHasProofPrefix: boolean,
 ): CodexAgentProbeStatus {
   if (execution.timedOut) return 'runner-timed-out'
   if (execution.exitCode !== 0 || execution.sawTurnFailed) return 'runner-failed'
   if (parsed.sawSpawnAgentCall && parsed.sawWaitCall && parsed.spawnedThreadIds.length > 0) {
     return 'custom-agent-invoked'
+  }
+  // Codex 0.148 may omit the spawn item and child thread id from JSONL while
+  // still exposing the delegated wait and the proof-prefixed child response.
+  if (parsed.sawWaitCall && parsed.childAgentMessages.length > 0) {
+    return 'custom-agent-invoked'
+  }
+  // A parent can repeat the requested proof prefix after an unattributed wait.
+  // Preserve that evidence without upgrading it to verified child delegation.
+  if (parsed.sawWaitCall && finalMessageHasProofPrefix) {
+    return 'delegation-unverified'
   }
   return 'no-custom-agent-invocation'
 }
