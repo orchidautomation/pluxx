@@ -1,0 +1,51 @@
+tests/verify-install.test.ts
+  s_3a87cfcb2d86bb::t_744505664cd544 101-109
+  s_3a87cfcb2d86bb::t_2ce01791df073c 92,1410,1468,1520,1576,1637,1694
+tests/publish.test.ts
+  s_3a87cfcb2d86bb::t_9c08c344a0c288 1221-1233
+  s_3a87cfcb2d86bb::t_51be7e9b19e95e 416-419,421-437,1274,1323-1343
+  s_3a87cfcb2d86bb::t_d6e997fadc3fd5 420
+src/cli/install.ts
+  s_3a87cfcb2d86bb::t_8408379c9a35f1 464-465
+  s_3a87cfcb2d86bb::t_03751f3f07894d 893,915
+src/claude-plugin-inventory.ts
+  s_3a87cfcb2d86bb::t_03751f3f07894d 92-101,103-115,117-121
+  s_3a87cfcb2d86bb::t_d6e997fadc3fd5 116
+  s_3a87cfcb2d86bb::t_2bbc308a5d5f87 38,47-48
+  s_3a87cfcb2d86bb::t_bda6ac19395344 1-2,4-37,39-46,49-63,67-71,73-83,86-91
+  s_3a87cfcb2d86bb::t_744505664cd544 3,64-66,72,84-85,102
+src/install-contract.ts
+  s_3a87cfcb2d86bb::t_8408379c9a35f1 28,75-79
+tests/claude-plugin-inventory.test.ts
+  s_3a87cfcb2d86bb::t_bda6ac19395344 1-28
+  s_3a87cfcb2d86bb::t_744505664cd544 29-37
+tests/host-detection.test.ts
+  s_3a87cfcb2d86bb::t_2bbc308a5d5f87 55-67
+tests/install.test.ts
+  s_3a87cfcb2d86bb::t_2ce01791df073c 392-395,427,432,447-450,458,472-475,506-509
+  s_3a87cfcb2d86bb::t_744505664cd544 487
+tests/claude-generated-inventory.test.ts
+  s_3a87cfcb2d86bb::t_435f07560a80eb 1-40
+src/cli/publish.ts
+  s_3a87cfcb2d86bb::t_8408379c9a35f1 860
+  s_3a87cfcb2d86bb::t_01094a10a5a6bb 841-843,846-849,877-880
+  s_3a87cfcb2d86bb::t_03751f3f07894d 1,2657,2689,2696-2699,2705,2707-2708,2710,2712-2715,2745,2751,2779,2792
+  s_3a87cfcb2d86bb::t_98975911779632 2153,2701-2704,2706
+  s_3a87cfcb2d86bb::t_e8cee4b4dcfb5d 2148,2150,2155,2700,2709,2711
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "d8ef6e785c428b697c2182c44379acba713496c4",
+  "prompts": {},
+  "sessions": {
+    "s_3a87cfcb2d86bb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0789c-0fc9-7562-a55c-8f1be212ffd2",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Brandon Guerrero <brandon@orchidautomation.com>"
+    }
+  }
+}
