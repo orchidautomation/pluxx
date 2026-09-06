@@ -97,6 +97,13 @@ function verifyInstalledPackage(packageFile) {
   try {
     run('npm', ['init', '-y'], { cwd: tempRoot })
     run('npm', ['install', '--no-save', packageFile], { cwd: tempRoot })
+    run('node', ['--input-type=module', '-e', `
+      import { createHash } from 'node:crypto';
+      import { detectCodexPluginCollisions } from '@orchid-labs/pluxx';
+      const result = detectCodexPluginCollisions({ installed: [{ name: 'proof', pluginId: 'proof@other', marketplaceName: 'other', version: '1.0.0', installed: true, enabled: true, source: { source: 'local', path: '/synthetic' } }] },
+        { name: 'proof', marketplace: 'requested', version: '1.0.0' }, value => createHash('sha256').update(value).digest('hex'));
+      if (result?.code !== 'same-name-cross-marketplace' || result.totalConflicts !== 1) throw new Error('Packaged collision API failed');
+    `], { cwd: tempRoot })
 
     const fixtureDir = join(tempRoot, 'fixture')
     createFixtureProject(fixtureDir)
