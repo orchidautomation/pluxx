@@ -1,6 +1,6 @@
 # Master Backlog
 
-Last updated: 2026-08-31
+Last updated: 2026-09-06
 
 This is the most complete repo-native backlog for Pluxx.
 
@@ -87,6 +87,13 @@ Any person or agent should be able to enter the repo and answer:
 ## Now
 
 Proof governance is now explicit: [proof-freshness.md](../proof-freshness.md) defines the five evidence tiers and freshness rules, while [proof-manifest.json](../proof-manifest.json) keeps machine-readable receipts and current/historical claim state aligned with `package.json`.
+
+### Current v0.1.45 release
+
+- [x] Merge PR #434 (portable workflow primitive), PR #435 (transactional mature-plugin intake), and PR #503 (same-name Codex plugin collision detection) into trusted `main`.
+- [x] Prepare package version `0.1.45`, pass the full release gate, and push immutable tag `v0.1.45` at `e4b1e8d9ee48ffba60f6c3775133c0d15ca0dbb5`.
+- [x] Publish and verify npm/GitHub artifacts through trusted Release run [34067859595](https://github.com/orchidautomation/pluxx/actions/runs/34067859595); byte-identical tarball SHA-256 is `3f19bc70cc870c875283132fd20e4aede94bbcdf4ac9759366b126aed3c874dd`.
+- [x] Record the target-verified release receipt at [2026-09-06-pluxx-0.1.45-release.json](../orchid/receipts/2026-09-06-pluxx-0.1.45-release.json).
 
 ### 0. Historical v0.1.34 shared-runtime release
 

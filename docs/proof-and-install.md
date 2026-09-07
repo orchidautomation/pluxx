@@ -1,6 +1,6 @@
 # Proof And Install
 
-Last updated: 2026-08-31
+Last updated: 2026-09-06
 
 ## Doc Links
 
@@ -30,9 +30,9 @@ This is the shortest current repo-native path to:
 
 For the fuller release/distribution boundary, including publish commands and deferred marketplace/trust-layer work, use [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md).
 
-Proof labels and freshness come from [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json). The May self-hosted run, April Firecrawl connector run, and shipped 0.1.37 through 0.1.42 evidence are historical relative to the canonical public 0.1.43 release.
+Proof labels and freshness come from [proof-freshness.md](./proof-freshness.md) and [proof-manifest.json](./proof-manifest.json). The May self-hosted run, April Firecrawl connector run, and shipped 0.1.37 through 0.1.44 evidence are historical relative to the canonical public 0.1.45 release.
 
-The public 0.1.43 release carries deterministic core-four install planning and the `pluxx.install-results.v1` structured result contract. Tag `v0.1.43` binds to trusted merge `87e759d76c7cdaefd1bff81969b4cb1ba10091d3`; npm and GitHub tarballs are byte-identical at SHA-256 `2851a386dc415fd37e124fa132d70af516fee062a8ac355310ea157fa8d2dfc3`. Fresh repository and native core-four fake-home receipts bind to the exact tag commit, where trusted Release run `33532188948` passed the complete gate. These fixtures are not real host executions. Source, fixture, and isolated CLI proof must not be relabeled as installed-host proof.
+The public 0.1.45 release carries the merged portable workflow, transactional migration, and same-name Codex plugin collision work from PRs #434, #435, and #503. Tag `v0.1.45` binds to trusted main commit `e4b1e8d9ee48ffba60f6c3775133c0d15ca0dbb5`; npm and GitHub tarballs are byte-identical at SHA-256 `3f19bc70cc870c875283132fd20e4aede94bbcdf4ac9759366b126aed3c874dd`. Fresh repository and native core-four fake-home receipts bind to the exact tag commit, where trusted Release run `34067859595` passed the complete gate. These fixtures are not real host executions. Source, fixture, and isolated CLI proof must not be relabeled as installed-host proof.
 
 ## The Story In One Screen
 
@@ -210,7 +210,7 @@ curl -fsSL https://raw.githubusercontent.com/orchidautomation/pluxx/main/example
 
 Current release note:
 
-- the canonical and verified public release is `@orchid-labs/pluxx@0.1.43` / `v0.1.43`; npm and GitHub serve the same verified tarball at SHA-256 `2851a386dc415fd37e124fa132d70af516fee062a8ac355310ea157fa8d2dfc3`
+- the canonical and verified public release is `@orchid-labs/pluxx@0.1.45` / `v0.1.45`; npm and GitHub serve the same verified tarball at SHA-256 `3f19bc70cc870c875283132fd20e4aede94bbcdf4ac9759366b126aed3c874dd`
 - 0.1.38 remains the shipped and independently verified historical PLUXX-340 duplicate archive-identity correction
 - 0.1.37 remains the shipped and independently verified historical PLUXX-339 runtime env-sourcing security release
 - the published CLI runtime is Node `>=18`; see [runtime contract](./runtime-contract.md)

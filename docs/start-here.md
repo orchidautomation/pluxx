@@ -1,6 +1,6 @@
 # Start Here
 
-Last updated: 2026-09-01
+Last updated: 2026-09-06
 
 ## Doc Links
 
@@ -45,7 +45,7 @@ If you want the shortest public proof and install path after this file, use [doc
 
 If you want the current release, distribution, and proof boundary, use [docs/release-distribution-proof-map.md](./release-distribution-proof-map.md).
 
-If you need to know whether a proof claim is current, historical, repository-only, installed, or real-host evidence, use [docs/proof-freshness.md](./proof-freshness.md) and [docs/proof-manifest.json](./proof-manifest.json). The independently verified public release is `@orchid-labs/pluxx@0.1.43` / `v0.1.43`; PLUXX-350 is complete, so MDP-306 can consume the published PLUXX-349 installer-result contract.
+If you need to know whether a proof claim is current, historical, repository-only, installed, or real-host evidence, use [docs/proof-freshness.md](./proof-freshness.md) and [docs/proof-manifest.json](./proof-manifest.json). The independently verified public release is `@orchid-labs/pluxx@0.1.45` / `v0.1.45`; it includes the merged portable workflow, transactional migration, and same-name Codex plugin collision work from PRs #434, #435, and #503.
 
 If you want the primitive-by-host proof ledger behind the core-four native shipping claim, use [docs/core-four-primitive-proof-ledger.md](./core-four-primitive-proof-ledger.md).
 
@@ -374,7 +374,7 @@ The repo already proves a lot.
 - historical release-gate evidence from 2026-05-19 remains available but is not current proof:
   - `npm test` passed
   - `npm run release:check` passed
-- the canonical independently verified public release is `@orchid-labs/pluxx@0.1.43` / `v0.1.43`; npm and GitHub serve the same tarball at SHA-256 `2851a386dc415fd37e124fa132d70af516fee062a8ac355310ea157fa8d2dfc3`
+- the canonical independently verified public release is `@orchid-labs/pluxx@0.1.45` / `v0.1.45`; npm and GitHub serve the same tarball at SHA-256 `3f19bc70cc870c875283132fd20e4aede94bbcdf4ac9759366b126aed3c874dd`
 - historical `0.1.41` contains only the merged PLUXX-345 Codex hook-root repair
 - immutable tag `v0.1.38` records only the follow-up PLUXX-340 correction for duplicate release-manifest archive identities discovered after the historical shipped 0.1.37 release
 - marketplace submission APIs, a managed trust/distribution control plane, automatic rollback/unpublish orchestration, and real authenticated publish plus rollback proof remain explicit release gaps, not hidden shipped capabilities:
@@ -553,7 +553,7 @@ Run two lanes in parallel:
 
 ### 6. Release State
 
-The independently verified public release is `@orchid-labs/pluxx@0.1.43`; immutable tag `v0.1.43` resolves to trusted merge `87e759d76c7cdaefd1bff81969b4cb1ba10091d3`. PLUXX-350 completed the trusted release lane for the PLUXX-349 installer-result contract; MDP-306 now owns downstream consumption.
+The independently verified public release is `@orchid-labs/pluxx@0.1.45`; immutable tag `v0.1.45` resolves to trusted main commit `e4b1e8d9ee48ffba60f6c3775133c0d15ca0dbb5`. The trusted release lane completed PRs #434, #435, and #503; the release receipt records the published npm and GitHub artifact identity.
 
 For v0.1.37, PLUXX-339 is the tagged security focus: lint, doctor, install, and packaged-runtime verification fail closed when bundled runtime scripts source workspace `.env` files through direct or statically evaluable shell forms. The patch preserves valid safe shell forms and uses a bounded explicit scanner rather than an expanding regex.
 

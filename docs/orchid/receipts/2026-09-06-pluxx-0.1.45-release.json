@@ -1,0 +1,53 @@
+{
+  "schema": "orchid.release.receipt/v1",
+  "repository": "orchidautomation/pluxx",
+  "sourceCommit": "e4b1e8d9ee48ffba60f6c3775133c0d15ca0dbb5",
+  "target": "@orchid-labs/pluxx@0.1.45 and GitHub Release v0.1.45",
+  "mode": "apply",
+  "states": [
+    {
+      "name": "merged",
+      "status": "passed",
+      "evidence": "PR #434 merged at trusted main commit 9331de0c84fd7f48346fd02a1dc633f77ae7c5a7, PR #435 merged at cd7d2223a6f01ca78267c2f075749ace9173ec3d, and PR #503 merged at 18890e6b98d855ec925497956d1e8ccb79667b9e; release commit e4b1e8d9ee48ffba60f6c3775133c0d15ca0dbb5 is the verified descendant on main."
+    },
+    {
+      "name": "packaged",
+      "status": "passed",
+      "evidence": "Trusted Release run 34067859595 passed the complete release gate, package-runtime verification, and packed orchid-labs-pluxx-0.1.45.tgz (737181 bytes)."
+    },
+    {
+      "name": "released",
+      "status": "passed",
+      "evidence": "Immutable tag v0.1.45 resolves to source commit e4b1e8d9ee48ffba60f6c3775133c0d15ca0dbb5; trusted Release run 34067859595 published npm 0.1.45 and GitHub Release v0.1.45 successfully."
+    },
+    {
+      "name": "deployed",
+      "status": "not-applicable",
+      "evidence": "Pluxx 0.1.45 is a package and release-asset distribution; no application deployment belongs to this release target."
+    },
+    {
+      "name": "installed",
+      "status": "not-applicable",
+      "evidence": "Verification used isolated package and release-asset fixtures; no active user home or real host installation was changed or claimed."
+    },
+    {
+      "name": "health-checked",
+      "status": "passed",
+      "evidence": "The trusted Release run passed the packaged Node runtime verification and published-package readback; the public npm package reports version 0.1.45."
+    },
+    {
+      "name": "target-verified",
+      "status": "passed",
+      "evidence": "npm integrity is sha512-zl9i3hPgK3JFZzFV/vmQk1VjIaR1b6RpWgUNNh3Re4umm/L+elVa3a6XJbyoFdsndHk0XBpjVJjsqcFdLPX3FA== (SHA-1 ff7578d6221a835f95478e96dd0fa71da9d90d90); npm and GitHub tarballs are byte-identical at SHA-256 3f19bc70cc870c875283132fd20e4aede94bbcdf4ac9759366b126aed3c874dd."
+    }
+  ],
+  "authorization": "explicit-action-time",
+  "rollback": "npm versions and immutable tags are not rewritten or unpublished. If a defect is found, deprecate 0.1.45 where warranted, document the failure, and publish a corrected higher patch from a newly reviewed trusted-main commit.",
+  "providers": [
+    "github-actions",
+    "github-releases",
+    "npm"
+  ],
+  "verdict": "target-verified",
+  "observedAt": "2026-09-06T23:57:29Z"
+}

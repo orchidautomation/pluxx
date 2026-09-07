@@ -1,6 +1,6 @@
 # Pluxx Queue
 
-Last updated: 2026-08-31
+Last updated: 2026-09-06
 
 ## Doc Links
 
@@ -192,6 +192,15 @@ The initial author-once hardening tranche is also materially done.
   - remaining release gaps include marketplace submission APIs, managed trust/distribution control plane, automatic remote rollback/unpublish, and live credentialed publish/rollback proof
 - the core-four native shipping claim now has a primitive-by-host proof ledger:
   - [docs/core-four-primitive-proof-ledger.md](../core-four-primitive-proof-ledger.md)
+
+## Completed v0.1.45 Release Lane
+
+- [x] Merge PR #434 at trusted main commit `9331de0c84fd7f48346fd02a1dc633f77ae7c5a7`.
+- [x] Retarget PR #435 to current `main`, pass its fresh checks, and merge at trusted main commit `cd7d2223a6f01ca78267c2f075749ace9173ec3d`.
+- [x] Merge PR #503 at trusted main commit `18890e6b98d855ec925497956d1e8ccb79667b9e`.
+- [x] Prepare and push package version `0.1.45` at exact main commit `e4b1e8d9ee48ffba60f6c3775133c0d15ca0dbb5`.
+- [x] Push immutable tag `v0.1.45` and publish through trusted Release run [34067859595](https://github.com/orchidautomation/pluxx/actions/runs/34067859595).
+- [x] Verify npm and GitHub tarballs are byte-identical at SHA-256 `3f19bc70cc870c875283132fd20e4aede94bbcdf4ac9759366b126aed3c874dd`; record the target-verified receipt at [2026-09-06-pluxx-0.1.45-release.json](../orchid/receipts/2026-09-06-pluxx-0.1.45-release.json).
 
 ## Active Portable-Core Release Lane
 

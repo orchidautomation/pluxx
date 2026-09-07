@@ -1,6 +1,6 @@
 # Roadmap
 
-Last updated: 2026-08-31
+Last updated: 2026-09-06
 
 ## Doc Links
 
@@ -248,7 +248,7 @@ The closure plan is now narrower than it was before:
 - historical release-gate evidence from 2026-05-19 remains available but is not current proof:
   - `npm test` passed
   - `npm run release:check` passed
-- the canonical independently verified public release is `@orchid-labs/pluxx@0.1.43` / `v0.1.43`; npm and GitHub serve the same tarball at SHA-256 `2851a386dc415fd37e124fa132d70af516fee062a8ac355310ea157fa8d2dfc3`
+- the canonical independently verified public release is `@orchid-labs/pluxx@0.1.45` / `v0.1.45`; npm and GitHub serve the same tarball at SHA-256 `3f19bc70cc870c875283132fd20e4aede94bbcdf4ac9759366b126aed3c874dd`
 - historical 0.1.41 is only the PLUXX-345 Codex hook-root repair
 - 0.1.38 is only the PLUXX-340 manifest-identity follow-up discovered after shipped and independently verified 0.1.37
 - the release/distribution/proof boundary is now explicit:
@@ -410,9 +410,9 @@ This is for learning and proof, not for prematurely building the full trust laye
 
 ### 6. Current release baseline
 
-The independently verified public release is `@orchid-labs/pluxx@0.1.43` / `v0.1.43` for PLUXX-350 at immutable trusted merge `87e759d76c7cdaefd1bff81969b4cb1ba10091d3`.
+The independently verified public release is `@orchid-labs/pluxx@0.1.45` / `v0.1.45` at immutable trusted main commit `e4b1e8d9ee48ffba60f6c3775133c0d15ca0dbb5`.
 
-PLUXX-350 is complete. Release run [33532188948](https://github.com/orchidautomation/pluxx/actions/runs/33532188948) published PLUXX-349's `pluxx.install-results.v1` contract and deterministic core-four planning; npm and GitHub artifacts are byte-identical at SHA-256 `2851a386dc415fd37e124fa132d70af516fee062a8ac355310ea157fa8d2dfc3`. MDP-306 now owns consumer adoption and aggregate UX.
+Release run [34067859595](https://github.com/orchidautomation/pluxx/actions/runs/34067859595) published the merged PR #434 portable workflow, PR #435 transactional migration, and PR #503 same-name Codex plugin collision work; npm and GitHub artifacts are byte-identical at SHA-256 `3f19bc70cc870c875283132fd20e4aede94bbcdf4ac9759366b126aed3c874dd`.
 
 The completed npm cut stayed primarily an operations step rather than a code-confidence rescue step.
 
