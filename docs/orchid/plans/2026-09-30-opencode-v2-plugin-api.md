@@ -27,7 +27,21 @@ An installed Pluxx OpenCode bundle loads exactly once in OpenCode 2, registers i
 | Failure/retry/no-op | Registration failure surfaces as a plugin load/verify error without partial success claims. Repeat install/verify is idempotent; transactional rollback restores owned previous entry/bundle on failure. No persistent data migration is required beyond the install-path move. |
 | Cross-repository order | Pluxx source PR -> merge/release -> SendLens separate issue rebuilds from exact released Pluxx version -> installs/tests SendLens artifact. PLUXX-355 grants no SendLens writes. |
 
-## Change targets and ordered steps
+## Expected changed paths
+- src/generators/opencode/index.ts
+- src/opencode-entry.ts
+- src/cli/install.ts
+- src/cli/verify-install.ts
+- src/distribution-lifecycle.ts
+- tests/build.test.ts
+- tests/install.test.ts
+- tests/verify-install.test.ts
+- docs/start-here.md
+- docs/todo/queue.md
+- docs/todo/master-backlog.md
+- docs/roadmap.md
+
+## Execution steps
 
 1. **S1, regression baseline (AC1/AC2):** Add an installed-artifact test to `tests/verify-install.test.ts` (new test) that builds a fixture, installs to a fake HOME, invokes OpenCode 2.0.20 plugin listing/MCP listing or an equivalent official host loader, and asserts one active ID plus visible MCP. Before repair it must reproduce missing default export or absent MCP. Keep the fixture keyless. Add a free-model `setup_doctor` session check as manual corroboration, not a substitute for automated load proof.
 2. **S2, generated V2 contract (AC1/AC3):** Change `OpenCodeGenerator.generatePackageJson()` and `generatePluginWrapper()` in `src/generators/opencode/index.ts`. Generate a V2 default definition through `@opencode/plugin` with `setup(ctx)` and a separate V1 `server()` method. Introduce proposed generator helpers `buildOpenCodeV2McpDefinitions(pluginRoot: string, workspaceRoot: string): Record<string, McpServerConfig>` and `registerOpenCodeV2(ctx: PluginContext): Promise<() => void>` (exact imported SDK type may vary with checked package; observable contract is a one-time domain registration and cleanup). Port MCP, commands, readiness, hooks, instructions, and event cleanup using documented V2 domains. Keep existing V1 output behavior under `server()` and add a package dependency on a checked compatible `@opencode/plugin` version; avoid wildcard compatibility claims.
