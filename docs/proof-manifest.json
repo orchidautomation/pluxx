@@ -297,7 +297,7 @@
     },
     {
       "id": "v0.1.46-release-prep-validation",
-      "summary": "The committed 0.1.46 release-prep candidate passes proof freshness, build, typecheck, 145 focused OpenCode and installer checks, packaged Node runtime verification, and dry-run packaging. The complete local release gate was interrupted; CI must finish it before release.",
+      "summary": "The merged 0.1.46 source commit passes build, typecheck, 145 focused OpenCode and installer checks, packaged Node runtime verification, and dry-run packaging. The complete local suite was interrupted; repair PR and merge-SHA CI must pass before release.",
       "tier": "bundle-contract",
       "freshness": "current",
       "evidencePath": "docs/orchid/plans/2026-10-01-pluxx-341-opencode2-release.md",
@@ -1213,14 +1213,10 @@
       "id": "v0.1.46-release-prep-validation",
       "tier": "bundle-contract",
       "freshness": "current",
-      "commitSha": "92422674721f63eaa7e53c4c742d05744ae302ef",
+      "commitSha": "891cfb922062832b2888b7b72cd387ed3dc14a6b",
       "packageVersion": "0.1.46",
-      "timestamp": "2026-10-01T20:24:37Z",
+      "timestamp": "2026-10-01T22:41:30Z",
       "commands": [
-        {
-          "command": "npm run proof:check",
-          "outcome": "passed"
-        },
         {
           "command": "npm run build",
           "outcome": "passed"
@@ -1230,7 +1226,7 @@
           "outcome": "passed"
         },
         {
-          "command": "npx vitest run tests/opencode-v2.test.ts tests/doctor.test.ts tests/install.test.ts tests/verify-install.test.ts (145 tests)",
+          "command": "npm test -- tests/opencode-v2.test.ts tests/doctor.test.ts tests/install.test.ts tests/verify-install.test.ts (145 tests)",
           "outcome": "passed"
         },
         {
