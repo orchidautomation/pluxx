@@ -27,7 +27,7 @@ const INSTALL_PATHS: Record<TargetPlatform, string> = {
   'claude-code': '.claude/plugins/megamind',
   cursor: '.cursor/plugins/local/megamind',
   codex: '.codex/plugins/megamind',
-  opencode: '.config/opencode/plugins/megamind',
+  opencode: '.config/opencode/pluxx/megamind',
   'github-copilot': '.github-copilot/plugins/megamind',
   openhands: '.openhands/plugins/megamind',
   warp: '.warp/plugins/megamind',
@@ -109,7 +109,7 @@ describe('install', () => {
 
   it('installs OpenCode with a root entry file and globally discoverable skills', async () => {
     mkdirSync(resolve(DIST_DIR, 'opencode/skills/client-intel'), { recursive: true })
-    await Bun.write(resolve(DIST_DIR, 'opencode/index.ts'), 'export const MegamindPlugin = async () => ({});\n')
+    await Bun.write(resolve(DIST_DIR, 'opencode/index.ts'), 'export default { id: "megamind", setup: async () => {}, server: async () => ({}) };\n')
     await Bun.write(
       resolve(DIST_DIR, 'opencode/skills/client-intel/SKILL.md'),
       '---\nname: client-intel\ndescription: Client intel\n---\n\n# Client Intel\n',
@@ -125,8 +125,8 @@ describe('install', () => {
     expect(readlinkSync(opencodeInstall)).toBe(resolve(DIST_DIR, 'opencode'))
     expect(existsSync(opencodeEntry)).toBe(true)
     const entryContent = readFileSync(opencodeEntry, 'utf-8')
-    expect(entryContent).toContain('import * as PluginModule from "./megamind/index.ts"')
-    expect(entryContent).toContain('pluginFactory(context)')
+    expect(entryContent).toContain('export { default } from "../pluxx/megamind/index.ts"')
+    expect(entryContent).toContain('export { default }')
     expect(entryContent).not.toContain('directory: join(context.directory, "megamind")')
     expect(entryContent).not.toContain('import { join } from "path"')
     expect(lstatSync(opencodeSkill).isSymbolicLink()).toBe(false)
@@ -143,11 +143,11 @@ describe('install', () => {
         'import { existsSync } from "fs"',
         'import { join } from "path"',
         '',
-        'export const MegamindPlugin = async (context: { directory: string, config?: { command?: string } }) => ({',
+        'export default { id: "megamind", setup: async () => {}, server: async (context: { directory: string, config?: { command?: string } }) => ({',
         '  workspaceRoot: context.directory,',
         '  nestedWorkspaceExists: existsSync(join(context.directory, "megamind")),',
         '  command: context.config?.command,',
-        '})',
+        '}) }',
         '',
       ].join('\n'),
     )
@@ -156,7 +156,7 @@ describe('install', () => {
 
     const opencodeEntry = resolve(HOME_DIR, OPENCODE_ENTRY_PATH)
     const entryModule = await import(pathToFileURL(opencodeEntry).href)
-    const result = await entryModule.Megamind({
+    const result = await entryModule.default.server({
       directory: workspaceRoot,
       config: { command: 'pluxx-opencode-proof' },
     })
@@ -170,7 +170,7 @@ describe('install', () => {
 
   it('refuses to overwrite an unowned OpenCode companion and leaves the bundle untouched', async () => {
     mkdirSync(resolve(DIST_DIR, 'opencode/skills/client-intel'), { recursive: true })
-    await Bun.write(resolve(DIST_DIR, 'opencode/index.ts'), 'export const MegamindPlugin = async () => ({});\n')
+    await Bun.write(resolve(DIST_DIR, 'opencode/index.ts'), 'export default { id: "megamind", setup: async () => {}, server: async () => ({}) };\n')
     await Bun.write(resolve(DIST_DIR, 'opencode/skills/client-intel/SKILL.md'), '# Client Intel\n')
     const entryPath = resolve(HOME_DIR, OPENCODE_ENTRY_PATH)
     mkdirSync(dirname(entryPath), { recursive: true })
@@ -267,7 +267,7 @@ describe('install', () => {
 
   it('uninstalls OpenCode wrapper files and exported skills', async () => {
     mkdirSync(resolve(DIST_DIR, 'opencode/skills/client-intel'), { recursive: true })
-    await Bun.write(resolve(DIST_DIR, 'opencode/index.ts'), 'export const MegamindPlugin = async () => ({});\n')
+    await Bun.write(resolve(DIST_DIR, 'opencode/index.ts'), 'export default { id: "megamind", setup: async () => {}, server: async () => ({}) };\n')
     await Bun.write(
       resolve(DIST_DIR, 'opencode/skills/client-intel/SKILL.md'),
       '---\nname: client-intel\ndescription: Client intel\n---\n\n# Client Intel\n',
@@ -283,7 +283,7 @@ describe('install', () => {
 
   it('preserves modified OpenCode companions during uninstall', async () => {
     mkdirSync(resolve(DIST_DIR, 'opencode/skills/client-intel'), { recursive: true })
-    await Bun.write(resolve(DIST_DIR, 'opencode/index.ts'), 'export const MegamindPlugin = async () => ({});\n')
+    await Bun.write(resolve(DIST_DIR, 'opencode/index.ts'), 'export default { id: "megamind", setup: async () => {}, server: async () => ({}) };\n')
     await Bun.write(resolve(DIST_DIR, 'opencode/skills/client-intel/SKILL.md'), '# Client Intel\n')
     await installPlugin(DIST_DIR, 'megamind', ['opencode'], { useNativeClaudeInstall: false })
     const entryPath = resolve(HOME_DIR, OPENCODE_ENTRY_PATH)
@@ -770,7 +770,7 @@ describe('install', () => {
     expect(codexUserConfig.envRefs?.TEST_API_KEY).toBe('TEST_API_KEY')
     expect(JSON.stringify(codexUserConfig)).not.toContain('shh-secret')
     expect(opencodeUserConfig.env.TEST_API_KEY).toBe('shh-secret')
-    expect(readFileSync(opencodeEntry, 'utf-8')).toContain('pluginFactory(context)')
+    expect(readFileSync(opencodeEntry, 'utf-8')).toContain('export { default }')
     expect(lstatSync(opencodeSkill).isSymbolicLink()).toBe(false)
     expect(readFileSync(resolve(opencodeSkill, 'SKILL.md'), 'utf-8')).toContain('name: megamind/client-intel')
     expect(readFileSync(resolve(cursorInstall, 'scripts/check-env.sh'), 'utf-8')).toContain('materialized required config')

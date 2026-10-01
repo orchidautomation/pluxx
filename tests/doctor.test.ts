@@ -475,7 +475,7 @@ function createOpenCodeConsumerFixture(options: { includeEntry?: boolean; includ
   const includeSyncedSkills = options.includeSyncedSkills ?? true
 
   const root = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-opencode-'))
-  const pluginDir = resolve(root, '.config/opencode/plugins/megamind')
+  const pluginDir = resolve(root, '.config/opencode/pluxx/megamind')
   const skillDir = resolve(pluginDir, 'skills/client-intel')
 
   mkdirSync(skillDir, { recursive: true })
@@ -497,6 +497,7 @@ function createOpenCodeConsumerFixture(options: { includeEntry?: boolean; includ
   )
 
   if (includeEntry) {
+    mkdirSync(resolve(root, '.config/opencode/plugins'), { recursive: true })
     writeFileSync(
       resolve(root, '.config/opencode/plugins/megamind.ts'),
       buildOpenCodeEntryFile('megamind'),
@@ -819,7 +820,7 @@ describe('doctorProject', () => {
 })
 
 describe('doctorConsumer', () => {
-  it('validates the OpenCode wrapper materialized by the Exa example installer', async () => {
+  it('rejects the V1-only wrapper from the historical Exa installer for the V2 bridge', async () => {
     const root = mkdtempSync(resolve(tmpdir(), 'pluxx-doctor-exa-installer-'))
     const pluginName = 'exa-research-example'
     const pluginDir = resolve(root, '.config/opencode/plugins', pluginName)
@@ -846,11 +847,11 @@ describe('doctorConsumer', () => {
     })
     expect(run.status).toBe(0)
     expect(run.stderr.toString()).toBe('')
-    expect(readFileSync(entryPath, 'utf8')).toBe(buildOpenCodeEntryFile(pluginName))
+    expect(readFileSync(entryPath, 'utf8')).not.toBe(buildOpenCodeEntryFile(pluginName))
 
     const report = await doctorConsumer(pluginDir)
-    expect(report.ok).toBe(true)
-    expect(report.checks).toContainEqual(expect.objectContaining({ code: 'consumer-opencode-entry-valid' }))
+    expect(report.ok).toBe(false)
+    expect(report.checks).toContainEqual(expect.objectContaining({ code: 'consumer-opencode-entry-invalid' }))
   })
 
   it('reports installed bundle health for a secret-reference consumer install', async () => {

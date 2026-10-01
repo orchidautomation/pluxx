@@ -2468,7 +2468,7 @@ function isLikelyLocalRuntimePath(value: string): boolean {
 function isLikelyOpenCodeInstallPath(rootDir: string): boolean {
   const parent = dirname(rootDir)
   const grandparent = dirname(parent)
-  return basename(parent) === 'plugins' && basename(grandparent) === 'opencode'
+  return ['plugins', 'pluxx'].includes(basename(parent)) && basename(grandparent) === 'opencode'
 }
 
 function extractOpenCodeHandlerBody(source: string, event: string): string | null {
@@ -2730,7 +2730,7 @@ function checkInstalledOpenCodeHostBridge(checks: DoctorCheck[], rootDir: string
       level: 'info',
       code: 'consumer-opencode-host-bridge-not-applicable',
       title: 'No OpenCode host bridge check for this path',
-      detail: 'This OpenCode bundle is not located under ~/.config/opencode/plugins, so host-visible wrapper checks are skipped.',
+      detail: 'This OpenCode bundle is not located under ~/.config/opencode/pluxx or the legacy plugins directory, so host-visible wrapper checks are skipped.',
       fix: 'Point --consumer at the installed OpenCode plugin directory to validate host-visible wiring.',
       path: 'package.json',
     })
@@ -2738,7 +2738,7 @@ function checkInstalledOpenCodeHostBridge(checks: DoctorCheck[], rootDir: string
   }
 
   const pluginName = basename(rootDir)
-  const entryPath = `${rootDir}.ts`
+  const entryPath = resolve(dirname(rootDir), '../plugins', `${pluginName}.ts`)
   const entryRelativePath = `${pluginName}.ts`
   if (!existsSync(entryPath)) {
     addCheck(checks, {
@@ -2759,7 +2759,7 @@ function checkInstalledOpenCodeHostBridge(checks: DoctorCheck[], rootDir: string
       level: 'error',
       code: 'consumer-opencode-entry-invalid',
       title: 'OpenCode host entry file does not match the installed bundle',
-      detail: `${entryPath} exists, but it does not proxy into ./${pluginName}/index.ts while passing the OpenCode workspace context through unchanged.`,
+      detail: `${entryPath} exists, but it does not default-export the V2 definition from ../pluxx/${pluginName}/index.ts. Legacy V1-only entries require a rebuild and reinstall.`,
       fix: 'Reinstall the plugin so Pluxx can rewrite the OpenCode entry wrapper.',
       path: entryRelativePath,
     })

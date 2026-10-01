@@ -68,6 +68,8 @@
     "access": "public"
   },
   "devDependencies": {
+    "@opencode-ai/plugin": "1.18.29",
+    "@opencode/plugin": "2.0.20",
     "@types/node": "^22.15.23",
     "@types/turndown": "^5.0.6",
     "esbuild": "^0.25.4",

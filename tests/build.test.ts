@@ -19,7 +19,7 @@ const TEST_DIR = resolve(import.meta.dir, '.fixture')
 const OUT_DIR = resolve(TEST_DIR, 'dist')
 
 function extractGeneratedJson<T>(source: string, constantName: string): T {
-  const match = source.match(new RegExp(`const ${constantName} = ([\\s\\S]*?)\\n\\nconst `))
+  const match = source.match(new RegExp(`const ${constantName}(?:[^=\\n]*) = ([\\s\\S]*?)\\n\\nconst `))
   if (!match?.[1]) {
     throw new Error(`Could not locate ${constantName} in generated source.`)
   }
@@ -922,7 +922,7 @@ describe('build', () => {
     expect(generatedSource).not.toContain(staleProjectRoot)
 
     const generatedModule = await import(`${pathToFileURL(resolve(pluginRoot, 'index.ts')).href}?case=${Date.now()}`)
-    const pluginFactory = Object.values(generatedModule).find((value) => typeof value === 'function') as (
+    const pluginFactory = generatedModule.default.server as (
       input: {
         project: Record<string, unknown>
         client: { app: { log: (entry: unknown) => Promise<void> } }
@@ -1216,7 +1216,7 @@ describe('build', () => {
     expect(opencodeIndex).toContain('"local-server"')
     expect(opencodeIndex).toContain('"transport": "stdio"')
     expect(opencodeIndex).toContain('"command": "node"')
-    expect(opencodeIndex).toContain('const MCP_RUNTIME_ENV_VARS =')
+    expect(opencodeIndex).toContain('const MCP_RUNTIME_ENV_VARS:')
     expect(opencodeIndex).toContain('"local-server": [')
     expect(opencodeIndex).toContain('"LOCAL_FIXTURE_TOKEN": "${LOCAL_FIXTURE_TOKEN}"')
     expect(opencodeIndex).not.toContain('"type": "platform"')
@@ -1549,7 +1549,7 @@ describe('build', () => {
     expect(existsSync(resolve(OUT_DIR, 'opencode/agents/escalation.md'))).toBe(true)
     expect(indexTs).toContain('const INSTRUCTIONS =')
     expect(indexTs).toContain('applyInstructions(output.system)')
-    expect(indexTs).toContain('const MCP_DEFINITIONS =')
+    expect(indexTs).toContain('const MCP_DEFINITIONS:')
     expect(indexTs).toContain('"headerName": "Authorization"')
     expect(indexTs).toContain('remote.headers = { Authorization: `Bearer ${token}` }')
     expect(indexTs).toContain('const EVENT_HOOKS')
@@ -2116,7 +2116,7 @@ describe('build', () => {
     }
     const commands: string[] = []
     const logs: unknown[] = []
-    const plugin = await generatedModule.OpencodeHookMatcherPlugin({
+    const plugin = await generatedModule.default.server({
       project: {},
       directory: TEST_DIR,
       client: {

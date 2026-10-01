@@ -710,3 +710,7 @@ Linear is where the detailed execution layer should live:
 Workspace:
 
 - [Orchid Automation Linear](https://linear.app/orchid-automation)
+
+## OpenCode 2 compatibility candidate (PLUXX-355)
+
+The source candidate now emits one default V2 `id/setup` entry with V1 `server()` compatibility and installs supporting bundles outside `plugins/`. The [versioned compatibility and proof boundary](../opencode-v2-compatibility.md) records translation limits and transactional legacy migration. OpenCode 2.0.20 reports its version in an isolated profile, but sandbox socket restrictions block plugin/MCP listing and a free-model `setup_doctor` session. Live V2/V1 acceptance remains pending; the public 0.1.45 release and downstream SendLens closure are unchanged.

@@ -237,6 +237,10 @@ export function transactionalInstall(options: {
 export function transactionalInstallGroup(options: {
   pluginName: string
   platform: TargetPlatform
+  // Relocate only a verified, unchanged owned primary bundle. Its backup stays
+  // recoverable until every candidate surface and ownership record is saved.
+  previousInstallPath?: string
+  verify?: () => void
   targets: Array<{
     sourcePath?: string
     installPath: string
@@ -260,6 +264,16 @@ export function transactionalInstallGroup(options: {
   }
 
   const nonce = `${process.pid}-${randomBytes(5).toString('hex')}`
+  const previousPath = options.previousInstallPath && resolve(options.previousInstallPath)
+  const previousBackup = previousPath && `${previousPath}.pluxx-backup-${nonce}`
+  if (previousPath && paths.has(previousPath)) throw new Error('Previous install path must differ from candidate paths.')
+  let movedLegacy = false
+  if (previousPath && existsSync(previousPath)) {
+    const record = readInstallOwnership(options.pluginName, options.platform, previousPath)
+    if (!record || listInstallOwnershipDrift(record).length > 0) {
+      throw new Error(`Refusing to migrate unowned or modified install at ${previousPath}. Move it aside manually, then retry.`)
+    }
+  }
   const transactions = options.targets.map((target, index) => {
     const installPath = resolve(target.installPath)
     const parent = dirname(installPath)
@@ -271,7 +285,9 @@ export function transactionalInstallGroup(options: {
       stagePath: resolve(parent, `.${options.pluginName}.pluxx-stage-${nonce}-${index}`),
       backupPath: resolve(parent, `.${options.pluginName}.pluxx-backup-${nonce}-${index}`),
       ownershipPath: getInstallOwnershipPath(options.pluginName, options.platform, undefined, target.surface),
-      previousOwnership: undefined as Buffer | undefined,
+      previousOwnership: existsSync(getInstallOwnershipPath(options.pluginName, options.platform, undefined, target.surface))
+        ? readFileSync(getInstallOwnershipPath(options.pluginName, options.platform, undefined, target.surface))
+        : undefined as Buffer | undefined,
       movedPrevious: false,
       installedCandidate: false,
     }
@@ -293,6 +309,11 @@ export function transactionalInstallGroup(options: {
       transaction.validate?.(transaction.stagePath)
     }
 
+    if (previousPath && previousBackup && existsSync(previousPath)) {
+      renameSync(previousPath, previousBackup)
+      movedLegacy = true
+    }
+
     for (const transaction of transactions) {
       if (existsSync(transaction.ownershipPath)) transaction.previousOwnership = readFileSync(transaction.ownershipPath)
       if (existsSync(transaction.installPath)) {
@@ -304,6 +325,7 @@ export function transactionalInstallGroup(options: {
       transaction.validate?.(transaction.installPath)
     }
 
+    options.verify?.()
     for (const transaction of transactions) {
       const record = buildOwnership(
         options.pluginName,
@@ -320,6 +342,9 @@ export function transactionalInstallGroup(options: {
         try { rmSync(transaction.backupPath, { recursive: true, force: true }) } catch { /* Recoverable backup. */ }
       }
     }
+    if (movedLegacy && previousBackup) {
+      try { rmSync(previousBackup, { recursive: true, force: true }) } catch { /* Recoverable backup. */ }
+    }
     return ownership
   } catch (error) {
     for (const transaction of [...transactions].reverse()) {
@@ -330,6 +355,7 @@ export function transactionalInstallGroup(options: {
         writeFileSync(transaction.ownershipPath, transaction.previousOwnership, { mode: 0o600 })
       } else rmSync(transaction.ownershipPath, { force: true })
     }
+    if (movedLegacy && previousPath && previousBackup && existsSync(previousBackup)) renameSync(previousBackup, previousPath)
     throw error
   } finally {
     for (const transaction of transactions) {

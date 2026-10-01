@@ -11,6 +11,7 @@ import type { PluginConfig, TargetPlatform } from '../src/schema'
 import { planPublish, runPublish } from '../src/cli/publish'
 import { doctorConsumer } from '../src/cli/doctor'
 import { buildOpenCodeEntryFile } from '../src/opencode-entry'
+import { collectInstallEntries } from '../src/install-ownership'
 import {
   makeSecretReferenceFixtureConfig,
   SECRET_REFERENCE_ENV_VAR,
@@ -2622,6 +2623,44 @@ with tarfile.open(archive, 'w:gz') as tf:
   })
 
 
+  it('migrates an owned OpenCode discovery directory with saved config and restores it on companion failure', () => {
+    for (const fail of [false, true]) {
+      let legacyPath = ''
+      let ledgerPath = ''
+      let priorLedger = ''
+      const run = runGeneratedInstaller('opencode', {
+        setupPaths: (paths, rootDir) => {
+          const home = resolve(rootDir, 'home')
+          legacyPath = resolve(home, '.config/opencode/plugins/publish-plugin')
+          paths.installDir = paths.pluginInstallDir = resolve(home, '.config/opencode/pluxx/publish-plugin')
+          paths.env.PLUXX_OPENCODE_INSTALL_DIR = paths.installDir
+          paths.env.PLUXX_OPENCODE_ENTRY_PATH = resolve(home, '.config/opencode/plugins/publish-plugin.ts')
+          mkdirSync(legacyPath, { recursive: true })
+          writeFileSync(resolve(legacyPath, 'package.json'), JSON.stringify(matchingLegacyManifestForPlatform('opencode')))
+          writeFileSync(resolve(legacyPath, '.pluxx-user.json'), JSON.stringify({
+            values: { 'instantly-api-key': 'saved-instantly-key' },
+            env: { SENDLENS_INSTANTLY_API_KEY: 'saved-instantly-key' },
+          }))
+          ledgerPath = generatedInstallerOwnershipPath('opencode', rootDir, legacyPath)
+          mkdirSync(dirname(ledgerPath), { recursive: true })
+          priorLedger = JSON.stringify({ schema: 'pluxx.install-ownership.v1', pluginName: 'publish-plugin', platform: 'opencode',
+            installPath: legacyPath, kind: 'copy', entries: collectInstallEntries(legacyPath) })
+          writeFileSync(ledgerPath, priorLedger)
+          if (fail) writeFileSync(paths.env.PLUXX_OPENCODE_ENTRY_PATH, '// private collision\n')
+        },
+      })
+      expect(run.status).toBe(fail ? 1 : 0)
+      expect(existsSync(legacyPath)).toBe(fail)
+      if (fail) {
+        expect(readFileSync(ledgerPath, 'utf-8')).toBe(priorLedger)
+        expect(existsSync(run.pluginInstallDir)).toBe(false)
+      } else {
+        expect(run.installedUserConfig?.values?.['instantly-api-key']).toBe('saved-instantly-key')
+        expect(JSON.parse(readFileSync(ledgerPath, 'utf-8')).installPath).toBe(run.pluginInstallDir)
+      }
+    }
+  })
+
   it('adopts trusted pre-ownership generated installs across core hosts', () => {
     const platforms: TargetPlatform[] = ['claude-code', 'cursor', 'codex', 'opencode']
 
@@ -2665,8 +2704,8 @@ with tarfile.open(archive, 'w:gz') as tf:
       }
 
       if (platform === 'opencode') {
-        expect(readFileSync(resolve(run.rootDir, 'publish-plugin.ts'), 'utf-8')).toContain('OpenCode auto-loads plugin files')
-        expect(readFileSync(resolve(run.rootDir, 'publish-plugin.ts'), 'utf-8')).toContain('pluginFactory(context)')
+        expect(readFileSync(resolve(run.rootDir, 'publish-plugin.ts'), 'utf-8')).toContain('One discovered entry')
+        expect(readFileSync(resolve(run.rootDir, 'publish-plugin.ts'), 'utf-8')).toContain('export { default }')
         expect(readFileSync(resolve(run.rootDir, 'publish-plugin.ts'), 'utf-8')).not.toContain('directory: join(context.directory, "publish-plugin")')
         expect(readFileSync(resolve(run.rootDir, 'opencode-skills/publish-plugin-client-intel/SKILL.md'), 'utf-8')).toContain('name: publish-plugin/client-intel')
       }
@@ -2694,7 +2733,7 @@ with tarfile.open(archive, 'w:gz') as tf:
     })
 
     expect(run.status, `installer failed:\n${run.stderr}\n${run.stdout}`).toBe(0)
-    expect(readFileSync(resolve(run.rootDir, 'publish-plugin.ts'), 'utf-8')).toContain('pluginFactory(context)')
+    expect(readFileSync(resolve(run.rootDir, 'publish-plugin.ts'), 'utf-8')).toContain('export { default }')
     expect(existsSync(generatedInstallerOwnershipPath('opencode', run.rootDir, run.pluginInstallDir))).toBe(true)
   })
 
@@ -2705,8 +2744,8 @@ with tarfile.open(archive, 'w:gz') as tf:
     const run = runGeneratedInstaller('opencode', {
       config,
       prepareRuntime: (rootDir) => {
-        installedBundle = resolve(rootDir, 'home/.config/opencode/plugins/publish-plugin')
-        installedEntry = `${installedBundle}.ts`
+        installedBundle = resolve(rootDir, 'home/.config/opencode/pluxx/publish-plugin')
+        installedEntry = resolve(rootDir, 'home/.config/opencode/plugins/publish-plugin.ts')
         return {
           PLUXX_OPENCODE_INSTALL_DIR: installedBundle,
           PLUXX_OPENCODE_ENTRY_PATH: installedEntry,
@@ -2725,11 +2764,11 @@ with tarfile.open(archive, 'w:gz') as tf:
           'import { existsSync } from "fs"',
           'import { join } from "path"',
           '',
-          'export const PublishPlugin = async (context: { directory: string, config?: { command?: string } }) => ({',
+          'export default { id: "publish-plugin", setup: async () => {}, server: async (context: { directory: string, config?: { command?: string } }) => ({',
           '  workspaceRoot: context.directory,',
           '  nestedWorkspaceExists: existsSync(join(context.directory, "publish-plugin")),',
           '  command: context.config?.command,',
-          '})',
+          '}) }',
           '',
         ].join('\n'),
       },
@@ -2746,7 +2785,7 @@ with tarfile.open(archive, 'w:gz') as tf:
     }))
 
     const entryModule = await import(pathToFileURL(installedEntry).href)
-    const result = await entryModule.PublishPlugin({
+    const result = await entryModule.default.server({
       directory: workspaceRoot,
       config: { command: 'pluxx-release-wrapper-proof' },
     })
@@ -2783,7 +2822,7 @@ with tarfile.open(archive, 'w:gz') as tf:
             'export const PublishPlugin: Plugin = async (context) => ({',
             '  ...context,',
             '  directory: join(context.directory, "custom-location"),',
-            '})',
+            '}) }',
             '',
           ].join('\n'),
         )
