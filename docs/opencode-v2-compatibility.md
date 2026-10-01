@@ -1,6 +1,6 @@
 # OpenCode 2 compatibility candidate
 
-PLUXX-355 changes the generated OpenCode entry and installation contract. This is source-candidate work; the public Pluxx 0.1.45 release and previously generated consumer bundles do not acquire V2 support automatically.
+PLUXX-355 changes the generated OpenCode entry and installation contract. PRs #506 and #508 are merged; the 0.1.46 package is in release preparation. The historical public Pluxx 0.1.45 release and previously generated consumer bundles do not acquire V2 support automatically.
 
 ## Entry and installation
 
@@ -37,4 +37,4 @@ On 2026-10-01, user-approved checks outside the sandbox passed with the official
 
 The host proof aligns XDG configuration with the installed HOME layout and uses an available localhost service port. Explicit V2 `plugins` configuration requires a directory rather than a wrapper file, so the checks use native wrapper discovery. Initial cold listings were empty before a workspace session was run; repeat listings after the successful tool session showed the active plugin and connected MCP. This startup observation remains a host caveat. The isolated test service was stopped after the checks.
 
-Required release order: complete live host acceptance and review -> merge/release Pluxx -> rebuild SendLens using the exact released Pluxx version in its separate issue -> install and validate that downstream artifact. This change grants no downstream edits or release publication.
+Remaining release order: merge and publish Pluxx 0.1.46 -> rebuild SendLens using that exact published version -> install and validate the downstream artifact. Source and fixture host checks do not close the SendLens installed-host acceptance.
