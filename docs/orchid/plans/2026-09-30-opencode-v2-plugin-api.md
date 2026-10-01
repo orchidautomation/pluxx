@@ -61,6 +61,8 @@ An installed Pluxx OpenCode bundle loads exactly once in OpenCode 2, registers i
 
 ## Recovery, risk, and readiness
 
+Implementation delta: the merged source work also changed `src/cli/publish.ts`, `src/install-ownership.ts`, and `src/cli/doctor.ts`; added `src/generators/opencode/v2.ts` and `src/opencode-probe.ts`; and expanded their focused tests and `docs/opencode-v2-compatibility.md`. These paths implement the planned installer transaction, host bridge, and verification behavior. The release-publication boundary remains separate: changing the generated release installer source here did not publish a release.
+
 The install path move is the main migration risk. Use existing transactional install ownership checks and test rollback before deleting old owned paths. Reverting the PR restores the previous generator; a released rollback requires reinstalling the prior generated bundle and does not rewrite customer state. V2 API docs are current evidence, but implementation must pin a compatible SDK and validate actual signatures. No deployed/consumer parity is inferred from source tests.
 
 **Ready for hosted implementation** on the pushed source commit once the ticket pins this plan's remote bytes, source ref/commit, and exact allowed paths, then native Orchid delegation is verified. The immediate executor action is S1, followed by S2-S5. One Pluxx PR is reviewable because all changes serve one host-load result; SendLens is a separate repository and PR after the Pluxx release.

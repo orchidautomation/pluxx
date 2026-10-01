@@ -2725,6 +2725,64 @@ with tarfile.open(archive, 'w:gz') as tf:
     }
   })
 
+  it('derives the generated OpenCode bundle location from a custom plugin root', () => {
+    let expectedInstallDir = ''
+    const run = runGeneratedInstaller('opencode', {
+      config: { ...makeConfig(), targets: ['opencode'], userConfig: undefined },
+      setupPaths: (paths, rootDir) => {
+        const pluginRoot = resolve(rootDir, 'home/custom/plugins')
+        expectedInstallDir = resolve(rootDir, 'home/custom/pluxx/publish-plugin')
+        delete paths.env.PLUXX_OPENCODE_INSTALL_DIR
+        paths.env.PLUXX_OPENCODE_PLUGIN_ROOT_DIR = pluginRoot
+        paths.env.PLUXX_OPENCODE_ENTRY_PATH = resolve(pluginRoot, 'publish-plugin.ts')
+        paths.installDir = paths.pluginInstallDir = expectedInstallDir
+      },
+    })
+
+    expect(run.status).toBe(0)
+    expect(existsSync(resolve(expectedInstallDir, 'package.json'))).toBe(true)
+    expect(existsSync(resolve(run.rootDir, 'home/custom/plugins/publish-plugin.ts'))).toBe(true)
+  })
+
+  it('recovers a verified legacy OpenCode backup left by an interrupted install', () => {
+    let legacyPath = ''
+    let backupPath = ''
+    const run = runGeneratedInstaller('opencode', {
+      config: { ...makeConfig(), targets: ['opencode'], userConfig: undefined },
+      setupPaths: (paths, rootDir) => {
+        legacyPath = resolve(rootDir, 'home/.config/opencode/plugins/publish-plugin')
+        backupPath = resolve(dirname(paths.pluginInstallDir), '.publish-plugin.pluxx-legacy-12345')
+        mkdirSync(backupPath, { recursive: true })
+        writeFileSync(resolve(backupPath, 'package.json'), JSON.stringify(matchingLegacyManifestForPlatform('opencode')))
+        const ledgerPath = generatedInstallerOwnershipPath('opencode', rootDir, legacyPath)
+        mkdirSync(dirname(ledgerPath), { recursive: true })
+        writeFileSync(ledgerPath, JSON.stringify({ schema: 'pluxx.install-ownership.v1', pluginName: 'publish-plugin', platform: 'opencode',
+          installPath: legacyPath, kind: 'copy', entries: collectInstallEntries(backupPath) }))
+      },
+    })
+
+    expect(run.status, run.stderr).toBe(0)
+    expect(existsSync(backupPath)).toBe(false)
+    expect(existsSync(legacyPath)).toBe(false)
+    expect(existsSync(resolve(run.pluginInstallDir, 'package.json'))).toBe(true)
+  })
+
+  it('preserves an unverified legacy OpenCode backup for manual inspection', () => {
+    let backupPath = ''
+    const run = runGeneratedInstaller('opencode', {
+      config: { ...makeConfig(), targets: ['opencode'], userConfig: undefined },
+      setupPaths: (paths) => {
+        backupPath = resolve(dirname(paths.pluginInstallDir), '.publish-plugin.pluxx-legacy-12345')
+        mkdirSync(backupPath, { recursive: true })
+        writeFileSync(resolve(backupPath, 'user.txt'), 'private data\n')
+      },
+    })
+
+    expect(run.status).toBe(1)
+    expect(run.stderr).toContain('Refusing unowned legacy OpenCode discovery path')
+    expect(readFileSync(resolve(backupPath, 'user.txt'), 'utf-8')).toBe('private data\n')
+  })
+
   it('adopts trusted pre-ownership generated installs across core hosts', () => {
     const platforms: TargetPlatform[] = ['claude-code', 'cursor', 'codex', 'opencode']
 

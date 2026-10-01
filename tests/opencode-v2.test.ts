@@ -173,6 +173,14 @@ describe('OpenCode 2 installed contract', () => {
 })
 
 describe('OpenCode 2 runtime gates', () => {
+  it('rejects fail-closed event hooks before V2 registration', async () => {
+    config.hooks = { sessionStart: [{ command: 'exit 7', failClosed: true }] }
+    await build(config, ROOT)
+    const state = context()
+    await expect((await definition()).setup(state.ctx)).rejects.toThrow('cannot enforce failClosed event hooks')
+    expect(state.disposed()).toBe(0)
+  })
+
   it('runs after hooks for completed, failed and cancelled tools', async () => {
     config.hooks = { postToolUse: [{ command: 'printf after >> "${PLUGIN_ROOT}/after.txt"', matcher: 'Read' }] }
     await build(config, ROOT)

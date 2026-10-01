@@ -18,13 +18,12 @@ export default {
       } as unknown as Parameters<Plugin>[0])
       const config: Config = {}
       await hooks.config?.(config)
+      if (Object.values(EVENT_HOOKS).some(entries => entries.some(hook => hook.failClosed))) {
+        throw new Error(${JSON.stringify(id + ': OpenCode 2 event subscriptions cannot enforce failClosed event hooks. Use OpenCode 1.18.29+ or remove failClosed from event hooks.')})
+      }
       // V2 retains environment and replaces enabled with disabled.
       const servers = Object.entries(config.mcp ?? {}).map(([name, definition]) => {
         if (!("type" in definition)) throw new Error("Unsupported MCP definition: " + name)
-        if (definition.type === "local") {
-          const { enabled, timeout, ...rest } = definition
-          return [name, { ...rest, disabled: enabled === false, ...(timeout === undefined ? {} : { timeout: { startup: timeout, catalog: timeout, execution: timeout } }) }] as const
-        }
         const { enabled, timeout, ...rest } = definition
         return [name, { ...rest, disabled: enabled === false, ...(timeout === undefined ? {} : { timeout: { startup: timeout, catalog: timeout, execution: timeout } }) }] as const
       })
