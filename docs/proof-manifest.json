@@ -294,6 +294,14 @@
       "freshness": "historical",
       "evidencePath": "docs/orchid/receipts/2026-09-06-pluxx-0.1.45-release.json",
       "receiptId": "v0.1.45-published-package"
+    },
+    {
+      "id": "v0.1.46-release-prep-validation",
+      "summary": "The committed 0.1.46 release-prep candidate passes proof freshness, build, typecheck, 145 focused OpenCode and installer checks, packaged Node runtime verification, and dry-run packaging. The complete local release gate was interrupted; CI must finish it before release.",
+      "tier": "bundle-contract",
+      "freshness": "current",
+      "evidencePath": "docs/orchid/plans/2026-10-01-pluxx-341-opencode2-release.md",
+      "receiptId": "v0.1.46-release-prep-validation"
     }
   ],
   "receipts": [
@@ -1198,6 +1206,50 @@
           "sha256": "3f19bc70cc870c875283132fd20e4aede94bbcdf4ac9759366b126aed3c874dd",
           "outcome": "passed",
           "unavailableReason": "The public CLI ran from an isolated temporary npm installation. This receipt does not claim an active-home installation or real-host behavior."
+        }
+      ]
+    },
+    {
+      "id": "v0.1.46-release-prep-validation",
+      "tier": "bundle-contract",
+      "freshness": "current",
+      "commitSha": "92422674721f63eaa7e53c4c742d05744ae302ef",
+      "packageVersion": "0.1.46",
+      "timestamp": "2026-10-01T20:24:37Z",
+      "commands": [
+        {
+          "command": "npm run proof:check",
+          "outcome": "passed"
+        },
+        {
+          "command": "npm run build",
+          "outcome": "passed"
+        },
+        {
+          "command": "npm run typecheck",
+          "outcome": "passed"
+        },
+        {
+          "command": "npx vitest run tests/opencode-v2.test.ts tests/doctor.test.ts tests/install.test.ts tests/verify-install.test.ts (145 tests)",
+          "outcome": "passed"
+        },
+        {
+          "command": "node scripts/verify-node-package-runtime.mjs",
+          "outcome": "passed"
+        },
+        {
+          "command": "node scripts/run-npm-pack.mjs --dry-run",
+          "outcome": "passed"
+        }
+      ],
+      "targets": [
+        {
+          "target": "repository-and-isolated-package",
+          "hostVersion": "Node 24.15.0",
+          "installedPath": null,
+          "sha256": null,
+          "outcome": "passed",
+          "unavailableReason": "This release-preparation receipt covers source and isolated package checks, not a published or active-host installation."
         }
       ]
     }

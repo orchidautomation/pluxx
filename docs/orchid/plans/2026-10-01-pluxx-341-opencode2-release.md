@@ -26,3 +26,7 @@ Publish the merged OpenCode 2 support from PLUXX-355 and PLUXX-356, then rebuild
 3. Update both SendLens manifests to the exact published Pluxx version, rebuild its host bundles, and run the plugin and host validation gates in a separate issue branch and PR.
 4. Install that SendLens build in a clean OpenCode 2 profile. Capture `opencode mcp list`, `setup_doctor`, plugin discovery, and the artifact/version identities without credentials or customer data.
 5. Close SENDOSS-161 and SENDOSS-176 delivery gate only when the installed proof passes. Keep RELAY-149/-150/-151 in the Relay lane.
+
+## Release-prep verification
+
+At commit `92422674721f63eaa7e53c4c742d05744ae302ef`, proof freshness, build, and typecheck passed. The focused OpenCode 2, doctor, install, and verify-install suites passed (145 tests across four files). The built 0.1.46 tarball passed isolated Node package runtime verification and dry-run packing. The complete local release gate was interrupted during its slow serial suite after partial passes; the full gate remains a required PR/CI check before release.
