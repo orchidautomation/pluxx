@@ -3,7 +3,7 @@ import { assertIsolatedCodexTestEnvironment } from '../test-fixtures/codex-plugi
 import { validateInstallResultsEnvelope } from '../src/install-contract'
 import { afterEach, describe, expect, it } from 'bun:test'
 import { createHash } from 'crypto'
-import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'fs'
+import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'fs'
 import { spawn, spawnSync } from 'child_process'
 import { dirname, resolve } from 'path'
 import { pathToFileURL } from 'url'
@@ -1424,6 +1424,26 @@ describe('runPublish', () => {
     expect(lstatSync(manifestPath).mtimeMs).toBe(before)
   })
 
+  it('checks stale OpenCode discovery paths before returning an already-current result', () => {
+    const config = { ...makeConfig(), targets: ['opencode'] as TargetPlatform[], userConfig: undefined }
+    const first = runGeneratedInstaller('opencode', { config })
+    expect(first.status).toBe(0)
+    const paths = getGeneratedInstallerPaths('opencode', first.rootDir)
+    const legacy = resolve(first.rootDir, 'legacy-plugins/publish-plugin')
+    mkdirSync(legacy, { recursive: true })
+    writeFileSync(resolve(legacy, 'private.txt'), 'preserve')
+    const installerPath = resolve(first.rootDir, 'install-opencode-current.sh')
+    writeFileSync(installerPath, first.installerContent)
+    const rerun = spawnSync('bash', [installerPath, '--json'], { encoding: 'utf-8', env: {
+      ...isolatedInstallerEnvironment(process.env), HOME: resolve(first.rootDir, 'home'), TMPDIR: resolve(first.rootDir, 'tmp'), ...paths.env,
+      PLUXX_OPENCODE_BUNDLE_PATH: first.archivePath, PLUXX_OPENCODE_PLUGIN_ROOT_DIR: dirname(legacy),
+    } })
+    expect(rerun.status).toBe(1)
+    expect(rerun.stderr).toContain('Refusing unowned legacy OpenCode discovery path')
+    expect(readFileSync(resolve(legacy, 'private.txt'), 'utf-8')).toBe('preserve')
+    expect(existsSync(resolve(first.pluginInstallDir, 'package.json'))).toBe(true)
+  })
+
   it('rejects a tampered per-host installer before the top-level installer executes it', () => {
     const config = { ...makeConfig(), targets: ['codex'] as TargetPlatform[] }
     prepareBuiltTarget('codex', GENERATED_INSTALLER_FIXTURE_FILES.codex)
@@ -2652,11 +2672,55 @@ with tarfile.open(archive, 'w:gz') as tf:
       expect(run.status).toBe(fail ? 1 : 0)
       expect(existsSync(legacyPath)).toBe(fail)
       if (fail) {
+        expect(run.stderr).toContain('Refusing to replace unowned OpenCode companion')
         expect(readFileSync(ledgerPath, 'utf-8')).toBe(priorLedger)
         expect(existsSync(run.pluginInstallDir)).toBe(false)
       } else {
         expect(run.installedUserConfig?.values?.['instantly-api-key']).toBe('saved-instantly-key')
         expect(JSON.parse(readFileSync(ledgerPath, 'utf-8')).installPath).toBe(run.pluginInstallDir)
+      }
+    }
+  })
+
+  it('migrates custom-root legacy directories and dangling symlinks using their own ledgers', () => {
+    for (const kind of ['copy', 'symlink'] as const) for (const fail of [false, true]) {
+      let legacy = ''
+      let legacyLedger = ''
+      let oldLedger = ''
+      let linkTarget = ''
+      const run = runGeneratedInstaller('opencode', {
+        config: { ...makeConfig(), targets: ['opencode'], userConfig: undefined },
+        setupPaths: (paths, rootDir) => {
+          const legacyRoot = resolve(rootDir, 'legacy-plugins')
+          legacy = resolve(legacyRoot, 'publish-plugin')
+          paths.env.PLUXX_OPENCODE_PLUGIN_ROOT_DIR = legacyRoot
+          mkdirSync(legacyRoot, { recursive: true })
+          linkTarget = resolve(rootDir, 'missing-source')
+          if (kind === 'symlink') symlinkSync(linkTarget, legacy)
+          else {
+            mkdirSync(legacy)
+            writeFileSync(resolve(legacy, 'package.json'), JSON.stringify(matchingLegacyManifestForPlatform('opencode')))
+          }
+          legacyLedger = generatedInstallerOwnershipPath('opencode', rootDir, legacy)
+          mkdirSync(dirname(legacyLedger), { recursive: true })
+          oldLedger = JSON.stringify({ schema: 'pluxx.install-ownership.v1', pluginName: 'publish-plugin', platform: 'opencode', installPath: legacy, kind,
+            entries: kind === 'copy' ? collectInstallEntries(legacy) : [], ...(kind === 'symlink' ? { symlinkTarget: linkTarget } : {}) })
+          writeFileSync(legacyLedger, oldLedger)
+          if (fail) writeFileSync(paths.env.PLUXX_OPENCODE_ENTRY_PATH, '// private collision\n')
+        },
+      })
+      expect(run.status).toBe(fail ? 1 : 0)
+      if (fail) {
+        expect(run.stderr).toContain('Refusing to replace unowned OpenCode companion')
+        expect(readFileSync(legacyLedger, 'utf-8')).toBe(oldLedger)
+        if (kind === 'symlink') expect(readlinkSync(legacy)).toBe(linkTarget)
+        else expect(existsSync(legacy)).toBe(true)
+        expect(existsSync(run.pluginInstallDir)).toBe(false)
+      } else {
+        expect(lstatSync(legacy, { throwIfNoEntry: false })).toBeUndefined()
+        expect(existsSync(legacyLedger)).toBe(false)
+        const ledger = generatedInstallerOwnershipPath('opencode', run.rootDir, run.pluginInstallDir)
+        expect(JSON.parse(readFileSync(ledger, 'utf-8')).installPath).toBe(run.pluginInstallDir)
       }
     }
   })

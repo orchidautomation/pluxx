@@ -1,13 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test'
-import { mkdirSync, readFileSync, rmSync, writeFileSync, existsSync, readdirSync } from 'fs'
+import { mkdirSync, readFileSync, rmSync, writeFileSync, existsSync, readdirSync, symlinkSync, readlinkSync, lstatSync } from 'fs'
 import { resolve } from 'path'
 import { pathToFileURL } from 'url'
 import { spawnSync } from 'child_process'
 import { build } from '../src/generators'
 import { PluginConfigSchema } from '../src/schema'
-import { installPlugin } from '../src/cli/install'
+import { installPlugin, planInstallPlugin } from '../src/cli/install'
 import { verifyInstall } from '../src/cli/verify-install'
 import { transactionalInstallGroup, getInstallOwnershipPath } from '../src/install-ownership'
+import { probeOpenCodeDefinition } from '../src/opencode-probe'
 
 const ROOT = resolve(import.meta.dir, '.opencode-v2-fixture')
 const HOME_DIR = resolve(ROOT, 'home')
@@ -43,7 +44,7 @@ function context() {
     location: { directory: ROOT, project: { id: 'test' } },
     mcp: { transform: async (callback: any) => { callback({ set: (name: string, value: any) => { servers[name] = value } }); return registration() } },
     command: { transform: async (callback: any) => { callback({ add: (value: any) => { commands[value.name] = value } }); return registration() } },
-    tool: domain('tool'), shell: domain('shell'), session: { ...domain('session'), prompt: async (input: any) => { prompts.push(input) } },
+    tool: domain('tool'), shell: domain('shell'), session: { ...domain('session'), prompt: async (input: any) => { await hooks['session.prompt']?.({ sessionID: input.sessionID, prompt: input }); prompts.push(input) } },
     event: { subscribe: async function* (options: { signal: AbortSignal }) { signal = options.signal; yield { type: 'session.created' } } },
   }
   return { ctx, servers, commands, hooks, prompts, disposed: () => disposed, signal: () => signal }
@@ -94,15 +95,28 @@ describe('OpenCode 2 installed contract', () => {
   it('rejects V1-only artifacts, duplicate discovery, and missing MCP registration', async () => {
     await installPlugin(resolve(ROOT, 'dist'), config.name, ['opencode'], { quiet: true, useNativeClaudeInstall: false })
     mkdirSync(resolve(HOME_DIR, '.config/opencode/plugins/v2-proof'), { recursive: true })
-    expect((await verifyInstall(config, ROOT, { targets: ['opencode'] })).checks[0].issues.some(issue => issue.detail.includes('Duplicate OpenCode'))).toBe(true)
+    const duplicate = (await verifyInstall(config, ROOT, { targets: ['opencode'] })).checks[0].issues.find(issue => issue.code === 'consumer-opencode-duplicate-discovery')
+    expect(duplicate?.fix).toContain('move')
     rmSync(resolve(HOME_DIR, '.config/opencode/plugins/v2-proof'), { recursive: true })
     writeFileSync(resolve(bundle, 'index.ts'), 'import "./missing-dependency.js"; export default { id:"v2-proof",setup:async()=>{},server:async()=>{} }')
     expect((await verifyInstall(config, ROOT, { targets: ['opencode'] })).ok).toBe(false)
     writeFileSync(resolve(bundle, 'index.ts'), 'export const V1 = async () => ({})\n')
     expect((await verifyInstall(config, ROOT, { targets: ['opencode'] })).ok).toBe(false)
-    writeFileSync(resolve(bundle, 'index.ts'), 'const MCP_DEFINITIONS = {"fixture":{}}\n\nconst unused = 1\nexport default {id:"v2-proof",server:async()=>({}),setup:async()=>{}}')
+    writeFileSync(resolve(bundle, 'index.ts'), 'const MCP_DEFINITIONS = {"fixture":{}}\n\nconst unused = 1\nexport default {id:"v2-proof",server:async()=>({config:async c=>{c.mcp={fixture:{type:"local",command:["node"]}}}}),setup:async()=>{}}')
     const missing = await verifyInstall(config, ROOT, { targets: ['opencode'] })
     expect(missing.checks[0].issues.map(issue => issue.detail).join('\n')).toContain('did not register configured MCP')
+  })
+
+  it('rejects broken V1 factories, hook shapes and MCP configuration', async () => {
+    for (const [server, reason] of [
+      ['async()=>{throw new Error("V1 factory failed")}', 'V1 factory failed'],
+      ['async()=>undefined', 'V1 server must return'],
+      ['async()=>({config:42})', 'V1 server must return'],
+      ['async()=>({config:async c=>{c.mcp={fixture:{type:"local",command:"node"}}}})', 'Invalid OpenCode V1 MCP'],
+    ]) {
+      writeFileSync(resolve(bundle, 'index.ts'), `export default {id:"v2-proof",setup:async()=>{},server:${server}}`)
+      await expect(probeOpenCodeDefinition(resolve(bundle, 'index.ts'), bundle, config.name, ['fixture'])).rejects.toThrow(reason)
+    }
   })
 
   it('disposes earlier registrations when setup fails', async () => {
@@ -115,13 +129,36 @@ describe('OpenCode 2 installed contract', () => {
   it('migrates an owned legacy bundle and restores it when a published candidate fails validation', () => {
     const legacy = resolve(HOME_DIR, '.config/opencode/plugins/v2-proof')
     transactionalInstallGroup({ pluginName: config.name, platform: 'opencode', targets: [{ sourcePath: bundle, installPath: legacy, kind: 'copy' }] })
+    expect(planInstallPlugin(resolve(ROOT, 'dist'), config.name, ['opencode'])[0].existing).toBe(true)
     const ledger = readFileSync(getInstallOwnershipPath(config.name, 'opencode'), 'utf-8')
     expect(() => transactionalInstallGroup({ pluginName: config.name, platform: 'opencode', previousInstallPath: legacy, targets: [{ sourcePath: bundle, installPath: installed, kind: 'copy', validate: path => { if (path === installed) throw new Error('published validation failed') } }] })).toThrow('published validation failed')
     expect(existsSync(legacy)).toBe(true)
     expect(existsSync(installed)).toBe(false)
     expect(readFileSync(getInstallOwnershipPath(config.name, 'opencode'), 'utf-8')).toBe(ledger)
-    transactionalInstallGroup({ pluginName: config.name, platform: 'opencode', previousInstallPath: legacy, targets: [{ sourcePath: bundle, installPath: installed, kind: 'copy' }] })
+    transactionalInstallGroup({ pluginName: config.name, platform: 'opencode', previousInstallPath: legacy, targets: [{ sourcePath: bundle, installPath: installed, kind: 'copy' }], verify: () => {
+      expect(readdirSync(resolve(legacy, '..'))).toEqual([])
+      expect(readdirSync(resolve(installed, '..')).some(name => name.includes('pluxx-legacy'))).toBe(true)
+    } })
     expect(existsSync(legacy)).toBe(false)
+    expect(existsSync(installed)).toBe(true)
+  })
+
+  it('rejects unowned dangling legacy links and restores owned links after rollback', () => {
+    const legacy = resolve(HOME_DIR, '.config/opencode/plugins/v2-proof')
+    const target = resolve(ROOT, 'missing-source')
+    mkdirSync(resolve(legacy, '..'), { recursive: true })
+    symlinkSync(target, legacy)
+    const migrate = (verify?: () => void) => transactionalInstallGroup({ pluginName: config.name, platform: 'opencode', previousInstallPath: legacy, targets: [{ sourcePath: bundle, installPath: installed, kind: 'copy' }], verify })
+    expect(() => migrate()).toThrow('unowned or modified')
+    expect(readlinkSync(legacy)).toBe(target)
+    rmSync(legacy)
+    transactionalInstallGroup({ pluginName: config.name, platform: 'opencode', targets: [{ sourcePath: target, installPath: legacy, kind: 'symlink' }] })
+    const ledger = readFileSync(getInstallOwnershipPath(config.name, 'opencode'), 'utf-8')
+    expect(() => migrate(() => { throw new Error('rollback dangling link') })).toThrow('rollback dangling link')
+    expect(readlinkSync(legacy)).toBe(target)
+    expect(readFileSync(getInstallOwnershipPath(config.name, 'opencode'), 'utf-8')).toBe(ledger)
+    migrate()
+    expect(lstatSync(legacy, { throwIfNoEntry: false })).toBeUndefined()
     expect(existsSync(installed)).toBe(true)
   })
 
@@ -136,6 +173,27 @@ describe('OpenCode 2 installed contract', () => {
 })
 
 describe('OpenCode 2 runtime gates', () => {
+  it('runs after hooks for completed, failed and cancelled tools', async () => {
+    config.hooks = { postToolUse: [{ command: 'printf after >> "${PLUGIN_ROOT}/after.txt"', matcher: 'Read' }] }
+    await build(config, ROOT)
+    const state = context()
+    const cleanup = await (await definition()).setup(state.ctx)
+    for (const status of ['completed', 'failed', 'cancelled']) await state.hooks['tool.execute.after']({ tool: 'read', input: {}, id: status, sessionID: 's', status })
+    expect(readFileSync(resolve(bundle, 'after.txt'), 'utf-8')).toBe('afterafterafter')
+    await cleanup()
+  })
+
+  it('runs prompt hooks once for a command and once for an ordinary prompt', async () => {
+    config.hooks = { beforeSubmitPrompt: [{ command: 'printf prompt >> "${PLUGIN_ROOT}/prompts.txt"' }] }
+    await build(config, ROOT)
+    const state = context()
+    const cleanup = await (await definition()).setup(state.ctx)
+    await state.commands.doctor.execute({ sessionID: 's', prompt: { text: 'check' }, delivery: 'queue' })
+    expect(readFileSync(resolve(bundle, 'prompts.txt'), 'utf-8')).toBe('prompt')
+    await state.hooks['session.prompt']({ sessionID: 's', prompt: { text: 'ordinary' } })
+    expect(readFileSync(resolve(bundle, 'prompts.txt'), 'utf-8')).toBe('promptprompt')
+    await cleanup()
+  })
   it('runs matched hooks in order and preserves fail-open/fail-closed behavior', async () => {
     config.hooks = { preToolUse: [
       { command: 'printf first >> "${PLUGIN_ROOT}/order.txt"', matcher: 'Read' },

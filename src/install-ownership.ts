@@ -182,7 +182,7 @@ function buildOwnership(
 
 export function listInstallOwnershipDrift(record: InstallOwnership): string[] {
   const installPath = resolve(record.installPath)
-  if (!existsSync(installPath)) return ['installed path is missing']
+  if (!lstatSync(installPath, { throwIfNoEntry: false })) return ['installed path is missing']
   const details = lstatSync(installPath)
   if (record.kind === 'symlink') {
     if (!details.isSymbolicLink()) return ['installed path is no longer the owned symlink']
@@ -265,10 +265,10 @@ export function transactionalInstallGroup(options: {
 
   const nonce = `${process.pid}-${randomBytes(5).toString('hex')}`
   const previousPath = options.previousInstallPath && resolve(options.previousInstallPath)
-  const previousBackup = previousPath && `${previousPath}.pluxx-backup-${nonce}`
+  const previousBackup = previousPath && resolve(dirname(resolve(options.targets[0].installPath)), `.${options.pluginName}.pluxx-legacy-${nonce}`)
   if (previousPath && paths.has(previousPath)) throw new Error('Previous install path must differ from candidate paths.')
   let movedLegacy = false
-  if (previousPath && existsSync(previousPath)) {
+  if (previousPath && lstatSync(previousPath, { throwIfNoEntry: false })) {
     const record = readInstallOwnership(options.pluginName, options.platform, previousPath)
     if (!record || listInstallOwnershipDrift(record).length > 0) {
       throw new Error(`Refusing to migrate unowned or modified install at ${previousPath}. Move it aside manually, then retry.`)
@@ -309,7 +309,7 @@ export function transactionalInstallGroup(options: {
       transaction.validate?.(transaction.stagePath)
     }
 
-    if (previousPath && previousBackup && existsSync(previousPath)) {
+    if (previousPath && previousBackup && lstatSync(previousPath, { throwIfNoEntry: false })) {
       renameSync(previousPath, previousBackup)
       movedLegacy = true
     }
@@ -355,7 +355,7 @@ export function transactionalInstallGroup(options: {
         writeFileSync(transaction.ownershipPath, transaction.previousOwnership, { mode: 0o600 })
       } else rmSync(transaction.ownershipPath, { force: true })
     }
-    if (movedLegacy && previousPath && previousBackup && existsSync(previousBackup)) renameSync(previousBackup, previousPath)
+    if (movedLegacy && previousPath && previousBackup && lstatSync(previousBackup, { throwIfNoEntry: false })) renameSync(previousBackup, previousPath)
     throw error
   } finally {
     for (const transaction of transactions) {

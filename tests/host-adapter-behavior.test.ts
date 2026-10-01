@@ -40,7 +40,7 @@ function countOccurrences(input: string, token: string): number {
 }
 
 function extractGeneratedConstant<T>(source: string, constantName: string): T {
-  const match = source.match(new RegExp(`const ${constantName} = ([\\s\\S]*?)\\n\\nconst `))
+  const match = source.match(new RegExp(`const ${constantName}(?:[^=\\n]*) = ([\\s\\S]*?)\\n\\nconst `))
   if (!match?.[1]) {
     throw new Error(`Missing generated OpenCode constant ${constantName}.`)
   }

@@ -310,9 +310,12 @@ export async function verifyInstall(
         : native ? target.pluginDir : resolveInstalledConsumerPath(target, config.name)
       const report = await doctorConsumer(consumerPath, { projectRoot: rootDir })
       if (target.platform === 'opencode') {
-        try {
-          const duplicate = resolve(dirname(consumerPath), '../plugins', config.name)
-          if (existsSync(duplicate)) throw new Error(`Duplicate OpenCode discovery path: ${duplicate}. Preserve unowned content and move it aside before reinstalling.`)
+        const duplicate = resolve(dirname(consumerPath), '../plugins', config.name)
+        if (lstatSync(duplicate, { throwIfNoEntry: false })) {
+          report.errors++
+          report.checks.push({ level: 'error', code: 'consumer-opencode-duplicate-discovery', title: 'Duplicate OpenCode discovery path',
+            detail: `Duplicate OpenCode discovery path: ${duplicate}.`, fix: 'Preserve unowned content and move the stale discovery path aside before reinstalling.', path: duplicate })
+        } else try {
           await probeOpenCodeDefinition(resolve(dirname(consumerPath), '../plugins', `${config.name}.ts`), consumerPath, config.name, Object.keys(config.mcp ?? {}))
         } catch (error) {
           report.errors++

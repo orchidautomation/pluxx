@@ -28,6 +28,7 @@ export default {
         const { enabled, timeout, ...rest } = definition
         return [name, { ...rest, disabled: enabled === false, ...(timeout === undefined ? {} : { timeout: { startup: timeout, catalog: timeout, execution: timeout } }) }] as const
       })
+      const commandPrompts: Array<{ sessionID: string; text: string; original: string }> = []
       const registrations: Array<{ dispose(): Promise<void> }> = []
       const controller = new AbortController()
       let events: Promise<void> | undefined
@@ -40,12 +41,18 @@ export default {
             name,
             description: definition.description,
             async execute({ sessionID, prompt, delivery }) {
-              await hooks["chat.message"]?.({ sessionID, prompt: "/" + name + " " + prompt.text } as never, {} as never)
               const args = prompt.text.trim().split(/\\s+/)
               const text = definition.template.replace(/\\$ARGUMENTS/g, prompt.text)
                 .replace(/\\$(\\d+)/g, (_match, index) => args[Number(index) - 1] ?? "")
-              await ctx.session.prompt({ ...prompt, sessionID, text, delivery,
-                ...(definition.agent ? { agent: definition.agent } : {}) })
+              const admission = { sessionID, text, original: "/" + name + " " + prompt.text }
+              commandPrompts.push(admission)
+              try {
+                await ctx.session.prompt({ ...prompt, sessionID, text, delivery,
+                  ...(definition.agent ? { agent: definition.agent } : {}) })
+              } finally {
+                const index = commandPrompts.indexOf(admission)
+                if (index !== -1) commandPrompts.splice(index, 1)
+              }
             },
           })
         }))
@@ -58,7 +65,7 @@ export default {
           await hooks["tool.execute.before"]?.({ ...event, tool: canonicalTool(event.tool), callID: event.id }, { args: event.input as Record<string, unknown> })
         }))
         registrations.push(await ctx.tool.hook("execute.after", async event => {
-          if (event.status === "completed") await hooks["tool.execute.after"]?.(
+          await hooks["tool.execute.after"]?.(
             { ...event, tool: canonicalTool(event.tool), callID: event.id, args: event.input }, { title: "", output: "", metadata: {} })
         }))
         registrations.push(await ctx.shell.hook("create.before", async event => {
@@ -67,7 +74,9 @@ export default {
           Object.assign(event.env, env)
         }))
         registrations.push(await ctx.session.hook("prompt", async event => {
-          await hooks["chat.message"]?.({ sessionID: event.sessionID, prompt: event.prompt.text } as never, {} as never)
+          const index = commandPrompts.findIndex(item => item.sessionID === event.sessionID && item.text === event.prompt.text)
+          const admission = index === -1 ? undefined : commandPrompts.splice(index, 1)[0]
+          await hooks["chat.message"]?.({ sessionID: event.sessionID, prompt: admission?.original ?? event.prompt.text } as never, {} as never)
         }))
         const instructions = (event: { system: Array<{ type: string; text?: string }> }) => {
           if (INSTRUCTIONS && !event.system.some(part => part.type === "text" && part.text === INSTRUCTIONS)) {

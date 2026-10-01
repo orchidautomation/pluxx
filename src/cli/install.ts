@@ -1,7 +1,7 @@
 import { readClaudePluginInventory, selectClaudePlugin, verifyClaudePlugin } from '../claude-plugin-inventory'
 import { inspectCodexPluginCollisions, codexRequestedIdentity, CodexPluginCollisionError } from '../codex-plugin-collisions'
 import { resolve, dirname, basename, relative } from 'path'
-import { existsSync, symlinkSync, mkdirSync, rmSync, readFileSync, writeFileSync, cpSync, readdirSync, statSync } from 'fs'
+import { existsSync, lstatSync, symlinkSync, mkdirSync, rmSync, readFileSync, writeFileSync, cpSync, readdirSync, statSync } from 'fs'
 import { spawnSync } from 'child_process'
 import * as readline from 'readline'
 import type { PluginConfig, TargetPlatform, UserConfigEntry } from '../schema'
@@ -1506,7 +1506,7 @@ export function planInstallPlugin(
       ...target,
       sourceDir,
       built: existsSync(sourceDir),
-      existing: existsSync(target.pluginDir),
+      existing: !!lstatSync(target.pluginDir, { throwIfNoEntry: false }) || (target.platform === 'opencode' && !!lstatSync(resolve(dirname(target.pluginDir), '../plugins', pluginName), { throwIfNoEntry: false })),
     }
   })
   if (platforms?.includes('agent-plugins')) {

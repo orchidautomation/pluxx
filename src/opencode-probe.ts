@@ -12,6 +12,22 @@ export async function probeOpenCodeDefinition(entryPath: string, bundlePath: str
     throw new Error('OpenCode entry requires one default id/setup definition and V1 server compatibility (OpenCode 1.18.29+).')
   }
   if (Object.keys(module).some(key => key !== 'default')) throw new Error('OpenCode bundle exports multiple plugin candidates.')
+  const v1Hooks = await definition.server({ directory: process.cwd(), project: {},
+    client: { app: { log: async () => {} } }, $: async () => {} }) as Record<string, unknown> | undefined
+  if (!v1Hooks || typeof v1Hooks !== 'object' || Array.isArray(v1Hooks)
+    || typeof v1Hooks.config !== 'function'
+    || Object.values(v1Hooks).some(value => typeof value !== 'function')) {
+    throw new Error('OpenCode V1 server must return a hook object with a config function.')
+  }
+  const v1Config: { mcp?: Record<string, unknown> } = {}
+  await v1Hooks.config(v1Config)
+  for (const name of expectedMcpNames) {
+    const server = v1Config.mcp?.[name] as { type?: string; command?: unknown; url?: unknown } | undefined
+    if (!server) throw new Error(`OpenCode V1 config did not register configured MCP: ${name}`)
+    if (!['local', 'remote'].includes(server.type ?? '') || (server.type === 'local' ? !Array.isArray(server.command) : typeof server.url !== 'string')) {
+      throw new Error(`Invalid OpenCode V1 MCP configuration: ${name}`)
+    }
+  }
   const servers = new Map<string, unknown>()
   const registration = { dispose: async () => {} }
   const hook = async () => registration
