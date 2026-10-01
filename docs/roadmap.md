@@ -248,7 +248,7 @@ The closure plan is now narrower than it was before:
 - historical release-gate evidence from 2026-05-19 remains available but is not current proof:
   - `npm test` passed
   - `npm run release:check` passed
-- the canonical independently verified public release is `@orchid-labs/pluxx@0.1.45` / `v0.1.45`; npm and GitHub serve the same tarball at SHA-256 `3f19bc70cc870c875283132fd20e4aede94bbcdf4ac9759366b126aed3c874dd`
+- Historical 0.1.45 release record: the canonical independently verified public release is `@orchid-labs/pluxx@0.1.45` / `v0.1.45`; npm and GitHub serve the same tarball at SHA-256 `3f19bc70cc870c875283132fd20e4aede94bbcdf4ac9759366b126aed3c874dd`
 - historical 0.1.41 is only the PLUXX-345 Codex hook-root repair
 - 0.1.38 is only the PLUXX-340 manifest-identity follow-up discovered after shipped and independently verified 0.1.37
 - the release/distribution/proof boundary is now explicit:
@@ -410,7 +410,7 @@ This is for learning and proof, not for prematurely building the full trust laye
 
 ### 6. Current release baseline
 
-The independently verified public release is `@orchid-labs/pluxx@0.1.45` / `v0.1.45` at immutable trusted main commit `e4b1e8d9ee48ffba60f6c3775133c0d15ca0dbb5`.
+Historical release record: The independently verified public release is `@orchid-labs/pluxx@0.1.45` / `v0.1.45` at immutable trusted main commit `e4b1e8d9ee48ffba60f6c3775133c0d15ca0dbb5`.
 
 Release run [34067859595](https://github.com/orchidautomation/pluxx/actions/runs/34067859595) published the merged PR #434 portable workflow, PR #435 transactional migration, and PR #503 same-name Codex plugin collision work; npm and GitHub artifacts are byte-identical at SHA-256 `3f19bc70cc870c875283132fd20e4aede94bbcdf4ac9759366b126aed3c874dd`.
 
@@ -517,6 +517,6 @@ These may become important later, but they should not drive the roadmap now:
 
 Use [Linear](https://linear.app/orchid-automation) for issue-by-issue sequencing, ownership, and project-level detail.
 
-## OpenCode 2 compatibility candidate (PLUXX-355)
+## OpenCode 2 release preparation (PLUXX-341/355/356)
 
-The source candidate now emits one default V2 `id/setup` entry with V1 `server()` compatibility and installs supporting bundles outside `plugins/`. The [versioned compatibility and proof boundary](./opencode-v2-compatibility.md) records translation limits and transactional legacy migration. Isolated keyless host checks pass: OpenCode 2.0.20 lists one active plugin and a connected MCP server, and a free-model session calls `setup_doctor` successfully. OpenCode 1.18.29 also loads the V1 bridge, exposes the command, and connects MCP. Review and a complete full-suite result remain pending; the public 0.1.45 release and downstream SendLens closure are unchanged.
+The merged source now emits one default V2 `id/setup` entry with V1 `server()` compatibility and installs supporting bundles outside `plugins/`. The [versioned compatibility and proof boundary](./opencode-v2-compatibility.md) records translation limits and transactional legacy migration. Isolated keyless host checks pass: OpenCode 2.0.20 lists one active plugin and a connected MCP server, and a free-model session calls `setup_doctor` successfully. OpenCode 1.18.29 also loads the V1 bridge, exposes the command, and connects MCP. PRs #506 and #508 are merged; 0.1.46 is in release preparation. Downstream SendLens installed-host acceptance remains open.

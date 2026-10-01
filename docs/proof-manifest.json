@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "canonicalVersion": "0.1.45",
-  "expectedTag": "v0.1.45",
-  "releaseState": "released",
+  "canonicalVersion": "0.1.46",
+  "expectedTag": "v0.1.46",
+  "releaseState": "release-prep",
   "policy": {
     "environmentReceiptMaxAgeDays": 30
   },
@@ -275,7 +275,7 @@
       "id": "v0.1.45-repository-validation",
       "summary": "Trusted Release run 34067859595 passes the complete repository release gate for the PLUXX-352/PLUXX-353 collision and installer fixes at the exact v0.1.45 tag commit.",
       "tier": "bundle-contract",
-      "freshness": "current",
+      "freshness": "historical",
       "evidencePath": "tests/proof-freshness.test.ts",
       "receiptId": "v0.1.45-repository-validation"
     },
@@ -283,7 +283,7 @@
       "id": "v0.1.45-fake-home-install",
       "summary": "The v0.1.45 trusted release gate passes maintained core-four isolated fake-home coverage for the merged plugin collision, portable workflow, and transactional migration changes.",
       "tier": "fake-home-install",
-      "freshness": "current",
+      "freshness": "historical",
       "evidencePath": "tests/release-smoke.test.ts",
       "receiptId": "v0.1.45-fake-home-install"
     },
@@ -291,7 +291,7 @@
       "id": "v0.1.45-published-package",
       "summary": "The independently verified public Pluxx 0.1.45 npm package and GitHub Release are byte-identical, and the published CLI passes the collision API and runtime checks.",
       "tier": "bundle-contract",
-      "freshness": "current",
+      "freshness": "historical",
       "evidencePath": "docs/orchid/receipts/2026-09-06-pluxx-0.1.45-release.json",
       "receiptId": "v0.1.45-published-package"
     }
@@ -1125,7 +1125,7 @@
     {
       "id": "v0.1.45-repository-validation",
       "tier": "bundle-contract",
-      "freshness": "current",
+      "freshness": "historical",
       "commitSha": "e4b1e8d9ee48ffba60f6c3775133c0d15ca0dbb5",
       "packageVersion": "0.1.45",
       "timestamp": "2026-09-06T23:57:29.000Z",
@@ -1148,7 +1148,7 @@
     {
       "id": "v0.1.45-fake-home-install",
       "tier": "fake-home-install",
-      "freshness": "current",
+      "freshness": "historical",
       "commitSha": "e4b1e8d9ee48ffba60f6c3775133c0d15ca0dbb5",
       "packageVersion": "0.1.45",
       "timestamp": "2026-09-06T23:57:29.000Z",
@@ -1172,7 +1172,7 @@
     {
       "id": "v0.1.45-published-package",
       "tier": "bundle-contract",
-      "freshness": "current",
+      "freshness": "historical",
       "commitSha": "e4b1e8d9ee48ffba60f6c3775133c0d15ca0dbb5",
       "packageVersion": "0.1.45",
       "timestamp": "2026-09-06T23:57:29.000Z",

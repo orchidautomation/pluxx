@@ -374,7 +374,7 @@ The repo already proves a lot.
 - historical release-gate evidence from 2026-05-19 remains available but is not current proof:
   - `npm test` passed
   - `npm run release:check` passed
-- the canonical independently verified public release is `@orchid-labs/pluxx@0.1.45` / `v0.1.45`; npm and GitHub serve the same tarball at SHA-256 `3f19bc70cc870c875283132fd20e4aede94bbcdf4ac9759366b126aed3c874dd`
+- Historical 0.1.45 release record: the canonical independently verified public release is `@orchid-labs/pluxx@0.1.45` / `v0.1.45`; npm and GitHub serve the same tarball at SHA-256 `3f19bc70cc870c875283132fd20e4aede94bbcdf4ac9759366b126aed3c874dd`
 - historical `0.1.41` contains only the merged PLUXX-345 Codex hook-root repair
 - immutable tag `v0.1.38` records only the follow-up PLUXX-340 correction for duplicate release-manifest archive identities discovered after the historical shipped 0.1.37 release
 - marketplace submission APIs, a managed trust/distribution control plane, automatic rollback/unpublish orchestration, and real authenticated publish plus rollback proof remain explicit release gaps, not hidden shipped capabilities:
@@ -553,7 +553,7 @@ Run two lanes in parallel:
 
 ### 6. Release State
 
-The independently verified public release is `@orchid-labs/pluxx@0.1.45`; immutable tag `v0.1.45` resolves to trusted main commit `e4b1e8d9ee48ffba60f6c3775133c0d15ca0dbb5`. The trusted release lane completed PRs #434, #435, and #503; the release receipt records the published npm and GitHub artifact identity.
+Historical release record: The independently verified public release is `@orchid-labs/pluxx@0.1.45`; immutable tag `v0.1.45` resolves to trusted main commit `e4b1e8d9ee48ffba60f6c3775133c0d15ca0dbb5`. The trusted release lane completed PRs #434, #435, and #503; the release receipt records the published npm and GitHub artifact identity.
 
 For v0.1.37, PLUXX-339 is the tagged security focus: lint, doctor, install, and packaged-runtime verification fail closed when bundled runtime scripts source workspace `.env` files through direct or statically evaluable shell forms. The patch preserves valid safe shell forms and uses a bounded explicit scanner rather than an expanding regex.
 
@@ -630,6 +630,6 @@ Keep public repo metadata aligned with this brief:
 - GitHub About homepage URL
 - README top section
 
-## OpenCode 2 compatibility candidate (PLUXX-355)
+## OpenCode 2 release preparation (PLUXX-341/355/356)
 
-The source candidate now emits one default V2 `id/setup` entry with V1 `server()` compatibility and installs supporting bundles outside `plugins/`. The [versioned compatibility and proof boundary](./opencode-v2-compatibility.md) records translation limits and transactional legacy migration. Isolated keyless host checks pass: OpenCode 2.0.20 lists one active plugin and a connected MCP server, and a free-model session calls `setup_doctor` successfully. OpenCode 1.18.29 also loads the V1 bridge, exposes the command, and connects MCP. Review and a complete full-suite result remain pending; the public 0.1.45 release and downstream SendLens closure are unchanged.
+The merged source now emits one default V2 `id/setup` entry with V1 `server()` compatibility and installs supporting bundles outside `plugins/`. The [versioned compatibility and proof boundary](./opencode-v2-compatibility.md) records translation limits and transactional legacy migration. Isolated keyless host checks pass: OpenCode 2.0.20 lists one active plugin and a connected MCP server, and a free-model session calls `setup_doctor` successfully. OpenCode 1.18.29 also loads the V1 bridge, exposes the command, and connects MCP. PRs #506 and #508 are merged; 0.1.46 is in release preparation. Downstream SendLens installed-host acceptance remains open.
