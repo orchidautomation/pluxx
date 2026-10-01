@@ -516,3 +516,7 @@ These may become important later, but they should not drive the roadmap now:
 ## Linear Note
 
 Use [Linear](https://linear.app/orchid-automation) for issue-by-issue sequencing, ownership, and project-level detail.
+
+## OpenCode 2 compatibility candidate (PLUXX-355)
+
+The source candidate now emits one default V2 `id/setup` entry with V1 `server()` compatibility and installs supporting bundles outside `plugins/`. The [versioned compatibility and proof boundary](./opencode-v2-compatibility.md) records translation limits and transactional legacy migration. Isolated keyless host checks pass: OpenCode 2.0.20 lists one active plugin and a connected MCP server, and a free-model session calls `setup_doctor` successfully. OpenCode 1.18.29 also loads the V1 bridge, exposes the command, and connects MCP. Review and a complete full-suite result remain pending; the public 0.1.45 release and downstream SendLens closure are unchanged.

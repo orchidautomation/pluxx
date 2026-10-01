@@ -1237,9 +1237,11 @@ function renderInstallerSavedUserConfigCaptureSnippet(config: PluginConfig, plat
 
   return `
 PLUXX_SAVED_USER_CONFIG_PATH=""
-if [[ "\${PLUXX_RECONFIGURE:-0}" != "1" && -f "${installDirVariable}/.pluxx-user.json" ]]; then
+PLUXX_USER_CONFIG_SOURCE="${installDirVariable}/.pluxx-user.json"
+${platform === 'opencode' ? 'if [[ ! -f "$PLUXX_USER_CONFIG_SOURCE" && -f "$PLUXX_OPENCODE_LEGACY_PATH/.pluxx-user.json" ]]; then\n  PLUXX_USER_CONFIG_SOURCE="$PLUXX_OPENCODE_LEGACY_PATH/.pluxx-user.json"\nfi' : ''}
+if [[ "\${PLUXX_RECONFIGURE:-0}" != "1" && -f "$PLUXX_USER_CONFIG_SOURCE" ]]; then
   PLUXX_SAVED_USER_CONFIG_PATH="$TMP_DIR/pluxx-saved-user-config.json"
-  cp "${installDirVariable}/.pluxx-user.json" "$PLUXX_SAVED_USER_CONFIG_PATH"
+  cp "$PLUXX_USER_CONFIG_SOURCE" "$PLUXX_SAVED_USER_CONFIG_PATH"
 fi
 export PLUXX_SAVED_USER_CONFIG_PATH
 `
@@ -3077,7 +3079,7 @@ REPO="\${PLUXX_PLUGIN_REPO:-REPO_PLACEHOLDER}"
 PLUGIN_NAME="\${PLUXX_PLUGIN_NAME:-PLUGIN_PLACEHOLDER}"
 BUNDLE_URL="\${PLUXX_OPENCODE_BUNDLE_URL:-https://github.com/\${REPO}/releases/download/vVERSION_PLACEHOLDER/OPENCODE_BUNDLE_PLACEHOLDER}"
 PLUGIN_ROOT_DIR="\${PLUXX_OPENCODE_PLUGIN_ROOT_DIR:-$HOME/.config/opencode/plugins}"
-INSTALL_DIR="\${PLUXX_OPENCODE_INSTALL_DIR:-$PLUGIN_ROOT_DIR/$PLUGIN_NAME}"
+INSTALL_DIR="\${PLUXX_OPENCODE_INSTALL_DIR:-$HOME/.config/opencode/pluxx/$PLUGIN_NAME}"
 ENTRY_PATH="\${PLUXX_OPENCODE_ENTRY_PATH:-$PLUGIN_ROOT_DIR/$PLUGIN_NAME.ts}"
 SKILLS_ROOT="\${PLUXX_OPENCODE_SKILLS_ROOT:-$HOME/.config/opencode/skills}"
 BUNDLE_PATH="\${PLUXX_OPENCODE_BUNDLE_PATH:-}"
@@ -3085,6 +3087,63 @@ ${renderInstallerTransactionHelpers('opencode')}
 ${renderInstallerResultCliSnippet()}
 PLUXX_OPENCODE_COMPANION_STAGE=""
 PLUXX_OPENCODE_COMPANION_JOURNAL=""
+PLUXX_OPENCODE_LEGACY_PATH="$PLUGIN_ROOT_DIR/$PLUGIN_NAME"
+PLUXX_OPENCODE_LEGACY_BACKUP=""
+PLUXX_OPENCODE_LEGACY_LEDGER=""
+
+pluxx_opencode_legacy_cleanup() {
+  [[ -n "$PLUXX_OPENCODE_LEGACY_BACKUP" && ( -e "$PLUXX_OPENCODE_LEGACY_BACKUP" || -L "$PLUXX_OPENCODE_LEGACY_BACKUP" ) ]] || return 0
+  if [[ "$PLUXX_TX_COMMITTED" == "1" ]]; then
+    rm -rf "$PLUXX_OPENCODE_LEGACY_BACKUP"
+    if [[ "$PLUXX_OPENCODE_LEGACY_LEDGER" != "$PLUXX_TX_OWNERSHIP_PATH" ]]; then rm -f "$PLUXX_OPENCODE_LEGACY_LEDGER"; fi
+  else
+    mv "$PLUXX_OPENCODE_LEGACY_BACKUP" "$PLUXX_OPENCODE_LEGACY_PATH"
+  fi
+  PLUXX_OPENCODE_LEGACY_BACKUP=""
+}
+
+pluxx_prepare_opencode_migration() {
+  [[ "$INSTALL_DIR" != "$PLUXX_OPENCODE_LEGACY_PATH" ]] || { echo "OpenCode bundle must be outside plugins/" >&2; return 1; }
+  [[ -e "$PLUXX_OPENCODE_LEGACY_PATH" || -L "$PLUXX_OPENCODE_LEGACY_PATH" ]] || return 0
+  export PLUXX_OPENCODE_LEGACY_PATH PLUXX_TX_OWNERSHIP_PATH PLUGIN_NAME
+  export PLUXX_OPENCODE_LEGACY_LEDGER_FILE="$TMP_DIR/opencode-legacy-ledger"
+  node <<'NODE'
+const fs = require('fs')
+const path = require('path')
+const crypto = require('crypto')
+const root = process.env.PLUXX_OPENCODE_LEGACY_PATH
+const home = path.resolve(process.env.HOME)
+const roots = ['.claude/plugins', '.cursor/plugins', '.codex/plugins', '.config/opencode'].map(value => path.join(home, value))
+const resolvedRoot = path.resolve(root)
+const ownershipRoot = roots.some(value => resolvedRoot === value || resolvedRoot.startsWith(value + path.sep))
+  ? path.join(home, '.pluxx/install-ownership') : path.join(path.dirname(resolvedRoot), '.pluxx-install-ownership')
+const ledger = path.join(ownershipRoot, process.env.PLUGIN_NAME, 'opencode.json')
+if (!fs.existsSync(ledger)) throw new Error('Refusing unowned legacy OpenCode discovery path: ' + root)
+const record = JSON.parse(fs.readFileSync(ledger, 'utf8'))
+if (record.schema !== 'pluxx.install-ownership.v1' || record.pluginName !== process.env.PLUGIN_NAME || record.platform !== 'opencode' || !['copy', 'symlink'].includes(record.kind) || path.resolve(record.installPath) !== path.resolve(root)) throw new Error('Invalid legacy OpenCode ownership')
+fs.writeFileSync(process.env.PLUXX_OPENCODE_LEGACY_LEDGER_FILE, ledger)
+if (record.kind === 'symlink') {
+  if (!fs.lstatSync(root).isSymbolicLink() || fs.readlinkSync(root) !== record.symlinkTarget) throw new Error('Refusing modified legacy OpenCode symlink: ' + root)
+  process.exit(0)
+}
+if (fs.lstatSync(root).isSymbolicLink() || !fs.lstatSync(root).isDirectory()) throw new Error('Invalid legacy OpenCode directory: ' + root)
+const actual = []
+const visit = dir => {
+  for (const name of fs.readdirSync(dir).sort()) {
+    const file = path.join(dir, name)
+    const stat = fs.lstatSync(file)
+    if (stat.isDirectory()) visit(file)
+    else actual.push({ path: path.relative(root, file).split(path.sep).join('/'), kind: stat.isSymbolicLink() ? 'symlink' : 'file', sha256: crypto.createHash('sha256').update(stat.isSymbolicLink() ? fs.readlinkSync(file) : fs.readFileSync(file)).digest('hex') })
+  }
+}
+visit(root)
+const expected = new Map(record.entries.map(entry => [entry.path, entry]))
+if (actual.length !== expected.size || actual.some(entry => expected.get(entry.path)?.kind !== entry.kind || expected.get(entry.path)?.sha256 !== entry.sha256)) throw new Error('Refusing modified legacy OpenCode discovery path: ' + root)
+NODE
+  PLUXX_OPENCODE_LEGACY_LEDGER="$(<"$PLUXX_OPENCODE_LEGACY_LEDGER_FILE")"
+  PLUXX_OPENCODE_LEGACY_BACKUP="$(dirname "$INSTALL_DIR")/.$PLUGIN_NAME.pluxx-legacy-$$"
+  mv "$PLUXX_OPENCODE_LEGACY_PATH" "$PLUXX_OPENCODE_LEGACY_BACKUP"
+}
 
 pluxx_opencode_companion_cleanup() {
   [[ -n "$PLUXX_OPENCODE_COMPANION_JOURNAL" && -f "$PLUXX_OPENCODE_COMPANION_JOURNAL" ]] || return 0
@@ -3201,7 +3260,10 @@ const toOpenCodeExportName = (name) => name
   .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
   .join('')
 const normalizeOpenCodeEntryContent = (content) => content.replace(/\\r\\n/g, '\\n').trim()
+const relativeBundleEntry = path.relative(path.dirname(entryPath), path.join(installDir, 'index.ts')).split(path.sep).join('/')
+const bundleEntry = relativeBundleEntry.startsWith('.') ? relativeBundleEntry : './' + relativeBundleEntry
 const currentOpenCodeWrapperContent = () => ${JSON.stringify(entryFileTemplate)}
+  .replace(${JSON.stringify('../pluxx/' + pluginNameToken + '/index.ts')}, bundleEntry)
   .replaceAll(${JSON.stringify(pluginNameToken)}, pluginName)
   .replaceAll(${JSON.stringify(exportNameToken)}, toOpenCodeExportName(pluginName))
 fs.mkdirSync(stageRoot, { recursive: true })
@@ -3233,6 +3295,7 @@ const legacyOpenCodeWrapperContent = () => {
 const isRecognizedOpenCodeWrapper = (content) => {
   const normalized = normalizeOpenCodeEntryContent(content)
   return normalized === normalizeOpenCodeEntryContent(currentOpenCodeWrapperContent())
+    || normalized === normalizeOpenCodeEntryContent(${JSON.stringify(entryFileTemplate)}.replaceAll(${JSON.stringify(pluginNameToken)}, pluginName))
     || normalized === normalizeOpenCodeEntryContent(legacyOpenCodeWrapperContent())
 }
 const isTrustedLegacyOpenCodeCompanion = (candidate) => {
@@ -3361,6 +3424,7 @@ cleanup() {
   if [[ "$status" != "0" ]]; then pluxx_emit_install_result failed installer-failed "installer exited with status $status" || true; fi
   pluxx_opencode_companion_cleanup
   pluxx_tx_cleanup
+  pluxx_opencode_legacy_cleanup
   rm -rf "$TMP_DIR"
   return "$status"
 }
@@ -3392,6 +3456,7 @@ pluxx_begin_install_transaction "$BUNDLE_DIR"
 ${renderInstallerUserConfigSnippet(config, 'opencode', '$PLUXX_TX_STAGE')}
 ${renderInstallerMcpPathMaterializationSnippet('opencode', '$PLUXX_TX_STAGE', '$INSTALL_DIR')}
 ${renderInstallerRuntimeBootstrapSnippet('$PLUXX_TX_STAGE')}
+pluxx_prepare_opencode_migration
 OPENCODE_COMPANIONS_CURRENT=1
 [[ -f "$ENTRY_PATH" ]] || OPENCODE_COMPANIONS_CURRENT=0
 if [[ -d "$PLUXX_TX_STAGE/skills" ]]; then
@@ -3400,7 +3465,7 @@ if [[ -d "$PLUXX_TX_STAGE/skills" ]]; then
     [[ -d "$SKILLS_ROOT/$PLUGIN_NAME-$(basename "$skill_dir")" ]] || OPENCODE_COMPANIONS_CURRENT=0
   done
 fi
-if [[ "$OPENCODE_COMPANIONS_CURRENT" == "1" ]] && pluxx_current_install_unchanged "$PLUXX_TX_STAGE"; then
+if [[ "$OPENCODE_COMPANIONS_CURRENT" == "1" && -z "$PLUXX_OPENCODE_LEGACY_BACKUP" ]] && pluxx_current_install_unchanged "$PLUXX_TX_STAGE"; then
   pluxx_emit_install_result unchanged already-current
   echo "Install is already current for $PLUGIN_NAME (unchanged)."
   exit 0
@@ -3459,6 +3524,7 @@ pluxx_commit_opencode_companions
 pluxx_commit_install_transaction
 PLUXX_TX_COMMITTED=1
 pluxx_finalize_opencode_companions
+pluxx_opencode_legacy_cleanup
 pluxx_emit_install_result "$PLUXX_TX_RESULT_STATE"
 pluxx_discard_install_transaction
 

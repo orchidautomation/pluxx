@@ -10,7 +10,7 @@ const ROOT = resolve(import.meta.dir, '.verify-install-fixture')
 const DIST_DIR = resolve(ROOT, 'dist')
 const HOME_DIR = resolve(ROOT, 'home')
 const CURSOR_INSTALL_PATH = '.cursor/plugins/local/verify-plugin'
-const OPENCODE_PLUGIN_PATH = '.config/opencode/plugins/verify-plugin'
+const OPENCODE_PLUGIN_PATH = '.config/opencode/pluxx/verify-plugin'
 const OPENCODE_ENTRY_PATH = '.config/opencode/plugins/verify-plugin.ts'
 const OPENCODE_SKILL_PATH = '.config/opencode/skills/verify-plugin-client-intel'
 
@@ -361,7 +361,7 @@ describe('verifyInstall', () => {
         },
       }),
     )
-    writeFileSync(resolve(DIST_DIR, 'opencode/index.ts'), 'export const VerifyPlugin = async () => ({});\n')
+    writeFileSync(resolve(DIST_DIR, 'opencode/index.ts'), 'export default { id: "verify-plugin", setup: async () => {}, server: async () => ({config: async () => {}}) };\n')
     writeFileSync(
       resolve(DIST_DIR, 'opencode/skills/client-intel/SKILL.md'),
       '---\nname: client-intel\ndescription: Client intel\n---\n\n# Client Intel\n',
@@ -399,7 +399,7 @@ describe('verifyInstall', () => {
         },
       }),
     )
-    writeFileSync(resolve(DIST_DIR, 'opencode/index.ts'), 'export const VerifyPlugin = async () => ({});\n')
+    writeFileSync(resolve(DIST_DIR, 'opencode/index.ts'), 'export default { id: "verify-plugin", setup: async () => {}, server: async () => ({config: async () => {}}) };\n')
     writeFileSync(
       resolve(DIST_DIR, 'opencode/skills/client-intel/SKILL.md'),
       '---\nname: client-intel\ndescription: Client intel\n---\n\n# Client Intel\n',
@@ -438,7 +438,7 @@ describe('verifyInstall', () => {
         },
       }),
     )
-    writeFileSync(resolve(DIST_DIR, 'opencode/index.ts'), 'export const VerifyPlugin = async () => ({});\n')
+    writeFileSync(resolve(DIST_DIR, 'opencode/index.ts'), 'export default { id: "verify-plugin", setup: async () => {}, server: async () => ({config: async () => {}}) };\n')
     writeFileSync(
       resolve(DIST_DIR, 'opencode/skills/client-intel/SKILL.md'),
       '---\nname: client-intel\ndescription: Client intel\n---\n\n# Client Intel\n',
@@ -491,7 +491,7 @@ describe('verifyInstall', () => {
         },
       }),
     )
-    writeFileSync(resolve(DIST_DIR, 'opencode/index.ts'), 'export const VerifyPlugin = async () => ({});\n')
+    writeFileSync(resolve(DIST_DIR, 'opencode/index.ts'), 'export default { id: "verify-plugin", setup: async () => {}, server: async () => ({config: async () => {}}) };\n')
     writeFileSync(
       resolve(DIST_DIR, 'opencode/skills/client-intel/SKILL.md'),
       '---\nname: client-intel\ndescription: Client intel\n---\n\n# Client Intel\n',
@@ -530,7 +530,7 @@ describe('verifyInstall', () => {
         },
       }),
     )
-    writeFileSync(resolve(DIST_DIR, 'opencode/index.ts'), 'export const VerifyPlugin = async () => ({});\n')
+    writeFileSync(resolve(DIST_DIR, 'opencode/index.ts'), 'export default { id: "verify-plugin", setup: async () => {}, server: async () => ({config: async () => {}}) };\n')
     writeFileSync(
       resolve(DIST_DIR, 'opencode/skills/client-intel/SKILL.md'),
       '---\nname: client-intel\ndescription: Client intel\n---\n\n# Client Intel\n',

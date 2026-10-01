@@ -1,7 +1,8 @@
 import { verifyClaudePlugin, type ClaudeInventoryRunner, type ClaudePluginVerification } from '../claude-plugin-inventory'
 import { createHash } from 'crypto'
 import { existsSync, lstatSync, readdirSync, readFileSync, readlinkSync, realpathSync, statSync } from 'fs'
-import { resolve } from 'path'
+import { dirname, resolve } from 'path'
+import { probeOpenCodeDefinition } from '../opencode-probe'
 import type { PluginConfig, TargetPlatform } from '../schema'
 import { doctorConsumer, type DoctorCheck, type DoctorLevel } from './doctor'
 import { planInstallPlugin, resolveInstalledConsumerPath, type PlannedInstallTarget } from './install'
@@ -308,6 +309,20 @@ export async function verifyInstall(
         ? native.observation.installPath
         : native ? target.pluginDir : resolveInstalledConsumerPath(target, config.name)
       const report = await doctorConsumer(consumerPath, { projectRoot: rootDir })
+      if (target.platform === 'opencode') {
+        const duplicate = resolve(dirname(consumerPath), '../plugins', config.name)
+        if (lstatSync(duplicate, { throwIfNoEntry: false })) {
+          report.errors++
+          report.checks.push({ level: 'error', code: 'consumer-opencode-duplicate-discovery', title: 'Duplicate OpenCode discovery path',
+            detail: `Duplicate OpenCode discovery path: ${duplicate}.`, fix: 'Preserve unowned content and move the stale discovery path aside before reinstalling.', path: duplicate })
+        } else try {
+          await probeOpenCodeDefinition(resolve(dirname(consumerPath), '../plugins', `${config.name}.ts`), consumerPath, config.name, Object.keys(config.mcp ?? {}))
+        } catch (error) {
+          report.errors++
+          report.checks.push({ level: 'error', code: 'consumer-opencode-load-failed', title: 'Installed OpenCode definition cannot register',
+            detail: error instanceof Error ? error.message : String(error), fix: 'Rebuild and reinstall with OpenCode 2 support and its pinned SDK dependency.', path: 'index.ts' })
+        }
+      }
       const check = buildCheckFromReport(target, config.name, report, consumerPath)
       if (native) {
         check.nativeVerification = native

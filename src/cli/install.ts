@@ -1,7 +1,7 @@
 import { readClaudePluginInventory, selectClaudePlugin, verifyClaudePlugin } from '../claude-plugin-inventory'
 import { inspectCodexPluginCollisions, codexRequestedIdentity, CodexPluginCollisionError } from '../codex-plugin-collisions'
 import { resolve, dirname, basename, relative } from 'path'
-import { existsSync, symlinkSync, mkdirSync, rmSync, readFileSync, writeFileSync, cpSync, readdirSync, statSync } from 'fs'
+import { existsSync, lstatSync, symlinkSync, mkdirSync, rmSync, readFileSync, writeFileSync, cpSync, readdirSync, statSync } from 'fs'
 import { spawnSync } from 'child_process'
 import * as readline from 'readline'
 import type { PluginConfig, TargetPlatform, UserConfigEntry } from '../schema'
@@ -329,8 +329,8 @@ function getInstallTargets(pluginName: string): InstallTarget[] {
     },
     {
       platform: 'opencode',
-      pluginDir: resolve(home, '.config/opencode/plugins', pluginName),
-      description: `~/.config/opencode/plugins/${pluginName}.ts + ~/.config/opencode/plugins/${pluginName}/`,
+      pluginDir: resolve(home, '.config/opencode/pluxx', pluginName),
+      description: `~/.config/opencode/plugins/${pluginName}.ts + ~/.config/opencode/pluxx/${pluginName}/`,
     },
     {
       platform: 'github-copilot',
@@ -371,7 +371,7 @@ function getInstallTargets(pluginName: string): InstallTarget[] {
 }
 
 function getOpenCodeEntryPath(pluginDir: string): string {
-  return `${pluginDir}.ts`
+  return resolve(dirname(pluginDir), '../plugins', `${basename(pluginDir)}.ts`)
 }
 
 function getOpenCodeSkillRoot(): string {
@@ -427,13 +427,13 @@ function verifyOpenCodeInstall(pluginDir: string, pluginName: string): void {
   }
 
   const entryContent = readFileSync(entryPath, 'utf-8')
-  const expectedImport = `import * as PluginModule from "./${pluginName}/index.ts"`
+  const expectedImport = `export { default } from "../pluxx/${pluginName}/index.ts"`
   if (!entryContent.includes(expectedImport)) {
-    throw new Error(`OpenCode install is incomplete: ${entryPath} does not import ./${pluginName}/index.ts`)
+    throw new Error(`OpenCode install is incomplete: ${entryPath} does not default-export ../pluxx/${pluginName}/index.ts`)
   }
 
   if (!isCurrentOpenCodeEntryFile(entryContent, pluginName)) {
-    throw new Error(`OpenCode install is incomplete: ${entryPath} does not pass the host workspace context through unchanged`)
+    throw new Error(`OpenCode install is incomplete: ${entryPath} does not match the single default-export OpenCode entry`)
   }
 
   const sourceSkillsDir = resolve(pluginDir, 'skills')
@@ -495,6 +495,8 @@ function createOpenCodeInstall(
   transactionalInstallGroup({
     pluginName,
     platform: 'opencode',
+    previousInstallPath: resolve(dirname(target.pluginDir), '../plugins', pluginName),
+    verify: () => verifyOpenCodeInstall(target.pluginDir, pluginName),
     targets: [
       {
         sourcePath: target.sourceDir,
@@ -1504,7 +1506,7 @@ export function planInstallPlugin(
       ...target,
       sourceDir,
       built: existsSync(sourceDir),
-      existing: existsSync(target.pluginDir),
+      existing: !!lstatSync(target.pluginDir, { throwIfNoEntry: false }) || (target.platform === 'opencode' && !!lstatSync(resolve(dirname(target.pluginDir), '../plugins', pluginName), { throwIfNoEntry: false })),
     }
   })
   if (platforms?.includes('agent-plugins')) {

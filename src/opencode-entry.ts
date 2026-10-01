@@ -7,22 +7,9 @@ export function toOpenCodeExportName(value: string): string {
 }
 
 export function buildOpenCodeEntryFile(pluginName: string): string {
-  const exportName = toOpenCodeExportName(pluginName)
   return [
-    'import type { Plugin } from "@opencode-ai/plugin"',
-    '',
-    `import * as PluginModule from "./${pluginName}/index.ts"`,
-    '',
-    '// OpenCode auto-loads plugin files placed directly in ~/.config/opencode/plugins.',
-    '// Proxy into the installed Pluxx bundle while preserving the host workspace context.',
-    'const pluginFactory = Object.values(PluginModule).find((value): value is Plugin => typeof value === "function")',
-    '',
-    'if (!pluginFactory) {',
-    `  throw new Error("OpenCode plugin bundle for ${pluginName} did not export a plugin function.")`,
-    '}',
-    '',
-    `export const ${exportName}: Plugin = async (context) =>`,
-    '  pluginFactory(context)',
+    '// One discovered entry; supporting files live outside plugins/.',
+    `export { default } from "../pluxx/${pluginName}/index.ts"`,
     '',
   ].join('\n')
 }
