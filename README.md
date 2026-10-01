@@ -259,7 +259,7 @@ The canonical compiler model now has nine larger buckets. Eight are implemented;
 - check the active global CLI version with: `pluxx --version`
 - upgrade the active global CLI with: `pluxx upgrade`
 - published CLI runtime: Node `>=18`
-- source builds and maintainer workflows also run on Node `>=18`
+- source builds and maintainer workflows use Node `^22.22.2 || ^24.15.0 || >=26` for the pinned OpenCode 2 development SDK; the published CLI still runs on Node `>=18`
 - runtime contract: [docs/runtime-contract.md](./docs/runtime-contract.md)
 
 ## Read Next

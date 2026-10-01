@@ -3079,7 +3079,7 @@ REPO="\${PLUXX_PLUGIN_REPO:-REPO_PLACEHOLDER}"
 PLUGIN_NAME="\${PLUXX_PLUGIN_NAME:-PLUGIN_PLACEHOLDER}"
 BUNDLE_URL="\${PLUXX_OPENCODE_BUNDLE_URL:-https://github.com/\${REPO}/releases/download/vVERSION_PLACEHOLDER/OPENCODE_BUNDLE_PLACEHOLDER}"
 PLUGIN_ROOT_DIR="\${PLUXX_OPENCODE_PLUGIN_ROOT_DIR:-$HOME/.config/opencode/plugins}"
-INSTALL_DIR="\${PLUXX_OPENCODE_INSTALL_DIR:-$HOME/.config/opencode/pluxx/$PLUGIN_NAME}"
+INSTALL_DIR="\${PLUXX_OPENCODE_INSTALL_DIR:-$(dirname "$PLUGIN_ROOT_DIR")/pluxx/$PLUGIN_NAME}"
 ENTRY_PATH="\${PLUXX_OPENCODE_ENTRY_PATH:-$PLUGIN_ROOT_DIR/$PLUGIN_NAME.ts}"
 SKILLS_ROOT="\${PLUXX_OPENCODE_SKILLS_ROOT:-$HOME/.config/opencode/skills}"
 BUNDLE_PATH="\${PLUXX_OPENCODE_BUNDLE_PATH:-}"
@@ -3102,25 +3102,22 @@ pluxx_opencode_legacy_cleanup() {
   PLUXX_OPENCODE_LEGACY_BACKUP=""
 }
 
-pluxx_prepare_opencode_migration() {
-  [[ "$INSTALL_DIR" != "$PLUXX_OPENCODE_LEGACY_PATH" ]] || { echo "OpenCode bundle must be outside plugins/" >&2; return 1; }
-  [[ -e "$PLUXX_OPENCODE_LEGACY_PATH" || -L "$PLUXX_OPENCODE_LEGACY_PATH" ]] || return 0
-  export PLUXX_OPENCODE_LEGACY_PATH PLUXX_TX_OWNERSHIP_PATH PLUGIN_NAME
-  export PLUXX_OPENCODE_LEGACY_LEDGER_FILE="$TMP_DIR/opencode-legacy-ledger"
+pluxx_validate_opencode_legacy_path() {
   node <<'NODE'
 const fs = require('fs')
 const path = require('path')
 const crypto = require('crypto')
-const root = process.env.PLUXX_OPENCODE_LEGACY_PATH
+const legacyPath = process.env.PLUXX_OPENCODE_LEGACY_PATH
+const root = process.env.PLUXX_OPENCODE_VALIDATION_PATH
 const home = path.resolve(process.env.HOME)
 const roots = ['.claude/plugins', '.cursor/plugins', '.codex/plugins', '.config/opencode'].map(value => path.join(home, value))
-const resolvedRoot = path.resolve(root)
-const ownershipRoot = roots.some(value => resolvedRoot === value || resolvedRoot.startsWith(value + path.sep))
-  ? path.join(home, '.pluxx/install-ownership') : path.join(path.dirname(resolvedRoot), '.pluxx-install-ownership')
+const resolvedLegacy = path.resolve(legacyPath)
+const ownershipRoot = roots.some(value => resolvedLegacy === value || resolvedLegacy.startsWith(value + path.sep))
+  ? path.join(home, '.pluxx/install-ownership') : path.join(path.dirname(resolvedLegacy), '.pluxx-install-ownership')
 const ledger = path.join(ownershipRoot, process.env.PLUGIN_NAME, 'opencode.json')
 if (!fs.existsSync(ledger)) throw new Error('Refusing unowned legacy OpenCode discovery path: ' + root)
 const record = JSON.parse(fs.readFileSync(ledger, 'utf8'))
-if (record.schema !== 'pluxx.install-ownership.v1' || record.pluginName !== process.env.PLUGIN_NAME || record.platform !== 'opencode' || !['copy', 'symlink'].includes(record.kind) || path.resolve(record.installPath) !== path.resolve(root)) throw new Error('Invalid legacy OpenCode ownership')
+if (record.schema !== 'pluxx.install-ownership.v1' || record.pluginName !== process.env.PLUGIN_NAME || record.platform !== 'opencode' || !['copy', 'symlink'].includes(record.kind) || path.resolve(record.installPath) !== resolvedLegacy) throw new Error('Invalid legacy OpenCode ownership')
 fs.writeFileSync(process.env.PLUXX_OPENCODE_LEGACY_LEDGER_FILE, ledger)
 if (record.kind === 'symlink') {
   if (!fs.lstatSync(root).isSymbolicLink() || fs.readlinkSync(root) !== record.symlinkTarget) throw new Error('Refusing modified legacy OpenCode symlink: ' + root)
@@ -3140,6 +3137,31 @@ visit(root)
 const expected = new Map(record.entries.map(entry => [entry.path, entry]))
 if (actual.length !== expected.size || actual.some(entry => expected.get(entry.path)?.kind !== entry.kind || expected.get(entry.path)?.sha256 !== entry.sha256)) throw new Error('Refusing modified legacy OpenCode discovery path: ' + root)
 NODE
+}
+
+pluxx_recover_opencode_legacy_backup() {
+  local candidate
+  local backups=()
+  for candidate in "$(dirname "$INSTALL_DIR")/.$PLUGIN_NAME.pluxx-legacy-"*; do
+    [[ -e "$candidate" || -L "$candidate" ]] && backups+=("$candidate")
+  done
+  [[ "\${#backups[@]}" == "0" ]] && return 0
+  [[ "\${#backups[@]}" == "1" && ! -e "$PLUXX_OPENCODE_LEGACY_PATH" && ! -L "$PLUXX_OPENCODE_LEGACY_PATH" ]] || {
+    echo "Retained OpenCode legacy backup requires manual inspection; refusing automatic recovery." >&2
+    return 1
+  }
+  PLUXX_OPENCODE_VALIDATION_PATH="\${backups[0]}" pluxx_validate_opencode_legacy_path
+  mkdir -p "$(dirname "$PLUXX_OPENCODE_LEGACY_PATH")"
+  mv "\${backups[0]}" "$PLUXX_OPENCODE_LEGACY_PATH"
+}
+
+pluxx_prepare_opencode_migration() {
+  [[ "$INSTALL_DIR" != "$PLUXX_OPENCODE_LEGACY_PATH" ]] || { echo "OpenCode bundle must be outside plugins/" >&2; return 1; }
+  export PLUXX_OPENCODE_LEGACY_PATH PLUXX_TX_OWNERSHIP_PATH PLUGIN_NAME
+  export PLUXX_OPENCODE_LEGACY_LEDGER_FILE="$TMP_DIR/opencode-legacy-ledger"
+  pluxx_recover_opencode_legacy_backup
+  [[ -e "$PLUXX_OPENCODE_LEGACY_PATH" || -L "$PLUXX_OPENCODE_LEGACY_PATH" ]] || return 0
+  PLUXX_OPENCODE_VALIDATION_PATH="$PLUXX_OPENCODE_LEGACY_PATH" pluxx_validate_opencode_legacy_path
   PLUXX_OPENCODE_LEGACY_LEDGER="$(<"$PLUXX_OPENCODE_LEGACY_LEDGER_FILE")"
   PLUXX_OPENCODE_LEGACY_BACKUP="$(dirname "$INSTALL_DIR")/.$PLUGIN_NAME.pluxx-legacy-$$"
   mv "$PLUXX_OPENCODE_LEGACY_PATH" "$PLUXX_OPENCODE_LEGACY_BACKUP"

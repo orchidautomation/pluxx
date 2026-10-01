@@ -6,9 +6,11 @@ PLUXX-355 changes the generated OpenCode entry and installation contract. This i
 
 Generated bundles default-export one stable plugin ID with V2 `setup(ctx)` and V1 `server(context)`. Supporting functions are private. The package pins `@opencode/plugin` to 2.0.20 and declares V1 `@opencode-ai/plugin >=1.18.29`. The default object follows the [official dual-entry migration contract](https://opencode.ai/v2/docs/build/plugins/migrate-v1/).
 
+OpenCode 2 event subscriptions observe events asynchronously and cannot enforce `failClosed` event hooks. A generated bundle with that configuration fails V2 setup with an explicit diagnostic; use the supported V1 bridge or remove that policy until a synchronous V2 hook is available. Tool hooks retain their fail-closed behavior through V2 hook callbacks.
+
 Local installs place the bundle at `~/.config/opencode/pluxx/<name>` and one default-only wrapper at `~/.config/opencode/plugins/<name>.ts`. Skills remain at `~/.config/opencode/skills/<name>-<skill>`. Generated release installers use the same default layout and compute the wrapper import for custom paths.
 
-An unchanged ownership ledger is required to remove the legacy discovered bundle at `plugins/<name>`. Unowned or modified legacy bundles remain intact and cause an actionable collision error. Migration checks run before the already-current exit, validate the legacy path against its own ledger (including custom roots and dangling symlinks), and keep temporary legacy backups outside discovery. Bundle, wrapper, skills, and ownership changes roll back together on a handled install failure. Interrupted release installs retain existing transaction recovery behavior; users should inspect retained backups before retrying.
+An unchanged ownership ledger is required to remove the legacy discovered bundle at `plugins/<name>`. Unowned or modified legacy bundles remain intact and cause an actionable collision error. Migration checks run before the already-current exit, validate the legacy path against its own ledger (including custom roots and dangling symlinks), and keep temporary legacy backups outside discovery. Bundle, wrapper, skills, and ownership changes roll back together on a handled install failure. On rerun after an interruption, the release installer restores one verified owned legacy backup before retrying migration. Ambiguous or modified backups require manual inspection and remain untouched.
 
 ## Translation and limits
 
@@ -25,7 +27,7 @@ An unchanged ownership ledger is required to remove the legacy discovered bundle
 
 V1 preserves the original config/hook handlers through `server()`. Releases below 1.18.29 are outside the object-entry compatibility window. V1 hook regression and pinned SDK typechecking prove source behavior. An isolated OpenCode 1.18.29 smoke also loads the installed default wrapper through the V1 bridge, exposes the doctor command, and connects the fixture MCP server.
 
-`verify-install` checks the default entry, duplicate legacy discovery, ownership drift, and installed V1 `server()`/config and V2 `setup()` probes with the configured MCP names. Duplicate legacy discovery has its own move-aside advisory. The probe loads code and registers into a test context without connecting MCP or invoking hooks. It does not prove real-host loading, a successful MCP handshake, or a model session. Missing runtime imports and registration failures are errors.
+`verify-install` checks the default entry, duplicate legacy discovery, ownership drift, and installed V1 `server()`/config and V2 `setup()` probes with the configured MCP names. Duplicate legacy discovery has its own move-aside advisory. The probe loads code and registers into a test context without connecting MCP or running domain hooks; the V1 config hook runs during setup to materialize MCP definitions. It does not prove real-host loading, a successful MCP handshake, or a model session. Missing runtime imports and registration failures are errors.
 
 ## Proof and remaining acceptance
 
